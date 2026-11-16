@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -28,13 +27,10 @@ _FAILURE = "provider failed"
 
 
 @pytest.fixture
-def sessions() -> Iterator[tuple[str, str]]:
-    """A session whose goal reads fine and one that fails; both leave the process-wide registry after."""
+def sessions() -> tuple[str, str]:
+    """A session whose goal reads fine and one that fails."""
     token = uuid.uuid4().hex
-    healthy, failing = f"active-goals-ok-{token}", f"active-goals-failing-{token}"
-    yield healthy, failing
-    GoalRegistry.unregister(healthy)
-    GoalRegistry.unregister(failing)
+    return f"active-goals-ok-{token}", f"active-goals-failing-{token}"
 
 
 def _list_active_goals(client: TestClient) -> dict[str, str]:
@@ -53,8 +49,8 @@ async def test_a_provider_that_raises_is_warned_about_and_the_other_goals_are_st
     client: TestClient, sessions: tuple[str, str], caplog: pytest.LogCaptureFixture
 ) -> None:
     healthy, failing = sessions
-    goal = await GoalRegistry.get_or_create_provider(healthy).create_goal(healthy, "Ship the quarterly report")
-    failing_provider = GoalRegistry.get_or_create_provider(failing)
+    goal = await GoalRegistry.register(healthy).create_goal(healthy, "Ship the quarterly report")
+    failing_provider = GoalRegistry.register(failing)
 
     with (
         patch.object(failing_provider, "get_latest_goal", new=AsyncMock(side_effect=RuntimeError(_FAILURE))),
@@ -72,8 +68,8 @@ async def test_an_unreadable_index_is_named_once_and_the_other_goals_are_still_l
     client: TestClient, sessions: tuple[str, str], tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     healthy, damaged = sessions
-    goal = await GoalRegistry.get_or_create_provider(healthy).create_goal(healthy, "Ship the quarterly report")
-    GoalRegistry.get_or_create_provider(damaged)
+    goal = await GoalRegistry.register(healthy).create_goal(healthy, "Ship the quarterly report")
+    GoalRegistry.register(damaged)
     (tmp_path / "goals_latest" / damaged).mkdir(parents=True)  # a directory where the index file belongs
 
     with caplog.at_level(logging.WARNING, logger=_STORAGE_LOGGER):

@@ -11,7 +11,7 @@ tools, memory, security).
 - myrm_agent_harness.toolkits.kanban.types::KanbanTask, TaskTimeoutError (POS: Kanban domain types.)
 - myrm_agent_harness.agent.goals.protocols::GoalProvider (POS: Goal lifecycle protocol.)
 - myrm_agent_harness.api.hooks::deferral_wait_s (POS: Waitable provider usage-limit window of an LLM error.)
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: Session-level goal management.)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: Registry of the goal providers of running turns; a goal-mode run registers its provider and gives it back.)
 - task_runner.stream::build_multimodal_query, _StreamAccumulator (POS: Multimodal query assembly; the accumulator of a run's stream, which tells whether it stopped for an approval.)
 - task_runner.worktree::resolve_workspace, cleanup_worktree, merge_task_worktree, hold_for_unlanded_parents, hold_for_unusable_workdir (POS: Git worktree isolation and the run-entry gates on parents' failed merges and on a too-broad working folder.)
 - task_runner.profile::resolve_agent_profile (POS: Agent profile resolution.)
@@ -173,7 +173,7 @@ class KanbanTaskRunner:
             finally:
                 self._unregister_background_tokens(task)
                 if goal_provider:
-                    GoalRegistry.unregister(f"kanban:{task.task_id}")
+                    GoalRegistry.unregister(f"kanban:{task.task_id}", goal_provider)
 
     @staticmethod
     def _augment_context(
@@ -322,11 +322,11 @@ class KanbanTaskRunner:
         )
 
     async def _setup_goal_provider(self, task: KanbanTask) -> GoalProvider:
-        """Create or resume a GoalProvider for a goal-mode kanban task."""
+        """Register the GoalProvider of a goal-mode kanban task's run, creating or resuming the task's goal."""
         from myrm_agent_harness.agent.goals.types import GoalBudget, GoalStatus
 
         session_id = f"kanban:{task.task_id}"
-        provider = GoalRegistry.get_or_create_provider(session_id)
+        provider = GoalRegistry.register(session_id)
 
         active = await provider.get_active_goal(session_id)
         if active:

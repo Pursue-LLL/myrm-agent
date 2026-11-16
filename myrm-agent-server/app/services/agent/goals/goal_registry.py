@@ -9,13 +9,14 @@
 - app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
-- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；turn_provider 为服务端自启的回合登记句柄并在回合结束时归还；resolve_provider 为 HTTP API、IM 命令与回合之外的服务端逻辑取 provider（已注册的，否则一个不注册的、绑定该会话的 ServerGoalManager，直读存储）；has_active_goal 读存储真值（与 provider 是否注册无关）
+- GoalRegistry: 全局注册表，通过 session_id 管理运行中回合的 GoalProvider；register 为一个回合新建 provider 并登记（同会话的旧条目被替换），unregister 带着该 provider 归还（条目已是别的回合的则不动）；turn_provider 为服务端自启的回合登记句柄并在回合结束时按句柄归还；resolve_provider 为 HTTP API、IM 命令与回合之外的服务端逻辑取 provider（已注册的，否则一个不注册的、绑定该会话的 ServerGoalManager，直读存储）；has_active_goal 读存储真值（与 provider 是否注册无关）
 - ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时的会话交付物汇总
 
 [POS]
 会话级 Goal 注册表。使 HTTP API 能够通过 session_id 定位正在运行的
 Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢复）；
-注册只属于运行中的回合：聊天回合在编排器登记、流收尾时归还，服务端自启的回合（无人值守目标续跑）经 turn_provider 同样随回合登记与归还。
+注册只属于运行中的回合，并归登记它的那个回合：聊天回合在编排器登记、流收尾时按自己的 provider 归还，服务端自启的回合（无人值守目标续跑）经 turn_provider 同样随回合登记与归还。
+网关在回合收尾结束之前就归还会话，服务端可在这段时间内启动同一会话的下一个回合，所以较早回合的归还只动自己的条目。
 读写 Goal 状态（HTTP API、IM 命令、回调与恢复逻辑）一律走 resolve_provider，回合之间无注册 provider 时它退回存储直读。
 与 SteeringRegistry 和 CancellationRegistry 形成对称设计。
 """
@@ -196,10 +197,11 @@ class ServerGoalManager(GoalManager):
 
 
 class GoalRegistry:
-    """Global registry for active goal providers, keyed by session_id.
+    """Global registry of the goal providers of running turns, keyed by session_id.
 
     Enables the goal API endpoints to locate and manage goals for
-    running agent sessions.
+    running agent sessions. A registration belongs to the turn that made it: only that turn's own provider gives
+    it back, so a turn that ends late cannot drop the registration of the turn that started after it.
 
     Thread-safe for concurrent access from multiple endpoints.
     """
@@ -208,37 +210,36 @@ class GoalRegistry:
     _providers: dict[str, "GoalProvider"] = {}
 
     @classmethod
-    def get_or_create_provider(cls, session_id: str) -> "GoalProvider":
-        """Get the goal provider for a session, creating and registering it if there is none.
+    def register(cls, session_id: str) -> "GoalProvider":
+        """Register a new provider as the live handle of the session's turn, replacing the session's earlier entry.
 
-        The registered provider is the live handle of the session's turn, so its in-memory state (suppression
-        flags) stays one object while the turn runs; the end of the turn unregisters it. Code that runs outside
+        The turn keeps the returned provider while it runs and gives it back with `unregister` when it ends. Its
+        in-memory state (suppression flags) is the turn's own, and no other turn shares it. Code that runs outside
         a turn reads and changes goals through `resolve_provider`, which registers nothing.
         """
-        with cls._lock:
-            provider = cls._providers.get(session_id)
-            if provider is None:
-                from app.platform_utils import get_storage_provider
+        from app.platform_utils import get_storage_provider
 
-                provider = ServerGoalManager(get_storage_provider(), session_id=session_id)
-                cls._providers[session_id] = provider
-                logger.debug("Created new goal provider: session_id=%s", session_id)
-            return provider
+        provider = ServerGoalManager(get_storage_provider(), session_id=session_id)
+        with cls._lock:
+            cls._providers[session_id] = provider
+        logger.debug("Registered goal provider: session_id=%s", session_id)
+        return provider
 
     @classmethod
     @asynccontextmanager
     async def turn_provider(cls, session_id: str) -> AsyncIterator["GoalProvider"]:
         """The session's provider for a turn the server starts itself: registered while the turn runs, released when it ends.
 
-        A chat turn registers its provider at setup and drops it when its stream finalizes. A turn started without
-        a chat stream (the unattended goal turn) holds the provider through this context instead, so its agent and
-        its goal callbacks share one live handle, and nothing stays registered after it, however it ends.
+        A chat turn registers its provider at setup and gives it back when its stream finalizes. A turn started
+        without a chat stream (the unattended goal turn) holds the provider through this context instead, so its
+        agent and its goal callbacks share one live handle, and nothing it registered stays registered after it,
+        however it ends.
         """
-        provider = cls.get_or_create_provider(session_id)
+        provider = cls.register(session_id)
         try:
             yield provider
         finally:
-            cls.unregister(session_id)
+            cls.unregister(session_id, provider)
 
     @classmethod
     def get_provider(cls, session_id: str) -> "GoalProvider | None":
@@ -284,8 +285,15 @@ class GoalRegistry:
             return list(cls._providers)
 
     @classmethod
-    def unregister(cls, session_id: str) -> None:
-        """Remove a provider when the agent stream ends."""
+    def unregister(cls, session_id: str, provider: "GoalProvider") -> None:
+        """Give back the registration of `provider`; an entry that is another turn's provider stays.
+
+        The gateway gives a chat turn's session back before the turn's teardown ends, so the server can start the
+        session's next turn in between. The late teardown of the earlier turn must not drop the registration of the
+        turn that runs.
+        """
         with cls._lock:
-            if cls._providers.pop(session_id, None):
-                logger.debug("Unregistered goal provider: session_id=%s", session_id)
+            if cls._providers.get(session_id) is not provider:
+                return
+            del cls._providers[session_id]
+        logger.debug("Unregistered goal provider: session_id=%s", session_id)

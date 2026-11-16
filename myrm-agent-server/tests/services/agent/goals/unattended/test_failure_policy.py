@@ -6,6 +6,7 @@ failure is handled once the turn has ended and released its provider, so the ses
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,7 +16,8 @@ from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.ai_agents.general_agent.goal_learnings import build_loop_restart_callback
-from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.agent.goals.goal_registry import GoalRegistry, ServerGoalManager
+from app.services.agent.goals.unattended import failure
 
 _TRIGGER_STREAM = "app.services.agent.goals.unattended.trigger.trigger_goal_stream"
 _NOTIFY = "app.services.agent.goals.unattended.failure.publish_goal_needs_review_notification"
@@ -28,10 +30,8 @@ def storage(tmp_path: Path) -> Iterator[None]:
 
 
 @pytest.fixture
-def chat_id(request: pytest.FixtureRequest) -> Iterator[str]:
-    session_id = f"failure-policy-{request.node.name}"
-    yield session_id
-    GoalRegistry.unregister(session_id)
+def chat_id(request: pytest.FixtureRequest) -> str:
+    return f"failure-policy-{request.node.name}"
 
 
 async def _goal_in(chat_id: str, status: GoalStatus = GoalStatus.ACTIVE) -> str:
@@ -113,6 +113,30 @@ async def test_handle_unattended_goal_stream_failure_publishes_notification(chat
     published = mock_bus.publish.call_args[0][0]
     assert published.data["meta_data"]["kind"] == "goal_needs_review"
     assert published.data["meta_data"]["chat_id"] == chat_id
+
+
+@pytest.mark.asyncio
+async def test_a_goal_that_cannot_be_marked_for_review_is_left_alone_and_the_cause_is_logged(
+    chat_id: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The goal stays ACTIVE with no turn running it, so the log is all there is to tell why: it carries the traceback."""
+    from app.services.agent.goals.unattended import handle_unattended_goal_stream_failure
+
+    goal_id = await _goal_in(chat_id)
+
+    with (
+        patch.object(ServerGoalManager, "update_status", new_callable=AsyncMock, side_effect=OSError("storage unavailable")),
+        patch(_NOTIFY, new_callable=AsyncMock) as publish,
+        caplog.at_level(logging.WARNING, logger=failure.logger.name),
+    ):
+        await handle_unattended_goal_stream_failure(chat_id, goal_id, context="runtime test")
+
+    assert await _status_of(chat_id, goal_id) is GoalStatus.ACTIVE
+    publish.assert_not_awaited()
+    [record] = [r for r in caplog.records if r.name == failure.logger.name]
+    assert goal_id in record.getMessage()
+    assert record.exc_info is not None
+    assert isinstance(record.exc_info[1], OSError)
 
 
 @pytest.mark.asyncio

@@ -29,10 +29,8 @@ def storage(tmp_path: Path) -> Iterator[None]:
 
 
 @pytest.fixture
-def chat_id(request: pytest.FixtureRequest) -> Iterator[str]:
-    session_id = f"queue-callbacks-{request.node.name}"
-    yield session_id
-    GoalRegistry.unregister(session_id)
+def chat_id(request: pytest.FixtureRequest) -> str:
+    return f"queue-callbacks-{request.node.name}"
 
 
 async def _queue_behind_an_ended_goal(chat_id: str, *objectives: str) -> list[Goal]:

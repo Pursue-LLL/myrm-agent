@@ -140,11 +140,8 @@ async def test_a_chat_follows_its_mode_when_it_flips_between_interactive_and_una
 async def test_an_unattended_turn_that_resumes_a_goal_gets_the_goal_tools_an_interactive_unit_lacks() -> None:
     chat_id = "chat-flip-goal"
     interactive = await _run_turn(chat_id, unattended=False)
-    await GoalRegistry.get_or_create_provider(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
-    try:
-        resumed = await _run_turn(chat_id, unattended=True)
-    finally:
-        GoalRegistry.unregister(chat_id)
+    await GoalRegistry.register(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
+    resumed = await _run_turn(chat_id, unattended=True)
 
     assert not {"complete_goal_tool", "todo_write"} & interactive
     assert {"complete_goal_tool", "todo_write"} <= resumed
@@ -156,12 +153,9 @@ async def test_goal_turns_that_differ_only_in_the_yolo_stamp_share_one_unit_that
     """The stamp is not a build input, and the pipeline re-applies the security config every turn: the second
     turn reuses the first turn's unit and still runs under its own stamp."""
     chat_id = "chat-goal-stamp"
-    await GoalRegistry.get_or_create_provider(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
-    try:
-        first_agent, first_security = await _run_goal_turn(chat_id, yolo_stamp=1_700_000_000.0)
-        second_agent, second_security = await _run_goal_turn(chat_id, yolo_stamp=1_700_000_030.0)
-    finally:
-        GoalRegistry.unregister(chat_id)
+    await GoalRegistry.register(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
+    first_agent, first_security = await _run_goal_turn(chat_id, yolo_stamp=1_700_000_000.0)
+    second_agent, second_security = await _run_goal_turn(chat_id, yolo_stamp=1_700_000_030.0)
 
     assert second_agent is first_agent
     assert (first_security.yolo_mode_enabled_at, second_security.yolo_mode_enabled_at) == (1_700_000_000.0, 1_700_000_030.0)
@@ -176,12 +170,9 @@ async def test_a_reused_unit_under_an_agent_yolo_timeout_judges_expiry_by_the_la
     timeout = 600
     agent_yolo: dict[str, object] = {"yoloModeEnabled": True, "yolo_mode_timeout": timeout}
     now = time.time()
-    await GoalRegistry.get_or_create_provider(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
-    try:
-        first_agent, first_security = await _run_goal_turn(chat_id, yolo_stamp=now - 2 * timeout, agent_security_raw=agent_yolo)
-        second_agent, second_security = await _run_goal_turn(chat_id, yolo_stamp=now, agent_security_raw=agent_yolo)
-    finally:
-        GoalRegistry.unregister(chat_id)
+    await GoalRegistry.register(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
+    first_agent, first_security = await _run_goal_turn(chat_id, yolo_stamp=now - 2 * timeout, agent_security_raw=agent_yolo)
+    second_agent, second_security = await _run_goal_turn(chat_id, yolo_stamp=now, agent_security_raw=agent_yolo)
 
     assert second_agent is first_agent
     assert first_security.yolo_mode_timeout == second_security.yolo_mode_timeout == timeout

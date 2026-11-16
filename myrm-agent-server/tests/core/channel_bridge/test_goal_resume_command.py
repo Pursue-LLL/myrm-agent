@@ -30,7 +30,6 @@ def chat_id(tmp_path: Path) -> Iterator[str]:
         patch("app.core.channel_bridge.goal_handler.handler.resolve_chat_id", new=AsyncMock(return_value=cid)),
     ):
         yield cid
-    GoalRegistry.unregister(cid)
 
 
 @pytest.fixture
@@ -76,14 +75,14 @@ def _message() -> InboundMessage:
 
 
 async def _paused_goal(chat_id: str) -> str:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
     return goal.goal_id
 
 
 async def _status(chat_id: str, goal_id: str) -> GoalStatus:
-    goal = await GoalRegistry.get_or_create_provider(chat_id).get_goal(goal_id)
+    goal = await GoalRegistry.resolve_provider(chat_id).get_goal(goal_id)
     assert goal is not None
     return goal.status
 
@@ -171,7 +170,7 @@ async def test_no_kickoff_when_the_session_cannot_take_a_turn(
 
 @pytest.mark.parametrize("status", [GoalStatus.PAUSED, GoalStatus.COMPLETE, GoalStatus.CANCELLED])
 async def test_no_kickoff_when_the_goal_is_not_active(chat_id: str, gateway: MagicMock, status: GoalStatus) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     await provider.update_status(goal.goal_id, status)
 
@@ -183,7 +182,7 @@ async def test_no_kickoff_without_a_goal(chat_id: str, gateway: MagicMock) -> No
 
 
 async def test_unwait_puts_the_goal_back_to_work_with_the_same_kickoff_as_resume(chat_id: str, gateway: MagicMock) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     await provider.enter_wait(goal.goal_id, reason="CI is running")
     handler = ChannelGoalCommandHandler()

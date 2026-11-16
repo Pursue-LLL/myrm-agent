@@ -25,7 +25,6 @@ def chat_id(tmp_path: Path) -> Iterator[str]:
         patch("app.core.channel_bridge.goal_handler.handler.resolve_chat_id", new=AsyncMock(return_value=cid)),
     ):
         yield cid
-    GoalRegistry.unregister(cid)
 
 
 def _message() -> InboundMessage:
@@ -33,8 +32,7 @@ def _message() -> InboundMessage:
 
 
 async def test_a_subgoal_added_between_turns_lands_on_the_stored_goal(chat_id: str) -> None:
-    goal = await GoalRegistry.get_or_create_provider(chat_id).create_goal(chat_id, "Ship the report")
-    GoalRegistry.unregister(chat_id)
+    goal = await GoalRegistry.resolve_provider(chat_id).create_goal(chat_id, "Ship the report")
 
     reply = await ChannelGoalCommandHandler().handle_subgoal(_message(), SubgoalSubcommand.ADD, "collect the figures")
 

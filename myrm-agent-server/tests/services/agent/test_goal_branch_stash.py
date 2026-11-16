@@ -58,8 +58,7 @@ async def test_branch_switch_stashes_and_restores_goals_per_branch(mock_storage)
         patch(_BRANCH_GETTER, new_callable=AsyncMock) as mock_branch_getter,
         patch(_STORAGE_GETTER, return_value=mock_storage),
     ):
-        GoalRegistry.unregister(session_id)
-        provider = GoalRegistry.get_or_create_provider(session_id)
+        provider = GoalRegistry.register(session_id)
 
         # branch_b already has its own goal parked by the harness stash API.
         mock_branch_getter.return_value = "branch_a"
@@ -88,8 +87,6 @@ async def test_branch_switch_stashes_and_restores_goals_per_branch(mock_storage)
         assert active_on_a.status == GoalStatus.ACTIVE
         assert (await provider.get_goal(goal_b.goal_id)).status == GoalStatus.PAUSED
 
-        GoalRegistry.unregister(session_id)
-
 
 @pytest.mark.asyncio
 async def test_branch_switch_moves_only_this_chats_todos(mock_storage, tmp_path) -> None:
@@ -105,8 +102,7 @@ async def test_branch_switch_moves_only_this_chats_todos(mock_storage, tmp_path)
         patch(_BRANCH_GETTER, new_callable=AsyncMock) as mock_branch_getter,
         patch(_STORAGE_GETTER, return_value=mock_storage),
     ):
-        GoalRegistry.unregister(session_id)
-        provider = GoalRegistry.get_or_create_provider(session_id)
+        provider = GoalRegistry.register(session_id)
 
         mock_branch_getter.return_value = "branch_a"
         await check_and_handle_branch_stash(session_id, workspace)
@@ -128,8 +124,6 @@ async def test_branch_switch_moves_only_this_chats_todos(mock_storage, tmp_path)
         assert restored is not None and restored.goal == "Build auth"
         assert read_todos_sync_from_workspace(workspace, "another-chat-in-the-workspace") is not None
 
-        GoalRegistry.unregister(session_id)
-
 
 @pytest.mark.asyncio
 async def test_branch_without_stash_adopts_the_active_goal(mock_storage) -> None:
@@ -140,8 +134,7 @@ async def test_branch_without_stash_adopts_the_active_goal(mock_storage) -> None
         patch(_STORAGE_GETTER, return_value=mock_storage),
         patch("app.services.event.app_event_bus.get_event_bus") as get_bus,
     ):
-        GoalRegistry.unregister(session_id)
-        provider = GoalRegistry.get_or_create_provider(session_id)
+        provider = GoalRegistry.register(session_id)
 
         mock_branch_getter.return_value = "branch_a"
         await check_and_handle_branch_stash(session_id)
@@ -154,8 +147,6 @@ async def test_branch_without_stash_adopts_the_active_goal(mock_storage) -> None
         assert await GoalStorage(mock_storage).get_stash(session_id, "branch_a") is None
         assert get_bus.return_value.publish.call_args.args[0].data["migrated"] is True
 
-        GoalRegistry.unregister(session_id)
-
 
 @pytest.mark.asyncio
 async def test_unreadable_stash_counts_as_no_stash(mock_storage) -> None:
@@ -166,8 +157,7 @@ async def test_unreadable_stash_counts_as_no_stash(mock_storage) -> None:
         patch(_BRANCH_GETTER, new_callable=AsyncMock) as mock_branch_getter,
         patch(_STORAGE_GETTER, return_value=mock_storage),
     ):
-        GoalRegistry.unregister(session_id)
-        provider = GoalRegistry.get_or_create_provider(session_id)
+        provider = GoalRegistry.register(session_id)
 
         mock_branch_getter.return_value = "branch_a"
         await check_and_handle_branch_stash(session_id)
@@ -181,8 +171,6 @@ async def test_unreadable_stash_counts_as_no_stash(mock_storage) -> None:
 
         assert (await provider.get_goal(goal.goal_id)).status == GoalStatus.ACTIVE
 
-        GoalRegistry.unregister(session_id)
-
 
 @pytest.mark.asyncio
 async def test_unchanged_branch_is_a_no_op(mock_storage) -> None:
@@ -193,14 +181,11 @@ async def test_unchanged_branch_is_a_no_op(mock_storage) -> None:
         patch(_STORAGE_GETTER, return_value=mock_storage),
         patch("app.services.event.app_event_bus.get_event_bus") as get_bus,
     ):
-        GoalRegistry.unregister(session_id)
         await check_and_handle_branch_stash(session_id)
         await check_and_handle_branch_stash(session_id)
 
         assert get_bus.return_value.publish.call_count == 1
         assert mock_storage.store[f"goals_last_branch/{session_id}"] == b"branch_a"
-
-        GoalRegistry.unregister(session_id)
 
 
 @pytest.mark.asyncio
@@ -213,12 +198,10 @@ async def test_branch_switch_publishes_goal_branch_switched_event(mock_storage) 
         patch(_STORAGE_GETTER, return_value=mock_storage),
         patch("app.services.event.app_event_bus.get_event_bus", return_value=bus),
     ):
-        GoalRegistry.unregister(session_id)
         mock_branch_getter.return_value = "branch_a"
         await check_and_handle_branch_stash(session_id)
         mock_branch_getter.return_value = "branch_b"
         await check_and_handle_branch_stash(session_id)
-        GoalRegistry.unregister(session_id)
 
     events = [call.args[0] for call in bus.publish.call_args_list]
     assert [event.event_type for event in events] == [AppEventType.GOAL_BRANCH_SWITCHED] * 2
@@ -242,10 +225,9 @@ async def test_get_current_git_branch_zero_subprocess(tmp_path) -> None:
 @pytest.mark.asyncio
 async def test_session_ids_lists_live_providers(mock_storage) -> None:
     with patch(_STORAGE_GETTER, return_value=mock_storage):
-        GoalRegistry.unregister("session-ids-a")
-        GoalRegistry.get_or_create_provider("session-ids-a")
+        provider = GoalRegistry.register("session-ids-a")
         assert "session-ids-a" in GoalRegistry.session_ids()
-        GoalRegistry.unregister("session-ids-a")
+        GoalRegistry.unregister("session-ids-a", provider)
         assert "session-ids-a" not in GoalRegistry.session_ids()
 
 
@@ -270,8 +252,7 @@ async def test_branch_watcher_reacts_to_head_changes_and_stops(tmp_path: Path, m
         patch.object(goal_branch_stash, "_POLL_INTERVAL_SECONDS", 0.01),
         patch.object(goal_branch_stash, "check_and_handle_branch_stash", checker),
     ):
-        GoalRegistry.unregister("watched-session")
-        GoalRegistry.get_or_create_provider("watched-session")
+        GoalRegistry.register("watched-session")
         start_branch_watcher()
         first_task = goal_branch_stash._watcher_task
         start_branch_watcher()
@@ -291,8 +272,6 @@ async def test_branch_watcher_reacts_to_head_changes_and_stops(tmp_path: Path, m
         await asyncio.sleep(0.05)
         assert first_task.done()
 
-        GoalRegistry.unregister("watched-session")
-
 
 @pytest.mark.asyncio
 async def test_a_branch_check_registers_no_provider_for_a_session_without_a_turn(mock_storage) -> None:
@@ -303,7 +282,6 @@ async def test_a_branch_check_registers_no_provider_for_a_session_without_a_turn
         patch(_BRANCH_GETTER, new_callable=AsyncMock, return_value="branch_a"),
         patch(_STORAGE_GETTER, return_value=mock_storage),
     ):
-        GoalRegistry.unregister(session_id)
         await check_and_handle_branch_stash(session_id)
 
     assert GoalRegistry.get_provider(session_id) is None
@@ -323,7 +301,7 @@ async def test_the_watcher_does_not_bring_back_the_provider_of_a_session_whose_t
 
     async def check_after_the_second_turn_ended(session_id: str, workspace_dir: str | None = None) -> None:
         if session_id == "watched-first":
-            GoalRegistry.unregister("watched-second")
+            GoalRegistry.unregister("watched-second", second_turn_provider)
         checked.append(session_id)
         await real_check(session_id, workspace_dir=workspace_dir)
 
@@ -333,8 +311,8 @@ async def test_the_watcher_does_not_bring_back_the_provider_of_a_session_whose_t
         patch.object(goal_branch_stash, "_POLL_INTERVAL_SECONDS", 0.01),
         patch.object(goal_branch_stash, "check_and_handle_branch_stash", check_after_the_second_turn_ended),
     ):
-        GoalRegistry.get_or_create_provider("watched-first")
-        GoalRegistry.get_or_create_provider("watched-second")
+        GoalRegistry.register("watched-first")
+        second_turn_provider = GoalRegistry.register("watched-second")
         start_branch_watcher()
         try:
             for _ in range(200):
@@ -344,7 +322,6 @@ async def test_the_watcher_does_not_bring_back_the_provider_of_a_session_whose_t
             await asyncio.sleep(0.05)
         finally:
             stop_branch_watcher()
-            GoalRegistry.unregister("watched-first")
 
     assert checked[:2] == ["watched-first", "watched-second"]
     assert GoalRegistry.get_provider("watched-second") is None

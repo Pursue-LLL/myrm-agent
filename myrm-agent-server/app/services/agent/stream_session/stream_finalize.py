@@ -7,6 +7,7 @@
 - app.services.agent.stream_session.turn_end (POS: compaction drain, run digest close and lifecycle event, shared with the end of a timer-resumed turn)
 - app.services.agent.stream_session.turn_capability_terminal (POS: records the completed or failed terminal state of a turn that carries capability telemetry)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: registry of the goal providers of running turns; the turn gives back the provider it registered)
 - myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: key under which a stored card remembers the pause it was announced for)
 
 [OUTPUT]
@@ -224,7 +225,7 @@ def _arm_pending_interrupt_timeout(session: AgentStreamSession, approval: Approv
 
 
 def _release_turn_state(session: AgentStreamSession) -> None:
-    """Flush the compaction telemetry and drop what the turn registered: Stop handle, steering and goal."""
+    """Flush the compaction telemetry and drop what the turn registered: Stop handle, steering and its goal provider."""
     enqueue_context_compaction_telemetry(session.request.chat_id)
     clear_context_task_metrics(session.request.chat_id)
     target_msg_id = getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None)
@@ -232,9 +233,10 @@ def _release_turn_state(session: AgentStreamSession) -> None:
         CancellationRegistry.unregister(target_msg_id)
     if session.request.chat_id:
         SteeringRegistry.unregister(session.request.chat_id)
-        from app.services.agent.goals.goal_registry import GoalRegistry
+        if session.goal_provider is not None:
+            from app.services.agent.goals.goal_registry import GoalRegistry
 
-        GoalRegistry.unregister(session.request.chat_id)
+            GoalRegistry.unregister(session.request.chat_id, session.goal_provider)
 
 
 async def _record_turn_capability_terminal(session: AgentStreamSession) -> None:

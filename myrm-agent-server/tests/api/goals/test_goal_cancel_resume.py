@@ -18,10 +18,8 @@ from app.services.agent.goals.goal_registry import GoalRegistry
 
 
 @pytest.fixture
-def session_id() -> Iterator[str]:
-    sid = f"goal-controls-{uuid.uuid4().hex[:8]}"
-    yield sid
-    GoalRegistry.unregister(sid)
+def session_id() -> str:
+    return f"goal-controls-{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture
@@ -51,7 +49,7 @@ def _gateway_stub(
 
 
 async def _goal_in_status(sid: str, status: GoalStatus) -> tuple[GoalProvider, str]:
-    provider = GoalRegistry.get_or_create_provider(sid)
+    provider = GoalRegistry.register(sid)
     goal = await provider.create_goal(sid, "Ship the report")
     if status is not GoalStatus.ACTIVE:
         await provider.update_status(goal.goal_id, status)

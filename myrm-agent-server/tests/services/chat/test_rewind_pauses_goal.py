@@ -25,10 +25,8 @@ def storage(tmp_path: Path) -> Iterator[None]:
 
 
 @pytest.fixture
-def chat_id(request: pytest.FixtureRequest) -> Iterator[str]:
-    session_id = f"rewind-goal-{request.node.name}"
-    yield session_id
-    GoalRegistry.unregister(session_id)
+def chat_id(request: pytest.FixtureRequest) -> str:
+    return f"rewind-goal-{request.node.name}"
 
 
 @pytest.mark.asyncio

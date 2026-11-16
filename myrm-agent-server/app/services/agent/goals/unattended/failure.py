@@ -81,7 +81,8 @@ async def handle_unattended_goal_stream_failure(
             return
         await provider.update_status(goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
     except Exception:
-        logger.warning("Could not mark goal %s as NEEDS_HUMAN_REVIEW", goal_id)
+        # The goal stays ACTIVE with no turn to run it, and nothing else tells why: keep the cause with the message.
+        logger.exception("Could not mark goal %s as NEEDS_HUMAN_REVIEW", goal_id)
         return
 
     try:

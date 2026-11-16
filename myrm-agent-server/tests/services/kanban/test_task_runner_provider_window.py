@@ -128,7 +128,7 @@ async def test_a_kanban_goal_is_never_parked_by_the_usage_limit_hold(tmp_path, m
     rescheduled by the scheduler above instead of being woken by the chat daemon.
     """
     manager = GoalManager(LocalStorageBackend(base_path=str(tmp_path)))
-    monkeypatch.setattr(f"{_RUNNER}.GoalRegistry.get_or_create_provider", lambda session_id: manager)
+    monkeypatch.setattr(f"{_RUNNER}.GoalRegistry.register", lambda session_id: manager)
     task = _task()
     await KanbanTaskRunner(AsyncMock())._setup_goal_provider(task)
     now = datetime.now(UTC).timestamp()

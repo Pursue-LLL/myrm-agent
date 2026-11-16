@@ -4,7 +4,7 @@
 - app.services.agent.params::convert_to_general_agent_params (POS: AgentRequest → GeneralAgentParams conversion)
 - app.services.agent.params.routing_memory::remember_turn_routing (POS: per-chat routing memory reused when a HITL turn resumes)
 - app.services.agent.session_access_service::apply_directory_resume_grant (POS: directory grant carried by a resume)
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: per-chat GoalProvider registry)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: registry of the goal providers of running turns)
 - app.services.agent.runtime_context::build_agent_runtime_context (POS: RunnableConfig context of one agent run)
 - app.services.agent.stream_session.proactive_pack::resolve_turn_knowledge_pack (POS: knowledge-base snippets for this turn's question)
 - app.ai_agents.agent_middlewares::PROACTIVE_PACK_CONTEXT_KEY (POS: run-context key the Human-tail pack middleware reads)
@@ -13,7 +13,7 @@
 - TurnParams: converted agent params plus routing attribution of one turn
 - build_turn_params: resume side effects (takeover decision, directory grant) then request → params conversion
 - search_service_unavailable_detail: why a search-bound turn cannot run, or None
-- prepare_goal_provider: goal provider of the chat with the request's goal budget applied
+- prepare_goal_provider: the turn's goal provider, registered for the turn, with the request's goal budget applied
 - build_turn_extra_context: runtime context handed to the agent run, with the prewarm join and the turn's knowledge pack
 
 [POS]
@@ -174,7 +174,10 @@ def search_service_unavailable_detail(request: AgentRequest, params: GeneralAgen
 
 
 async def prepare_goal_provider(request: AgentRequest, text_content: str) -> GoalProvider | None:
-    """Goal provider of the chat; a request that carries a goal creates it or re-budgets the active one."""
+    """Register the goal provider of the chat's turn; a request that carries a goal creates it or re-budgets the active one.
+
+    The turn's stream finalize gives the registration back by this provider.
+    """
     if not request.chat_id:
         return None
 
@@ -182,7 +185,7 @@ async def prepare_goal_provider(request: AgentRequest, text_content: str) -> Goa
     from app.services.agent.goals.goal_registry import GoalRegistry
 
     await check_and_handle_branch_stash(request.chat_id)
-    goal_provider = GoalRegistry.get_or_create_provider(request.chat_id)
+    goal_provider = GoalRegistry.register(request.chat_id)
     if request.goal:
         from typing import cast
 

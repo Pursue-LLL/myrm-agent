@@ -20,22 +20,21 @@ def storage(tmp_path: Path) -> Iterator[None]:
 
 
 @pytest.fixture
-def chat_id(request: pytest.FixtureRequest) -> Iterator[str]:
-    session_id = f"resolve-provider-{request.node.name}"
-    yield session_id
-    GoalRegistry.unregister(session_id)
+def chat_id(request: pytest.FixtureRequest) -> str:
+    return f"resolve-provider-{request.node.name}"
 
 
 def test_a_registered_provider_is_the_one_returned(chat_id: str) -> None:
-    registered = GoalRegistry.get_or_create_provider(chat_id)
+    registered = GoalRegistry.register(chat_id)
 
     assert GoalRegistry.resolve_provider(chat_id) is registered
 
 
 @pytest.mark.asyncio
 async def test_a_session_between_turns_is_read_from_storage(chat_id: str) -> None:
-    goal = await GoalRegistry.get_or_create_provider(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
-    GoalRegistry.unregister(chat_id)
+    turn_provider = GoalRegistry.register(chat_id)
+    goal = await turn_provider.create_goal(session_id=chat_id, objective="ship the weekly report")
+    GoalRegistry.unregister(chat_id, turn_provider)
 
     stored = await GoalRegistry.resolve_provider(chat_id).get_latest_goal(chat_id)
 
@@ -46,8 +45,9 @@ async def test_a_session_between_turns_is_read_from_storage(chat_id: str) -> Non
 @pytest.mark.asyncio
 async def test_a_goal_completed_through_the_stand_in_collects_the_chats_deliverables(chat_id: str) -> None:
     """Approving a review between turns completes the goal through the stand-in, and the goal card lists what the chat produced."""
-    goal = await GoalRegistry.get_or_create_provider(chat_id).create_goal(session_id=chat_id, objective="ship the weekly report")
-    GoalRegistry.unregister(chat_id)
+    turn_provider = GoalRegistry.register(chat_id)
+    goal = await turn_provider.create_goal(session_id=chat_id, objective="ship the weekly report")
+    GoalRegistry.unregister(chat_id, turn_provider)
     deliverables = [{"id": "a1", "filename": "report.pdf"}, {"id": "a2", "filename": "figures.png"}]
 
     with patch("app.services.agent.goals.goal_registry._collect_session_deliverables", AsyncMock(return_value=deliverables)):

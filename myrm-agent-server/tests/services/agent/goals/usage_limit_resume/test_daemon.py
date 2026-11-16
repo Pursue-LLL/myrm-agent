@@ -283,7 +283,6 @@ def storage_registry(storage) -> Iterator[ServerGoalManager]:
     """The registry as production has it: the session's provider reads the same storage and none is registered."""
     with patch("app.platform_utils.get_storage_provider", return_value=storage):
         yield ServerGoalManager(storage, session_id=SESSION)
-    GoalRegistry.unregister(SESSION)
 
 
 async def test_a_wake_leaves_no_provider_registered_once_its_turn_is_started(storage_registry, clock, effects) -> None:

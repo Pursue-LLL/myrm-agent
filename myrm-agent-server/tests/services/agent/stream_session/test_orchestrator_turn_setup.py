@@ -156,14 +156,16 @@ class TestPrepareGoalProvider:
         assert await setup.prepare_goal_provider(_request(chat_id=None), "hello") is None
 
     @pytest.mark.asyncio
-    async def test_a_chat_without_a_goal_gets_its_registered_provider_untouched(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def test_a_chat_without_a_goal_gets_the_provider_registered_for_its_turn_untouched(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         from app.services.agent.goals import goal_branch_stash
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = MagicMock()
         stash = AsyncMock()
         monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", stash)
-        monkeypatch.setattr(GoalRegistry, "get_or_create_provider", MagicMock(return_value=provider))
+        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
 
         result = await setup.prepare_goal_provider(_request(), "hello")
 
@@ -182,7 +184,7 @@ class TestPrepareGoalProvider:
         provider.get_active_goal = AsyncMock(return_value=None)
         provider.create_goal = AsyncMock()
         monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", AsyncMock())
-        monkeypatch.setattr(GoalRegistry, "get_or_create_provider", MagicMock(return_value=provider))
+        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
 
         await setup.prepare_goal_provider(_request(goal=_goal(checkpoint_mode="per_todo")), "  ship the release  ")
 
@@ -203,7 +205,7 @@ class TestPrepareGoalProvider:
         provider.set_budget = AsyncMock()
         provider.create_goal = AsyncMock()
         monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", AsyncMock())
-        monkeypatch.setattr(GoalRegistry, "get_or_create_provider", MagicMock(return_value=provider))
+        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
 
         await setup.prepare_goal_provider(_request(goal=_goal()), "ship the release")
 
@@ -219,7 +221,7 @@ class TestPrepareGoalProvider:
         provider.get_active_goal = AsyncMock(return_value=None)
         provider.create_goal = AsyncMock()
         monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", AsyncMock())
-        monkeypatch.setattr(GoalRegistry, "get_or_create_provider", MagicMock(return_value=provider))
+        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
 
         await setup.prepare_goal_provider(_request(goal=_goal(checkpoint_mode="everything")), "")
 

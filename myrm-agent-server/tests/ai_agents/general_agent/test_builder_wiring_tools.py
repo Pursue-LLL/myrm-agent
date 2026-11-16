@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -258,11 +257,9 @@ class TestGoals:
         assert "complete_goal_tool" not in allowed_tools(handed)
 
     @pytest.fixture
-    def stored_goals(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    def stored_goals(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Real storage behind the real registry: what an earlier turn left there is what the next build sees."""
         monkeypatch.setattr("app.platform_utils.get_storage_provider", lambda: LocalStorageBackend(str(tmp_path)))
-        yield
-        GoalRegistry.unregister(CHAT_ID)
 
     @pytest.mark.usefixtures("stored_goals")
     async def test_a_stored_active_goal_mounts_the_goal_tools_though_no_turn_registered_a_provider(

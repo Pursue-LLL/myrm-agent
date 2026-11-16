@@ -58,9 +58,8 @@ def storage(tmp_path) -> LocalStorageBackend:
 @pytest.fixture
 def manager(storage, monkeypatch) -> GoalManager:
     goal_manager = GoalManager(storage)
-    # The hold callback runs inside the turn and gets the provider the turn registered; the daemon works between turns,
-    # from storage.
-    monkeypatch.setattr(daemon_module.GoalRegistry, "get_or_create_provider", lambda session_id: goal_manager)
+    # The hold callback and the daemon both reach the session's goals through `resolve_provider`: the callback gets the
+    # provider of the turn it runs in, the daemon the storage-backed one between turns.
     monkeypatch.setattr(daemon_module.GoalRegistry, "resolve_provider", lambda session_id: goal_manager)
     return goal_manager
 

@@ -29,10 +29,8 @@ from .headless_turn_testkit import WAIT_SECONDS, Agent, goal_for, released, sett
 def chat_id() -> Iterator[str]:
     chat = f"goal-turn-{uuid.uuid4().hex[:8]}"
     yield chat
-    # The gateway and the goal registry are one per process: a failing test must not leave its session busy or
-    # registered for the next one.
+    # The gateway is one per process: a failing test must not leave its session busy for the next one.
     get_agent_gateway().release_session(chat)
-    GoalRegistry.unregister(chat)
 
 
 @pytest.fixture(autouse=True)

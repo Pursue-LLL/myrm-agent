@@ -108,14 +108,11 @@ async def test_pooled_acquire_key_follows_the_goal_state_of_the_chat() -> None:
         stubbed_pipeline_edges(session_id="sess-goal"),
     ):
         await send("first")
-        try:
-            await GoalRegistry.get_or_create_provider(chat_id).create_goal(
-                session_id=chat_id,
-                objective="ship the weekly report",
-            )
-            await send("second")
-        finally:
-            GoalRegistry.unregister(chat_id)
+        await GoalRegistry.register(chat_id).create_goal(
+            session_id=chat_id,
+            objective="ship the weekly report",
+        )
+        await send("second")
 
     assert acquire_keys == [idle_key, goal_key]
     # The turn runs inside the scope's turn guard, yet its own acquire still swaps the idle unit for the goal one.

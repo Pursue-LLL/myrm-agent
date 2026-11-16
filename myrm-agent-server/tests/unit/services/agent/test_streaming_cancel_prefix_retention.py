@@ -140,6 +140,7 @@ async def test_finalize_agent_stream_session_with_cancelled_turn():
     session.extra_context = {}
     session.had_fatal_error = False
     session.migration_live_readiness_status = None
+    session.goal_provider = None  # no dataclass default, so the spec-mock does not expose it
     session.params = MagicMock()
     session.params.message_id = "msg_cancel_1"
     session.params.enable_skill_manage = False

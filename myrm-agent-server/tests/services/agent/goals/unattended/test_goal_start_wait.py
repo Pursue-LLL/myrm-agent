@@ -7,6 +7,7 @@ stand-in, and the polling is shortened so the tests run fast. A wait that ended 
 """
 
 import asyncio
+import logging
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -32,7 +33,6 @@ def chat_id() -> Iterator[str]:
     chat = f"goal-start-{uuid.uuid4().hex[:8]}"
     yield chat
     get_agent_gateway().release_session(chat)
-    GoalRegistry.unregister(chat)
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +44,16 @@ def storage(tmp_path: Path) -> Iterator[None]:
 @pytest.fixture(autouse=True)
 def quick_polls(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(trigger, "_START_POLL_SECONDS", 0.02)
+
+
+@pytest.fixture(autouse=True)
+def trigger_logs(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger=trigger.logger.name)
+
+
+def _given_up(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    """What the trigger logged about the starts it did not make."""
+    return [record for record in caplog.records if record.name == trigger.logger.name and "not started" in record.getMessage()]
 
 
 async def _stored_active_goal(chat: str) -> Goal:
@@ -80,8 +90,35 @@ async def test_a_start_that_meets_a_turn_winding_down_runs_once_its_session_is_f
 
 
 @pytest.mark.asyncio
+async def test_a_start_made_while_the_earlier_turn_still_tears_down_stays_registered(chat_id: str) -> None:
+    """The gateway gives a chat turn's session back before the turn's teardown ends, so the start takes the session
+    first. The teardown that ends afterwards gives back what the earlier turn registered, not what the start did."""
+    gateway = get_agent_gateway()
+    goal = await _stored_active_goal(chat_id)
+    earlier_turn_provider = GoalRegistry.register(chat_id)
+    gateway.reserve_session(chat_id, active_message_id=_HOLDER)
+    agent = Agent(chat_id)
+
+    with trigger_environment(agent):
+        await start(chat_id, goal)
+        gateway.release_session(chat_id)
+        await asyncio.wait_for(agent.running.wait(), timeout=WAIT_SECONDS)
+
+        GoalRegistry.unregister(chat_id, earlier_turn_provider)
+
+        assert agent.context_provider is not earlier_turn_provider
+        assert GoalRegistry.get_provider(chat_id) is agent.context_provider
+        agent.gate.set()
+        await settle()
+
+    assert GoalRegistry.get_provider(chat_id) is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("status", [GoalStatus.PAUSED, GoalStatus.COMPLETE])
-async def test_a_start_gives_up_once_the_goal_has_left_active(chat_id: str, status: GoalStatus) -> None:
+async def test_a_start_gives_up_once_the_goal_has_left_active(
+    chat_id: str, status: GoalStatus, caplog: pytest.LogCaptureFixture
+) -> None:
     gateway = get_agent_gateway()
     goal = await _stored_active_goal(chat_id)
     gateway.reserve_session(chat_id, active_message_id=_HOLDER)
@@ -98,12 +135,15 @@ async def test_a_start_gives_up_once_the_goal_has_left_active(chat_id: str, stat
 
     assert agent.calls == 0
     handler.assert_not_awaited()
+    [given_up] = _given_up(caplog)
+    assert given_up.levelno == logging.INFO
 
 
 @pytest.mark.asyncio
 async def test_a_start_gives_up_when_the_session_stays_held_for_the_whole_wait(
-    chat_id: str, monkeypatch: pytest.MonkeyPatch
+    chat_id: str, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
+    """The one give-up that leaves an ACTIVE goal nothing runs, so it shows at the level production logs."""
     bound = 0.2
     monkeypatch.setattr(trigger, "_START_WAIT_SECONDS", bound)
     gateway = get_agent_gateway()
@@ -123,10 +163,13 @@ async def test_a_start_gives_up_when_the_session_stays_held_for_the_whole_wait(
     handler.assert_not_awaited()
     assert gateway.get_active_message_id(chat_id) == "user-message"
     assert GoalRegistry.get_provider(chat_id) is None
+    [given_up] = _given_up(caplog)
+    assert given_up.levelno == logging.WARNING
+    assert "stayed held" in given_up.getMessage()
 
 
 @pytest.mark.asyncio
-async def test_the_emergency_stop_ends_a_waiting_start(chat_id: str) -> None:
+async def test_the_emergency_stop_ends_a_waiting_start(chat_id: str, caplog: pytest.LogCaptureFixture) -> None:
     gateway = get_agent_gateway()
     goal = await _stored_active_goal(chat_id)
     gateway.reserve_session(chat_id, active_message_id=_HOLDER)
@@ -143,10 +186,12 @@ async def test_the_emergency_stop_ends_a_waiting_start(chat_id: str) -> None:
 
     assert agent.calls == 0
     handler.assert_not_awaited()
+    [given_up] = _given_up(caplog)
+    assert given_up.levelno == logging.INFO
 
 
 @pytest.mark.asyncio
-async def test_a_draining_app_ends_a_waiting_start(chat_id: str) -> None:
+async def test_a_draining_app_ends_a_waiting_start(chat_id: str, caplog: pytest.LogCaptureFixture) -> None:
     gateway = get_agent_gateway()
     goal = await _stored_active_goal(chat_id)
     gateway.reserve_session(chat_id, active_message_id=_HOLDER)
@@ -163,6 +208,8 @@ async def test_a_draining_app_ends_a_waiting_start(chat_id: str) -> None:
 
     assert agent.calls == 0
     handler.assert_not_awaited()
+    [given_up] = _given_up(caplog)
+    assert given_up.levelno == logging.INFO
 
 
 @pytest.mark.asyncio

@@ -29,7 +29,6 @@ _SESSION = f"kanban:{_TASK_ID}"
 def storage(tmp_path: Path) -> Iterator[None]:
     with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))):
         yield
-    GoalRegistry.unregister(_SESSION)
 
 
 @pytest.mark.asyncio

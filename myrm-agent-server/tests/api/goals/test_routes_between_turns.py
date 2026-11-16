@@ -14,10 +14,7 @@ from app.services.agent.goals.goal_registry import GoalRegistry
 @pytest.mark.asyncio
 async def test_each_goals_module_serves_a_session_between_turns_from_storage(client: TestClient) -> None:
     session_id = "between-turns"
-    goal = await GoalRegistry.get_or_create_provider(session_id).create_goal(
-        session_id=session_id, objective="ship the weekly report"
-    )
-    GoalRegistry.unregister(session_id)
+    goal = await GoalRegistry.resolve_provider(session_id).create_goal(session_id=session_id, objective="ship the weekly report")
 
     status = client.get(f"/api/v1/goals/{session_id}/status")
     queue = client.get(f"/api/v1/goals/{session_id}/queue")

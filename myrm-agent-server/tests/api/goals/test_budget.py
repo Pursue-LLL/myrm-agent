@@ -32,7 +32,7 @@ async def test_update_goal_budget(client: TestClient):
     """Test updating the budget of a goal."""
     session_id = "test_session_budget"
 
-    provider = GoalRegistry.get_or_create_provider(session_id)
+    provider = GoalRegistry.register(session_id)
 
     # Check if goal already exists from previous test run
     goal = await provider.get_active_goal(session_id)
@@ -58,5 +58,3 @@ async def test_update_goal_budget(client: TestClient):
     # 3. Test invalid tokens
     response = client.post(f"/api/v1/goals/{session_id}/budget", json={"additional_tokens": -100})
     assert response.status_code == 400
-
-    GoalRegistry.unregister(session_id)

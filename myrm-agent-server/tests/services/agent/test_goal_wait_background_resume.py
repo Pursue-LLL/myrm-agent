@@ -34,10 +34,8 @@ def storage(tmp_path: Path) -> Iterator[None]:
 
 
 @pytest.fixture
-def chat_id(request: pytest.FixtureRequest) -> Iterator[str]:
-    session_id = f"bg-wait-{request.node.name}"
-    yield session_id
-    GoalRegistry.unregister(session_id)
+def chat_id(request: pytest.FixtureRequest) -> str:
+    return f"bg-wait-{request.node.name}"
 
 
 def _finished(chat_id: str, job_id: str = _JOB_ID) -> BackgroundJobFinishResult:

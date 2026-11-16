@@ -2,8 +2,9 @@
 
 Real scenario: a turn ends, whether the answer finished or the user pressed Stop. The answer is stored with how long
 the first token took, the write-ahead marker that would resume a crashed turn is cleared only once the answer is
-stored, the Stop handle and steering registration the turn held are given back, and a stopped turn is recorded as
-stopped instead of finished.
+stored, the Stop handle, steering registration and goal provider the turn held are given back (the provider by its
+own handle, so a turn the server started meanwhile keeps its own), and a stopped turn is recorded as stopped instead
+of finished.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 
+from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.stream_session.stream_finalize import finalize_agent_stream_session
 from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder, ClarificationTimeoutHolder
 
@@ -55,12 +57,13 @@ class _Teardown:
         self.clear_marker = AsyncMock(side_effect=lambda *_a, **_k: self.calls.append("marker"))
         self.cancellation = MagicMock()
         self.steering = MagicMock()
+        self.goal_registry = MagicMock()
         self.end_run = MagicMock()
         self.capability_failed = AsyncMock()
 
 
 @contextmanager
-def _collaborators(teardown: _Teardown) -> Iterator[None]:
+def _collaborators(teardown: _Teardown, *, goal_registry: object | None = None) -> Iterator[None]:
     with ExitStack() as stack:
         for name in ("clear_context_task_metrics", "enqueue_context_compaction_telemetry", "merge_memory_citation_fallback"):
             stack.enter_context(patch(f"{_FINALIZE}.{name}"))
@@ -71,7 +74,12 @@ def _collaborators(teardown: _Teardown) -> Iterator[None]:
         stack.enter_context(patch(f"{_FINALIZE}._clear_interrupted_turn_marker", teardown.clear_marker))
         stack.enter_context(patch(f"{_FINALIZE}.has_turn_capability_terminal_context", return_value=True))
         stack.enter_context(patch(f"{_FINALIZE}.record_turn_capability_failed_once", teardown.capability_failed))
-        stack.enter_context(patch("app.services.agent.goals.goal_registry.GoalRegistry"))
+        stack.enter_context(
+            patch(
+                "app.services.agent.goals.goal_registry.GoalRegistry",
+                teardown.goal_registry if goal_registry is None else goal_registry,
+            )
+        )
         stack.enter_context(patch("app.services.chat.chat_service.ChatService.persist_assistant_message_safe", teardown.persist))
         stack.enter_context(patch("app.services.copilot.run_digest_store.RunDigestStore.end_run", teardown.end_run))
         stack.enter_context(
@@ -82,9 +90,9 @@ def _collaborators(teardown: _Teardown) -> Iterator[None]:
         yield
 
 
-async def _end_turn(session: MagicMock) -> _Teardown:
+async def _end_turn(session: MagicMock, *, goal_registry: object | None = None) -> _Teardown:
     teardown = _Teardown()
-    with _collaborators(teardown):
+    with _collaborators(teardown, goal_registry=goal_registry):
         await finalize_agent_stream_session(session, MagicMock(), ApprovalTimeoutHolder(), ClarificationTimeoutHolder())
     return teardown
 
@@ -117,6 +125,39 @@ async def test_the_turn_gives_back_its_stop_handle_and_steering_registration() -
 
     teardown.cancellation.unregister.assert_called_once_with(MESSAGE_ID)
     teardown.steering.unregister.assert_called_once_with(CHAT_ID)
+
+
+@pytest.mark.asyncio
+async def test_the_turn_gives_back_the_goal_provider_it_registered() -> None:
+    session = _make_session()
+
+    teardown = await _end_turn(session)
+
+    teardown.goal_registry.unregister.assert_called_once_with(CHAT_ID, session.goal_provider)
+
+
+@pytest.mark.asyncio
+async def test_a_turn_without_a_goal_provider_gives_back_no_goal_registration() -> None:
+    session = _make_session()
+    session.goal_provider = None
+
+    teardown = await _end_turn(session)
+
+    teardown.goal_registry.unregister.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_turn_the_server_started_meanwhile_keeps_its_goal_registration_through_this_teardown() -> None:
+    """The gateway gives the session back before the teardown ends, so the server can start the chat's next turn in
+    between; the teardown then finds the registration of that turn and leaves it."""
+    with patch("app.platform_utils.get_storage_provider", return_value=MagicMock()):
+        session = _make_session()
+        session.goal_provider = GoalRegistry.register(CHAT_ID)
+        started_meanwhile = GoalRegistry.register(CHAT_ID)
+
+        await _end_turn(session, goal_registry=GoalRegistry)
+
+    assert GoalRegistry.get_provider(CHAT_ID) is started_meanwhile
 
 
 @pytest.mark.asyncio

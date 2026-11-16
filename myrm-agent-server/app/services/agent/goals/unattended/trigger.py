@@ -38,33 +38,40 @@ _START_WAIT_SECONDS = 30.0
 _START_POLL_SECONDS = 0.5
 
 
-async def _wait_for_free_session(session_id: str, goal_id: str) -> str | None:
-    """Wait, bounded, for the turn holding the session to give it back; None once the session is free to take.
+def _not_started(goal_id: str, context: str, reason: str, *, level: int = logging.INFO) -> bool:
+    """Log why a start is given up and answer False: the session is not to be taken."""
+    logger.log(level, "Goal %s: %s not started: %s", goal_id, context, reason)
+    return False
 
-    Otherwise the reason the start is given up: the app is draining, the emergency stop is on, the goal is no longer
-    ACTIVE (a pause, or the turn that held the session ended it), or the session stayed held for the whole wait. The
-    caller takes the session right after a None, with no await in between, so nothing can take it first.
+
+async def _wait_for_free_session(session_id: str, goal_id: str, context: str) -> bool:
+    """Wait, bounded, for the turn holding the session to give it back; True once the session is free to take.
+
+    False, with the reason logged, when the start is given up. A draining app, the emergency stop and a goal that is no
+    longer ACTIVE (a pause, or the turn that held the session ended it) are decisions, logged at INFO. A session that
+    stayed held for the whole wait leaves an ACTIVE goal that nothing runs, so that one is logged at WARNING. The
+    caller takes the session right after a True, with no await in between, so nothing can take it first.
     """
     from app.services.agent.gateway import get_agent_gateway
     from app.services.agent.goals.goal_registry import GoalRegistry
 
     gateway = get_agent_gateway()
     if not gateway.is_session_active(session_id):
-        return None
+        return True
     loop = asyncio.get_running_loop()
     deadline = loop.time() + _START_WAIT_SECONDS
     while loop.time() < deadline:
         await asyncio.sleep(_START_POLL_SECONDS)
         if gateway.is_draining:
-            return "the app is draining"
+            return _not_started(goal_id, context, "the app is draining")
         if check_estop() is not None:
-            return "the emergency stop is on"
+            return _not_started(goal_id, context, "the emergency stop is on")
         goal = await GoalRegistry.resolve_provider(session_id).get_goal(goal_id)
         if goal is None or goal.status is not GoalStatus.ACTIVE:
-            return "the goal is no longer active"
+            return _not_started(goal_id, context, "the goal is no longer active")
         if not gateway.is_session_active(session_id):
-            return None
-    return f"the session stayed held for {_START_WAIT_SECONDS:g}s"
+            return True
+    return _not_started(goal_id, context, f"the session stayed held for {_START_WAIT_SECONDS:g}s", level=logging.WARNING)
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,8 +301,7 @@ async def trigger_goal_stream(
             from app.services.agent.goals.goal_registry import GoalRegistry
             from app.services.agent.runtime_context import build_agent_runtime_context
 
-            if (given_up := await _wait_for_free_session(session_id, goal.goal_id)) is not None:
-                logger.info("Goal %s: %s not started: %s", goal.goal_id, context, given_up)
+            if not await _wait_for_free_session(session_id, goal.goal_id, context):
                 return
 
             # The lease is taken before the agent is built, as a chat turn takes its session, so a pause, the chat

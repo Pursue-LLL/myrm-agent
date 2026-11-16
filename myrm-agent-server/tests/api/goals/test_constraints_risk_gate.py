@@ -1,7 +1,7 @@
 """Goal text is read by the agent on every iteration: a secret in the objective, a constraint, a subgoal or the draft request is refused before it is stored or sent to a model."""
 
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -44,12 +44,10 @@ def _risk_rules() -> Iterator[None]:
 
 
 @pytest.fixture
-async def session_id() -> AsyncIterator[str]:
+async def session_id() -> str:
     session = f"risk_gate_{uuid.uuid4().hex}"
-    provider = GoalRegistry.get_or_create_provider(session)
-    await provider.create_goal(session, "Original objective")
-    yield session
-    GoalRegistry.unregister(session)
+    await GoalRegistry.register(session).create_goal(session, "Original objective")
+    return session
 
 
 async def test_objective_with_a_secret_is_refused_and_unchanged(client: TestClient, session_id: str) -> None:

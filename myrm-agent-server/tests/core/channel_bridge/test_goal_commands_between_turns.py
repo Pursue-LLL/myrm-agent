@@ -29,7 +29,6 @@ def chat_id(tmp_path: Path) -> Iterator[str]:
         patch("app.core.channel_bridge.goal_handler.handler.resolve_chat_id", new=AsyncMock(return_value=cid)),
     ):
         yield cid
-    GoalRegistry.unregister(cid)
 
 
 @pytest.fixture(autouse=True)
@@ -54,11 +53,11 @@ async def _command(subcommand: GoalSubcommand, args: str = "") -> str:
 
 async def _goal_left_by_a_finished_turn(chat_id: str, status: GoalStatus = GoalStatus.ACTIVE) -> str:
     """Create a goal the way a turn does, then end that turn: storage keeps the goal, no provider stays registered."""
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     if status is not GoalStatus.ACTIVE:
         await provider.update_status(goal.goal_id, status)
-    GoalRegistry.unregister(chat_id)
+    GoalRegistry.unregister(chat_id, provider)
     return goal.goal_id
 
 
