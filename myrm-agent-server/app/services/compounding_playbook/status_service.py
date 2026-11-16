@@ -2,7 +2,7 @@
 
 [INPUT]
 - MemoryManager (memory counts)
-- CronManager (job counts + acceptance criteria)
+- CronManagerPort (job counts + acceptance criteria)
 - SkillsService (installed skill counts)
 - Agent DB row (optional agent_id skill_configs)
 
@@ -18,10 +18,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.manager import CronManager
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.compounding_playbook import (
@@ -80,7 +80,7 @@ async def _count_skills() -> int:
         return 0
 
 
-async def _count_cron_jobs(cron_manager: CronManager) -> tuple[int, int]:
+async def _count_cron_jobs(cron_manager: CronManagerPort) -> tuple[int, int]:
     try:
         jobs = await cron_manager.list_jobs()
         verify_count = sum(1 for job in jobs if job.acceptance_criteria and len(job.acceptance_criteria) > 0)
@@ -93,7 +93,7 @@ async def _count_cron_jobs(cron_manager: CronManager) -> tuple[int, int]:
 async def build_compounding_status(
     *,
     memory_manager: MemoryManager,
-    cron_manager: CronManager,
+    cron_manager: CronManagerPort,
     agent_id: str | None = None,
     db: AsyncSession | None = None,
 ) -> CompoundingPlaybookStatusResponse:

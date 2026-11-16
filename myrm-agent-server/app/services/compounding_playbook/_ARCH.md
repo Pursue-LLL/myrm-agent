@@ -14,6 +14,6 @@ Settings「复利闭环」checklist 的轻量聚合服务。统计 memory / skil
 ## 模块依赖
 
 - `myrm_agent_harness.toolkits.memory.MemoryManager` — PROFILE/SEMANTIC/CLAIM 计数
-- `myrm_agent_harness.toolkits.cron.manager.CronManager` — 任务与 acceptance 计数
+- `myrm_agent_harness.toolkits.cron.manager_port.CronManagerPort` — 任务与 acceptance 计数（只用 `list_jobs`）
 - `app.core.skills.store.service.skills_service` — 活跃技能计数（无 agent 绑定时）
 - `app.database.models.agent.Agent` — 可选 agent_id 技能绑定计数

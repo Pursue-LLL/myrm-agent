@@ -11,6 +11,8 @@
 
 [POS]
 Server business-layer gate on harness CronManager mutations. All callers use ``get_cron_manager()``.
+It holds a ``CronManager`` rather than inheriting from one and satisfies the harness ``CronManagerPort`` by shape,
+which is what lets the cron tools and the heartbeat take it.
 """
 
 from __future__ import annotations

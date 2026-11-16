@@ -20,7 +20,7 @@ Usage (framework-only, no business coupling)::
     )
 
 [INPUT]
-- (none)
+- cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 
 [OUTPUT]
 - HeartbeatStatus: Whether the heartbeat is enabled, and its job (None when absent).
@@ -49,7 +49,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.cron.manager import CronManager
+    from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class HeartbeatStatus(NamedTuple):
     job: CronJob | None
 
 
-async def _find_heartbeat(manager: CronManager) -> CronJob | None:
+async def _find_heartbeat(manager: CronManagerPort) -> CronJob | None:
     """Find the heartbeat job by its conventional name."""
     jobs = await manager.list_jobs(limit=200)
     return next((j for j in jobs if j.name == HEARTBEAT_JOB_NAME), None)
@@ -90,7 +90,7 @@ def _build_schedule(
 
 
 async def enable_heartbeat(
-    manager: CronManager,
+    manager: CronManagerPort,
     *,
     interval_ms: int = _DEFAULT_INTERVAL_MS,
     schedule: Schedule | None = None,
@@ -139,7 +139,7 @@ async def enable_heartbeat(
     )
 
 
-async def disable_heartbeat(manager: CronManager) -> bool:
+async def disable_heartbeat(manager: CronManagerPort) -> bool:
     """Disable (pause) the heartbeat.  Returns False if no heartbeat exists."""
     existing = await _find_heartbeat(manager)
     if existing is None:
@@ -148,7 +148,7 @@ async def disable_heartbeat(manager: CronManager) -> bool:
     return result is not None
 
 
-async def get_heartbeat_status(manager: CronManager) -> HeartbeatStatus:
+async def get_heartbeat_status(manager: CronManagerPort) -> HeartbeatStatus:
     """Return the current heartbeat state."""
     existing = await _find_heartbeat(manager)
     if existing is None:

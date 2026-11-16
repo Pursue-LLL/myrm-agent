@@ -16,4 +16,4 @@ MSC 复利闭环轻量状态 HTTP 层。只返回四行 checklist 计数，不�
 
 - `app.services.compounding_playbook.status_service` — 四行 checklist 计数
 - `app.services.memory.manager_deps` — MemoryManager 注入
-- `app.api.cron.routes.helpers` — CronManager 注入
+- `app.api.cron.routes.helpers` — 注入受权限守卫的 cron 管理器（`_get_manager`），路由按 `CronManagerPort` 接收

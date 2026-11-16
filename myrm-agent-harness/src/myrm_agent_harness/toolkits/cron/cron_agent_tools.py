@@ -16,6 +16,7 @@ the tool parameters lives in ``cron_agent_params.py`` and the per-action work in
 - toolkits.cron.cron_agent_actions::BlueprintCatalogProvider, DeliveryResolver, _do_add, _do_blueprints, _do_list, _do_pause, _do_remove, _do_resume, _do_run, _do_update (POS: cron_manage_tool 各 action 的实现)
 - toolkits.cron.cron_agent_params::_parse_csv_tuple (POS: cron_manage_tool 参数解析与校验)
 - toolkits.cron.cron_agent_timezone::resolve_timezone (POS: cron_manage_tool 的时区契约)
+- toolkits.cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 - toolkits.cron.types::DeliveryConfig (POS: cron 数据模型)
 
 [OUTPUT]
@@ -59,7 +60,7 @@ from myrm_agent_harness.toolkits.cron.cron_agent_timezone import resolve_timezon
 from myrm_agent_harness.toolkits.cron.types import DeliveryConfig
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.cron.manager import CronManager
+    from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
 
 _IN_CRON_EXECUTION: ContextVar[bool] = ContextVar("_in_cron_execution", default=False)
 _CRON_EXECUTION_MUTATING_ACTIONS = frozenset({"add", "update", "remove", "run", "pause", "resume"})
@@ -79,7 +80,7 @@ def exit_cron_execution_context(token: Token[bool]) -> None:
 
 
 def create_cron_tools(
-    manager: CronManager,
+    manager: CronManagerPort,
     *,
     current_model: str = "",
     chat_id: str | None = None,

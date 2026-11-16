@@ -7,6 +7,7 @@ delivery channels, and trigger providers are injected by the application layer.
 Provides:
 - CronScheduler: precise timer-based scheduling engine with watchdog and stagger
 - CronManager: CRUD orchestration with validation and scheduler notification
+- CronManagerPort: the job operations the agent tools and the heartbeat call, satisfied by CronManager or a wrapper of it
 - Heartbeat: one-call enable/disable for periodic agent self-checks
 - ShellJobRunner: built-in runner for shell-type jobs
 - InMemoryCronStore: built-in in-memory store for development and testing
@@ -21,6 +22,7 @@ Provides:
 - cron.engine.scheduler::CronScheduler (POS: timer-based scheduling engine)
 - cron.heartbeat (POS: periodic agent self-check utilities)
 - cron.manager::CronManager (POS: cron CRUD orchestration layer)
+- cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 - cron.protocols (POS: cron protocol definitions — store, runner, delivery, lock, trigger)
 - cron.runners::ShellJobRunner (POS: built-in shell job runner)
 - cron.stores::InMemoryCronStore (POS: in-memory store for dev/test)
@@ -30,6 +32,7 @@ Provides:
 
 [OUTPUT]
 - CronScheduler, CronManager: core scheduling components
+- CronManagerPort: the typing contract of the manager for tools, heartbeat and application wrappers
 - Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, etc.
 - Protocols: CronStore, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider, StreamListener
 - Notices: CronNotice, CronNoticeKind, CronNoticeCallback
@@ -71,6 +74,7 @@ from myrm_agent_harness.toolkits.cron.heartbeat import (
     get_heartbeat_status,
 )
 from myrm_agent_harness.toolkits.cron.manager import CronManager
+from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
 from myrm_agent_harness.toolkits.cron.protocols import (
     ConcurrencyLock,
     CronNoticeCallback,
@@ -141,6 +145,7 @@ __all__ = [
     "CronJob",
     "CronJobPatch",
     "CronManager",
+    "CronManagerPort",
     "CronNotice",
     "CronNoticeCallback",
     "CronNoticeKind",
