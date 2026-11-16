@@ -150,8 +150,8 @@ _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
 _BASH_PROCESS_TOOL_DESCRIPTION_ZH = (
     "管理通过 bash_code_execute_tool(run_in_background=true) 启动的后台进程。"
     "当 output 或 wait 返回 waiting_for_input=true 时，根据 input_wait_hint 使用 submit_stdin 响应（切勿盲目轮询）。"
-    "操作：list（会话任务与进度），output（查看增量输出/配合 since_cursor 轮询），"
-    "wait（阻塞等待结束或超时，最大 120s），kill（默认 SIGTERM，force 时发送 SIGKILL），"
+    "操作：list（会话任务与 last_progress），output（查看增量输出/配合 since_cursor 轮询），"
+    "wait（阻塞等待结束或达到 timeout_seconds，最大 120s），kill（默认 SIGTERM，force 时发送 SIGKILL），"
     "write_stdin（原始 stdin），submit_stdin（stdin+换行），close_stdin（EOF）。"
 )
 
