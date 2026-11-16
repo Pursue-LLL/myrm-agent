@@ -279,15 +279,6 @@ class LocalEvalExecutor:
                         mcp_tool_selections=resolved.mcp_tool_selections or None,
                     )
 
-                from app.services.agent.params.response_locale_suffix import (
-                    apply_response_locale_suffix,
-                )
-
-                user_instructions = apply_response_locale_suffix(
-                    user_instructions,
-                    engine_params=resolved.engine_params,
-                )
-
         if self.benchmark_mode:
             user_instructions = ""
             enabled_builtin_tools = list(self.benchmark_tools)

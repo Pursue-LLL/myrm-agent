@@ -23,7 +23,7 @@ Python 端开发工具（`myrm-agent/scripts/dev/lib/cdp_chat/`）按成员名�
 ## 依赖
 
 - 产品 store / lib / services 的依赖见 [../_ARCH.md](../_ARCH.md) 的依赖节
-- 上一级模块：`../hostEnv.ts`、`../providerBootstrap.ts`、`../e2eChatBridgeSendPolicy.ts`、`../submitAndObserveTurn.ts`、`../e2eClarificationSkip.ts`、`../sendTurnContract.ts`、`../turnProgress.ts`
+- 上一级模块：`../hostEnv.ts`、`../providerBootstrap.ts`、`../e2eChatBridgeSendPolicy.ts`、`../submitAndObserveTurn.ts`、`../sendTurnResult.ts`、`../e2eClarificationSkip.ts`、`../sendTurnContract.ts`、`../turnProgress.ts`
 - 分组之间不互相导入，共享逻辑放在分组之上的 `../` 模块；只有 `createE2eChatBridge.ts` 汇合各分组
 
 ## 约束

@@ -278,7 +278,20 @@ class CodeExecutor(ABC):
         return [line for line in result.stdout.strip().splitlines() if line] if result.success else []
 
     async def resolve_path(self, relative_path: str) -> str:
-        """Resolve a relative path to absolute, with path traversal detection."""
+        """Resolve a relative path to absolute, with path traversal detection.
+
+        A network share or NT-namespace spelling is refused before anything resolves it: on Windows, resolving
+        such a path connects to the host it names.
+        """
+        from myrm_agent_harness.core.security.path import (
+            is_network_or_nt_path,
+            is_within_boundary,
+            network_path_refusal,
+        )
+
+        if is_network_or_nt_path(relative_path):
+            raise ValueError(network_path_refusal(relative_path))
+
         wp = Path(self.workspace_path).resolve()
 
         clean = WorkspacePathResolver.container_relative(relative_path) or relative_path
@@ -287,8 +300,6 @@ class CodeExecutor(ABC):
             resolved = Path(clean).resolve()
         else:
             resolved = (wp / clean).resolve()
-
-        from myrm_agent_harness.core.security.path import is_within_boundary
 
         if not is_within_boundary(resolved, wp) and granted_root_containing(resolved) is None:
             raise ValueError(f"Path traversal detected: {relative_path} (workspace is {wp})")

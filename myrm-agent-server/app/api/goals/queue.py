@@ -1,8 +1,7 @@
 """Goal queue HTTP API endpoints.
 
 [INPUT]
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: In-memory goal provider registry)
-- myrm_agent_harness.agent.goals.manager::GoalManager (POS: Goal persistence manager fallback)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: Resolves a session's goal provider, storage-backed between turns)
 
 [OUTPUT]
 - queue_router: APIRouter for queue management endpoints
@@ -32,13 +31,7 @@ class QueueReorderRequest(BaseModel):
 @queue_router.get("/{session_id}/queue")
 async def get_goal_queue(session_id: str) -> dict[str, object]:
     """Get all queued goals for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     queued = await provider.get_queued_goals(session_id)
     return {"queue": [g.to_dict() for g in queued]}
@@ -47,13 +40,7 @@ async def get_goal_queue(session_id: str) -> dict[str, object]:
 @queue_router.delete("/{session_id}/queue/{goal_id}")
 async def cancel_queued_goal(session_id: str, goal_id: str) -> dict[str, str]:
     """Cancel (remove) a specific goal from the queue."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     try:
         await provider.cancel_queued_goal(session_id, goal_id)
@@ -65,13 +52,7 @@ async def cancel_queued_goal(session_id: str, goal_id: str) -> dict[str, str]:
 @queue_router.post("/{session_id}/queue/reorder")
 async def reorder_goal_queue(session_id: str, request: QueueReorderRequest) -> dict[str, str]:
     """Reorder the goal queue by providing ordered goal IDs."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     await provider.reorder_queue(session_id, request.ordered_goal_ids)
     return {"status": "success"}

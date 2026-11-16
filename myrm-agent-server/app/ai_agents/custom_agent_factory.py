@@ -296,12 +296,6 @@ class CustomAgentFactory:
 
         mcp_surface_mode, engine_params = normalize_mcp_surface_engine_params(engine_params)
 
-        from app.services.agent.params.response_locale_suffix import (
-            apply_response_locale_suffix,
-        )
-
-        system_prompt = apply_response_locale_suffix(system_prompt, engine_params=engine_params) or system_prompt
-
         mcp_servers = list(self._cached_mcp_configs)
         if mcp_servers:
             from app.services.agent.mcp_runtime_prepare import (

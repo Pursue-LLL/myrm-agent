@@ -184,13 +184,6 @@ export const BUILTIN_AGENT_I18N: Record<string, AgentI18nEntry> = {
     },
     zh: { name: '邮件专家', description: '专业邮件撰写——冷启动触达、跟进邮件、商务谈判与沟通。' },
   },
-  'builtin-ko-office': {
-    en: {
-      name: 'Korean Office Assistant',
-      description: 'Formal Korean business assistant for email, meeting notes, and office workflows.',
-    },
-    zh: { name: '韩语办公助手', description: '正式韩语商务助手——邮件、会议纪要、办公流程。' },
-  },
   'builtin-automation': {
     en: {
       name: 'Automation Builder',

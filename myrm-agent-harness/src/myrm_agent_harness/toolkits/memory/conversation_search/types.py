@@ -9,6 +9,7 @@ ConversationSourceRef: UI-safe source reference for one recalled conversation.
 ConversationSearchHit: one conversation-level recall result.
 ConversationIndexCoverage: index coverage and backfill metrics DTO.
 ConversationSearchResponse: provider response envelope.
+MAX_CONVERSATION_SEARCH_LIMIT, MAX_SNIPPET_CHARS, MAX_EXPANDED_SNIPPET_CHARS, MAX_SUMMARY_CHARS, MAX_TOOL_OUTPUT_CHARS: request and output size limits of conversation recall (result cap, snippet, expanded snippet, summary and tool-output budgets).
 
 [POS]
 Conversation recall type definitions. Provides storage-agnostic DTOs for exact snippets, precomputed summaries,

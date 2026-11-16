@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/store/useChatStore::useChatStore (POS: Active chat state manager.)
- * - @/components/dev/e2eBridge/submitAndObserveTurn::recordActiveTurnEvent (POS: 发送并观察一个聊天回合的流水线)
+ * - @/components/dev/e2eBridge/submitAndObserveTurn::recordActiveTurnEvent (POS: 发送并观察一个聊天回合的流水线编排)
  * - @/components/dev/e2eBridge/members/types::E2eBridgeMembers (POS: 桥成员分组的类型)
  *
  * [OUTPUT]

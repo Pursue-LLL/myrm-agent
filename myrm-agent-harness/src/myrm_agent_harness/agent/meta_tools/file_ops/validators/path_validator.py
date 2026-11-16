@@ -24,7 +24,9 @@ from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 from myrm_agent_harness.agent.security.path_security import (
     is_blocked_device_path,
     is_dangerous_path,
+    is_network_or_nt_path,
     is_within_boundary,
+    network_path_refusal,
 )
 
 from .base import Validator
@@ -43,6 +45,7 @@ class PathValidator(Validator):
     2. 符号链接攻击
     3. 访问危险系统路径
     4. 路径深度攻击
+    5. 网络共享与 NT 命名空间路径（在任何文件系统调用之前按文本拒绝）
     """
 
     def __init__(self, allowed_base_paths: list[str] | None = None, io_config: FileIOConfig | None = None) -> None:
@@ -64,6 +67,11 @@ class PathValidator(Validator):
 
         # 解码 URL 编码（防止编码绕过，如 %2e%2e）
         decoded_path = unquote(path)
+
+        # 网络共享与 NT 命名空间路径只按文本判断、先于后面所有文件系统调用：
+        # 在 Windows 上解析或检查这类路径，会让系统去连接路径里的主机并发送用户凭据
+        if is_network_or_nt_path(decoded_path):
+            raise PermissionError(network_path_refusal(decoded_path))
 
         # 检查路径遍历攻击
         self._check_path_traversal(decoded_path)

@@ -12,5 +12,6 @@ export {
   NEXT_LOCALE_COOKIE_NAME,
   normalizeLocaleForBackend,
   parseLocaleQueryParam,
+  resolveBackendLocale,
   urlWithoutLocaleParam,
 } from './localeUtils';

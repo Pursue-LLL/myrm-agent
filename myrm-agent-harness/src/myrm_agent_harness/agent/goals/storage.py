@@ -3,10 +3,11 @@
 [INPUT]
 - toolkits.storage.base::StorageProvider (POS: Storage protocol)
 - .types::Goal, GoalStatus, GoalBudget (POS: Goal data types)
+- .queue_index::GoalQueueIndex (POS: Per-session goal queue persistence)
 
 [OUTPUT]
 - GoalStorage: goal, session-index, stash and queue persistence; an unreadable session index reads as
-  "no goal" and is logged at most once per window per storage instance.
+  "no goal" and an unreadable queue as empty, each logged at most once per window per storage instance.
 - StashRecord: persisted shape of a branch stash, as get_stash returns it.
 
 [POS]
@@ -22,6 +23,7 @@ import time
 from datetime import datetime
 from typing import TYPE_CHECKING, NotRequired, TypedDict
 
+from .queue_index import GoalQueueIndex
 from .types import Goal, GoalBudget, GoalStatus
 
 if TYPE_CHECKING:
@@ -96,6 +98,7 @@ class GoalStorage:
 
     def __init__(self, storage: StorageProvider) -> None:
         self._storage = storage
+        self._queue = GoalQueueIndex(storage, key_prefix=f"{_GOAL_NAMESPACE}_queue")
         # (index, session_id) -> monotonic time of the last WARNING for that unreadable index.
         self._index_warned_at: dict[tuple[str, str], float] = {}
 
@@ -324,57 +327,27 @@ class GoalStorage:
         except Exception as e:
             logger.error("Failed to delete stash for branch %s: %s", branch_name, e)
 
-    # --- Queue index operations ---
+    # --- Queue index operations (see queue_index.py) ---
 
     async def add_to_queue(self, goal: Goal) -> None:
         """Add a goal to the session queue index."""
-        queue = await self._get_raw_queue(goal.session_id)
-        entry = {
-            "goal_id": goal.goal_id,
-            "priority": goal.priority,
-            "created_at": goal.created_at.isoformat(),
-        }
-        queue.append(entry)
-        queue.sort(key=lambda e: (e["priority"], e["created_at"]))
-        await self._save_raw_queue(goal.session_id, queue)
+        await self._queue.add(goal)
 
     async def get_queue(self, session_id: str) -> list[dict[str, object]]:
-        """Get the ordered queue entries for a session."""
-        return await self._get_raw_queue(session_id)
+        """Get the ordered queue entries for a session; a queue that cannot be read reads as empty and is logged.
+
+        The changes below raise instead: they write the queue back, and an empty stand-in would replace it.
+        """
+        try:
+            return await self._queue.read(session_id)
+        except Exception as exc:
+            self._report_index_failure("queue", session_id, exc)
+            return []
 
     async def remove_from_queue(self, session_id: str, goal_id: str) -> None:
         """Remove a goal from the queue index."""
-        queue = await self._get_raw_queue(session_id)
-        queue = [e for e in queue if e["goal_id"] != goal_id]
-        await self._save_raw_queue(session_id, queue)
+        await self._queue.remove(session_id, goal_id)
 
     async def reorder_queue(self, session_id: str, ordered_goal_ids: list[str]) -> None:
         """Reorder queue by assigning priorities based on the provided order."""
-        queue = await self._get_raw_queue(session_id)
-        id_to_entry = {e["goal_id"]: e for e in queue}
-        reordered: list[dict[str, object]] = []
-        for i, gid in enumerate(ordered_goal_ids):
-            if gid in id_to_entry:
-                entry = id_to_entry.pop(gid)
-                entry["priority"] = i
-                reordered.append(entry)
-        for entry in id_to_entry.values():
-            entry["priority"] = len(reordered)
-            reordered.append(entry)
-        await self._save_raw_queue(session_id, reordered)
-
-    async def _get_raw_queue(self, session_id: str) -> list[dict[str, object]]:
-        try:
-            raw = await self._storage.read(key=f"{_GOAL_NAMESPACE}_queue/{session_id}")
-            if not raw:
-                return []
-            queue: list[dict[str, object]] = json.loads(raw.decode("utf-8"))
-            return queue
-        except Exception:
-            return []
-
-    async def _save_raw_queue(self, session_id: str, queue: list[dict[str, object]]) -> None:
-        await self._storage.write(
-            key=f"{_GOAL_NAMESPACE}_queue/{session_id}",
-            content=json.dumps(queue).encode("utf-8"),
-        )
+        await self._queue.reorder(session_id, ordered_goal_ids)

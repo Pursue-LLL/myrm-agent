@@ -1,10 +1,10 @@
 """Goal HTTP API endpoints.
 
 [INPUT]
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: Goal registry)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: Resolves a session's goal provider, storage-backed between turns)
 - app.services.agent.goals.goal_controls::select_cancellable_goal, continue_resumed_goal, note_goal_resumed, stop_goal_turn, wait_for_stopped_turn (POS: Goal control rules shared with IM)
 - app.api.goals.schemas (POS: request/response bodies of the endpoints)
-- app.api.dependencies::require_safe_session_id (POS: Router-level guard answering 404 for a path session id outside the safe charset)
+- app.api.dependencies::require_safe_path_ids (POS: Router-level guard answering 404 for a path parameter outside the safe id charset)
 - myrm_agent_harness.agent.goals.types::GoalStatus (POS: Goal status enum)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
 
@@ -13,8 +13,8 @@
 
 [POS]
 Provides HTTP endpoints for the frontend to pause, resume, and clear goals. Resume puts the goal back to work, or
-is refused (409) while the turn a pause stopped is still winding down. A session id outside the safe charset is
-a 404 on every route that carries one, before the handler runs.
+is refused (409) while the turn a pause stopped is still winding down. A path parameter outside the safe id charset
+is a 404 on every route that carries one, before the handler runs.
 """
 
 import logging
@@ -26,7 +26,7 @@ from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.api.hooks import GOAL_WAIT_KIND_KEY, GOAL_WAIT_KIND_USAGE_LIMIT
 from myrm_agent_harness.core.features import get_features
 
-from app.api.dependencies import get_optional_llm_for_user, require_safe_session_id
+from app.api.dependencies import get_optional_llm_for_user, require_safe_path_ids
 from app.services.agent.goals.goal_controls import (
     NON_TERMINAL_GOAL_STATUSES,
     continue_resumed_goal,
@@ -71,7 +71,7 @@ def verify_goals_enabled() -> None:
 router = APIRouter(
     prefix="/goals",
     tags=["goals"],
-    dependencies=[Depends(verify_goals_enabled), Depends(require_safe_session_id)],
+    dependencies=[Depends(verify_goals_enabled), Depends(require_safe_path_ids)],
 )
 router.include_router(plan_router)
 router.include_router(queue_router)
@@ -115,13 +115,7 @@ async def list_active_goals() -> dict[str, object]:
 async def add_goal_subgoal(session_id: str, request: SubgoalAddRequest) -> dict[str, object]:
     """Add a new subgoal to the active goal for a session."""
     await reject_if_risky(request.text, session_id=session_id)
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:
@@ -138,13 +132,7 @@ async def add_goal_subgoal(session_id: str, request: SubgoalAddRequest) -> dict[
 @router.delete("/{session_id}/subgoals/{index}")
 async def remove_goal_subgoal(session_id: str, index: int) -> dict[str, object]:
     """Remove a subgoal by index from the active goal for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:
@@ -163,13 +151,7 @@ async def remove_goal_subgoal(session_id: str, index: int) -> dict[str, object]:
 @router.delete("/{session_id}/subgoals")
 async def clear_goal_subgoals(session_id: str) -> dict[str, object]:
     """Clear all subgoals from the active goal for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:
@@ -186,15 +168,7 @@ async def clear_goal_subgoals(session_id: str) -> dict[str, object]:
 @router.get("/{session_id}/status")
 async def get_goal_status(session_id: str) -> dict[str, object]:
     """Get the current active goal for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        # If no provider in memory, we could try to instantiate one and check DB,
-        # but for now we just return null.
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:
@@ -220,13 +194,7 @@ async def update_goal_status(session_id: str, request: GoalStatusUpdateRequest) 
         # The note is the feedback the client sends to the agent as soon as the goal is back at work: a note a risk rule
         # holds keeps the goal in review, so the feedback is not lost to a goal that carries on without it.
         await reject_if_risky(request.note, session_id=session_id)
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     # When resuming, approving, rejecting, or unwaiting, use latest goal (may be WAIT/PAUSED)
     if request.action in ("resume", "approve", "reject", "unwait"):
@@ -338,13 +306,7 @@ async def draft_goal(
 @router.post("/{session_id}/budget")
 async def update_goal_budget(session_id: str, request: GoalBudgetUpdateRequest) -> dict[str, object]:
     """Add tokens to the budget of the latest goal for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:

@@ -224,13 +224,7 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            from myrm_agent_harness.agent.goals.manager import GoalManager
-
-            from app.platform_utils import get_storage_provider
-
-            provider = GoalManager(get_storage_provider())
+        provider = GoalRegistry.resolve_provider(chat_id)
 
         goal = await provider.get_latest_goal(chat_id)
         if not goal:

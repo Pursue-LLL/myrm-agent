@@ -1,8 +1,7 @@
 """Goal constraints and objective HTTP API endpoints.
 
 [INPUT]
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: In-memory goal provider registry)
-- myrm_agent_harness.agent.goals.manager::GoalManager (POS: Goal persistence manager fallback)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: Resolves a session's goal provider, storage-backed between turns)
 - myrm_agent_harness.agent.goals.steering_prompts::build_objective_updated_steering_message (POS: Steering message generator)
 - app.services.agent.steering::SteeringRegistry (POS: Active agent steering registry)
 - app.services.risk.refusal::reject_if_risky (POS: Refuses text a risk rule holds, before an agent reads it)
@@ -43,13 +42,7 @@ class ObjectiveUpdateRequest(BaseModel):
 @constraints_router.put("/{session_id}/constraints")
 async def update_goal_constraints(session_id: str, request: ConstraintsUpdateRequest) -> dict[str, object]:
     """Set or replace constraints on the latest goal for a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:
@@ -64,13 +57,7 @@ async def update_goal_constraints(session_id: str, request: ConstraintsUpdateReq
 @constraints_router.get("/{session_id}/constraints")
 async def get_goal_constraints(session_id: str) -> dict[str, object]:
     """Get constraints for the latest goal in a session."""
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:
@@ -89,13 +76,7 @@ async def update_goal_objective(session_id: str, request: ObjectiveUpdateRequest
         raise HTTPException(status_code=400, detail=f"Objective exceeds {MAX_OBJECTIVE_LENGTH} characters")
     await reject_if_risky(objective, session_id=session_id)
 
-    provider = GoalRegistry.get_provider(session_id)
-    if not provider:
-        from myrm_agent_harness.agent.goals.manager import GoalManager
-
-        from app.platform_utils import get_storage_provider
-
-        provider = GoalManager(get_storage_provider())
+    provider = GoalRegistry.resolve_provider(session_id)
 
     goal = await provider.get_latest_goal(session_id)
     if not goal:

@@ -11,7 +11,7 @@
  * - pollApiUserMessages / ApiPollStats: bounded message-list poll that tells "not persisted", "unknown chat" and "API unreachable" apart
  *
  * [POS]
- * 发送回合的进度读数：页面侧 store 进度、API 落库用户消息的有界轮询与发送代数计数，供 submitAndObserveTurn 判定封口。
+ * 发送回合的进度读数：页面侧 store 进度、API 落库用户消息的有界轮询与发送代数计数，供发送流水线的观察阶段判定封口。
  */
 import useChatStore from '@/store/useChatStore';
 import useWorkspaceStore from '@/store/useWorkspaceStore';

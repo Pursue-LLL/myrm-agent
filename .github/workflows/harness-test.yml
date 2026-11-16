@@ -237,6 +237,36 @@ jobs:
           tests/integration/test_enterprise_tls_entrypoints_integration.py
           tests/integration/test_tls_certificate_rejection_integration.py
 
+  windows-path-security:
+    name: Windows path security (real Win32 path rules)
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d8db0a86d3d88f3017a4e6b8a1e2b234e7a0a1b5 # v4.0.0
+        with:
+          version: "0.12.7"
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --python 3.13 --locked --group dev
+
+      # Opening a network share or NT-namespace path on Windows connects to the host it names and sends the user's
+      # credentials, so every gate must refuse such a path on its text. The Linux job runs these cases with the host
+      # flag forced; this job runs them on the real host, where `//host/share`, the reserved device names and the
+      # filesystem spy see the native Win32 path functions.
+      - name: Run path security tests
+        run: >-
+          uv run --no-sync pytest -n0 -q --tb=short
+          tests/core/security/path/test_network_and_nt_paths.py
+          tests/agent/meta_tools/file_ops/test_network_path_refusal.py
+
   linux-computer-use:
     name: Linux computer-use (real X11)
     runs-on: ubuntu-24.04

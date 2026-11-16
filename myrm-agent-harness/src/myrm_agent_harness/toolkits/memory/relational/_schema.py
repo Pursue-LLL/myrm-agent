@@ -14,8 +14,13 @@
 Schema bootstrap for SQLiteRelationalStore. Stateless: every function operates on the given connection.
 Migrations only move forward: a ``priority`` or ``trigger_keywords`` column found on procedural_rules is dropped, so
 a build that still reads or writes either column can no longer read, create or update rules in a database this code
-has opened.
+has opened. Several stores may open one database together: a column step another connection applied between this
+connection's column listing and its own statement counts as done. The one-time rename-and-copy migration of a
+database that predates the scope columns is not covered: it assumes no other store migrates that database at the
+same moment.
 """
+
+from collections.abc import Mapping
 
 import aiosqlite
 
@@ -27,6 +32,23 @@ _OPEN_PROPOSAL_INDEX = "idx_pending_open_proposal"
 # Columns older releases wrote on every rule and nothing read: rules are ordered by creation time and found by their
 # trigger and action text. A database that still has one gets it dropped when opened.
 _DEAD_RULE_COLUMNS = ("priority", "trigger_keywords")
+
+# Columns a table written by an older release may lack, each with the definition its ADD COLUMN gives it.
+_PROFILE_COLUMNS = {"source_chat_id": "TEXT"}
+_RULE_COLUMNS = {
+    "tool_name": "TEXT",
+    "tool_rule_priority": "TEXT NOT NULL DEFAULT 'normal'",
+    "access_count": "INTEGER NOT NULL DEFAULT 0",
+    "last_accessed_at": "TEXT",
+    "is_user_locked": "INTEGER NOT NULL DEFAULT 0",
+    "expected_valid_days": "INTEGER",
+}
+_PENDING_COLUMNS = {
+    "resolution_action": "TEXT NOT NULL DEFAULT 'store'",
+    "target_memory_id": "TEXT",
+    "target_content": "TEXT",
+    "built_from_chats": "INTEGER NOT NULL DEFAULT 0",
+}
 
 
 async def _table_exists(conn: aiosqlite.Connection, table_name: str) -> bool:
@@ -41,6 +63,39 @@ async def _table_columns(conn: aiosqlite.Connection, table_name: str) -> set[str
     async with conn.execute(f"PRAGMA table_info({table_name})") as cursor:
         rows = list(await cursor.fetchall())
     return {str(row[1]) for row in rows}
+
+
+async def _change_column(conn: aiosqlite.Connection, table: str, column: str, statement: str, *, present: bool) -> None:
+    """Run one ADD or DROP COLUMN that this connection's column listing says is due.
+
+    SQLite has no ``IF NOT EXISTS`` for either. Another connection opening the same database can apply the same step
+    between the listing and the statement, which then fails; that is harmless when the column is in the state the
+    statement was after, and any other failure still surfaces.
+    """
+    try:
+        await conn.execute(statement)
+    except aiosqlite.OperationalError:
+        if (column in await _table_columns(conn, table)) != present:
+            raise
+
+
+async def _align_columns(
+    conn: aiosqlite.Connection,
+    table: str,
+    *,
+    add: Mapping[str, str],
+    drop: tuple[str, ...] = (),
+) -> None:
+    """Add the columns of ``add`` the table lacks and drop the columns of ``drop`` it still has."""
+    present = await _table_columns(conn, table)
+    for column, definition in add.items():
+        if column not in present:
+            await _change_column(
+                conn, table, column, f"ALTER TABLE {table} ADD COLUMN {column} {definition}", present=True
+            )
+    for column in drop:
+        if column in present:
+            await _change_column(conn, table, column, f"ALTER TABLE {table} DROP COLUMN {column}", present=False)
 
 
 async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
@@ -77,8 +132,8 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             )
             await conn.execute("DROP TABLE profiles_legacy")
 
-    if await _table_exists(conn, "profiles") and "source_chat_id" not in await _table_columns(conn, "profiles"):
-        await conn.execute("ALTER TABLE profiles ADD COLUMN source_chat_id TEXT")
+    if await _table_exists(conn, "profiles"):
+        await _align_columns(conn, "profiles", add=_PROFILE_COLUMNS)
 
     if await _table_exists(conn, "procedural_rules"):
         rule_columns = await _table_columns(conn, "procedural_rules")
@@ -120,35 +175,10 @@ async def _ensure_scope_schema(conn: aiosqlite.Connection) -> None:
             await conn.execute("DROP TABLE procedural_rules_legacy")
 
     if await _table_exists(conn, "procedural_rules"):
-        rule_columns = await _table_columns(conn, "procedural_rules")
-        if "tool_name" not in rule_columns:
-            await conn.execute("ALTER TABLE procedural_rules ADD COLUMN tool_name TEXT")
-        if "tool_rule_priority" not in rule_columns:
-            await conn.execute(
-                "ALTER TABLE procedural_rules ADD COLUMN tool_rule_priority TEXT NOT NULL DEFAULT 'normal'"
-            )
-        if "access_count" not in rule_columns:
-            await conn.execute("ALTER TABLE procedural_rules ADD COLUMN access_count INTEGER NOT NULL DEFAULT 0")
-        if "last_accessed_at" not in rule_columns:
-            await conn.execute("ALTER TABLE procedural_rules ADD COLUMN last_accessed_at TEXT")
-        if "is_user_locked" not in rule_columns:
-            await conn.execute("ALTER TABLE procedural_rules ADD COLUMN is_user_locked INTEGER NOT NULL DEFAULT 0")
-        if "expected_valid_days" not in rule_columns:
-            await conn.execute("ALTER TABLE procedural_rules ADD COLUMN expected_valid_days INTEGER")
-        for dead_column in _DEAD_RULE_COLUMNS:
-            if dead_column in rule_columns:
-                await conn.execute(f"ALTER TABLE procedural_rules DROP COLUMN {dead_column}")
+        await _align_columns(conn, "procedural_rules", add=_RULE_COLUMNS, drop=_DEAD_RULE_COLUMNS)
 
     if await _table_exists(conn, "pending_records"):
-        pending_columns = await _table_columns(conn, "pending_records")
-        if "resolution_action" not in pending_columns:
-            await conn.execute("ALTER TABLE pending_records ADD COLUMN resolution_action TEXT NOT NULL DEFAULT 'store'")
-        if "target_memory_id" not in pending_columns:
-            await conn.execute("ALTER TABLE pending_records ADD COLUMN target_memory_id TEXT")
-        if "target_content" not in pending_columns:
-            await conn.execute("ALTER TABLE pending_records ADD COLUMN target_content TEXT")
-        if "built_from_chats" not in pending_columns:
-            await conn.execute("ALTER TABLE pending_records ADD COLUMN built_from_chats INTEGER NOT NULL DEFAULT 0")
+        await _align_columns(conn, "pending_records", add=_PENDING_COLUMNS)
 
 
 async def _ensure_open_proposal_uniqueness(conn: aiosqlite.Connection) -> None:

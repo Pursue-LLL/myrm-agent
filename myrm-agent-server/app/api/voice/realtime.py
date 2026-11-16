@@ -133,18 +133,7 @@ async def create_realtime_token(req: RealtimeTokenRequest) -> RealtimeTokenRespo
         if configured_voice in REALTIME_VOICES:
             voice = configured_voice
 
-    instructions: str | None = None
-    if profile:
-        if profile.system_prompt:
-            instructions = profile.system_prompt
-        from app.services.agent.params.response_locale_suffix import (
-            apply_response_locale_suffix,
-        )
-
-        instructions = apply_response_locale_suffix(
-            instructions,
-            engine_params=profile.engine_params,
-        )
+    instructions: str | None = profile.system_prompt if profile and profile.system_prompt else None
 
     memory_context = voice_memory_context_from(
         configs.personal_settings_dict or {},
