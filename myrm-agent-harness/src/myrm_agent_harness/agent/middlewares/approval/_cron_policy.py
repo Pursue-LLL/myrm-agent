@@ -9,6 +9,7 @@
 
 [OUTPUT]
 - CronAskVerdict: outcome of one unattended ask (denied flag, audit reason, model-facing message)
+- PAYMENT_DENIED: the verdict for a payment-like tool call in a run nobody can approve
 - resolve_cron_ask: decide an ask that no human can answer
 
 [POS]
@@ -16,6 +17,8 @@ A cron run has nobody to answer an ASK, so a declared capability set stands in f
 except for asks that carry a risk the declaration does not cover: credential data leaving the
 session, writes outside the job's directories, integration write mutations, payment-like tool
 calls. Called by batch_processor after the allowlist and the optional LLM review had their say.
+The YOLO branch never reaches it, so that branch applies PAYMENT_DENIED itself: a payment-like
+call there would otherwise wait for an approval no one is present to give.
 """
 
 from __future__ import annotations
@@ -49,6 +52,13 @@ def _denied(audit_reason: str, tool_message: str) -> CronAskVerdict:
     return CronAskVerdict(denied=True, audit_reason=f"cron fail-closed: {audit_reason}", tool_message=tool_message)
 
 
+PAYMENT_DENIED = _denied(
+    "payment-like tool call",
+    "Tool denied: cron jobs cannot pre-approve payment-like tool calls, and nobody is present to approve this "
+    "one. Do not retry; finish the task without this call.",
+)
+
+
 def resolve_cron_ask(
     *,
     permission_type: str,
@@ -66,11 +76,7 @@ def resolve_cron_ask(
 
     # A capability names a kind of tool; it is not consent to spend, and no human is present to give that consent.
     if is_financial_or_spend_tool(tool_name, tool_input):
-        return _denied(
-            "payment-like tool call",
-            "Tool denied: cron jobs cannot pre-approve payment-like tool calls, and nobody is present to approve this "
-            "one. Do not retry; finish the task without this call.",
-        )
+        return PAYMENT_DENIED
 
     if permission_type in _SHELL_PERMISSIONS:
         command = str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()

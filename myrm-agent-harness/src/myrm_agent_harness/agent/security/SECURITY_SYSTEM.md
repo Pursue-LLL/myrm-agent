@@ -617,7 +617,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 - 渠道 `/yolo` 命令（Router 内存态，通过 `InboundMessage.metadata["yolo_state"]` 注入）
 - Agent 安全配置中显式启用（per-Agent YOLO，适用于定时任务等无人值守场景）
 
-安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。
+安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批；唯独 cron 会话里没有人能批，其中的付款类调用由 `yolo.py` 直接拒绝（记 `CRON_DENY`），不会挂起。
 
 ### 5.0.1 Managed Approval Policy (MAP) — 组织审批下限
 
@@ -1162,7 +1162,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但付款类工具调用（工具名或参数命中资金类词表）即使声明了能力也 DENY（`_cron_policy.py` 的 `resolve_cron_ask`）。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但付款类工具调用（工具名或参数命中资金类词表）即使声明了能力也 DENY（`_cron_policy.py` 的 `resolve_cron_ask`；YOLO 开启时不走这条结算，`yolo.py` 对付款类调用同样直接拒绝）。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
 
 ### 本地模式浏览器放宽
 

@@ -22,7 +22,8 @@ Users can approve per-request or "always allow this domain" (session-scoped).
 Cron sessions (session_key starts with "cron:") have nobody to answer an ASK, so
 ``_cron_policy.resolve_cron_ask`` settles it: the declared capability set acts as
 pre-approval, except for credential egress, out-of-zone paths, integration writes and payment-like tool calls.
-An undeclared capability set is denied fail-closed.
+An undeclared capability set is denied fail-closed. With YOLO on the cron settlement is skipped, but a payment-like
+call is still denied there: nobody is present to approve it.
 
 Uses LangGraph's native ``interrupt()`` mechanism for Human-in-the-Loop:
 - First call: interrupt() raises GraphInterrupt, stream ends
