@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_PROVIDERS } from '@/store/config/providerTypes';
+import { BUILT_IN_PROVIDERS } from '@/store/config/providerCatalog';
 import { BUILT_IN_PROVIDER_ICON_LOADERS, BUILT_IN_PROVIDER_SVG_SLUGS } from '../provider-brand-icon-loaders';
 
 const require = createRequire(import.meta.url);

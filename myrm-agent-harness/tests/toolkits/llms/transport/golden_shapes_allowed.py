@@ -29,9 +29,11 @@ class ShapeRule:
 
 
 _CHAT_PASTED_URL = (
+    "chat/anthropic",
     "chat/azure",
     "chat/cerebras",
     "chat/dashscope",
+    "chat/gemini",
     "chat/lm_studio",
     "chat/mistral",
     "chat/moonshot",
@@ -50,7 +52,8 @@ SHAPE_RULES: tuple[ShapeRule, ...] = (
         "pasted-chat-url-appended-again",
         "A base saved as the whole chat URL was extended with the call's own path again: `/v1/chat/completions/chat/"
         "completions`, `.../completions/v1` for Mistral, `.../completions/responses` for xAI, `.../completions/openai/"
-        "deployments/...` for Azure. The transport cuts the pasted operation, as it does for every provider.",
+        "deployments/...` for Azure, `.../completions/v1/messages` for Anthropic, `.../completions/models/...` for "
+        "Gemini. The transport cuts the pasted operation, as it does for every provider.",
         providers=_CHAT_PASTED_URL,
         shapes=("full_chat", "full_chat_gw"),
     ),

@@ -12,7 +12,9 @@
   in a running process)
 - LLMCallError: the base of the failures a call can raise; LLMHTTPError / LLMAnswerError: the two a caller reads the
   status and body of
-- Route / UnsupportedProviderError / resolve_route / speaks_openai_body / PROFILES: provider resolution
+- Route / UnsupportedProviderError / resolve_route / speaks_openai_body / PROFILES / ProviderProfile: provider resolution
+- Endpoint / endpoint_of: the root and query an address a user typed means to a provider (the grammar the chat calls
+  and the connectivity check share)
 
 [POS]
 Six wires (OpenAI chat, OpenAI Responses, Anthropic Messages, Gemini generateContent, Ollama chat, AWS Bedrock
@@ -26,12 +28,15 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.llms.transport.client import LLMTransport, get_transport
+    from myrm_agent_harness.toolkits.llms.transport.endpoint import Endpoint
     from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError, LLMCallError, LLMHTTPError
     from myrm_agent_harness.toolkits.llms.transport.http import aclose_clients, retire_clients
     from myrm_agent_harness.toolkits.llms.transport.profile import (
         PROFILES,
+        ProviderProfile,
         Route,
         UnsupportedProviderError,
+        endpoint_of,
         resolve_route,
         speaks_openai_body,
     )
@@ -44,22 +49,28 @@ _EXPORT_MODULES = {
     "LLMAnswerError": "errors",
     "aclose_clients": "http",
     "retire_clients": "http",
+    "Endpoint": "endpoint",
     "PROFILES": "profile",
+    "ProviderProfile": "profile",
     "Route": "profile",
     "UnsupportedProviderError": "profile",
+    "endpoint_of": "profile",
     "resolve_route": "profile",
     "speaks_openai_body": "profile",
 }
 
 __all__ = [
     "PROFILES",
+    "Endpoint",
     "LLMCallError",
     "LLMHTTPError",
     "LLMAnswerError",
     "LLMTransport",
+    "ProviderProfile",
     "Route",
     "UnsupportedProviderError",
     "aclose_clients",
+    "endpoint_of",
     "get_transport",
     "resolve_route",
     "retire_clients",

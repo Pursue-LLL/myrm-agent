@@ -8,7 +8,7 @@ LLM 集成的探测类端点。按探测区域分模块，共用一个 `APIRoute
 |------|------|------|-------|
 | `__init__.py` | 子域出口 | 聚合 `router` 与全部端点/模型/内部 helper（保持 `app.api.integrations.llms` 导入路径） | — |
 | `common.py` | 辅助 | `router` / `logger`、本地免密 marker、`_apply_local_no_auth_marker_transport_overrides` | ✅ |
-| `discovery.py` | 核心 | `discover-models`：URL 规范化、候选端点推导、SSRF 白名单（loopback / RFC1918 / Tailscale CGNAT / `.local` 分机） | ✅ |
+| `discovery.py` | 核心 | `discover-models`：地址解析复用 transport 的 `endpoint_of`（与对话调用同一语法，query 随探测请求发送，无 scheme 的地址拒绝而不猜 `http://`）、候选端点推导、SSRF 白名单（loopback / RFC1918 / Tailscale CGNAT / `.local` 分机） | ✅ |
 | `verify.py` | 核心 | `verify` 与 `check-reachability`：真实上游探针（每次直接问提供方，传输层不保存应答）、OAuth marker、可达性缓存（30 秒，键含模型/端点/Key 摘要） | ✅ |
 | `model_info.py` | 核心 | `model-info/batch`：按 `model_facts` 批量查模型目录（大小写不敏感；经网关的复合名取其背后的模型）、能力构建；目录未命中的模型返回空能力 | ✅ |
 | `speed_test.py` | 核心 | `speed-test`：批量测速与首字延迟排序 | ✅ |

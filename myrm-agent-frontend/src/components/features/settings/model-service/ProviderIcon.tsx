@@ -8,7 +8,7 @@
 
 import { memo, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils/classnameUtils';
-import { BUILT_IN_PROVIDERS, type BuiltInProviderId } from '@/store/config/providerTypes';
+import { BUILT_IN_PROVIDERS, type BuiltInProviderId } from '@/store/config/providerCatalog';
 import { getCachedProviderBrandIconUrl, loadProviderBrandIconUrl } from './provider-brand-icon-loaders';
 
 interface ProviderIconProps {

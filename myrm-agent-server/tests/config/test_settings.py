@@ -7,7 +7,6 @@
 - C4: SecretStr 字段
 - C5: field_validator (port / pool_size / busy_timeout)
 - C6: config_summary() 脱敏
-- C8: LLMProvider / get_provider / get_provider_cache_config
 - C9: 嵌套子配置独立性
 """
 
@@ -18,10 +17,8 @@ from pathlib import Path
 import pytest
 
 from app.config.settings import (
-    PROVIDER_CACHE_CONFIGS,
     AppSettings,
     DatabaseSettings,
-    LLMProvider,
     McpSettings,
     WebUISettings,
 )
@@ -365,53 +362,6 @@ class TestConfigSummary:
         assert "host" in summary
         assert "agent.max_concurrent" in summary
         assert "cp_public_ingress_url" in summary
-
-
-# ---------------------------------------------------------------------------
-# C8: LLMProvider helpers
-# ---------------------------------------------------------------------------
-
-
-class TestLLMProvider:
-    @pytest.mark.parametrize(
-        "model,expected",
-        [
-            ("gpt-4o", LLMProvider.OPENAI),
-            ("openai/gpt-4", LLMProvider.OPENAI),
-            ("claude-3-sonnet", LLMProvider.ANTHROPIC),
-            ("anthropic/claude-3", LLMProvider.ANTHROPIC),
-            ("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", LLMProvider.ANTHROPIC),
-            ("bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0", LLMProvider.ANTHROPIC),
-            ("vertex_ai/claude-3-5-sonnet@20241022", LLMProvider.ANTHROPIC),
-            ("openrouter/anthropic/claude-3-opus", LLMProvider.ANTHROPIC),
-            ("deepseek-chat", LLMProvider.DEEPSEEK),
-            ("deepseek/deepseek-chat", LLMProvider.DEEPSEEK),
-            ("openrouter/deepseek/deepseek-r1", LLMProvider.DEEPSEEK),
-            ("openrouter/openai/gpt-4o", LLMProvider.OPENAI),
-            ("azure/gpt-4", LLMProvider.OPENAI),
-            ("google/gemini-pro", LLMProvider.GOOGLE),
-            ("gemini-2.0-flash", LLMProvider.GOOGLE),
-            ("vertex_ai/gemini-1.5-pro", LLMProvider.GOOGLE),
-            ("vertex_ai/gemini-2.0-flash", LLMProvider.GOOGLE),
-            ("glm-4", LLMProvider.ZHIPU),
-            ("yunshu/model-x", LLMProvider.YUNSHU),
-            ("unknown-model", LLMProvider.OTHER),
-        ],
-    )
-    def test_get_provider(self, model: str, expected: LLMProvider) -> None:
-        s = _make_settings()
-        assert s.get_provider(model) == expected
-
-    def test_get_provider_cache_config(self) -> None:
-        s = _make_settings()
-        config = s.get_provider_cache_config("claude-3-sonnet")
-        assert config.cache_type == "hybrid"
-        assert config.discount_rate == 0.1
-
-    def test_provider_cache_config_fallback(self) -> None:
-        s = _make_settings()
-        config = s.get_provider_cache_config("random-unknown-model")
-        assert config == PROVIDER_CACHE_CONFIGS[LLMProvider.OTHER]
 
 
 # ---------------------------------------------------------------------------
