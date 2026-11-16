@@ -87,7 +87,9 @@ pub(super) fn replace_document(path: &Path, content: &str, pause: Duration) -> b
 
 #[cfg(test)]
 mod tests {
-    use super::{read_document, replace_document, retry, Document, IO_ATTEMPTS};
+    use super::{
+        is_absent_or_invalid, read_document, replace_document, retry, Document, IO_ATTEMPTS,
+    };
     use std::cell::Cell;
     use std::io;
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -188,7 +190,9 @@ mod tests {
     }
 
     /// Windows 上读者在原子替换的瞬间会短暂得到 PermissionDenied：读者同样重试，
-    /// 重试预算内一定读得到，且读到的永远是完整文档。
+    /// 重试预算内一定读得到，且读到的永远是完整文档。读者还断言从不把替换中的文件看成
+    /// 「不存在 / 内容无效」：`read_document` 把这两种错误当作确定的「没有状态」且不重试，
+    /// 替换期间若会出现它们，这个前提就不成立（在 Windows CI 上实测，而不是假设）。
     #[test]
     fn concurrent_reader_never_sees_a_torn_document() {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -203,8 +207,19 @@ mod tests {
             thread::spawn(move || {
                 let mut torn = 0_u32;
                 while !stop.load(Ordering::Relaxed) {
-                    let content = retry(BRIEF_PAUSE, |_| true, || std::fs::read_to_string(&path))
-                        .expect("file readable within the retry budget");
+                    let content = retry(
+                        BRIEF_PAUSE,
+                        |error| {
+                            assert!(
+                                !is_absent_or_invalid(error),
+                                "a reader saw the file as {:?} while it was being replaced",
+                                error.kind()
+                            );
+                            true
+                        },
+                        || std::fs::read_to_string(&path),
+                    )
+                    .expect("file readable within the retry budget");
                     if serde_json::from_str::<serde_json::Value>(&content).is_err() {
                         torn += 1;
                     }
