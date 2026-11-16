@@ -4,6 +4,7 @@
 - memory._manager.host::MemoryManagerHost (POS: typed declaration of the shared manager state)
 - memory._manager.shared::iter_pages_by_type (POS: page-by-page walk of one memory type)
 - memory._manager.import_export.markdown_render (POS: Markdown and privacy-safe rendering)
+- memory._manager.import_export.rule_dedup (POS: which rules of an import are new to the manager)
 - memory.strategies.chat_fence::reopen_chats (POS: the deleted-chat fence an import lifts)
 - memory.strategies.lineage::chat_links (POS: every chat one memory derives from)
 - memory.types::{AnyMemory, ConversationMemory, EpisodicMemory, MemoryType, ProceduralMemory, SemanticMemory} (POS: memory data models)
@@ -14,8 +15,10 @@
 [POS]
 Store-facing half of the import/export mixin. ``export_all`` walks every type to its last page and raises
 on a store failure, so a backup or export never passes off a truncated result as complete.
-``import_memories(skip_duplicates=False)`` has the writer bypass deduplication, so a replace restore lands each entry,
-and it lifts the deleted-chat fence for the chats the entries derive from.
+``import_memories`` leaves out the rules the manager already holds, the disabled and archived ones included, because
+the writer never deduplicates a rule and a repeated import would stack a newer copy of a stale rule on top of the
+preference the user stated since. ``skip_duplicates=False`` bypasses both that and the writer's deduplication, so a
+replace restore lands each entry. An import lifts the deleted-chat fence for the chats the entries derive from.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ from myrm_agent_harness.toolkits.memory._manager.import_export.markdown_render i
     _sanitize_filename,
     sanitize_paths_for_sharing,
 )
+from myrm_agent_harness.toolkits.memory._manager.import_export.rule_dedup import without_known_rules
 from myrm_agent_harness.toolkits.memory._manager.shared import (
     iter_pages_by_type,
     logger,
@@ -50,6 +54,8 @@ from myrm_agent_harness.toolkits.memory.types import (
 
 # Rows per store round trip while exporting; every page carries its vectors, so this bounds the working set.
 _EXPORT_PAGE_SIZE = 2000
+# Rules per store round trip while reading the stored ones for an import.
+_RULE_PAGE_SIZE = 500
 
 
 class MemoryManagerImportExportMixin(MemoryManagerHost):
@@ -220,9 +226,10 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
 
         Args:
             data: Dict keyed by memory type with lists of serialized memory objects.
-            skip_duplicates: When True (default), the writer's deduplication runs as for any other write.
-                When False it is bypassed and every entry is written as given, so a restore that must
-                land each one is not thinned.
+            skip_duplicates: When True (default), the writer's deduplication runs as for any other write and
+                a rule the manager already holds (a disabled or archived one counts) or an earlier entry
+                repeats is left out. When False both are bypassed and every entry is written as given, so a
+                restore that must land each one is not thinned.
 
         Returns:
             Dict with import counts per memory type.
@@ -265,6 +272,13 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                 except Exception as e:
                     logger.warning("Import parse failed for %s entry: %s", type_name, e)
 
+            if skip_duplicates and parser is ProceduralMemory:
+                try:
+                    memories = await self._rules_not_yet_stored(memories)
+                except Exception as e:
+                    logger.warning("Import could not read the stored rules, so no rule is imported: %s", e)
+                    memories = []
+
             if not memories:
                 counts[type_name] = 0
                 continue
@@ -279,3 +293,21 @@ class MemoryManagerImportExportMixin(MemoryManagerHost):
                 counts[type_name] = 0
 
         return counts
+
+    async def _rules_not_yet_stored(self, memories: list[AnyMemory]) -> list[AnyMemory]:
+        """The rules among ``memories`` this manager does not hold, each of them once."""
+        rules = [memory for memory in memories if isinstance(memory, ProceduralMemory)]
+        return [*without_known_rules(rules, await self._stored_rules())]
+
+    async def _stored_rules(self) -> list[ProceduralMemory]:
+        """Every rule this manager reads, page by page; a disabled or archived rule is as good as an enabled one."""
+        if self._relational is None:
+            return []
+        rules: list[ProceduralMemory] = []
+        while True:
+            page = await self._relational.list_rules(
+                active_only=False, limit=_RULE_PAGE_SIZE, offset=len(rules), namespaces=self._namespaces
+            )
+            rules.extend(page)
+            if len(page) < _RULE_PAGE_SIZE:
+                return rules

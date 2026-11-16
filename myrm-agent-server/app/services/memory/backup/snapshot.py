@@ -40,11 +40,11 @@ SNAPSHOT_MEMORY_TYPES: Final[tuple[MemoryType, ...]] = (
 )
 _SNAPSHOT_TYPE_NAMES: Final = frozenset(memory_type.value for memory_type in SNAPSHOT_MEMORY_TYPES)
 
-# Merging relies on the framework's deduplicator for semantic memories and on upserts for profile keys. Rules (no
-# natural key) and episodic events (never merged) have no such guard, so merge skips entries whose identifying
-# fields match a stored one; these fields survive an export/import round trip, unlike ids and timestamps.
+# Merging relies on the framework's deduplicator for semantic memories, on the import's own rule deduplication for
+# rules and on upserts for profile keys. Episodic events are never merged and have no such guard, so merge skips
+# entries whose identifying fields match a stored one; these fields survive an export/import round trip, unlike ids
+# and timestamps.
 _MERGE_IDENTITY_FIELDS: Final[dict[MemoryType, tuple[str, ...]]] = {
-    MemoryType.PROCEDURAL: ("trigger", "action", "content"),
     MemoryType.EPISODIC: ("event_type", "content"),
 }
 _STORED_LOOKUP_LIMIT: Final = 10_000

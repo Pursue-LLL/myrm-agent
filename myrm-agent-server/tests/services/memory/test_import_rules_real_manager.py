@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from app.database.models import Base
 from app.services.memory.imports.import_adapter_utils import DEFAULT_RULE_TRIGGER
 from app.services.memory.imports.import_adapters import RequestedImportSource
+from app.services.memory.imports.import_session_models import MemoryImportConfirmResult
 from app.services.memory.imports.import_sessions import MemoryImportSessionService
 from tests.support.offline_memory import offline_memory_manager
 
@@ -152,3 +153,52 @@ async def test_model_profile_items_without_a_key_are_stored_one_each(
         profile = await _stored_profile(manager)
         assert sorted(str(value) for value in profile.values()) == ["Lives in Taichung", "Works as a nurse"]
         assert "None" not in profile
+
+
+async def _import_payload(
+    service: MemoryImportSessionService, manager: MemoryManager, payload: dict[str, object], source: RequestedImportSource
+) -> MemoryImportConfirmResult:
+    """One review session, dry-run then confirm, as the import dialog runs it."""
+    dry_run_id, _preview, _payload_hash, _expires_at = await service.create_dry_run(payload, source)
+    return await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+
+@pytest.mark.parametrize(("payload", "source", "trigger"), CHANNELS)
+async def test_importing_the_same_content_again_adds_no_rule_and_rolling_it_back_keeps_the_first_import(
+    payload: dict[str, object],
+    source: RequestedImportSource,
+    trigger: str,
+    db_session: AsyncSession,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        service = MemoryImportSessionService(db_session)
+        first = await _import_payload(service, manager, payload, source)
+
+        second = await _import_payload(service, manager, payload, source)
+
+        assert second.total_imported == 0
+        assert [item["status"] for item in second.transaction_items if item["memory_type"] == "procedural"] == ["skipped"]
+        assert await _prompt_rules(manager) == [(trigger, _RULE)]
+
+        await service.rollback_import(manager=manager, import_batch_id=second.import_batch_id)
+        assert await _prompt_rules(manager) == [(trigger, _RULE)]
+
+        await service.rollback_import(manager=manager, import_batch_id=first.import_batch_id)
+        assert await _prompt_rules(manager) == []
+
+
+async def test_a_preference_stated_after_an_import_stays_ahead_of_a_second_import_of_the_same_file(
+    db_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload: dict[str, object] = {"_source": "pasted_memory", "text": _PASTED_TEXT}
+    newer_action = "Never run the tests before you merge"
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        service = MemoryImportSessionService(db_session)
+        await _import_payload(service, manager, payload, "pasted_memory")
+        await manager.add_rule(DEFAULT_RULE_TRIGGER, newer_action)
+
+        await _import_payload(service, manager, payload, "pasted_memory")
+
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, newer_action), (DEFAULT_RULE_TRIGGER, _RULE)]
