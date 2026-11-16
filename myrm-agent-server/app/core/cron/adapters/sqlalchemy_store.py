@@ -306,23 +306,9 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
                     delivery_status=run.delivery_status,
                     delivery_error=run.delivery_error,
                     metadata_json=run.metadata,
-                    integrity_hash=run.integrity_hash or None,
-                    prev_hash=run.prev_hash or None,
                 )
             )
             await session.commit()
-
-    async def get_latest_integrity_hash(self, job_id: str) -> str | None:
-        async with get_session() as session:
-            stmt = (
-                select(CronRunModel.integrity_hash)
-                .where(CronRunModel.job_id == job_id)
-                .where(CronRunModel.integrity_hash.isnot(None))
-                .order_by(CronRunModel.started_at.desc())
-                .limit(1)
-            )
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
 
     async def list_runs(
         self,

@@ -48,7 +48,6 @@ def _executor(config: CronConfig | None = None) -> tuple[JobExecutor, AsyncMock,
     store = AsyncMock()
     store.save_job = AsyncMock(side_effect=lambda j: j)
     store.save_run = AsyncMock()
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
     delivery = AsyncMock()
     delivery.deliver = AsyncMock()
     return JobExecutor(store=store, delivery=delivery, config=config), store, delivery

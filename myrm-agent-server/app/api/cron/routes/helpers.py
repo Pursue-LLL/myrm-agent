@@ -337,7 +337,6 @@ def _run_to_response(r: CronRunRecord, *, job_name: str | None = None) -> CronRu
         delivery_status=r.delivery_status,
         delivery_error=r.delivery_error,
         metadata=r.metadata,
-        integrity_hash=r.integrity_hash or None,
         job_name=job_name,
     )
 

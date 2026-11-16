@@ -45,7 +45,6 @@ def _make_scheduler(
     store.earliest_next_run = AsyncMock(return_value=None)
     store.save_run = AsyncMock()
     store.save_job = AsyncMock(side_effect=lambda j: j)
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
 
     runner = AsyncMock()
     runner.run = AsyncMock()

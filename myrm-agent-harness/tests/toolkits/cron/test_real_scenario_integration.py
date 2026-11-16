@@ -530,53 +530,7 @@ class TestSchedulerOnTick:
 
 
 # ---------------------------------------------------------------------------
-# Scenario 6: Run record integrity chain
-# ---------------------------------------------------------------------------
-
-
-class TestIntegrityChain:
-    @pytest.fixture
-    def store(self) -> InMemoryCronStore:
-        return InMemoryCronStore()
-
-    @pytest.fixture
-    def delivery(self) -> FakeDelivery:
-        return FakeDelivery()
-
-    @pytest.fixture
-    def executor(self, store: InMemoryCronStore, delivery: FakeDelivery) -> JobExecutor:
-        return JobExecutor(store=store, delivery=delivery)
-
-    @pytest.mark.asyncio
-    async def test_integrity_chain_builds_correctly(
-        self,
-        executor: JobExecutor,
-        store: InMemoryCronStore,
-    ) -> None:
-        job = CronJob(
-            id="chain-job",
-            name="Chain Test",
-            job_type=JobType.AGENT,
-            schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
-            prompt="test",
-            delivery=DeliveryConfig(channel="chat"),
-        )
-        await store.save_job(job)
-
-        runner = FakeAgentRunner()
-        for _ in range(3):
-            await executor.run_and_record(job, runner)
-
-        runs = await store.list_runs("chain-job", limit=10)
-        assert len(runs) == 3
-
-        for run in runs:
-            assert run.integrity_hash is not None
-            assert run.prev_hash is not None
-
-
-# ---------------------------------------------------------------------------
-# Scenario 7: TracingContext propagation through full execution pipeline
+# Scenario 6: TracingContext propagation through full execution pipeline
 # ---------------------------------------------------------------------------
 
 

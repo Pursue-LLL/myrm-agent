@@ -46,7 +46,6 @@ def _make_run(
     job_id: str = "j1",
     status: RunStatus = RunStatus.OK,
     started_at: datetime | None = None,
-    integrity_hash: str = "",
 ) -> CronRunRecord:
     start = started_at or datetime.now(UTC)
     return CronRunRecord(
@@ -56,7 +55,6 @@ def _make_run(
         finished_at=start + timedelta(seconds=10),
         duration_ms=10_000,
         status=status,
-        integrity_hash=integrity_hash,
     )
 
 

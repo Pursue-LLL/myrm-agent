@@ -54,7 +54,6 @@ def _executor() -> tuple[JobExecutor, list[CronRunRecord]]:
     store.save_job = AsyncMock(side_effect=lambda j: j)
     store.save_run = AsyncMock(side_effect=saved.append)
     store.get_job = AsyncMock(side_effect=_job)
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
     return JobExecutor(store=store, delivery=AsyncMock()), saved
 
 

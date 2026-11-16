@@ -782,6 +782,9 @@ MIGRATION_STATEMENTS: list[str] = [
     PAUSE_STALLED_ONCE_CRON_JOBS_SQL,
     STRIP_RETIRED_RESPONSE_LOCALE_POLICY_SQL,
     STRIP_RETIRED_RESPONSE_LOCALE_POLICY_FROM_SNAPSHOTS_SQL,
+    # Cron runs no longer carry a hash chain, so the two hash columns of cron_runs are gone.
+    "ALTER TABLE cron_runs DROP COLUMN integrity_hash",
+    "ALTER TABLE cron_runs DROP COLUMN prev_hash",
 ]
 
 # 创建索引的SQL语句列表

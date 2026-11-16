@@ -53,7 +53,6 @@ def _make_executor(
     store.save_job = AsyncMock(side_effect=lambda j: j)
     store.save_run = AsyncMock()
     store.delete_job = AsyncMock(return_value=True)
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
     store.get_job = AsyncMock(side_effect=lambda job_id: _make_job(id=job_id))
     delivery = AsyncMock()
     delivery.deliver = AsyncMock()

@@ -1381,11 +1381,9 @@ class SecurityDecision:
 
 使用 `ContextVar[list[SecurityDecision]]` 实现会话级隔离。
 
-### Cron 审计持久化 + Merkle 链防篡改
+### Cron 审计持久化
 
 Cron run 结束时，审计日志通过 `get_audit_entries()` 获取并写入 `JobResult.metadata.securityAudit`。`executor.py` 将 metadata 持久化到数据库的 `cron_runs.metadata` JSON 列。
-
-每条 CronRunRecord 包含 `integrity_hash`（SHA-256 canonical hash）和 `prev_hash`（前一条记录的 hash），形成 per-job 的 Merkle 链。`integrity.py` 提供 `verify_chain()` 纯函数验证链完整性，API 层通过 `GET /{job_id}/integrity` 端点暴露验证能力。任何对历史记录的篡改（插入、删除、修改）都会导致链断裂并被检测到。
 
 ---
 
@@ -1592,6 +1590,6 @@ Spawn 路径额外 floor：父 Profile 全局 `file_write=DENY` 时，`spawn_pre
 | **纯函数设计** | 所有检测模块无副作用，通过中间件集成，易于测试 |
 | **零外部依赖** | 仅使用 Python 标准库，无供应链风险 |
 | **保守策略** | 污点追踪宁可误报（提升审批）不可漏报，超时自动拒绝 |
-| **可审计** | 每个安全决策都被记录，Cron 审计持久化到数据库 + Merkle 链防篡改 |
+| **可审计** | 每个安全决策都被记录，Cron 审计持久化到数据库 |
 | **渠道隔离** | 不同渠道有不同的安全姿态，渠道限制不可被用户配置绕过 |
 | **效率优先** | Allowlist + allow-always 减少重复审批，Cron 声明式预授权 |
