@@ -1,7 +1,8 @@
-//! 状态文件读取与另一进程替换的跨进程测试：写者是真实的 Python 进程，对应生产里 server 的
-//! `os.replace`（`curtain_bridge._write_pending_flag`）。壳自己的改名只是另一种写者，
-//! 同进程的并发读写测试在 `privacy_curtain_state_io.rs`。
+//! 状态文件与 server 进程之间的跨进程测试，两个方向各用真实的 Python 进程做对端：
+//! - 壳读、Python 写：对应 server 的 `os.replace`（`curtain_bridge._write_pending_flag`）；
+//! - 壳写、Python 读：对应 server 读状态的 `read_curtain_state`（先 `is_file` 再 `json.loads`）。
 //!
+//! 壳自己读写同一文件的并发测试在 `privacy_curtain_state_io.rs`。
 //! 本机没有 Python 时跳过；CI 上没有则失败，免得这项测量悄悄不再执行。
 
 use std::collections::BTreeMap;
@@ -42,6 +43,39 @@ while not os.path.exists(stop):
             time.sleep(0.001)
     refused += attempts
 print(rounds, refused)
+"#;
+
+/// server 读状态的方式（`read_curtain_state`）：先 `is_file`，再 `json.loads(read_text())`。
+/// 循环读到见过足够多份不同的文档、停止文件出现或超时；结束时用一行 JSON 报告读了多少次、
+/// 见过多少份不同文档、撕裂 / 不存在的次数，以及 OSError 按种类的计数。
+const PYTHON_READER: &str = r#"
+import json
+import os
+import sys
+import time
+
+path, stop, wanted = sys.argv[1], sys.argv[2], int(sys.argv[3])
+reads = torn = missing = 0
+errors = {}
+seen = set()
+deadline = time.monotonic() + 60
+while len(seen) < wanted and not os.path.exists(stop) and time.monotonic() < deadline:
+    reads += 1
+    try:
+        if not os.path.isfile(path):
+            missing += 1
+        else:
+            with open(path, encoding="utf-8") as handle:
+                text = handle.read()
+            try:
+                seen.add(json.loads(text)["round"])
+            except (ValueError, KeyError):
+                torn += 1
+    except OSError as error:
+        kind = type(error).__name__
+        errors[kind] = errors.get(kind, 0) + 1
+    time.sleep(0.0001)
+print(json.dumps({"reads": reads, "distinct": len(seen), "torn": torn, "missing": missing, "errors": errors}))
 "#;
 
 /// 能运行脚本的 Python 解释器。本机没有就无从测量；CI 上找不到说明环境变了，必须失败。
@@ -191,5 +225,89 @@ fn a_reader_survives_a_python_process_replacing_the_file() {
     assert_eq!(
         tally.unreadable, 0,
         "reader could not read the file within the retry budget"
+    );
+}
+
+/// `PYTHON_READER` 打印的账。
+#[derive(serde::Deserialize)]
+struct ReaderReport {
+    reads: u64,
+    distinct: u32,
+    torn: u32,
+    missing: u32,
+    errors: BTreeMap<String, u32>,
+}
+
+/// 第 `round` 轮写入的文档（带填充，让一次写入不是单个磁盘块的原子写）。
+fn document(round: u32) -> String {
+    serde_json::json!({ "round": round, "padding": "x".repeat(256) }).to_string()
+}
+
+/// 壳是写者的方向：壳用生产的 `replace_document` 持续替换状态文件，真实的 Python 进程按 server 的
+/// 读法持续读。读者读到的必须是完整文档，替换期间不得看到「不存在」或读取出错；壳的每次写入都要落盘。
+/// 读者的账打印出来，作为这个平台上的实测（CI 日志里可查）。
+#[test]
+fn a_python_reader_survives_the_shell_replacing_the_file() {
+    let Some(python) = find_python() else {
+        eprintln!("skipped: no Python interpreter on this machine");
+        return;
+    };
+    let dir = tempfile::tempdir().expect("tempdir");
+    let (path, stop, script) = (
+        dir.path().join("curtain_state.json"),
+        dir.path().join("stop"),
+        dir.path().join("reader.py"),
+    );
+    assert!(replace_document(&path, &document(0), IO_RETRY_PAUSE));
+    std::fs::write(&script, PYTHON_READER).expect("write the script");
+
+    let mut reader = Command::new(python)
+        .arg(&script)
+        .arg(&path)
+        .arg(&stop)
+        .arg(DISTINCT_DOCUMENTS.to_string())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn the reader");
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let (mut round, mut failed_writes) = (0_u32, 0_u32);
+    while reader.try_wait().expect("poll the reader").is_none() && Instant::now() < deadline {
+        round += 1;
+        if !replace_document(&path, &document(round), IO_RETRY_PAUSE) {
+            failed_writes += 1;
+        }
+    }
+    std::fs::write(&stop, "").expect("stop file");
+    let output = reader.wait_with_output().expect("reader output");
+    assert!(
+        output.status.success(),
+        "the reader failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let report: ReaderReport = serde_json::from_slice(&output.stdout).expect("the reader's report");
+
+    println!(
+        "shell writer vs python reader: {round} replaces ({failed_writes} not recorded); \
+         python reader: {} reads saw {} distinct documents, {} torn, {} missing, errors by kind: {:?}",
+        report.reads, report.distinct, report.torn, report.missing, report.errors,
+    );
+    assert!(
+        report.distinct >= DISTINCT_DOCUMENTS,
+        "the reader never overlapped the writer enough to measure anything"
+    );
+    assert_eq!(report.torn, 0, "reader saw a torn document");
+    assert_eq!(
+        report.missing, 0,
+        "reader saw the file as missing while it was being replaced"
+    );
+    assert!(
+        report.errors.is_empty(),
+        "reader could not read the file: {:?}",
+        report.errors
+    );
+    assert_eq!(
+        failed_writes, 0,
+        "the shell could not record a state within its retry budget"
     );
 }
