@@ -18,7 +18,7 @@
 │  └─ ✅ 必须包装
 │     └─ 使用 wrap_with_external_sources_tag(content, source="tool_name")
 │
-├─ 记忆/历史 recall 回读（memory_search memory/sessions、MCP memory_recall/list）
+├─ 记忆/历史 recall 回读（memory_search memory/sessions/按 id 取回、MCP memory_recall/list）
 │  └─ ✅ 必须 sanitize + 静态 untrusted 前言
 │     └─ 使用 memory_recall_formatting.sanitize_recalled_content（redact → sanitize）+ finalize_recall_tool_output
 │     └─ ❌ 不要用 wrap_with_external_sources_tag（会触发引用规则且 random boundary 伤 cache）
@@ -53,7 +53,7 @@
 |---------|------|------|
 | **代码执行** | `bash`, `python`, `code_execution` | 用户自己的代码输出（已用 `wrap_with_tool_output_tag` 防注入） |
 | **文件操作** | `file_read`, `file_write`, `file_list` | 用户自己的文件（已用 `wrap_with_tool_output_tag` 防注入） |
-| **记忆 recall/list 工具** | `memory_search_tool`, MCP `memory_recall` / `memory_list` | 写入 scanner 不能 100% 拦截低分 injection；sessions snippet 不经 write scan；recall 返回须 defense-in-depth | 框架已在 `agent_surface/memory_recall_formatting.py` 统一 `redact_sensitive_text` → `sanitize_recalled_content()` + 静态 untrusted 前言（**不要**再套 `wrap_with_external_sources_tag`） |
+| **记忆 recall/list 工具** | `memory_search_tool`（含按 id 取回）, MCP `memory_recall` / `memory_list` | 写入 scanner 不能 100% 拦截低分 injection；sessions snippet 不经 write scan；recall 返回须 defense-in-depth | 框架已在 `agent_surface/memory_recall_formatting.py` 统一 `redact_sensitive_text` → `sanitize_recalled_content()` + 静态 untrusted 前言（**不要**再套 `wrap_with_external_sources_tag`） |
 | **记忆 preference save ack** | `memory_save_tool`, MCP `memory_store`（preference 成功） | write scan redact 存库后，ack 若 echo 原始入参会把凭据塞回 ToolMessage | `format_preference_save_ack()`（同 SSOT redact → sanitize） |
 | **记忆 recall source_error 后缀** | `memory_search_tool`, MCP `memory_recall` | correction 的 `source_error` 字段可含凭据；与 middleware stable 注入同 SSOT | `format_recall_source_error_suffix()`（redact → sanitize） |
 | **记忆 store/manage 其它** | knowledge/event/rule；`memory_manage_tool` | 成功 ack 不回显 user body 或仅返回 ID | 写入/变更仍走 `memory_scanner`；无需 recall 前言 |
