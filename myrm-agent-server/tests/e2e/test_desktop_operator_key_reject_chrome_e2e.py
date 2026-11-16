@@ -14,7 +14,6 @@ import time
 import pytest
 from cdp_chat.mcp_ui import McpChatSession
 from cdp_chat.support import (
-    EvaluateIntent,
     ensure_e2e_yolo_mode,
     ensure_e2e_yolo_mode_in_browser,
     fetch_provider_readiness_snapshot,
@@ -22,6 +21,7 @@ from cdp_chat.support import (
     get_e2e_ui_url,
     wait_e2e_provider_ready,
 )
+from dev_gate.contract import EvaluateIntent
 
 from tests.e2e.desktop_approval.constants import BASE_URL, progress
 from tests.e2e.desktop_approval.trust_api import resolve_pending_desktop_approval_for_test
