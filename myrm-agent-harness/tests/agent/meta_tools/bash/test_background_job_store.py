@@ -111,15 +111,6 @@ def test_finish_dedupe_claim(store: BackgroundJobStore) -> None:
     assert store.try_claim_finish("job-f") is False
 
 
-def test_finish_is_claimed_once_by_session_and_pid_for_rows_without_a_known_job_id(store: BackgroundJobStore) -> None:
-    _insert(store, "job-legacy", pid=55, session_id="chat-9")
-    store.update_terminal("job-legacy", status="exited", exit_code=0, error_category=None, completed_at=2.0)
-
-    assert store.try_claim_finish_by_session_pid("chat-9", 55) is True
-    assert store.try_claim_finish_by_session_pid("chat-9", 55) is False
-    assert store.try_claim_finish_by_session_pid("chat-other", 55) is False
-
-
 def test_a_terminal_update_keeps_the_log_reference_it_is_given(store: BackgroundJobStore) -> None:
     _insert(store, "job-log")
 

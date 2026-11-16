@@ -99,7 +99,6 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         self._helper = ExecutionHelper()
 
         self._current_workspace: Path | None = None
-        self._readonly_paths: list[str] = []
         self._bash_sessions: dict[str, LocalPersistentSession] = {}
         self._closed: bool = False
 
@@ -116,10 +115,6 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         path.mkdir(parents=True, exist_ok=True)
 
         logger.debug(f" LocalExecutor: bound to workspace {workspace_path}")
-
-    def add_readonly_path(self, path: str) -> None:
-        """Register a read-only path (local mode)."""
-        self._readonly_paths.append(path)
 
     def _resolve_work_dir(self, work_dir: str, workspace_root: Path | None) -> Path | None:
         """Resolve abstract paths (e.g. /workspace/...) to local filesystem paths.

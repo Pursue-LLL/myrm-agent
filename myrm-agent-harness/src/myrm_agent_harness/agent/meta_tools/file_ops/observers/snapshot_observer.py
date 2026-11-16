@@ -1,7 +1,7 @@
 """File snapshot observer — captures pre-modification content for revert support.
 
 Records original file content before each create/modify operation, enabling
-message-level and file-level undo. Snapshots persist to disk for crash recovery.
+message-level and session-level undo. Snapshots persist to disk for crash recovery.
 
 Design choices:
 - Registered FIRST in ObserverManager so it captures content before any other
@@ -174,12 +174,6 @@ class SnapshotStore:
 
     def get_session_snapshots(self, session_id: str) -> dict[str, list[FileSnapshot]]:
         return dict(self._store.get(session_id, {}))
-
-    def get_file_snapshot(self, session_id: str, message_id: str, path: str) -> FileSnapshot | None:
-        for snap in reversed(self.get_message_snapshots(session_id, message_id)):
-            if snap.path == path:
-                return snap
-        return None
 
     def get_initial_file_snapshot(self, session_id: str, message_id: str, path: str) -> FileSnapshot | None:
         """获取当前回合（message_id）中该文件的第一次快照，用于计算累积 Diff。"""

@@ -27,7 +27,6 @@ class _TestOps(LocalFileOpsMixin):
 
     def __init__(self, root: Path) -> None:
         self._root = root
-        self._readonly_paths: list[str] = []
         self._current_workspace: Path | None = None
 
     async def resolve_path(self, path: str) -> str:

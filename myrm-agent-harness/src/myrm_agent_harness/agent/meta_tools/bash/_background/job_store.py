@@ -205,20 +205,6 @@ class BackgroundJobStore:
             )
             return cursor.rowcount == 1
 
-    def try_claim_finish_by_session_pid(self, session_id: str, pid: int) -> bool:
-        """Legacy dedupe path when job_id is unknown (pre-store rows)."""
-        now = time.time()
-        with self._connect() as conn:
-            cursor = conn.execute(
-                """
-                UPDATE background_jobs
-                SET finish_processed = 1, updated_at = ?
-                WHERE session_id = ? AND pid = ? AND finish_processed = 0 AND status = 'exited'
-                """,
-                (now, session_id, pid),
-            )
-            return cursor.rowcount == 1
-
     def mark_orphaned(self, job_id: str) -> None:
         now = time.time()
         with self._connect() as conn:

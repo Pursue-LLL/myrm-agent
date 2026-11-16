@@ -75,13 +75,3 @@ async def test_append_and_delete_refuse_protected_paths(executor):
         await executor.append_file("evidence/log.txt", "line")
     with pytest.raises(PermissionError):
         await executor.delete_file("evidence/source.pdf")
-
-
-@pytest.mark.asyncio
-async def test_configured_readonly_root_still_wins(executor, tmp_path):
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    executor._readonly_paths = [str(locked)]
-
-    with pytest.raises(PermissionError, match="read-only"):
-        await executor.write_file("locked/anything.txt", "content")

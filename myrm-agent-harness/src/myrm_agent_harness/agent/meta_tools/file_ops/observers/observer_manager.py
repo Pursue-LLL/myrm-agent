@@ -14,12 +14,7 @@ Provides ObserverManager.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from .base import FileOperationObserver
-
-if TYPE_CHECKING:
-    from ..core.operation_context import OperationType
 
 
 class ObserverManager:
@@ -111,13 +106,3 @@ class ObserverManager:
         """
         for observer in self.observers:
             await observer.on_file_viewed(path)
-
-    async def notify_operation_complete(self, operation: OperationType, path: str) -> None:
-        """通知操作完成事件
-
-        Args:
-            operation: 操作类型
-            path: 文件路径
-        """
-        for observer in self.observers:
-            await observer.on_operation_complete(operation, path)

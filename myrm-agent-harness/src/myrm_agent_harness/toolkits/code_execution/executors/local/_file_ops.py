@@ -2,7 +2,7 @@
 
 [INPUT]
 infra.atomic_write::async_atomic_write (POS: Atomic file writing utility)
-core.security.path::is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_within_boundary (POS: path security domain)
+core.security.path::is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file (POS: path security domain)
 core.security.path.pattern::first_matching_pattern (POS: Path pattern matching — single source of truth for glob-style path protection)
 core.context_vars::protected_paths_var (POS: Foundation ContextVar registry)
 toolkits.code_execution.executors.granted_roots::refuse_write_into_readonly_grant (POS: read-only directory grants refuse writes)
@@ -10,12 +10,12 @@ toolkits.code_execution.executors.granted_roots::refuse_write_into_readonly_gran
 [OUTPUT]
 LocalFileOpsMixin: Mixin providing pathlib-based file I/O with a write guard that
 refuses credential paths, persona instruction files, read-only evidence, the
-active Goal's protected paths and directories granted read-only, alongside the
-executor's configured read-only roots. Directory creation takes the same guard.
+active Goal's protected paths and directories granted read-only. Directory
+creation takes the same guard.
 
 [POS]
 Native file operations for local executor. Provides zero-subprocess-overhead
-file read/write/delete using pathlib, with read-only path enforcement
+file read/write/delete using pathlib, with the read-only directory grants
 and the shared path-protection rules so sandbox writes agree with the file tools and
 the shell pre-flight.
 """
@@ -83,14 +83,6 @@ class LocalFileOpsMixin:
     ``_log_context_file_access``, and ``workspace_path``.
     """
 
-    def _is_readonly(self, resolved_path: str) -> bool:
-        from myrm_agent_harness.core.security.path import is_within_boundary
-
-        return any(
-            is_within_boundary(resolved_path, p)
-            for p in self._readonly_paths  # type: ignore[attr-defined]
-        )
-
     def _guard_write(self, resolved_path: str) -> None:
         """Refuse a write that any protection rule forbids.
 
@@ -104,8 +96,6 @@ class LocalFileOpsMixin:
         """
         enforce_capability_access(CapabilityAction.WRITE, resolved_path)
         refuse_write_into_readonly_grant(resolved_path, self.workspace_path)  # type: ignore[attr-defined]
-        if self._is_readonly(resolved_path):
-            raise PermissionError(f"Write denied: path is read-only — {resolved_path}")
 
         from myrm_agent_harness.core.context_vars import protected_paths_var
         from myrm_agent_harness.core.security.path import (
