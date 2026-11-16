@@ -304,7 +304,6 @@ async def test_execute_str_replace_appends_conflict_warning() -> None:
     service = FileOperationService(context)
     guard = MagicMock()
     guard.require_read_before_write.return_value = None
-    guard.require_full_read_before_edit.return_value = None
     guard.require_version_match.return_value = None
     guard.record_write = MagicMock()
     with ExitStack() as stack:

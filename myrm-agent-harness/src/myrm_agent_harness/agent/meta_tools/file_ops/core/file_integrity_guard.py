@@ -1,11 +1,11 @@
 """File integrity guard: read-before-write gate, content version matching and the masked write-back check.
 
-Provides four complementary protections for file mutation operations:
-1. Read-gate: refuses mutations on files never read in the current session.
-2. Full-read gate: refuses edits after partial/range reads (marker-only).
-3. Version gate: hard-rejects when on-disk content hash differs from the
-   hash recorded at full-read time (external or concurrent modification).
-4. Masked write-back gate: refuses a write that carries a mask the redactor puts in place of a secret
+Provides three complementary protections for file mutation operations:
+1. Read-gate: refuses mutations on files never read in the current session. A line-range read counts; a preview or
+   stream read opens the file on its own and records nothing.
+2. Version gate: hard-rejects when on-disk content hash differs from the
+   hash recorded at read time (external or concurrent modification).
+3. Masked write-back gate: refuses a write that carries a mask the redactor puts in place of a secret
    (``***``, ``sk-pro...7890``). A read shows the mask, the file holds the real value, and text copied from the
    read would replace it.
 
@@ -20,7 +20,7 @@ edits by the same agent on content it just wrote remain allowed.
 [OUTPUT]
 - FileIntegrityGuard: Per-executor file integrity guard (agent-aware)
 - get_file_integrity_guard: Module-level factory: one guard per executor, held weakly so it dies with the executor
-- raise_if_integrity_rejection: raises the read, full-read and version rejections of a mutation as a ToolError
+- raise_if_integrity_rejection: raises the read and version rejections of a mutation as a ToolError
 - raise_if_masked_writeback: raises when new content carries a mask the file does not
 
 [POS]
@@ -66,11 +66,9 @@ def _current_agent_id() -> str:
 
 
 class FileIntegrityGuard:
-    """Read-gate + full-read gate + version gate for file mutations."""
+    """Read-gate + version gate for file mutations."""
 
     __slots__ = ("_agent_read_hashes",)
-
-    _PARTIAL_READ_SENTINEL = ""
 
     def __init__(self) -> None:
         self._agent_read_hashes: dict[str, dict[str, str]] = {}
@@ -80,13 +78,6 @@ class FileIntegrityGuard:
         norm = os.path.normpath(path)
         bucket = self._agent_read_hashes.setdefault(aid, {})
         bucket[norm] = content_hash(content)
-
-    def record_read_marker(self, path: str, agent_id: str | None = None) -> None:
-        aid = agent_id or _current_agent_id()
-        norm = os.path.normpath(path)
-        bucket = self._agent_read_hashes.setdefault(aid, {})
-        if norm not in bucket:
-            bucket[norm] = self._PARTIAL_READ_SENTINEL
 
     def record_write(self, path: str, content: str, agent_id: str | None = None) -> None:
         aid = agent_id or _current_agent_id()
@@ -106,22 +97,6 @@ class FileIntegrityGuard:
             "so your SEARCH text matches the actual bytes on disk."
         )
 
-    def require_full_read_before_edit(self, path: str, agent_id: str | None = None) -> str | None:
-        """Reject edits when only a partial/range read marker exists."""
-        aid = agent_id or _current_agent_id()
-        norm = os.path.normpath(path)
-        bucket = self._agent_read_hashes.get(aid)
-        if bucket is None:
-            return None
-        expected = bucket.get(norm)
-        if expected != self._PARTIAL_READ_SENTINEL:
-            return None
-        return (
-            f"File '{norm}' was only partially read in this session. "
-            "Call file_read_tool without a line range (or read the full file) "
-            "before editing, so version checking can protect against stale edits."
-        )
-
     def require_version_match(
         self,
         path: str,
@@ -129,14 +104,14 @@ class FileIntegrityGuard:
         agent_id: str | None = None,
         anchor: str | Sequence[str] | None = None,
     ) -> str | None:
-        """Hard-reject when disk content hash differs from the last full-read hash."""
+        """Hard-reject when disk content hash differs from the hash recorded at the last read."""
         aid = agent_id or _current_agent_id()
         norm = os.path.normpath(path)
         bucket = self._agent_read_hashes.get(aid)
         if bucket is None:
             return None
         expected = bucket.get(norm)
-        if expected is None or expected == self._PARTIAL_READ_SENTINEL:
+        if expected is None:
             return None
         current = content_hash(disk_content)
         if current == expected:
@@ -229,7 +204,7 @@ def raise_if_integrity_rejection(
     require_version: bool,
     anchor: str | Sequence[str] | None = None,
 ) -> None:
-    """Raise the read, full-read or version rejection of a mutation of ``path`` as a ToolError."""
+    """Raise the read or version rejection of a mutation of ``path`` as a ToolError."""
     if guard is None:
         return
 
@@ -238,13 +213,6 @@ def raise_if_integrity_rejection(
         raise ToolError(
             message=read_rejection,
             user_hint="Read the file first with file_read_tool before editing.",
-        )
-
-    partial_rejection = guard.require_full_read_before_edit(path)
-    if partial_rejection is not None:
-        raise ToolError(
-            message=partial_rejection,
-            user_hint="Read the full file with file_read_tool before editing.",
         )
 
     if require_version and disk_content is not None:
