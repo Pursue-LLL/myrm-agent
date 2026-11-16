@@ -10,7 +10,7 @@ Child-agent management (spawn, observe, cancel, steer, wake up) lives in ``_inte
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - utils.runtime.cancellation::CancellationToken (POS: request-level cancellation token for cooperative async cancellation)
 - utils.runtime.steering::SteeringToken (POS: steering token: injects a message while the agent runs to interrupt the current tool chain)
-- agent._internals.base_agent_children_mixin::BaseAgentChildrenMixin (POS: Mixin: the child-agent management methods of BaseAgent; every call delegates to the agent's SubagentManager.)
+- agent._internals.base_agent_children_mixin::BaseAgentChildrenMixin (POS: Mixin: the child-agent management methods of BaseAgent; all of them delegate to the agent's SubagentManager except trigger_async_wakeup, which notifies the global wakeup handler and the active progress sink.)
 - agent._internals.base_agent_modes_mixin::BaseAgentModesMixin (POS: Mixin: run_consensus on BaseAgent.)
 
 [OUTPUT]

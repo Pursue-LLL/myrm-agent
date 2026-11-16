@@ -1,4 +1,5 @@
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
 
@@ -54,6 +55,33 @@ async def test_trigger_async_wakeup_with_handler_and_sink(mock_get_sink, mock_ge
             },
         }
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("raw_session_id", "expected"),
+    [
+        ("abc", "abc"),
+        (123, "123"),
+        (UUID(int=1), "00000000-0000-0000-0000-000000000001"),
+        (None, None),
+    ],
+)
+@patch("myrm_agent_harness.utils.runtime.wakeup_registry.get_global_wakeup_handler")
+@patch("myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink")
+async def test_trigger_async_wakeup_routes_by_the_string_form_of_the_session_id(
+    mock_get_sink, mock_get_handler, mock_agent, raw_session_id, expected
+):
+    """A host may carry its session id as int or UUID; the handler still receives it, as ``str``."""
+    mock_handler = AsyncMock()
+    mock_get_handler.return_value = mock_handler
+    mock_get_sink.return_value = None
+    mock_agent._last_context = {"session_id": raw_session_id, "agent_id": "test-parent-agent"}
+    result = SubAgentResult(task_id="task-004", agent_type="test_subagent", success=True)
+
+    await mock_agent.trigger_async_wakeup(result)
+
+    mock_handler.on_async_wakeup.assert_awaited_once_with(result, "test-parent-agent", expected)
 
 
 @pytest.mark.asyncio

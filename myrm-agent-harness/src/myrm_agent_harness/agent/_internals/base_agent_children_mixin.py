@@ -11,7 +11,7 @@
 - BaseAgentChildrenMixin: BaseAgent's child-agent surface — spawn, list, cancel, steer and wait on children, and the async-wakeup notification for a result nobody has received.
 
 [POS]
-Mixin: the child-agent management methods of BaseAgent; every call delegates to the agent's SubagentManager.
+Mixin: the child-agent management methods of BaseAgent; all of them delegate to the agent's SubagentManager except trigger_async_wakeup, which notifies the global wakeup handler and the active progress sink.
 """
 
 from __future__ import annotations
@@ -117,7 +117,7 @@ class BaseAgentChildrenMixin:
         agent_id = "unknown"
         if self._last_context:
             raw_session_id = self._last_context.get("session_id")
-            session_id = raw_session_id if isinstance(raw_session_id, str) else None
+            session_id = None if raw_session_id is None else str(raw_session_id)
             agent_id = str(self._last_context.get("agent_id", "unknown"))
 
         # 1. Notify global handler (for actual background wakeup)
