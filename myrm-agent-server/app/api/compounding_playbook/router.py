@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.compounding_playbook.status_service (POS: playbook status aggregation)
-- myrm_agent_harness.toolkits.cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
+- myrm_agent_harness.toolkits.cron::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 
 [OUTPUT]
 - router: compounding playbook status REST routes
@@ -14,7 +14,7 @@ HTTP boundary exposing compounding playbook readiness for settings UI.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
+from myrm_agent_harness.toolkits.cron import CronManagerPort
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from sqlalchemy.ext.asyncio import AsyncSession
 

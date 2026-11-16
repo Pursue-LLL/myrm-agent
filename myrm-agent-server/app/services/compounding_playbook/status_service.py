@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
+    from myrm_agent_harness.toolkits.cron import CronManagerPort
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.compounding_playbook import (
