@@ -50,7 +50,7 @@ def test_browser_no_heavy_imports():
 import sys
 from myrm_agent_harness.toolkits.browser import BrowserSession
 
-heavy_deps = ["patchright", "langgraph", "yaml", "cryptography"]
+heavy_deps = ["patchright", "langgraph", "yaml", "cryptography", "httpx", "myrm_agent_harness.core.security.detection"]
 loaded = [dep for dep in heavy_deps if dep in sys.modules]
 
 assert not loaded, f"Unexpected heavy dependencies loaded: {loaded}"
