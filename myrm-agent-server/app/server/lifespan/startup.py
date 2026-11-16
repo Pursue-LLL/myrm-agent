@@ -1,5 +1,6 @@
 """[INPUT]
 - .state (POS: shared startup state)
+- .prebuilt_skills::init_prebuilt_skills (POS: the prebuilt skill sync of the parallel phase)
 
 [OUTPUT]
 - phase helpers and the sequential/parallel startup phases
@@ -20,6 +21,7 @@ from app.lifecycle import (
 )
 
 from . import state
+from .prebuilt_skills import init_prebuilt_skills
 from .state import logger
 
 
@@ -354,20 +356,6 @@ async def _phase_1b_parallel() -> None:
 
         register_all_idle_handlers()
 
-    async def _init_prebuilt_skills() -> None:
-        from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
-
-        from app.core.skills.prebuilt_sync import sync_prebuilt_seeds
-        from app.core.skills.store.service import skills_service
-
-        storage = get_storage_provider()
-        sync_result = await sync_prebuilt_seeds(storage)
-        from app.api.health.update_status import note_prebuilt_sync_result
-
-        note_prebuilt_sync_result(sync_result.synced_count)
-        if sync_result.skill_ids:
-            await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
-
     async def _init_builtin_agents() -> None:
         from app.services.agent.builtin_specs.builtin_initializer import (
             initialize_builtin_agents,
@@ -421,7 +409,7 @@ async def _phase_1b_parallel() -> None:
         _init_permission_logger_task(),
         _init_context_cleanup_task(),
         _init_idle_handlers_task(),
-        _init_prebuilt_skills(),
+        init_prebuilt_skills(),
         _init_builtin_agents(),
         _init_harness_bridge_task(),
         _init_security_reviewer_task(),

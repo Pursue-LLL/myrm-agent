@@ -782,7 +782,7 @@ Scanner（编排器）
 
 ### 15.1 设计
 
-框架不内置技能清单：宿主把随版本发布的预置技能（`assets/prebuilt_skills/<skill>/SKILL.md` 及 `scripts/` 等附属文件）在启动时同步到存储。Server 的实现是 `app/core/skills/prebuilt_sync.py` 的 `sync_prebuilt_seeds`，由 lifespan 启动阶段的 `_init_prebuilt_skills` 调用，每个进程至多运行一次；同步失败只记 ERROR，不阻塞启动。
+框架不内置技能清单：宿主把随版本发布的预置技能（`assets/prebuilt_skills/<skill>/SKILL.md` 及 `scripts/` 等附属文件）在启动时同步到存储。Server 的实现是 `app/core/skills/prebuilt_sync.py` 的 `sync_prebuilt_seeds`，由 lifespan 启动阶段的 `init_prebuilt_skills`（`app/server/lifespan/prebuilt_skills.py`）调用，每个进程至多运行一次；同步失败只记 ERROR，不阻塞启动。本地安装的种子自上次完整同步后没变、留存副本也齐全时，启动沿用上次结果，同一套对账改在首屏之后由 `verify_reused_sync` 补跑。
 
 ### 15.2 同步流程
 
@@ -799,6 +799,7 @@ Scanner（编排器）
 **设计决策**：
 - 三方哈希保护用户对预置技能的修改，升级不会静默覆盖
 - 同步幂等：重复启动不产生重复写入
+- 本地安装沿用上次完整同步：种子指纹与留存副本都对得上时，启动不等对账、首屏之后再补跑；任何一项对不上都回到监听前的完整对账
 - 同步失败不影响系统启动（降级运行）
 
 ---

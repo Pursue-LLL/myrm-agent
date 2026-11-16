@@ -4,6 +4,7 @@
 - app.lifecycle::start_kanban_dispatchers (POS: per-board kanban dispatchers)
 - app.startup.gc_policy::settle_collection_after (POS: ends the boot GC pause)
 - .startup (POS: boot housekeeping coroutines)
+- .prebuilt_skills::verify_prebuilt_skills (POS: the reconciliation a boot that reused the last prebuilt sync skipped)
 - .route_warmup::warm_route_table (POS: builds the route state the first screen did not reach)
 
 [OUTPUT]
@@ -13,11 +14,12 @@
 Starts the boot's background tasks once uvicorn is accepting connections, in two steps.
 Recovery (orphaned goals paused after an unclean stop) starts right after the bind: the first screen reads that state.
 The warm-up (scheduler wiring, tokenizer and vector store warmup, the agent tool chain import, the kanban dispatchers'
-first queries, @startup events, the route state of the routers below the first-screen block) is CPU-heavy on the single
-event loop and in import threads, so started while the first screen loads it slows the requests that screen waits for. It
-starts shortly after the readiness route first reports the database ready, which is when a client renders, or after a
-fallback delay when no client asks. When the warm-up tasks have all ended, the boot GC pause ends with them. A shutdown
-that arrives before a start cancels it, so no scheduler is started once components are stopping.
+first queries, @startup events, the prebuilt skill reconciliation a reusing boot skipped, the route state of the routers
+below the first-screen block) is CPU-heavy on the single event loop and in import threads, so started while the first
+screen loads it slows the requests that screen waits for. It starts shortly after the readiness route first reports the
+database ready, which is when a client renders, or after a fallback delay when no client asks. When the warm-up tasks
+have all ended, the boot GC pause ends with them. A shutdown that arrives before a start cancels it, so no scheduler is
+started once components are stopping.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from app.server.warmup import run_async_warmup
 from app.startup.gc_policy import settle_collection_after
 
 from . import startup
+from .prebuilt_skills import verify_prebuilt_skills
 from .route_warmup import warm_route_table
 from .state import logger
 
@@ -102,6 +105,9 @@ def _start_warmup(app: FastAPI) -> None:
     _warmup_app = None
     logger.info("[Startup] Starting background warmup...")
     tasks = [
+        # A boot that reused the last prebuilt skill sync reconciles here instead of before the bind. It starts first so
+        # that the SKILL.md parse it shares with the first agent turn's skill listing is warm before a message is sent.
+        _spawn(verify_prebuilt_skills()),
         _spawn(run_async_warmup()),
         _spawn(start_kanban_dispatchers()),
         # Trigger-bound cron jobs ("@startup") fire on boot.

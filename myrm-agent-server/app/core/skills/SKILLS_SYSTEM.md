@@ -87,6 +87,9 @@ prebuilt_sync.py                 启动时同步到 storage + 清理幽灵条目
     → 写入 skills/prebuilt/{id}/SKILL.md
     → 写入 skills/prebuilt/{id}/_metadata.json（供 list_prebuilt_skills 发现）
     → 清理 storage 中已无对应 seed 目录的孤儿 SKILL.md 与 _metadata.json
+    → 本地安装：种子指纹与上次完整同步的记录（`prebuilt_sync_state.py`，存于 skills/prebuilt/.seed-sync-state.json）一致、
+      且留存的 SKILL.md 与 _metadata.json 齐全时，启动沿用上次结果，同一套对账在首屏之后补跑一次（`verify_reused_sync`）；
+      其余情形（首次启动、升级改动了种子、副本缺失、沙箱模式）仍在监听前完整对账
 user_config.ensure_prebuilt_enabled_after_sync()
     → 新安装（无 config 文件）：默认启用精选通用办公技能集（`_DEFAULT_ENABLED_PREBUILT_SKILLS`：数据分析 / 深度调研 / 文档解析 / 办公文档生成 / PDF 生成）
     → 已有配置：保持用户已选启用列表；从 enabled/disabled 列表移除已无 seed 的幽灵 ID
@@ -111,7 +114,7 @@ Skill 是**业务能力**；Harness 工具是**框架能力**。禁止用 harnes
 
 | 步骤 | 说明 |
 |------|------|
-| Seed 同步 | `prebuilt_sync._sync_skill_bundle_files` 将 `scripts/` 等写入 storage |
+| Seed 同步 | `prebuilt_bundle_sync.sync_skill_bundle_files` 将 `scripts/` 等写入 storage（留存内容与种子一致的文件不重写） |
 | SKILL 命令 | 使用 `.claude/skills/{skill-id}/scripts/...` 全路径（含连字符 skill 名） |
 | Runtime | `bash_executor` 检测路径 → `SkillWorkspaceManager` stage（纯调用时先还原为随包文件）→ 命令从 skill 目录起跑（`CommandEnv.cwd`）+ token inject |
 | OAuth scope | 集成 skill 的 SKILL.md frontmatter `oauth_issuer`（如 `google_workspace`）→ harness 解析为 `SkillMetadata.oauth_issuer` → bash 检测到 skill 路径时 `ExecutionContext.allowed_credential_issuers` 仅注入对应 issuer；generic bash（无 skill 路径）仍注入全部 session 凭证 |
