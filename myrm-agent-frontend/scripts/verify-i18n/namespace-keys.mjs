@@ -75,7 +75,7 @@ const CRON_EXECUTION_POLICY_STRING_KEYS = [
   'executionPolicyUpdated',
 ];
 
-const CRON_CAP_PRESET_KEYS = ['research', 'devops', 'full'];
+const CRON_CAP_PRESET_KEYS = ['research', 'devops', 'readOnly'];
 const CRON_TOOL_PRESET_KEYS = ['webOnly', 'research', 'full'];
 
 const isNonEmptyString = (value) => typeof value === 'string' && value.length > 0;

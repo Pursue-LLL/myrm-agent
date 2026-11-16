@@ -7344,9 +7344,6 @@
     "capabilitiesLabel": "Capability Fence",
     "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused.",
     "capabilitiesAllHint": "Nothing chosen: read files, search and open web pages only",
-    "failClosedHint": "Scheduled tasks deny dangerous operations by default. Configure capability fence below or enable YOLO mode in agent security settings.",
-    "capabilitiesUpdated": "Capability fence updated",
-    "capabilitiesCleared": "Capability fence cleared",
     "toolsAllowedLabel": "Built-in Tools Scope",
     "toolsAllowedDesc": "Limit which built-in tools mount at run time. Intersected with the bound agent profile. Leave empty for no extra restriction.",
     "toolsAllowedAllHint": "Unrestricted (agent profile only)",
@@ -7354,7 +7351,7 @@
     "capPreset": {
       "research": "Research",
       "devops": "DevOps",
-      "full": "All capabilities"
+      "readOnly": "Read-only"
     },
     "toolPreset": {
       "webOnly": "Web only",

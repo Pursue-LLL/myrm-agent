@@ -7344,9 +7344,6 @@
     "capabilitiesLabel": "能力围栏",
     "capabilitiesDesc": "选择此任务可以自行完成的事。定时运行期间没有人能即时批准，没选的能力会被直接拒绝。",
     "capabilitiesAllHint": "未选择：仅能读取文件、搜索和打开网页",
-    "failClosedHint": "定时任务默认拒绝危险操作。请在下方配置能力围栏，或在智能体安全设置中启用 YOLO 模式。",
-    "capabilitiesUpdated": "能力围栏已更新",
-    "capabilitiesCleared": "能力围栏已清除",
     "toolsAllowedLabel": "内置工具范围",
     "toolsAllowedDesc": "限制任务运行时挂载的内置工具，与绑定的智能体配置求交。留空表示不额外限制。",
     "toolsAllowedAllHint": "不限制（仅受智能体配置约束）",
@@ -7354,7 +7351,7 @@
     "capPreset": {
       "research": "研究",
       "devops": "运维",
-      "full": "全部能力"
+      "readOnly": "仅读取"
     },
     "toolPreset": {
       "webOnly": "仅联网",

@@ -14,7 +14,7 @@
  * app/core/cron/blueprints/core/types.py (SSOT).
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Shield, Globe, Download, Terminal, FileInput, FileOutput, Plug, Code, Wrench } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -73,7 +73,7 @@ const CAPABILITY_PRESETS = [
     toolsSorted: [...BLUEPRINT_EXECUTION_POLICY.devops.toolsSorted],
   },
   {
-    key: 'full',
+    key: 'readOnly',
     caps: [] as string[],
     sorted: [] as string[],
     tools: [] as BuiltinToolId[],
@@ -122,12 +122,15 @@ export function CapabilityEditor({ job, onUpdated }: EditorProps) {
   const serverTools = useMemo(() => job.tools_allowed ?? [], [job.tools_allowed]);
   const [localCaps, setLocalCaps] = useState<string[]>(serverCaps);
   const [localTools, setLocalTools] = useState<string[]>(serverTools);
+  const [synced, setSynced] = useState({ serverCaps, serverTools });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    setLocalCaps(job.required_capabilities ?? []);
-    setLocalTools(job.tools_allowed ?? []);
-  }, [job.required_capabilities, job.tools_allowed]);
+  // A refreshed job replaces the local picks. Adjusting during render keeps stale picks from ever painting.
+  if (synced.serverCaps !== serverCaps || synced.serverTools !== serverTools) {
+    setSynced({ serverCaps, serverTools });
+    setLocalCaps(serverCaps);
+    setLocalTools(serverTools);
+  }
 
   const capsDirty = useMemo(() => !sortedEqual(localCaps, serverCaps), [localCaps, serverCaps]);
   const toolsDirty = useMemo(() => !sortedEqual(localTools, serverTools), [localTools, serverTools]);
