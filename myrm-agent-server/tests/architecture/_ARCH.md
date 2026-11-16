@@ -43,6 +43,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_conversation_recall_layout.py` | Conversation Recall 仓储须位于 `app/database/repositories/conversation_recall/` 子包，禁止 repositories 根 legacy 平铺文件复活 |
 | `test_e2ee_layout.py` | Mobile remote E2EE 须位于 `app/remote_access/e2ee/` 子包，禁止 remote_access 根 legacy 平铺文件复活 |
 | `test_builtin_agent_i18n_parity.py` | 前端 `builtin-agent-i18n-data.ts` 的 key 集合须与 server `_BUILTIN_AGENTS` id 严格同构 |
+| `test_hidden_builtin_agent_parity.py` | 前端 `product-surface.ts` 的 `HIDDEN_BUILTIN_AGENT_IDS` 须与 server `product_surface.py` 的同名集合完全一致（任一侧单独增删都会让已下线的预置体在另一侧重新出现）；含对折行 Set 字面量的解析用例 |
 | `test_blueprint_template_tools_parity.py` | 前端聊天配置面板 `BLUEPRINT_TEMPLATES`（JIT 一键编队）里每个成员的 `tools` 必须非空（空 = 继承父级全部工具）且都是 harness 注册的工具全名（`web_search` 这类界面名不会匹配任何工具，子智能体最后零工具）；自带扫描校准用例 |
 | `test_cron_route_field_parity.py` | 定时任务 REST 的字段对齐：创建 schema 的每个字段都被 `create_job` 路由读取（唯一的登记例外 `override_prerequisite`：界面会发、服务端从不执行；该字段一旦被路由读取，登记即过期并失败），更新 schema 的每个字段都被 `update_job` 路由读取，`CronJobResponse` 的每个字段都由 `_to_response` 填写（路由漏转一个字段，设置会被接收、校验后丢弃）；自带校准用例证明读取器看得出被删掉的那一行 |
 | `test_cron_removed_symbols.py` | 定时任务服务端已删符号零残留：`active_streams` / `active_polls` / `claim_due` / `list_orphaned_active` 不得再出现在 `app/core/cron`、`app/api/cron` 的模块与 `_ARCH.md` 里（整词匹配，较长的名字不误报；含检测器正反例自证） |

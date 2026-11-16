@@ -24,7 +24,7 @@ Feature Flags 服务层。提供功能开关注册、状态查询和用户覆盖
 | `__init__.py` | 入口 | 导出 | — |
 | `registration.py` | 核心 | Feature Flag 注册（定义所有可用功能开关） | ✅ |
 | `feature_config_service.py` | 核心 | 用户级功能配置持久化 + REMOVED feature override 自动净化 | ✅ |
-| `product_surface.py` | 核心 | 隐藏 Agent（含已下线、不再有规格的预置体 `builtin-ko-office`）/模板/已移除 Feature 的产品面 SSOT | ✅ |
+| `product_surface.py` | 核心 | 隐藏 Agent（含已下线、不再有规格的预置体 `builtin-ko-office`；前端镜像集合由 `tests/architecture/test_hidden_builtin_agent_parity.py` 守护一致）/模板/已移除 Feature 的产品面 SSOT | ✅ |
 
 ## 门控执行点
 

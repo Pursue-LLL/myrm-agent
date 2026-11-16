@@ -93,12 +93,13 @@ async def test_a_python_write_gets_the_linter_report_and_the_linter_runs_from_th
     # An earlier bash call of the model left the persistent shell in a subdirectory.
     await executor.execute_bash(ExecutionContext(code="cd pkg", workspace_root=str(workspace)))
 
-    result = await _write("pkg/mod.py", "x: int = 'a'\n")
+    # Code ``ruff format`` leaves as it is: the file keeps its content whether or not the formatter is on PATH.
+    result = await _write("pkg/mod.py", 'x: int = "a"\n')
 
     assert "Successfully created" in result
     assert "[Auto-Verify]" in result
     assert "Type mismatch" in result
-    assert (workspace / "pkg" / "mod.py").read_text(encoding="utf-8") == "x: int = 'a'\n"
+    assert (workspace / "pkg" / "mod.py").read_text(encoding="utf-8") == 'x: int = "a"\n'
     ran_in = Path((workspace / "ran_in.txt").read_text(encoding="utf-8").strip())
     assert ran_in.resolve() == workspace.resolve()
 
