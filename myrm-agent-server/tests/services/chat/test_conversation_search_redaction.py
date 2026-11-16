@@ -3,7 +3,8 @@
 The agent reads conversation history through `search_sessions_corpus`, the production `ConversationHistorySearchProvider`
 and the FTS recall index. FTS5 cuts its snippet out of the stored text, and a credential that the cut splits, or that
 HTML escaping disguised, no longer matches the redactor's patterns. The provider therefore redacts the stored text the
-snippet was cut from before it hands the snippet on, and hands it on as plain text.
+snippet was cut from before it hands the snippet on, and hands it on as plain text: the text a person wrote, whatever
+markup it holds.
 """
 
 from __future__ import annotations
@@ -17,6 +18,9 @@ from myrm_agent_harness.toolkits.memory.conversation_search import ConversationS
 from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationSearchHit
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.repositories.conversation_recall import ConversationRecallRepository
+from app.database.repositories.conversation_recall.sql import HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN
+from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
 from app.services.chat.conversation_search_service import ConversationHistorySearchProvider, ConversationSearchService
 from app.services.chat.conversation_search_snippet import redact_hit_windows
 from tests.services.chat.search_support import seed_chat_with_text, shows_part_of
@@ -30,6 +34,13 @@ _QUOTED_FORMS = {
     "env-double-quoted": 'rotate DB_PASSWORD="%s" before the kestrelmark cutover',
     "env-single-quoted": "rotate API_TOKEN='%s' before the kestrelmark cutover",
     "cli-flag": "kestrelmark first then psql --password '%s' -h db",
+}
+# Highlight tags a person typed. FTS5 puts its own highlight around the match and none of these is one, so each reads back
+# as it was written.
+_TYPED_TAGS = {
+    "lowercase": "Wrap hits as <mark>kestrelmark</mark> in the results page",
+    "uppercase": "Wrap hits as <MARK>kestrelmark</MARK> in the results page",
+    "unpaired": "close the tag </mark> before kestrelmark ends",
 }
 
 
@@ -204,3 +215,67 @@ async def test_a_window_found_in_no_stored_text_is_dropped_not_passed_on(fts_db:
 
     assert rebuilt.snippet == ""
     assert rebuilt.conversation_id == "chat-gone"
+
+
+@pytest.mark.parametrize("stored", _TYPED_TAGS.values(), ids=_TYPED_TAGS.keys())
+@pytest.mark.asyncio
+async def test_highlight_tags_a_person_typed_are_read_back_as_written(fts_db: AsyncSession, stored: str) -> None:
+    [message_id] = await seed_chat_with_text(fts_db, "chat-typed", stored)
+
+    hit = await _hit("kestrelmark")
+    recent = await _sessions("*")
+    expanded = await _sessions("", expand_conversation_id="chat-typed", expand_message_id=message_id)
+    picked, _total = await ConversationRecallIndexService.search_citable_chats("kestrelmark")
+
+    # FTS5 may start its window after the "user: " the transcript opens with, and then marks the cut with an ellipsis.
+    assert stored in hit.snippet
+    assert f"snippet: {stored}" in recent
+    assert f"snippet: user: {stored}" in expanded
+    assert stored in str(picked[0]["snippet"])
+
+
+@pytest.mark.asyncio
+async def test_a_stored_text_holding_the_highlight_markers_gets_no_snippet(fts_db: AsyncSession) -> None:
+    # Such a text cannot be told from the highlight FTS5 adds, so the window cannot be placed in it.
+    await seed_chat_with_text(fts_db, "chat-markers", f"alpha {HIGHLIGHT_OPEN}beta{HIGHLIGHT_CLOSE} kestrelmark omega")
+
+    hit = await _hit("kestrelmark")
+
+    assert hit.snippet == ""
+
+
+@pytest.mark.asyncio
+async def test_a_search_row_carries_the_match_as_display_markup_and_as_plain_text(fts_db: AsyncSession) -> None:
+    await seed_chat_with_text(fts_db, "chat-row", 'if a < b then "kestrelmark" wins')
+
+    [row] = await ConversationRecallRepository.search(
+        fts_db,
+        safe_query="kestrelmark",
+        limit=3,
+        current_chat_id=None,
+        agent_id=None,
+        current_source=None,
+        scope="all",
+        lineage_chat_ids=[],
+        since=None,
+        until=None,
+    )
+
+    assert "<mark>kestrelmark</mark>" in row.snippet
+    assert 'if a < b then "kestrelmark" wins' in row.window
+    assert row.window == row.snippet.replace("<mark>", "").replace("</mark>", "")
+    for marker in (HIGHLIGHT_OPEN, HIGHLIGHT_CLOSE):
+        assert marker not in row.snippet + row.window
+
+
+@pytest.mark.asyncio
+async def test_a_chat_excluded_after_it_was_ranked_is_not_read_back_for_its_snippet(fts_db: AsyncSession) -> None:
+    await seed_chat_with_text(fts_db, "chat-late", "the kestrelmark rollout notes")
+    ranked = await _hit("kestrelmark")
+    assert ranked.snippet == "the kestrelmark rollout notes"
+    await ConversationRecallRepository.set_excluded(fts_db, "chat-late", True)
+    await fts_db.commit()
+
+    [rebuilt] = await redact_hit_windows([ranked])
+
+    assert rebuilt.snippet == ""

@@ -8,8 +8,7 @@ app.database.models.chat::WAKEUP_NOTICE_KEY (POS: extra_data marker of the notic
 [OUTPUT]
 filter_messages: Filter chat messages before model context construction.
 _sanitize_snippet: Sanitize highlighted FTS snippets for UI output.
-plain_snippet: FTS snippet as plain text for the model (no tags, nothing escaped).
-strip_reasoning_tags, strip_mark_tags: Remove the reasoning tags or the FTS highlight tags from a text.
+strip_reasoning_tags: Remove the tags that wrap a model's reasoning from a text.
 RetryResult, RegenerateResult, UndoResult, TruncateResult, ChannelHistoryEntry: Chat service result DTOs.
 WAKEUP_MESSAGE_ID_PREFIX: Id prefix of the system-injected user rows that carry async task results back to a chat.
 SPILLOVER_EXTRA_KEY: Extra-data key of a user row whose pasted text was parked in a file.
@@ -177,7 +176,6 @@ class ChannelHistoryEntry(NamedTuple):
 
 
 _REASONING_TAG_RE = re.compile(r"</?(?:think|thought|thinking|reasoning|REASONING_SCRATCHPAD)[^>]*>", re.IGNORECASE)
-_MARK_TAG_RE = re.compile(r"</?mark>", re.IGNORECASE)
 
 
 def strip_reasoning_tags(text: str) -> str:
@@ -185,22 +183,12 @@ def strip_reasoning_tags(text: str) -> str:
     return _REASONING_TAG_RE.sub("", text)
 
 
-def strip_mark_tags(text: str) -> str:
-    """Remove the highlight tags FTS5 wraps around matched terms."""
-    return _MARK_TAG_RE.sub("", text)
-
-
-def plain_snippet(raw_snippet: str) -> str:
-    """FTS5 snippet as the plain text it was cut from: no reasoning tags, no highlight tags, nothing escaped.
-
-    The model reads it as text, so an HTML entity in it is a corrupted quote or bracket, and an escaped quote also
-    hides a quoted credential from the redactor.
-    """
-    return strip_mark_tags(strip_reasoning_tags(raw_snippet))
-
-
 def _sanitize_snippet(raw_snippet: str) -> str:
-    """Sanitize FTS5 snippet for display: preserve only <mark> tags, escape everything else."""
+    """Sanitize FTS5 snippet for display: preserve only <mark> tags, escape everything else.
+
+    Display only. A model reading the escaped text sees corrupted quotes and brackets, and an escaped quote hides a quoted
+    credential from the redactor, so the model reads the row's plain ``window`` instead.
+    """
     raw_snippet = strip_reasoning_tags(raw_snippet)
 
     placeholder = "\x00MARK\x00"

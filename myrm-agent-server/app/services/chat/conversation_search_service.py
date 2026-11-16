@@ -42,7 +42,7 @@ from app.database.repositories.conversation_recall import (
     ConversationRecallRow,
 )
 from app.database.repositories.uow import UnitOfWork
-from app.services.chat.chat_helpers import _sanitize_snippet, plain_snippet, strip_mark_tags
+from app.services.chat.chat_helpers import _sanitize_snippet, strip_reasoning_tags
 from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
@@ -232,7 +232,7 @@ class ConversationSearchService:
         hit = ConversationSearchHit(
             conversation_id=chat_id,
             title=title,
-            snippet=plain_snippet(expanded_snippet),
+            snippet=strip_reasoning_tags(expanded_snippet),
             summary=None,
             score=1.0,
             source="conversation_index",
@@ -367,9 +367,9 @@ def _fts_hit(
     return ConversationSearchHit(
         conversation_id=row.chat_id,
         title=row.title,
-        # The window FTS5 cut, minus its highlight tags. `redact_hit_windows` locates the stored text by it and
-        # replaces it, so it never reaches the model as it is.
-        snippet=strip_mark_tags(row.snippet),
+        # The window FTS5 cut. `redact_hit_windows` locates the stored text by it and replaces it, so it never reaches
+        # the model as it is.
+        snippet=row.window,
         summary=row.summary,
         score=score,
         source="conversation_index",
@@ -388,7 +388,7 @@ def _recent_hit(row: ConversationRecallRow, index: int, agent_id: str | None) ->
     return ConversationSearchHit(
         conversation_id=row.chat_id,
         title=row.title,
-        snippet=plain_snippet(row.snippet),
+        snippet=strip_reasoning_tags(row.window),
         summary=row.summary,
         score=score,
         source="recent",

@@ -11,6 +11,7 @@ from app.database.repositories.conversation_recall import (
     ConversationRecallRepository,
     WindowContext,
 )
+from app.services.chat.conversation_search_snippet import _CONTEXT_CHARS, _context_in
 from tests.services.chat.search_support import seed_chat_with_text
 
 _STORED = "alpha bravo charlie delta echo foxtrot golf hotel india"
@@ -75,6 +76,29 @@ async def test_a_window_no_stored_text_holds_comes_back_empty(fts_db: AsyncSessi
 
     assert await _context(fts_db, "chat-none", message_id, "not stored anywhere") is None
     assert await _context(fts_db, "another-chat", message_id, _WINDOW) is None
+
+
+@pytest.mark.asyncio
+async def test_the_text_of_an_excluded_chat_is_not_returned(fts_db: AsyncSession) -> None:
+    [message_id] = await seed_chat_with_text(fts_db, "chat-hidden", _STORED)
+    assert await _context(fts_db, "chat-hidden", message_id, _WINDOW) is not None
+
+    await ConversationRecallRepository.set_excluded(fts_db, "chat-hidden", True)
+    await fts_db.commit()
+
+    assert await _context(fts_db, "chat-hidden", message_id, _WINDOW) is None
+    assert await _context(fts_db, "chat-hidden", None, _WINDOW) is None
+
+
+@pytest.mark.parametrize("position", [0, 7_999, 8_000, 17_500, 34_980])
+@pytest.mark.asyncio
+async def test_the_text_held_in_memory_is_cut_the_way_the_stored_text_is(fts_db: AsyncSession, position: int) -> None:
+    # Every seven-character word is unique, so a window of twenty characters has one place in the text.
+    text = "".join(f"w{number:05d} " for number in range(5_000))
+    [message_id] = await seed_chat_with_text(fts_db, "chat-long", text)
+    window = text[position : position + 20]
+
+    assert await _context(fts_db, "chat-long", message_id, window, radius=_CONTEXT_CHARS) == _context_in(text, window)
 
 
 @pytest.mark.asyncio

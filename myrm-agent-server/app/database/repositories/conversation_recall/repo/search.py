@@ -1,5 +1,5 @@
 """[INPUT]
-- app.database.repositories.conversation_recall.sql / .types (POS: SQL + row types)
+- app.database.repositories.conversation_recall.sql / .types (POS: SQL contract with the snippet highlight markers + row types)
 
 [OUTPUT]
 - SearchMixin
@@ -17,6 +17,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.repositories.conversation_recall.sql import (
+    HIGHLIGHT_CLOSE,
+    HIGHLIGHT_OPEN,
     filter_sql,
 )
 from app.database.repositories.conversation_recall.types import (
@@ -66,7 +68,7 @@ class SearchMixin:
                             d.agent_id AS agent_id,
                             d.source AS source,
                             s.message_id AS message_id,
-                            snippet(conversation_recall_segments_fts, 0, '<mark>', '</mark>', '...', 56) AS snippet,
+                            snippet(conversation_recall_segments_fts, 0, '{HIGHLIGHT_OPEN}', '{HIGHLIGHT_CLOSE}', '...', 56) AS snippet,
                             d.summary AS summary,
                             s.sent_at AS last_message_at,
                             d.created_at AS created_at,
@@ -111,7 +113,7 @@ class SearchMixin:
                             d.agent_id AS agent_id,
                             d.source AS source,
                             d.last_message_id AS message_id,
-                            snippet(conversation_recall_fts, -1, '<mark>', '</mark>', '...', 56) AS snippet,
+                            snippet(conversation_recall_fts, -1, '{HIGHLIGHT_OPEN}', '{HIGHLIGHT_CLOSE}', '...', 56) AS snippet,
                             d.summary AS summary,
                             d.last_message_at AS last_message_at,
                             d.created_at AS created_at,

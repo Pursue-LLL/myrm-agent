@@ -10,14 +10,20 @@
 - UPSERT_REBUILD_SQL: Rebuild one chat document from canonical chat/message rows.
 - UPSERT_SEGMENT_SQL: Upsert one message segment from the incremental write path.
 - filter_sql: Build parameterized recall query filters.
+- HIGHLIGHT_OPEN, HIGHLIGHT_CLOSE: Markers FTS5 puts around a matched term in a snippet.
 
 [POS]
-Conversation Recall SQL 契约层。集中定义 SQLite/FTS5 DDL、回填语句和参数化过滤片段。
+Conversation Recall SQL 契约层。集中定义 SQLite/FTS5 DDL、回填语句、参数化过滤片段和 snippet 高亮标记。
 """
 
 from __future__ import annotations
 
 from datetime import datetime
+
+# The markers FTS5 puts around a matched term in a snippet. They are Unicode noncharacters, which ordinary chat text does
+# not hold, so a marker is never taken for text a person typed: ``<mark>`` is not safe for that, anyone can write it.
+HIGHLIGHT_OPEN = "\ufdd0"
+HIGHLIGHT_CLOSE = "\ufdd1"
 
 CONVERSATION_RECALL_SCHEMA_SQL: list[str] = [
     """CREATE TABLE IF NOT EXISTS conversation_recall_documents (

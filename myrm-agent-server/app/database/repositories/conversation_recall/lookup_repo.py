@@ -6,7 +6,7 @@
 
 [OUTPUT]
 ConversationRecallLookupRepository: Read-only prior-chat document lookup, visibility-checked message window queries,
-    and lookup of the stored text a search snippet was cut from.
+    and lookup of the stored text a search snippet was cut from, which a chat excluded from recall does not give.
 WindowContext: Stored text around a snippet window, with the offset where the window starts in it.
 
 [POS]
@@ -58,11 +58,15 @@ _WINDOW_SOURCES = (
     ("conversation_recall_documents", "searchable_text", "chat_id = :chat_id"),
     ("conversation_recall_documents", "snippet", "chat_id = :chat_id"),
 )
+# Scope and agent filters were applied by the search that ranked the hit. Exclusion is the state a user can flip after
+# that, so it is checked again here, for every source alike.
 _WINDOW_CONTEXT_SQL = """
     SELECT substr({column}, MAX(1, instr({column}, :window) - :radius), :span) AS context,
            instr({column}, :window) - MAX(1, instr({column}, :window) - :radius) AS window_offset
     FROM {table}
-    WHERE {scope} AND instr({column}, :window) > 0
+    WHERE {scope}
+      AND EXISTS (SELECT 1 FROM conversation_recall_documents v WHERE v.chat_id = {table}.chat_id AND v.is_excluded = 0)
+      AND instr({column}, :window) > 0
     LIMIT 1
 """
 
@@ -197,7 +201,7 @@ class ConversationRecallLookupRepository:
         window: str,
         radius: int,
     ) -> WindowContext | None:
-        """The stored text holding ``window`` verbatim, or None if none does.
+        """The stored text holding ``window`` verbatim, or None if none does or the chat is excluded from recall.
 
         The text starts ``radius`` chars before the window (at the start of the stored text if that comes first) and runs
         for the window's length plus ``2 * radius`` chars. The substring search and the cut both run in SQLite, so a long
