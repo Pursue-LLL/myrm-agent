@@ -126,6 +126,39 @@ describe('RunsHub', () => {
     expect(screen.queryByText('Transcript')).not.toBeInTheDocument();
   });
 
+  it('explains a skipped cron run with a label instead of the code it was skipped with', async () => {
+    const skippedRun = {
+      ...sampleRun,
+      status: 'skipped' as const,
+      summary: 'outside_active_hours',
+      output: 'outside_active_hours',
+      has_execution_steps: false,
+    };
+    mockListUnifiedRuns.mockResolvedValue({ ...emptyListResponse, items: [skippedRun], total: 1 });
+
+    render(<RunsHub />);
+
+    await waitFor(() => {
+      expect(screen.getByText('skippedOutsideHours')).toBeInTheDocument();
+    });
+    await userEvent.click(screen.getByText('Daily AI digest'));
+
+    expect(screen.getAllByText('skippedOutsideHours')).toHaveLength(1);
+    expect(screen.queryByText('outside_active_hours')).not.toBeInTheDocument();
+  });
+
+  it('keeps the output of a run that is not skipped as it is', async () => {
+    const okRun = { ...sampleRun, summary: 'no-content', output: 'no-content', has_execution_steps: false };
+    mockListUnifiedRuns.mockResolvedValue({ ...emptyListResponse, items: [okRun], total: 1 });
+
+    render(<RunsHub />);
+
+    await waitFor(() => {
+      expect(screen.getByText('no-content')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('skippedNoContent')).not.toBeInTheDocument();
+  });
+
   it('shows emptyFiltered when filters are active and list is empty', async () => {
     mockListUnifiedRuns.mockResolvedValue(emptyListResponse);
 

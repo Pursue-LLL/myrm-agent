@@ -30,6 +30,7 @@ export function useCronJobActions(job: CronJob) {
     if (job.status === 'completed') {
       return false;
     }
+    // oxlint-disable-next-line react/purity -- the clock only decides whether the resume button is offered; the server checks the expiry again when the job is resumed
     if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {
       return false;
     }
