@@ -324,7 +324,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
         """Serializable snapshot of the Turn1-bound tools the model can call, for the GUI availability view."""
         from ._internals.agent_runtime import emit_tools_snapshot
 
-        return emit_tools_snapshot(self._tool_registry)
+        return emit_tools_snapshot(self._tool_registry, no_builtin_tools=self.config.no_builtin_tools)
 
     async def _build_tools(self) -> list[BaseTool]:
         """Build tool list via ToolRegistry (user + middleware sources)."""

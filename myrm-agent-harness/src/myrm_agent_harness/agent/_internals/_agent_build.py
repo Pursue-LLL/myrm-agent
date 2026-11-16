@@ -276,16 +276,16 @@ async def build_tools(
     return _weave_dynamic_schemas(resolved_tools)
 
 
-def emit_tools_snapshot(registry: ToolRegistry) -> list[dict[str, object]] | None:
+def emit_tools_snapshot(registry: ToolRegistry, *, no_builtin_tools: bool = False) -> list[dict[str, object]] | None:
     """Return Turn1-bound tools for GUI availability view.
 
-    Excludes RUNTIME_ONLY entries so the panel matches
-    ``registry.resolve()`` (what the model can call on the current turn).
+    Excludes RUNTIME_ONLY entries, and the built-in meta tools when ``no_builtin_tools`` leaves them out, so the panel
+    matches ``registry.resolve(no_builtin_tools=...)`` (what the model can call on the current turn).
     """
     try:
         from myrm_agent_harness.agent.tool_management import ToolBindMode
 
-        snapshots = registry.snapshot()
+        snapshots = registry.snapshot(no_builtin_tools=no_builtin_tools)
         turn1_snapshots = [s for s in snapshots if s.bind_mode == ToolBindMode.TURN1.value]
         if not turn1_snapshots:
             return None

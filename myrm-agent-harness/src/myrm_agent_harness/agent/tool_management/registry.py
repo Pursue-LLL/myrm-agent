@@ -170,10 +170,16 @@ class ToolRegistry:
                 bind_mode=bind_mode,
             )
 
-    def _resolve_entries(self) -> list[ToolEntry]:
-        """Deduplicate and sort entries (shared by resolve/snapshot)."""
+    def _resolve_entries(self, *, include_meta: bool = True) -> list[ToolEntry]:
+        """Deduplicate and sort entries (shared by resolve/snapshot).
+
+        With ``include_meta=False`` the built-in meta tools are dropped before names are de-duplicated, so
+        a tool of another source that shares a built-in's name is not shadowed by an entry that is then discarded.
+        """
         best: dict[str, ToolEntry] = {}
         for entry in self._entries:
+            if not include_meta and entry.source == ToolSource.META:
+                continue
             name = entry.tool.name
             existing = best.get(name)
             if existing is None or source_priority(entry.source) < source_priority(existing.source):
@@ -196,12 +202,13 @@ class ToolRegistry:
         Sort rule: first by ``ToolLayer`` (CORE → HIGH_PRIORITY → EXTENDED → EXTERNAL),
         then HIGH_PRIORITY group priority, then alphabetically within each tier.
 
-        When ``no_builtin_tools=True``, the built-in framework meta tools (source == ToolSource.META) are excluded;
-        tools of every other source (user-provided, middleware, external domain) stay.
+        When ``no_builtin_tools=True``, the built-in framework meta tools (source == ToolSource.META) are left out
+        before names are de-duplicated; user-provided and middleware tools stay, including one that shares a
+        built-in's name.
 
         Only returns Turn1-bound tools (``bind_mode == TURN1``).
         """
-        entries = self._resolve_entries()
+        entries = self._resolve_entries(include_meta=not no_builtin_tools)
 
         # Update allowed domains map in session context
         from myrm_agent_harness.agent.middlewares._session_context import (
@@ -215,12 +222,7 @@ class ToolRegistry:
                 current_map[e.tool.name] = e.allowed_domains
         set_allowed_domains_map(current_map)
 
-        if no_builtin_tools:
-            resolved_tools = [
-                e.tool for e in entries if e.bind_mode == ToolBindMode.TURN1 and e.source != ToolSource.META
-            ]
-        else:
-            resolved_tools = [e.tool for e in entries if e.bind_mode == ToolBindMode.TURN1]
+        resolved_tools = [e.tool for e in entries if e.bind_mode == ToolBindMode.TURN1]
 
         # Weave dynamic schemas (e.g. cross-tool hints)
         resolved_names = {t.name for t in resolved_tools}
@@ -242,13 +244,14 @@ class ToolRegistry:
         entries = self._resolve_entries()
         return [e.tool for e in entries if e.bind_mode == ToolBindMode.RUNTIME_ONLY]
 
-    def snapshot(self) -> list[ToolSnapshot]:
+    def snapshot(self, *, no_builtin_tools: bool = False) -> list[ToolSnapshot]:
         """Return a serializable snapshot of all registered tools (internal/debug).
 
+        ``no_builtin_tools`` leaves the built-in meta tools out exactly as ``resolve()`` does.
         For GUI exposure use ``emit_tools_snapshot`` which filters to Turn1 only.
         """
         snapshots: list[ToolSnapshot] = []
-        for entry in self._resolve_entries():
+        for entry in self._resolve_entries(include_meta=not no_builtin_tools):
             tool = entry.tool
             desc = tool.description or ""
             params = _safe_extract_schema(tool)
