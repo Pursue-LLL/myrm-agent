@@ -45,6 +45,7 @@ class InMemoryCronStore:
         self._jobs: dict[str, CronJob] = {}
         self._runs: list[CronRunRecord] = []
         self._monitors: dict[str, MonitorState] = {}
+        self._running: dict[str, datetime] = {}
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -138,6 +139,22 @@ class InMemoryCronStore:
                 return False
             job.next_run_at = _as_utc(next_run_at)
             return True
+
+    # ------------------------------------------------------------------
+    # In-flight markers
+    # ------------------------------------------------------------------
+
+    async def mark_running(self, job_id: str) -> None:
+        async with self._lock:
+            self._running[job_id] = datetime.now(UTC)
+
+    async def clear_running(self, job_id: str) -> None:
+        async with self._lock:
+            self._running.pop(job_id, None)
+
+    async def list_running(self) -> list[tuple[str, datetime]]:
+        async with self._lock:
+            return sorted(self._running.items(), key=lambda marker: (marker[1], marker[0]))
 
     # ------------------------------------------------------------------
     # Run records

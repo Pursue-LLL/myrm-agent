@@ -2,14 +2,17 @@
 
 Eight seeds drive a real ``CronScheduler`` and ``CronManager`` through random operations: a slot comes due, a slot
 arrives long after its grace, a second slot of one job arrives while its first run is still in flight, a post-run
-write fails, and pause, resume, reschedule, delete and restart. Nothing waits for the clock: a slot comes due by
-rewriting the stored ``next_run_at`` and the test ticks the scheduler itself. After every step the scheduler is
-drained, and four invariants must hold at that quiet point:
+write fails, and pause, resume, reschedule, delete and restart, also with a run in flight: a graceful stop cuts it
+short, a crash ends the process without a stop. Nothing waits for the clock: a slot comes due by rewriting the stored
+``next_run_at`` and the test ticks the scheduler itself. After every step the scheduler is drained, and these
+invariants must hold at that quiet point:
 
 - an enabled job has a next run time
 - a slot that came due left a run record behind: a run, or a skip
 - a job's scheduled runs never overlap
 - a schedule that can fire faster than once a minute is booked at least a minute ahead
+- no run leaves its in-flight marker behind, and while a run is in flight its marker is the only one
+- a stop counts no failure for the run it cut short, and a crash is reported exactly once
 
 Runtime: about 20 s for the eight seeds.
 """
@@ -63,6 +66,8 @@ _OPS = {
     "reschedule": 8,
     "delete": 4,
     "restart": 4,
+    "stop_busy": 3,
+    "crash": 3,
 }
 
 
@@ -97,7 +102,6 @@ class _Runner:
 
     def __init__(self) -> None:
         self.gate: asyncio.Event | None = None
-        self.entered = asyncio.Event()
         self.parked: set[asyncio.Task[object]] = set()  # runs waiting on the gate
         self.live: Counter[str] = Counter()
         self.overlaps: list[str] = []
@@ -109,7 +113,6 @@ class _Runner:
         task = asyncio.current_task()
         assert task is not None
         try:
-            self.entered.set()
             if self.gate:
                 self.parked.add(task)
                 await self.gate.wait()
@@ -153,6 +156,7 @@ class _Soak:
         monkeypatch.setattr(store, "save_job", save_job)
 
     async def start(self) -> None:
+        self.runner.gate = None  # a new process holds no run
         self.sched = CronScheduler(
             store=self.store,
             runners={JobType.AGENT: self.runner},
@@ -241,20 +245,57 @@ class _Soak:
             await self._make_due(job, _GRACE_MISS)
             await self._tick()
 
-    async def op_overlap(self) -> None:
-        if (job := await self._pick(JobStatus.ACTIVE, plain=True)) is None:
-            return
-        self.runner.gate, self.runner.entered = asyncio.Event(), asyncio.Event()
+    async def _hold_run_of(self, job: CronJob) -> asyncio.Event:
+        """Start a run of the job and keep it in flight until the returned gate is set."""
+        gate = asyncio.Event()
+        self.runner.gate = gate
         await self._make_due(job)
         self.expected[job.id] += 1
         await self.sched._on_tick()
-        await asyncio.wait_for(self.runner.entered.wait(), timeout=_WAIT_S)
+        async with asyncio.timeout(_WAIT_S):  # other due jobs start in the same tick: wait for this job's own run
+            while not self.runner.live[job.id]:
+                await asyncio.sleep(0.001)
+        return gate
+
+    async def op_overlap(self) -> None:
+        if (job := await self._pick(JobStatus.ACTIVE, plain=True)) is None:
+            return
+        gate = await self._hold_run_of(job)
         await self._make_due(job)  # a second slot while the first run is still in flight
         await self.sched._on_tick()
         await self._drain_but_parked()
-        self.runner.gate.set()
+        if (markers := [job_id for job_id, _ in await self.store.list_running()]) != [job.id]:
+            self._violate("marker", job.name, f"has one run in flight and the markers are {markers}")
+        gate.set()
         self.runner.gate = None
         await self._drain()
+
+    async def op_stop_busy(self) -> None:
+        if (job := await self._pick(JobStatus.ACTIVE, plain=True)) is None:
+            return
+        await self._hold_run_of(job)
+        await self.sched.stop()
+        await self.start()
+        if (after := await self.store.get_job(job.id)) and after.consecutive_failures > job.consecutive_failures:
+            self._violate("stop", job.name, "counted a failure for the run the stop cut short")
+
+    async def _reports(self, job: CronJob) -> int:
+        runs = await self.store.list_runs(job.id, limit=_MAX_RECORDS)
+        return sum(run.trigger_source == "recovery" for run in runs)
+
+    async def op_crash(self) -> None:
+        """The process ends with a run in flight: its tasks die, nothing is written, the restart reports the run."""
+        if (job := await self._pick(JobStatus.ACTIVE, plain=True)) is None:
+            return
+        reported = await self._reports(job)
+        await self._hold_run_of(job)
+        victims = self._tasks()
+        for task in victims:
+            task.cancel()
+        await asyncio.gather(*victims, return_exceptions=True)
+        await self.start()
+        if (now := await self._reports(job)) != reported + 1:
+            self._violate("crash", job.name, f"has {now - reported} interrupted-run records after a crash, expected 1")
 
     async def op_closer_fail(self) -> None:
         if (job := await self._pick(JobStatus.ACTIVE, plain=True)) is None:
@@ -309,6 +350,8 @@ class _Soak:
                 continue
             if booked not in (before.get(job.id), self.injected.get(job.id)) and booked - started < _FLOOR:
                 self._violate("floor", job.name, f"is booked only {booked - started} ahead")
+        if left := [job_id for job_id, _ in await self.store.list_running()]:
+            self._violate("marker", ",".join(left), "kept an in-flight marker after its run ended")
         if len(self.runner.overlaps) > self.overlaps_seen:
             self._violate("overlap", ",".join(self.runner.overlaps[self.overlaps_seen :]), "ran twice at once")
             self.overlaps_seen = len(self.runner.overlaps)

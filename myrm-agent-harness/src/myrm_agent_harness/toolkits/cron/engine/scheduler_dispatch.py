@@ -13,9 +13,10 @@
 [POS]
 Mixed into ``CronScheduler``. A due recurring job is admitted by booking its next slot first; a one-shot, which has no
 later slot, stays due until it completes. Every run, a due slot or an event, webhook or system-event trigger, is
-registered as in flight by ``_launch`` before its task exists, then passes the pre-execution guards, the active-hours
-window, ``skip_if_active``, the stagger delay, the runner lookup, the concurrency slot and a last read of the stored
-job before the executor starts it.
+registered as in flight by ``_launch`` before its task exists; its task writes the persisted in-flight marker first and
+clears it when the job's last run ends, then the run passes the pre-execution guards, the active-hours window,
+``skip_if_active``, the stagger delay, the runner lookup, the concurrency slot and a last read of the stored job before
+the executor starts it.
 """
 
 from __future__ import annotations
@@ -165,12 +166,45 @@ class SchedulerDispatchMixin:
         self._spawn(self._run(job, context=context, trigger_source=trigger_source))
 
     async def _run(self, job: CronJob, *, context: str, trigger_source: str) -> None:
+        """One run's task body: write the in-flight marker, dispatch, and clear the marker with the last run of the job.
+
+        The marker is written before the stagger and concurrency waits, so a run that has not started yet but would
+        be lost with the process is still reported. A cancelled run never closed its record: it keeps its marker, so
+        the next start reports it; a graceful stop has already reported it and removed the marker.
+        """
+        cancelled = False
         try:
+            await self._mark_running(job.id)
             await self._dispatch(job, context=context, trigger_source=trigger_source)
+        except asyncio.CancelledError:
+            cancelled = True
+            raise
         finally:
             self._in_flight[job.id] -= 1
             if not self._in_flight[job.id]:
                 del self._in_flight[job.id]
+                if not cancelled:
+                    await self._clear_marker(job.id)
+
+    async def _mark_running(self, job_id: str) -> None:
+        """A marker that cannot be written costs the report of an interruption, never the run itself."""
+        try:
+            await self._store.mark_running(job_id)
+        except Exception as exc:
+            logger.warning(
+                "Job %s: could not write its in-flight marker, an interruption would go unreported: %s", job_id, exc
+            )
+
+    async def _clear_marker(self, job_id: str) -> None:
+        """Shielded: a cancel arriving mid-clear must not leave the marker of a finished run for the next start to report."""
+        try:
+            await asyncio.shield(self._store.clear_running(job_id))
+        except Exception as exc:
+            logger.warning(
+                "Job %s: could not clear its in-flight marker, the next start will report an interruption: %s",
+                job_id,
+                exc,
+            )
 
     async def _dispatch(
         self,

@@ -1,31 +1,34 @@
-"""Two-phase startup recovery strategy.
+"""Startup recovery: report the runs a dead process left behind, then replay what came due while it was down.
 
 A recurring job's next slot is booked before its run starts (``CronScheduler._admit``), so an unclean shutdown
-leaves every enabled job with a next run time and there is nothing to heal. Recovery only decides what to do with
-the slots that came due while the process was down:
+leaves every enabled job with a next run time and there is nothing to heal. What a dead process does leave is the
+in-flight marker of each run it was making: recovery turns those into interrupted-run records first, then decides
+what to do with the slots that came due while the process was down:
 
+- **Interrupted runs**: every marker left behind becomes an error run record and one counted failure.
 - **Phase 1 — Missed-Slot**: replay cron slots that fired during downtime.
 - **Phase 2 — Grace Window**: execute due jobs still within misfire grace;
   skip and reschedule those past the grace period.
 
-All recovery logic is encapsulated here; the scheduler only calls ``run()``.
+All recovery logic is encapsulated here; the scheduler calls ``run()`` at start and ``report_interrupted`` at stop.
 
 [INPUT]
 - toolkits.cron.engine.helpers::_ensure_utc, is_in_error_backoff, is_past_misfire_grace, next_slot_or_retry (POS: pure engine helpers: UTC normalisation, backoff, grace and the next slot to book)
 - toolkits.cron.engine.parser::compute_prev_run (POS: Cron expression parsing and next-run calculation.)
-- toolkits.cron.types::CronJob, JobStatus, RunStatus, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob, CronRunRecord, DeliveryStatus, JobStatus, RunStatus, ScheduleKind (POS: Cron job domain types.)
 - toolkits.cron.protocols::CronStore (POS: Protocols for the cron toolkit.)
 
 [OUTPUT]
-- StartupRecovery: Encapsulates the two-phase startup recovery logic.
+- StartupRecovery: reports interrupted runs (`report_interrupted`) and runs the startup recovery phases (`run`).
 
 [POS]
-Two-phase startup recovery strategy.
+Startup recovery strategy, and the one place that turns an in-flight marker into an interrupted-run record.
 """
 
 from __future__ import annotations
 
 import logging
+import secrets
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -45,6 +48,8 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
 from myrm_agent_harness.toolkits.cron.engine.parser import compute_prev_run
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
+    CronRunRecord,
+    DeliveryStatus,
     JobStatus,
     RunStatus,
     ScheduleKind,
@@ -57,9 +62,12 @@ logger = logging.getLogger(__name__)
 
 AdmitFn = Callable[[CronJob], Awaitable[None]]
 
+_CRASH_MESSAGE = "Interrupted: the server stopped before this run finished"
+_STOP_MESSAGE = "Interrupted: the application was stopping before this run finished"
+
 
 class StartupRecovery:
-    """Encapsulates the two-phase startup recovery logic.
+    """Reports interrupted runs and replays what came due during downtime.
 
     Receives ``store`` for persistence and ``admit_fn`` as the scheduler's admission (``CronScheduler._admit``):
     it books a recurring job's next slot and launches the run that is due.
@@ -70,9 +78,64 @@ class StartupRecovery:
         self._admit = admit_fn
 
     async def run(self) -> None:
-        """Execute both recovery phases in order."""
+        """Report the runs the previous process left in flight, then execute both recovery phases in order.
+
+        Every marker in the store is read as the trace of a dead process, which holds because the scheduler lock
+        never passes to another process while its holder is alive (``ConcurrencyLock``).
+        """
+        await self.report_interrupted(counted=True)
         await self._replay_missed_slots()
         await self._execute_due_within_grace()
+
+    # ------------------------------------------------------------------
+    # Interrupted runs
+    # ------------------------------------------------------------------
+
+    async def report_interrupted(self, *, counted: bool) -> None:
+        """Record each run still marked in flight as an interrupted run and drop its marker.
+
+        ``counted`` at startup: the marker outlived its process, so the process died under the run. The run spends
+        a failure like any failing run, which pauses a job whose every run kills the server instead of restarting
+        it forever. At a graceful stop the scheduler itself ends the run, which is no fault of the job: nothing is
+        counted. The marker goes first: a report lost to a second crash is better than one run counted twice. One
+        job's failure to record is logged and does not hold back the others.
+        """
+        for job_id, started in await self._store.list_running():
+            try:
+                await self._store.clear_running(job_id)
+                await self._record_interrupted(job_id, _ensure_utc(started), counted=counted)
+            except Exception as exc:
+                logger.warning("Job %s: could not record its interrupted run: %s", job_id, exc)
+
+    async def _record_interrupted(self, job_id: str, started: datetime, *, counted: bool) -> None:
+        job = await self._store.get_job(job_id)
+        if job is None:
+            return
+        message = _CRASH_MESSAGE if counted else _STOP_MESSAGE
+        # A crash leaves no end time: stretching the unknown to the moment it was noticed would show hours of work.
+        ended = started if counted else datetime.now(UTC)
+        await self._store.save_run(
+            CronRunRecord(
+                id=secrets.token_urlsafe(12),
+                job_id=job_id,
+                trigger_source="recovery" if counted else "shutdown",
+                status=RunStatus.ERROR,
+                started_at=started,
+                finished_at=ended,
+                duration_ms=int((ended - started).total_seconds() * 1000),
+                error=message,
+                delivery_status=DeliveryStatus.SKIPPED,
+            )
+        )
+        job.last_status = RunStatus.ERROR
+        job.last_error = message
+        if counted:
+            job.consecutive_failures += 1
+            if job.consecutive_failures > job.max_retries:
+                job.status = JobStatus.PAUSED
+                job.next_run_at = None
+        await self._store.save_job(job)
+        logger.warning("Job %s: recorded an interrupted run (counted=%s)", job_id, counted)
 
     # ------------------------------------------------------------------
     # Phase 1: Missed-Slot replay
