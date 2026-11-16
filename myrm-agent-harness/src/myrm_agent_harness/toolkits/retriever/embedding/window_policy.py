@@ -67,6 +67,9 @@ KNOWN_MODEL_MAX_INPUT_TOKENS: dict[str, int] = {
     "Qwen/Qwen3-Embedding-8B": 8192,
     "Qwen/Qwen3-Embedding-4B": 8192,
     "nomic-embed-text": 2048,
+    # Cloudflare Workers AI: the model page lists a 60,000-token context, but the endpoint rejects input over
+    # bge-m3's own 8192 tokens ("Sequence too long: N > 8192")
+    "@cf/baai/bge-m3": 8192,
     # sentence-transformers / HF wordpiece models commonly self-hosted
     "all-MiniLM-L6-v2": 256,
     "all-MiniLM-L12-v2": 256,
@@ -236,7 +239,7 @@ def _safety_margin_for(max_input_tokens: int, model: str | None) -> float:
     < 1 across zh/ja/ko/en) can use the standard 0.9. BPE models budget on o200k
     tokens and keep 0.9 except for small windows (<=1024).
     """
-    if is_cjk_wordpiece_model(model):
+    if model and is_cjk_wordpiece_model(model):
         base = model.rsplit("/", 1)[-1].lower()
         if max_input_tokens > SMALL_WINDOW_MAX_TOKENS and base in _XLM_R_SAFE_WORDPIECE_MODELS:
             return SAFETY_MARGIN

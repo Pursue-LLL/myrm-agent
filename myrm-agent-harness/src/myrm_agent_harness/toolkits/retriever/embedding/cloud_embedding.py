@@ -42,6 +42,7 @@ from myrm_agent_harness.toolkits.llms.transport import LLMHTTPError
 from myrm_agent_harness.toolkits.llms.transport.embeddings import aembed
 from myrm_agent_harness.toolkits.retriever.embedding.base import EmbeddingService
 from myrm_agent_harness.toolkits.retriever.embedding.window_policy import (
+    SAFETY_MARGIN,
     EmbedInputTooLargeError,
     EmbedWindowPolicy,
     token_counter_for_model,
@@ -64,7 +65,8 @@ _MAX_RETRY_AFTER_SECONDS = 60.0
 def _is_transient(exc: BaseException) -> bool:
     """A failure that may succeed on retry: a dropped or timed-out connection, a rate limit or a server-side fault."""
     if isinstance(exc, LLMHTTPError):
-        return exc.status_code in _TRANSIENT_STATUSES or exc.status_code >= 500
+        status = exc.status_code
+        return status is not None and (status in _TRANSIENT_STATUSES or status >= 500)
     return isinstance(exc, (httpx.TransportError, TimeoutError, ConnectionError, OSError))
 
 
@@ -94,7 +96,25 @@ KNOWN_MODEL_DIMENSIONS: dict[str, int] = {
     "Pro/BAAI/bge-m3": 1024,
     "Qwen/Qwen3-Embedding-8B": 4096,
     "Qwen/Qwen3-Embedding-4B": 2560,
+    # Cloudflare Workers AI
+    "@cf/baai/bge-m3": 1024,
 }
+
+# Total tokens one request may carry, for models whose provider caps it below what a full
+# _MAX_CHARS_PER_BATCH request holds. Cloudflare Workers AI answers HTTP 400 (code 8007) above 60,000 tokens
+# for bge-m3, which spends up to one token per character (emoji 1.0, base64 0.76, JSON 0.66, prose 0.26-0.60),
+# so the cap is spent as characters.
+KNOWN_MODEL_MAX_REQUEST_TOKENS: dict[str, int] = {
+    "@cf/baai/bge-m3": 60_000,
+}
+
+
+def _max_chars_per_request(model_variants: list[str]) -> int:
+    """Characters one request may carry: the 413/timeout guard, or the provider's token cap with a safety margin."""
+    for variant in model_variants:
+        if variant in KNOWN_MODEL_MAX_REQUEST_TOKENS:
+            return min(_MAX_CHARS_PER_BATCH, int(KNOWN_MODEL_MAX_REQUEST_TOKENS[variant] * SAFETY_MARGIN))
+    return _MAX_CHARS_PER_BATCH
 
 
 class CloudEmbedding(EmbeddingService):
@@ -148,6 +168,7 @@ class CloudEmbedding(EmbeddingService):
         if "/" in model:
             model_variants.append(model.split("/", 1)[1])
             model_variants.append(model.rsplit("/", 1)[-1])
+        self._max_chars_per_request = _max_chars_per_request(model_variants)
 
         for variant in model_variants:
             if variant in KNOWN_MODEL_DIMENSIONS:
@@ -260,14 +281,14 @@ class CloudEmbedding(EmbeddingService):
         """Batch embedding with automatic splitting for API limit protection.
 
         Splits large batches using dual protection (count + character volume)
-        to avoid HTTP 413/timeout errors across different providers.
+        to avoid HTTP 413/timeout errors and provider token caps per request.
         """
         if not texts:
             return []
 
         self._validate_input_sizes(texts)
 
-        batches = self._split_into_batches(texts)
+        batches = self._split_into_batches(texts, self._max_chars_per_request)
         if len(batches) == 1:
             return await self._call_embedding_api(batches[0])
 
@@ -285,11 +306,11 @@ class CloudEmbedding(EmbeddingService):
         return all_vectors
 
     @staticmethod
-    def _split_into_batches(texts: list[str]) -> list[list[str]]:
+    def _split_into_batches(texts: list[str], max_chars: int = _MAX_CHARS_PER_BATCH) -> list[list[str]]:
         """Greedy packing: split texts by count and character volume limits."""
         if len(texts) <= _MAX_TEXTS_PER_BATCH:
             total_chars = sum(len(t) for t in texts)
-            if total_chars <= _MAX_CHARS_PER_BATCH:
+            if total_chars <= max_chars:
                 return [texts]
 
         batches: list[list[str]] = []
@@ -299,7 +320,7 @@ class CloudEmbedding(EmbeddingService):
         for text in texts:
             text_len = len(text)
             would_exceed_count = len(current_batch) >= _MAX_TEXTS_PER_BATCH
-            would_exceed_chars = current_batch and (current_chars + text_len) > _MAX_CHARS_PER_BATCH
+            would_exceed_chars = current_batch and (current_chars + text_len) > max_chars
 
             if would_exceed_count or would_exceed_chars:
                 batches.append(current_batch)

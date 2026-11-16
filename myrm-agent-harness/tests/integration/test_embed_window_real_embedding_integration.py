@@ -1,9 +1,11 @@
-"""Integration: real embedding window budget over a real HTTP embedding endpoint.
+"""Integration: embedding window budget over a real HTTP embedding endpoint.
 
-Covers the EmbeddingWindowDetectorDynamicChunkBudget changes end-to-end on a live
-OpenAI-compatible embedding endpoint (the product supports any self-hosted
-``api_base`` — the deterministic local server below is a real product usage, used
-here because external embedding accounts have exhausted quota):
+Covers the EmbeddingWindowDetectorDynamicChunkBudget changes end-to-end against a loopback
+OpenAI-compatible embedding endpoint (the product supports any self-hosted ``api_base``).
+The endpoint answers with deterministic hash vectors, so these tests prove the chunk budget,
+the window check, the fail-loud path and the HTTP transport. They say nothing about embedding
+quality; that needs a real account (the server-side E2E tests use the ``EMBEDDING_*`` account
+in ``.env.test``):
 
 1. ``split_for_embedding`` splits long Chinese text by the wordpiece character budget
    (bge-m3 = 8192 window, 0.9 margin -> 7372 chars) instead of the o200k BPE budget.
@@ -21,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 import threading
+from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
@@ -148,7 +151,7 @@ def _assert_every_chunk_inside_window(chunks: list[str]) -> None:
 
 
 @pytest.fixture
-def _local_endpoint() -> str:
+def _local_endpoint() -> Iterator[str]:
     """Live local OpenAI-compatible embedding endpoint (ephemeral port)."""
     with _LocalEmbeddingServer() as server:
         yield server.base_url
@@ -252,7 +255,7 @@ async def test_real_wiki_ingest_long_chinese_document(embedding: CloudEmbedding,
     _assert_every_chunk_inside_window([doc.content for doc in docs])
 
 
-# ── 遗漏场景补充（2026-08-13 继续测阶段）────────────────────────────────
+# ── BPE model, small-window wordpiece, Korean, mixed language and memory store ──
 
 
 @pytest.mark.asyncio
