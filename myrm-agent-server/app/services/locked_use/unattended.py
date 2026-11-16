@@ -79,8 +79,9 @@ _release_retry_at: float = 0.0
 def attach_desktop_session(session: ComputerSession) -> bool:
     """CU 会话与帷幕的唯一接线点：锁屏按需解锁 + 截图排除通道。
 
-    返回截图排除通道是否可用。非 macOS 平台无此能力属设计内降级；macOS 上不可用则帷幕会
-    出现在模型截图里（只是一片黑，不泄露内容），记 WARNING 以便发现 harness 后端链的回归。
+    返回截图排除通道是否可用。通道由 harness 的原生后端提供（macOS、Windows 有，Linux 没有，
+    属设计内降级）；macOS 上不可用则帷幕会出现在模型截图里（只是一片黑，不泄露内容），
+    记 WARNING 以便发现 harness 后端链的回归。
     注入恒执行：帷幕未拉起时 harness 找不到匹配窗，自动走原截图路径，无需按帷幕态开关。
     """
     session.set_screen_unlock_callback(unlock_screen_on_demand)

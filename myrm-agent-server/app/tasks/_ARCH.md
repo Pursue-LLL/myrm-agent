@@ -23,7 +23,7 @@
 | `__init__.py` | 入口 | 任务类型和 worker 导出 | — |
 | `worker.py` | 核心 | 任务 worker：按 `priority DESC, created_at ASC` 认领已到期（`next_retry_at` 为空或已过）的 `pending` 任务，最多 `max_concurrency` 个在途 run（单个 `asyncio.Task` 注册表），任一 run 结束即唤醒补位而非等整批；认领、终态写入都是对当前状态的 compare-and-set（`update_task_if_status`），先到的终态为准——用户取消后迟到的结果不会覆盖 `cancelled`；`abort(task_id)` 取消在途 run（由取消方写 `cancelled` 行）；执行器的失败按异常类名归类：`ValidationError` / `AuthenticationError` / `PermissionError` / `NotFoundError` / `MediaInputError` 是 permanent（卡片不给重试），其余（含 `MediaFetchError`，即网络、存储或下载来源暂时故障）是 transient（卡片给重试）；`start()` 先把上一进程遗留的 `running` 任务置 `failed`（`interrupted`，transient，可重试），`stop()` 取消在途 run 并同样标记 `interrupted`；超时/失败/成功/取消指标与 duration 指标；通过 `on_status_change` 回调发布 `running/failed/succeeded` 事件到 SSE 流 | ✅ |
 | `events.py` | 核心 | TaskEventBus：内存 pub/sub 事件总线，SSE 订阅者实时接收 task_update 事件；订阅队列满时有界淘汰最旧事件并投递 `sync_required` 最新事件，避免持续积压导致全量失真；`queue_full` warning 按时间窗节流并携带 suppressed 计数，避免日志风暴 | ✅ |
-| `metrics.py` | 辅助 | 任务指标采集（task lifecycle + event bus emitted/dropped/replaced） | — |
+| `metrics.py` | 辅助 | 任务 Prometheus 指标：任务结局计数（succeeded/failed/cancelled/timeout）、执行耗时直方图、事件总线 emitted/dropped/replaced 计数，以及 worker 与事件总线共用的尽力而为记录器 `safe_counter_inc` / `safe_histogram_observe`（指标故障——标签与声明不一致、客户端缺失——只记 debug 日志，不会让任务结算失败，也不会把健康订阅者踢出事件总线）；只声明有写入方的指标 | ✅ |
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |
 | `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含落库回调）；快照缺 `model` 直接报错，不补默认模型；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
 | `video_config_resolver.py` | 核心 | 从 task payload 快照还原 `VideoGenerationConfig`（含 fallback / 落库回调）；快照缺 `provider` / `model` 直接报错，不补默认；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
