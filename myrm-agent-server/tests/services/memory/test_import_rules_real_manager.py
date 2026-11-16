@@ -1,16 +1,17 @@
-"""A confirmed import stores every rule its review counted, on a real memory manager.
+"""A confirmed import stores what its review counted, on a real memory manager.
 
 [INPUT]
 app.services.memory.imports.import_sessions::MemoryImportSessionService (dry-run, then confirm)
 
 [OUTPUT]
 Per channel (PLUR store, pasted text, model-extracted paste): the rules the preview maps are the rules the store
-holds and the rules the prompt loads.
+holds and the rules the prompt loads; profile items the model gave no key land under keys of their own.
 
 [POS]
 The session tests run on a fake manager that counts every entry as imported. ``MemoryManager.import_memories``
-parses each rule with ``ProceduralMemory`` and drops the one without a trigger or an action, so only a real manager
-shows a rule that is previewed as mapped and then never stored.
+parses each rule with ``ProceduralMemory`` and drops the one without a trigger or an action, and it writes a profile
+entry under its key, so only a real manager shows a rule that is previewed as mapped and then never stored, or two
+profile items that overwrite each other.
 """
 
 from __future__ import annotations
@@ -95,6 +96,17 @@ async def _prompt_rules(manager: MemoryManager) -> list[tuple[object, object]]:
     return [(rule["trigger"], rule["action"]) for rule in rules if isinstance(rule, dict)]
 
 
+async def _stored_profile(manager: MemoryManager) -> dict[str, object]:
+    """Key and value of every profile entry the prompt's profile block is built from."""
+    context = await manager.get_context(include_rules=False)
+    profile: dict[str, object] = {}
+    for scope in ("global_profile", "peer_profile"):
+        entries = context[scope]
+        assert isinstance(entries, dict)
+        profile.update(entries)
+    return profile
+
+
 @pytest.mark.parametrize(("payload", "source", "trigger"), CHANNELS)
 async def test_a_confirmed_import_stores_every_mapped_rule_until_it_is_rolled_back(
     payload: dict[str, object],
@@ -119,3 +131,24 @@ async def test_a_confirmed_import_stores_every_mapped_rule_until_it_is_rolled_ba
 
         assert await manager.list_memories(MemoryType.PROCEDURAL, limit=50) == []
         assert await _prompt_rules(manager) == []
+
+
+async def test_model_profile_items_without_a_key_are_stored_one_each(
+    db_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The extraction step hands over every field and leaves a missing one as ``None``.
+    items = [
+        {"content": "Lives in Taichung", "bucket": "profile", "profile_key": None, "profile_value": None},
+        {"content": "Works as a nurse", "bucket": "profile", "profile_key": None, "profile_value": None},
+    ]
+    payload: dict[str, object] = {"_source": "pasted_memory", "text": _PASTED_TEXT, "_model_items": items}
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        service = MemoryImportSessionService(db_session)
+        dry_run_id, preview, _payload_hash, _expires_at = await service.create_dry_run(payload, "pasted_memory")
+
+        confirm = await service.confirm_import(dry_run_id=dry_run_id, manager=manager)
+
+        assert confirm.total_imported == preview.summary.mapped_items == 2
+        profile = await _stored_profile(manager)
+        assert sorted(str(value) for value in profile.values()) == ["Lives in Taichung", "Works as a nurse"]
+        assert "None" not in profile

@@ -8,6 +8,7 @@ from app.services.memory.imports.import_pasted import (
     dry_run_pasted_memory,
 )
 from app.services.memory.imports.import_pasted_model import dry_run_pasted_model_items
+from app.services.memory.imports.import_session_data import ensure_profile_import_keys, profile_entry_key
 
 _PROMPT_SHAPED_TEXT = """Here is the export you asked for:
 
@@ -39,7 +40,7 @@ def test_prompt_shaped_text_maps_buckets_and_dates() -> None:
     assert result.summary.mapped_items == 6
     assert set(result.normalized_data) == {"procedural", "profile", "semantic"}
 
-    procedural_contents = [item["content"] for item in result.normalized_data["procedural"]]
+    procedural_contents = [str(item["content"]) for item in result.normalized_data["procedural"]]
     assert "Always answer in Chinese when I write in Chinese." in procedural_contents
     assert "Prefer bullet points over paragraphs." in procedural_contents
     assert "不要用英文名词。" in procedural_contents
@@ -48,7 +49,7 @@ def test_prompt_shaped_text_maps_buckets_and_dates() -> None:
     assert profile_item["content"] == "我叫李雷，住在杭州。"
     assert str(profile_item["created_at"]).startswith("2024-01-15")
 
-    semantic_contents = [item["content"] for item in result.normalized_data["semantic"]]
+    semantic_contents = [str(item["content"]) for item in result.normalized_data["semantic"]]
     assert "项目 A 使用 React" in semantic_contents
     assert "Deploy waits for migrations" in semantic_contents
 
@@ -58,7 +59,7 @@ def test_prompt_shaped_text_maps_buckets_and_dates() -> None:
 
 def test_meta_lines_and_headings_are_not_imported() -> None:
     result = dry_run_pasted_memory({"text": "## RULES\n\n- Do the thing\n"})
-    contents = [item["content"] for item in result.normalized_data["procedural"]]
+    contents = [str(item["content"]) for item in result.normalized_data["procedural"]]
     assert contents == ["Do the thing"]
 
 
@@ -74,7 +75,7 @@ def test_duplicate_entries_are_imported_once() -> None:
 
 def test_secrets_are_scrubbed_before_import() -> None:
     result = dry_run_pasted_memory({"text": "- My key is sk-abcdefghijklmnopqrstuvwxyz123456 for OpenAI\n"})
-    contents = [item["content"] for item in result.normalized_data["semantic"]]
+    contents = [str(item["content"]) for item in result.normalized_data["semantic"]]
     assert contents
     assert "sk-abcdefghijklmnopqrstuvwxyz123456" not in contents[0]
     assert "[REDACTED_API_KEY]" in contents[0]
@@ -139,6 +140,46 @@ class TestModelAssistedPasteItems:
         assert result.normalized_data["procedural"][0]["content"] == "Run tests before merge"
         assert result.normalized_data["episodic"][0]["importance"] == 0.6
         assert result.summary.mapped_items == 3
+
+    def test_profile_items_the_model_gave_no_key_or_value_take_the_content(self) -> None:
+        # The extraction step always hands over both fields and leaves a missing one as ``None``.
+        result = dry_run_pasted_model_items(
+            [
+                {"content": "Lives in Taichung", "bucket": "profile", "profile_key": None, "profile_value": None},
+                {"content": "Works as a nurse", "bucket": "profile", "profile_key": "  ", "profile_value": ""},
+            ],
+        )
+
+        first, second = result.normalized_data["profile"]
+        assert "key" not in first
+        assert first["value"] == "Lives in Taichung"
+        assert "key" not in second
+        assert second["value"] == "Works as a nurse"
+
+    def test_keyless_profile_items_each_get_their_own_content_addressed_key(self) -> None:
+        result = dry_run_pasted_model_items(
+            [
+                {"content": "Lives in Taichung", "bucket": "profile", "profile_key": None, "profile_value": None},
+                {"content": "Works as a nurse", "bucket": "profile", "profile_key": None, "profile_value": None},
+            ],
+        )
+
+        assert ensure_profile_import_keys(result.normalized_data, source="pasted_memory") == 2
+
+        keys = [profile_entry_key(entry) for entry in result.normalized_data["profile"]]
+        assert len(set(keys)) == 2
+        assert all(key and key.startswith("imported_pasted_memory_") for key in keys)
+
+    def test_a_missing_content_or_bucket_is_empty_not_the_word_none(self) -> None:
+        result = dry_run_pasted_model_items(
+            [
+                {"content": None, "bucket": "semantic"},
+                {"content": "Uses Postgres 17", "bucket": None},
+            ],
+        )
+
+        assert set(result.normalized_data) == {"semantic"}
+        assert [item["content"] for item in result.normalized_data["semantic"]] == ["Uses Postgres 17"]
 
     def test_unknown_buckets_downgrade_to_semantic(self) -> None:
         result = dry_run_pasted_model_items([{"content": "Uses Postgres 17", "bucket": "unknown_kind"}])

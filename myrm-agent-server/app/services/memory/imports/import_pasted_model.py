@@ -27,6 +27,7 @@ from app.services.memory.imports.import_adapter_utils import (
     build_result,
     iso_or_now,
     rule_fields,
+    text,
 )
 from app.services.memory.imports.import_pasted import (
     BUCKET_PROCEDURAL,
@@ -57,10 +58,10 @@ def dry_run_pasted_model_items(
     for raw in items:
         if not isinstance(raw, dict):
             continue
-        content = str(raw.get("content", "")).strip()
+        content = text(raw.get("content"))
         if not content:
             continue
-        bucket = str(raw.get("bucket", BUCKET_SEMANTIC)).strip()
+        bucket = text(raw.get("bucket"))
         if bucket not in MODEL_BUCKETS:
             bucket = BUCKET_SEMANTIC
         normalized.setdefault(bucket, []).append(_model_item(raw, content=content, bucket=bucket))
@@ -113,10 +114,12 @@ def _model_item(raw: dict[str, object], *, content: str, bucket: str) -> dict[st
         "metadata": metadata,
     }
     if bucket == BUCKET_PROFILE:
-        profile_key = str(raw.get("profile_key", "")).strip()
+        # The extraction step leaves a missing key or value as ``None``. An item without a key is given a
+        # content-addressed one by ``ensure_profile_import_keys``, so no two items share a key.
+        profile_key = text(raw.get("profile_key"))
         if profile_key:
             item["key"] = profile_key
-        item["value"] = str(raw.get("profile_value", "")).strip() or content
+        item["value"] = text(raw.get("profile_value")) or content
         item["importance"] = 0.75
         item["confidence"] = 0.8
         item["tags"] = ["pasted_memory", "profile"]
