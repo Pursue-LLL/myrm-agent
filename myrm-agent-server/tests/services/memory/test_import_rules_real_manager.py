@@ -1,17 +1,21 @@
-"""A confirmed import stores what its review counted, on a real memory manager.
+"""What a confirmed import or an archive restore stores, on a real memory manager.
 
 [INPUT]
 app.services.memory.imports.import_sessions::MemoryImportSessionService (dry-run, then confirm)
+app.services.memory.archive.restore.archive_restore::MemoryArchiveRestoreService (dry-run, restore, rollback)
 
 [OUTPUT]
 Per channel (PLUR store, pasted text, model-extracted paste): the rules the preview maps are the rules the store
-holds and the rules the prompt loads; profile items the model gave no key land under keys of their own.
+holds and the rules the prompt loads; profile items the model gave no key land under keys of their own; importing
+the same rules again, or restoring an archive over rules the user holds, adds no copy, and a rollback only removes
+what the import or restore itself wrote.
 
 [POS]
 The session tests run on a fake manager that counts every entry as imported. ``MemoryManager.import_memories``
 parses each rule with ``ProceduralMemory`` and drops the one without a trigger or an action, and it writes a profile
 entry under its key, so only a real manager shows a rule that is previewed as mapped and then never stored, or two
-profile items that overwrite each other.
+profile items that overwrite each other. The writer never deduplicates a rule, so a repeated import or restore is
+only idempotent end to end on a real store.
 """
 
 from __future__ import annotations
@@ -25,6 +29,8 @@ from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_sto
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.models import Base
+from app.services.memory.archive.archive import MemoryArchiveService
+from app.services.memory.archive.restore.archive_restore import MemoryArchiveRestoreService
 from app.services.memory.imports.import_adapter_utils import DEFAULT_RULE_TRIGGER
 from app.services.memory.imports.import_adapters import RequestedImportSource
 from app.services.memory.imports.import_session_models import MemoryImportConfirmResult
@@ -202,3 +208,34 @@ async def test_a_preference_stated_after_an_import_stays_ahead_of_a_second_impor
         await _import_payload(service, manager, payload, "pasted_memory")
 
         assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, newer_action), (DEFAULT_RULE_TRIGGER, _RULE)]
+
+
+async def test_restoring_an_archive_adds_only_the_rules_the_user_does_not_hold_and_rolling_back_keeps_the_rest(
+    db_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lost_action = "Reply in Chinese"
+    async with offline_memory_manager(tmp_path / "memory", monkeypatch) as manager:
+        await manager.add_rule(DEFAULT_RULE_TRIGGER, _RULE)
+        await manager.add_rule(DEFAULT_RULE_TRIGGER, lost_action)
+        archive = (await MemoryArchiveService(db_session).export_archive(manager)).model_dump(mode="json")
+        stored = await manager.list_memories(MemoryType.PROCEDURAL, limit=50)
+        lost = next(rule for rule in stored if isinstance(rule, ProceduralMemory) and rule.action == lost_action)
+        await manager.delete_memories_by_ids({"procedural": [lost.id]})
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, _RULE)]
+
+        restore = MemoryArchiveRestoreService(db_session)
+        preview = await restore.dry_run_restore(archive, sections=["memory"])
+        result = await restore.restore_archive(
+            archive,
+            manager=manager,
+            sections=["memory"],
+            expected_payload_hash=preview.payload_hash,
+            expected_plan_hash=preview.plan.plan_hash,
+        )
+
+        assert (result.total_restored, result.skipped_items) == (1, 1)
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, lost_action), (DEFAULT_RULE_TRIGGER, _RULE)]
+
+        await restore.rollback_restore(result.restore_batch_id, manager=manager)
+
+        assert await _prompt_rules(manager) == [(DEFAULT_RULE_TRIGGER, _RULE)]
