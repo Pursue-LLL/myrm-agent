@@ -19,6 +19,7 @@ from .base import ToolSetupBaseMixin
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
     from app.core.memory.adapters.types import ResolvedContextBinding
 
@@ -104,7 +105,7 @@ class MemoryToolsMixin(ToolSetupBaseMixin):
                 lite_llm = self._lite_llm
                 wiki_structure = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)._structure
 
-                async def _query_wiki(question: str):
+                async def _query_wiki(question: str) -> QueryResult:
                     archiver = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)
                     return await archiver.query_wiki(question)
 

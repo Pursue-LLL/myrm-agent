@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from ..external_agents import ExternalAgentsMixin
 
 if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.agent.security.types import SecurityConfig
     from myrm_agent_harness.api import SkillAgent
     from myrm_agent_harness.toolkits.memory.config import RecallMode
@@ -58,7 +59,7 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
         search_depth: str
         agent_id: str | None
         memory_require_confirmation: bool
-        _lite_llm: object | None
+        _lite_llm: BaseChatModel | None
         agent: SkillAgent | None
         approval_session_key: str | None
         _session_vault: object | None
