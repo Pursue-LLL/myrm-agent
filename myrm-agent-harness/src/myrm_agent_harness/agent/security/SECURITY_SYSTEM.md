@@ -790,7 +790,7 @@ class AllowlistEntry:
      b. 技能钩子：BLOCK → 拒绝；REQUIRE_APPROVAL → 待审
      c. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
      d. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 e）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
-     e. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）
+     e. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）；资金类调用另带动作摘要，批准时须原样回传，不符即拒绝（`DIGEST_MISMATCH_REJECT`），社交不可逆调用不带摘要，批准即放行
      定时运行没有人答复待审：本批做完后仍待审的调用（YOLO 分支留下的社交不可逆与破坏性调用、审核模型无法裁决的调用、委派出去的智能体的各类 ASK），由 `evaluate_tool_batch` 末尾交 `_cron_settle.settle_pending`，按 a 的规则放行或拒绝，返回的待审列表恒为空
 7. 限流（evaluate_target）：同一用户在滑动窗口内审批请求过多 → 本批待审调用全部拒绝
 8. 发问（ToolApprovalMiddleware）：被拒调用 → 错误 ToolMessage；待审调用合并为一次 interrupt(payload) 批量审批

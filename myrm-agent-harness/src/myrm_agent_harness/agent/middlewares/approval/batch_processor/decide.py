@@ -855,7 +855,6 @@ async def evaluate_calls(
             extra_ctx = extra_ctx or {}
             extra_ctx["is_irreversible"] = True
             extra_ctx["socially_irreversible"] = True
-            extra_ctx["action_digest"] = compute_action_digest(tool_name, tool_input)
             extra_ctx["high_risk"] = True
             extra_ctx["hide_allow_always"] = True
 
