@@ -100,7 +100,7 @@ async def list_active_goals() -> dict[str, object]:
             if goal and goal.status in NON_TERMINAL_GOAL_STATUSES:
                 results.append(_serialize_goal(goal))
         except Exception as e:
-            logger.debug("Failed to get goal for session %s: %s", sid, e)
+            logger.warning("Failed to get goal for session %s: %s", sid, e)
 
     return {"goals": results, "count": len(results)}
 

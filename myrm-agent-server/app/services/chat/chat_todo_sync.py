@@ -41,7 +41,7 @@ async def _resolve_workspace_root_safely(chat_id: str) -> str | None:
     try:
         root = await find_chat_workspace_root(chat_id)
     except Exception as exc:
-        logger.debug("Failed to resolve workspace root for chat %s: %s", chat_id, exc)
+        logger.warning("Failed to resolve workspace root for chat %s: %s", chat_id, exc)
         return None
     return str(root) if root is not None else None
 
@@ -63,7 +63,7 @@ async def resolve_session_todo_store(session_id: str) -> TodoStore | None:
             if branch_store is not None:
                 return branch_store
     except Exception as exc:
-        logger.debug("Failed to fold todo state from conversation branch %s: %s", session_id, exc)
+        logger.warning("Failed to fold todo state from conversation branch %s: %s", session_id, exc)
 
     chat_id = to_rest_chat_id(session_id)
     workspace_root = await _resolve_workspace_root_safely(chat_id) if chat_id else None
@@ -73,7 +73,7 @@ async def resolve_session_todo_store(session_id: str) -> TodoStore | None:
     try:
         return read_todos_sync_from_workspace(workspace_root, chat_id)
     except Exception as exc:
-        logger.debug("Failed to read fallback workspace todos for session %s: %s", session_id, exc)
+        logger.warning("Failed to read fallback workspace todos for session %s: %s", session_id, exc)
         return None
 
 
