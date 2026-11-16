@@ -7,7 +7,10 @@ import os
 from typing import Final
 
 from dev_gate.contract import parallel_pressure
-from dev_gate.contract.admission import _scaled_parallel_admit_wait_sec, admit_wall_clock_sec
+from dev_gate.contract.admission import (
+    _scaled_parallel_admit_wait_sec,
+    admit_wall_clock_sec,
+)
 from dev_gate.contract.attach import SIGNOFF_ATTACH_PARALLEL_CAP_SEC
 from dev_gate.contract.mux import parallel_mux_cold_attach_drain_sec
 from dev_gate.contract.open_page import (
@@ -53,16 +56,7 @@ def shpoib_parallel_stall_progress_sec(
     )
     if is_live_lane:
         base = max(base, float(LIVE_AGENT_STALL_PROGRESS_FLOOR_SEC))
-    active_leases = 0
-    try:
-        from pathlib import Path
-
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        monorepo_root = Path(__file__).resolve().parents[6]
-        active_leases = wave_active_lease_count(monorepo_root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        active_leases = 0
+    active_leases = parallel_pressure.wave_active_lease_count_for_mux()
     if is_e2e_signoff_runtime():
         load = max(active_leases, parallel_pressure.parallel_signoff_pressure_peers())
         scaled = base + load * 15.0
@@ -258,15 +252,7 @@ def resolve_transport_stall_cap_sec(*, current_node: str = "") -> float:
 
 def _backend_only_ensure_parallel_load() -> int:
     """Peer pressure for backend-only ensure — wave leases can lag during ADMIT (+)."""
-    load = 0
-    try:
-        from pathlib import Path
-
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        load = wave_active_lease_count(Path(__file__).resolve().parents[6])
-    except (ImportError, OSError, RuntimeError, ValueError):
-        load = 0
+    load = parallel_pressure.wave_active_lease_count_for_mux()
     try:
         from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 

@@ -34,11 +34,7 @@ _LIB = Path(__file__).resolve().parents[3] / "scripts" / "dev" / "lib"
 if str(_LIB) not in sys.path:
     sys.path.insert(0, str(_LIB))
 
-from cdp_chat.support import (  # noqa: E402
-    fetch_config_value,
-    get_e2e_api_url,
-    put_config_value,
-)
+from cdp_chat.support import get_e2e_api_url  # noqa: E402
 
 from tests.support.chrome_mcp_e2e import (  # noqa: E402
     http_json,
@@ -47,8 +43,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
     wait_for_state,
     warm_ui_route,
 )
-from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
-from tests.support.test_secrets import load_test_secrets  # noqa: E402
+from tests.support.retrieval_embedding import configured_retrieval_embedding  # noqa: E402
 
 _BRAND_STUDIO_PATH = "/settings/brand-studio"
 _BRAND_NAME_KEY = "brand_name"
@@ -143,50 +138,6 @@ def _brand_memory_deleted() -> bool:
     return not any(str(item.get("key")) == _BRAND_NAME_KEY for item in items)
 
 
-def _configure_embedding() -> None:
-    """Configure retrieval embedding via the WebUI settings API (real path).
-
-    A PRIVATE backend starts from an empty database, so the retrieval embedding
-    must be provisioned for the Brand Studio profile store (its memory API goes
-    through the same MemoryManager). Prefers the real embedding account from
-    ``.env.test``; falls back to a local OpenAI-compatible endpoint when none is
-    present, matching the shared backend's known-model BAAI/bge-m3 setup.
-    """
-    api_url = get_e2e_api_url().rstrip("/")
-    existing = fetch_config_value("retrieval", api_url=api_url)
-    if existing.get("embeddingConfig"):
-        return
-
-    secrets = load_test_secrets()
-    embedding_key = secrets.get("EMBEDDING_API_KEY")
-    server: LocalEmbeddingServer | None = None
-    try:
-        if embedding_key:
-            embedding_config = {
-                "provider": secrets.get("EMBEDDING_PROVIDER", "siliconflow"),
-                "model": secrets.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
-                "apiKey": embedding_key,
-                "apiBase": secrets.get("EMBEDDING_BASE_URL", ""),
-            }
-        else:
-            server = LocalEmbeddingServer(port=8398)
-            server.start()
-            embedding_config = {
-                "provider": "openai_compatible",
-                "model": "BAAI/bge-m3",
-                "apiKey": "test-key",
-                "apiBase": server.base_url,
-            }
-        put_config_value(
-            "retrieval",
-            {"embeddingApplied": True, "embeddingConfig": embedding_config},
-            api_url=api_url,
-        )
-    finally:
-        if server is not None:
-            server.stop()
-
-
 def _seed_brand_name() -> None:
     """Seed a brand_name profile memory via the real memory API (upsert)."""
     http_json(
@@ -213,59 +164,58 @@ def test_brand_studio_reset_confirm_full_flow_chrome_e2e() -> None:
     """Clear with confirm deletes the seeded brand memory; cancel preserves it."""
     api_base = get_e2e_api_url()
 
-    # The Brand Studio profile store goes through the memory API, whose manager
-    # requires a configured embedding backend. PRIVATE backends start empty, so
-    # provision embedding via the same settings API the WebUI writes.
-    _configure_embedding()
-    prepare_e2e_ui_session(api_base)
-    _seed_brand_name()
+    # The Brand Studio profile store goes through the memory API, whose manager needs a
+    # retrieval embedding that answers; the helper provisions one through the settings API the WebUI writes.
+    with configured_retrieval_embedding(api_base):
+        prepare_e2e_ui_session(api_base)
+        _seed_brand_name()
 
-    warm_ui_route(_BRAND_STUDIO_PATH)
-    with open_settings_subroute(_BRAND_STUDIO_PATH, timeout_ms=120_000) as (
-        client,
-        page,
-    ):
-        panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=60.0)
-        assert panel.get("ready") is True, panel
-        assert panel.get("nameValue") == "Acme Studio", panel
+        warm_ui_route(_BRAND_STUDIO_PATH)
+        with open_settings_subroute(_BRAND_STUDIO_PATH, timeout_ms=120_000) as (
+            client,
+            page,
+        ):
+            panel = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=60.0)
+            assert panel.get("ready") is True, panel
+            assert panel.get("nameValue") == "Acme Studio", panel
 
-        # First open the destructive dialog, then cancel: value must be kept.
-        first = client.evaluate(page, _CLICK_CLEAR_JS, timeout_sec=15.0)
-        assert isinstance(first, dict) and first.get("clicked") is True, first
+            # First open the destructive dialog, then cancel: value must be kept.
+            first = client.evaluate(page, _CLICK_CLEAR_JS, timeout_sec=15.0)
+            assert isinstance(first, dict) and first.get("clicked") is True, first
 
-        dialog = wait_for_state(client, page, _DIALOG_READY_JS, timeout_sec=15.0)
-        assert dialog.get("ready") is True, dialog
-        assert dialog.get("hasConfirm") is True and dialog.get("hasCancel") is True, dialog
+            dialog = wait_for_state(client, page, _DIALOG_READY_JS, timeout_sec=15.0)
+            assert dialog.get("ready") is True, dialog
+            assert dialog.get("hasConfirm") is True and dialog.get("hasCancel") is True, dialog
 
-        cancelled = client.evaluate(page, _CLICK_CANCEL_JS, timeout_sec=15.0)
-        assert isinstance(cancelled, dict) and cancelled.get("clicked") is True, cancelled
+            cancelled = client.evaluate(page, _CLICK_CANCEL_JS, timeout_sec=15.0)
+            assert isinstance(cancelled, dict) and cancelled.get("clicked") is True, cancelled
 
-        kept = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=15.0)
-        assert kept.get("ready") is True, kept
-        assert kept.get("nameValue") == "Acme Studio", kept
+            kept = wait_for_state(client, page, _PANEL_READY_JS, timeout_sec=15.0)
+            assert kept.get("ready") is True, kept
+            assert kept.get("nameValue") == "Acme Studio", kept
 
-        # Re-open, then confirm: the form is cleared (destructive step).
-        second = client.evaluate(page, _CLICK_CLEAR_JS, timeout_sec=15.0)
-        assert isinstance(second, dict) and second.get("clicked") is True, second
+            # Re-open, then confirm: the form is cleared (destructive step).
+            second = client.evaluate(page, _CLICK_CLEAR_JS, timeout_sec=15.0)
+            assert isinstance(second, dict) and second.get("clicked") is True, second
 
-        dialog2 = wait_for_state(client, page, _DIALOG_READY_JS, timeout_sec=15.0)
-        assert dialog2.get("ready") is True, dialog2
+            dialog2 = wait_for_state(client, page, _DIALOG_READY_JS, timeout_sec=15.0)
+            assert dialog2.get("ready") is True, dialog2
 
-        confirmed = client.evaluate(page, _CLICK_CONFIRM_JS, timeout_sec=15.0)
-        assert isinstance(confirmed, dict) and confirmed.get("clicked") is True, confirmed
+            confirmed = client.evaluate(page, _CLICK_CONFIRM_JS, timeout_sec=15.0)
+            assert isinstance(confirmed, dict) and confirmed.get("clicked") is True, confirmed
 
-        cleared = wait_for_state(client, page, _FORM_CLEARED_JS, timeout_sec=15.0)
-        assert cleared.get("ready") is True, cleared
+            cleared = wait_for_state(client, page, _FORM_CLEARED_JS, timeout_sec=15.0)
+            assert cleared.get("ready") is True, cleared
 
-        # Save issues the real delete of the previously configured brand field.
-        saved = client.evaluate(page, _CLICK_SAVE_JS, timeout_sec=15.0)
-        assert isinstance(saved, dict) and saved.get("clicked") is True, saved
+            # Save issues the real delete of the previously configured brand field.
+            saved = client.evaluate(page, _CLICK_SAVE_JS, timeout_sec=15.0)
+            assert isinstance(saved, dict) and saved.get("clicked") is True, saved
 
-        deadline = time.monotonic() + 20.0
-        deleted = False
-        while time.monotonic() < deadline:
-            if _brand_memory_deleted():
-                deleted = True
-                break
-            time.sleep(0.5)
-        assert deleted, "brand_name profile memory still present after save"
+            deadline = time.monotonic() + 20.0
+            deleted = False
+            while time.monotonic() < deadline:
+                if _brand_memory_deleted():
+                    deleted = True
+                    break
+                time.sleep(0.5)
+            assert deleted, "brand_name profile memory still present after save"

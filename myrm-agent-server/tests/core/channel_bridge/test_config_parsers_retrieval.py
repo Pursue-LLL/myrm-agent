@@ -43,6 +43,17 @@ def test_an_endpoint_the_user_set_wins_over_the_providers_default() -> None:
     assert embedding.api_base == "http://localhost:8000/v1"
 
 
+def test_a_model_id_with_a_catalog_prefix_goes_to_the_users_endpoint_unchanged() -> None:
+    """Cloudflare Workers AI names its models ``@cf/...`` and is reached through the account's own base URL."""
+    base = "https://api.cloudflare.com/client/v4/accounts/account-id/ai/v1"
+    config = {"provider": "openai_compatible", "model": "@cf/baai/bge-m3", "apiKey": "cf-token", "apiBase": base}
+
+    embedding, _ = extract_retrieval_models(_settings(embeddingConfig=config))
+
+    assert embedding is not None
+    assert (embedding.model, embedding.api_key, embedding.api_base) == ("openai/@cf/baai/bge-m3", "cf-token", base)
+
+
 @pytest.mark.parametrize(
     "changes",
     [

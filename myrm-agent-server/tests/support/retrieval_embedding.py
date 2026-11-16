@@ -6,19 +6,17 @@ sure the backend has one that can actually embed, written through the same setti
 the WebUI uses. The config the stack seeded (the ``.env.test`` account) is kept once a
 burst of one-text requests proves it works. Otherwise the ``.env.test`` accounts are
 tried in order, the ``EMBEDDING_*`` account, the Voyage backup and then the Volcengine Ark
-backup, and a local OpenAI-compatible server stands in when none can embed: such an account silently
-degrades dense recall and fails every write that needs a vector. An account that cannot
-embed is one with an exhausted balance, a rejected key, an unreachable endpoint, or a
-per-minute quota (a Voyage organisation without a payment method answers the fourth
-request of a minute with HTTP 429).
+backup. When none can embed the block raises and names every refusal: a backend without a
+working embedding silently degrades dense recall and fails every write that needs a vector,
+so the run stops there. An account that cannot embed is one with an exhausted balance, a
+rejected key, an unreachable endpoint, or a per-minute quota (a Voyage organisation without
+a payment method answers the fourth request of a minute with HTTP 429).
 
 The check is the product's own embedding call (settings entry, ``extract_retrieval_models``,
 ``aembed``), so a provider whose endpoint is built in (Voyage, Cohere, OpenAI) is reached
 exactly as the product reaches it. It is synchronous: call it from a sync test.
 
-Whatever the block overwrote is put back when it ends, including an absent config; the
-local server stays up for the whole block so later embedding calls (for example approving
-a correction) still reach it.
+Whatever the block overwrote is put back when it ends, including an absent config.
 
 [USAGE]
     with configured_retrieval_embedding(get_e2e_api_url()):
@@ -45,7 +43,6 @@ if str(_DEV_LIB) not in sys.path:
 
 from cdp_chat.support import fetch_config_value, put_config_value  # noqa: E402
 
-from tests.support.local_embedding_server import LocalEmbeddingServer  # noqa: E402
 from tests.support.test_secrets import TestSecrets, load_test_secrets  # noqa: E402
 
 _PROBE_TIMEOUT_SEC = 15.0
@@ -127,7 +124,10 @@ def _restore(base_url: str, original: Mapping[str, object]) -> None:
 
 @contextmanager
 def configured_retrieval_embedding(api_url: str) -> Iterator[None]:
-    """Ensure a ``retrieval.embeddingConfig`` that can embed exists on ``api_url`` for the block's lifetime."""
+    """Ensure a ``retrieval.embeddingConfig`` that can embed exists on ``api_url`` for the block's lifetime.
+
+    Raises ``RuntimeError`` naming each refusal when no account can embed; the backend is left untouched then.
+    """
     base_url = api_url.rstrip("/")
     retrieval = fetch_config_value("retrieval", api_url=base_url)
     existing = retrieval.get("embeddingConfig")
@@ -148,20 +148,15 @@ def configured_retrieval_embedding(api_url: str) -> Iterator[None]:
             break
         refused.append(f"{label}: {reason}")
 
-    server: LocalEmbeddingServer | None = None
     if chosen is None:
-        print(
-            f"E2E_EMBEDDING: local embedding server instead of the test accounts ({'; '.join(refused) or 'none configured'})",
-            flush=True,
+        raise RuntimeError(
+            f"No embedding account can embed ({'; '.join(refused) or 'none configured'}). "
+            "Top up the quota or fix the EMBEDDING_*, VOYAGE_* and ARK_EMBEDDING_* accounts in .env.test."
         )
-        server = LocalEmbeddingServer(port=0).start()
-        chosen = {"provider": "openai_compatible", "model": "BAAI/bge-m3", "apiKey": "test-key", "apiBase": server.base_url}
 
     original = {key: retrieval[key] for key in _OWNED_KEYS if key in retrieval}
     try:
         put_config_value("retrieval", {**retrieval, "embeddingApplied": True, "embeddingConfig": chosen}, api_url=base_url)
         yield
     finally:
-        if server is not None:
-            server.stop()
         _restore(base_url, original)

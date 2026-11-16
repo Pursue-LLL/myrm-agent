@@ -11,7 +11,7 @@
 - channel_label: Human-readable channel provenance label.
 - sanitize_recalled_content: Redact credentials then sanitize recalled body before tool output.
 - finalize_recall_tool_output: Prefix recall tool output with untrusted-data advisory.
-- format_profile_recall_output: Sanitized profile attribute lookup for recall tools.
+- format_profile_recall_output, format_drill_down_output: Sanitized direct read-back for recall tools (a profile attribute by key, a stored memory by id).
 - format_preference_save_ack: Sanitized preference save success ack for memory_save tools.
 - format_write_ack: Save ack that tells a stored memory from one held for the user's approval.
 - format_recall_source_error_suffix: Sanitized source_error suffix for recall tool output.
@@ -171,3 +171,39 @@ def format_recall_source_error_suffix(source_error: str) -> str:
     """Format correction source_error for recall suffix with the same redact → sanitize SSOT."""
     safe_error = sanitize_recalled_content(source_error)
     return f" (avoid: {safe_error})"
+
+
+def format_drill_down_output(memory: AnyMemory, *, detail_level: str) -> str:
+    """Format a by-id memory read-back (L1 overview or L2 full text) for the recall tool.
+
+    The stored text is as untrusted as a search hit, so it passes the same
+    redact → sanitize SSOT and gets the static preamble; the header line only
+    carries system-assigned fields (channel, type, id, domain, age) and stays as is.
+    """
+    effective_time = max(memory.created_at, memory.updated_at)
+    age = memory_age_label(effective_time)
+    provenance = channel_label(memory.scope.channel_id)
+    mem_type = getattr(memory, "memory_type", "memory")
+    mem_type_val = str(getattr(mem_type, "value", mem_type))
+    domain = getattr(memory, "domain", "user")
+    domain_val = str(getattr(domain, "value", domain))
+    cat = getattr(memory, "domain_category", "")
+
+    header = f"{provenance}[{mem_type_val}] (id: {memory.id}, domain: {domain_val}/{cat}, age: {age})"
+    if detail_level == "overview":
+        overview = getattr(memory, "overview_l1", "") or (memory.content[:250] if hasattr(memory, "content") else "")
+        return finalize_recall_tool_output(
+            f"{header}\n[L1 Overview]\n{sanitize_recalled_content(overview)}\n\n"
+            f"[Drill-down]: Call memory_search_tool(memory_id='{memory.id}', detail_level='full') for full verbatim context."
+        )
+
+    full_content = getattr(memory, "content", "")
+    metadata_repr = ""
+    if hasattr(memory, "metadata") and memory.metadata:
+        metadata_repr = f"\nMetadata: {memory.metadata}"
+    evidence_repr = ""
+    if hasattr(memory, "evidence") and memory.evidence:
+        evidence_repr = f"\nEvidence: {[e.source_id for e in memory.evidence]}"
+
+    body = sanitize_recalled_content(f"{full_content}{metadata_repr}{evidence_repr}")
+    return finalize_recall_tool_output(f"{header}\n[L2 Verbatim Full Content]\n{body}")

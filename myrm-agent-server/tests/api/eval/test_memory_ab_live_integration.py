@@ -26,35 +26,29 @@ from __future__ import annotations
 import asyncio
 import os
 import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
 from app.core.eval.memory_ab import DEFAULT_MEMORY_AB_MEMORY_DIR
-from tests.support.local_embedding_server import LocalEmbeddingServer
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.eval import MultiTurnEvalCase
+
+    from app.core.channel_bridge.config_loader import UserConfigs
 
 
-@pytest.fixture(scope="module")
-def local_embedding() -> LocalEmbeddingServer:
-    """Local OpenAI-compatible embedding endpoint (ephemeral port).
-
-    The product accepts arbitrary self-hosted OpenAI-compatible embedding
-    endpoints, so the integration tests stay independent of external
-    embedding account quota while exercising the real probe + dual-arm path.
-    """
-    server = LocalEmbeddingServer(port=0).start()
-    yield server
-    server.stop()
-
-
-def _build_user_configs_from_env(embedding_endpoint: str | None = None):
+def _build_user_configs_from_env() -> UserConfigs:
     """Build ``UserConfigs`` from ``.env.test`` (real LLM + embedding keys).
 
     Custom OpenAI-compatible endpoints use the ``openai/`` prefix (the
-    ``openai-like/`` picker alias is normalized away) with a ``base_url``; siliconflow embedding is routed via
-    the same OpenAI-compatible path. ``embedding_endpoint`` (when given) points
-    the embedding config at the local endpoint instead of the env keys.
+    ``openai-like/`` picker alias is normalized away) with a ``base_url``. The embedding account is the
+    ``EMBEDDING_*`` one: ``EMBEDDING_PROVIDER`` names its provider, else it is an OpenAI-compatible endpoint
+    when ``EMBEDDING_BASE_URL`` is set and SiliconFlow (built-in endpoint) when it is not.
     """
     from app.core.channel_bridge.config_loader import UserConfigs
     from app.core.types import ModelConfig
@@ -67,29 +61,16 @@ def _build_user_configs_from_env(embedding_endpoint: str | None = None):
     else:
         model = raw_model
 
-    retrieval_dict: dict[str, object] = {}
-    if embedding_endpoint:
-        retrieval_dict = {
-            "embeddingApplied": True,
-            "embeddingConfig": {
-                "provider": "openai",
-                "model": "test-embed-v1",
-                "apiKey": "test-key",
-                "apiBase": embedding_endpoint,
-            },
-        }
-    else:
-        embedding_key = os.environ.get("EMBEDDING_API_KEY", "")
-        if embedding_key:
-            retrieval_dict = {
-                "embeddingApplied": True,
-                "embeddingConfig": {
-                    "provider": "siliconflow",
-                    "model": os.environ.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
-                    "apiKey": embedding_key,
-                    "apiBase": os.environ.get("EMBEDDING_BASE_URL", ""),
-                },
-            }
+    embedding_base = os.environ.get("EMBEDDING_BASE_URL", "")
+    retrieval_dict: dict[str, object] = {
+        "embeddingApplied": True,
+        "embeddingConfig": {
+            "provider": os.environ.get("EMBEDDING_PROVIDER") or ("openai_compatible" if embedding_base else "siliconflow"),
+            "model": os.environ.get("EMBEDDING_MODEL", "BAAI/bge-m3"),
+            "apiKey": os.environ["EMBEDDING_API_KEY"],
+            "apiBase": embedding_base,
+        },
+    }
 
     return UserConfigs(
         model_cfg=ModelConfig(model=model, api_key=api_key, base_url=base_url),
@@ -102,24 +83,36 @@ def _build_user_configs_from_env(embedding_endpoint: str | None = None):
     )
 
 
+@contextmanager
+def _stored_retrieval(configs: UserConfigs) -> Iterator[None]:
+    """Serve the env-built retrieval settings as the stored ``retrieval`` entry; every other entry reads as absent.
+
+    The platform embedding helpers read that single entry, not the full ``UserConfigs`` bundle.
+    """
+
+    async def stored_entry(config_key: str) -> dict[str, object] | None:
+        return configs.retrieval_dict if config_key == "retrieval" else None
+
+    with patch("app.core.channel_bridge.config_loader.load_user_config_entry", new=stored_entry):
+        yield
+
+
 def _requires_live_credentials(need_llm: bool = False) -> None:
-    """Skip unless real LLM credentials are available (embedding is local)."""
+    """Skip unless the real embedding account (and, for the full chain, the LLM account) is available."""
+    if not os.environ.get("EMBEDDING_API_KEY"):
+        pytest.skip("Memory A/B live tests require EMBEDDING_API_KEY")
     if need_llm and not os.environ.get("BASIC_API_KEY"):
         pytest.skip("Memory A/B full chain requires BASIC_API_KEY")
 
 
 @pytest.mark.e2e
-def test_memory_ab_embedding_probe_live(local_embedding: LocalEmbeddingServer) -> None:
-    """The embedding readiness probe passes against the embedding endpoint."""
+def test_memory_ab_embedding_probe_live() -> None:
+    """The embedding readiness probe passes against the real embedding account."""
     _requires_live_credentials()
 
     from app.services.agent.platform_config import verify_platform_embedding_ready
 
-    mock_configs = _build_user_configs_from_env(embedding_endpoint=local_embedding.base_url)
-    with patch(
-        "app.core.channel_bridge.config_loader.load_user_configs",
-        return_value=mock_configs,
-    ):
+    with _stored_retrieval(_build_user_configs_from_env()):
         embedding_cfg = asyncio.run(verify_platform_embedding_ready())
     assert embedding_cfg is not None
 
@@ -149,19 +142,19 @@ def _inject_test_checkpointer() -> None:
 
 @pytest.mark.e2e
 @pytest.mark.timeout(600)
-def test_memory_ab_full_chain_live(local_embedding: LocalEmbeddingServer) -> None:
+def test_memory_ab_full_chain_live() -> None:
     """Full Memory A/B chain: probe -> download -> dual-arm -> report -> cleanup."""
     _requires_live_credentials(need_llm=True)
     _inject_test_checkpointer()
     try:
-        _run_full_chain(local_embedding.base_url)
+        _run_full_chain()
     finally:
         from app.platform_utils import _reset_checkpointer_for_testing
 
         _reset_checkpointer_for_testing()
 
 
-def _run_full_chain(embedding_endpoint: str) -> None:
+def _run_full_chain() -> None:
     """The full Memory A/B chain: probe -> download -> dual-arm -> report -> cleanup."""
     from fastapi.testclient import TestClient
 
@@ -169,7 +162,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
     from tests.support.minimal_app import build_minimal_app
 
     fastapi_app = build_minimal_app(preset="eval")
-    mock_configs = _build_user_configs_from_env(embedding_endpoint=embedding_endpoint)
+    mock_configs = _build_user_configs_from_env()
 
     from app.core.eval import benchmarks
 
@@ -178,10 +171,10 @@ def _run_full_chain(embedding_endpoint: str) -> None:
     def _limited_build(
         benchmark_id: str,
         *,
-        progress_callback=None,
-        should_abort=None,
+        progress_callback: Callable[[int, int], None] | None = None,
+        should_abort: Callable[[], bool] | None = None,
         limit: int | None = None,
-    ):
+    ) -> tuple[list[MultiTurnEvalCase], dict[str, str], bool]:
         """Real download + full workspace build; return only the first case.
 
         The download, checksum verify, atomic install, and workspace
@@ -203,7 +196,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
 
     real_iter_task_dirs = _wb_ws._iter_task_dirs
 
-    def _single_task_dirs(source_root):
+    def _single_task_dirs(source_root: Path) -> list[Path]:
         """Provision workspace only for the first task.
 
         The full ``_iter_task_dirs`` walks every task in the dataset and
@@ -226,6 +219,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
                 "app.core.channel_bridge.config_loader.load_user_configs",
                 return_value=mock_configs,
             ),
+            _stored_retrieval(mock_configs),
             patch(
                 "app.core.eval.benchmarks.build_benchmark_cases",
                 side_effect=_limited_build,
@@ -241,7 +235,7 @@ def _run_full_chain(embedding_endpoint: str) -> None:
             body = response.json()
             assert body["status"] in ("started", "already_running"), body
 
-            status_data: dict = {}
+            status_data: dict[str, object] = {}
             max_retries = 300
             for _ in range(max_retries):
                 r = client.get(f"{p}/memory-ab/status")

@@ -398,7 +398,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 
 读取路径：`MemoryContextMiddleware` 注入时采用指令层级。用户存储的记忆（Profile / Rules / 工作状态 / 工具指引）封装在 `<user_memory_context>` 的 **SystemMessage** 中，每个存储值先过 `defang_markup()`，存储值既关不掉记忆块，也开不出自己的高权限块。已学习的事实不进块，由模型经 `memory_search_tool` 检索。
 
-**工具 recall 路径**（`memory_search_tool` corpus=memory/sessions、MCP `memory_recall` / `memory_list`）：每条 recalled body 经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认调用），SemanticMemory 的 `source_error` 后缀经 `format_recall_source_error_suffix()` 同 SSOT，整段 tool 结果前缀静态 untrusted 提示 `finalize_recall_tool_output()`。与 middleware 注入路径互补，不重复 random `wrap_untrusted` 信封（保留 ToolMessage token 效率与 Prompt Cache 友好）。
+**工具 recall 路径**（`memory_search_tool` corpus=memory/sessions 与按 id 取回、MCP `memory_recall` / `memory_list`）：每条 recalled body 经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认调用），SemanticMemory 的 `source_error` 后缀经 `format_recall_source_error_suffix()` 同 SSOT，按 id 取回的概览或全文（含 metadata 与 evidence 行）由 `format_drill_down_output()` 过同一 SSOT，整段 tool 结果前缀静态 untrusted 提示 `finalize_recall_tool_output()`。与 middleware 注入路径互补，不重复 random `wrap_untrusted` 信封（保留 ToolMessage token 效率与 Prompt Cache 友好）。
 
 **工具 save ack 路径**（`memory_save_tool` / MCP `memory_store` preference 成功回执）：经 `format_preference_save_ack()`，同样 `sanitize_recalled_content()`，避免 write scan 已 redact 存库但 ToolMessage 仍 echo 明文凭据。
 
@@ -1209,7 +1209,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - `infer_domain_and_category` 按记忆类型、事件类型与偏好类型启发式归类，`BaseMemory.domain` / `domain_category`（`types/base.py`）持久化该归属。
 - **L0/L1/L2 渐进式披露**：
   - 字段位于 `BaseMemory`（`types/base.py`）：`summary_l0`（L0 语义锚点，缺省取正文前 120 字）、`overview_l1`（L1 结构化概览）、`content`（L2 完整原文）；
-  - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py`）；
+  - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py` 取回，`memory_recall_formatting.py` 的 `format_drill_down_output` 输出，同样经 recall sanitize 与静态 untrusted 前言）；
 - **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；注入块的预算见 `memory_context_budget.render_budgeted_sections`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
 - **服务端接口与前端双端自适应可视化闭环**：
   - Server 端（`app/api/memory/operations/domain_mesh.py`，前缀 `/domain-mesh`）提供强类型 REST 路由：`GET /overview`（三域统计与 L0/L1 预览）、`GET /drill-down/{memory_id}`（按需提取 L2 原文）；

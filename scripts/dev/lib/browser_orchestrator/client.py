@@ -200,13 +200,14 @@ def _cached_parallel_load() -> int:
         cached_at, cached = _wave_lease_cache
         if now - cached_at < _WAVE_LEASE_CACHE_TTL_SEC:
             return cached
-    load = 0
     try:
         from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         load = parallel_active_test_count_ssot()
     except ImportError:
-        load = _wave_lease_count_probe()
+        from dev_gate.contract import parallel_pressure
+
+        load = parallel_pressure.wave_active_lease_count_for_mux()
     _wave_lease_cache = (now, load)
     return load
 
@@ -217,16 +218,6 @@ def _parallel_scaled_evaluate_timeout_sec(base: float) -> float:
     if load < 2:
         return base
     return min(180.0, base + float(load) * 15.0)
-
-
-def _wave_lease_count_probe() -> int:
-    try:
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        root = Path(__file__).resolve().parents[5]
-        return wave_active_lease_count(root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return 0
 
 
 def orchestrator_open_tx_wall_sec() -> float:

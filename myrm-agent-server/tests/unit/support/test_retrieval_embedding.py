@@ -157,6 +157,22 @@ class _Run:
     reason_while_open: str | None
 
 
+def _install(
+    monkeypatch: pytest.MonkeyPatch,
+    secrets: dict[str, str | None],
+    existing: dict[str, str] | None,
+    voyage_base: str | None,
+) -> _Backend:
+    """Point the helper at a backend stub and a ``.env.test`` view."""
+    backend = _Backend(existing)
+    monkeypatch.setattr(retrieval_embedding, "fetch_config_value", backend.fetch)
+    monkeypatch.setattr(retrieval_embedding, "put_config_value", backend.put)
+    monkeypatch.setattr(retrieval_embedding, "load_test_secrets", lambda: test_secrets.TestSecrets(raw=secrets))
+    if voyage_base is not None:
+        monkeypatch.setenv("VOYAGE_API_BASE", voyage_base)
+    return backend
+
+
 def _run(
     monkeypatch: pytest.MonkeyPatch,
     secrets: dict[str, str | None],
@@ -164,16 +180,30 @@ def _run(
     voyage_base: str | None = None,
 ) -> _Run:
     """Run the helper against a backend stub and record the config that was in force while its block was open."""
-    backend = _Backend(existing)
-    monkeypatch.setattr(retrieval_embedding, "fetch_config_value", backend.fetch)
-    monkeypatch.setattr(retrieval_embedding, "put_config_value", backend.put)
-    monkeypatch.setattr(retrieval_embedding, "load_test_secrets", lambda: test_secrets.TestSecrets(raw=secrets))
-    if voyage_base is not None:
-        monkeypatch.setenv("VOYAGE_API_BASE", voyage_base)
+    backend = _install(monkeypatch, secrets, existing, voyage_base)
     with configured_retrieval_embedding("http://backend.invalid"):
         config = dict(backend.embedding_config)
         reason = embedding_unusable_reason(config)
     return _Run(backend=backend, config_while_open=config, reason_while_open=reason)
+
+
+@dataclass(frozen=True)
+class _Refusal:
+    backend: _Backend
+    message: str
+
+
+def _refused(
+    monkeypatch: pytest.MonkeyPatch,
+    secrets: dict[str, str | None],
+    existing: dict[str, str] | None = None,
+    voyage_base: str | None = None,
+) -> _Refusal:
+    """Run the helper where no account can embed: the block must not open, and the error it raises is kept."""
+    backend = _install(monkeypatch, secrets, existing, voyage_base)
+    with pytest.raises(RuntimeError) as raised, configured_retrieval_embedding("http://backend.invalid"):
+        pytest.fail("the block opened although no account can embed")
+    return _Refusal(backend=backend, message=str(raised.value))
 
 
 def test_an_account_that_can_embed_is_not_flagged() -> None:
@@ -250,22 +280,17 @@ def test_an_exhausted_seeded_account_gives_way_to_the_voyage_backup(
 
 
 @pytest.mark.parametrize("backup_status", [_exhausted, _throttled], ids=["exhausted", "throttled"])
-def test_a_voyage_backup_that_cannot_serve_the_chain_gives_way_to_the_local_server(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], backup_status: Callable[[int], int]
+def test_a_voyage_backup_that_cannot_serve_the_chain_leaves_no_account_and_names_each_refusal(
+    monkeypatch: pytest.MonkeyPatch, backup_status: Callable[[int], int]
 ) -> None:
     with _upstream(_exhausted) as seeded, _upstream(backup_status) as voyage:
         existing = _account_at(seeded.base)
-        run = _run(monkeypatch, _secrets(seeded, voyage=True), existing, voyage_base=voyage.base)
+        refusal = _refused(monkeypatch, _secrets(seeded, voyage=True), existing, voyage_base=voyage.base)
 
-    assert run.config_while_open["provider"] == "openai_compatible"
-    assert run.config_while_open["apiKey"] == "test-key"
-    assert str(run.config_while_open["apiBase"]).startswith("http://127.0.0.1:")
-    assert run.config_while_open["apiBase"] not in {seeded.base, voyage.base}
-    assert run.reason_while_open is None
-    assert run.backend.embedding_config == existing
-    output = capsys.readouterr().out
-    assert "seeded account: HTTP 402" in output
-    assert "voyage backup: HTTP " in output
+    assert "seeded account: HTTP 402" in refusal.message
+    assert "voyage backup: HTTP " in refusal.message
+    assert refusal.backend.writes == 0
+    assert refusal.backend.embedding_config == existing
 
 
 def test_a_throttled_voyage_backup_gives_way_to_the_ark_backup_and_each_key_reaches_only_its_own_endpoint(
@@ -285,20 +310,18 @@ def test_a_throttled_voyage_backup_gives_way_to_the_ark_backup_and_each_key_reac
     assert "ark backup in use (seeded account: HTTP 402; voyage backup: HTTP 429)" in capsys.readouterr().out
 
 
-def test_with_every_account_refused_the_local_server_is_used_and_each_refusal_is_reported(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_with_every_account_refused_the_block_does_not_open_and_each_refusal_is_reported(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     with _upstream(_exhausted) as seeded, _upstream(_throttled) as voyage, _upstream(_exhausted) as ark:
         existing = _account_at(seeded.base)
-        run = _run(monkeypatch, _secrets(seeded, voyage=True, ark=ark), existing, voyage_base=voyage.base)
+        refusal = _refused(monkeypatch, _secrets(seeded, voyage=True, ark=ark), existing, voyage_base=voyage.base)
 
-    assert str(run.config_while_open["apiBase"]).startswith("http://127.0.0.1:")
-    assert run.config_while_open["apiBase"] not in {seeded.base, ark.base}
-    assert run.backend.embedding_config == existing
-    output = capsys.readouterr().out
-    assert "seeded account: HTTP 402" in output
-    assert "voyage backup: HTTP 429" in output
-    assert "ark backup: HTTP 402" in output
+    assert "seeded account: HTTP 402" in refusal.message
+    assert "voyage backup: HTTP 429" in refusal.message
+    assert "ark backup: HTTP 402" in refusal.message
+    assert refusal.backend.writes == 0
+    assert refusal.backend.embedding_config == existing
 
 
 @pytest.mark.parametrize(
@@ -339,12 +362,11 @@ def test_a_test_account_switched_to_a_provider_model_id_reaches_the_provider_its
     assert run.config_while_open == _voyage_account()
 
 
-def test_without_any_account_the_local_server_is_used_and_nothing_is_left_behind(
+def test_without_any_account_the_block_does_not_open_and_says_none_is_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    run = _run(monkeypatch, _secrets())
+    refusal = _refused(monkeypatch, _secrets())
 
-    assert run.config_while_open["provider"] == "openai_compatible"
-    assert run.config_while_open["apiKey"] == "test-key"
-    assert run.reason_while_open is None
-    assert run.backend.retrieval == {}
+    assert "none configured" in refusal.message
+    assert refusal.backend.writes == 0
+    assert refusal.backend.retrieval == {}

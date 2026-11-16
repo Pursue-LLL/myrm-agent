@@ -12,8 +12,15 @@ from myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding import (
     _MAX_TEXTS_PER_BATCH,
     CloudEmbedding,
 )
+from myrm_agent_harness.toolkits.retriever.embedding.window_policy import SAFETY_MARGIN
 
 _AEMBED = "myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding.aembed"
+
+# Cloudflare Workers AI answers HTTP 400 (code 8007) above this many tokens in one bge-m3 request.
+_CLOUDFLARE_REQUEST_TOKEN_CAP = 60_000
+# The chunk size bge-m3 gets from the embed budget (0.9 of its 8192 window).
+_BGE_M3_CHUNK_CHARS = 7_372
+_CLOUDFLARE_ENDPOINT = "https://api.cloudflare.com/client/v4/accounts/account-id/ai/v1"
 
 
 def _vectors(count: int, dim: int = 1536) -> list[list[float]]:
@@ -77,6 +84,11 @@ class TestSplitIntoBatches:
         assert sum(len(b) for b in batches) == 22
         assert len(batches) >= 2
 
+    def test_a_smaller_character_cap_packs_fewer_texts_per_batch(self) -> None:
+        texts = ["x" * 7_000] * 10
+        batches = CloudEmbedding._split_into_batches(texts, max_chars=20_000)
+        assert [len(b) for b in batches] == [2] * 5  # a third text would make 21,000 characters
+
 
 class TestEmbedBatchWithSplit:
     """Integration tests for embed_batch with batch splitting."""
@@ -132,6 +144,38 @@ class TestEmbedBatchWithSplit:
     async def test_empty_batch(self, service: CloudEmbedding) -> None:
         result = await service.embed_batch([])
         assert result == []
+
+    @pytest.mark.asyncio()
+    @pytest.mark.parametrize("model_id", ["@cf/baai/bge-m3", "openai/@cf/baai/bge-m3"])
+    async def test_a_provider_token_cap_limits_the_characters_of_every_request(self, model_id: str) -> None:
+        """bge-m3 spends up to one token per character (emoji 1.0, base64 0.76, JSON 0.66, prose 0.26-0.60)."""
+        request_chars: list[int] = []
+
+        async def mock_aembed(model: str, texts: Sequence[str], **kwargs: object) -> list[list[float]]:
+            request_chars.append(sum(len(text) for text in texts))
+            return _vectors(len(texts), dim=1024)
+
+        service = CloudEmbedding(model=model_id, api_key="test-key", api_base=_CLOUDFLARE_ENDPOINT)
+        with patch(_AEMBED, side_effect=mock_aembed):
+            result = await service.embed_batch(["x" * _BGE_M3_CHUNK_CHARS] * 20)
+
+        assert len(result) == 20
+        assert max(request_chars) <= _CLOUDFLARE_REQUEST_TOKEN_CAP * SAFETY_MARGIN
+        assert request_chars == [7 * _BGE_M3_CHUNK_CHARS, 7 * _BGE_M3_CHUNK_CHARS, 6 * _BGE_M3_CHUNK_CHARS]
+
+    @pytest.mark.asyncio()
+    async def test_a_model_without_a_known_cap_keeps_the_default_request_size(self, service: CloudEmbedding) -> None:
+        request_chars: list[int] = []
+
+        async def mock_aembed(model: str, texts: Sequence[str], **kwargs: object) -> list[list[float]]:
+            request_chars.append(sum(len(text) for text in texts))
+            return _vectors(len(texts))
+
+        with patch(_AEMBED, side_effect=mock_aembed):
+            await service.embed_batch(["x" * _BGE_M3_CHUNK_CHARS] * 14)
+
+        assert request_chars == [13 * _BGE_M3_CHUNK_CHARS, _BGE_M3_CHUNK_CHARS]
+        assert request_chars[0] <= _MAX_CHARS_PER_BATCH
 
     @pytest.mark.asyncio()
     async def test_preserves_order(self, service: CloudEmbedding) -> None:
