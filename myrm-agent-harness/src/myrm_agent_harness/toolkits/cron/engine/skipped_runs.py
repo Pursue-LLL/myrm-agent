@@ -46,18 +46,17 @@ logger = logging.getLogger(__name__)
 class SkippedRunMixin:
     """Skipped / deferred run bookkeeping for ``JobExecutor``.
 
-    Accesses JobExecutor members via self: _store, _current_trigger_source,
-    _handle_schedule_compute_error.
+    Accesses JobExecutor members via self: _store, _handle_schedule_compute_error. The run's trigger source is a
+    parameter of every entry point: runs of one executor overlap, so it cannot live on the instance.
     """
 
     _store: CronStore
-    _current_trigger_source: str
 
     if TYPE_CHECKING:
 
         def _handle_schedule_compute_error(self, job: CronJob, error: Exception, finished: datetime) -> None: ...
 
-    async def _record_skipped(self, job: CronJob, *, reason: str | None = None) -> None:
+    async def _record_skipped(self, job: CronJob, *, trigger_source: str, reason: str | None = None) -> None:
         """Record a SKIPPED run and advance job schedule.
 
         Used by both pre-flight probe skips and runner-level skips
@@ -68,7 +67,7 @@ class SkippedRunMixin:
             return
         self._refund_fire(job)
         now = datetime.now(UTC)
-        await self._save_skipped_run(job, now, reason)
+        await self._save_skipped_run(job, now, reason, trigger_source=trigger_source)
 
         if job.schedule.kind in (ScheduleKind.CRON, ScheduleKind.INTERVAL):
             try:
@@ -87,7 +86,7 @@ class SkippedRunMixin:
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)
 
-    async def _record_deferred(self, job: CronJob, result: JobResult) -> None:
+    async def _record_deferred(self, job: CronJob, result: JobResult, *, trigger_source: str) -> None:
         """Re-arm *job* at ``result.retry_at``: a SKIPPED run, no failure counted, schedule kept.
 
         Retrying before that instant only burns attempts, and failing would auto-pause the job.
@@ -97,7 +96,7 @@ class SkippedRunMixin:
             return
         self._refund_fire(job)
         now = datetime.now(UTC)
-        await self._save_skipped_run(job, now, result.skip_reason or result.error)
+        await self._save_skipped_run(job, now, result.skip_reason or result.error, trigger_source=trigger_source)
 
         job.next_run_at = result.retry_at
         job.last_run_at = now
@@ -105,25 +104,25 @@ class SkippedRunMixin:
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)
 
-    async def _record_skipped_by_probe(self, job: CronJob) -> None:
+    async def _record_skipped_by_probe(self, job: CronJob, *, trigger_source: str) -> None:
         """Handle a job skipped by the pre-flight probe."""
-        await self._record_skipped(job, reason="pre-flight-condition")
+        await self._record_skipped(job, trigger_source=trigger_source, reason="pre-flight-condition")
 
-    async def _record_skipped_by_runner(self, job: CronJob, reason: str | None) -> None:
+    async def _record_skipped_by_runner(self, job: CronJob, reason: str | None, *, trigger_source: str) -> None:
         """Handle a job skipped by the runner (e.g. heartbeat no-content)."""
-        await self._record_skipped(job, reason=reason)
+        await self._record_skipped(job, trigger_source=trigger_source, reason=reason)
 
     @staticmethod
     def _refund_fire(job: CronJob) -> None:
         """Hand back the fire the scheduler counted at run start: a run that never executed spends no ``max_fires``."""
         job.fire_count = max(job.fire_count - 1, 0)
 
-    async def _save_skipped_run(self, job: CronJob, now: datetime, reason: str | None) -> None:
+    async def _save_skipped_run(self, job: CronJob, now: datetime, reason: str | None, *, trigger_source: str) -> None:
         await self._store.save_run(
             CronRunRecord(
                 id=secrets.token_urlsafe(12),
                 job_id=job.id,
-                trigger_source=self._current_trigger_source,
+                trigger_source=trigger_source,
                 status=RunStatus.SKIPPED,
                 started_at=now,
                 finished_at=now,

@@ -139,8 +139,6 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
         trigger_source: str = "cron",
     ) -> None:
         """Core execution logic within TracingContext scope."""
-        self._current_trigger_source = trigger_source
-
         # 1. Pre-flight Condition check
         if self._pre_condition and job.pre_condition_script:
             probe_started = datetime.now(UTC)
@@ -155,7 +153,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
                 return
             if not should_run:
                 logger.info("Job %s skipped by pre-flight condition", job.id)
-                await self._record_skipped_by_probe(job)
+                await self._record_skipped_by_probe(job, trigger_source=trigger_source)
                 return
             if injected_context:
                 context = f"{injected_context}\n\n{context}" if context else injected_context
@@ -187,12 +185,12 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
                 result.retry_at.isoformat(),
                 result.skip_reason or result.error or "unknown",
             )
-            await self._record_deferred(job, result)
+            await self._record_deferred(job, result, trigger_source=trigger_source)
             return
 
         if result.skipped:
             logger.info("Job %s skipped by runner: %s", job.id, result.skip_reason or "unknown")
-            await self._record_skipped_by_runner(job, result.skip_reason)
+            await self._record_skipped_by_runner(job, result.skip_reason, trigger_source=trigger_source)
             return
 
         await self._finish_run(job, result, started, trigger_source)

@@ -1,9 +1,8 @@
-"""The cron server code does not name a symbol it has removed.
+"""The cron server code does not name a symbol it no longer defines.
 
-Each name in ``_REMOVED`` was deleted because nothing read it. A merge or a pasted snippet that brings one back is dead
-state again, and a doc row that still lists one describes code that is gone, so the scan covers the cron modules, the
-cron routes and their ``_ARCH.md`` files. A name that is later reused for something real is taken off the list here,
-with the reason.
+``_REMOVED`` lists names the cron server code does not define. One that appears in a module is dead state, and one that
+a doc row still lists describes code that does not exist, so the scan covers the cron modules, the cron routes and their
+``_ARCH.md`` files. A name that gets a real definition again leaves the list in the same change.
 
 [INPUT]
 - app/core/cron/**/*.py and **/*.md, app/api/cron/**/*.py and **/*.md: the files that must not name a removed symbol
@@ -25,8 +24,8 @@ _SERVER = Path(__file__).resolve().parents[2]
 _ROOTS = (_SERVER / "app" / "core" / "cron", _SERVER / "app" / "api" / "cron")
 
 _REMOVED = (
-    "active_streams",  # StreamListenerManager status accessor that nothing read
-    "active_polls",  # PollListenerManager status accessor that nothing read
+    "active_streams",  # StreamListenerManager status accessor
+    "active_polls",  # PollListenerManager status accessor
 )
 
 

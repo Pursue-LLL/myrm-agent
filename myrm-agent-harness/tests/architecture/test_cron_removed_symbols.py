@@ -1,9 +1,8 @@
-"""The cron toolkit does not name a symbol it has removed.
+"""The cron toolkit does not name a symbol it no longer defines.
 
-Each name in ``_REMOVED`` was deleted because nothing in production called it. A merge or a pasted snippet that brings
-one back is dead code again, and a doc row that still lists one describes code that is gone, so the scan covers the
-toolkit's modules and its ``_ARCH.md`` files. A name that is later reused for something real is taken off the list here,
-with the reason.
+``_REMOVED`` lists names the toolkit does not define. One that appears in a module is dead code, and one that a doc row
+still lists describes code that does not exist, so the scan covers the toolkit's modules and its ``_ARCH.md`` files. A
+name that gets a real definition again leaves the list in the same change.
 
 [INPUT]
 - src/myrm_agent_harness/toolkits/cron/**/*.py and **/*.md: the files that must not name a removed symbol
@@ -28,11 +27,11 @@ pytestmark = pytest.mark.architecture
 _CRON = Path(__file__).resolve().parents[2] / "src" / "myrm_agent_harness" / "toolkits" / "cron"
 
 _REMOVED = (
-    "parse_loop_command_input",  # parser of the `/loop` command text; only its own tests called it
-    "parse_natural_interval",  # its only production caller was parse_loop_command_input
-    "is_top_of_hour_cron",  # only compute_stagger_offset_s called it; resolve_stagger_ms decides the stagger window
-    "compute_stagger_offset_s",  # no production caller
-    "active_streams",  # StreamListener status accessor that nothing read
+    "parse_loop_command_input",  # parser of the `/loop` command text
+    "parse_natural_interval",  # natural-language interval parser behind it
+    "is_top_of_hour_cron",  # top-of-hour cron test; resolve_stagger_ms decides the stagger window
+    "compute_stagger_offset_s",  # per-job stagger offset; resolve_stagger_ms decides the window
+    "active_streams",  # StreamListener status accessor
 )
 
 
