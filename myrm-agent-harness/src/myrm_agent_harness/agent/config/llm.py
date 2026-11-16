@@ -22,7 +22,6 @@ config types (AgentConfig, TracingConfig) with strict Pydantic field validation.
 
 """
 
-import os
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -43,7 +42,7 @@ class TracingConfig:
 class AgentConfig(BaseModel):
     """Agent 配置（支持后端路由）
 
-    主构造函数为纯参数，from_env() 提供便捷的环境变量初始化。
+    所有字段由调用方显式传入，不读取环境变量。
     使用 Pydantic 进行严格字段验证，避免运行时错误。
 
     Example:
@@ -181,23 +180,6 @@ class AgentConfig(BaseModel):
         preset = BUILTIN_PRESETS[name]
         config_dict = {**preset.config_dict, "llm": llm, **overrides}
         return cls.from_dict(config_dict)
-
-    @classmethod
-    def from_env(cls) -> "AgentConfig":
-        """从 MYRM_* 环境变量加载配置。"""
-        llm_config = LLMConfig.from_env()
-
-        tracing_config = TracingConfig(
-            enable_local_ui=os.getenv("MYRM_ENABLE_LOCAL_UI", "false").lower() == "true",
-        )
-
-        return cls(
-            llm=llm_config,
-            tracing_config=tracing_config,
-            recursion_limit=int(os.getenv("MYRM_RECURSION_LIMIT", "50")),
-            timeout_seconds=(int(ts) if (ts := os.getenv("MYRM_TIMEOUT_SECONDS")) else None),
-            enable_artifacts=os.getenv("MYRM_ENABLE_ARTIFACTS", "true").lower() == "true",
-        )
 
 
 __all__ = [
