@@ -289,9 +289,6 @@ async def build_general_agent(
         else None
     )
 
-    memory_binding = context_assembly.binding
-    memory_namespaces = memory_binding.namespaces if memory_binding is not None else []
-
     allowed_tool_names: list[str] = []
     for t in tools:
         raw_name = getattr(t, "name", None)
@@ -338,10 +335,8 @@ async def build_general_agent(
         # The harness reads MCP configs by attribute and applies its own default where MCPServerConfig has no field (max_output_chars).
         mcp_servers=cast("list[MCPConfig]", agent_wrapper.mcp_config or []),
         openapi_services=agent_wrapper.openapi_services or [],
-        memory_namespaces=memory_namespaces,
         workspace_binding=workspace_binding,
         max_iterations=agent_wrapper.max_iterations or 100,
-        unattended=getattr(agent_wrapper, "unattended_mode", False),
         locale=agent_wrapper.locale,
         prompt_locale=agent_wrapper.locale,
         channel_name=agent_wrapper.channel_name,
@@ -397,7 +392,6 @@ async def build_general_agent(
         executor=executor,
         storage_backend=storage_backend,
         skill_backend=skill_backend,
-        market_backend=None,
         write_backend=None,
         secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,

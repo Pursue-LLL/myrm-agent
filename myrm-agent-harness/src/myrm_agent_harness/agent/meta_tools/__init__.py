@@ -69,7 +69,6 @@ def get_meta_tools(
     file_access_mode: FileAccessMode = FileAccessMode.FULL,
     enable_shell_tools: bool = True,
     enable_answer_tool: bool = False,
-    has_manage_tool: bool = False,
     available_tool_names: frozenset[str] | None = None,
     available_tool_groups: frozenset[str] | None = None,
     skill_instances: dict[str, SkillInstance] | None = None,
@@ -94,7 +93,6 @@ def get_meta_tools(
         skills: 可用的技能列表
         skill_backend: 技能后端(用于 skill_select_tool)
         registry: ToolRegistry（必填；skill_search_tool 由 SkillAgent 末尾 sync 注册）
-        has_manage_tool: skill_manage_tool 是否 Turn1 挂载（由 server user_tools 或 SkillAgent 后端注入）
         skill_env_map: Per-skill resolved env vars (skill_name -> env dict).
         skill_configs: Per-agent skill configurations (e.g., is_core).
         skill_instances: Per-skill resolved SkillInstance objects (skill_name -> instance).

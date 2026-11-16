@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import replace
 from unittest.mock import AsyncMock, NonCallableMagicMock, create_autospec
 
 import pytest
@@ -14,22 +14,15 @@ from app.core.skills.discovery.agent_market_install import (
     install_from_url_for_agent_session,
 )
 from app.core.skills.discovery.market_install_flow import MarketInstallFlowResult
+from app.core.skills.discovery.mount import SkillMountResult
 from app.core.skills.marketplace.market_service import SkillMarketService
 
 _ADAPTER = "app.core.skills.discovery.agent_market_install"
 
-
-@dataclass(frozen=True)
-class _MountStub:
-    mounted: bool
-    agent_id: str = "agent-1"
-    mount_skill_id: str = "prebuilt::demo"
+_MOUNTED = SkillMountResult(mounted=True, agent_id="agent-1", mount_skill_id="prebuilt::demo")
 
 
-_MOUNTED = _MountStub(mounted=True)
-
-
-def _flow_result(mount: _MountStub | None) -> MarketInstallFlowResult:
+def _flow_result(mount: SkillMountResult | None) -> MarketInstallFlowResult:
     return MarketInstallFlowResult(
         result=SkillInstallResult(success=True, skill_id="prebuilt::demo", skill_name="Demo"),
         mount_result=mount,
@@ -98,13 +91,13 @@ async def test_install_from_url_delegates_to_flow(flow_from_url: AsyncMock, adop
     "mount",
     [
         pytest.param(None, id="nothing-was-mounted"),
-        pytest.param(_MountStub(mounted=False), id="mount-did-not-succeed"),
-        pytest.param(_MountStub(mounted=True, mount_skill_id=""), id="no-mounted-skill-id"),
-        pytest.param(_MountStub(mounted=True, agent_id=""), id="no-agent"),
+        pytest.param(replace(_MOUNTED, mounted=False), id="mount-did-not-succeed"),
+        pytest.param(replace(_MOUNTED, mount_skill_id=""), id="no-mounted-skill-id"),
+        pytest.param(replace(_MOUNTED, agent_id=""), id="no-agent"),
     ],
 )
 async def test_nothing_is_adopted_unless_a_skill_was_mounted_for_an_agent(
-    flow_by_id: AsyncMock, adoption: AsyncMock, mount: _MountStub | None
+    flow_by_id: AsyncMock, adoption: AsyncMock, mount: SkillMountResult | None
 ) -> None:
     flow_by_id.return_value = _flow_result(mount)
 

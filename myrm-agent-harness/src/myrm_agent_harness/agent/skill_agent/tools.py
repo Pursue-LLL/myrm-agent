@@ -2,6 +2,7 @@
 
 [INPUT]
 - meta_tools::get_meta_tools (POS: Meta-tools factory)
+- meta_tools.skills.manage::create_skill_manage_tool (POS: skill_manage_tool built from the write backend)
 - tool_management::ToolRegistry (POS: Tool registration and resolution)
 - agent.meta_tools.progress (POS: Main-agent todo_write factory)
 - toolkits.wiki (POS: Wiki tools)
@@ -10,14 +11,16 @@
 - SkillAgentToolsMixin: Mixin providing tool building methods for SkillAgent
 
 [POS]
-Tool building mixin for SkillAgent. Assembles meta-tools, todo_write (planning, or a top-level agent resuming
-workspace todos), wiki tools, and RUNTIME_ONLY hooks.
+Tool building mixin for SkillAgent. Assembles meta-tools, skill_manage_tool (from ``write_backend``, unless the
+caller supplies one), todo_write (planning, or a top-level agent resuming workspace todos), wiki tools, and
+RUNTIME_ONLY hooks; ``config.no_builtin_tools`` leaves out every built-in meta tool. The skill market tool is not
+built here: the host mounts it through ``tools=``. The class-body annotations are the contract with the host class.
 """
 
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from langchain_core.tools import BaseTool
 
@@ -33,10 +36,19 @@ from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from pathlib import Path
 
+    from langchain.agents.middleware import AgentMiddleware
+    from langchain_core.language_models import BaseChatModel
+
+    from myrm_agent_harness.agent.meta_tools.mount_policy import FileAccessMode
     from myrm_agent_harness.agent.tool_management import ToolRegistry
-    from myrm_agent_harness.backends.skills.types import SkillInstance
-    from myrm_agent_harness.toolkits.wiki import WikiCompiler, WikiStructure
+    from myrm_agent_harness.agent.types import AgentRuntimeConfig
+    from myrm_agent_harness.backends.skills.protocols import SkillBackend
+    from myrm_agent_harness.backends.skills.scanning import ScanningSkillWriteBackend
+    from myrm_agent_harness.backends.skills.state_manager import SkillStateManager
+    from myrm_agent_harness.backends.skills.types import SkillInstance, SkillMetadata
+    from myrm_agent_harness.toolkits.wiki import SemanticSearchFn, WikiCompiler, WikiStructure
 
 logger = get_agent_logger(__name__)
 
@@ -44,41 +56,62 @@ logger = get_agent_logger(__name__)
 class SkillAgentToolsMixin:
     """Mixin providing tool building methods for SkillAgent.
 
-    Requires the following attributes from SkillAgent:
-    - skill_backend, market_backend, write_backend
-    - skill_configs
-    - _file_access_mode, _enable_shell_tools
-    - _skill_env_map, _default_skill_instances, state_manager
-    - llm, config
-    - _task_workspace_root (chat sandbox path for progress persistence)
-    - _wiki_base_dir, _wiki_public_dirs, _wiki_search_fn
-    - user_tools, user_middlewares
-
-    Declares the attributes it sets on the agent: ``_tool_registry`` (owned by ``BaseAgent``) and the
-    wiki handles, which stay ``None`` until the wiki tools are mounted.
+    The annotations below are the host contract: the state ``BaseAgent`` and ``SkillAgent`` assign in
+    ``__init__`` (``_task_workspace_root`` is the chat sandbox path for progress persistence). Reads are
+    type-checked against it, and an attribute the host no longer assigns raises ``AttributeError`` at the
+    first read instead of silently falling back to a default. The mixin itself sets only the wiki handles,
+    which stay ``None`` until the wiki tools are mounted.
     """
+
+    llm: BaseChatModel
+    config: AgentRuntimeConfig
+    user_tools: list[BaseTool]
+    user_middlewares: list[AgentMiddleware[Any, Any]]
+    _cached_middlewares: list[AgentMiddleware[Any, Any]] | None
+    skill_backend: SkillBackend | None
+    write_backend: ScanningSkillWriteBackend | None
+    state_manager: SkillStateManager | None
+    skill_configs: dict[str, dict[str, object]] | None
+    _skill_env_map: dict[str, dict[str, str]] | None
+    _default_skill_instances: dict[str, str]
+    _file_access_mode: FileAccessMode
+    _enable_shell_tools: bool
+    _enable_answer_tool: bool
+    _enable_planning: bool
+    _available_tool_names: frozenset[str] | None
+    _available_tool_groups: frozenset[str] | None
+    _task_workspace_root: str | None
+    _wiki_base_dir: Path | str | None
+    _wiki_public_dirs: list[Path | str]
+    _wiki_public_dir_labels: dict[str, str]
+    _wiki_search_fn: SemanticSearchFn | None
+    _wiki_scope_id: str | None
 
     _tool_registry: ToolRegistry
     _wiki_compiler: WikiCompiler | None
     _wiki_structure: WikiStructure | None
 
+    if TYPE_CHECKING:
+
+        async def _get_cached_skills(self) -> list[SkillMetadata]: ...
+
     def _prompt_locale(self) -> str:
         """Language of the model-facing tool and prompt text: the prompt locale, else the UI locale, else English."""
-        return getattr(self.config, "prompt_locale", None) or getattr(self.config, "locale", None) or "en"  # type: ignore[attr-defined]
+        return self.config.prompt_locale or self.config.locale or "en"
 
     async def _build_tools(self) -> list[BaseTool]:
         """Build tool list via ToolRegistry."""
         from myrm_agent_harness.agent.streaming.utils import normalize_tool_names
 
-        skills = await self._get_cached_skills()  # type: ignore[attr-defined]
+        skills = await self._get_cached_skills()
 
-        skill_env_map = dict(self._skill_env_map) if self._skill_env_map else {}  # type: ignore[attr-defined]
+        skill_env_map = dict(self._skill_env_map) if self._skill_env_map else {}
         skill_instance_by_name: dict[str, SkillInstance] = {}
-        if self.state_manager and self._default_skill_instances:  # type: ignore[attr-defined]
-            for skill_name, instance_name in self._default_skill_instances.items():  # type: ignore[attr-defined]
+        if self.state_manager and self._default_skill_instances and self.skill_backend is not None:
+            for skill_name, instance_name in self._default_skill_instances.items():
                 try:
-                    instance = await self.state_manager.load_instance(  # type: ignore[attr-defined]
-                        backend=self.skill_backend,  # type: ignore[attr-defined]
+                    instance = await self.state_manager.load_instance(
+                        backend=self.skill_backend,
                         skill_name=skill_name,
                         instance_name=instance_name,
                     )
@@ -95,62 +128,35 @@ class SkillAgentToolsMixin:
                     )
 
         registry = self._tool_registry
-
-        def _user_has_tool(tool_name: str) -> bool:
-            return any(
-                getattr(tool, "name", None) == tool_name
-                for tool in self.user_tools  # type: ignore[attr-defined]
-            )
-
         prompt_locale = self._prompt_locale()
 
         supplemental_user_tools: list[BaseTool] = []
-        if self.market_backend is not None and not _user_has_tool("skill_market_tool"):  # type: ignore[attr-defined]
-            from myrm_agent_harness.agent.meta_tools.skills.market import (
-                create_skill_market_tool,
-            )
-
-            market_backend = self.market_backend  # type: ignore[attr-defined]
-            install_url_fn = getattr(market_backend, "install_from_url", None)
-            supplemental_user_tools.append(
-                create_skill_market_tool(
-                    market_backend,
-                    install_from_url_fn=install_url_fn,
-                    locale=prompt_locale,
-                )
-            )
-            logger.info(" skill_market_tool mounted via market_backend (server/user_tools SSOT)")
-
-        if self.write_backend is not None and not _user_has_tool("skill_manage_tool"):  # type: ignore[attr-defined]
+        user_has_manage_tool = any(getattr(tool, "name", None) == "skill_manage_tool" for tool in self.user_tools)
+        if self.write_backend is not None and not user_has_manage_tool:
             from myrm_agent_harness.agent.meta_tools.skills.manage import (
                 create_skill_manage_tool,
             )
 
             supplemental_user_tools.append(
                 create_skill_manage_tool(
-                    self.write_backend,  # type: ignore[attr-defined]
-                    self.skill_backend,  # type: ignore[attr-defined]
+                    self.write_backend,
+                    self.skill_backend,
                     locale=prompt_locale,
                 )
             )
             logger.info(" skill_manage_tool mounted via write_backend (server/user_tools SSOT)")
 
-        has_manage_tool = _user_has_tool("skill_manage_tool") or bool(
-            self.write_backend  # type: ignore[attr-defined]
-        )
-
         meta_tools = get_meta_tools(
             skills,
-            self.skill_backend,  # type: ignore[attr-defined]
+            self.skill_backend,
             skill_env_map=skill_env_map,
-            skill_configs=self.skill_configs,  # type: ignore[attr-defined]
+            skill_configs=self.skill_configs,
             registry=registry,
-            file_access_mode=self._file_access_mode,  # type: ignore[attr-defined]
-            enable_shell_tools=self._enable_shell_tools,  # type: ignore[attr-defined]
-            enable_answer_tool=self._enable_answer_tool,  # type: ignore[attr-defined]
-            has_manage_tool=has_manage_tool,
-            available_tool_names=self._available_tool_names,  # type: ignore[attr-defined]
-            available_tool_groups=self._available_tool_groups,  # type: ignore[attr-defined]
+            file_access_mode=self._file_access_mode,
+            enable_shell_tools=self._enable_shell_tools,
+            enable_answer_tool=self._enable_answer_tool,
+            available_tool_names=self._available_tool_names,
+            available_tool_groups=self._available_tool_groups,
             skill_instances=skill_instance_by_name or None,
             locale=prompt_locale,
         )
@@ -163,24 +169,21 @@ class SkillAgentToolsMixin:
         if wiki_tools:
             meta_tools.extend(wiki_tools)
 
-        no_builtin_tools = getattr(self.config, "no_builtin_tools", False) or getattr(self, "no_builtin_tools", False)  # type: ignore[attr-defined]
+        no_builtin_tools = self.config.no_builtin_tools
         if not no_builtin_tools:
             registry.register_many(meta_tools, source=ToolSource.META)
         else:
             logger.info("no_builtin_tools is enabled: built-in meta tools are excluded from action space")
 
         registry.register_many(
-            normalize_tool_names(
-                [*self.user_tools, *supplemental_user_tools]  # type: ignore[attr-defined]
-            ),
+            normalize_tool_names([*self.user_tools, *supplemental_user_tools]),
             source=ToolSource.USER,
         )
 
-        all_middlewares: list[object] = list(self.user_middlewares)  # type: ignore[attr-defined]
-        cached_mws = getattr(self, "_cached_middlewares", None)
-        if cached_mws:
+        all_middlewares: list[object] = list(self.user_middlewares)
+        if self._cached_middlewares:
             seen_ids = {id(mw) for mw in all_middlewares}
-            all_middlewares.extend(mw for mw in cached_mws if id(mw) not in seen_ids)
+            all_middlewares.extend(mw for mw in self._cached_middlewares if id(mw) not in seen_ids)
 
         for middleware in all_middlewares:
             get_tools = getattr(middleware, "get_tools", None)
@@ -206,29 +209,13 @@ class SkillAgentToolsMixin:
         sync_discover_capability_tool(
             registry,
             skills=skills,
-            skill_configs=self.skill_configs,  # type: ignore[attr-defined]
-            available_tool_names=self._available_tool_names,  # type: ignore[attr-defined]
-            available_tool_groups=self._available_tool_groups,  # type: ignore[attr-defined]
+            skill_configs=self.skill_configs,
+            available_tool_names=self._available_tool_names,
+            available_tool_groups=self._available_tool_groups,
             locale=prompt_locale,
         )
 
-        self._tool_registry = registry
-        no_builtin = getattr(self.config, "no_builtin_tools", False)  # type: ignore[attr-defined]
-        resolved = registry.resolve(no_builtin_tools=no_builtin)
-
-        unattended = getattr(self.config, "unattended", False)  # type: ignore[attr-defined]
-        if unattended:
-            filtered = []
-            for t in resolved:
-                tags = getattr(t, "tags", []) or []
-                if "interactive" in tags:
-                    logger.info(
-                        "Skipping interactive tool %s in unattended mode",
-                        getattr(t, "name", "unknown"),
-                    )
-                    continue
-                filtered.append(t)
-            resolved = filtered
+        resolved = registry.resolve(no_builtin_tools=no_builtin_tools)
 
         self._runtime_skill_count = len(skills)
         self._runtime_tool_count = len(resolved)
@@ -249,7 +236,7 @@ class SkillAgentToolsMixin:
 
     def _should_load_todo_write_tool(self) -> bool:
         """todo_write loads for planning, or for a top-level agent resuming todos; a delegated child resumes nothing."""
-        if self._enable_planning:  # type: ignore[attr-defined]
+        if self._enable_planning:
             return True
         if not get_is_subagent() and self._workspace_has_todos():
             logger.info("todo_write: loading for existing workspace todos (resume)")
@@ -265,7 +252,7 @@ class SkillAgentToolsMixin:
         live_root = get_workspace_root()
         if live_root:
             return live_root
-        bound_root = getattr(self, "_task_workspace_root", None)
+        bound_root = self._task_workspace_root
         if isinstance(bound_root, str) and bound_root.strip():
             return bound_root.strip()
         return None
@@ -275,10 +262,7 @@ class SkillAgentToolsMixin:
         if not self._should_load_todo_write_tool():
             logger.info("todo_write: skipped (planning disabled, no existing todos)")
             return None
-        if any(
-            getattr(t, "name", getattr(t, "tool_name", None)) == "todo_write"
-            for t in self.user_tools  # type: ignore[attr-defined]
-        ):
+        if any(getattr(t, "name", getattr(t, "tool_name", None)) == "todo_write" for t in self.user_tools):
             logger.info("todo_write: user-provided override detected, skipping auto-creation")
             return None
 
@@ -300,7 +284,7 @@ class SkillAgentToolsMixin:
         Creates 3 LangChain tools for the agent: wiki_ingest, wiki_query, wiki_apply.
         Manual compile and maintain remain Settings/REST-only operations.
         """
-        if self._wiki_base_dir is None:  # type: ignore[attr-defined]
+        if self._wiki_base_dir is None:
             return []
 
         try:
@@ -312,21 +296,19 @@ class SkillAgentToolsMixin:
                 create_wiki_tools,
             )
 
-            public_dirs = getattr(self, "_wiki_public_dirs", None) or []
-            public_dir_labels = getattr(self, "_wiki_public_dir_labels", None) or {}
             structure = WikiStructure(
-                self._wiki_base_dir,  # type: ignore[attr-defined]
-                public_dirs=public_dirs,
-                public_dir_labels=public_dir_labels,
+                self._wiki_base_dir,
+                public_dirs=self._wiki_public_dirs,
+                public_dir_labels=self._wiki_public_dir_labels,
             )
             structure.ensure_structure()
             config = WikiConfig()
-            compiler = WikiCompiler(self.llm, structure, config)  # type: ignore[attr-defined]
+            compiler = WikiCompiler(self.llm, structure, config)
             query_engine = WikiQueryEngine(
-                self.llm,  # type: ignore[attr-defined]
+                self.llm,
                 structure,
                 config,
-                search_fn=self._wiki_search_fn,  # type: ignore[attr-defined]
+                search_fn=self._wiki_search_fn,
             )
             self._wiki_structure = structure
             self._wiki_compiler = compiler
@@ -335,7 +317,7 @@ class SkillAgentToolsMixin:
                 compiler,
                 query_engine,
                 structure,
-                wiki_scope_id=getattr(self, "_wiki_scope_id", None),
+                wiki_scope_id=self._wiki_scope_id,
                 locale=self._prompt_locale(),
             )
 
@@ -343,8 +325,8 @@ class SkillAgentToolsMixin:
 
             logger.info(
                 " wiki tools auto-created (3 tools, base_dir=%s, shared=%d)",
-                self._wiki_base_dir,  # type: ignore[attr-defined]
-                len(public_dirs),
+                self._wiki_base_dir,
+                len(self._wiki_public_dirs),
             )
             return tools
         except Exception as e:
@@ -385,13 +367,10 @@ class SkillAgentToolsMixin:
 
     def get_tool_snapshot(self) -> list[ToolSnapshot]:
         """Return a serializable snapshot of the current tool set."""
-        registry: ToolRegistry | None = getattr(self, "_tool_registry", None)
-        if registry is None:
-            return []
-        return registry.snapshot()
+        return self._tool_registry.snapshot()
 
     async def _get_skill_storage_paths(self) -> list[str]:
         """Get all skill storage paths (absolute)."""
-        skills = await self._get_cached_skills()  # type: ignore[attr-defined]
+        skills = await self._get_cached_skills()
         base_path = storage_config.get_base_path()
         return [str(base_path / skill.storage_path) for skill in skills if skill.storage_path]
