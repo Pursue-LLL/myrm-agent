@@ -268,7 +268,10 @@ if (typeof window !== 'undefined') {
     }
   });
 
-  (window as Window & { __myrmWorkspaceStore?: typeof useWorkspaceStore }).__myrmWorkspaceStore = useWorkspaceStore;
+  // E2E handle: development builds only.
+  if (process.env.NODE_ENV !== 'production') {
+    (window as Window & { __myrmWorkspaceStore?: typeof useWorkspaceStore }).__myrmWorkspaceStore = useWorkspaceStore;
+  }
 }
 
 export default useWorkspaceStore;

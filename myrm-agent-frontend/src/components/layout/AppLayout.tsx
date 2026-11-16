@@ -196,7 +196,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
 
       <BudgetExceededDialog />
       <UpgradeNudgeDialog />
-      <E2ECompanionBridge />
+      {process.env.NODE_ENV !== 'production' && <E2ECompanionBridge />}
     </>
   );
 }

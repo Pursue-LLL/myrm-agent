@@ -7,6 +7,7 @@
  * - getDeployMode: 解析当前前端部署模式。
  * - isLocalMode: 判断是否处于本地模式。
  * - getApiBaseUrl: 返回安全的 API 基础地址。
+ * - resolveE2eApiBase: 已校验的 E2E 绑定注入的私有后端 origin（所有 E2E 感知调用点读的唯一开关）；生产构建恒为 null。
  * - getBackendBaseUrl: 返回安全的后端基础地址。
  * - getDocsUrl: 返回文档站外链。
  * - normalizeConfiguredBaseUrl: 规范化并校验配置的 URL。
@@ -307,24 +308,15 @@ function getTauriBackendPort(): number {
   return TAURI_DESKTOP_API_PORT;
 }
 
-/** Chrome E2E SHPOIB: CDP injects private backend base before chat automation. */
+/**
+ * Chrome E2E SHPOIB: the private backend origin a validated binding put on the page (`public/e2e-runtime-bootstrap.js`
+ * or the CDP binding script). The one switch every E2E-aware call site reads; always null in a production build.
+ */
 export function resolveE2eApiBase(): string | null {
-  if (typeof window === 'undefined') {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') {
     return null;
   }
-  let raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__;
-  if (typeof raw !== 'string' && typeof window.name === 'string' && window.name.startsWith('myrm-e2e-v1:')) {
-    try {
-      const parsed = JSON.parse(window.name.slice('myrm-e2e-v1:'.length));
-      if (parsed && typeof parsed.apiBase === 'string') {
-        raw = parsed.apiBase;
-        window.__MYRM_E2E_API_BASE__ = raw;
-        window.__MYRM_E2E_RUNTIME__ = parsed;
-      }
-    } catch {
-      // ignore malformed window.name
-    }
-  }
+  const raw = window.__MYRM_E2E_RUNTIME__?.apiBase ?? window.__MYRM_E2E_API_BASE__;
   if (typeof raw !== 'string') {
     return null;
   }

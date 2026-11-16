@@ -166,7 +166,8 @@ const SkillDiscoverTab = memo(({ onInstalled }: SkillDiscoverTabProps) => {
   );
 
   useLayoutEffect(() => {
-    if (!isLocalDevHost()) {
+    // The production literal lets a build drop this E2E hook; isLocalDevHost keeps it to loopback hosts.
+    if (process.env.NODE_ENV === 'production' || !isLocalDevHost()) {
       return;
     }
     window.__MYRM_E2E_SKILLS_DISCOVER__ = {

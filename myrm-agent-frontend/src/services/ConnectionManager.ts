@@ -25,7 +25,8 @@ class ConnectionManager {
   private readyPromise: Promise<void> = Promise.resolve();
 
   private constructor() {
-    if (typeof window !== 'undefined') {
+    // E2E handles: development builds only.
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
       window.__MYRM_WAIT_WORKSPACE_STREAM__ = (timeoutMs = 20_000) => this.waitUntilReady(timeoutMs);
       window.__MYRM_WORKSPACE_STREAM_STATUS__ = () => ({
         connected: this.isConnected,

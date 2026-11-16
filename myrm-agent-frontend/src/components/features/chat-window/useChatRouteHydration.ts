@@ -39,8 +39,9 @@ export function useChatRouteHydration(id: string | undefined): ChatRouteHydratio
   // The chat view is re-created when the conversation finishes loading; any other store write must leave it mounted.
   useEffect(() => subscribeChatRouteHydrated(id, () => setRouteHydrationEpoch((epoch) => epoch + 1)), [id]);
 
+  // E2E hydration signal from the dev bridge: development builds only.
   useEffect(() => {
-    if (!id) {
+    if (!id || process.env.NODE_ENV === 'production') {
       return;
     }
     const handler = (event: Event) => {

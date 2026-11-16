@@ -1,30 +1,27 @@
 /**
  * [INPUT]
- * - Browser `window.name` E2E runtime binding (`myrm-e2e-v1:` prefix)
- * - `window.__MYRM_E2E_RUNTIME_READY__` / `window.__MYRM_E2E_API_BASE__`
+ * - `window.__MYRM_E2E_RUNTIME_READY__` / `window.__MYRM_E2E_API_BASE__` (POS: the validated E2E binding the page bootstrap or CDP script sets)
  *
  * [OUTPUT]
- * - `isChromeE2eTab`: whether the current tab is driven by Chrome MCP E2E
+ * - `isChromeE2eTab`: whether the page carries a validated E2E backend binding; always false in a production build
  * - `waitForChromeE2eBackendBinding`: wait for private Backend health before UI probes
  *
  * [POS]
  * Suppresses false "backend unreachable" banners on the shared dev UI during SHPOIB E2E runs.
  */
-const E2E_RUNTIME_PREFIX = 'myrm-e2e-v1:';
 const E2E_BIND_POLL_MS = 200;
 
-function hasE2eApiBase(): boolean {
-  return typeof window.__MYRM_E2E_API_BASE__ === 'string' && window.__MYRM_E2E_API_BASE__.trim().length > 0;
+/** The API base the E2E tooling bound to this page, or null; a production build has no binding. */
+function boundApiBase(): string | null {
+  if (process.env.NODE_ENV === 'production' || typeof window === 'undefined') {
+    return null;
+  }
+  const apiBase = window.__MYRM_E2E_API_BASE__;
+  return typeof apiBase === 'string' && apiBase.trim().length > 0 ? apiBase.trim() : null;
 }
 
 export function isChromeE2eTab(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  if (hasE2eApiBase()) {
-    return true;
-  }
-  return window.name.startsWith(E2E_RUNTIME_PREFIX);
+  return boundApiBase() !== null;
 }
 
 async function probeE2eHealth(apiBase: string): Promise<boolean> {
@@ -37,7 +34,7 @@ async function probeE2eHealth(apiBase: string): Promise<boolean> {
 }
 
 export async function waitForChromeE2eBackendBinding(maxWaitMs = 60_000): Promise<boolean> {
-  if (!isChromeE2eTab()) {
+  if (process.env.NODE_ENV === 'production' || !isChromeE2eTab()) {
     return false;
   }
 
@@ -53,12 +50,9 @@ export async function waitForChromeE2eBackendBinding(maxWaitMs = 60_000): Promis
       }
     }
 
-    if (hasE2eApiBase()) {
-      const apiBase = window.__MYRM_E2E_API_BASE__ as string;
-      const normalized = apiBase.trim().replace(/\/+$/, '');
-      if (await probeE2eHealth(normalized)) {
-        return true;
-      }
+    const apiBase = boundApiBase();
+    if (apiBase !== null && (await probeE2eHealth(apiBase.replace(/\/+$/, '')))) {
+      return true;
     }
 
     await new Promise((resolve) => {

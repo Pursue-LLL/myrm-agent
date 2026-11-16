@@ -67,17 +67,26 @@ async function fetchDeferredMessages(locale: Locale): Promise<Partial<Messages>>
 export default function ClientIntlProvider({ locale, shellMessages, children }: ClientIntlProviderProps) {
   const [messages, setMessages] = useState<Messages>(shellMessages);
   const [deferredLocaleReady, setDeferredLocaleReady] = useState(false);
+  const [loadedShellMessages, setLoadedShellMessages] = useState(shellMessages);
 
-  useLayoutEffect(() => {
+  // A new shell (locale switch) discards the merged messages and restarts the deferred load.
+  // Adjusting state during render lets the stale messages never reach a committed frame.
+  if (loadedShellMessages !== shellMessages) {
+    setLoadedShellMessages(shellMessages);
     setMessages(shellMessages);
     setDeferredLocaleReady(false);
-  }, [shellMessages]);
+  }
 
   useLayoutEffect(() => {
     let cancelled = false;
 
     const loadDeferredWithRetry = async (): Promise<void> => {
-      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('e2e_skip_deferred_locale') === 'true') {
+      // E2E switch: development builds only.
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        typeof sessionStorage !== 'undefined' &&
+        sessionStorage.getItem('e2e_skip_deferred_locale') === 'true'
+      ) {
         if (!cancelled) {
           setDeferredLocaleReady(true);
         }

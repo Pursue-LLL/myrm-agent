@@ -46,6 +46,7 @@ declare global {
   }
 }
 
-if (typeof window !== 'undefined') {
+// E2E handle: development builds only.
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   window.__MYRM_EXTENSION_SLOT_STORE__ = useExtensionSlotStore;
 }

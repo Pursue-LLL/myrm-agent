@@ -1,7 +1,7 @@
 /**
- * [INPUT] @/lib/api::apiRequest (POS: 前端统一请求入口), @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫：所有 localhost 开发桥，以及产品组件里挂 E2E 钩子的几处，共用的主机判定), @/services/wikiService (POS: Wiki 接口: 统计、健康报告、原文树、队列), ../useWikiIngestSubscription (POS: ingest SSE 快照)
+ * [INPUT] @/lib/api::apiRequest (POS: 前端统一请求入口), @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫), @/services/wikiService (POS: Wiki 接口: 统计、健康报告、原文树、队列), ../useWikiIngestSubscription (POS: ingest SSE 快照)
  * [OUTPUT] useWikiOverviewData: 总览与队列共用的知识库状态: 统计、健康报告、原文树、编译运行与 ingest 实时快照, 及其重新加载动作和由它们派生的待处理计数
- * [POS] Wiki 面板的数据层: 范围变化或回到总览页时重新加载统计; ingest 快照要求刷新时重读统计与原文树, 编译队列排空时提示一次完成; 本地开发环境挂有供 E2E 注入统计与健康报告的桥。
+ * [POS] Wiki 面板的数据层: 范围变化或回到总览页时重新加载统计; ingest 快照要求刷新时重读统计与原文树, 编译队列排空时提示一次完成; 非生产构建的本地开发主机上挂有供 E2E 注入统计与健康报告的桥。
  */
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
@@ -36,7 +36,11 @@ export function useWikiOverviewData(agentScopeId: string | null, activeTab: stri
     setIsLoadingHealthReport(true);
     setHealthReportLoadError(false);
     const tryE2eFetch = async (): Promise<boolean> => {
-      if (typeof window === 'undefined' || sessionStorage.getItem('e2e_warm_platform_readiness') !== 'true') {
+      if (
+        process.env.NODE_ENV === 'production' ||
+        typeof window === 'undefined' ||
+        sessionStorage.getItem('e2e_warm_platform_readiness') !== 'true'
+      ) {
         return false;
       }
       try {
@@ -83,7 +87,8 @@ export function useWikiOverviewData(agentScopeId: string | null, activeTab: stri
   }, [agentScopeId]);
 
   useEffect(() => {
-    if (!isLocalDevHost()) {
+    // The production literal lets a build drop this E2E hook; isLocalDevHost keeps it to loopback hosts.
+    if (process.env.NODE_ENV === 'production' || !isLocalDevHost()) {
       return undefined;
     }
 
@@ -136,7 +141,11 @@ export function useWikiOverviewData(agentScopeId: string | null, activeTab: stri
     setIsLoadingRawTree(true);
 
     const tryE2eStatsFetch = async (): Promise<boolean> => {
-      if (typeof window === 'undefined' || sessionStorage.getItem('e2e_warm_platform_readiness') !== 'true') {
+      if (
+        process.env.NODE_ENV === 'production' ||
+        typeof window === 'undefined' ||
+        sessionStorage.getItem('e2e_warm_platform_readiness') !== 'true'
+      ) {
         return false;
       }
       try {

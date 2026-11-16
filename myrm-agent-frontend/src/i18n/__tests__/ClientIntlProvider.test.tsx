@@ -6,7 +6,12 @@ const stableT = (key: string) => key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
-  NextIntlClientProvider: ({ children }: { children: ReactNode }) => children,
+  NextIntlClientProvider: ({ children, messages }: { children: ReactNode; messages: unknown }) => (
+    <>
+      <output data-testid="provider-messages">{JSON.stringify(messages)}</output>
+      {children}
+    </>
+  ),
 }));
 
 import ClientIntlProvider from '@/i18n/ClientIntlProvider';
@@ -35,7 +40,9 @@ describe('ClientIntlProvider deferred locale', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.stubGlobal('fetch', originalFetch);
+    vi.unstubAllEnvs();
     vi.restoreAllMocks();
+    sessionStorage.removeItem('e2e_skip_deferred_locale');
   });
 
   it('sets deferredLocaleReady after successful fetch', async () => {
@@ -122,7 +129,67 @@ describe('ClientIntlProvider deferred locale', () => {
       expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
     });
     expect(fetchMock).not.toHaveBeenCalled();
-    sessionStorage.removeItem('e2e_skip_deferred_locale');
+  });
+
+  it('ignores the e2e sessionStorage flag in a production build', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    sessionStorage.setItem('e2e_skip_deferred_locale', 'true');
+    const fetchMock = vi.fn(async () => ({ ok: true, json: async () => ({}) }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <ClientIntlProvider locale="en" shellMessages={shellMessages}>
+        <DeferredReadyProbe />
+      </ClientIntlProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts over from the new shell messages when they change', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ settings: { account: { title: 'Account' } } }),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { rerender } = render(
+      <ClientIntlProvider locale="en" shellMessages={shellMessages}>
+        <DeferredReadyProbe />
+      </ClientIntlProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
+    });
+    expect(screen.getByTestId('provider-messages')).toHaveTextContent('Account');
+
+    let releaseSecondLoad: () => void = () => undefined;
+    fetchMock.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseSecondLoad = () =>
+            resolve({ ok: true, json: async () => ({ settings: { account: { title: '账户' } } }) });
+        }),
+    );
+    rerender(
+      <ClientIntlProvider locale="zh" shellMessages={{ chat: { title: '对话' } } as unknown as Messages}>
+        <DeferredReadyProbe />
+      </ClientIntlProvider>,
+    );
+
+    expect(screen.getByTestId('deferred-ready')).toHaveTextContent('no');
+    expect(screen.getByTestId('provider-messages')).toHaveTextContent('对话');
+    expect(screen.getByTestId('provider-messages')).not.toHaveTextContent('Account');
+
+    releaseSecondLoad();
+    await waitFor(() => {
+      expect(screen.getByTestId('deferred-ready')).toHaveTextContent('yes');
+    });
+    expect(screen.getByTestId('provider-messages')).toHaveTextContent('账户');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('succeeds on a later retry attempt', async () => {
