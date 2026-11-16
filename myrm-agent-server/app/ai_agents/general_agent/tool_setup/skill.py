@@ -11,8 +11,14 @@ ToolSetupMixin 的一个工具族；由 mixin.py 组合。
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from .base import ToolSetupBaseMixin
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
+    from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
+    from myrm_agent_harness.backends.skills.protocols import SkillBackend
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +65,10 @@ class SkillToolsMixin(ToolSetupBaseMixin):
     def _setup_skill_manage_tool(
         self,
         tools: list[object],
-        write_backend: object,
-        skill_backend: object,
+        write_backend: SkillWriteBackend,
+        skill_backend: SkillBackend | None,
         *,
-        auxiliary_llm: object | None = None,
+        auxiliary_llm: BaseChatModel | None = None,
     ) -> None:
         """Turn1 mount skill_manage_tool with ScanningSkillWriteBackend wrapper."""
         from myrm_agent_harness.agent.meta_tools.skills.manage import (

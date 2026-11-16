@@ -26,17 +26,12 @@ from app.core.skills.discovery.market_install_flow import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import Callable, Coroutine
 
 
 async def _chat_adopt_after_mount(flow: MarketInstallFlowResult) -> None:
     mount_result = flow.mount_result
-    if (
-        mount_result is not None
-        and mount_result.mounted
-        and mount_result.mount_skill_id
-        and mount_result.agent_id
-    ):
+    if mount_result is not None and mount_result.mounted and mount_result.mount_skill_id and mount_result.agent_id:
         await complete_discovery_adoption(
             mount_result.agent_id,
             mount_result.mount_skill_id,
@@ -83,7 +78,7 @@ def wrap_skill_market_backend_for_agent_session(inner: object) -> AgentSessionSk
 
 def make_agent_session_install_from_url_fn(
     inner: object,
-) -> Callable[[str, str | None], Awaitable[SkillInstallResult]]:
+) -> Callable[[str, str | None], Coroutine[None, None, SkillInstallResult]]:
     del inner
 
     async def install_from_url(url: str, user_id: str | None) -> SkillInstallResult:
