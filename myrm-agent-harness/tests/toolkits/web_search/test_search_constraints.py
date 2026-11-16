@@ -119,23 +119,22 @@ class TestSiteOperatorsReachTheServingProvider:
         assert "search_domain_filter" not in services["searxng"].calls[0]
 
     @pytest.mark.asyncio
-    async def test_the_bilibili_fallback_keeps_the_scope_as_written_on_tavily(self) -> None:
+    async def test_a_site_scope_with_a_path_and_a_time_range_reach_tavily_as_parameters(self) -> None:
         searcher, service = _searcher("tavily")
 
-        # An explicit time_range skips the Bilibili API, so the provider search carries the whole constraint.
         await engine_mod.WebSearchTools(searcher=searcher).fast_search_with_questions(
-            ["site:bilibili.com/video LLM"], time_range="week"
+            ["site:example.com/video LLM"], time_range="week"
         )
 
         assert service.queries == ["LLM"]
-        assert service.calls == [{"search_domain_filter": ["bilibili.com/video"], "time_range": "week"}]
+        assert service.calls == [{"search_domain_filter": ["example.com/video"], "time_range": "week"}]
 
     @pytest.mark.asyncio
-    async def test_the_bilibili_fallback_pins_identifiers_like_every_other_route(self) -> None:
+    async def test_a_site_scoped_question_has_its_identifiers_pinned_like_any_other(self) -> None:
         searcher, service = _searcher("tavily")
 
         await engine_mod.WebSearchTools(searcher=searcher).fast_search_with_questions(
-            ["site:bilibili.com 关于 CVE-2024-3094 的视频"], time_range="week"
+            ["site:example.com 关于 CVE-2024-3094 的视频"]
         )
 
         assert service.queries == ['关于 "CVE-2024-3094" 的视频']

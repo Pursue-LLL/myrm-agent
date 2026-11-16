@@ -3,10 +3,8 @@
 
 [INPUT]
 - web_search.core.common::SearchResult (POS: search result type)
-- web_search.core.exceptions::AllQueriesFailedError (POS: Search exception types)
 - web_search.processing.identifier_pinning::pin_structured_identifiers (POS: exact-phrase pinning of CVE ids and DOIs)
-- web_search.processing.search_results_processor::combine_search_results_unified, apply_domain_diversity_sort, search_results_to_documents (POS: search result merger and domain diversity sorting)
-- web_search.providers.bilibili_search::is_bilibili_video_query, search_bilibili (POS: Bilibili search fast-path)
+- web_search.processing.search_results_processor::combine_search_results_unified, apply_domain_diversity_sort (POS: search result merger and domain diversity sorting)
 - web_search.providers.web_searcher::WebSearcher, SearchServiceConfig, SearchServiceType (POS: web searcher supporting multiple engines)
 - core.context_vars::source_indexer_var (POS: the run's source numbering, so the numbers a result prints are the indexes of its cards)
 - utils.context_format::format_documents_with_metadata (POS: document formatting utility)
@@ -19,7 +17,7 @@
 
 [POS]
 Web search tools wrapper. As the toolkit's external interface, provides unified web search capability for
-Agent and business layer. Every query source (configured provider, Bilibili API) feeds one merge pipeline:
+Agent and business layer. The results of every question feed one merge pipeline:
 round-robin interleave across questions -> URL/content dedup -> domain-diversity decay -> first top_k. No
 ranking model sits in the path: the search engines' own ordering is the relevance signal; the interleave gives each
 question a turn, and the decay and the top_k cut decide which documents survive. A question reaches the provider as
@@ -29,24 +27,19 @@ operators itself.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
-from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from langchain_core.documents import Document
 
 from myrm_agent_harness.core.context_vars import source_indexer_var
 from myrm_agent_harness.toolkits.web_search.core.common import SearchResult
-from myrm_agent_harness.toolkits.web_search.core.exceptions import AllQueriesFailedError
 from myrm_agent_harness.toolkits.web_search.processing.identifier_pinning import pin_structured_identifiers
 from myrm_agent_harness.toolkits.web_search.processing.search_results_processor import (
     apply_domain_diversity_sort,
     combine_search_results_unified,
-    search_results_to_documents,
 )
-from myrm_agent_harness.toolkits.web_search.providers import bilibili_search
 from myrm_agent_harness.toolkits.web_search.providers.web_searcher import (
     SearchServiceConfig,
     SearchServiceType,
@@ -57,20 +50,6 @@ from myrm_agent_harness.utils.context_format import format_documents_with_metada
 __all__ = ["SearchServiceConfig", "SearchServiceType", "WebSearchTools"]
 
 logger = logging.getLogger(__name__)
-
-# One entry per question, in the shape combine_search_results_unified consumes: (query, documents, error).
-_QueryDocuments = list[tuple[str, list[Document], Exception | None]]
-
-
-@dataclass(frozen=True, slots=True)
-class _QueryPlan:
-    """How each question is searched.
-
-    ``bilibili_scoped`` holds when every question is scoped to Bilibili videos, so the Bilibili API can answer them.
-    """
-
-    search_queries: list[str]
-    bilibili_scoped: bool
 
 
 class WebSearchTools:
@@ -108,10 +87,10 @@ class WebSearchTools:
     ) -> tuple[list[dict[str, object]], str]:
         """Search every question in parallel and return one merged, formatted result set.
 
-        All query sources share one merge: results are interleaved round-robin across questions (each question
-        takes turns), deduplicated by URL and content, reordered with domain-diversity decay and cut to ``top_k``,
-        so the decay and the cut decide which documents survive. With one question the engine's ranking stands; only
-        the same-domain decay can move a result down.
+        The results of every question share one merge: they are interleaved round-robin across questions (each
+        question takes turns), deduplicated by URL and content, reordered with domain-diversity decay and cut to
+        ``top_k``, so the decay and the cut decide which documents survive. With one question the engine's ranking
+        stands; only the same-domain decay can move a result down.
 
         Args:
             questions: Query list (rewritten)
@@ -132,8 +111,10 @@ class WebSearchTools:
         """
         start_time = time.perf_counter()
 
-        plan = _plan_queries(questions)
-        per_query_docs = await self._search_per_query(plan, search_results_per_query, time_range)
+        search_queries = [pin_structured_identifiers(question) for question in questions]
+        per_query_docs = await self._searcher.multi_query_parallel_search(
+            search_queries, search_results_per_query, time_range=time_range
+        )
         search_time_ms = (time.perf_counter() - start_time) * 1000
 
         _, unified_docs = combine_search_results_unified(per_query_docs)
@@ -159,81 +140,6 @@ class WebSearchTools:
         _attach_search_providers(sources_metadata, selected_docs)
 
         return sources_metadata, formatted_context
-
-    async def _search_per_query(
-        self,
-        plan: _QueryPlan,
-        results_per_query: int,
-        time_range: str | None,
-    ) -> _QueryDocuments:
-        """Search every question and return its documents.
-
-        When every question is scoped to Bilibili videos by ``site:`` the Bilibili API answers them all at once, and
-        the provider search takes over, with the questions as written, for those it returns nothing for. The
-        request to the API carries no date parameter, so an explicit ``time_range`` skips it and the provider search
-        carries the constraint. Every route yields per-question documents, so the merge treats them identically.
-        """
-        if plan.bilibili_scoped and not time_range:
-            return await self._search_bilibili_first(plan.search_queries, results_per_query)
-        return await self._searcher.multi_query_parallel_search(
-            plan.search_queries, results_per_query, time_range=time_range
-        )
-
-    async def _search_bilibili_first(
-        self,
-        queries: list[str],
-        results_per_query: int,
-    ) -> _QueryDocuments:
-        """Answer the questions from the Bilibili API; the provider search takes those it returned nothing for.
-
-        When the provider search fails for them, the questions the API answered stand and the others are left out,
-        as a failed question is in the provider route. When the API answered none, the provider's error surfaces.
-        """
-        api_docs = await _search_bilibili(queries, results_per_query)
-        unanswered = [i for i, docs in enumerate(api_docs) if docs is None]
-        logger.info(f"Bilibili fast-path answered {len(queries) - len(unanswered)} of {len(queries)} queries")
-
-        provider_results: dict[int, tuple[str, list[Document], Exception | None]] = {}
-        if unanswered:
-            try:
-                results = await self._searcher.multi_query_parallel_search(
-                    [queries[i] for i in unanswered], results_per_query
-                )
-            except AllQueriesFailedError:
-                if len(unanswered) == len(queries):
-                    raise
-                logger.warning(
-                    f"Provider search failed for {len(unanswered)} question(s) the Bilibili API could not answer"
-                )
-            else:
-                provider_results = dict(zip(unanswered, results, strict=True))
-
-        per_query: _QueryDocuments = []
-        for i, (query, docs) in enumerate(zip(queries, api_docs, strict=True)):
-            if docs is not None:
-                per_query.append((query, docs, None))
-            elif i in provider_results:
-                per_query.append(provider_results[i])
-        return per_query
-
-
-def _plan_queries(questions: list[str]) -> _QueryPlan:
-    """Pin identifiers in every question and note whether every question is scoped to Bilibili videos."""
-    return _QueryPlan(
-        search_queries=[pin_structured_identifiers(q) for q in questions],
-        bilibili_scoped=bool(questions) and all(bilibili_search.is_bilibili_video_query(q) for q in questions),
-    )
-
-
-async def _search_bilibili(queries: list[str], results_per_query: int) -> list[list[Document] | None]:
-    """Query the Bilibili API for every query at once, one entry per query.
-
-    A query the API returns nothing for is ``None``, so the caller can hand just those to the provider.
-    """
-    answers = await asyncio.gather(
-        *(bilibili_search.search_bilibili(query, max_results=results_per_query) for query in queries)
-    )
-    return [search_results_to_documents(results) if results else None for results in answers]
 
 
 def _attach_search_providers(sources: list[dict[str, object]], documents: list[Document]) -> None:

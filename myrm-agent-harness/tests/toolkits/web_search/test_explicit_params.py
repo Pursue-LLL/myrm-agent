@@ -162,8 +162,8 @@ class TestSplitSiteOperators:
         assert operators.remainder == query
 
     def test_a_query_that_is_only_operators_has_an_empty_remainder(self) -> None:
-        assert split_site_operators('site:"bilibili.com" -site:reddit.com') == SiteOperators(
-            ("bilibili.com",), ("reddit.com",), ""
+        assert split_site_operators('site:"example.com" -site:reddit.com') == SiteOperators(
+            ("example.com",), ("reddit.com",), ""
         )
 
 

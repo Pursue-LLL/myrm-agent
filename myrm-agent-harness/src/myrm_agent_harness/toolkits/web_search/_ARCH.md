@@ -41,15 +41,8 @@ User query → LLM Query Rewriting → questions: list[str]
   → engine.fast_search_with_questions(questions, time_range?)
     → processing.identifier_pinning.pin_structured_identifiers(question) per question
       (CVE ids and DOIs outside a double-quoted phrase are wrapped in double quotes; nothing else in the question changes)
-    → Per-question documents (one list per question):
-      IF every question is scoped to Bilibili videos by site: (providers.bilibili_search.is_bilibili_video_query) AND no time_range:
-         providers.bilibili_search.search_bilibili() for every question at once
-         (the API takes plain keywords: the query's site: operators are removed from the keyword first)
-         (a question the API returns nothing for goes to the provider search below, as written; the others keep the API's documents)
-         (when that provider search fails the answered questions stand; when the API answered none, its error surfaces)
-      ELSE (a time_range is set, or not every question is scoped to Bilibili videos):
-         (every question goes as written, including one scoped to Bilibili)
-         providers.WebSearcher.multi_query_parallel_search(queries, time_range)
+    → Per-question documents (one list per question), every question as written:
+      providers.WebSearcher.multi_query_parallel_search(queries, time_range)
          (the provider that serves the request maps the query's site: operators
          (processing._explicit_params.resolve_site_operators) and the time_range (resolve_time_range) into its own
          parameters)
@@ -58,7 +51,7 @@ User query → LLM Query Rewriting → questions: list[str]
          (same provider, credential, query, limit and params)
          (TTL cache skipped when the provider payload has no usable URL results)
          (each result is stamped with the provider that served it before it enters the cache)
-    → processing.combine_search_results_unified()    (same merge for every source)
+    → processing.combine_search_results_unified()
          round-robin across questions (each takes turns) + URL/content dedup; the decay and the top_k cut below decide what survives
          (spelling variants of one URL fold into one document by a comparison key that is never shown; the document shows its
          winning result's own URL, with percent-escaped non-ASCII characters restored)
@@ -107,8 +100,4 @@ A `site:` value must be a host with an optional path (`gov.cn`, `.edu`, `*.edu`,
 ASCII top-level domain. Anything else after `site:` (`<domain>`, an IP, a port, a scheme, `gov.cn，site:edu.cn`) is no
 domain filter and stays in the query.
 
-`split_site_operators()` is the one reading of this grammar. `resolve_site_operators()` maps what it returns for Tavily;
-the Bilibili fast-path sends the API a keyword without operators, and takes `site:` operators as scoping a query to
-Bilibili videos only when every domain they include is `bilibili.com` or its `/video` section (`-site:bilibili.com`
-excludes the site, a second domain widens the search beyond it, and the other sections such as `/read` hold what the
-video API cannot return). A question that merely mentions Bilibili is no scope.
+`split_site_operators()` is the one reading of this grammar; `resolve_site_operators()` maps what it returns for Tavily.
