@@ -21,8 +21,8 @@ import uuid
 from pathlib import Path
 
 from dotenv import dotenv_values
-from myrm_agent_harness.agent.config.provider_routing import BUILTIN_PROVIDER_ROUTE_SEGMENT
-from myrm_agent_harness.toolkits.llms.transport.profile import PROFILES
+from myrm_agent_harness.agent.config import BUILTIN_PROVIDER_ROUTE_SEGMENT
+from myrm_agent_harness.toolkits.llms.transport import PROFILES
 
 from app.config.deploy_mode import is_local_mode
 from app.services.config.service import config_service

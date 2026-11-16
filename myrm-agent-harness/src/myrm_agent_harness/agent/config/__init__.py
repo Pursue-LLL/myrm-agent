@@ -7,6 +7,7 @@
 - file_io: 文件 I/O 资源限制与正则安全配置（FileIOConfig）
 - validator: 配置健康检查（ConfigIssue, check_config_health）
 - presets: 配置预设（ConfigPreset, BUILTIN_PRESETS）
+- provider_routing: 设置界面 provider id 到路由段的映射（BUILTIN_PROVIDER_ROUTE_SEGMENT）
 - readiness: 配置完整性检查（ConfigReadinessChecker, ConfigReadinessResult）
 - exceptions: 配置异常定义（ConfigIncompleteError, InvalidConfigError）
 """
@@ -24,11 +25,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.config.llm_safety import normalize_messages
     from myrm_agent_harness.agent.config.parsers import parse_route_model_id, to_route_model_id
     from myrm_agent_harness.agent.config.presets import BUILTIN_PRESETS, ConfigPreset
+    from myrm_agent_harness.agent.config.provider_routing import BUILTIN_PROVIDER_ROUTE_SEGMENT
     from myrm_agent_harness.agent.config.readiness import ConfigReadinessChecker, ConfigReadinessResult
     from myrm_agent_harness.agent.config.validator import ConfigIssue, check_config_health
 
 __all__ = [
     "BUILTIN_PRESETS",
+    "BUILTIN_PROVIDER_ROUTE_SEGMENT",
     "DEFAULT_FILE_IO_CONFIG",
     "AgentConfig",
     "ConfigIncompleteError",
@@ -59,6 +62,10 @@ _LAZY_IMPORTS = {
     "to_route_model_id": ("myrm_agent_harness.agent.config.parsers", "to_route_model_id"),
     "BUILTIN_PRESETS": ("myrm_agent_harness.agent.config.presets", "BUILTIN_PRESETS"),
     "ConfigPreset": ("myrm_agent_harness.agent.config.presets", "ConfigPreset"),
+    "BUILTIN_PROVIDER_ROUTE_SEGMENT": (
+        "myrm_agent_harness.agent.config.provider_routing",
+        "BUILTIN_PROVIDER_ROUTE_SEGMENT",
+    ),
     "ConfigReadinessChecker": ("myrm_agent_harness.agent.config.readiness", "ConfigReadinessChecker"),
     "ConfigReadinessResult": ("myrm_agent_harness.agent.config.readiness", "ConfigReadinessResult"),
     "ConfigIssue": ("myrm_agent_harness.agent.config.validator", "ConfigIssue"),

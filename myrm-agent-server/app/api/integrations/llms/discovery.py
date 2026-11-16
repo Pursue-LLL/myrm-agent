@@ -1,6 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.core.security.http.secure_fetch::secure_request (POS: SSRF-guarded HTTP fetch)
-- myrm_agent_harness.toolkits.llms.transport.profile::endpoint_of (POS: the one grammar for a pasted endpoint address)
+- myrm_agent_harness.toolkits.llms.transport::endpoint_of (POS: the one grammar for a pasted endpoint address)
 - myrm_agent_harness.infra.tls_compat::create_httpx_client (POS: TLS-compatible httpx client)
 - app.config.deploy_mode::is_local_mode (POS: local/desktop deploy mode)
 
@@ -28,8 +28,7 @@ from fastapi.responses import JSONResponse
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import secure_request
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
-from myrm_agent_harness.toolkits.llms.transport.endpoint import Endpoint
-from myrm_agent_harness.toolkits.llms.transport.profile import ProviderProfile, endpoint_of
+from myrm_agent_harness.toolkits.llms.transport import Endpoint, ProviderProfile, endpoint_of
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
