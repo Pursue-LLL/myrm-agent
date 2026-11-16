@@ -130,7 +130,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/memory/test_evidence_playback_api.py` | 单元 | 记忆证据链溯源、上下文切片回放与凭据脱敏 API 集成测试 |
 | `api/memory/test_command_center_graph_api.py` | 单元 | 记忆指挥中心知识图谱双视图（Hub 聚合排序、孤岛三态与连通度度数）API 单元与契约测试 |
 | `api/memory/test_pending_api.py` | 单元 | 待审批记忆 HTTP 面（`/memory/pending`）：列表、单条/批量批准与拒绝（含审批者改写文本透传、不可编辑提案 400、内部 ValueError 仍为 500），记录缺失 404 与服务端失败 500 的错误映射 |
-| `api/memory/test_default_memory_routes.py` | 单元 | 记忆路由随 `MYRM_MEMORY_LABS` 开关挂载：开关关闭时，成长页知识图谱标签页与记忆证据抽屉依赖的接口仍可用，只有 Labs 面板调用的接口（指挥中心、归档恢复、工具指引、画像笔记、首次见面、临时增量、认知时钟状态与 T1 触发、导入回滚预演、6 组引擎控制台）不挂载，相邻的默认接口（活跃上报、导入回滚）仍挂载；开关打开时每个 Labs 前缀都能匹配到路由，防止断言空转 |
+| `api/memory/test_default_memory_routes.py` | 单元 | 记忆路由随 `MYRM_MEMORY_LABS` 开关挂载：开关关闭时，成长页知识图谱标签页与记忆证据抽屉依赖的接口仍可用，只有 Labs 面板调用的接口（指挥中心、归档恢复、工具指引、画像笔记、首次见面、临时增量、认知时钟状态与 T1 触发、导入回滚预演、6 组引擎控制台）不挂载，相邻的默认接口（活跃上报、导入回滚）仍挂载；开关打开时每个 Labs 前缀都能匹配到路由，防止断言空转；Chrome E2E 用来判断运行时是否开着 Labs 的探针路由（`support/memory_labs.py` 的 `LABS_ONLY_ROUTE`）也在 Labs 前缀里，它被移出开关或被删掉都会让这两条断言之一失败 |
 | `api/memory/test_cognitive_clock_api.py` | 单元 | 认知时钟 HTTP 面：`GET /guardian/cognitive-clock/status`、`POST /guardian/cognitive-clock/activity`、`POST /guardian/cognitive-clock/trigger-t1` 的响应契约（挂载 `guardian` 与 `cognitive_clock_console` 两个路由） |
 | `api/memory/test_command_center_actions.py` | 单元 | 记忆指挥中心治理动作分发器：待审批批准/拒绝/编辑、共享提案动作、冲突仲裁委托，以及纠正/置顶/遗忘等通用动作 |
 | `ai_agents/general_agent/test_correction_pending_roundtrip.py` | 集成 | 隐式纠正生产者 → 真实 SQLite 审批队列 → `approve` 往返：纠正提案保留目标并应用审批者改写，遗忘提案批准即归档（非硬删除），不可编辑提案拒绝改写且保持待审 |
@@ -390,6 +390,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/chrome_mcp_e2e/patching.py` | 辅助 | `patch_everywhere(monkeypatch, name, value)`：在包与所有持有 `name` 的子模块里一起替换；没有任何模块持有该名字时抛 `AttributeError`，补丁不会悄悄落空 |
 | `support/chrome_api_queue.py` | 辅助 | E2E 点击前的「API 排队已排空」判定（时钟可注入）：Chrome 对同一主机最多 6 个并发连接且 SSE 长连接常驻占位，跨源 JSON 请求还要多一次预检，页面挂载并发会让新请求在队列里等过前端 30s 超时；用带预检的 GET 探针，连续 3 次在 3s 内完成且文档 `complete` 才视为排空 |
 | `support/chrome_memory_settings_e2e.py` | 辅助 | `/settings/memory` Chrome 开关 JS SSOT（memory citations + voice ACL E2E 共用） |
+| `support/memory_labs.py` | 辅助 | `require_memory_labs(api_url)`：指挥中心的 Chrome E2E 用例开头调用，运行时没开 Memory Labs 就 `pytest.skip`。后端是否挂载 Labs 路由，看 `/openapi.json` 里有没有 `LABS_ONLY_ROUTE`（只在 `MYRM_MEMORY_LABS` 打开时挂载）；不读状态码，因为未挂载的 Labs 路由按相邻路由的不同答 404 或 405。前端是否渲染 Labs 面板，看测试进程里 `NEXT_PUBLIC_MEMORY_LABS` 是否为 `1`（启动命令的环境同时传给运行时与 pytest）。信息只点名缺的开关，并给出两个开关都开的完整启动命令；后端给的文档没有路由表时直接报错，不当作「没开」 |
+| `support/test_memory_labs.py` | 单元 | 三种缺开关的配置（都没开、只开后端、只开前端）各自只点名缺的开关并以完整启动命令结尾；两个都开则放行；后端文档没有路由表时报错而不是跳过 |
 | `support/evicted_drawer_selectors.py` | 辅助 | UECD Drawer Chrome E2E 共享选择器/探针 SSOT（`data-testid` 定位 + `/files/evicted` 分页参数断言 + `drawer_mount_wait_js` 等待 lazy drawer mount） |
 | `api/agent/utils.py` | 辅助 | Agent 测试共享工具（模型/搜索配置组装；`hide_sse_heartbeats`（同步 `TestClient`）与 `hide_sse_heartbeats_async`（`httpx.AsyncClient`）响应钩子共用同一状态机，让行解析器看不到 keep-alive 帧；`check_e2e_errors` 环境类错误 skip：账号、额度与服务端状态码，以及顶层 error 事件里供应商拒绝所配模型的 400、无法路由的模型 id） |
 | `api/agent/test_e2e_env_skip_signals.py` | 模块 | `check_e2e_errors` 的 skip / fail 边界：账号、额度、服务端状态码与写错的模型名（顶层 error 事件里的 400、无法路由的模型 id）是环境问题而 skip，其余是真实 Agent 错误而 fail；工具结果里的 400 不触发 skip |
