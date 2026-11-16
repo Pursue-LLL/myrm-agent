@@ -26,6 +26,8 @@ and a loop guard pause (`tool_stuck`): saved as a `tool_stuck_paused` progress s
 [POS]
 Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry
 of each chat's parked run; each event type is handled by one `_on_<event type>` method, found through `_EVENT_HANDLERS`.
+A page that re-attaches to the running turn is handed `get_snapshot()`: the text, reasoning, steps, sources and
+media cards registered so far.
 """
 
 from __future__ import annotations
@@ -234,6 +236,7 @@ class StreamContentCollector(StreamStateMixin, StreamEventHandlersMixin, StreamC
             "reasoning": "".join(self._reasoning_parts),
             "progress_steps": list(self._progress_steps),
             "sources": ordered_sources,
+            "media_generated": list(self._media_generated),
         }
 
     def subscribe(self) -> tuple[dict[str, object], asyncio.Queue[dict[str, object]]]:

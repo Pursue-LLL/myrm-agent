@@ -418,6 +418,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/goals/test_goal_cancel_resume.py` | 模块 | 目标取消与恢复（真实 GoalManager，仅替换无人值守流启动）：取消作用于运行中/暂停/预算受限/待复核/等待中/待审批的目标、只剩已结束目标为 404；恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，等不到则 409 且目标保持暂停）、回到 active 后启动继续回合、会话忙或应用排空时不重复启动、启动失败不影响恢复结果；驳回复核不启动回合（反馈由客户端发送） |
 | `api/goals/test_goal_stop_real_gateway.py` | 模块 | 暂停后的恢复对「已被叫停」的回合的判定（真实 `AgentGateway`，回合由测试用事件闸门卡住）：无消息 id、无取消令牌的回合（审批超时后的自动恢复）与带令牌的聊天回合同样被识别为正在停止；无人叫停的回合不拖住恢复；停止后的下一个回合不继承停止标记；暂停后立即恢复先等回合收尾、会话空闲时恰好启动一个回合；回合收尾不了则 409、目标保持暂停且不启动 |
 | `api/goals/test_goal_unwait.py` | 模块 | 经 HTTP 结束等待：等待中的目标回到运行并启动目标回合；会话已被用户消息的回合占用时只置回运行、不另起回合 |
+| `api/goals/test_active_goals_failure_log.py` | 模块 | `GET /goals/active`：一个会话的目标读不出来（存储忙）时，该会话被跳过、其余会话的目标照常列出，并以 WARNING 点名那个会话，而不是静默丢掉 |
 | `core/channel_bridge/test_goal_stop_commands.py` | 模块 | IM `/goal clear` 与 `/goal pause`：与 Web 同一规则，清除运行中/暂停/预算受限/待复核/等待中的目标，已结束的目标不动；正在干活的目标被暂停/清除时中断它的回合，不在干活的目标不碰会话当前回合 |
 | `core/channel_bridge/test_goal_resume_command.py` | 模块 | IM `/goal resume` 与 `/goal unwait`：恢复前只等已被叫停的回合收尾（无人叫停的在途回合不拖住继续，无令牌且仅有中断信号的回合同样算已被叫停，等不到则回复稍后再发且目标保持暂停）；恢复或结束等待后的 kickoff 消息携带目标 objective；会话忙、应用排空、目标非 active 或没有目标时不给 kickoff |
 | `services/agent/goals/unattended/test_failure_policy.py` | 模块 | 无人值守目标流的失败去向：失败策略（needs_human_review / keep_active）、仅升级仍为 ACTIVE 的目标，已被 run 停放/暂停/完成的目标保持原状态 |
@@ -811,7 +812,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |
 | `api/runs/test_router.py` | 模块 | Unified Runs Hub 聚合 API 单测（20 项：源合并、degraded、分页、timed_out） |
 | `remote_access/` | 模块 | 远程访问 trust_zone / pairing / E2EE / mobile_gate / host_allowlist / tailscale_guard 单测（21 文件） |
-| `tasks/test_task_worker.py` | 模块 | TaskWorker 行为（真实 store + 脚本化 executor）：失败分类且不重入队、超时、优先级再 FIFO、并发上限、补位不等最慢任务、`abort` 保持 `cancelled`、迟到结果不覆盖终态、未到重试时间的任务不被认领、启动/停止时遗留 `running` 置 `interrupted` |
+| `tasks/test_task_worker.py` | 模块 | TaskWorker 行为（真实 store + 脚本化 executor）：失败分类（`MediaInputError` 永久、其下载子类 `MediaFetchError` 与未列名的 `ValueError` 可重试）且不重入队、超时、优先级再 FIFO、并发上限、补位不等最慢任务、`abort` 保持 `cancelled`、迟到结果不覆盖终态、未到重试时间的任务不被认领、启动/停止时遗留 `running` 置 `interrupted` |
 | `api/tasks/test_task_cancel_retry_api.py` | 模块 | 任务 REST 取消/重试（真实 store + worker）：取消运行中任务会中止执行且终态不被改写、取消的排队任务不会被认领、已结束的任务取消返回 400 且不改状态、重试仅对仍为 `failed` 的任务生效（过期快照被拒） |
 | `tasks/test_task_event_bus.py` | 模块 | TaskEventBus 回归（事件正常入队；队列满时淘汰最旧并投递带 `sync_required` 的最新事件，断言 emitted/dropped/replaced 指标与 queue_full warning 节流） |
 | `e2e/test_team_hub_builtin_badge_chrome_e2e.py` | 模块 | Team Assets Hub 内置 Agent 徽标 + 名称本地化 Chrome E2E（PRIVATE+READ×1：API 数据契约 `is_built_in` + `/settings/memory?sub=team-hub` 渲染「内置」徽标与 `getBuiltinAgentName` 本地化名 + follow-ups 筛选下拉本地化 + zh 界面无英文名泄漏） |
@@ -843,7 +844,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/streaming_support/test_hitl_timeout_arming.py` | 模块 | 两类计时器怎样武装（纯单元，不跑 agent 流）：各自登记的到期动作与续写值（澄清是只带卡片 `interruptId` 的空答案，审批沿用审批决定）、秒数常量、不可用的审批秒数被忽略；`arm_interrupt_timeout` 在澄清与审批并存时选澄清、按它指名的卡片武装，没有 id 或没有计时器的中断只重开调度键 |
 | `services/agent/streaming_support/test_stream_collector_event_handlers.py` | 模块 | 收集器对结束或塑造一轮的事件的落库：`engine_limit_reached` / `error` 存为 `stopReason`（含默认消息、`error` 事件以 data 携带消息、无消息不落、限制类不被其后的错误取代）、`council_phase` 按到达顺序存入 `councilPhases`（非对象忽略）、`token_usage` 存为 `usage`（非对象忽略）、类型不是文本的事件原样转给客户端且不改变落库内容 |
 | `services/agent/streaming_support/test_stream_collector_helpers.py` | 模块 | 收集器背后的纯函数：工具步骤按 `tool_call_id` / `step_key` 合并或新增、来源去重键与合并（保留首次序号）、澄清卡片的选项/多选/问题保存与无内容不保存、计划确认 waiting（计划文本优先于条目，含费用与目标）与 resolved（edited / confirmed） |
-| `services/agent/streaming_support/test_stream_collector_saved_state.py` | 模块 | 收集器为重新打开会话保存的内容：归档恢复步骤带 block / result、计划确认 waiting→resolved 合并、路由层级与原因、本轮加载的技能、快照的步骤顺序与来源去重、流异常终止存为 error、流任务被取消存为 cancelled |
+| `services/agent/streaming_support/test_stream_collector_saved_state.py` | 模块 | 收集器为重新打开会话保存的内容：归档恢复步骤带 block / result、计划确认 waiting→resolved 合并、路由层级与原因、本轮加载的技能、快照的步骤顺序、来源去重与已登记的生成媒体（给的是拷贝）、流异常终止存为 error、流任务被取消存为 cancelled |
 | `services/agent/streaming_support/test_stream_collector_boundaries.py` | 模块 | 收集器保存内容的边界：消息 id 取首个有效值、推理文本恰在上限与超出 1 字符的截断标记、迭代上限与引擎上限的停止原因（有无详情、空白或非文本消息）、错误事件只带文本时的保存、本轮加载技能的类型过滤、首 token 耗时的取整与非法值、引用记忆 id 去重、缓存中断与模型切换（按原因区分步骤键）的状态步骤、什么输出算「已有生成内容」、引用审计（有来源且答案带 `【N】` 才保存，区分有效与无法解析）、记忆检索轨迹 |
 | `services/agent/streaming_support/test_evicted_output.py` | 模块 | 被驱逐的工具输出：预览截断与空预览丢弃、工具名取舍、无文件引用被拒、stdout / stderr 的记录、按调用 ID / 工具名 / 最近的 shell 步骤匹配、提前到达的文件由哪个步骤接收 |
 | `services/agent/stream_session/test_stream_finalize_clarification_timeout.py` | 模块 | 回合结束时的澄清计时器：按回合停下的那张未答卡片存下的 `interruptId` 武装（只有收集器握着这张卡时同样）；没有可用 id（缺失、空串、非字符串）的卡片不武装、调度键重开；已答复的卡片不武装 |

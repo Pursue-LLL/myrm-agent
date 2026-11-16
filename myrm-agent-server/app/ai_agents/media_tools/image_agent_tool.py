@@ -14,7 +14,8 @@
 [POS]
 LangChain adapter of the image engines. ``generate`` enqueues one background task per image (``n`` tasks) and answers
 with the task list; ``edit`` answers in the call; ``status`` and ``list`` read the queue and the model catalog. Every
-failure is an explicit error result: nothing is silently generated differently from what was asked.
+failure is an explicit error result: nothing is silently generated differently from what was asked, so a parameter
+that belongs to another action is refused instead of dropped and ``quality`` reaches every image request.
 """
 
 from __future__ import annotations
@@ -99,6 +100,36 @@ class ImageToolInput(BaseModel):
     )
 
 
+# The action that owns each parameter of a single action (prompt, size, quality and n are shared and not listed).
+_PARAMETER_OWNER = {
+    "reference_image_urls": "generate",
+    "image_url": "edit",
+    "mask_url": "edit",
+    "task_id": "status",
+}
+
+
+def _passed(value: str | Sequence[str] | None) -> bool:
+    """Whether the model gave a value; an empty string or list means the same as leaving the parameter out."""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    return any(item.strip() for item in value)
+
+
+def _foreign_parameter(action: str, **given: str | Sequence[str] | None) -> str | None:
+    """The error for the first parameter the model passed although another action owns it, or ``None``.
+
+    Acting on the call anyway would drop the parameter silently and return an image that differs from what was asked.
+    """
+    for name, value in given.items():
+        owner = _PARAMETER_OWNER[name]
+        if owner != action and _passed(value):
+            return f"{name} is a parameter of action={owner}, not of action={action}; use that action or leave it out"
+    return None
+
+
 def create_image_generation_tool(
     config: ImageGenerationConfig,
     *,
@@ -155,6 +186,7 @@ def create_image_generation_tool(
         prompt: str,
         *,
         size: str | None,
+        quality: str | None,
         n: int,
         image_url: str | None,
         mask_url: str | None,
@@ -178,6 +210,7 @@ def create_image_generation_tool(
             prompt,
             mask=mask,
             size=size,
+            quality=quality,
             image_mime=sniff_image_mime(image),
             image_size_bytes=len(image),
         )
@@ -199,8 +232,17 @@ def create_image_generation_tool(
             return editor.list_models()
         if action == "status":
             return await media_task_status_result(task_id)
+        foreign = _foreign_parameter(
+            action,
+            reference_image_urls=reference_image_urls,
+            image_url=image_url,
+            mask_url=mask_url,
+            task_id=task_id,
+        )
+        if foreign:
+            return tool_error(foreign)
         if action == "edit":
-            return await _edit(prompt, size=size, n=n, image_url=image_url, mask_url=mask_url)
+            return await _edit(prompt, size=size, quality=quality, n=n, image_url=image_url, mask_url=mask_url)
         return await _generate(
             prompt,
             size=size,

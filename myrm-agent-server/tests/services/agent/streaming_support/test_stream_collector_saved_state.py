@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 
@@ -109,6 +111,25 @@ def test_a_snapshot_lists_the_steps_in_order_and_each_source_once() -> None:
 
     assert _step_keys(snapshot["progress_steps"]) == ["web_search", "read_file"]
     assert snapshot["sources"] == [{"url": "https://a.test", "title": "two"}, {"url": "https://b.test"}]
+
+
+def _snapshot_media(collector: StreamContentCollector) -> list[object]:
+    media = collector.get_snapshot()["media_generated"]
+    assert isinstance(media, list)
+    return media
+
+
+def test_a_snapshot_carries_the_media_registered_so_far() -> None:
+    collector = StreamContentCollector()
+    assert _snapshot_media(collector) == []
+
+    result = json.dumps({"tasks": [{"task_id": "img-1", "task_type": "image_generate", "status": "pending"}]})
+    collector.feed_event({"type": "tool_end", "tool_name": "image_tool", "result": result})
+
+    assert _snapshot_media(collector) == [{"kind": "image", "task_id": "img-1"}]
+    # The snapshot is a copy: changing what a late subscriber received does not change what the collector registered.
+    _snapshot_media(collector).clear()
+    assert _snapshot_media(collector) == [{"kind": "image", "task_id": "img-1"}]
 
 
 def test_a_stream_that_dies_without_ending_is_saved_as_errored() -> None:

@@ -47,7 +47,11 @@ _STOP_GRACE_SECONDS = 5.0
 _SWEEP_BATCH_SIZE = 100
 _QUEUE_ORDER = "priority DESC, created_at ASC"
 
-_PERMANENT_ERROR_TYPES = frozenset({"ValidationError", "AuthenticationError", "PermissionError", "NotFoundError"})
+# Failures that asking again cannot fix. They are matched by exact class name, so a subclass that is not listed stays
+# retryable: MediaFetchError means the network or the store failed this time, unlike its parent MediaInputError.
+_PERMANENT_ERROR_TYPES = frozenset(
+    {"ValidationError", "AuthenticationError", "PermissionError", "NotFoundError", "MediaInputError"}
+)
 
 
 class TaskExecutor(Protocol):

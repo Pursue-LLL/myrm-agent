@@ -64,7 +64,6 @@ app/core/eval/memory_ab.py
 app/core/eval/service.py
 app/core/infra/frontend_launcher.py
 app/core/kanban/adapters/sqlalchemy_store.py
-app/core/media/batch/orchestrator.py
 app/core/memory/adapters/setup.py
 app/core/skills/creation/service.py
 app/core/utils/chat_utils.py

@@ -199,8 +199,28 @@ async def test_edit_resolves_image_and_mask_through_the_single_resolver() -> Non
     assert mask_call.args[2].image_hook is None
     assert [str(root) for root in image_call.args[2].allowed_roots] == ["/work/chat-9"]
     editor.edit_image.assert_awaited_once_with(
-        image, "make it blue", mask=mask, size="1024x1024", image_mime="image/png", image_size_bytes=len(image)
+        image,
+        "make it blue",
+        mask=mask,
+        size="1024x1024",
+        quality=None,
+        image_mime="image/png",
+        image_size_bytes=len(image),
     )
+
+
+@pytest.mark.asyncio
+async def test_edit_passes_the_quality_it_was_given_to_the_engine() -> None:
+    editor = _patched_editor()
+
+    with (
+        patch(f"{_MODULE}.ImageGenerationTools", return_value=editor),
+        patch("app.ai_agents.media_tools.input_policy.read_media_reference", AsyncMock(return_value=_png())),
+    ):
+        arguments = {"action": "edit", "prompt": "brighter", "image_url": "media://media_src", "quality": "high"}
+        await _tool().ainvoke(arguments)
+
+    assert editor.edit_image.await_args.kwargs["quality"] == "high"
 
 
 @pytest.mark.asyncio
@@ -259,6 +279,76 @@ async def test_edit_names_the_reference_it_cannot_use(arguments: dict[str, objec
 
     assert payload["error"].startswith(f"{field}: ")
     editor.edit_image.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("arguments", "parameter", "owner"),
+    [
+        ({"action": "generate", "prompt": "a cat", "image_url": "media://media_src"}, "image_url", "edit"),
+        ({"action": "generate", "prompt": "a cat", "mask_url": "mask.png"}, "mask_url", "edit"),
+        ({"action": "generate", "prompt": "a cat", "task_id": "img-1"}, "task_id", "status"),
+        (
+            {
+                "action": "edit",
+                "prompt": "brighter",
+                "image_url": "media://media_src",
+                "reference_image_urls": ["media://media_ref"],
+            },
+            "reference_image_urls",
+            "generate",
+        ),
+        (
+            {"action": "edit", "prompt": "brighter", "image_url": "media://media_src", "task_id": "img-1"},
+            "task_id",
+            "status",
+        ),
+    ],
+)
+async def test_a_parameter_of_another_action_is_refused_instead_of_dropped(
+    arguments: dict[str, object], parameter: str, owner: str
+) -> None:
+    enqueuer_cls, _ = _patched_enqueuer([])
+    editor = _patched_editor()
+
+    with (
+        patch(f"{_MODULE}.ImageGenerationTools", return_value=editor),
+        patch(f"{_MODULE}.AsyncImageGenerationTools", enqueuer_cls),
+    ):
+        payload = json.loads(await _tool().ainvoke(arguments))
+
+    assert f"{parameter} is a parameter of action={owner}, not of action={arguments['action']}" in payload["error"]
+    enqueuer_cls.assert_not_called()
+    editor.edit_image.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_blank_parameters_of_another_action_count_as_left_out() -> None:
+    enqueuer_cls, _ = _patched_enqueuer(["img-1"])
+    editor = _patched_editor()
+    blanks: dict[str, object] = {"image_url": "  ", "mask_url": "", "task_id": " "}
+
+    with (
+        patch(f"{_MODULE}.ImageGenerationTools", return_value=editor),
+        patch(f"{_MODULE}.AsyncImageGenerationTools", enqueuer_cls),
+        patch(f"{_MODULE}.media_task_store", return_value=MagicMock()),
+        patch("app.ai_agents.media_tools.input_policy.read_media_reference", AsyncMock(return_value=_png())),
+    ):
+        started = json.loads(await _tool().ainvoke({"action": "generate", "prompt": "a cat", **blanks}))
+        edited = json.loads(
+            await _tool().ainvoke(
+                {
+                    "action": "edit",
+                    "prompt": "brighter",
+                    "image_url": "media://media_src",
+                    "reference_image_urls": [" ", ""],
+                    "task_id": "",
+                }
+            )
+        )
+
+    assert [task["task_id"] for task in started["tasks"]] == ["img-1"]
+    assert edited["images"][0]["url"] == "media://media_edit"
 
 
 @pytest.mark.asyncio

@@ -15,7 +15,7 @@ generation, never a result without a file.
 | `image_clamp.py` | `clamp_image_payload` 纯函数（防 413 Payload 超限、EXIF 拍摄角度物理纠偏、RGBA 透明底板 Alpha 混合合成纯净 RGB、坏图优雅降级与小图无损直通），作为输入解析器的图片处理钩子 |
 | `input_policy.py` | `build_media_input_policy`：工具与任务执行器共用的引用解析策略 —— `media://` 加载器、工作区允许根目录、图片钩子；`allowed_roots` 随任务载荷快照，执行器据此解析 |
 | `task_results.py` | 三个工具共用的结果形状：`tool_error`、`media_task_store`（调用时取任务库）、`started_tasks_result`（`tasks[{task_id,task_type,status}]`）、`media_task_status_result`（`status` 动作；失败任务带 `next_step`） |
-| `image_agent_tool.py` | `create_image_generation_tool` → `image_tool`：`generate` 每张图一个后台任务（`n` 个任务，不把 `n` 传给供应商）并返回任务列表；`edit` 单图同步返回，要求可编辑的模型，`n>1` 明确报错；`status` / `list`；参数只用官方取值（`quality` 为 low/medium/high 可选，无 `style`）；引用文件由 worker 经统一解析器解析，坏引用让任务失败并指出字段名 |
+| `image_agent_tool.py` | `create_image_generation_tool` → `image_tool`：`generate` 每张图一个后台任务（`n` 个任务，不把 `n` 传给供应商）并返回任务列表；`edit` 单图同步返回，要求可编辑的模型，`n>1` 明确报错；`status` / `list`；参数只用官方取值（`quality` 为 low/medium/high 可选，无 `style`，`generate` 与 `edit` 都把它带给供应商）；属于另一个动作的参数（`generate` 带 `image_url` / `mask_url` / `task_id`，`edit` 带 `reference_image_urls` / `task_id`；空串与空列表等于没传）明确报错而不是被丢弃；引用文件由 worker 经统一解析器解析，坏引用让任务失败并指出字段名 |
 | `media_persist.py` | 三个引擎共用的落库回调：无论有无会话都落库（后台任务没有 `chat_id`），返回 `media://<id>`，落库失败抛错使生成失败 |
 | `video_agent_tool.py` | `create_video_generation_tool` → `video_tool`：`generate` 入队一个后台任务并返回任务列表，参考图 / 参考视频由 worker 解析；`status` 查统一任务状态；`list` 列出供应商与模型 |
 | `video_schema.py` | `build_video_input_schema`：按活跃 Provider Capabilities 动态裁剪不支持的参数，`ConfigDict(extra="allow")` 超集透传，每个供应商的 schema 固定以保护 Prompt Cache |
