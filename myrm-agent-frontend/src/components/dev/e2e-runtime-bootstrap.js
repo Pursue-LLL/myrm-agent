@@ -1,3 +1,17 @@
+/**
+ * [INPUT]
+ * - cdp_chat.support.binding::e2e_runtime_binding_source (POS: Binds the chat page to the backend under test: the scripts that put the runtime identity and API base into the page, and the check that the page reports the expected one) — writes the `myrm-e2e-v1:` JSON binding into `window.name` before the page loads
+ * - GET /api/v1/health of the bound backend — returns the `runtime_id` the binding is checked against
+ *
+ * [OUTPUT]
+ * - window.__MYRM_E2E_RUNTIME__, __MYRM_E2E_API_BASE__, __MYRM_E2E_RUNTIME_READY__ and the `myrm_e2e_runtime_ready` event: the verified binding and its readiness
+ * - window.__MYRM_DIAG_ERRORS__: page errors collected from the first script on (the bridge diagnostics read it)
+ * - fetch / XMLHttpRequest / EventSource / WebSocket calls to `/api/v1` and `/webui` rerouted to the bound private backend
+ *
+ * [POS]
+ * 把页面绑定到已校验的 E2E 私有后端的运行时绑定脚本。没有校验通过的绑定（页面与后端都是回环地址、`uiOrigin` 与页面同源）时什么都不做；
+ * 只在非生产构建里由 `app/e2e-runtime-bootstrap.js/route.ts` 提供，根布局以 `beforeInteractive` 脚本引入。
+ */
 (() => {
   'use strict';
 
