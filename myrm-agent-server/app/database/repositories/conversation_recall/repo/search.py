@@ -11,9 +11,11 @@ ConversationRecallRepository mixin: FTS5 search with degraded/fault recovery, do
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.repositories.conversation_recall.sql import (
@@ -56,7 +58,7 @@ class SearchMixin:
             until=until,
         )
         params.update({"query": safe_query, "limit": limit})
-        segment_rows = []
+        segment_rows: Sequence[RowMapping] = []
         try:
             segment_rows = (
                 (
@@ -100,7 +102,7 @@ class SearchMixin:
             except Exception:
                 pass
 
-        document_rows = []
+        document_rows: Sequence[RowMapping] = []
         try:
             document_rows = (
                 (
@@ -149,7 +151,7 @@ class SearchMixin:
             return results
 
         # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits
-        fallback_rows = []
+        fallback_rows: Sequence[RowMapping] = []
         try:
             fallback_params = {**params, "kw_pattern": f"%{safe_query}%"}
             fallback_rows = (

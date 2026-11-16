@@ -9,10 +9,10 @@ app.services.chat.chat_helpers::strip_reasoning_tags (POS: removes reasoning tag
 
 [OUTPUT]
 redact_hit_windows: Give each hit the snippet window FTS5 chose, read from redacted text.
-redacted_window: One window of a text as it reads once the whole text is redacted.
+redacted_window: One window of a text as it reads once that text is redacted.
 
 [POS]
-会话召回片段脱敏层。FTS5 从存储原文里切窗口，凭据可能被切成任何脱敏规则都认不出的残片；本模块在整段已脱敏的原文上重建模型可见的窗口。
+会话召回片段脱敏层。FTS5 从存储原文里切窗口，凭据可能被切成任何脱敏规则都认不出的残片；本模块取窗口前后各 8000 字符的存储原文，脱敏后在其上重建模型可见的窗口。
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ _ELLIPSIS = "..."
 
 
 async def redact_hit_windows(hits: list[ConversationSearchHit]) -> list[ConversationSearchHit]:
-    """Give each hit the window FTS5 chose, read from the redacted stored text as plain text.
+    """Give each hit the window FTS5 chose, read as plain text from the redacted stored text around it.
 
     A hit whose window cannot be placed in the stored text, or lies inside a masked span, gets an empty snippet: an
     unredacted cut of the text is never handed on.
@@ -51,10 +51,10 @@ async def redact_hit_windows(hits: list[ConversationSearchHit]) -> list[Conversa
 
 
 def redacted_window(text: str, start: int, end: int) -> str | None:
-    """``text[start:end]`` as it reads once the whole text is redacted, or None if nothing of it can be shown.
+    """``text[start:end]`` as it reads once ``text`` is redacted, or None if nothing of it can be shown.
 
-    Redacting the window alone would miss a credential that continues past its edge, so the whole text is redacted and
-    the window is read from the result. A mask replaces text of another length, so the result is lined up with the
+    Redacting the window alone would miss a credential that continues past its edge, so ``text`` is redacted as one piece
+    and the window is read from the result. A mask replaces text of another length, so the result is lined up with the
     window from both ends: the text before the window and the text after it are each redacted alone, and the window is
     what lies between them. An edge inside a masked span does not line up; that side is then placed from the other
     edge and the raw window length, so the result takes in a little more text when masks shortened the window. When
