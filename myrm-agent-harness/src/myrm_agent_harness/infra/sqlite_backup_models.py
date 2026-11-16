@@ -2,7 +2,8 @@
 
 Defines immutable records for backup snapshots, verification outcomes,
 restore results, low-level hash and SQLite PRAGMA integrity inspectors, the online copy of a live
-database, and the lifecycle of the temporary image a backup is written to before it is published.
+database, the names snapshots are published under, and the lifecycle of the temporary image a backup
+is written to before it is published.
 
 [INPUT]
 - pathlib.Path, sqlite3.Connection
@@ -14,6 +15,7 @@ database, and the lifecycle of the temporary image a backup is written to before
 - hot_copy_database: Online copy of a live database to a standalone file.
 - Low-level helpers: _compute_sha256, _pragma_quick_check, _pragma_integrity_check,
   _pragma_schema_version, _timestamp_dirname.
+- Snapshot naming: _snapshot_file_name, _unused_backup_id.
 - Temporary-image lifecycle: _discard_on_failure, _require_backup_image,
   _sweep_stale_tmp_backups.
 - Backup serialization: _CREATE_BACKUP_LOCK (one create_backup at a time per process).
@@ -166,6 +168,25 @@ def _timestamp_dirname(ts: float) -> str:
     """Generate ISO-like UTC timestamp folder name for quarantine directories."""
     t = time.gmtime(ts)
     return f"{t.tm_year:04d}-{t.tm_mon:02d}-{t.tm_mday:02d}T{t.tm_hour:02d}-{t.tm_min:02d}-{t.tm_sec:02d}"
+
+
+def _snapshot_file_name(backup_id: str) -> str:
+    """Name a published snapshot is stored under."""
+    return f"backup-{backup_id}.sqlite"
+
+
+def _unused_backup_id(snapshots_dir: Path) -> str:
+    """Return a millisecond timestamp that no published snapshot is named after.
+
+    Back-to-back backups of a small database can start within one millisecond. Publishing under a name that is
+    taken would replace that snapshot while the manifest still lists it, and retention would later delete the
+    file the surviving record points at. The caller holds ``_CREATE_BACKUP_LOCK``, so the name stays free until
+    it is published.
+    """
+    stamp = int(time.time() * 1000)
+    while (snapshots_dir / _snapshot_file_name(str(stamp))).exists():
+        stamp += 1
+    return str(stamp)
 
 
 def _discard_tmp_backup(tmp_path: Path) -> None:
