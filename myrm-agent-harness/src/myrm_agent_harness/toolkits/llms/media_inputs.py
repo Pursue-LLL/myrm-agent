@@ -194,7 +194,7 @@ def _decode_data_url(rest: str, limit: int) -> bytes:
 
 def _status_error(status: int) -> MediaInputError:
     # 408 and 429 ask the caller to come back later and 5xx is the host failing; any other status (a hotlink block, a
-    # dead link) gives the same answer on every request, so a retry cannot help.
+    # dead link) is the host's settled answer for that link, so no retry is offered.
     message = f"download failed (HTTP {status})"
     return MediaFetchError(message) if status in (408, 429) or status >= 500 else MediaInputError(message)
 
