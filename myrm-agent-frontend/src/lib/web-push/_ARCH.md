@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Pure functions for Web Push **click-through routing** in the Service Worker. No React, no fetch — shared SSOT for `src/app/sw.ts` (esbuild bundle via `scripts/build-sw-src.mjs`).
+Pure functions for Web Push **click-through routing** in the Service Worker. No React, no fetch — shared SSOT for `src/app/sw.ts` (bundled into `public/sw.js` by `serwist build`).
 
 HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/pwa/usePushSubscription.ts`.
 

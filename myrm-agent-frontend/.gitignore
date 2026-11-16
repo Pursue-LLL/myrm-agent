@@ -24,7 +24,6 @@
 
 # production
 /build
-/.serwist/
 
 # myrm start (local dev)
 .myrm/

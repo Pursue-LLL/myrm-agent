@@ -12,8 +12,9 @@
  *    `myrm-e2e-*` 事件、`e2e-runtime-bootstrap` 脚本 id 与地址、`/…/test/…` 测试接口路径、开发桥组件的 JSX 挂载）
  *    都必须落在非生产守卫之后；
  * 2. 产品代码只能导入开发桥目录的叶子模块 `localDevHost`，以及下面两处挂载点对各自桥组件的导入；
- * 3. `public/` 下的静态资源（脚本、页面、清单）里不得出现任何通道标识：静态资源不经打包器，整份原样进入桌面
- *    安装包与 Docker 镜像，没有守卫可言。测试专用脚本放在 `src/components/dev/`，由开发期路由提供。
+ * 3. `public/` 下的静态资源（脚本、页面、清单）里不得出现任何通道标识：除 `sw.js` 外都是原样文件，整份进入
+ *    桌面安装包与 Docker 镜像，没有守卫可言；`sw.js` 由 Serwist 在构建时打包，提交的那份在这里按文本扫描，
+ *    重新生成的那份由 `verify-sw-push.mjs` 校验是生产构建。测试专用脚本放在 `src/components/dev/`，由开发期路由提供。
  *
  * 反向自检：扫描到的源文件或静态资源数为 0、或守卫之后的引用数低于下限时直接失败——路径或识别规则失效必须暴露，
  * 而不是静默通过。
@@ -116,7 +117,7 @@ if (publicLeaks.length > 0) {
   console.error(`[e2e-channel] ${publicLeaks.length} 处 \`public/\` 静态资源里出现了 E2E 测试通道标识：`);
   console.error(publicLeaks.join('\n'));
   console.error(
-    '\n`public/` 不经打包器，整份原样进入桌面安装包与 Docker 镜像，没有守卫可言。' +
+    '\n`public/` 里除 `sw.js` 外都是原样文件，整份进入桌面安装包与 Docker 镜像，没有守卫可言；`sw.js` 由 `src/app/sw.ts` 打包而来，通道引用要从它的源码里移走。' +
       '\n测试专用脚本放进 `src/components/dev/`，由开发期路由提供（生产构建里该路由返回 404）。',
   );
 }

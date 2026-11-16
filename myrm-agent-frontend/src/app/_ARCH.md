@@ -29,7 +29,7 @@
 | ------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `sw.ts` | 核心 | Serwist SW 源：precache + API runtime cache + Web Push 显示/点击（same-origin URL allowlist；已开 Tab 同 path 不同 query 时 `client.navigate`） | ✅    |
 
-编译产物 `public/sw.js` 由 `scripts/build-sw-src.mjs` + 根目录 `serwist.config.ts` + `bun run build` 生成；注册见 `@/components/features/app-shell/pwa-updater.tsx`（生产 Web only；dev 注销 SW；Tauri skip）。
+编译产物 `public/sw.js` 由根目录 `serwist.config.ts` + `bun run build`（`serwist build` 打包 `sw.ts` 并注入 precache 清单）生成；注册见 `@/components/features/app-shell/pwa-updater.tsx`（生产 Web only；dev 注销 SW；Tauri skip）。
 
 ## 依赖
 

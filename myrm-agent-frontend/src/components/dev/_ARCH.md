@@ -26,5 +26,5 @@ localhost 开发专用桥接组件，**非终端用户功能**，只存在于非
 ## 约束
 
 - 禁止在生产构建暴露测试通道：每个开发桥与产品组件里的 E2E 钩子（`window` 上的 store 句柄与诊断、`e2e_*` 存储键、`myrm-e2e-*` 事件、根布局对 `e2e-runtime-bootstrap.js` 的注入）都站在非生产构建的守卫之后——守卫必须直接写 `process.env.NODE_ENV` 字面量（`!== 'production'` 包住引用，或函数开头 `=== 'production'` 提前返回）；`isLocalDevHost` 只把开发桥进一步收窄到回环主机，不能单独当守卫，因为打包器只对字面量做死代码删除、不折叠函数调用，只靠函数守卫的分支会连同字符串留在生产包里；host 检测须 fail-closed
-- `bun run verify:e2e-channel`（`LINT_GATES` 之一）按语法树强制上一条（含本目录里把各桥静态导入进来的 `E2eBridgeLoader.tsx`），并限定产品代码只能导入 `localDevHost` 与两处挂载点（`app/layout.tsx` 的 `E2eBridgeLoader`、`AppLayout` 的 `E2ECompanionBridge`），并要求 `public/` 静态资源里没有任何通道标识（静态资源不经打包器、没有守卫可言，测试专用脚本放本目录、由开发期路由提供），规则见 [scripts/_ARCH.md](../../../scripts/_ARCH.md)
+- `bun run verify:e2e-channel`（`LINT_GATES` 之一）按语法树强制上一条（含本目录里把各桥静态导入进来的 `E2eBridgeLoader.tsx`），并限定产品代码只能导入 `localDevHost` 与两处挂载点（`app/layout.tsx` 的 `E2eBridgeLoader`、`AppLayout` 的 `E2ECompanionBridge`），并要求 `public/` 静态资源里没有任何通道标识（除 `sw.js` 外都是原样文件、没有守卫可言；`sw.js` 由 Serwist 打包，`verify-sw-push.mjs` 校验它是生产构建；测试专用脚本放本目录、由开发期路由提供），规则见 [scripts/_ARCH.md](../../../scripts/_ARCH.md)
 - 新增 dev 桥接放本目录，并在 [components/_ARCH.md](../_ARCH.md) 登记
