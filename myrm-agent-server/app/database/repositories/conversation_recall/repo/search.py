@@ -80,8 +80,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE conversation_recall_segments_fts MATCH :query
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY conversation_recall_segments_fts.rank ASC, s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit
                     """),
@@ -124,8 +123,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.id = conversation_recall_fts.rowid
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE conversation_recall_fts MATCH :query
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY conversation_recall_fts.rank ASC, d.last_message_at DESC, d.updated_at DESC
                         LIMIT :limit
                     """),
@@ -175,8 +173,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE (s.segment_text LIKE :kw_pattern OR d.searchable_text LIKE :kw_pattern)
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit
                     """),

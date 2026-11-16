@@ -133,8 +133,7 @@ class QueriesMixin:
                         f.parent_chat_id AS fork_parent_id
                     FROM conversation_recall_documents d
                     LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
-                    WHERE d.is_excluded = 0
-                      {filters}
+                    WHERE {filters}
                     ORDER BY d.last_message_at DESC, d.updated_at DESC
                     LIMIT :limit
                 """),

@@ -15,6 +15,7 @@ Conversation Recall 索引仓储。类不持有实例状态：12 个方法全部
 ## 说明
 
 - `set_excluded` 内部调用 `WritesMixin.rebuild_chat(...)`（staticmethod，不依赖多态）。
+- `search` 的三条语句（片段 FTS、整段 FTS、LIKE 回退）与 `recent` 的条件都来自 `..sql.filter_sql`，可见性在其中；新增读取语句同样从它取条件，不手写 `is_excluded`。`search` 的每条语句各自捕获异常并降级，条件写错只会表现为“搜到的变少”，所以 `tests/services/chat/test_conversation_recall_visibility.py` 同时核对该出现与不该出现的会话，并断言没有降级告警。
 - logger 名称保持 `app.database.repositories.conversation_recall.repo`，避免影响日志过滤。
 
 ## 依赖关系

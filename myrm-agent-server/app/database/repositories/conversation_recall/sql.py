@@ -9,11 +9,12 @@
 - CONVERSATION_RECALL_SEGMENT_BOOTSTRAP_SQL: Backfill statement for missing recall segments.
 - UPSERT_REBUILD_SQL: Rebuild one chat document from canonical chat/message rows.
 - UPSERT_SEGMENT_SQL: Upsert one message segment from the incremental write path.
-- filter_sql: Build parameterized recall query filters.
+- visible_document_sql: The condition a recall document meets before the model may read it.
+- filter_sql: Build the parameterized conditions of a recall read: visibility first, then scope, lineage and time.
 - HIGHLIGHT_OPEN, HIGHLIGHT_CLOSE: Markers FTS5 puts around a matched term in a snippet.
 
 [POS]
-Conversation Recall SQL 契约层。集中定义 SQLite/FTS5 DDL、回填语句、参数化过滤片段和 snippet 高亮标记。
+Conversation Recall SQL 契约层。集中定义 SQLite/FTS5 DDL、回填语句、可见性条件、参数化过滤片段和 snippet 高亮标记。
 """
 
 from __future__ import annotations
@@ -307,6 +308,20 @@ CONVERSATION_RECALL_SEGMENT_BOOTSTRAP_SQL = """
 """
 
 
+def visible_document_sql(alias: str) -> str:
+    """The condition a recall document meets before the model may read it, for the table aliased ``alias``.
+
+    The user has not excluded it, and it is not a web incognito chat: those are promised to vanish once idle, so no
+    other chat may read them meanwhile. A transcript import carries the incognito flag only to stay out of the sidebar,
+    so it stays readable. The incognito flag can change after a chat was indexed, so it is read from ``chats`` when the
+    query runs, not copied into the index.
+    """
+    return (
+        f"{alias}.is_excluded = 0 AND NOT EXISTS ("
+        f"SELECT 1 FROM chats pc WHERE pc.id = {alias}.chat_id AND pc.is_incognito = 1 AND pc.source = 'web')"
+    )
+
+
 def filter_sql(
     *,
     current_chat_id: str | None,
@@ -317,19 +332,24 @@ def filter_sql(
     since: datetime | None,
     until: datetime | None,
 ) -> tuple[str, dict[str, object]]:
-    clauses: list[str] = []
+    """The conditions a read of the recall documents (alias ``d``) applies, joined by ``AND`` and never empty.
+
+    Visibility always comes first and no argument turns it off, so a read that builds its filters here cannot return a
+    document the model may not see. The caller puts the string after ``WHERE`` or after another condition and ``AND``.
+    """
+    clauses: list[str] = [visible_document_sql("d")]
     params: dict[str, object] = {}
     if current_chat_id:
-        clauses.append("AND d.chat_id != :current_chat_id")
+        clauses.append("d.chat_id != :current_chat_id")
         params["current_chat_id"] = current_chat_id
     if scope in {"current_agent", "agent_and_source"}:
         if agent_id is None:
-            clauses.append("AND d.agent_id IS NULL")
+            clauses.append("d.agent_id IS NULL")
         else:
-            clauses.append("AND d.agent_id = :agent_id")
+            clauses.append("d.agent_id = :agent_id")
             params["agent_id"] = agent_id
     if scope in {"same_source", "agent_and_source"} and current_source:
-        clauses.append("AND d.source = :current_source")
+        clauses.append("d.source = :current_source")
         params["current_source"] = current_source
     if lineage_chat_ids:
         placeholders: list[str] = []
@@ -337,11 +357,11 @@ def filter_sql(
             key = f"lineage_chat_{index}"
             placeholders.append(f":{key}")
             params[key] = chat_id
-        clauses.append(f"AND d.chat_id IN ({', '.join(placeholders)})")
+        clauses.append(f"d.chat_id IN ({', '.join(placeholders)})")
     if since is not None:
-        clauses.append("AND d.last_message_at >= :since")
+        clauses.append("d.last_message_at >= :since")
         params["since"] = since
     if until is not None:
-        clauses.append("AND d.last_message_at <= :until")
+        clauses.append("d.last_message_at <= :until")
         params["until"] = until
-    return "\n                      ".join(clauses), params
+    return "\n                      AND ".join(clauses), params

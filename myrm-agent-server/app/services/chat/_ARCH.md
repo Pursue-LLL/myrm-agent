@@ -46,7 +46,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5 召回（BM25 rank 经 `relevance_from_rank` 转为越强越高的相关度，与名次、新近度加权；RRF 名次归一化打分）、索引覆盖度元数据注入、`_source_interaction_boost`（cron demote / interactive boost）、`expand_message_id` 窗口、可见性策略与 source refs、CJK 两档平滑降级（CjkFtsQueryPlanner）；交给模型的 snippet 取召回行的 `window`（存储原文的纯文本，不做 HTML 转义；用户自己写的 `<mark>` 原样保留，FTS 高亮是仓储层的非字符标记，不会与它混淆），FTS 命中的窗口在排名与 `min_score` 过滤之后交 `conversation_search_snippet.py` 重建，界面用的 `source_ref.snippet` 仍转义并带高亮；`test_conversation_search_service.py` 钉住两者的分工，`test_conversation_search_redaction.py` 钉住用户写的标签原样读回 | ✅ |
 | `conversation_search_snippet.py` | ✅ 辅助 | 召回命中窗口的脱敏层。`redact_hit_windows` 对每个入选命中取 FTS 窗口所在的存储原文（先看内存里的摘要与标题，再经 `fetch_window_context` 依次查消息片段、整段对话文本、列表用的最新消息），窗口前后各取 8000 字符整段脱敏，再读出模型可见的片段；`redacted_window` 从两端对齐（窗口之前、之后的文本分别脱敏，窗口取两者之间），一端落在遮蔽区内时由另一端加原始窗口长度定位（遮蔽缩短了窗口时会多带一点相邻文本），两端都落在遮蔽区内（窗口整个在密钥块里）、或窗口在存储原文里找不到（含存储文本自带高亮标记字符、会话在排名之后被排除出召回）时片段置空，不会把未脱敏的切片交出去；推理标签在脱敏之后去除；`test_conversation_search_snippet_window.py`（逐个窗口位置扫描）与 `test_conversation_search_redaction.py`（真实服务栈）钉住 | ✅ |
 | `conversation_recall_query.py` | ✅ 辅助 | Conversation Recall 查询规划；精确 FTS 优先，结合 CjkFtsQueryPlanner 两档平滑降级（strict / relaxed），在结果不足时提供无 LLM 的本地 OR/term 宽召回兜底并透出 is_relaxed。 | ✅ |
-| `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填（**startup `bootstrap_missing`**）、重建、增量追加、排除/恢复、删除、健康检查、管理列表、**GUI `@chat:` `search_citable_chats` SSOT**。 | ✅ |
+| `conversation_recall_index_service.py` | ✅ 核心 | Conversation Recall 索引生命周期服务；统一回填（**startup `bootstrap_missing`**）、重建、增量追加、排除/恢复、删除、健康检查、管理列表、**GUI `@chat:` `search_citable_chats` SSOT**（列出的会话与模型的会话检索读到的是同一批：没被排除、不是网页无痕会话，条件来自仓储的 `filter_sql`，服务层不做第二道过滤）。 | ✅ |
 | `salient_tool_archive_service.py` | ✅ 核心 | 显著工具原话与报错归档服务；在长会话压缩前按显著度评分（非零退出码、错误标记、高危关键词）提炼工具原话与报错，以单行 `Tool[name] cmd=… exit=N` 头加输出片段存入 Conversation Recall 索引。 | ✅ |
 | `session_continuity_service.py` | ✅ 核心 | truncate/undo/retry/rewind 后 `invalidate_chat_checkpoint` 先让该会话停着的澄清卡退役（`release_parked_hitl`，不论线程清得掉与否），再清空 LangGraph checkpoint 线程（fail-closed，下一轮由存储的历史重建）；rewind 成功后 pause active Goal（rewind 只在会话空闲时放行，目标经 `GoalRegistry.resolve_provider` 读存储里的） | ✅ |
 | `history_sync.py` | ✅ 核心 | 对话历史单一权威的业务半边：`decide_history_mode`（存储的 `history_sync_token` 等于「活跃分支 + 压缩摘要」的摘要才 `continue`，其余、读失败、从未记录一律 `replace`）、`commit_history_sync`（本回合的回答已落库且仍活跃才写入摘要，持写锁，不动 `updated_at`，失败只记警告）、`history_digest`（摘要含压缩摘要与活跃消息 id 的有序序列；消息正文不会原地修改，id 即身份） | ✅ |
@@ -114,7 +114,7 @@ ChatService
 - `app/database/repositories/uow.py`：使用 UnitOfWork 管理 Chat/Message 主表事务，确保主表失败自动回滚；派生 recall 索引不再阻塞主表提交。
 - `app/database/repositories/chat_repo/`：Chat/Message CRUD、compaction CAS 与 sibling group 持久化仓储；消息级全文检索由其委托给 `chat_message_search_repo.py`。
 - `app/database/repositories/conversation_recall/`：Conversation Recall 索引子包；`repo/` 编排索引写入与 health 查询，`sql.py`/`types.py` 承担 SQL 契约与 DTO 转换。
-- `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 prior_chat mention 文档查找与 `expand_message_id` 窗口读取（统一 scope/exclusion 可见性过滤）。
+- `app/database/repositories/conversation_recall/lookup_repo.py`：Conversation Recall 只读可见性查找仓储，用于 prior_chat mention 文档查找与 `expand_message_id` 窗口读取（统一 scope、排除与网页无痕的可见性过滤）。
 - `app/services/chat/conversation_recall_index_service.py`：Conversation Recall 生命周期边界，供 ChatService、Compaction、Fork 与管理 API 统一调用。
 - `app/database/`：Chat、Message 模型
 - `app/services/infra/`：删除聊天时清理会话工作空间
