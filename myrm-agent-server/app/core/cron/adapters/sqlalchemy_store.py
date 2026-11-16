@@ -21,6 +21,7 @@ from sqlalchemy.sql import func as sqlfunc
 
 from app.core.cron.adapters.sqlalchemy_mapping import (
     apply_job_to_model,
+    as_utc,
     job_to_domain,
     job_to_model,
     normalize_monitor_config_payload,
@@ -48,11 +49,6 @@ class MonitorConfigCleanupStats:
 def _exec_rowcount(result: object) -> int:
     rc = getattr(result, "rowcount", None)
     return rc if isinstance(rc, int) else 0
-
-
-def _as_utc(moment: datetime) -> datetime:
-    """The columns hold UTC wall-clock time and drop the offset, so a zoned value is converted before it is written."""
-    return moment.replace(tzinfo=timezone.utc) if moment.tzinfo is None else moment.astimezone(timezone.utc)
 
 
 def _normalize_job_monitor_config_in_place(row: CronJobModel) -> bool:
@@ -280,7 +276,7 @@ class SqlAlchemyCronStore:
                     CronJobModel.next_run_at.isnot(None),
                     CronJobModel.next_run_at <= datetime.now(timezone.utc),
                 )
-                .values(next_run_at=_as_utc(next_run_at))
+                .values(next_run_at=as_utc(next_run_at))
             )
             await session.commit()
             return _exec_rowcount(result) > 0

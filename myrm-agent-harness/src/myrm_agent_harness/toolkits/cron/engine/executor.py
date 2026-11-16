@@ -258,7 +258,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
         await self._notify_run_outcome(job, result, delivery_status)
 
         new_failures = 0 if result.success else job.consecutive_failures + 1
-        await self._update_after_run(job, result, new_failures, finished)
+        await self._update_after_run(job, result, new_failures, finished, delivery_status)
 
     # ------------------------------------------------------------------
     # Delivery

@@ -288,21 +288,11 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
         return await self.update_job(job_id, CronJobPatch(status=JobStatus.PAUSED))
 
     async def resume_job(self, job_id: str) -> CronJob | None:
+        """Re-enable a job through the activation path of update_job; an enabled job comes back unchanged."""
         job = await self._store.get_job(job_id)
-        if not job:
-            return None
-
-        now = datetime.now(UTC)
-        self._validate_resume_preconditions(job, now)
-
-        job.status = JobStatus.ACTIVE
-        job.next_run_at = next_eligible_run(job, now)
-        job.consecutive_failures = 0
-        job.updated_at = now
-
-        job = await self._store.save_job(job)
-        self._scheduler.notify_change()
-        return job
+        if job is None or job.status == JobStatus.ACTIVE:
+            return job
+        return await self.update_job(job_id, CronJobPatch(status=JobStatus.ACTIVE))
 
     async def trigger_now(self, job_id: str) -> bool:
         """Set next_run_at to now so the scheduler picks it up immediately."""

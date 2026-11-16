@@ -11,8 +11,9 @@
 
 [POS]
 Mixed into ``JobExecutor``. After a run is recorded, adopts the stored job and applies what the run decided: auto-pause
-on a circuit break or on too many failures, the next slot or the backoff retry, completion of a one-time job, and the
-fallback when the schedule itself cannot be computed. Because it writes onto the stored job, a pause, an edit or a
+on a circuit break or on too many failures, the next slot or the backoff retry, completion of a one-time job (deleted
+only when its run succeeded and its delivery did not fail), and the fallback when the schedule itself cannot be
+computed. Because it writes onto the stored job, a pause, an edit or a
 delete made while the run was in flight is neither undone nor resurrected.
 """
 
@@ -28,7 +29,7 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     next_eligible_run,
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.types import JobStatus, RunStatus, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import DeliveryStatus, JobStatus, RunStatus, ScheduleKind
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
@@ -59,13 +60,14 @@ class RunCloserMixin:
         result: JobResult,
         new_failures: int,
         finished: datetime,
+        delivery_status: DeliveryStatus = DeliveryStatus.SKIPPED,
     ) -> None:
         if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping post-run update", job.id)
             return
 
         if job.schedule.kind == ScheduleKind.ONCE:
-            await self._handle_once_completion(job, result, new_failures, finished)
+            await self._handle_once_completion(job, result, new_failures, finished, delivery_status)
             return
 
         if getattr(result, "circuit_broken", False):
@@ -117,8 +119,10 @@ class RunCloserMixin:
         result: JobResult,
         new_failures: int,
         finished: datetime,
+        delivery_status: DeliveryStatus = DeliveryStatus.SKIPPED,
     ) -> None:
-        if result.success and job.delete_after_run:
+        # A one-shot whose delivery failed keeps its job and run record: they hold the only copy of the result.
+        if result.success and job.delete_after_run and delivery_status != DeliveryStatus.FAILED:
             await self._store.delete_job(job.id)
             return
 

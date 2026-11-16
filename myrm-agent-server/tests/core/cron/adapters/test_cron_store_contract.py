@@ -245,6 +245,23 @@ async def test_advance_next_run_stores_a_zoned_instant_as_utc(store: CronStore) 
     assert stored is not None and _utc(stored.next_run_at) == booked
 
 
+async def test_save_job_keeps_the_instant_of_a_zoned_timestamp_on_insert_and_on_update(store: CronStore) -> None:
+    east, west = timezone(timedelta(hours=8)), timezone(timedelta(hours=-5))
+    instants = {
+        "next_run_at": _from_now(120).astimezone(east),
+        "last_run_at": _from_now(-30).astimezone(west),
+        "expires_at": _from_now(24 * 60).astimezone(east),
+        "last_failure_alert_at": _from_now(-10).astimezone(west),
+    }
+    zoned = replace(_job("zoned"), **instants)
+
+    for saved in (zoned, replace(zoned, name="renamed")):
+        await store.save_job(saved)
+        stored = await store.get_job("zoned")
+        assert stored is not None
+        assert {field: _utc(getattr(stored, field)) for field in instants} == instants
+
+
 async def test_save_job_upserts_by_id_and_delete_job_reports_whether_a_row_went(store: CronStore) -> None:
     job = _job("one", name="v1")
     await store.save_job(job)

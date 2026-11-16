@@ -297,6 +297,10 @@ async def _do_update(
 
     new_schedule: Schedule | None = None
     if any([cron_expr, every_minutes > 0, at]):
+        if not tz:
+            # A schedule edit that does not repeat the timezone keeps the job's own instead of falling back to UTC.
+            existing = await mgr.get_job(job_id)
+            tz = (existing.schedule.tz if existing else None) or ""
         err, new_schedule = _build_schedule(cron_expr, every_minutes, at, tz)
         if err:
             return err
@@ -404,8 +408,8 @@ async def _do_resume(mgr: CronManager, job_id: str) -> str:
         return "job_id required. Use action='list' to find IDs."
     try:
         job = await mgr.resume_job(job_id)
-    except ValueError:
-        return f"Cannot resume task {job_id}"
+    except ValueError as exc:
+        return str(exc)
     if not job:
         return f"Task {job_id} not found."
     next_run = job.next_run_at.strftime("%Y-%m-%d %H:%M UTC") if job.next_run_at else "N/A"

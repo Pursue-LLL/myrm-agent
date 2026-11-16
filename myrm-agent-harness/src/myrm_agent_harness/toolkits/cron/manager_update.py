@@ -8,12 +8,15 @@
 - cron.types::CronJob, CronJobPatch, JobStatus (POS: cron data models)
 
 [OUTPUT]
-- CronUpdateMixin: ``update_job`` (patch application) and the monitor-baseline reset a content change triggers
+- CronUpdateMixin: ``update_job`` (patch application), ``_activate`` (the shared resume path) and the monitor-baseline
+  reset a content change triggers
 
 [POS]
 Update half of the cron CRUD manager, mixed into ``CronManager``. Applies a ``CronJobPatch`` to the stored job
-once the content and activation rules pass, resets an enabled monitor's baseline when its command, prompt or
-monitor type changes, persists the job and notifies the scheduler.
+once the content rules pass; a status patch to active on a job that is not enabled is a resume (preconditions,
+failure count reset, next slot booked), and an enabled job whose schedule, cooldown or active window changes gets its
+slot booked again (a one-shot's slot moves only with its schedule). Resets an enabled monitor's baseline when its
+command, prompt or monitor type changes, persists the job and notifies the scheduler.
 """
 
 from __future__ import annotations
@@ -24,7 +27,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron.engine.helpers import next_eligible_run
 from myrm_agent_harness.toolkits.cron.manager_validation import CronValidationMixin
-from myrm_agent_harness.toolkits.cron.types import JobStatus
+from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
 
 if TYPE_CHECKING:
     from myrm_agent_harness.infra.incremental.types import ResetReason
@@ -34,12 +37,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _moves_slot(job: CronJob, patch: CronJobPatch) -> bool:
+    """Whether the patch changes an input of ``next_eligible_run`` for this job.
+
+    A one-shot names its own instant, so only a new schedule moves it; the active window and the cooldown move the
+    slot of every other kind. Recomputing a due one-shot's slot would clear it and leave an enabled job with none.
+    """
+    if patch.schedule is not None:
+        return True
+    edits_window_or_cooldown = (
+        patch.active_hours is not None or patch.clear_active_hours or patch.cooldown_seconds is not None
+    )
+    return edits_window_or_cooldown and job.schedule.kind != ScheduleKind.ONCE
+
+
 class CronUpdateMixin(CronValidationMixin):
     """Patch application for ``CronManager``; the rules it applies come from ``CronValidationMixin``."""
 
     if TYPE_CHECKING:
         # Provided by the concrete manager that composes this mixin (``_store`` is declared by the validation mixin).
         _scheduler: CronScheduler
+
+    def _activate(self, job: CronJob, now: datetime) -> None:
+        """Re-enable a job: the one path a resume and a status patch to active share.
+
+        The preconditions are checked on the job as the patch leaves it, so an edit that removes the obstacle (a new
+        time, a later expiry) and the activation can arrive together. The failure count restarts and the next slot is
+        booked from now, because a paused job holds no valid slot.
+        """
+        self._validate_resume_preconditions(job, now)
+        job.status = JobStatus.ACTIVE
+        job.consecutive_failures = 0
+        job.next_run_at = next_eligible_run(job, now)
 
     async def _reset_baseline_on_change(self, job_id: str, reset_reason: ResetReason) -> None:
         """Reset monitor baseline and record reason.
@@ -78,12 +107,11 @@ class CronUpdateMixin(CronValidationMixin):
 
         now = datetime.now(UTC)
         reset_reason: ResetReason | None = None
+        activating = patch.status == JobStatus.ACTIVE and job.status != JobStatus.ACTIVE
 
         if patch.name is not None:
             job.name = patch.name
-        if patch.status is not None:
-            if patch.status == JobStatus.ACTIVE and job.status != JobStatus.ACTIVE:
-                self._validate_resume_preconditions(job, now)
+        if patch.status is not None and not activating:
             job.status = patch.status
         if patch.schedule is not None:
             self._validate_schedule(patch.schedule)
@@ -205,8 +233,10 @@ class CronUpdateMixin(CronValidationMixin):
             job.last_error = None
         elif patch.last_error is not None:
             job.last_error = patch.last_error
-        if patch.schedule is not None:
-            # After every field is applied: the slot depends on the cooldown and the active window too.
+        # After every field is applied: the slot depends on the schedule, the cooldown and the active window together.
+        if activating:
+            self._activate(job, now)
+        elif job.status == JobStatus.ACTIVE and _moves_slot(job, patch):
             job.next_run_at = next_eligible_run(job, now)
         job.updated_at = now
 

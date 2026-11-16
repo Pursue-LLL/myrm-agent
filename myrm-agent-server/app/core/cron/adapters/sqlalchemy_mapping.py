@@ -2,12 +2,14 @@
 
 Bidirectional conversion between SQLAlchemy ORM models and
 framework domain objects (CronJob, CronRunRecord, MonitorState).
+A job's timestamps are written as UTC (``as_utc``): the columns drop the offset, so a zoned value would be stored as
+its local wall-clock time and read back hours away from the instant it names.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import cast
 
 from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState, MonitorType, ResetReason
@@ -40,6 +42,15 @@ from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
 
 logger = logging.getLogger(__name__)
 _VALID_MONITOR_TYPES = {"set", "hash"}
+
+
+def as_utc(moment: datetime) -> datetime:
+    """The columns hold UTC wall-clock time and drop the offset, so a zoned value is converted before it is written."""
+    return moment.replace(tzinfo=timezone.utc) if moment.tzinfo is None else moment.astimezone(timezone.utc)
+
+
+def _as_utc_or_none(moment: datetime | None) -> datetime | None:
+    return None if moment is None else as_utc(moment)
 
 
 def _workflow_template_args_from_json(raw: object) -> dict[str, str] | None:
@@ -241,7 +252,7 @@ def job_to_model(job: CronJob) -> CronJobModel:
         misfire_grace_seconds=job.misfire_grace_seconds,
         cooldown_seconds=job.cooldown_seconds,
         max_fires=job.max_fires,
-        expires_at=job.expires_at,
+        expires_at=_as_utc_or_none(job.expires_at),
         fire_count=job.fire_count,
         session_target=job.session_target,
         delete_after_run=job.delete_after_run,
@@ -254,12 +265,12 @@ def job_to_model(job: CronJob) -> CronJobModel:
         acceptance_criteria=list(job.acceptance_criteria) if job.acceptance_criteria else None,
         monitor_config=monitor_config_to_dict(job.monitor_config),
         triggers=trigger_config_to_dict(job.triggers),
-        next_run_at=job.next_run_at,
-        last_run_at=job.last_run_at,
+        next_run_at=_as_utc_or_none(job.next_run_at),
+        last_run_at=_as_utc_or_none(job.last_run_at),
         last_status=job.last_status,
         last_error=job.last_error,
         consecutive_failures=job.consecutive_failures,
-        last_failure_alert_at=job.last_failure_alert_at,
+        last_failure_alert_at=_as_utc_or_none(job.last_failure_alert_at),
     )
 
 
@@ -292,7 +303,7 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.misfire_grace_seconds = job.misfire_grace_seconds
     m.cooldown_seconds = job.cooldown_seconds
     m.max_fires = job.max_fires
-    m.expires_at = job.expires_at
+    m.expires_at = _as_utc_or_none(job.expires_at)
     m.fire_count = job.fire_count
     m.session_target = job.session_target
     m.delete_after_run = job.delete_after_run
@@ -304,13 +315,13 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.acceptance_criteria = list(job.acceptance_criteria) if job.acceptance_criteria else None
     m.monitor_config = monitor_config_to_dict(job.monitor_config)
     m.triggers = trigger_config_to_dict(job.triggers)
-    m.next_run_at = job.next_run_at
-    m.last_run_at = job.last_run_at
+    m.next_run_at = _as_utc_or_none(job.next_run_at)
+    m.last_run_at = _as_utc_or_none(job.last_run_at)
     m.last_status = job.last_status
     m.last_error = job.last_error
     m.consecutive_failures = job.consecutive_failures
-    m.last_failure_alert_at = job.last_failure_alert_at
-    m.updated_at = job.updated_at
+    m.last_failure_alert_at = _as_utc_or_none(job.last_failure_alert_at)
+    m.updated_at = as_utc(job.updated_at)
 
 
 def row_to_monitor_state(row: MonitorStateModel) -> MonitorState:

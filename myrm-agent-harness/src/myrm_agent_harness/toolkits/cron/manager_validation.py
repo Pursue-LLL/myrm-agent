@@ -5,7 +5,7 @@ orchestration's persistence ordering and scheduler notification, so they can be 
 (and tested) on their own.
 
 [INPUT]
-- cron.engine.parser::validate_cron_expr, validate_timezone (POS: cron 表达式与时区校验)
+- cron.engine.parser::compute_next_run, validate_cron_expr, validate_timezone (POS: 下一次触发时刻、cron 表达式与时区校验)
 - cron.triggers::TriggerConfig, WebhookTrigger, generate_webhook_path, generate_webhook_secret (POS: webhook 触发定义与凭据生成)
 - cron.types::CronJob, CronJobPatch, JobType, Schedule, ScheduleKind (POS: cron 数据模型)
 
@@ -26,6 +26,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron.engine.parser import (
+    compute_next_run,
     validate_cron_expr,
     validate_timezone,
 )
@@ -42,6 +43,11 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, Schedule
 
 
+def _once_has_passed(schedule: Schedule, now: datetime) -> bool:
+    """A one-shot names its own instant; ``compute_next_run`` yields nothing once that instant is not ahead of ``now``."""
+    return schedule.kind == ScheduleKind.ONCE and compute_next_run(schedule, now) is None
+
+
 class CronValidationMixin:
     """Field-level validation for cron job creation, updates, and resumption."""
 
@@ -55,6 +61,8 @@ class CronValidationMixin:
         """Reject resuming a job whose constraints make it immediately un-runnable."""
         if job.status == JobStatus.COMPLETED:
             raise ValueError("completed jobs cannot be resumed")
+        if _once_has_passed(job.schedule, now):
+            raise ValueError("its scheduled time has passed; set a new time before resuming")
         if job.expires_at is not None:
             expires_at = job.expires_at if job.expires_at.tzinfo else job.expires_at.replace(tzinfo=UTC)
             if now >= expires_at:
@@ -121,11 +129,13 @@ class CronValidationMixin:
 
     @staticmethod
     def _validate_schedule(schedule: Schedule) -> None:
-        """Validate schedule cron expression and timezone."""
+        """Validate the cron expression and the timezone, and that a one-shot's time is still ahead."""
         if schedule.kind == ScheduleKind.CRON and not validate_cron_expr(schedule.expr or ""):
             raise ValueError(f"invalid cron expression: {schedule.expr!r}")
         if schedule.tz and not validate_timezone(schedule.tz):
             raise ValueError(f"unknown timezone: {schedule.tz!r}")
+        if _once_has_passed(schedule, datetime.now(UTC)):
+            raise ValueError("its scheduled time has passed; choose a future time")
 
     async def _validate_context_from(self, job_id: str, context_from: tuple[str, ...]) -> None:
         """Ensure context_from references are valid and non-circular."""
