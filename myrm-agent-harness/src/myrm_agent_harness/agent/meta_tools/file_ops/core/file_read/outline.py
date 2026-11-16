@@ -6,7 +6,7 @@ from source code or document files. Supports truncated file reads and structure-
 [INPUT]
 - output: Raw file text, or the text a read shows the model: the numbered (gutter) lines, usually inside a notice
   and tool-output tags that are not part of the file
-- path_str: Target file path
+- path_str: Target file path, without a line range
 - next_offset: 1-indexed line number where extraction starts (1 for full document)
 
 [OUTPUT]
@@ -147,11 +147,9 @@ def _strip_gutter_line(line: str) -> tuple[int | None, str]:
     return None, line
 
 
-def _clean_path_extension(path_str: str) -> str:
-    """Extract clean file extension from path string which may include line ranges or URI schemes."""
-    clean_path = path_str.split(":")[0] if ":" in path_str else path_str
-    clean_path = clean_path.split("?")[0]
-    return os.path.splitext(clean_path)[1].lower()
+def _path_extension(path_str: str) -> str:
+    """The lower-cased extension of a file path, which carries no line range (every colon in it is part of the name)."""
+    return os.path.splitext(path_str)[1].lower()
 
 
 def _numbered_lines(lines: list[str]) -> list[tuple[int, str]]:
@@ -291,14 +289,14 @@ def extract_truncated_outline(
 
     Args:
         output: Full raw or gutter-formatted text before truncation.
-        path_str: Path to determine language syntax.
+        path_str: Path to determine language syntax, without a line range.
         next_offset: 1-indexed line number of first truncated line.
         max_symbols: Maximum outline items before applying truncation fuse.
 
     Returns:
         Formatted outline text block or empty string if no relevant symbols found.
     """
-    ext = _clean_path_extension(path_str)
+    ext = _path_extension(path_str)
     language = _EXT_TO_LANGUAGE.get(ext)
     if not language:
         return ""
@@ -330,13 +328,13 @@ def extract_file_outline(
 
     Args:
         output: Full raw or gutter-formatted file text.
-        path_str: Path to determine language syntax.
+        path_str: Path to determine language syntax, without a line range.
         max_symbols: Maximum outline items before applying truncation fuse.
 
     Returns:
         Formatted outline text block or empty string.
     """
-    ext = _clean_path_extension(path_str)
+    ext = _path_extension(path_str)
     language = _EXT_TO_LANGUAGE.get(ext)
     if not language:
         return ""

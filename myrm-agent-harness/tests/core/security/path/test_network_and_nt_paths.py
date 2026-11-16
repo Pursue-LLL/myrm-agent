@@ -101,6 +101,11 @@ class TestWindowsReservedNames:
             "LPT\u00b9",
             "LPT\u00b2.txt",
             "LPT\u00b3",
+            "CON:",
+            "nul:stream",
+            "com1:",
+            "dir/aux.md:5-9",
+            r"C:\proj\PRN:x",
         ],
     )
     def test_reserved_name_is_blocked(self, path: str) -> None:
@@ -117,6 +122,10 @@ class TestWindowsReservedNames:
             "nul-file.txt",
             "my.nul",
             "controller.py",
+            "C:/proj/notes.txt",
+            r"D:\proj\con_test.py",
+            "notes:v2.md",
+            "docs/null:stream.md",
         ],
     )
     def test_lookalike_is_not_blocked(self, path: str) -> None:

@@ -1,15 +1,17 @@
-"""文件处理工具
-
-提供文件操作相关的工具函数。
+"""The ``path:START-END`` argument of the file tools: which file it names and which lines it asks for.
 
 [INPUT]
-- (none)
+- constants::PATH_RANGE_PATTERN (POS: 解析 `file.py:1-50` 行号范围路径的正则)
+- core.operation_context::ViewRange (POS: View line range for partial reads)
+- utils.path_utils::resolve_file_id_path (POS: resolves an ``@file_id`` to its path)
 
 [OUTPUT]
-- parse_path_with_range: 解析路径字符串，提取文件路径与合法正整数行号范围
+- parse_path_with_range: the file path and the validated line range (positive numbers, ordered) of a path argument
+- path_base: the file path of a path argument, for code that classifies, guards or words a path before it is opened
 
 [POS]
-Provides parse_path_with_range with positive line numbers and ordered range validation.
+The one reading of a path argument's range suffix. Only a trailing ``:START-END`` or ``:START-`` is a range; every
+other colon, such as a drive letter or the one in ``notes:v2.md``, belongs to the file name.
 """
 
 from __future__ import annotations
@@ -62,3 +64,13 @@ def parse_path_with_range(path_str: str) -> tuple[str, ViewRange | None]:
     # 没有行号范围，直接解析文件 ID
     resolved_path = resolve_file_id_path(path_str)
     return resolved_path, None
+
+
+def path_base(path_str: str) -> str:
+    """The file path of a path argument, without its trailing ``:START-END`` line range.
+
+    Only that suffix is cut, as ``parse_path_with_range`` cuts it: any other colon belongs to the file name
+    (``C:/proj/a.log``, ``notes:v2.md``). Nothing is validated and no file id is resolved.
+    """
+    match = PATH_RANGE_PATTERN.match(path_str)
+    return match.group(1) if match else path_str

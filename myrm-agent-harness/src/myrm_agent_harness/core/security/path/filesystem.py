@@ -123,7 +123,7 @@ BLOCKED_DEVICE_NAMES: frozenset[str] = frozenset(
     {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"}
     | {f"{device}{digit}" for device in ("COM", "LPT") for digit in _DEVICE_DIGITS}
 )
-"""Windows reserved device names, upper-case (matched case-insensitively with or without extensions)."""
+"""Windows reserved device names, upper-case (matched case-insensitively, with or without an extension or ``:``)."""
 
 # The forward-slash spellings of the Win32 device namespaces, refused on every host. The backslash spellings are
 # network-path syntax and fall under ``is_network_or_nt_path``.
@@ -356,10 +356,11 @@ def is_blocked_device_path(path: str) -> bool:
         return True
 
     # 3. Windows reserved device names with or without extensions; Windows drops the spaces before the extension,
-    #    so ``NUL .txt`` is the NUL device
+    #    so ``NUL .txt`` is the NUL device. What follows a colon is not part of the name: ``CON:`` and ``NUL:stream``
+    #    are refused like ``CON`` and ``NUL``, while a drive letter (``C:``) is no device name.
     if _IS_WINDOWS:
         for seg in norm_slash.split("/"):
-            if seg and seg.split(".")[0].rstrip(" ").upper() in BLOCKED_DEVICE_NAMES:
+            if seg and seg.partition(":")[0].split(".")[0].rstrip(" ").upper() in BLOCKED_DEVICE_NAMES:
                 return True
 
     # 4. OS filesystem stat mode verification (if path exists on disk, check non-regular special file types)

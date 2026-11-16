@@ -14,7 +14,7 @@ awaits every needed MCP function and emits exactly one ``[RESULT]``.
 
 from __future__ import annotations
 
-from myrm_agent_harness.agent.meta_tools.file_ops.utils.vault_read import path_base
+from myrm_agent_harness.agent.meta_tools.file_ops.utils.file_utils import path_base
 
 _MCP_DOC_PREFIX = "/mcp/"
 _MCP_DOC_SUFFIX = ".md"
