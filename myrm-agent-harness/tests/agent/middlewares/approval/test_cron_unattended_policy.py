@@ -6,8 +6,8 @@ Verifies:
 3. Asks outside the job's directories, or on sensitive/protected files, are denied, not pre-approved.
 4. A payment-like tool call is denied even when the job declared the capability: a declaration does not cover spending.
 5. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
-6. With YOLO on, an unattended payment-like call is denied instead of left waiting for an approval nobody can give;
-   an attended session still waits for the user, and every other call keeps YOLO's auto-approval.
+6. With YOLO on, an unattended payment-like call is denied instead of left waiting for an approval nobody can give,
+   and an attended session still waits for the user.
 """
 
 from __future__ import annotations
@@ -359,7 +359,7 @@ class TestYoloPaymentsWithNobodyToApprove:
     ) -> None:
         assert await _yolo_batch(tool_name, tool_input, session_key="cron:job-1") == (0, 1, 0)
 
-    async def test_every_other_unattended_call_keeps_the_yolo_auto_approval(self) -> None:
+    async def test_a_declared_call_that_is_no_payment_still_runs(self) -> None:
         assert await _yolo_batch("mcp__notes__create_note", {"title": "x"}, session_key="cron:job-1") == (1, 0, 0)
 
     @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)

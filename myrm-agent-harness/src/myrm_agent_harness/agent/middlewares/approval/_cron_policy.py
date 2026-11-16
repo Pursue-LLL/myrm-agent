@@ -19,9 +19,9 @@ except for asks that carry a risk the declaration does not cover: credential dat
 session, writes outside the job's directories, integration write mutations, payment-like tool
 calls. Reached through ``_cron_settle``, which batch_processor calls after the allowlist and the
 optional LLM review had their say, and again at the end of a batch for every call that would
-otherwise wait: what YOLO does not wave through, a review that could not decide, the agents the
-job delegated to. The YOLO branch refuses a payment-like call itself with PAYMENT_DENIED, ahead of
-that settlement.
+otherwise wait: the asks a YOLO switch leaves open (it answers none in a scheduled run), a review that
+could not decide, the agents the job delegated to. The YOLO branch refuses a payment-like call itself
+with PAYMENT_DENIED, ahead of that settlement.
 """
 
 from __future__ import annotations

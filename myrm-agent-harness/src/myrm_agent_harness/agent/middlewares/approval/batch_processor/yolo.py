@@ -1,6 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
+- myrm_agent_harness.agent.security.guards.taint_tracker::get_taint_tracker (POS: Session-scoped data-flow taint state.)
 - myrm_agent_harness.agent.security.guards.untrusted_ingress_fence::is_tool_allowed_under_untrusted_ingress / is_untrusted_ingress_active (POS: Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.)
 - myrm_agent_harness.agent.security.tool_registry::resolve_permission_type (POS: Tool safety registry — re-exported from core.security.tool_registry.)
 - myrm_agent_harness.agent.security.types::PermissionAction / SecurityConfig (POS: Security type definitions — re-exported from core.security.types.)
@@ -18,7 +19,8 @@
 
 [POS]
 batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。资金、社交不可逆、破坏性三类调用仍交给人审批；
-但无人值守的 cron 会话里没有人能批，付款类调用在这里直接拒绝，不挂起等一个不会来的答复。
+但无人值守的 cron 会话里没有人能批，付款类调用在这里直接拒绝，不挂起等一个不会来的答复；
+没有 YOLO 本会询问的其余调用同样不借 YOLO 放行，留在待批清单里，由 core 按任务声明的能力结算。
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.engine import (
     evaluate_tool_call,
 )
+from myrm_agent_harness.agent.security.guards.taint_tracker import get_taint_tracker
 from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
     is_tool_allowed_under_untrusted_ingress,
     is_untrusted_ingress_active,
@@ -89,6 +92,18 @@ def operator_as_key_deny_message(tool_name: str, tool_input: dict[str, object]) 
 
 
 logger = logging.getLogger(__name__)
+
+
+def _would_ask_without_yolo(
+    action: PermissionAction, tool_name: str, tool_input: dict[str, object], config: SecurityConfig
+) -> bool:
+    """Whether the call would wait for a person with YOLO off: the engine asks, or data the run read earlier flows into it.
+
+    The second case is the escalation ``decide`` applies to a call the engine allows; YOLO skips it for a watched run.
+    """
+    return action == PermissionAction.ASK or bool(
+        get_taint_tracker().check_sink(tool_name, tool_input=tool_input, trusted_hosts=config.network_allowlist)
+    )
 
 
 async def _evaluate_yolo_batch(
@@ -272,6 +287,10 @@ async def _evaluate_yolo_batch(
                         destr_ctx,
                     )
                 )
+            elif is_cron and _would_ask_without_yolo(action, tool_name, tool_input, config):
+                # YOLO is the switch of a user who watches the run. Nobody watches a scheduled one, so the ask waits
+                # for the batch-end settlement, where the job's declaration answers it within the same floors.
+                pending_approval.append((idx, tool_call, permission_type, reason, None))
             else:
                 record_decision(tool_name, "YOLO_AUTO_APPROVE", "YOLO mode enabled")
                 auto_approved.append((idx, tool_call))
