@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -49,6 +49,11 @@ async def store(request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pyt
 
 def _at(minutes: int) -> datetime:
     return _EPOCH + timedelta(minutes=minutes)
+
+
+def _from_now(minutes: int) -> datetime:
+    """``advance_next_run`` judges 'due' against the real clock, so its cases sit relative to it."""
+    return datetime.now(UTC) + timedelta(minutes=minutes)
 
 
 def _utc(moment: datetime | None) -> datetime | None:
@@ -166,7 +171,7 @@ async def test_due_before_lists_active_scheduled_jobs_up_to_and_including_the_cu
         _job("late", next_run_at=_at(50)),
         _job("paused", status=JobStatus.PAUSED, next_run_at=_at(5)),
         _job("done", status=JobStatus.COMPLETED, next_run_at=_at(1)),
-        _job("claimed"),
+        _job("unscheduled"),
     )
 
     assert _ids(await store.list_jobs(due_before=_at(4))) == set()
@@ -182,28 +187,62 @@ async def test_earliest_next_run_ignores_inactive_and_unscheduled_jobs(store: Cr
         _job("later", next_run_at=_at(30)),
         _job("sooner", next_run_at=_at(10)),
         _job("paused", status=JobStatus.PAUSED, next_run_at=_at(1)),
-        _job("claimed"),
+        _job("unscheduled"),
     )
 
     assert _utc(await store.earliest_next_run()) == _at(10)
 
 
-async def test_claim_due_clears_the_next_run_and_reports_the_job_as_orphaned(store: CronStore) -> None:
+async def test_advance_next_run_books_a_due_job_for_exactly_one_caller(store: CronStore) -> None:
+    await _save(store, _job("a", next_run_at=_from_now(-5)), _job("b", next_run_at=_from_now(-5)))
+    booked = _from_now(60)
+
+    assert await store.advance_next_run("a", next_run_at=booked) is True
+    assert await store.advance_next_run("a", next_run_at=booked + timedelta(hours=1)) is False
+
+    booked_job, untouched = await store.get_job("a"), await store.get_job("b")
+    assert booked_job is not None and untouched is not None
+    assert _utc(booked_job.next_run_at) == booked
+    assert _utc(untouched.next_run_at) is not None and _utc(untouched.next_run_at) < datetime.now(UTC)
+
+
+async def test_advance_next_run_refuses_what_is_not_a_due_active_job(store: CronStore) -> None:
+    not_due, due = _from_now(30), _from_now(-5)
     await _save(
         store,
-        _job("a", next_run_at=_at(5)),
-        _job("b", next_run_at=_at(6)),
-        _job("idle", status=JobStatus.PAUSED),
+        _job("later", next_run_at=not_due),
+        _job("paused", status=JobStatus.PAUSED, next_run_at=due),
+        _job("done", status=JobStatus.COMPLETED, next_run_at=due),
+        _job("unscheduled"),
     )
 
-    await store.claim_due(["a"])
+    for job_id in ("later", "paused", "done", "unscheduled", "missing"):
+        assert await store.advance_next_run(job_id, next_run_at=_from_now(90)) is False
 
-    claimed, untouched = await store.get_job("a"), await store.get_job("b")
-    assert claimed is not None
-    assert claimed.next_run_at is None
-    assert untouched is not None
-    assert _utc(untouched.next_run_at) == _at(6)
-    assert _ids(await store.list_orphaned_active()) == {"a"}
+    assert {job.id: _utc(job.next_run_at) for job in await store.list_jobs()} == {
+        "later": not_due,
+        "paused": due,
+        "done": due,
+        "unscheduled": None,
+    }
+
+
+async def test_a_job_edited_after_it_was_listed_as_due_is_not_booked(store: CronStore) -> None:
+    await _save(store, _job("a", next_run_at=_from_now(-5)))
+    (listed,) = await store.list_jobs(due_before=datetime.now(UTC))
+    await store.save_job(replace(listed, next_run_at=_from_now(120)))
+
+    assert await store.advance_next_run("a", next_run_at=_from_now(180)) is False
+
+
+async def test_advance_next_run_stores_a_zoned_instant_as_utc(store: CronStore) -> None:
+    await _save(store, _job("a", next_run_at=_from_now(-5)))
+    booked = _from_now(60).astimezone(timezone(timedelta(hours=8)))
+
+    assert await store.advance_next_run("a", next_run_at=booked) is True
+
+    stored = await store.get_job("a")
+    assert stored is not None and _utc(stored.next_run_at) == booked
 
 
 async def test_save_job_upserts_by_id_and_delete_job_reports_whether_a_row_went(store: CronStore) -> None:

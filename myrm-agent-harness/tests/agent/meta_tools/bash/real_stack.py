@@ -61,13 +61,19 @@ class RealBashStack:
         assert isinstance(result, dict)
         return str(result["content"])
 
-    async def run_background(self, command: str) -> BackgroundRun:
-        """Start *command* as a background job, wait for it to end and return what it printed."""
+    async def run_background(self, command: str, *, reply: str | None = None) -> BackgroundRun:
+        """Start *command* as a background job, wait for it to end and return what it printed.
+
+        *reply*, when given, goes to the job's stdin through ``bash_process_tool`` right after the start, the way the
+        model answers a prompt.
+        """
         spawned = await self.tool.ainvoke(
             {"command": command, "reason": _REASON, "run_in_background": True}, config=self.config
         )
         assert isinstance(spawned, dict)
         pid = int(spawned["metadata"]["pid"])
+        if reply is not None:
+            await self.process_tool.ainvoke({"action": "submit_stdin", "pid": pid, "data": reply}, config=self.config)
         await self.process_tool.ainvoke(
             {"action": "wait", "pid": pid, "timeout_seconds": _BACKGROUND_WAIT_SECONDS}, config=self.config
         )

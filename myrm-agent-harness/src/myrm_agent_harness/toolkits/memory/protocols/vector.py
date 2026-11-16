@@ -103,3 +103,4 @@ class VectorStoreProtocol(Protocol):
         ``:memory:`` fallback) return ``False`` so callers can surface the
         degraded mode instead of silently treating it as durable storage.
         """
+        ...

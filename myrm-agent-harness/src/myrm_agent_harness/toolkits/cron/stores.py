@@ -29,6 +29,11 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 
+def _as_utc(moment: datetime) -> datetime:
+    """A timestamp without a zone is UTC by the store contract; a zoned one is converted."""
+    return moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
+
+
 class InMemoryCronStore:
     """CronStore backed by plain dicts — zero external dependencies.
 
@@ -124,12 +129,15 @@ class InMemoryCronStore:
         async with self._lock:
             return self._jobs.pop(job_id, None) is not None
 
-    async def claim_due(self, job_ids: list[str]) -> None:
+    async def advance_next_run(self, job_id: str, *, next_run_at: datetime) -> bool:
         async with self._lock:
-            for jid in job_ids:
-                job = self._jobs.get(jid)
-                if job:
-                    job.next_run_at = None
+            job = self._jobs.get(job_id)
+            if job is None or job.status != JobStatus.ACTIVE or job.next_run_at is None:
+                return False
+            if _as_utc(job.next_run_at) > datetime.now(UTC):
+                return False
+            job.next_run_at = _as_utc(next_run_at)
+            return True
 
     # ------------------------------------------------------------------
     # Run records
@@ -171,10 +179,6 @@ class InMemoryCronStore:
             if status:
                 runs = [r for r in runs if r.status == status]
             return len(runs)
-
-    async def list_orphaned_active(self) -> list[CronJob]:
-        async with self._lock:
-            return [deepcopy(j) for j in self._jobs.values() if j.status == JobStatus.ACTIVE and j.next_run_at is None]
 
     async def purge_old_runs(self, before: datetime) -> int:
         async with self._lock:

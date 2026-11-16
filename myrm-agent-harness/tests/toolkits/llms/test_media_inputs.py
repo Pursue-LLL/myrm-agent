@@ -50,6 +50,13 @@ async def _images(policy: MediaInputPolicy, *refs: str) -> list[bytes]:
     return await resolve_media_inputs(list(refs), "image", policy, field_name="image_url")
 
 
+def _respond_with(monkeypatch: pytest.MonkeyPatch, status: int) -> None:
+    async def respond(url: str, **_: object) -> httpx.Response:
+        return httpx.Response(status, request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(media_inputs, "secure_get", respond)
+
+
 class TestAccepted:
     async def test_media_reference_uses_the_injected_loader(self, policy: MediaInputPolicy) -> None:
         assert await _images(policy, "media://abc") == [PNG]
@@ -203,14 +210,6 @@ class TestRejected:
         with pytest.raises(MediaInputError, match="larger than"):
             await _images(policy, "https://example.com/huge.png")
 
-    async def test_http_error_status(self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch) -> None:
-        async def not_found(url: str, **_: object) -> httpx.Response:
-            return httpx.Response(404, request=httpx.Request("GET", url))
-
-        monkeypatch.setattr(media_inputs, "secure_get", not_found)
-        with pytest.raises(MediaFetchError, match="download failed"):
-            await _images(policy, "https://example.com/gone.png")
-
     async def test_corrupt_base64_with_non_ascii_text(self, policy: MediaInputPolicy) -> None:
         with pytest.raises(MediaInputError, match="invalid base64"):
             await _images(policy, "data:image/png;base64,caf\u00e9")
@@ -249,7 +248,7 @@ class TestErrorNamesTheOffendingReference:
 
 
 class TestWhatARetryCanFix:
-    """``MediaFetchError`` marks trouble reaching the source; every other refusal fails the same way again."""
+    """``MediaFetchError`` marks a source that cannot deliver right now; every other refusal fails the same way again."""
 
     @pytest.mark.parametrize(
         "failure", [httpx.ConnectTimeout("slow"), httpx.ConnectError("down"), httpx.ReadTimeout("slow")]
@@ -263,6 +262,23 @@ class TestWhatARetryCanFix:
         monkeypatch.setattr(media_inputs, "secure_get", broken)
         with pytest.raises(MediaFetchError, match=r"image_url: download failed"):
             await _images(policy, "https://example.com/a.png")
+
+    @pytest.mark.parametrize("status", [408, 429, 500, 503])
+    async def test_a_status_that_asks_to_come_back_later_is_a_fetch_error(
+        self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch, status: int
+    ) -> None:
+        _respond_with(monkeypatch, status)
+        with pytest.raises(MediaFetchError, match=rf"image_url: download failed \(HTTP {status}\)"):
+            await _images(policy, "https://example.com/a.png")
+
+    @pytest.mark.parametrize("status", [400, 401, 403, 404, 410])
+    async def test_a_status_that_will_not_change_is_not_a_fetch_error(
+        self, policy: MediaInputPolicy, monkeypatch: pytest.MonkeyPatch, status: int
+    ) -> None:
+        _respond_with(monkeypatch, status)
+        with pytest.raises(MediaInputError, match=rf"image_url: download failed \(HTTP {status}\)") as refused:
+            await _images(policy, "https://example.com/gone.png")
+        assert type(refused.value) is MediaInputError
 
     @pytest.mark.parametrize("failure", [TimeoutError(), ConnectionResetError()])
     async def test_a_store_that_is_down_is_a_fetch_error(self, root: Path, failure: OSError) -> None:

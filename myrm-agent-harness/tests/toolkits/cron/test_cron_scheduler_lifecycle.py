@@ -1,7 +1,7 @@
-"""Unit tests for CronScheduler lifecycle, timer machinery, and execution paths.
+"""Unit tests for CronScheduler lifecycle and timer machinery.
 
-Covers start/stop, _arm_timer_async fallback, _arm_watchdog, _on_tick,
-_execute_and_persist guard branches, and purge logic.
+Covers start/stop, _arm_timer_async fallback, _arm_watchdog, _on_tick and purge logic.
+The dispatch guards are covered in ``test_cron_dispatch_guards.py``.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ def _make_store() -> AsyncMock:
     store.save_run = AsyncMock()
     store.save_job = AsyncMock(side_effect=lambda j: j)
     store.get_latest_integrity_hash = AsyncMock(return_value=None)
-    store.claim_due = AsyncMock()
+    store.advance_next_run = AsyncMock(return_value=True)
     store.purge_old_runs = AsyncMock(return_value=0)
     store.delete_job = AsyncMock()
     return store
@@ -279,10 +279,14 @@ class TestOnTick:
         sched, _, _ = _make_scheduler(store=store)
         sched._running = True
 
-        with patch.object(sched, "_execute_and_persist", new_callable=AsyncMock):
+        with patch.object(sched, "_dispatch", new_callable=AsyncMock) as dispatch:
             await sched._on_tick()
+            await asyncio.sleep(0)
 
-        store.claim_due.assert_awaited_once()
+        store.advance_next_run.assert_awaited_once()
+        assert store.advance_next_run.call_args.args == ("job-1",)
+        assert store.advance_next_run.call_args.kwargs["next_run_at"] > datetime.now(UTC)
+        dispatch.assert_awaited_once()
         assert sched._tick_errors == 0
         if sched._watchdog_handle:
             sched._watchdog_handle.cancel()
@@ -301,171 +305,6 @@ class TestOnTick:
             sched._watchdog_handle.cancel()
         if sched._timer_handle:
             sched._timer_handle.cancel()
-
-
-class TestExecuteAndPersist:
-    @pytest.mark.asyncio
-    async def test_expired_job_skipped(self) -> None:
-        store = _make_store()
-        sched, _, _ = _make_scheduler(store=store)
-        sched._running = True
-
-        with patch(
-            "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-            return_value="expired",
-        ):
-            await sched._execute_and_persist(_make_job())
-
-        store.save_job.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_max_fires_reached_skipped(self) -> None:
-        store = _make_store()
-        sched, _, _ = _make_scheduler(store=store)
-        sched._running = True
-
-        with patch(
-            "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-            return_value="max_fires_reached",
-        ):
-            await sched._execute_and_persist(_make_job())
-
-        store.save_job.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_other_skip_reason_no_save(self) -> None:
-        store = _make_store()
-        sched, _, _ = _make_scheduler(store=store)
-        sched._running = True
-
-        with patch(
-            "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-            return_value="paused",
-        ):
-            await sched._execute_and_persist(_make_job())
-
-        store.save_job.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_outside_active_hours_skipped(self) -> None:
-        store = _make_store()
-        sched, _, _ = _make_scheduler(store=store)
-        sched._running = True
-
-        with (
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
-                return_value=False,
-            ),
-        ):
-            await sched._execute_and_persist(_make_job())
-
-        store.save_run.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_skip_if_active_blocks(self) -> None:
-        store = _make_store()
-        sched, _, _ = _make_scheduler(store=store)
-        sched._running = True
-        sched._active_jobs.add("job-1")
-
-        job = _make_job(skip_if_active=True)
-        with (
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
-                return_value=True,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch._resolve_stagger_ms",
-                return_value=0,
-            ),
-        ):
-            await sched._execute_and_persist(job)
-
-        store.save_run.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_no_runner_for_job_type(self) -> None:
-        store = _make_store()
-        runner = AsyncMock()
-        runner.run = AsyncMock(return_value=JobResult(success=True, output="ok"))
-        delivery = AsyncMock()
-
-        sched = CronScheduler(
-            store=store,
-            runners={JobType.AGENT: runner},
-            delivery=delivery,
-            config=CronConfig(),
-        )
-        sched._running = True
-
-        job = _make_job(job_type=JobType.SHELL)
-        with (
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
-                return_value=True,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch._resolve_stagger_ms",
-                return_value=0,
-            ),
-        ):
-            await sched._execute_and_persist(job)
-
-        store.save_run.assert_not_awaited()
-
-    @pytest.mark.asyncio
-    async def test_stagger_delay_applied(self) -> None:
-        store = _make_store()
-        sched, _, _runner = _make_scheduler(store=store)
-        sched._running = True
-
-        schedule = Schedule(kind=ScheduleKind.CRON, expr="0 * * * *", stagger_ms=100)
-        job = _make_job(schedule=schedule)
-        with (
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-                return_value=None,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.is_within_active_hours",
-                return_value=True,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch._resolve_stagger_ms",
-                return_value=100,
-            ),
-            patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-        ):
-            await sched._execute_and_persist(job)
-
-        mock_sleep.assert_awaited_once()
-
-    @pytest.mark.asyncio
-    async def test_execution_exception_handled(self) -> None:
-        store = _make_store()
-        sched, _, _ = _make_scheduler(store=store)
-        sched._running = True
-
-        with (
-            patch(
-                "myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch.pre_execution_check",
-                side_effect=RuntimeError("unexpected"),
-            ),
-        ):
-            await sched._execute_and_persist(_make_job())
 
 
 class TestPurge:

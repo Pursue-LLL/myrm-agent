@@ -26,6 +26,8 @@ _ROOTS = (_SERVER / "app" / "core" / "cron", _SERVER / "app" / "api" / "cron")
 _REMOVED = (
     "active_streams",  # StreamListenerManager status accessor
     "active_polls",  # PollListenerManager status accessor
+    "claim_due",  # store write that cleared a job's next run time when its run was claimed; advance_next_run books instead
+    "list_orphaned_active",  # store query for enabled jobs without a next run time; none can arise
 )
 
 

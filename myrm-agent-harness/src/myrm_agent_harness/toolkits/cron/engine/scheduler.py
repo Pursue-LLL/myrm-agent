@@ -5,24 +5,24 @@ job instead of fixed-interval polling.  Due jobs are dispatched into async
 tasks bounded by a concurrency semaphore.
 
 Execution lifecycle is delegated to ``JobExecutor``; startup recovery to
-``StartupRecovery``; trigger dispatch and the guarded execution path to
-``SchedulerDispatchMixin``.  This module owns only the timer machinery and
-the claim of due jobs.
+``StartupRecovery``; admission of due jobs, trigger dispatch and the guarded
+execution path to ``SchedulerDispatchMixin``.  This module owns only the timer
+machinery and the tick that hands due jobs to admission.
 
 [INPUT]
 - cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
 - cron.engine.helpers::_ensure_utc, is_past_misfire_grace (POS: scheduling helper utilities)
 - cron.engine.recovery::StartupRecovery (POS: startup recovery for missed jobs)
-- cron.engine.scheduler_dispatch::SchedulerDispatchMixin (POS: trigger dispatch and the guarded execution path, mixed into the scheduler)
-- cron.types::CronConfig, CronJob, JobStatus, JobType (POS: cron data models)
+- cron.engine.scheduler_dispatch::SchedulerDispatchMixin (POS: admission, trigger dispatch and the guarded execution path, mixed into the scheduler)
+- cron.types::CronConfig, CronJob, JobType (POS: cron data models)
 
 [OUTPUT]
 - CronScheduler: precise timer-based scheduling engine with concurrency control and watchdog
 
 [POS]
-Cron scheduling engine. Computes exact sleep durations to the next due job, dispatches
-due jobs into async tasks with semaphore-based concurrency control, and delegates execution
-to JobExecutor.
+Cron scheduling engine. Computes exact sleep durations to the next due job, admits due
+jobs (a recurring job's next slot is booked before its run starts) into async tasks with
+semaphore-based concurrency control, and delegates execution to JobExecutor.
 """
 
 from __future__ import annotations
@@ -30,6 +30,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -42,7 +43,6 @@ from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
 from myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch import SchedulerDispatchMixin
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
-    CronJob,
     JobType,
 )
 
@@ -58,6 +58,7 @@ if TYPE_CHECKING:
         ResultDelivery,
         TriggerProvider,
     )
+    from myrm_agent_harness.toolkits.cron.types import CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,8 @@ class CronScheduler(SchedulerDispatchMixin):
         self._global_sem = asyncio.Semaphore(cfg.max_concurrent)
 
         self._last_purge_at: datetime | None = None
-        self._active_jobs: set[str] = set()
+        # Runs between launch and close, per job: the one place "running" lives.
+        self._in_flight: Counter[str] = Counter()
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
         self._executor = JobExecutor(
@@ -116,10 +118,7 @@ class CronScheduler(SchedulerDispatchMixin):
             on_notice=on_notice,
             pre_condition=pre_condition,
         )
-        self._recovery = StartupRecovery(
-            store=store,
-            execute_fn=self._execute_and_persist,
-        )
+        self._recovery = StartupRecovery(store=store, admit_fn=self._admit)
 
     def _spawn(self, coro: Coroutine[object, object, None]) -> None:
         """Schedule a tracked fire-and-forget task, guarding against premature GC."""
@@ -244,26 +243,8 @@ class CronScheduler(SchedulerDispatchMixin):
         self._arm_watchdog()
         try:
             now = datetime.now(UTC)
-            due_jobs = await self._store.list_jobs(due_before=now)
-
-            runnable: list[CronJob] = []
-            skipped_ids: list[str] = []
-            for job in due_jobs:
-                if _is_past_grace(job, now):
-                    logger.warning("Job %s skipped: past misfire grace", job.id)
-                    skipped_ids.append(job.id)
-                else:
-                    runnable.append(job)
-
-            claim_ids = [j.id for j in runnable] + skipped_ids
-            if claim_ids:
-                await self._store.claim_due(claim_ids)
-
-            for job_id in skipped_ids:
-                await self._recovery.reschedule_skipped(job_id)
-
-            for job in runnable:
-                self._spawn(self._execute_and_persist(job))
+            for job in await self._store.list_jobs(due_before=now):
+                await self._handle_due(job, now)
 
             self._last_tick_at = now
             self._tick_errors = 0
@@ -275,6 +256,24 @@ class CronScheduler(SchedulerDispatchMixin):
         finally:
             self._tick_in_progress = False
             self._arm_timer()
+
+    async def _handle_due(self, job: CronJob, now: datetime) -> None:
+        """Admit a due job, or reschedule it when its slot is past the misfire grace.
+
+        A job that is still in flight waits: its run books the next slot when it closes. A failure here is
+        confined to this job: its due time stays booked, so the same failure repeats on every tick, and it must
+        not hold back the jobs behind it.
+        """
+        if self._in_flight[job.id]:
+            return
+        try:
+            if _is_past_grace(job, now):
+                logger.warning("Job %s skipped: past misfire grace", job.id)
+                await self._recovery.reschedule_skipped(job.id)
+            else:
+                await self._admit(job)
+        except Exception as exc:
+            logger.warning("Cron tick: job %s could not be handled: %s", job.id, exc)
 
     # ------------------------------------------------------------------
     # Run record housekeeping

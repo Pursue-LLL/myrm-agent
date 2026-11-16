@@ -9,7 +9,8 @@
 - MediaInputPolicy: where references may be read from and how large the bytes may be
 - MediaInputError: a reference that cannot become usable media bytes, however often it is retried; the message names the
   offending field
-- MediaFetchError: a MediaInputError raised when the source could not be reached this time (network or storage trouble)
+- MediaFetchError: a MediaInputError raised when the source could not deliver this time (network or storage trouble,
+  an HTTP 408, 429 or 5xx status)
 - MediaLoader: injected async loader of one reference scheme (the business layer owns what ``media://`` means)
 - resolve_media_inputs(): references -> validated bytes
 
@@ -52,7 +53,7 @@ class MediaInputError(ValueError):
 
 
 class MediaFetchError(MediaInputError):
-    """A reference could not be fetched this time (network or storage trouble); the same reference may work later."""
+    """A reference could not be fetched this time (network, store or host trouble); it may work later."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,10 +82,12 @@ async def resolve_media_inputs(
     """Resolve every reference to validated bytes, in order.
 
     Raises:
-        MediaInputError: A reference is empty, unsupported, outside the allowed roots, unreadable, too large, blocked
-            or not an image / video; the message starts with ``field_name`` (indexed when there are several references).
-        MediaFetchError: A reference could not be downloaded or loaded because the network or the store is failing;
-            asking again may succeed. A loader's own unexpected failures propagate unchanged.
+        MediaInputError: A reference is empty, unsupported, outside the allowed roots, unreadable, too large, blocked,
+            refused by its host (a status such as 403 or 404) or not an image / video; the message starts with
+            ``field_name`` (indexed when there are several references).
+        MediaFetchError: A reference could not be downloaded or loaded because the network, the store or the host is
+            failing right now (a timeout, throttling or a 5xx status); asking again may succeed. A loader's own
+            unexpected failures propagate unchanged.
     """
     resolved: list[bytes] = []
     for index, ref in enumerate(refs):
@@ -189,6 +192,13 @@ def _decode_data_url(rest: str, limit: int) -> bytes:
         raise MediaInputError("invalid base64 data") from None
 
 
+def _status_error(status: int) -> MediaInputError:
+    # 408 and 429 ask the caller to come back later and 5xx is the host failing; any other status (a hotlink block, a
+    # dead link) is the host's settled answer for that link, so no retry is offered.
+    message = f"download failed (HTTP {status})"
+    return MediaFetchError(message) if status in (408, 429) or status >= 500 else MediaInputError(message)
+
+
 async def _fetch(url: str, allow_private_networks: bool, limit: int, timeout: float) -> bytes:
     try:
         response = await secure_get(
@@ -205,5 +215,7 @@ async def _fetch(url: str, allow_private_networks: bool, limit: int, timeout: fl
         raise MediaInputError("address is blocked by the network policy") from None
     except httpx.InvalidURL:
         raise MediaInputError("not a valid URL") from None
+    except httpx.HTTPStatusError as exc:  # before HTTPError, which it subclasses
+        raise _status_error(exc.response.status_code) from None
     except httpx.HTTPError as exc:
         raise MediaFetchError(f"download failed ({type(exc).__name__})") from None

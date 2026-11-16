@@ -89,8 +89,7 @@ class Stack:
 
     async def dispatch(self, job: CronJob) -> None:
         snapshot = await self.store.get_job(job.id)
-        await self.store.claim_due([job.id])
-        await self.scheduler._execute_and_persist(snapshot)
+        await self.scheduler._dispatch(snapshot)
         await asyncio.sleep(0)  # the failure alert is sent from a task the executor starts
 
     async def stored(self, job: CronJob) -> CronJob:

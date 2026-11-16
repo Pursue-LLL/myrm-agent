@@ -1,7 +1,7 @@
 """InMemoryCronStore direct unit tests — covers CRUD, filtering, monitor state.
 
 Targets the uncovered branches in stores.py (monitor CRUD, count_jobs,
-list_runs with status filter, count_runs, purge_old_runs, list_orphaned_active).
+list_runs with status filter, count_runs, purge_old_runs).
 """
 
 from __future__ import annotations
@@ -142,20 +142,7 @@ class TestListRunsAndCount:
         assert await store.count_runs(status="error") == 1
 
 
-class TestOrphanedAndPurge:
-    @pytest.mark.asyncio
-    async def test_list_orphaned_active(self, store: InMemoryCronStore):
-        j1 = _make_job("j1", next_run_at=None)
-        j2 = _make_job("j2", next_run_at=datetime.now(UTC))
-        j3 = _make_job("j3", status=JobStatus.PAUSED, next_run_at=None)
-        await store.save_job(j1)
-        await store.save_job(j2)
-        await store.save_job(j3)
-
-        orphans = await store.list_orphaned_active()
-        assert len(orphans) == 1
-        assert orphans[0].id == "j1"
-
+class TestPurge:
     @pytest.mark.asyncio
     async def test_purge_old_runs(self, store: InMemoryCronStore):
         now = datetime.now(UTC)

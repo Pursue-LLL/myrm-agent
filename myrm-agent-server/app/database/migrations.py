@@ -6,7 +6,7 @@ sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 app.database.personality_style_merge::MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL (POS: 沟通风格并入 system_prompt 的冻结语句)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / has_pending_migrations(engine)（是否还有待执行的迁移，决定是否需要迁移前快照） / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / has_pending_migrations(engine)（是否还有待执行的迁移，决定是否需要迁移前快照） / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full） / REARM_STALLED_CRON_JOBS_SQL（启用却无下一时刻的周期任务重订） / PAUSE_STALLED_ONCE_CRON_JOBS_SQL（同样停摆的一次性任务置为暂停）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -59,6 +59,23 @@ CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL = (
 # The prompt mode is set by the system (``search`` for the built-in search agents, ``full`` for every other agent); the
 # two modes that a user could once pick, ``lean`` and ``naked``, no longer exist and become ``full``.
 NORMALIZE_RETIRED_PROMPT_MODES_SQL = "UPDATE agents SET prompt_mode = 'full' WHERE prompt_mode IN ('lean', 'naked')"
+
+# An enabled recurring job without a next run time is never run: nothing books a job that has no next slot. It is
+# booked as due in 1970, so the startup recovery finds it past its grace, books its real next slot, records a skip and
+# starts no run nobody asked for. ``updated_at`` marks the upgrade, so no slot before it is replayed. A job that has a
+# next run time is left alone, and a second pass finds nothing to change.
+REARM_STALLED_CRON_JOBS_SQL = (
+    "UPDATE cron_jobs "
+    "SET next_run_at = '1970-01-01 00:00:00.000000', updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now') "
+    "WHERE status = 'active' AND next_run_at IS NULL AND json_extract(schedule, '$.kind') != 'once'"
+)
+
+# An enabled one-time job without a next run time has no moment to run at; pausing it shows its owner that it needs a
+# new time instead of leaving it enabled and silent.
+PAUSE_STALLED_ONCE_CRON_JOBS_SQL = (
+    "UPDATE cron_jobs SET status = 'paused' "
+    "WHERE status = 'active' AND next_run_at IS NULL AND json_extract(schedule, '$.kind') = 'once'"
+)
 
 # 数据库迁移语句，按顺序执行；版本号就是列表下标，只在末尾追加，已发布的语句不删、不改、不挪位
 # （tests/database/test_migration_list_append_only.py 固定了本列表与 INDEX_STATEMENTS 中已发布语句的摘要）。
@@ -741,6 +758,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents DROP COLUMN responsibility_scope",
     "ALTER TABLE agents DROP COLUMN owner_label",
     "ALTER TABLE agents DROP COLUMN acceptance_criteria",
+    REARM_STALLED_CRON_JOBS_SQL,
+    PAUSE_STALLED_ONCE_CRON_JOBS_SQL,
 ]
 
 # 创建索引的SQL语句列表

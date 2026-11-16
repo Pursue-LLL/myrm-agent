@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from myrm_agent_harness.toolkits.cron.engine import helpers
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     BACKOFF_SCHEDULE_MS,
     _ensure_utc,
@@ -13,6 +15,7 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     error_backoff_ms,
     extract_telemetry,
     is_past_misfire_grace,
+    next_slot_or_retry,
     pre_execution_check,
     resolve_failure_alert,
     resolve_stagger_ms,
@@ -227,3 +230,34 @@ class TestExtractTelemetry:
         model, p, _c, _t = extract_telemetry(result)
         assert model == "gpt-4"
         assert p is None
+
+
+class TestNextSlotOrRetry:
+    def test_a_computable_schedule_is_booked_at_its_next_slot(self) -> None:
+        assert next_slot_or_retry(_job(), _NOW) == _NOW + timedelta(hours=1)
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            Schedule(kind=ScheduleKind.CRON, expr="not a cron"),
+            Schedule(kind=ScheduleKind.CRON, expr="0 0 31 2 *"),
+            Schedule(kind=ScheduleKind.CRON, expr="0 * * * *", tz="Mars/Olympus"),
+        ],
+        ids=["unparseable", "no such date", "unknown timezone"],
+    )
+    def test_a_schedule_that_cannot_be_computed_is_booked_a_minute_ahead_with_a_warning(
+        self, schedule: Schedule, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+            slot = next_slot_or_retry(_job(schedule=schedule), _NOW)
+
+        assert slot == _NOW + timedelta(minutes=1)
+        assert [record.levelno for record in caplog.records] == [logging.WARNING]
+        assert "j1" in caplog.records[0].getMessage()
+
+    def test_a_schedule_without_a_further_slot_is_still_booked_a_minute_ahead(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(helpers, "next_eligible_run", lambda job, now: None)
+
+        assert next_slot_or_retry(_job(), _NOW) == _NOW + timedelta(minutes=1)

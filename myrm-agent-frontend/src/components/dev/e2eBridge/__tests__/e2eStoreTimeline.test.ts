@@ -131,7 +131,7 @@ describe('condenseStack', () => {
   it('reads async and constructor frames and drops library and own frames', () => {
     const raw = [
       'Error',
-      '    at observe (webpack-internal:///./src/components/dev/e2eStoreTimeline.ts:70:11)',
+      '    at observe (webpack-internal:///./src/components/dev/e2eBridge/e2eStoreTimeline.ts:70:11)',
       '    at set (webpack-internal:///./node_modules/zustand/esm/vanilla.mjs:20:5)',
       '    at async maybeAttachToActiveTurn (webpack-internal:///./src/store/chat/messageManagement.ts:300:3)',
       '    at new Store (webpack-internal:///./src/store/x.ts:4:1)',

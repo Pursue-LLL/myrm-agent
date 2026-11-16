@@ -75,12 +75,11 @@ class Stack:
         return await self.manager.create_job("job", JobType.AGENT, EVERY_HOUR, prompt="prompt", **options)
 
     async def dispatch(self, job: CronJob, result: JobResult | None = None) -> None:
-        """What the timer does for a due job: read it, claim it, hand the snapshot to the scheduler."""
+        """What the timer does for a due job once it is booked: read it and hand the snapshot to the scheduler."""
         if result is not None:
             self.runner.result = result
         snapshot = await self.store.get_job(job.id)
-        await self.store.claim_due([job.id])
-        await self.scheduler._execute_and_persist(snapshot)
+        await self.scheduler._dispatch(snapshot)
 
     async def stored(self, job: CronJob) -> CronJob:
         found = await self.store.get_job(job.id)

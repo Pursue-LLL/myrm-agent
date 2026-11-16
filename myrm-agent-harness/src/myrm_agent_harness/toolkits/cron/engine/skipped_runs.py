@@ -7,15 +7,16 @@
 - toolkits.cron.types::CronJob, CronRunRecord, JobResult (POS: Cron job domain types.)
 
 [OUTPUT]
-- SkippedRunMixin: `_record_skipped` / `_record_deferred` and their probe / runner entry points
+- SkippedRunMixin: `_record_skipped` / `_record_deferred`, their probe / runner entry points and `record_guard_skip`
 
 [POS]
 Mixed into ``JobExecutor``. A skipped run advances the schedule without counting a
 failure; a deferred run re-arms the job at the instant the runner says a repeat can
-succeed. Neither touches incremental monitors or delivery, and neither spends ``max_fires``:
-the scheduler counts a fire when the run starts, and nothing executed. Both write onto the
-stored job (``adopt_latest``): a job the user paused stays paused, and a deleted one is
-neither recorded nor brought back.
+succeed; a dispatch guard's refusal (cooldown, active hours) is a skipped run that never
+began, so it leaves the last run time alone. None of them touches incremental monitors or
+delivery, and none spends ``max_fires``: the scheduler counts a fire when the run starts,
+and nothing executed. All write onto the stored job (``adopt_latest``): a job the user
+paused stays paused, and a deleted one is neither recorded nor brought back.
 """
 
 from __future__ import annotations
@@ -56,16 +57,24 @@ class SkippedRunMixin:
 
         def _handle_schedule_compute_error(self, job: CronJob, error: Exception, finished: datetime) -> None: ...
 
-    async def _record_skipped(self, job: CronJob, *, trigger_source: str, reason: str | None = None) -> None:
+    async def record_guard_skip(self, job: CronJob, *, reason: str, trigger_source: str) -> None:
+        """A dispatch guard refused a due run: record it as SKIPPED and book the job's next slot."""
+        await self._record_skipped(job, trigger_source=trigger_source, reason=reason, attempted=False)
+
+    async def _record_skipped(
+        self, job: CronJob, *, trigger_source: str, reason: str | None = None, attempted: bool = True
+    ) -> None:
         """Record a SKIPPED run and advance job schedule.
 
-        Used by both pre-flight probe skips and runner-level skips
-        (e.g. heartbeat no-content).  Does not touch monitors.
+        Used by pre-flight probe skips, runner-level skips (e.g. heartbeat no-content) and dispatch-guard
+        refusals.  ``attempted`` is False for a refusal: that run never began, so no fire is handed back and the
+        job's last run time, which anchors the cooldown, stays where it was.  Does not touch monitors.
         """
         if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping its skipped-run record", job.id)
             return
-        self._refund_fire(job)
+        if attempted:
+            self._refund_fire(job)
         now = datetime.now(UTC)
         await self._save_skipped_run(job, now, reason, trigger_source=trigger_source)
 
@@ -81,7 +90,8 @@ class SkippedRunMixin:
             job.status = JobStatus.COMPLETED
             job.next_run_at = None
 
-        job.last_run_at = now
+        if attempted:
+            job.last_run_at = now
         job.last_status = RunStatus.SKIPPED
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)

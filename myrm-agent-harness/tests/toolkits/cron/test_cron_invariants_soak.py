@@ -11,7 +11,7 @@ drained, and four invariants must hold at that quiet point:
 - a job's scheduled runs never overlap
 - a schedule that can fire faster than once a minute is booked at least a minute ahead
 
-Runtime: about 3 s for the eight seeds.
+Runtime: about 6 s for the eight seeds.
 """
 
 from __future__ import annotations
@@ -60,18 +60,6 @@ _OPS = {
     "delete": 4,
     "restart": 4,
 }
-
-
-class StalledJobError(AssertionError):
-    """The run broke invariants, among them an enabled job without a next run time: nothing will ever run it."""
-
-
-pytestmark = pytest.mark.xfail(
-    raises=StalledJobError,
-    strict=True,
-    reason="a due job is claimed by clearing next_run_at before it runs; any failure ahead of the post-run write "
-    "leaves it enabled with no next run time",
-)
 
 
 def _utc(moment: datetime | None) -> datetime | None:
@@ -326,10 +314,9 @@ class _Soak:
     def verdict(self) -> None:
         if not self.violations:
             return
-        report = f"seed {self.seed}: {len(self.violations)} violations\n" + "\n".join(self.violations.values())
-        if any(invariant == "next-run" for invariant, _ in self.violations):
-            raise StalledJobError(report)
-        raise AssertionError(report)
+        raise AssertionError(
+            f"seed {self.seed}: {len(self.violations)} violations\n" + "\n".join(self.violations.values())
+        )
 
     async def step(self) -> None:
         for _ in range(_MIN_ACTIVE - len(await self._jobs(JobStatus.ACTIVE))):

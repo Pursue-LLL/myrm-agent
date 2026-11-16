@@ -59,13 +59,12 @@ class Stack:
     notices: list[CronNotice] = field(default_factory=list)
 
     async def dispatch(self, job: CronJob | None = None) -> CronJob:
-        """What the timer does for a due job: store it, claim it, hand the snapshot to the scheduler."""
+        """What the timer does for a due job once it is booked: store it and hand the snapshot to the scheduler."""
         job = _job() if job is None else job
         await self.store.save_job(job)
-        await self.store.claim_due([job.id])
         snapshot = await self.store.get_job(job.id)
         assert snapshot is not None
-        await self.scheduler._execute_and_persist(snapshot)
+        await self.scheduler._dispatch(snapshot)
         stored = await self.store.get_job(job.id)
         assert stored is not None
         return stored
