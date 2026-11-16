@@ -22,7 +22,7 @@ import { toast } from '@/lib/utils/toast';
 import { translateI18nKey } from '@/services/i18nToastService';
 import { showRiskHeldRefusal } from '@/services/riskHeldToast';
 import { redactErrorMessage } from '@/lib/utils/error-handling';
-import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
+import { getClientLocale, resolveBackendLocale } from '@/lib/utils/locale';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -361,9 +361,7 @@ const getAuthToken = (): string | null => {
 // 动态 import 断静态环：api 被 store→llm-config 链反向依赖，静态 import useConfigStore 会成环
 async function resolveAcceptLanguageHeader(): Promise<string | undefined> {
   const { default: useConfigStore } = await import('@/store/useConfigStore');
-  const savedLocale = useConfigStore.getState().personalSettings?.locale;
-  const cookieLocale = getClientLocale();
-  return normalizeLocaleForBackend(savedLocale || cookieLocale);
+  return resolveBackendLocale(useConfigStore.getState().personalSettings?.locale, getClientLocale());
 }
 
 /**

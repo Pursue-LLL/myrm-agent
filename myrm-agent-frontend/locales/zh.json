@@ -936,10 +936,6 @@
       "title": "允许被其他智能体发现并委派",
       "description": "开启后，其他智能体在自动组队时可发现并调用此智能体。关闭后，此智能体不会被自动组队发现，但你仍可通过 @ 显式指定它。"
     },
-    "formalKoreanReplies": {
-      "title": "正式韩语回复（합니다体）",
-      "description": "回复使用适合商务邮件、会议纪要与办公场景的韩语敬语（합니다体）。"
-    },
     "openapi": {
       "title": "OpenAPI 服务",
       "subtitle": "通过 OpenAPI 规范零代码接入 REST API 工具",

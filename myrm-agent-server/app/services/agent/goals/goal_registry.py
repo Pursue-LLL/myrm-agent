@@ -9,12 +9,13 @@
 - app.core.utils.chat_utils::parse_judge_json (POS: judge JSON 解析)
 
 [OUTPUT]
-- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；has_active_goal 读存储真值（与 provider 是否注册无关）
+- GoalRegistry: 全局注册表，通过 session_id 管理运行中的 GoalProvider；resolve_provider 为 HTTP API 取 provider（已注册的，否则一个不注册的存储直读 manager）；has_active_goal 读存储真值（与 provider 是否注册无关）
 - ServerGoalManager: 扩展 harness GoalManager，提供 semantic judge 与 Goal 完成时的会话交付物汇总
 
 [POS]
 会话级 Goal 注册表。使 HTTP API 能够通过 session_id 定位正在运行的
-Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢复）。
+Agent 会话的 GoalProvider，从而在运行时控制 Goal 状态（暂停/恢复）；
+回合之间没有注册 provider 的会话，由 resolve_provider 退回存储直读。
 与 SteeringRegistry 和 CancellationRegistry 形成对称设计。
 """
 
@@ -224,17 +225,33 @@ class GoalRegistry:
         with cls._lock:
             return cls._providers.get(session_id)
 
-    @staticmethod
-    async def has_active_goal(session_id: str) -> bool:
+    @classmethod
+    def resolve_provider(cls, session_id: str) -> "GoalProvider":
+        """The session's registered provider, else a manager over the same storage that is not registered.
+
+        Providers are registered only while a turn runs, yet the HTTP API serves a session between turns
+        too, and its goals live in storage. The stand-in is never registered: a registered provider is the
+        live handle of a running session, and `GET /goals/active` lists every registered session.
+        """
+        provider = cls.get_provider(session_id)
+        return provider if provider is not None else cls._storage_manager()
+
+    @classmethod
+    async def has_active_goal(cls, session_id: str) -> bool:
         """Whether storage holds an ACTIVE goal for the session, whether or not a provider is registered.
 
         An active goal mounts complete_goal_tool and planning when an agent is built, so execution-cache
         keys depend on it. Providers are registered only while a turn runs; reading the provider map
         would give a different answer between turns than during one.
         """
+        return await cls._storage_manager().get_active_goal(session_id) is not None
+
+    @staticmethod
+    def _storage_manager() -> GoalManager:
+        """A plain manager over the platform storage, holding none of a running session's state."""
         from app.platform_utils import get_storage_provider
 
-        return await GoalManager(get_storage_provider()).get_active_goal(session_id) is not None
+        return GoalManager(get_storage_provider())
 
     @classmethod
     def session_ids(cls) -> list[str]:

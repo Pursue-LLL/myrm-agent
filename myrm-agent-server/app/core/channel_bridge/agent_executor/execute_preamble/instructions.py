@@ -6,7 +6,7 @@ app.ai_agents.personality_templates::render_personality_block (POS: 会话级沟
 
 [OUTPUT]
 enrich_channel_user_instructions(): 合并团队协议、渠道能力约束、IM 行为策略 Persona、
-会话级沟通风格（`/personality`）与 response_locale_policy 后缀后的 instructions。
+会话级沟通风格（`/personality`）后的 instructions。
 
 [POS]
 preamble 子模块：将渠道/Agent 输出约束注入 user_instructions 尾部。
@@ -68,16 +68,10 @@ async def enrich_channel_user_instructions(
             instructions = f"{instructions}\n\n{im_persona}" if instructions else im_persona
 
     from app.ai_agents.personality_templates import render_personality_block
-    from app.services.agent.params.response_locale_suffix import apply_response_locale_suffix
 
     session_style = msg.metadata.get("personality_style")
     style_block = render_personality_block(session_style if isinstance(session_style, str) else None)
     if style_block:
         instructions = f"{instructions}\n\n{style_block}" if instructions else style_block
-
-    instructions = apply_response_locale_suffix(
-        instructions,
-        engine_params=resolved_profile.engine_params if resolved_profile else None,
-    )
 
     return instructions or ""

@@ -3,8 +3,8 @@ import { setGlobalTranslator } from '@/services/i18nToastService';
 import * as api from '@/lib/api';
 import { createAISearchStream } from '@/services/chat';
 import { getConfigSyncManager } from '@/services/config';
+import { DEFAULT_PERSONAL_SETTINGS } from '@/services/config/types';
 import { expectDefined } from '@/test-utils/expectDefined';
-import { normalizeLocaleForBackend } from '@/lib/utils/locale';
 import type { AgentConfig } from '@/store/chat/types';
 import type { MentionReference } from '@/store/chat/types';
 import {
@@ -42,75 +42,80 @@ vi.mock('@/lib/kanban/kanbanChatBoard', async (importOriginal) => {
   };
 });
 
-/**
- * Test locale priority logic from messageRequest.ts
- * Logic: prioritize personalSettings.locale > cookie > auto-detect
- */
-describe('messageRequest - locale priority logic', () => {
-  it('should prioritize personalSettings.locale over cookie', () => {
-    // Simulate personalSettings with locale
-    const mockConfigStore = {
-      personalSettings: {
-        locale: 'zh-CN',
-      },
-    };
+describe('messageRequest - reply locale contract', () => {
+  const makeState = () =>
+    ({
+      chatId: 'chat-locale',
+      actionMode: 'agent',
+      agentConfig: null,
+      abortController: new AbortController(),
+      loading: false,
+      loadingOlder: false,
+      messages: [],
+      compactedSummary: null,
+      compactedBeforeId: null,
+      workspaceDir: null,
+      files: [],
+      visionFrames: [],
+      hideAttachList: false,
+      hasUsedImagesInCurrentChat: false,
+      mentionReferences: [],
+      clearMentionReferences: vi.fn(),
+      removeMentionReferencesByTypes: vi.fn(),
+      isGoalMode: false,
+      currentSessionMessageId: null,
+      messageAppeared: false,
+      isMessagesLoaded: true,
+      hasMoreMessages: false,
+      nextCursor: null,
+      notFound: false,
+      loadError: false,
+      newChatCreated: false,
+      currentBuiltinTools: [],
+    }) as unknown as ChatActionsState;
 
-    const mockCookieLocale = 'en'; // cookie is 'en'
+  const originalPersonalSettings = useConfigStore.getState().personalSettings;
 
-    // Simulate the logic from messageRequest.ts
-    const savedLocale = mockConfigStore.personalSettings?.locale;
-    const userLocale = normalizeLocaleForBackend(savedLocale || mockCookieLocale);
-
-    expect(userLocale).toBe('zh-CN'); // personalSettings wins
-    expect(savedLocale).toBe('zh-CN');
+  afterEach(() => {
+    useConfigStore.setState({ personalSettings: originalPersonalSettings });
+    document.cookie = 'NEXT_LOCALE=; path=/; max-age=0';
   });
 
-  it('should fallback to cookie when personalSettings.locale is undefined', () => {
-    // Simulate personalSettings without locale
-    const mockConfigStore: { personalSettings: { locale?: string } } = {
-      personalSettings: {
-        // no locale field
-      },
-    };
+  async function requestedLocale(saved: string | undefined, cookie: string | null): Promise<unknown> {
+    const createAISearchStreamMock = createAISearchStream as ReturnType<typeof vi.fn>;
+    createAISearchStreamMock.mockClear();
+    createAISearchStreamMock.mockResolvedValueOnce(new Response('', { status: 200 }));
+    useConfigStore.setState({ personalSettings: { ...DEFAULT_PERSONAL_SETTINGS, locale: saved } });
+    if (cookie) {
+      document.cookie = `NEXT_LOCALE=${cookie}; path=/`;
+    }
 
-    const mockCookieLocale = 'en';
+    await createMessageRequest('which language', 'msg-locale', makeState(), null);
 
-    const savedLocale = mockConfigStore.personalSettings?.locale;
-    const userLocale = normalizeLocaleForBackend(savedLocale || mockCookieLocale);
+    const [requestBody] = createAISearchStreamMock.mock.calls[0] ?? [];
+    return requestBody.locale;
+  }
 
-    expect(userLocale).toBe('en'); // fallback to cookie
-    expect(savedLocale).toBeUndefined();
+  it('answers in the saved locale, in the backend format', async () => {
+    expect(await requestedLocale('zh-CN', 'en')).toBe('zh-CN');
+    expect(await requestedLocale('en', 'zh')).toBe('en');
   });
 
-  it('should fallback to cookie when personalSettings is null', () => {
-    // Simulate null personalSettings
-    const mockConfigStore = {
-      personalSettings: null as { locale?: string } | null,
-    };
-
-    const mockCookieLocale = 'en';
-
-    const savedLocale = mockConfigStore.personalSettings?.locale;
-    const userLocale = normalizeLocaleForBackend(savedLocale || mockCookieLocale);
-
-    expect(userLocale).toBe('en'); // fallback to cookie
-    expect(savedLocale).toBeUndefined();
+  it('follows the interface language when nothing is saved', async () => {
+    expect(await requestedLocale(undefined, 'zh')).toBe('zh-CN');
+    expect(await requestedLocale(undefined, 'en')).toBe('en');
   });
 
-  it('should normalize zh from personalSettings to zh-CN', () => {
-    const mockConfigStore = {
-      personalSettings: {
-        locale: 'zh',
-      },
-    };
+  it.each(['ja', 'ko', 'de'])(
+    'follows the interface language when the saved locale is the retired %s',
+    async (retired) => {
+      expect(await requestedLocale(retired, 'zh')).toBe('zh-CN');
+      expect(await requestedLocale(retired, 'en')).toBe('en');
+    },
+  );
 
-    const mockCookieLocale = 'en';
-
-    const savedLocale = mockConfigStore.personalSettings?.locale;
-    const userLocale = normalizeLocaleForBackend(savedLocale || mockCookieLocale);
-
-    // normalizeLocaleForBackend normalizes 'zh' to 'zh-CN'
-    expect(userLocale).toBe('zh-CN');
+  it('sends no locale when neither source names an offered one', async () => {
+    expect(await requestedLocale('ja', null)).toBeUndefined();
   });
 });
 

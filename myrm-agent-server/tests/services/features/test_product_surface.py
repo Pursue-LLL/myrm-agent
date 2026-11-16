@@ -17,6 +17,14 @@ def test_hidden_builtin_agent_ids() -> None:
     assert not is_hidden_builtin_agent("builtin-general")
 
 
+def test_retired_korean_office_preset_stays_hidden_without_a_spec() -> None:
+    """Rows created before the preset was retired stay out of every list; no spec re-creates them."""
+    from app.services.agent.builtin_agent_specs import _BUILTIN_AGENTS
+
+    assert is_hidden_builtin_agent("builtin-ko-office")
+    assert "builtin-ko-office" not in {spec.id for spec in _BUILTIN_AGENTS}
+
+
 def test_hidden_prebuilt_template_ids() -> None:
     assert "research_analysis_squad" in HIDDEN_PREBUILT_TEMPLATE_IDS
     assert is_hidden_prebuilt_template("research_analysis_squad")
