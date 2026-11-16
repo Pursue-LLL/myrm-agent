@@ -43,8 +43,8 @@ class DesktopLockedUseDiagnostic(DiagnosticProtocol):
                 status="pass",
                 code="OK_DESKTOP_LOCKED_USE_N_A",
                 meta_data=meta,
-                message="Locked Use and Privacy Curtain are macOS desktop-shell features.",
-                detail="Use the Myrm desktop app on macOS for unattended unlock and privacy curtain.",
+                message="Locked Use is a macOS desktop-shell feature; the Privacy Curtain runs on macOS and Windows.",
+                detail="Use the Myrm desktop app on macOS for unattended unlock, and on macOS or Windows for the privacy curtain.",
             )
 
         if bridge_path is None:

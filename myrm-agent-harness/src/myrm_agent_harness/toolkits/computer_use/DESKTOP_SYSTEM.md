@@ -150,8 +150,8 @@ Injected via server `DESKTOP_CONTROL_RULES` (`myrm-agent-server/app/ai_agents/pr
 | Native API routing hints | implemented (macOS/Windows/Linux) |
 | Desktop browser E2E host grants | the `chrome_e2e_desktop` nodes probe the *backend host* process (`/webui/desktop/permissions`); a backend running in a background bootstrap context reports denied even when your shell has grants — run it from a GUI-session backend or grant TCC to the host |
 | Background input (macOS) | ✅ implemented (PID-targeted delivery + foreground guard + window capture; minimized windows and Chromium move/scroll stay limited) |
-| Visual approval OS red frame (Tauri) | ✅ macOS only; non-macOS `show_visual_approval_overlay` returns Err + frontend `desktopBridge.isMacOS()` gate (in-app approval card remains fallback) |
-| Cloud-hosted sandbox (control plane) | Locked Use / Privacy Curtain / OS overlay require the user’s **local Tauri shell** on macOS. Cloud VMs have no user lock screen or Myrm desktop IPC — fail-closed; use in-app approval and browser/desktop inside the sandbox only. |
+| Visual approval OS red frame (Tauri) | ✅ macOS and Windows; other platforms: `show_visual_approval_overlay` returns Err + frontend `desktopBridge.isMacOS() \|\| isWindows()` gate (in-app approval card remains fallback) |
+| Cloud-hosted sandbox (control plane) | Locked Use requires the user’s **local Tauri shell** on macOS; Privacy Curtain and the OS overlay require it on macOS or Windows. Cloud VMs have no user lock screen or Myrm desktop IPC — fail-closed; use in-app approval and browser/desktop inside the sandbox only. |
 
 ---
 
