@@ -29,9 +29,7 @@ class TestGroupRbacAndExemptCommands:
     async def test_exempt_diagnostic_commands_bypass_dm_quota(self) -> None:
         mock_pairing = MagicMock()
         mock_pairing.resolve = AsyncMock(return_value="paired_member_telegram_u1")
-        mock_pairing.get_pairing_detail = AsyncMock(
-            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 5)
-        )
+        mock_pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 5))
         mock_pairing.touch_display_name = AsyncMock()
 
         mock_policy = MagicMock()
@@ -70,12 +68,11 @@ class TestGroupRbacAndExemptCommands:
                 "member_user": "paired_member_slack_member_user",
             }.get(sender, None)
         )
-        mock_pairing.get_pairing_detail = AsyncMock(
-            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 10)
-        )
+        mock_pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 10))
 
         mock_policy = MagicMock()
         from app.channels.protocols.pairing import GroupPolicy
+
         mock_policy.get_group_policy = AsyncMock(return_value=GroupPolicy.OPEN)
         mock_policy.get_default_user_id = AsyncMock(return_value="sandbox")
         mock_policy.get_enabled_groups = AsyncMock(return_value={"group_123"})
@@ -237,9 +234,7 @@ class TestGroupRbacAndExemptCommands:
         bus.get_channel = MagicMock(return_value=None)
 
         pairing = MagicMock()
-        pairing.get_pairing_detail = AsyncMock(
-            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 15)
-        )
+        pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 15))
         pairing.resolve = AsyncMock(return_value="paired_member_slack_user1")
         pairing.touch_display_name = AsyncMock()
 
@@ -347,9 +342,7 @@ class TestGroupRbacAndExemptCommands:
         bus.get_channel = MagicMock(return_value=None)
 
         pairing = MagicMock()
-        pairing.get_pairing_detail = AsyncMock(
-            return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 20)
-        )
+        pairing.get_pairing_detail = AsyncMock(return_value=(PairingStatus.ACTIVE, PairingRole.MEMBER, 20))
         pairing.resolve = AsyncMock(return_value="paired_member_slack_user2")
 
         executor = MagicMock()
@@ -412,7 +405,7 @@ class TestGroupRbacAndExemptCommands:
         from app.channels.i18n import get_text
         from app.channels.types import InboundMessage
 
-        for lang in ("zh-CN", "en", "zh-TW", "ja"):
+        for lang in ("zh-CN", "en"):
             msg = InboundMessage(
                 channel="slack",
                 sender_id="u1",
@@ -425,5 +418,3 @@ class TestGroupRbacAndExemptCommands:
 
             exceeded = get_text(msg, "daily_quota_exceeded", quota=20)
             assert "/quota" in exceeded
-
-

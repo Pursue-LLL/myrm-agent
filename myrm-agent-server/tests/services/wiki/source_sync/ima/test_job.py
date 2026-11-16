@@ -33,9 +33,7 @@ _NAMES = {
     "zh": "ima 知识库同步",
     "zh-TW": "ima 知识库同步",
     "en": "ima Knowledge Sync",
-    "de": "ima Knowledge Sync",
-    "ja": "ima Knowledge Sync",
-    "ko": "ima Knowledge Sync",
+    "fr": "ima Knowledge Sync",
 }
 # The description is shown under the job name in the cron list; it must not expose how the job is run.
 _IMPLEMENTATION_TERMS = ("router", "prompt", "cron", "路由", "提示词")

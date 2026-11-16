@@ -18,7 +18,7 @@ const COMPLEXITY_REASONS = [
   'min_tier_escalation(llm_judge)',
 ] as const;
 
-const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['en', 'zh'] as const;
 
 const ALL_KEYS: RoutingReasonKey[] = [
   'routingReasonSimpleIndicator',

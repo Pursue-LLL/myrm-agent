@@ -37,7 +37,7 @@ _SERVER_CATALOG_ALLOWLIST: frozenset[str] = frozenset(
     }
 )
 
-_SERVER_LOCALE_NAMES = ("en", "zh-CN", "ja", "zh-TW", "ko", "de")
+_SERVER_LOCALE_NAMES = ("en", "zh-CN")
 
 
 def _flat_keys(data: dict[str, object]) -> set[str]:

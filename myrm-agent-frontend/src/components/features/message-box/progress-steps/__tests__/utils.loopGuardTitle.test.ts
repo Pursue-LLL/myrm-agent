@@ -3,17 +3,13 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import de from '../../../../../../locales/de.json';
 import en from '../../../../../../locales/en.json';
-import ja from '../../../../../../locales/ja.json';
-import ko from '../../../../../../locales/ko.json';
-import zhTW from '../../../../../../locales/zh-TW.json';
 import zh from '../../../../../../locales/zh.json';
 import { getStepTitle } from '../utils';
 import { loopGuardProgressStepKey } from '@/store/chat/messageStream/handlers/loopGuardStepKey';
 import type { ProgressItem } from '@/store/chat/types';
 
-const CATALOGS = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const CATALOGS = { en, zh } as const;
 
 /**
  * A `loop_guard_break` blocks one repeated call and hands the error back to the model; the run goes on.
@@ -22,10 +18,6 @@ const CATALOGS = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
 const STOP_CLAIMS = {
   en: /stopp?ed|terminat|abort/i,
   zh: /停止|中止|终止/,
-  'zh-TW': /停止|中止|終止/,
-  ja: /停止|中止|終了/,
-  ko: /중단|중지|종료/,
-  de: /gestoppt|beendet|abgebrochen/i,
 } as const;
 
 const STEP_KEYS = [

@@ -97,8 +97,8 @@ async def test_config_locale_produces_zh_channel_help_text() -> None:
 
 
 @pytest.mark.asyncio
-async def test_config_locale_zh_tw_produces_traditional_channel_text() -> None:
-    """The GUI's Traditional Chinese choice reaches the zh-TW catalog, not the Simplified one."""
+async def test_config_locale_zh_tw_reads_the_chinese_channel_catalog() -> None:
+    """The GUI's Traditional Chinese choice keeps its script in the locale and is answered from the zh-CN catalog."""
     _set_personal_locale("zh-TW")
     provider = UserConfigLocaleProvider()
     base = InboundMessage(channel="telegram", sender_id="u1", content="/help")
@@ -110,7 +110,7 @@ async def test_config_locale_zh_tw_produces_traditional_channel_text() -> None:
         metadata={"locale": locale},
     )
     assert locale == "zh-TW"
-    assert get_text(enriched, "config_next_steps", steps="x").strip().startswith("後續步驟：")
+    assert get_text(enriched, "config_next_steps", steps="x").strip().startswith("后续步骤：")
 
 
 @pytest.mark.asyncio

@@ -395,10 +395,10 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 | `transport_diagnosis.py` | TLS（`tls_certificate`：证书被拒（链不受信、主机名不符、过期），步骤先核对端点证书、再给企业网络兼容开关并说明改后需重启应用；`tls_transient`：握手被中断，末步与证书卡相同）与连接（`connection`、`custom_endpoint_unreachable`）诊断（连接失败还会沿异常链读取：客户端库把被拒的证书包装成一句「Connection error.」，原因留在底层异常里，底层异常带硬证书信号就判为 `tls_certificate`，自定义端点同样；判定函数是 `toolkits/llms/errors/tls_rejection.py::rejects_certificate`，失败分类器用的是同一个，所以错误卡与重试、换 Key、故障转移说的是同一个原因；短暂信号不沿链读取，因为它包含「wrong version number」「broken pipe」这类也会出现在纯 HTTP 服务或被断开套接字上的措辞；外层不是连接失败的异常保持自己的诊断）；自定义端点的服务名、端口推断 |
 | `account_diagnosis.py` | 余额（`billing`）、供应商策略（`opencode_training_policy`）与密钥（`api_key`）诊断 |
 | `types.py` | `DiagnosticResult` / `ErrorContext` 数据结构 |
-| `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化；`locale_chain()` 定义文案的回退链：请求的语言 → 其规范形式 → 同语言的其他目录（`ja-JP` 读 `ja`；`zh-HK` 读 `zh-TW`，宿主目录没有繁体目录时再读 `zh-CN`）→ `en`；文案、等待提示与恢复按钮标签共用这条链 |
+| `i18n/manager.py` | `LocaleManager`：locale 检测 + 捆绑 JSON 加载 + 消息格式化；`locale_chain()` 定义文案的回退链：请求的语言 → 其规范形式 → 同语言的其他目录（`en-GB` 读 `en`；`zh-HK` 读 `zh-TW`（仅宿主注册了繁体目录时存在），再读 `zh-CN`）→ `en`；文案、等待提示与恢复按钮标签共用这条链 |
 | `i18n/__init__.py` | `get_locale_manager()` 全局单例 |
 | `i18n/constants.py` | `REQUIRED_ERROR_TYPES` 翻译完整性校验 |
-| `i18n/locales/` | 6 语言 JSON（en/zh-CN/zh-TW/ja/ko/de） |
+| `i18n/locales/` | 中英文 JSON（en/zh-CN） |
 
 #### 2. ErrorKind分类（`toolkits/llms/errors/classifier.py`，13种）
 
@@ -424,9 +424,9 @@ event_log 持久化的 error 事件由 trace_builder 重建为 ExecutionTrace.er
 
 关键词族读什么文字（`diagnostics/provider_words.py::keyword_text`）：传输层失败（`LLMCallError`）里供应商说了话（上面的 `provider_error_message` 取到的那句，或非 JSON 的网关页文字）时，只读这句话的小写形式（至多 2000 字符），不读传输层自己的前缀 `openai API error 429:`，也不读 JSON 应答体里的数字 `code` 与错误种类名：状态数字是共享分类器结合应答体判断用的数据，读成关键词会把「429 加欠费」读成限流、把「403 加 rate limiting」读成密钥被拒、把任何 404 读成「模型不存在」并给出 Ollama 的步骤，中文欠费话在 JSON 里常以 `\uXXXX` 转义出现，也只有读解码后的句子才认得。供应商没给话（空体、`{}`、只有 `code` 或种类）时，状态就是它说的全部，读异常文本，前缀里的状态数字随之可读（裸 404 读成「模型不存在」卡，与旧栈对 OpenAI 兼容端点的读法一致）；其他异常（`httpx`、SDK）读文本加类名。504 在关键词族之后读成 `timeout` 卡（网关等不到模型，建议开流式），分类器仍把 504 归 `overloaded`，故障转移不变。
 
-`format_error` 在异常没有任何供应商应答时（客户端库在发请求之前就抛出的失败，例如缺少服务商前缀、参数不被支持）不引用库文本：调用方给了 `ErrorContext.model_name` 时用 `format_error_model` 词条（点出请求发往的模型，处理步骤指向「设置 > 模型服务」），没有模型信息时用不含占位符的 `format_error_generic`（结果的 `error_type` 仍是 `format_error`，恢复按钮与上游消费者不受影响）；`unknown` 是兜底，可以展示整理后的异常文本。六种语言目录里引用原话的词条一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）。守护测试：`tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py`（占位符）、`test_provider_message_text.py`（整理管线）、`test_provider_failure_diagnostics.py`（各种应答形态与客户端侧失败）、`test_transport_failure_cards.py`（关键词族读供应商的话而不读传输层前缀与 JSON 字段：429 加欠费是账单卡，403 加 rate limiting 是限流卡，404 的话没提模型时不是模型卡，没有话的 404 是模型卡，504 是超时卡）、`test_classified_failure_diagnostics.py`（分类器认得的每种失败都有自己的卡片，含传输层产出的 Anthropic、Gemini、DeepSeek 密钥失败，以及供应商策略拦截、订阅档位门槛、WAF 质询不被关键词族误读）、`test_data_shaped_provider_text.py`（数据形正文不被展示，方括号标签开头的话照常展示）、`tests/toolkits/llms/errors/test_error_payload.py`（应答读取）、`test_normalize.py`（嵌套过深的上游应答不让分类失败）、`test_locale_placeholder_parity.py`（六种语言的键集与英文目录一致，缺键会静默退回英文）。
+`format_error` 在异常没有任何供应商应答时（客户端库在发请求之前就抛出的失败，例如缺少服务商前缀、参数不被支持）不引用库文本：调用方给了 `ErrorContext.model_name` 时用 `format_error_model` 词条（点出请求发往的模型，处理步骤指向「设置 > 模型服务」），没有模型信息时用不含占位符的 `format_error_generic`（结果的 `error_type` 仍是 `format_error`，恢复按钮与上游消费者不受影响）；`unknown` 是兜底，可以展示整理后的异常文本。各语言目录里引用原话的词条一律使用 `{error_message}` 占位符（引擎只填这一个参数，目录里写成别的名字会让原文被静默替换为空串）。守护测试：`tests/agent/errors/diagnostics/test_unknown_diagnostic_copy.py`（占位符）、`test_provider_message_text.py`（整理管线）、`test_provider_failure_diagnostics.py`（各种应答形态与客户端侧失败）、`test_transport_failure_cards.py`（关键词族读供应商的话而不读传输层前缀与 JSON 字段：429 加欠费是账单卡，403 加 rate limiting 是限流卡，404 的话没提模型时不是模型卡，没有话的 404 是模型卡，504 是超时卡）、`test_classified_failure_diagnostics.py`（分类器认得的每种失败都有自己的卡片，含传输层产出的 Anthropic、Gemini、DeepSeek 密钥失败，以及供应商策略拦截、订阅档位门槛、WAF 质询不被关键词族误读）、`test_data_shaped_provider_text.py`（数据形正文不被展示，方括号标签开头的话照常展示）、`tests/toolkits/llms/errors/test_error_payload.py`（应答读取）、`test_normalize.py`（嵌套过深的上游应答不让分类失败）、`test_locale_placeholder_parity.py`（中文目录的键集与英文目录一致，缺键会静默退回英文）。
 
-目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型服务」「设置 > 模型服务 > 默认模型」；错误卡只在这一轮的恢复手段（回合内重试、故障转移）已经用尽或不适用之后出现，所以文案只陈述失败与用户能做的事，不承诺系统接下来的重试或切换；只有动作正在发生时发出的非致命步骤（`tool_call_retry`、`text_continuation`）可以用进行时。英文目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_makes_no_promise.py` 守护，其余语言是它的译文。入口名称与前端菜单文案的一致性由 server 侧 `tests/integration/test_diagnostic_copy_ui_labels_i18n_sync.py` 对六种语言逐一守护。繁体目录用台湾用词（逾時、儲值、主控台、連線），不带简体字形与大陆用词：harness 侧 `tests/agent/errors/diagnostics/test_traditional_chinese.py` 用一份内置样本守护（脱离前端的开源包也能运行），server 侧 `tests/integration/test_diagnostic_copy_zh_tw_glossary_i18n_sync.py` 用前端 `scripts/i18n-glossary.json` 的完整禁用词表与 `scripts/zh-simplified-glyphs.txt` 的简体字形集，扫描繁体目录文案与恢复按钮标签。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
+目录文案的通用约定：`user_message`、`resolution_steps`、`rate_limit_wait_step` 原样展示给最终用户（网页端错误卡片、可信所有者私聊的渠道回复），因此不出现配置标识符（`snake_case` 参数名、`UPPER_SNAKE` 环境变量、`*Config` 类名）与库内部概念（LiteLLM、调试开关）；需要用户操作时指向产品里看得见的入口，例如「设置 > 模型服务」「设置 > 模型服务 > 默认模型」；错误卡只在这一轮的恢复手段（回合内重试、故障转移）已经用尽或不适用之后出现，所以文案只陈述失败与用户能做的事，不承诺系统接下来的重试或切换；只有动作正在发生时发出的非致命步骤（`tool_call_retry`、`text_continuation`）可以用进行时。英文目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_makes_no_promise.py` 守护，其余语言是它的译文。入口名称与前端菜单文案的一致性由 server 侧 `tests/integration/test_diagnostic_copy_ui_labels_i18n_sync.py` 对中英两种语言逐一守护。该约定对每种错误类型、每份语言目录由 `tests/agent/errors/diagnostics/test_diagnostic_copy_has_no_identifiers.py` 守护。
 
 #### 3. DiagnosticResult结构
 
@@ -436,14 +436,14 @@ class DiagnosticResult:
     error_type: str  # 错误类型（如 "rate_limit"）
     user_message: str  # 本地化用户消息
     resolution_steps: list[str]  # 恢复步骤建议
-    locale: str  # 请求的语言（en/zh-CN/zh-TW/ja/ko/de 等）；文案按 `locale_chain()` 取，区域变体（`ja-JP`）读到其语言的文案，繁体请求读 `zh-TW` 文案（宿主目录没有繁体目录时读简体）
+    locale: str  # 请求的语言（en/zh-CN 等）；文案按 `locale_chain()` 取，区域变体（`en-GB`）读到其语言的文案，繁体请求读 `zh-TW` 文案（捆绑目录没有繁体目录，读简体）
 ```
 
 ### 前端错误处理
 
 #### 支持的语言
 
-前端 locales 提供 6 种语言（`de`/`en`/`ja`/`ko`/`zh`/`zh-TW`），`errors` section 含常见错误分类的 message/hint 翻译。
+前端 locales 提供中英两种语言（`en`/`zh`），`errors` section 含常见错误分类的 message/hint 翻译。
 
 #### 前端消费链路
 
@@ -542,6 +542,6 @@ get_locale_manager().register_translations(
 |------|------|
 | `myrm-agent-frontend/src/store/chat/messageStream/streamHelpers.ts` | 前端错误事件消费 + getUserFriendlyError() |
 | `myrm-agent-frontend/src/store/chat/types/agentStream/part1.ts` | `ErrorKind` type + `ErrorStreamEvent` interface 定义 |
-| `myrm-agent-frontend/locales/*.json` | 6种语言翻译文件（de/en/ja/ko/zh/zh-TW，errors section 含错误分类翻译） |
+| `myrm-agent-frontend/locales/*.json` | 中英翻译文件（en/zh，errors section 含错误分类翻译） |
 | `myrm-agent-frontend/src/i18n/config.ts` | next-intl配置（支持的locales） |
 | `myrm-agent-frontend/src/components/features/message-box/progress-steps/ProgressSteps.tsx` | 错误 UI 渲染 |

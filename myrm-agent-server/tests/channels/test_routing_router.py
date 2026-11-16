@@ -472,7 +472,7 @@ class TestReapStuckTasks:
             chat_id="chat-1",
             placeholder_id=None,
             started_at=time.monotonic() - _STUCK_TASK_TIMEOUT - 10,
-            locale="ja",
+            locale="zh-CN",
         )
 
         router._fx = MagicMock()
@@ -483,7 +483,7 @@ class TestReapStuckTasks:
         await router._reap_stuck_tasks(time.monotonic())
 
         notice = bus.publish_outbound.await_args.args[0]
-        assert notice.content.startswith("⏱ タスクが")
+        assert notice.content.startswith("⏱ 任务在")
 
     @pytest.mark.asyncio
     async def test_typing_and_placeholder_cleaned(self) -> None:

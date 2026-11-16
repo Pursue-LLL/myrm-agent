@@ -17,11 +17,11 @@ import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics.i18n import manager as manager_module
 
-_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN")
 _LOCALES_DIR = Path(manager_module.__file__).parent / "locales"
 _COPY_SUFFIXES = ("_user_message", "_resolution_steps", "_wait_step")
 
-# ASCII-only boundaries: ja/zh text puts an identifier right next to CJK characters.
+# ASCII-only boundaries: zh text puts an identifier right next to CJK characters.
 _SNAKE_CASE = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+(?![A-Za-z0-9_])")
 _CONFIG_CLASS = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]*Config(?![A-Za-z0-9])")
 _PLACEHOLDER = re.compile(r"\{[^{}]*\}")

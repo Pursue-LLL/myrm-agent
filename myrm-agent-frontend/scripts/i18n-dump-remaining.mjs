@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * [INPUT] locales/en.json + locales/<locale>.json (POS: 六语翻译 SSOT)
+ * [INPUT] locales/en.json + locales/<locale>.json (POS: 中英翻译 SSOT)
  *         scripts/i18n-shell-core.mjs (POS: 壳检测共享逻辑)
  *         scripts/i18n-shell-allowlist.json (POS: 壳检测豁免清单)
  * [OUTPUT] 剩余翻译壳清单（TSV 或 JSON，stdout 或 --out 文件）
@@ -8,8 +8,8 @@
  *
  * Usage:
  *   node scripts/i18n-dump-remaining.mjs <locale>
- *   node scripts/i18n-dump-remaining.mjs de --json --limit 250 --offset 0
- *   node scripts/i18n-dump-remaining.mjs de --stats
+ *   node scripts/i18n-dump-remaining.mjs zh --json --limit 250 --offset 0
+ *   node scripts/i18n-dump-remaining.mjs zh --stats
  */
 
 import { readFileSync, writeFileSync } from 'fs';

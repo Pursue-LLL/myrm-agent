@@ -5,11 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { WikiGovernanceWorkbench } from '../WikiGovernanceWorkbench';
 import { wikiService } from '@/services/wikiService';
-import de from '../../../../../../../../locales/de.json';
 import en from '../../../../../../../../locales/en.json';
-import ja from '../../../../../../../../locales/ja.json';
-import ko from '../../../../../../../../locales/ko.json';
-import zhTW from '../../../../../../../../locales/zh-TW.json';
 import zh from '../../../../../../../../locales/zh.json';
 
 // The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
@@ -25,7 +21,7 @@ vi.mock('@/services/wikiService', () => ({
   },
 }));
 
-const LOCALES = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const LOCALES = { en, zh } as const;
 type LocaleCode = keyof typeof LOCALES;
 const UNDO_WINDOW_MS = 30_000;
 // Han, kana and Hangul: none of it may show up in a Latin-script interface.
@@ -99,9 +95,9 @@ describe('WikiGovernanceWorkbench copy', () => {
     expect(screen.getAllByRole('button', { name: m.archiveButton })).toHaveLength(2);
   });
 
-  it.each(['en', 'de'] as const)('shows no East Asian text anywhere in %s, on either tab', async (locale) => {
-    const m = copy(locale);
-    const { container } = renderWorkbench(locale);
+  it('shows no East Asian text anywhere in English, on either tab', async () => {
+    const m = copy('en');
+    const { container } = renderWorkbench('en');
     await screen.findByText(m.governanceTitle);
     expect(container.textContent).not.toMatch(EAST_ASIAN_TEXT);
 
@@ -182,8 +178,8 @@ describe('WikiGovernanceWorkbench queue cards', () => {
 describe('WikiGovernanceWorkbench actions', () => {
   it('confirms an extension in the user language instead of the server text', async () => {
     governance.extendGovernanceConcepts.mockResolvedValue(actionResult());
-    const m = copy('de');
-    renderWorkbench('de');
+    const m = copy('zh');
+    renderWorkbench('zh');
 
     await userEvent.click((await screen.findAllByRole('button', { name: m.extendButton }))[0]);
 
@@ -253,8 +249,8 @@ describe('WikiGovernanceWorkbench actions', () => {
     ],
   ])('shows the localized failure when the server %s', async (_label, arrange) => {
     arrange();
-    const m = copy('ja');
-    renderWorkbench('ja');
+    const m = copy('zh');
+    renderWorkbench('zh');
 
     await userEvent.click((await screen.findAllByRole('button', { name: m.extendButton }))[0]);
 

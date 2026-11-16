@@ -19,7 +19,7 @@ from app.services.agent.readiness import ReadinessCode
 from app.services.plugins._export_models import ExportErrorCode
 
 FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-LOCALE_FILES = ("en.json", "zh.json", "zh-TW.json", "ja.json", "ko.json", "de.json")
+LOCALE_FILES = ("en.json", "zh.json")
 
 # The preview-changed refusal is a retry flow with its own copy (`changedSinceReview`), not an error sentence.
 EXPORT_CODES_WITHOUT_ERROR_SENTENCE = {ExportErrorCode.CHANGED_SINCE_PREVIEW.value}

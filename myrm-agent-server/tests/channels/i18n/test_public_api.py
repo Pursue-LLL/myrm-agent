@@ -71,7 +71,7 @@ def test_bcp47_fallback_chain_includes_zh_cn_for_zh_tw() -> None:
 
 
 def test_channel_t_falls_back_to_en_for_unknown_locale() -> None:
-    text = channel_t("de", "daily_budget_blocked")
+    text = channel_t("fr", "daily_budget_blocked")
     assert "budget" in text.lower()
 
 
@@ -90,7 +90,7 @@ def test_add_locale_root_json_override(tmp_path: Path, monkeypatch: "pytest.Monk
 
 @pytest.mark.parametrize(
     ("locale", "title"),
-    [("en", "Next steps:"), ("zh-CN", "后续步骤："), ("zh-TW", "後續步驟："), ("ja", "次のステップ：")],
+    [("en", "Next steps:"), ("zh-CN", "后续步骤：")],
 )
 def test_config_next_steps_keeps_its_blank_line_separator(locale: str, title: str) -> None:
     # Fluent drops leading blank lines of a pattern; callers append this block to a sentence and rely

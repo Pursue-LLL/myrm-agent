@@ -17,4 +17,4 @@
 | `__tests__/integrationOAuthDisplayFixtures.ts` | 展示测试共用的技能构造器（按技能 API 的真实形态，两个需求列表恒为数组） |
 | `__tests__/versionOrigin.test.ts`            | 来源标识 → 文案键映射，及未知 / 原型链标识（`constructor`、`__proto__`）不外露回归                                                                                                                                                 |
 | `__tests__/growthReason.test.ts`             | 三类待审原因码解析、空名单/分隔符/未知码/原型成员/空值返回 null，以及应用失败原因码分类（两个已知码、未知码/原型成员/空值回落 generic）回归 |
-| `__tests__/scanRiskText.test.ts`             | 六语文案同构、词表与译文键同步、未知/原型链标识不外露、信号占位符与处置建议去重回归                                                                                                         |
+| `__tests__/scanRiskText.test.ts`             | 中英双语文案同构、词表与译文键同步、未知/原型链标识不外露、信号占位符与处置建议去重回归                                                                                                         |

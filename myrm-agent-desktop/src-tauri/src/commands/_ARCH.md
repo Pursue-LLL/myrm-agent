@@ -28,6 +28,7 @@ Leaf IPC command modules invoked from the main webview, session webviews, and pe
 | `privacy_curtain_presentation.rs` | 核心 | 帷幕窗口呈现层（macOS 跨 Space / 菜单栏覆盖）：建窗前切 Accessory、窗口抬到菜单栏之上（objc2 `setLevel:`）、销毁后按主窗口在场事实恢复策略（不无条件 Regular，兼容托盘常驻）；非 macOS 全为空实现 | ✅ |
 | `privacy_curtain_state.rs` | 核心 | 帷幕状态桥：`curtain_state.json` 的 Tauri 侧唯一读写入口（`CurtainState`）。「读不到」不等于「没有状态」：文件不存在或内容无效 = 默认状态，瞬时错误重试耗尽 = 未知（`try_read_state` 返回 `None`）；读-改-写（`mutate_state`，进程内串行化）在未知时放弃写入并返回 false，绝不拿默认值覆盖读不出来的真实状态（那会清掉 server 的租约位与静默期基准）；`reset_state` 是启动清理在读不到时的自愈出路 | ✅ |
 | `privacy_curtain_state_io.rs` | 核心 | 状态文件的落盘原语：带重试的读取（`Document` 三态：有内容 / 没有可用内容 / 读不到）与原子整文件替换（临时文件 + 改名，失败不留临时文件）；Windows 上另一进程替换同一文件时读 / 改名的瞬时拒绝由短重试吸收，含并发撕裂读回归测试 | ✅ |
+| `privacy_curtain_state_io_python_tests.rs` | 核心 | 状态文件的跨进程测试：真实 Python 进程像 server 的 `os.replace` 那样持续替换同一个文件，读者按生产的读取与重试预算读取，断言从不读到撕裂文档、「不存在 / 无效」或预算耗尽，并打印读取遇到的错误种类作为该平台的实测；本机没有 Python 时跳过，CI 上没有则失败 | ✅ |
 | `privacy_curtain_transition.rs` | 核心 | 拉起 / 收起帷幕时窗口副作用与状态记录的固定顺序，手动命令与 watcher 共用：拉起先落窗口再记状态，没记下就撤销窗口（事实回到动作之前）；收起先收窗口再记状态，没记下由下个 tick 或用户重试补记；`mutate_state` 的 false 在此变成交给调用方的错误（含单测） | ✅ |
 | `privacy_curtain_watcher.rs` | 核心 | 锁屏 watcher：1s tick 读状态、取外部事实、按 `decide` 的决策执行副作用（自动拉/收帷幕、server 租约电平保持帷幕、显示器热插拔重建——锁屏态与持租约态均跟随）；状态读不到的 tick 整个跳过（不拿默认值决策），恢复可读后的下一个 tick 自然补做；自动拉起只置 `active`/`auto_engaged`（不写静默期基准）；配置缓存 30s 刷新、启动时清除上一进程遗留状态 | ✅ |
 | `mod.rs` | 辅助 | 模块导出 | — |

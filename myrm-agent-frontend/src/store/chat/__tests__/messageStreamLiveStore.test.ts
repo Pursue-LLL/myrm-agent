@@ -8,12 +8,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import de from '../../../../locales/de.json';
 import en from '../../../../locales/en.json';
-import ja from '../../../../locales/ja.json';
-import ko from '../../../../locales/ko.json';
 import zh from '../../../../locales/zh.json';
-import zhTW from '../../../../locales/zh-TW.json';
 import useChatStore from '@/store/useChatStore';
 import { AdaptiveScheduler } from '../adaptiveScheduler';
 import { handleMessageStream, type StreamHandlerActions, type StreamHandlerState } from '../messageStreamHandler';
@@ -304,10 +300,6 @@ describe('stream handlers write through the live store', () => {
     it.each([
       ['en', en],
       ['zh', zh],
-      ['zh-TW', zhTW],
-      ['de', de],
-      ['ja', ja],
-      ['ko', ko],
     ])('%s: a user Stop and a forced end each read their own shipped words', async (_language, shipped) => {
       const { runCancelled, runTerminated } = shipped.progressSteps;
       locale.messages = { 'progressSteps.runCancelled': runCancelled, 'progressSteps.runTerminated': runTerminated };

@@ -25,16 +25,16 @@ import pytest
 from tests.support.chrome_mcp_e2e import get_e2e_ui_url, open_mcp_page, wait_for_state
 
 _FRONTEND_LOCALES = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-_LOCALE_FILES = ("en.json", "zh.json", "zh-TW.json", "ja.json", "ko.json", "de.json")
+_LOCALE_FILES = ("en.json", "zh.json")
 
 _CATEGORY_PAYLOAD_STATE = """(() => {
   const html = document.documentElement.innerHTML;
   const labels = __LABELS__;
   const lang = (document.documentElement.lang || '').toLowerCase();
   let expected = labels['en'] || '';
-  for (const code of ['zh-tw', 'zh', 'ja', 'ko', 'de', 'en']) {
+  for (const code of ['zh', 'en']) {
     if (lang.startsWith(code)) {
-      expected = labels[code === 'zh-tw' ? 'zh-TW' : code] || labels['en'] || '';
+      expected = labels[code] || labels['en'] || '';
       break;
     }
   }

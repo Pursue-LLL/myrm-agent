@@ -11,7 +11,7 @@
 ## 文案与错误呈现
 
 - 所有面向用户的文案位于 `locales/*.json` 的 `memory.mesh.*` 命名空间（`panel` / `domains` / `categories` / `card` / `drillDown` / `migration`），
-  组件内以静态 key 调用 `useTranslations` 获取，六种语言同步维护。
+  组件内以静态 key 调用 `useTranslations` 获取，中英两种语言同步维护。
 - API 返回的域、类别、记忆类型标识符经 `useMeshLabels` 映射为本地化名称（记忆类型复用 `memory.types.*`）；
   本版本不认识的标识符（如导入包带入的自定义类别）属于用户数据，按原样显示。
 - 请求失败已由 `apiRequest` 统一上报；本目录组件只展示本地化的非技术提示（重试入口、导入失败文案），

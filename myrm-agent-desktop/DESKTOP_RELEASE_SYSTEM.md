@@ -308,7 +308,7 @@ Minimum two senior engineers must approve any signing-key rotation outside sched
 - **`errSecInternalComponent` on macOS runners** — Apple's `notarytool` needs the keychain unlocked. The workflow's `Import Apple Code Signing Certificate` step handles this; if you've inlined custom steps, add a `security unlock-keychain` step before signing.
 - **"The signature of the application is invalid" on Windows after an update** — almost always means the updater's `pubkey` in `tauri.conf.json` doesn't match the private key used by the workflow. Confirm both halves come from the same `signer generate` run.
 - **Azure Trusted Signing returns 401/403** — service principal lacks `Trusted Signing Certificate Profile Signer` role assignment. Re-check the role binding in Azure RBAC.
-- **NSIS installer shows English despite multi-language config** — verify `bundle.windows.nsis.displayLanguageSelector: true` and that `languages` array in `tauri.conf.json` includes the target locale.
+- **NSIS installer shows English on a Chinese system** — verify `bundle.windows.nsis.displayLanguageSelector: true` and that the `languages` array in `tauri.conf.json` includes `SimpChinese`.
 - **macOS notarization 30+ min hang** — Apple notary backend congestion. `tauri-action` retries automatically; manual workaround is to wait + retry.
 - **Updater fails with `Failed to verify the signature of the update bundle`** — bundle was signed with a different `TAURI_SIGNING_PRIVATE_KEY` than the embedded `pubkey`. Rotate workflow secrets to match.
 

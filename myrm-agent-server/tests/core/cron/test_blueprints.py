@@ -16,7 +16,9 @@ from app.core.cron.blueprints import (
     get_blueprint,
     get_blueprints_for_tool_description,
 )
-from app.core.cron.blueprints.i18n import BLUEPRINT_UI_LOCALES, SUPPLEMENTAL_BY_ID
+
+# The UI locales every blueprint text is written in; any other language reads the English text.
+_UI_LOCALES = ("en", "zh")
 
 
 class TestBlueprintRegistry:
@@ -30,27 +32,23 @@ class TestBlueprintRegistry:
         orders = [bp.sort_order for bp in BUILTIN_BLUEPRINTS]
         assert len(orders) == len(set(orders)), f"Duplicate sort_orders: {orders}"
 
-    def test_all_blueprints_have_five_locale_titles(self) -> None:
+    def test_all_blueprints_have_titles_in_every_ui_locale(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
-            for locale in BLUEPRINT_UI_LOCALES:
+            for locale in _UI_LOCALES:
                 assert locale in bp.title, f"{bp.id} missing {locale} title"
                 assert bp.title[locale].strip(), f"{bp.id} empty {locale} title"
 
-    def test_all_blueprints_have_five_locale_descriptions(self) -> None:
+    def test_all_blueprints_have_descriptions_in_every_ui_locale(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
-            for locale in BLUEPRINT_UI_LOCALES:
+            for locale in _UI_LOCALES:
                 assert locale in bp.description, f"{bp.id} missing {locale} description"
                 assert bp.description[locale].strip(), f"{bp.id} empty {locale} description"
 
-    def test_all_blueprints_have_five_locale_prompts(self) -> None:
+    def test_all_blueprints_have_prompts_in_every_ui_locale(self) -> None:
         for bp in BUILTIN_BLUEPRINTS:
-            for locale in BLUEPRINT_UI_LOCALES:
+            for locale in _UI_LOCALES:
                 assert locale in bp.prompt_template, f"{bp.id} missing {locale} prompt"
                 assert bp.prompt_template[locale].strip(), f"{bp.id} empty {locale} prompt"
-
-    def test_supplemental_covers_all_builtin_ids(self) -> None:
-        builtin_ids = {bp.id for bp in BUILTIN_BLUEPRINTS}
-        assert set(SUPPLEMENTAL_BY_ID) == builtin_ids
 
     def test_default_capabilities_are_tokens_a_tool_call_resolves_to(self) -> None:
         """A capability is the permission type of a tool call; a token no call resolves to is never granted."""
@@ -440,7 +438,12 @@ class TestToolDescription:
         assert "keywords?" in desc
         assert "brand?" not in desc
 
-    def test_tool_description_uses_japanese_title_when_available(self) -> None:
-        desc = get_blueprints_for_tool_description("ja")
-        assert "モーニングブリーフィング" in desc
+    def test_tool_description_uses_chinese_title_when_available(self) -> None:
+        desc = get_blueprints_for_tool_description("zh")
+        assert "每日早报" in desc
+        assert "morning_briefing" in desc
+
+    def test_tool_description_falls_back_to_the_english_title_for_other_languages(self) -> None:
+        desc = get_blueprints_for_tool_description("fr")
+        assert "Morning Briefing" in desc
         assert "morning_briefing" in desc

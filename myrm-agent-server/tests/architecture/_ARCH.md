@@ -11,9 +11,9 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
 | `test_spillover_limits_parity.py` | 前端 `spillover.ts` 的长粘贴阈值（字数、词元压力、预览长度）与六类字符权重（小写与空白、大写、数字、其余 ASCII、非 ASCII 窄字符、宽字符）必须等于 harness `ContextGuardConfig` / `estimate_token_pressure`（输入框提示「将存为文件」与服务端落盘必须对同一段文本同时成立） |
 | `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
-| `test_doctor_component_names_parity.py` | 体检页组件标题表：后端所有 `HealthReport(component_name="…")` 字面量 == 前端 `doctorReportView.ts` 的 `COMPONENT_NAMES`（后端新增探针漏登记，或前端留着已删探针的名字与六语言文案，都会失败）|
+| `test_doctor_component_names_parity.py` | 体检页组件标题表：后端所有 `HealthReport(component_name="…")` 字面量 == 前端 `doctorReportView.ts` 的 `COMPONENT_NAMES`（后端新增探针漏登记，或前端留着已删探针的名字与中英文案，都会失败）|
 | `test_tool_stuck_pause_clients.py` | loop guard 暂停：Web 前端 `toolsProgressEvents.ts` 与扩展侧栏 `approval.js` 比较 `action_type` 用的字面量必须含 harness 的 `TOOL_STUCK_ACTION_TYPE`（改了标记而客户端没跟，暂停会在那里被当成待回答的审批）；检出里没有该客户端的源码时跳过 |
-| `test_approval_reason_code_parity.py` | 审批理由码：harness 引擎会发的 `ApprovalReasonCode` == 前端 `approvalReasonCode.ts` 的 `APPROVAL_REASON_CODES`（引擎新增码漏了卡片文案，或前端留着引擎不再发的码与六语言文案，都会失败）|
+| `test_approval_reason_code_parity.py` | 审批理由码：harness 引擎会发的 `ApprovalReasonCode` == 前端 `approvalReasonCode.ts` 的 `APPROVAL_REASON_CODES`（引擎新增码漏了卡片文案，或前端留着引擎不再发的码与中英文案，都会失败）|
 | `test_provider_routing_frontend_parity.py` | 前端 `providerRouting.generated.ts` 的路由前缀列表（含顺序）与 provider → 前缀映射必须等于 harness 路由表（`known_route_segments_ordered`、`BUILTIN_PROVIDER_ROUTE_SEGMENT`），只比较取值、不比较引号与写法；映射缺项时前端回落到 provider id，请求会因传输层不认识该路由而失败；自带五种漂移（缺前缀、顺序、缺或多出 provider、映射到别的前缀）的反例；检出里没有前端源码时跳过；`server-architecture.yml` 不设路径过滤，该产物文件单独改动也会触发 |
 | `test_privacy_entrypoints.py` | 每个构造 `GeneralAgentParams` 的服务端入口（IM、cron、语音、目标、看板）必须展开 `**privacy_agent_params(...)`，wakeup 复制路径必须调用它；否则设置页的隐私开关只覆盖 Web 对话（豁免：Web converter、eval executor）。AST 逐调用点检查，并自带正反例自检 |
 | `test_tool_description_locale_wiring.py` | 带 `locale` / `description_locale` 形参的 `create_*` 工具工厂（harness 与 `app/` 的非测试源码），每个调用点必须传该关键字且值不是字面量 `None`（`**options` 算已传）；否则模型在任何语言的会话里都只看到英文描述，而各工厂自己的测试传着自己的语言，发现不了。登记表：`_EXEMPT`（有理由不传：answer_user 的模块级实例、context pipeline 的兜底 `file_read_tool`、开发夹具、MCP 端点）与 `_KNOWN_GAPS`（待修的调用，写明移除条件）；按名字匹配调用（不含改名导入、变量绑定、`getattr`），只查传没传、不查值对不对；自带正反例、非空与登记过期自检 |
@@ -51,8 +51,8 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_channel_catalog_i18n_boundary.py` | server 渠道 JSON catalog 边界：键集 ⊆ 白名单、全语种同构、禁止 fork harness 诊断目录（SSOT） |
 | `test_app_has_no_test_env_reads.py` | `app/**` 禁止读测试开关（`MYRM_E2E_*` / `MYRM_TEST_*` / `E2E_*`，豁免 pytest 自设的 `PYTEST_CURRENT_TEST`），也禁止读业务凭据类 env（`EMBEDDING_*` / `RERANKER_*` / `BASIC_*` / `LITE_*` / `TAVILY_*`）：前者让测试脚手架能改变生产语义，后者让「WebUI 配置」与「进程 env」两套来源并存（会让 FAQ 拦截在生产永远返回 None）。业务能力差异用 `DeploymentCapabilities` 语义位表达，凭据一律经 WebUI 配置注入 |
 | `test_env_templates_have_no_dead_keys.py` | 三个已入库 env 模板（`.env.example` / `.env.test.example` / `.env.sandbox.example`）里的每个键必须在代码里有读者；无读者的键等于让维护者改一个永远不会生效的值（`BASELINE_SYNC_INTERVAL` 与 `RERANKER_*` 就是这样存活的）。扫描范围覆盖 server app/tests/scripts、harness src、仓库 scripts 与 Dockerfile/compose；`SettingsConfigDict(env_prefix=...)` 拼出的键与 compose 变量按前缀放行，不需要逐键白名单。自带路径存在性守卫（路径算错时直接失败而不是空扫通过）与反向用例（注入死键必须报红）|
-| `test_catalog_category_locales.py` | 集成目录 API 返回的每个分类，六种语言的 `settings.integrationCatalog.categories` 都有显示名（目录页按 `categories.${id}` 动态取词，缺失会静默露出内部分类 id） |
-| `test_storage_category_locales.py` | 存储占用台账能上报的每个类别（harness `StorageCategory`），六种语言的 `settings.storageGovernance.categories` 都有名称，且前端 `StorageCategoryKey` 与该枚举同构（治理卡按 `categories.${category}` 动态取词，缺失会静默露出原始消息键） |
+| `test_catalog_category_locales.py` | 集成目录 API 返回的每个分类，中英两种语言的 `settings.integrationCatalog.categories` 都有显示名（目录页按 `categories.${id}` 动态取词，缺失会静默露出内部分类 id） |
+| `test_storage_category_locales.py` | 存储占用台账能上报的每个类别（harness `StorageCategory`），中英两种语言的 `settings.storageGovernance.categories` 都有名称，且前端 `StorageCategoryKey` 与该枚举同构（治理卡按 `categories.${category}` 动态取词，缺失会静默露出原始消息键） |
 | `../fixtures/frontend_sse_event_types.json` | 由 frontend `scripts/export-known-sse-event-types.ts` 生成 |
 | `test_server_harness_imports.py` | 相对 baseline 禁止新增 server→harness 内部 import；禁止 import 含 ``._`` 的 harness 私有模块路径；并校验每个被 import 的 harness 模块在 harness 源包里**真实存在**（harness 单侧改名/移动时，服务端测试期即红，而不是等首个真实回合 `ImportError`） |
 | `test_runtime_image_x11_tools.py` | 两个运行时镜像（`Dockerfile`、`docker/Dockerfile.official`）的 `apt-get install` 必须在 xdotool 旁同时装 xclip 与 x11-utils（含非 ASCII 字符的文本走 xclip 剪贴板粘贴，缺失则中日韩文本整体失败；`xprop`、`xdpyinfo` 来自 x11-utils，缺失则前台窗口类名为空、屏幕分辨率回退成错误的 1920x1080） |
@@ -71,7 +71,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_no_app_main_in_tests.py` | `tests/**` 禁止 AST 级 `import app.main`（须用 `build_minimal_app`） |
 | `test_memory_search_declares_recall.py` | `app/**` 里每个 `manager.search(...)` 必须写明 `track_access`：检索默认把命中的记忆记为已使用（7 天内用过的记忆不被遗忘），取用类写 `True`，去重、诊断、存在性检查写 `False`；自带检测器正反例，接收者改名致扫描落空时失败 |
 | `test_unit_test_layout.py` | 禁止 `tests/unit/**/api/`（与 `tests/api/` importlib 包名冲突） |
-| `test_instance_archive_report_contract.py` | 整实例备份预览报告的计数键：服务端输出的键集 == 前端 `COUNT_KEYS`，且六种语言都有对应标签（前端缺标签或服务端改名都会失败） |
+| `test_instance_archive_report_contract.py` | 整实例备份预览报告的计数键：服务端输出的键集 == 前端 `COUNT_KEYS`，且中英两种语言都有对应标签（前端缺标签或服务端改名都会失败） |
 | `test_offline_persistable_keys_parity.py` | 前端离线队列可明文落盘的键（`offlinePersistableKeys.ts`）== 前端全部配置键减去服务端 `SENSITIVE_CONFIG_KEYS`：被加密的键不会写进 `localStorage`，新增非敏感键也不会静默丢失离线持久化 |
 | `test_frontend_api_client_paths.py` | 前端 `src/**` 调用必须命中真实路由：apiRequest/apiClient 字面量（路径+方法，含 `/webui`）；任意形式写出的 `/api/v1/...` 字面量（raw fetch、展示给用户的 webhook URL、Next route handler 代理的后端目标 `http://${apiHost}:${apiPort}/api/v1/...`）须命中路由或路由基路径；`/api/<root>` 字面量的 root 须由 Next route handler、控制平面或渠道入口提供；已知缺失显式登记，路由出现后条目必须删除 |
 | `test_api_routers_are_imported.py` | `app/api/**` 里每个定义了模块级 `APIRouter` 的模块都要被另一个 `app` 模块导入（含相对导入与字面量 `import_module`）：没有导入方就没有地方挂载它，里面的路由全部 404。不依赖前端是否写出过路径，补上路径门禁看不到的那一类；已导入但没传给 `include_router` 的情形不在它的范围内；带类型注解的赋值也算路由定义，扫描不到任何路由模块时直接失败，三个 `tmp_path` 用例钉住这两条与「有导入方则不报」 |

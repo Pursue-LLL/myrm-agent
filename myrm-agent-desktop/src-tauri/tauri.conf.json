@@ -55,11 +55,7 @@
       "nsis": {
         "languages": [
           "English",
-          "SimpChinese",
-          "TradChinese",
-          "Japanese",
-          "Korean",
-          "German"
+          "SimpChinese"
         ],
         "displayLanguageSelector": true,
         "installerIcon": "icons/icon.ico",

@@ -9,11 +9,7 @@ import { persistLocaleToPersonalSettings } from '@/lib/locale-personal-sync';
 
 const localeKeyMap: Record<Locale, string> = {
   zh: 'chinese',
-  'zh-TW': 'chineseTraditional',
   en: 'english',
-  ja: 'japanese',
-  ko: 'korean',
-  de: 'german',
 };
 
 const LanguageSwitcher = () => {

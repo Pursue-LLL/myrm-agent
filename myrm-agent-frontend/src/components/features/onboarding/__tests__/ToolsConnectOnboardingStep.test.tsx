@@ -233,8 +233,8 @@ describe('ToolsConnectOnboardingStep', () => {
     expect(screen.queryByText('boot.onboarding.toolsConnect.continueButton')).not.toBeInTheDocument();
   });
 
-  it('shows Chinese copy and passes the Chinese catalog locale to the dialog for every zh variant', async () => {
-    uiLocale.current = 'zh-TW';
+  it('shows Chinese copy and passes the Chinese catalog locale to the dialog when the interface is Chinese', async () => {
+    uiLocale.current = 'zh';
     render(<ToolsConnectOnboardingStep onComplete={vi.fn()} onSkip={vi.fn()} />);
 
     await waitFor(() => {

@@ -1,7 +1,7 @@
 /**
  * [POS]
  * Locale-aware relative time formatting via Intl.RelativeTimeFormat
- * (auto "just now"/"x minutes ago" phrasing; all six app locales supported natively).
+ * (auto "just now"/"x minutes ago" phrasing; both app locales supported natively).
  * Offset-less server timestamps are read as UTC.
  *
  * [OUTPUT]

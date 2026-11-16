@@ -150,20 +150,21 @@ describe('clarification notification i18n', () => {
     await preloadNotificationCopy();
   });
 
-  it('resolves stream locales for five supported languages', () => {
+  it('resolves stream locales for the supported languages', () => {
     expect(resolveStreamLocale('zh-CN')).toBe('zh');
-    expect(resolveStreamLocale('ja')).toBe('ja');
-    expect(resolveStreamLocale('ko-KR')).toBe('ko');
-    expect(resolveStreamLocale('de-DE')).toBe('de');
     expect(resolveStreamLocale('en-US')).toBe('en');
+  });
+
+  it('resolves a language the app does not ship to English', () => {
+    expect(resolveStreamLocale('ja')).toBe('en');
+    expect(resolveStreamLocale('ko-KR')).toBe('en');
+    expect(resolveStreamLocale('de-DE')).toBe('en');
   });
 
   it('returns localized clarification notification titles', () => {
     expect(getClarificationNotificationTitle('en')).toBe('Agent needs your input');
     expect(getClarificationNotificationTitle('zh')).toBe('Agent 需要您的输入');
-    expect(getClarificationNotificationTitle('ja')).toContain('Agent');
-    expect(getClarificationNotificationTitle('ko')).toContain('Agent');
-    expect(getClarificationNotificationTitle('de')).toContain('Agent');
+    expect(getClarificationNotificationTitle('ja')).toBe('Agent needs your input');
   });
 });
 

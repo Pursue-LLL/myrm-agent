@@ -10,12 +10,8 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { BUILTIN_TOOL_IDS } from '@/store/chat/types';
 
-import de from '../../../../../../locales/de.json';
 import en from '../../../../../../locales/en.json';
-import ja from '../../../../../../locales/ja.json';
-import ko from '../../../../../../locales/ko.json';
 import zh from '../../../../../../locales/zh.json';
-import zhTW from '../../../../../../locales/zh-TW.json';
 import AgentConfigCards, { type ConfigCardType } from '../AgentConfigCards';
 import { mcp, skill } from './editDialogKit';
 
@@ -169,7 +165,7 @@ describe('AgentConfigCards instruction card', () => {
 });
 
 describe('AgentConfigCards copy', () => {
-  const bundles = { en, zh, 'zh-TW': zhTW, ja, ko, de };
+  const bundles = { en, zh };
 
   it.each(Object.entries(bundles))('names every switchable built-in tool in %s', (_locale, bundle) => {
     const names = bundle.agent.configPanel.builtinToolNames as Record<string, string>;

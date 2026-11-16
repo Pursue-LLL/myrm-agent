@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - harness STATUS `data.loop_kind` (POS: loop pattern the guard fired on; `iteration_budget` for the round-budget nudges)
- * - locales progressSteps.loop_guard_warn* / loop_guard_break* (POS: 6-locale loop guard step titles and the blocked-call toast)
+ * - locales progressSteps.loop_guard_warn* / loop_guard_break* (POS: loop guard step titles and the blocked-call toast)
  *
  * [OUTPUT]
  * - isLoopGuardStep(): whether a STATUS step_key is a loop guard step

@@ -230,7 +230,7 @@ class TestOwnerNotice:
         ):
             yield bus, store
 
-    @pytest.mark.parametrize("locale", ["en", "zh-CN", "ja"])
+    @pytest.mark.parametrize("locale", ["en", "zh-CN"])
     async def test_the_owner_is_told_in_their_own_language(self, locale: str, channels: tuple[MagicMock, AsyncMock]) -> None:
         bus, store = channels
         unsendable = {"draft_content": "hello", "channel": "telegram"}

@@ -33,7 +33,7 @@ from .constants import REQUIRED_ERROR_TYPES
 logger = logging.getLogger(__name__)
 
 _BUNDLED_LOCALES_DIR = Path(__file__).parent / "locales"
-_SUPPORTED_LOCALE_NAMES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
+_SUPPORTED_LOCALE_NAMES = ("en", "zh-CN")
 ErrorFields = dict[str, str | list[str]]
 LocaleBundle = dict[str, ErrorFields]
 
@@ -47,7 +47,7 @@ def _resolve_locales_dir() -> Path:
 
 
 def _language(locale: str) -> str:
-    """The primary language subtag of a hyphenated locale, lowercase (``ja-JP`` -> ``ja``)."""
+    """The primary language subtag of a hyphenated locale, lowercase (``en-GB`` -> ``en``)."""
     return locale.split("-", 1)[0].lower()
 
 
@@ -137,22 +137,7 @@ class LocaleManager:
             parts = loc.split("_")
             loc = f"{parts[0]}-{parts[1].upper()}"
 
-        language_defaults = {
-            "zh": "zh-CN",
-            "ja": "ja",
-            "ko": "ko",
-            "de": "de",
-            "fr": "fr",
-            "es": "es",
-            "pt": "pt-BR",
-            "ru": "ru",
-            "it": "it",
-        }
-
-        if loc in language_defaults:
-            loc = language_defaults[loc]
-
-        return loc
+        return "zh-CN" if loc == "zh" else loc
 
     @overload
     def translate(
@@ -204,7 +189,7 @@ class LocaleManager:
     def locale_chain(self, locale: str) -> tuple[str, ...]:
         """The locales a text is read from, best first: ``locale``, its canonical form, its language's bundles, English.
 
-        A locale reads its own bundle first and then the other bundles of its language: ``ja_JP`` reads ``ja``, and
+        A locale reads its own bundle first and then the other bundles of its language: ``en_GB`` reads ``en``, and
         ``zh-HK`` reads ``zh-TW`` and then ``zh-CN``. A language with no bundle reads English.
         """
         canonical = normalize_locale(locale)

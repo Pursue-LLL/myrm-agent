@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * pluginDiagnostics.ts, locales/{zh,en,zh-TW,ja,de,ko}.json — settings.plugins.import.diagnostics
+ * pluginDiagnostics.ts, locales/{zh,en}.json — settings.plugins.import.diagnostics
  * [OUTPUT]
  * Vitest: every diagnostic code maps to a sentence that exists in every locale.
  * [POS]
@@ -19,7 +19,7 @@ import {
 } from '../pluginDiagnostics';
 
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
-const LANGUAGES = ['zh', 'en', 'zh-TW', 'ja', 'de', 'ko'] as const;
+const LANGUAGES = ['zh', 'en'] as const;
 const MESSAGE_KEYS: DiagnosticMessageKey[] = [
   'unsupportedFormat',
   'manifestInvalid',

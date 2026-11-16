@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 # 与 src/i18n/config.ts locales 保持一致
-SUPPORTED_LOCALES: tuple[str, ...] = ("en", "zh", "ja", "ko", "de", "zh-TW")
+SUPPORTED_LOCALES: tuple[str, ...] = ("en", "zh")
 
 
 import re

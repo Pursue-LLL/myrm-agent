@@ -300,7 +300,7 @@ const resumeValue = { decisions };
 
 - **码跟着文本走**：`approval_reason.py::CodedReason` 就是那段英文文本，另带 `code` 与 `subject`，所以所有读理由字符串的地方不变。加前缀、追加备注、`str()` 都得到普通字符串、丢掉码：卡片只给「引擎原样写下的理由」按码出文案，改写过的理由（PTC 前缀、审查员备注）与批处理自己写的理由（不可逆操作、自动模式暂停、污点等）仍显示原文，不会挂在一个不再描述它的码下。拒绝（DENY）的理由不带码，它只去给模型。
 - **载荷**：`build_interrupt_payload` 在动作请求里附 `reasonCode` 与 `reasonSubject`；`description` 仍是英文原文，且是普通字符串。
-- **渲染**：Web 卡片按 `toolApproval.reasons.<code>` 取六语文案并把主体填进句子；渠道卡片按 `approval_reason_<code>` 取渠道目录（en、ja、zh-CN、zh-TW；渠道目录没有 de、ko 的审批文案，这两种语言整张审批卡读英文）。没有码、码未知、目录里没有该码的句子时，显示 `description` 原文。shell 命令的发现是分析器写的英文短句，接在本地化的句子后面，所以这一类整句是中英混排；这样用户仍然知道命令为什么要确认。
+- **渲染**：Web 卡片按 `toolApproval.reasons.<code>` 取中英文案并把主体填进句子；渠道卡片按 `approval_reason_<code>` 取渠道目录（en、zh-CN；繁体中文读 zh-CN，其他语言整张审批卡读英文）。没有码、码未知、目录里没有该码的句子时，显示 `description` 原文。shell 命令的发现是分析器写的英文短句，接在本地化的句子后面，所以这一类整句是中英混排；这样用户仍然知道命令为什么要确认。
 
 ### 工具级AST安全门禁
 `browser_execute_script_tool` 在脚本执行前进行AST静态分析，检测绕过域名过滤/HITL守卫的特权API：

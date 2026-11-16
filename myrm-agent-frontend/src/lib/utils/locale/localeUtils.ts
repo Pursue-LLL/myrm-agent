@@ -41,25 +41,15 @@ export function getClientLocale(): string | null {
 
 /**
  * Normalize locale to backend format
- * Frontend uses: 'zh', 'en', 'ja', 'ko', 'de', 'zh-TW'
- * Backend expects: 'zh-CN', 'en', 'ja', 'ko', 'de', 'zh-TW', etc.
+ * Frontend uses: 'zh', 'en'
+ * Backend expects: 'zh-CN', 'en'; any other saved value is relayed unchanged.
  */
 export function normalizeLocaleForBackend(frontendLocale: string | null): string | undefined {
   if (!frontendLocale) {
     return undefined;
   }
 
-  // Map frontend locales to backend format
-  const mapping: Record<string, string> = {
-    zh: 'zh-CN',
-    en: 'en',
-    ja: 'ja',
-    ko: 'ko',
-    de: 'de',
-    'zh-TW': 'zh-TW',
-  };
-
-  return mapping[frontendLocale] || frontendLocale;
+  return frontendLocale === 'zh' ? 'zh-CN' : frontendLocale;
 }
 
 /** Parse `?locale=` from marketing-site CTAs into a supported App locale. */

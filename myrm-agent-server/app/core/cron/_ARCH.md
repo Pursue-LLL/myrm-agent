@@ -243,7 +243,7 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 
 - **后端**：`notifier.py` 发布 `CRON_UPDATED`（刷新定时任务视图）与 `SYSTEM_NOTIFICATION`（用户读到的提示），经 SSE 到 WebUI，同一事件也进 Web Push、IM 卡片与语音播报
 - **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED` → `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
-- **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN / zh-TW / ja）；运行结果的正文是执行输出（失败时是错误）的前 100 个字符
+- **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN）；运行结果的正文是执行输出（失败时是错误）的前 100 个字符
 - **过滤**：`delivery_status=skipped`（SILENT 响应）不发通知
 - **语音**：运行结果沿用 `voice_background_task_done` 类型；任务绑定了聊天时，双工语音在该聊天里播报
 

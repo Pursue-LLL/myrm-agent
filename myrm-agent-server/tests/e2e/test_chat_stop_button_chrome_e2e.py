@@ -45,7 +45,7 @@ from tests.support.e2e_runtime_guard import E2EResourceLedger
 _BULLETS_BEFORE_STOP = 5
 
 _LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-_LOCALES = ("en", "zh", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh")
 _NOTICE_ON_PAGE_TIMEOUT_SEC = 60.0
 
 

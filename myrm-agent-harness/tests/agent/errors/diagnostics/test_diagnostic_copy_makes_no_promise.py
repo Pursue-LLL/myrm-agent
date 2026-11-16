@@ -4,7 +4,7 @@ The card is built after the turn's own recovery (in-turn retries, model failover
 such as "retrying automatically" is false in every state the card can appear in. Two entries are exempt because the
 engine emits them at the moment the action happens, as a non-fatal step: a cut-off tool call that is being retried and a
 truncated response that is being continued. Only the English catalog is scanned: it is the one every other catalog
-translates, and a promise cannot be matched reliably across six languages.
+translates, and a promise cannot be matched reliably across languages.
 """
 
 from __future__ import annotations

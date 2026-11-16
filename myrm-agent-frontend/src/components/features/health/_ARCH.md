@@ -16,10 +16,10 @@ System Doctor 健康检查仪表盘与修复引导，含诊断导出能力。健
 | `GuidedRepairCard.tsx`                                  | 子组件   | 引导式修复卡片，支持 dry_run 和 confirm                                                                                                                                               |
 | `doctor-icons.tsx`                                      | 图标集   | DoctorDashboard 专用 SVG 图标组件集                                                                                                                                                   |
 | `__tests__/doctorReportView.test.ts`                    | 测试     | 视图模型：code 译文优先、组件×状态建议、通用建议回退、函数名标题归一为通用标题、技术详情行顺序与空字段省略（vitest）                                                                  |
-| `__tests__/doctorLocaleKeys.test.ts`                    | 测试     | 六语言对 `DOCTOR_LOCALE_KEYS` 全部非空，且 locale 的行文案子树不含视图从不引用的 key（vitest）                                                                                        |
+| `__tests__/doctorLocaleKeys.test.ts`                    | 测试     | 中英双语对 `DOCTOR_LOCALE_KEYS` 全部非空，且 locale 的行文案子树不含视图从不引用的 key（vitest）                                                                                        |
 | `__tests__/DoctorDashboard.presentation.test.tsx`       | 测试     | 真实 next-intl 渲染（en/zh）：标题/状态/建议本地化、英文原文与函数名默认不可见、技术详情开合、按标题/英文原文/原始组件名搜索、无结果空态（vitest）                                    |
 | `__tests__/DoctorDashboard.desktopControlWarn.test.tsx` | 测试     | WARN + `settings_deeplinks` 深链按钮渲染与 click fallback（vitest）                                                                                                                   |
-| `__tests__/DoctorDashboard.verdictI18n.test.tsx`        | 测试     | 真实 next-intl：有 locale 文案的 code 显示译文，无 locale 文案的 code 回退到本地化建议且后端 `message` 仅在技术详情内；`ERR_VECTOR_STORE_ON_MEMORY_FALLBACK` 六语言译文非空（vitest） |
+| `__tests__/DoctorDashboard.verdictI18n.test.tsx`        | 测试     | 真实 next-intl：有 locale 文案的 code 显示译文，无 locale 文案的 code 回退到本地化建议且后端 `message` 仅在技术详情内；`ERR_VECTOR_STORE_ON_MEMORY_FALLBACK` 中英双语译文非空（vitest） |
 
 ## 依赖
 

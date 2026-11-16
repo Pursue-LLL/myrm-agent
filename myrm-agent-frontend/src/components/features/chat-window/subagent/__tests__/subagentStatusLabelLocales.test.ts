@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * components/features/chat-window/subagent/SubagentStream::STATUS_ICON_MAP (POS: Record keyed by every SubagentStatus)
- * locales/{zh,en,ja,ko,de,zh-TW}.json — subagentDashboard.statusLabel strings and subagentDashboard.detailBlockedNote.
+ * locales/{zh,en}.json — subagentDashboard.statusLabel strings and subagentDashboard.detailBlockedNote.
  * [OUTPUT]
  * Vitest: every subagent status the backend can publish has a label in every locale, and a blocked node has its review note.
  * [POS]
@@ -14,7 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { STATUS_ICON_MAP } from '../SubagentStream';
 
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
-const LANGUAGES = ['zh', 'en', 'ja', 'ko', 'de', 'zh-TW'] as const;
+const LANGUAGES = ['zh', 'en'] as const;
 
 type SubagentDashboardMessages = { statusLabel?: Record<string, unknown> } & Record<string, unknown>;
 

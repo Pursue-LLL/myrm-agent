@@ -30,7 +30,7 @@
 - 恢复操作有二次确认 dialog 防止误操作
 - 撤销对话框恒定声明「撤销只还原工作区文件，数据库/容器/网络请求/git push 等外部操作不会被撤销」；运行中检测到的外部影响类别（服务端记入安全气囊）另列一行，文案复用 `fileSnapshot.effects.*`
 - `GoalStatusHeader` 以 `status:turnsUsed` 作为胶囊 `refreshKey`，目标开始（首次布防）、每轮结束与状态变化时刷新；用户选择「保留改动」后服务端不再返回状态，胶囊随之消失
-- 文案在 `taskAirbag` 命名空间（zh/en/ja/ko/de/zh-TW），不暴露内部 ID 或快照术语
+- 文案在 `taskAirbag` 命名空间（zh/en），不暴露内部 ID 或快照术语
 
 ## 依赖
 
