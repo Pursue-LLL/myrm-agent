@@ -19,11 +19,7 @@ vi.mock('../handlerDeps', () => ({
   clearAssistantDraft,
 }));
 
-import de from '../../../../../../locales/de.json';
 import en from '../../../../../../locales/en.json';
-import ja from '../../../../../../locales/ja.json';
-import ko from '../../../../../../locales/ko.json';
-import zhTW from '../../../../../../locales/zh-TW.json';
 import zh from '../../../../../../locales/zh.json';
 import { getStepTitle } from '@/components/features/message-box/progress-steps/utils';
 import { getStepCategory } from '@/components/features/message-box/progress-steps/toolIcons';
@@ -112,7 +108,7 @@ describe('applyStatusProgressStep answer_recheck', () => {
 });
 
 describe('answer_recheck step title', () => {
-  const CATALOGS = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+  const CATALOGS = { en, zh } as const;
 
   describe.each(Object.entries(CATALOGS))('%s', (_locale, messages) => {
     const progressSteps: Record<string, unknown> = messages.progressSteps;

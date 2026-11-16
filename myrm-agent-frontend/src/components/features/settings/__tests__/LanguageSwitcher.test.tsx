@@ -1,5 +1,52 @@
-import { describe, it, expect } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { locales } from '@/i18n/config';
 import { normalizeLocaleForBackend } from '@/lib/utils/locale';
+
+const kit = vi.hoisted(() => ({
+  setLocale: vi.fn(),
+  persistLocaleToPersonalSettings: vi.fn(async () => undefined),
+}));
+
+vi.mock('@/i18n', () => ({ setLocale: kit.setLocale }));
+vi.mock('@/lib/locale-personal-sync', () => ({
+  persistLocaleToPersonalSettings: kit.persistLocaleToPersonalSettings,
+}));
+
+import LanguageSwitcher from '../LanguageSwitcher';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe('LanguageSwitcher', () => {
+  it('offers exactly the locales the app ships, in config order', () => {
+    render(<LanguageSwitcher />);
+
+    expect(screen.getAllByRole('button')).toHaveLength(locales.length);
+    expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
+      'languageOptions.chinese',
+      'languageOptions.english',
+    ]);
+  });
+
+  it('marks the active locale', () => {
+    render(<LanguageSwitcher />);
+
+    expect(screen.getByRole('button', { name: 'languageOptions.english' })).toHaveClass('bg-primary');
+    expect(screen.getByRole('button', { name: 'languageOptions.chinese' })).not.toHaveClass('bg-primary');
+  });
+
+  it('switches the interface and saves the choice for the agent', async () => {
+    render(<LanguageSwitcher />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'languageOptions.chinese' }));
+
+    expect(kit.setLocale).toHaveBeenCalledExactlyOnceWith('zh');
+    await vi.waitFor(() => expect(kit.persistLocaleToPersonalSettings).toHaveBeenCalledExactlyOnceWith('zh'));
+  });
+});
 
 /**
  * Test LanguageSwitcher personalSettings update logic
@@ -7,45 +54,14 @@ import { normalizeLocaleForBackend } from '@/lib/utils/locale';
  */
 describe('LanguageSwitcher - personalSettings update logic', () => {
   it('should normalize zh to zh-CN when updating personalSettings', () => {
-    // Simulate handleLanguageChange logic
-    const newLocale = 'zh';
-    const backendLocale = normalizeLocaleForBackend(newLocale);
-
-    expect(backendLocale).toBe('zh-CN');
+    expect(normalizeLocaleForBackend('zh')).toBe('zh-CN');
   });
 
   it('should keep en as-is when updating personalSettings', () => {
-    const newLocale = 'en';
-    const backendLocale = normalizeLocaleForBackend(newLocale);
-
-    expect(backendLocale).toBe('en');
+    expect(normalizeLocaleForBackend('en')).toBe('en');
   });
 
-  it('should keep ja as-is when updating personalSettings', () => {
-    const newLocale = 'ja';
-    const backendLocale = normalizeLocaleForBackend(newLocale);
-
-    expect(backendLocale).toBe('ja');
-  });
-
-  it('should keep ko as-is when updating personalSettings', () => {
-    const newLocale = 'ko';
-    const backendLocale = normalizeLocaleForBackend(newLocale);
-
-    expect(backendLocale).toBe('ko');
-  });
-
-  it('should keep de as-is when updating personalSettings', () => {
-    const newLocale = 'de';
-    const backendLocale = normalizeLocaleForBackend(newLocale);
-
-    expect(backendLocale).toBe('de');
-  });
-
-  it('should handle unmapped locales', () => {
-    const newLocale = 'fr';
-    const backendLocale = normalizeLocaleForBackend(newLocale);
-
-    expect(backendLocale).toBe('fr'); // pass through
+  it('should pass through a saved locale the switcher no longer offers', () => {
+    expect(normalizeLocaleForBackend('fr')).toBe('fr');
   });
 });

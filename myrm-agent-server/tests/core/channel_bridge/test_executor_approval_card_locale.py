@@ -66,7 +66,7 @@ def _prepared_run() -> SimpleNamespace:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("locale", ["en", "ja", "zh-CN"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 async def test_the_approval_card_is_worded_for_the_sender(locale: str) -> None:
     prepared = SimpleNamespace(pre_events=[], prep=_prepared_run())
 

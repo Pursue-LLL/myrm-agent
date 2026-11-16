@@ -120,7 +120,7 @@ async def test_an_unanswered_approval_resumes_the_run_as_a_turn_that_stop_can_en
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("locale", ["en", "ja", "zh-CN"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 async def test_the_outcome_is_told_in_the_language_the_approval_was_asked_in(locale: str) -> None:
     router, bus = router_with_agent(record_resumes=True)
     _wait_on_approval(router, card_message_id="card-1", locale=locale)

@@ -18815,11 +18815,7 @@
     "languageChannelSyncDesc": "Applies to the web interface and IM channel commands (/help, /goal, /status, etc.).",
     "languageOptions": {
       "chinese": "中文",
-      "chineseTraditional": "繁體中文",
-      "english": "English",
-      "japanese": "日本語",
-      "korean": "한국어",
-      "german": "Deutsch"
+      "english": "English"
     },
     "theme": "Choose your favorite theme",
     "themeOptions": {

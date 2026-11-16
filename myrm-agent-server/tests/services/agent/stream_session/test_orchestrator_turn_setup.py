@@ -261,7 +261,7 @@ class TestBuildTurnExtraContext:
         monkeypatch.setattr(
             config_loader,
             "load_user_configs",
-            AsyncMock(return_value=SimpleNamespace(personal_settings_dict={"locale": "de", "suggestWorkflowMode": False})),
+            AsyncMock(return_value=SimpleNamespace(personal_settings_dict={"locale": "zh-CN", "suggestWorkflowMode": False})),
         )
 
     @pytest.mark.asyncio
@@ -283,7 +283,7 @@ class TestBuildTurnExtraContext:
             "hitl_session_active": True,
             "goal_provider": provider,
             "execution_mode": "desktop",
-            "locale": "de",
+            "locale": "zh-CN",
             "suggest_workflow_mode": False,
         }
         coordinator_factory.assert_not_called()

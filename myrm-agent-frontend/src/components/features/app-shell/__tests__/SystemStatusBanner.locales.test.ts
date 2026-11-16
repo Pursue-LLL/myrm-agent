@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
 import zh from '../../../../../locales/zh.json';
 
 const REQUIRED_KEYS = [
@@ -36,9 +33,6 @@ describe('SystemStatusBanner locale keys', () => {
   const bundles = [
     ['en', en],
     ['zh', zh],
-    ['de', de],
-    ['ko', ko],
-    ['ja', ja],
   ] as const;
 
   it.each(bundles)('%s has all system status notification keys', (_label, bundle) => {

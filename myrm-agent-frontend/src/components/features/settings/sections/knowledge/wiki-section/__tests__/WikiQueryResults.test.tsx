@@ -68,7 +68,7 @@ describe('WikiQueryResults: the answer', () => {
 });
 
 describe('WikiQueryResults: confidence', () => {
-  it.each(['en', 'de'])('says how confident the answer is, formatted for the %s locale', (locale) => {
+  it.each(['en', 'zh'])('says how confident the answer is, formatted for the %s locale', (locale) => {
     world.locale = locale;
     renderResults({ queryConfidence: 0.85 });
     const value = formatClaimConfidence(0.85, locale);

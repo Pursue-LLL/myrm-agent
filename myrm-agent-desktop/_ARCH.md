@@ -35,7 +35,7 @@ myrm-agent 产品仓桌面子模块根。L0 模块地图；L1 见 ARCHITECTURE.m
 ## Windows 打包
 
 - NSIS `installerIcon` 使用 `icons/icon.ico`（NSIS 不接受 PNG）
-- 多语言安装器：English / 简中 / 繁中 / 日 / 韩 / 德
+- 双语安装器：English / 简中
 
 ## OTA 与发版清单
 

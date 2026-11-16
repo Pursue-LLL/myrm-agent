@@ -44,30 +44,6 @@ const NOTIFICATION_I18N: Record<Locale, NotificationStrings> = {
     includes: 'includes',
   },
   zh: { pending: '审批等待', pendingMulti: '{count} 个操作等待审批', remaining: '剩余 {seconds} 秒', includes: '包含' },
-  'zh-TW': {
-    pending: '審批等待',
-    pendingMulti: '{count} 個操作等待審批',
-    remaining: '剩餘 {seconds} 秒',
-    includes: '包含',
-  },
-  ja: {
-    pending: '承認待ち',
-    pendingMulti: '{count} 件の操作が承認待ち',
-    remaining: '残り {seconds} 秒',
-    includes: '含む',
-  },
-  ko: {
-    pending: '승인 대기',
-    pendingMulti: '{count}개 작업 승인 대기',
-    remaining: '남은 시간 {seconds}초',
-    includes: '포함',
-  },
-  de: {
-    pending: 'Genehmigung ausstehend',
-    pendingMulti: '{count} Aktionen warten auf Genehmigung',
-    remaining: 'verbleibend {seconds}s',
-    includes: 'enthält',
-  },
 };
 
 function getNotificationStrings(): NotificationStrings {

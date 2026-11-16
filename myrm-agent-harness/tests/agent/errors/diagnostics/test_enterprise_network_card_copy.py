@@ -18,10 +18,6 @@ _LOCALES = Path(manager_module.__file__).parent / "locales"
 _RESTART_WORDING = {
     "en": "restart",
     "zh-CN": "重启",
-    "zh-TW": "重新啟動",
-    "ja": "再起動",
-    "ko": "다시 시작",
-    "de": "neu starten",
 }
 _CARDS = ("tls_certificate_resolution_steps", "tls_transient_resolution_steps")
 

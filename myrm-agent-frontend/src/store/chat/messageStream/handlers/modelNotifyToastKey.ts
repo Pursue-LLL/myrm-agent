@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - locales progressSteps.model_failover_* / model_recovery_* (POS: 6-locale model notify toast SSOT)
+ * - locales progressSteps.model_failover_* / model_recovery_* (POS: model notify toast SSOT)
  *
  * [OUTPUT]
  * - resolveModelFailoverToastKey(): full i18n key for showI18nToast

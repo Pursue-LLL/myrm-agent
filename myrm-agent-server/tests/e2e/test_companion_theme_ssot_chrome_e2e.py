@@ -16,9 +16,9 @@ from tests.support.chrome_mcp_e2e import (
     warm_ui_route,
 )
 
-# Visible preset labels across supported locales (en / zh / ja).
-_OFFICIAL_DEFAULT_LABELS = ["Teal & Orange", "青橙", "ティール＆オレンジ"]
-_ROSE_LABELS = ["Rose", "玫瑰", "ローズ"]
+# Visible preset labels across supported locales (en / zh).
+_OFFICIAL_DEFAULT_LABELS = ["Teal & Orange", "青橙"]
+_ROSE_LABELS = ["Rose", "玫瑰"]
 
 _OFFICIAL_DEFAULT_PROFILE_ID = "official-default"
 _ROSE_PROFILE_ID = "preset-rose"

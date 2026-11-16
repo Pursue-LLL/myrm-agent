@@ -2,7 +2,7 @@
  * [POS]
  * Wall-clock time helpers: compact run durations (mirroring the backend
  * `_format_duration`), IANA timezone, unix seconds, and locale-aware
- * message timestamp labels via Intl.DateTimeFormat (all six app locales
+ * message timestamp labels via Intl.DateTimeFormat (both app locales
  * natively; hourCycle h23 for the 24-hour clock).
  *
  * [OUTPUT]

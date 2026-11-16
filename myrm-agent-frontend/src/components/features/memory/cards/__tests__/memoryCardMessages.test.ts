@@ -1,16 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import de from '../../../../../../locales/de.json';
 import en from '../../../../../../locales/en.json';
-import ja from '../../../../../../locales/ja.json';
-import ko from '../../../../../../locales/ko.json';
-import zhTW from '../../../../../../locales/zh-TW.json';
 import zh from '../../../../../../locales/zh.json';
 
 // The global test setup replaces next-intl, so the real formatter is loaded explicitly.
 const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
 
-const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const locales = { en, zh } as const;
 
 const CARD_MESSAGE_KEYS = [
   'locked',
@@ -51,11 +47,14 @@ describe('memory card messages', () => {
     expect(t('usedTimes', { count: 7 })).toBe('Used 7 times');
   });
 
-  it('pluralizes the conflict banner title where the language distinguishes one from many', () => {
+  it('pluralizes the conflict banner title in English', () => {
     expect(translatorFor('en')('conflict.chatBannerTitle', { count: 1 })).toBe('One memory conflict needs your review');
     expect(translatorFor('en')('conflict.chatBannerTitle', { count: 3 })).toBe('3 memory conflicts need your review');
-    expect(translatorFor('de')('conflict.chatBannerTitle', { count: 1 })).toMatch(/^Ein /);
-    expect(translatorFor('de')('conflict.chatBannerTitle', { count: 3 })).toMatch(/^3 /);
+  });
+
+  it('states the number of conflicts in the Chinese banner title', () => {
+    expect(translatorFor('zh')('conflict.chatBannerTitle', { count: 1 })).toBe('有 1 条记忆冲突待您确认');
+    expect(translatorFor('zh')('conflict.chatBannerTitle', { count: 3 })).toBe('有 3 条记忆冲突待您确认');
   });
 
   it('keeps the count in the conflict banner title of every locale', () => {

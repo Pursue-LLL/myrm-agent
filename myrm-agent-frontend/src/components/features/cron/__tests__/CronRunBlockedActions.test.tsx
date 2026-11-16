@@ -2,7 +2,7 @@
 /**
  * [INPUT]
  * - ../CronRunBlockedActions (real, with the real next-intl translator of the `cron` and `humanize` namespaces)
- * - locales/{en,zh,zh-TW,ja,ko,de}.json (real copy)
+ * - locales/{zh,en}.json (real copy)
  *
  * [OUTPUT]
  * - Test suite proving the card names every stopped action in plain words, pluralises its title and counts the
@@ -19,17 +19,13 @@ import { NextIntlClientProvider } from 'next-intl';
 import { describe, expect, it, vi } from 'vitest';
 import type { CronBlockedAction } from '@/services/cron';
 import CronRunBlockedActions from '../CronRunBlockedActions';
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import zh from '../../../../../locales/zh.json';
 
 // The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
 vi.mock('next-intl', async (importOriginal) => importOriginal<typeof import('next-intl')>());
 
-const LOCALES = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const LOCALES = { en, zh } as const;
 type LocaleCode = keyof typeof LOCALES;
 
 const ACTIONS: CronBlockedAction[] = [

@@ -147,20 +147,19 @@ async def test_the_status_of_a_session_that_is_not_connected_says_so(rig: _Rig) 
         (discord.Locale.american_english, "Left voice channel."),
         (discord.Locale.british_english, "Left voice channel."),
         (discord.Locale.chinese, "已离开语音频道。"),
-        (discord.Locale.taiwan_chinese, "已離開語音頻道。"),
-        (discord.Locale.japanese, "音声チャンネルから退出しました。"),
+        (discord.Locale.taiwan_chinese, "已离开语音频道。"),
         (discord.Locale.korean, "Left voice channel."),
     ],
-    ids=["en-US", "en-GB", "zh-CN", "zh-TW", "ja", "ko-has-no-catalog"],
+    ids=["en-US", "en-GB", "zh-CN", "zh-TW-reads-zh-CN", "ko-has-no-catalog"],
 )
 async def test_a_reply_is_worded_in_the_callers_discord_language(rig: _Rig, locale: discord.Locale, reply: str) -> None:
     assert await _reply_to(rig, "leave", _interaction(locale)) == reply
 
 
 async def test_a_reply_that_names_the_channel_keeps_the_name_in_every_language(rig: _Rig) -> None:
-    reply = await _reply_to(rig, "join", _interaction(discord.Locale.japanese), _voice_channel("General"))
+    reply = await _reply_to(rig, "join", _interaction(discord.Locale.chinese), _voice_channel("General"))
 
-    assert reply == "**General** に参加しました"
+    assert reply == "已加入 **General**"
 
 
 async def test_a_refusal_is_worded_in_the_callers_discord_language(rig: _Rig) -> None:
@@ -175,7 +174,7 @@ async def test_a_refusal_is_worded_in_the_callers_discord_language(rig: _Rig) ->
 async def test_the_owner_only_refusal_is_worded_in_the_callers_discord_language(rig: _Rig) -> None:
     rig.channel.set_owner_gate(AsyncMock(return_value=False))
 
-    reply = await _reply_to(rig, "join", _interaction(discord.Locale.japanese), _voice_channel("General"))
+    reply = await _reply_to(rig, "join", _interaction(discord.Locale.chinese), _voice_channel("General"))
 
-    assert reply == "ボットを音声チャンネルに参加・退出させられるのは、ボットの所有者だけです。"
+    assert reply == "只有机器人所有者才能让机器人加入或离开语音频道。"
     rig.join_voice.assert_not_awaited()

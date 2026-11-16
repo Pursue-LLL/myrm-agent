@@ -33,17 +33,25 @@ describe('middleware marketing locale relay', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('location')).toBeNull();
   });
+
+  it('ignores a locale the app no longer offers', () => {
+    const request = new NextRequest('https://app.myrmagent.ai/auth/login?locale=ja');
+    const response = middleware(request);
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('location')).toBeNull();
+  });
 });
 
 describe('middleware Accept-Language auto-detection', () => {
   it('sets NEXT_LOCALE cookie from Accept-Language on first visit', () => {
     const request = new NextRequest('https://app.myrmagent.ai/', {
-      headers: { 'accept-language': 'ja-JP,ja;q=0.9,en;q=0.8' },
+      headers: { 'accept-language': 'zh-CN,zh;q=0.9,en;q=0.8' },
     });
     const response = middleware(request);
 
     expect(response.status).toBe(200);
-    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('ja');
+    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('zh');
   });
 
   it('falls back to en when no supported language matches', () => {
@@ -56,15 +64,35 @@ describe('middleware Accept-Language auto-detection', () => {
     expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('en');
   });
 
+  it('takes the next supported language when the preferred one is not offered', () => {
+    const request = new NextRequest('https://app.myrmagent.ai/', {
+      headers: { 'accept-language': 'ja-JP,ja;q=0.9,en;q=0.8' },
+    });
+    const response = middleware(request);
+
+    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('en');
+  });
+
   it('does not override existing NEXT_LOCALE cookie', () => {
     const request = new NextRequest('https://app.myrmagent.ai/', {
-      headers: { 'accept-language': 'ja-JP,ja;q=0.9' },
+      headers: { 'accept-language': 'en-US,en;q=0.9' },
     });
     request.cookies.set(NEXT_LOCALE_COOKIE_NAME, 'zh');
     const response = middleware(request);
 
     expect(response.status).toBe(200);
     expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)).toBeUndefined();
+  });
+
+  it.each(['ja', 'ko', 'de', 'zh-TW'])('detects afresh when the cookie holds the retired locale %s', (retired) => {
+    const request = new NextRequest('https://app.myrmagent.ai/', {
+      headers: { 'accept-language': 'zh-TW,zh;q=0.9,en;q=0.8' },
+    });
+    request.cookies.set(NEXT_LOCALE_COOKIE_NAME, retired);
+    const response = middleware(request);
+
+    expect(response.status).toBe(200);
+    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('zh');
   });
 
   it('auto-detects locale and preserves /workspace redirect', () => {
@@ -75,15 +103,15 @@ describe('middleware Accept-Language auto-detection', () => {
 
     expect(response.status).toBe(301);
     expect(response.headers.get('location')).toContain('/work');
-    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('ko');
+    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('en');
   });
 
-  it('detects zh-TW correctly', () => {
+  it('maps Traditional Chinese browsers to zh', () => {
     const request = new NextRequest('https://app.myrmagent.ai/', {
       headers: { 'accept-language': 'zh-TW,zh;q=0.9,en;q=0.8' },
     });
     const response = middleware(request);
 
-    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('zh-TW');
+    expect(response.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value).toBe('zh');
   });
 });

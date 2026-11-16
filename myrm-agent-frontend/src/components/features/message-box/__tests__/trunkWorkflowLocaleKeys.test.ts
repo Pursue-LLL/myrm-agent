@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * locales/{zh,en,zh-TW,ja,de,ko}.json — trunk workflow strings.
+ * locales/{zh,en}.json — trunk workflow strings.
  * [OUTPUT]
  * Vitest: trunk badge, admit reason, and pin-hint keys exist in all locales.
  * [POS]
@@ -12,7 +12,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
-const LANGUAGES = ['zh', 'en', 'zh-TW', 'ja', 'de', 'ko'] as const;
+const LANGUAGES = ['zh', 'en'] as const;
 
 const LIBRARY_KEYS = [
   'trunkBadge',

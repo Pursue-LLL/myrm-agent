@@ -344,11 +344,7 @@ describe('chatExport', () => {
 
     it.each([
       ['zh', 'zh'],
-      ['zh-TW', 'zh'],
       ['en', 'en'],
-      ['ja', 'en'],
-      ['ko', 'en'],
-      ['de', 'en'],
     ] as const)('maps the app language %s to the %s page wording', (locale, expected) => {
       setLocaleCookie(locale);
       expect(getExportLang()).toBe(expected);
@@ -360,12 +356,18 @@ describe('chatExport', () => {
       expect(getExportLang()).toBe('en');
     });
 
-    it('falls back to the default language the interface falls back to when the cookie is absent or unsupported', () => {
+    it('falls back to the default language the interface falls back to when the cookie is absent', () => {
       vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
       expect(getExportLang()).toBe('zh');
-
-      setLocaleCookie('fr');
-      expect(getExportLang()).toBe('zh');
     });
+
+    it.each(['fr', 'ja', 'ko', 'de', 'zh-TW'])(
+      'falls back to the default language the interface falls back to for the unsupported cookie value %s',
+      (value) => {
+        vi.spyOn(navigator, 'language', 'get').mockReturnValue('en-US');
+        setLocaleCookie(value);
+        expect(getExportLang()).toBe('zh');
+      },
+    );
   });
 });

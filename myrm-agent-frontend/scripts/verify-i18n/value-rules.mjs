@@ -1,7 +1,7 @@
 /**
  * [INPUT] 无（纯函数模块，入参为单条文案值 string / string[]）
- * [OUTPUT] NON_LATIN_RE / FOREIGN_SCRIPT_RE / FOREIGN_SCRIPT_DE_RE / placeholderSet / isBilingualDirty / containsResidue / isEnglishSentenceResidue
- * [POS] verify-i18n 的纯文本判据（无 IO、无全局状态）：占位符集合、非本语言文字、双语对照脏值、句子级纯英文残留。
+ * [OUTPUT] NON_LATIN_RE / placeholderSet / isBilingualDirty / containsResidue / isEnglishSentenceResidue
+ * [POS] verify-i18n 的纯文本判据（无 IO、无全局状态）：占位符集合、非拉丁文字、双语对照脏值、句子级纯英文残留。
  */
 
 export function placeholderSet(value) {
@@ -15,23 +15,9 @@ export function placeholderSet(value) {
 /**
  * 非拉丁文字区间（汉字 \u4e00-\u9fff、日文假名 \u3040-\u30ff、韩文谚文 \uac00-\ud7af、
  * 全角标点 \u3000-\u303f / \uff00-\uffef），用于 en 纯净性与双语对照检测。
- * 覆盖全部 6 语言（zh / en / ja / ko / de / zh-TW），杜绝假名/谚文双语脏值漏检。
+ * 覆盖汉字之外的假名/谚文，杜绝其混入 en 或形成双语脏值而漏检。
  */
 export const NON_LATIN_RE = /[\u3000-\u303f\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]/;
-
-/**
- * 拉丁/谚文系语言（ko/de）纯净性门禁的非本语言文字范围：汉字（U+3400–U+9FFF，
- * 含扩展A区）+ 日文假名（U+3040–U+30FF）。ko（谚文）与 de（拉丁）文案中出现即代表残留。
- * 不含谚文（ko 合法字符）与全角符号；汉字范围与 en 9f NON_LATIN_RE 对齐。
- */
-export const FOREIGN_SCRIPT_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff]/;
-
-/**
- * de（拉丁系）专用的非本语言文字范围：在 FOREIGN_SCRIPT_RE 基础上追加谚文
- * （U+AC00–U+D7AF）。de 中出现谚文是残留；ko 的谚文是合法字符，故 ko 仅用
- * FOREIGN_SCRIPT_RE。
- */
-export const FOREIGN_SCRIPT_DE_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
 
 /**
  * 双语对照脏值：同一语义被写成"本地语 / English"（如 "はい / Yes"、"上下文健康 / Context Health"）。
@@ -65,7 +51,7 @@ export function isBilingualDirty(value) {
 /**
  * 值是否含指定残留字形：字符串直接检测，数组逐元素检测字符串成员。
  * 与 9d checkArray 对齐，覆盖数组叶子（i18n 选项列表）的纯净性，
- * 避免 9f/9g/9h 对数组 leaf 漏检。
+ * 避免 9f 对数组 leaf 漏检。
  */
 export function containsResidue(value, residueRe) {
   if (typeof value === 'string') {
@@ -78,10 +64,9 @@ export function containsResidue(value, residueRe) {
 }
 
 /**
- * 9k 句子级纯英文残留判定（zh/ja/ko/zh-TW）：
+ * 9k 句子级纯英文残留判定（zh）：
  * 非拉丁系语言的整条文案若仍是英文句子（含 ≥2 个纯字母英文单词且带句尾标点
- * 或英文功能词），即未本地化残留。与 9g/9h/9j 的「混入字形」检测互补——它们
- * 拦「本语言文案混入英文」，本检测拦「整条还是英文」。
+ * 或英文功能词），即未本地化残留。
  *
  * 判定为「句子级」而非「任意英文」：
  * - ≥2 个纯字母单词：排除单技术词（Agent/Token/Cookie）。

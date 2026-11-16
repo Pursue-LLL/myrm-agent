@@ -20,7 +20,7 @@ from myrm_agent_harness.agent.errors.diagnostics import ErrorContext, LLMErrorDi
 from myrm_agent_harness.toolkits.llms.transport.profile import UnsupportedProviderError
 from tests.support.provider_errors import provider_error
 
-_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN")
 _MODEL = "stub-model"
 _LLM_PROVIDER = "stub-provider"
 _CLOUDFLARE_PAGE = (

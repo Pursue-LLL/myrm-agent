@@ -4,7 +4,7 @@
  * [INPUT]
  * - @/services/wikiService::wikiService (POS: Wiki governance API)
  * - @/components/primitives/* (POS: UI 基础组件)
- * - next-intl::useTranslations (POS: 六语言文案，全部可见文字取自 settings.wiki.*)
+ * - next-intl::useTranslations (POS: 中英双语文案，全部可见文字取自 settings.wiki.*)
  *
  * [OUTPUT]
  * - WikiGovernanceWorkbench: 知识生命周期治理工作台组件（三队列卡片流：待审核、即将过期、待完善、已归档）

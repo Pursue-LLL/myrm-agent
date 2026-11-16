@@ -191,7 +191,7 @@ describe('toolsProgressEvents clarification notification', () => {
     document.documentElement.lang = origLang;
   });
 
-  it('uses Japanese title when document lang starts with ja', async () => {
+  it('uses the English title when document lang is a language the app does not ship', async () => {
     const origLang = document.documentElement.lang;
     document.documentElement.lang = 'ja';
 
@@ -202,7 +202,7 @@ describe('toolsProgressEvents clarification notification', () => {
     await vi.dynamicImportSettled();
 
     expect(mockNotify).toHaveBeenCalledWith(
-      'Agentがあなたの入力を必要としています',
+      'Agent needs your input',
       expect.objectContaining({ fallbackToToast: false }),
     );
 

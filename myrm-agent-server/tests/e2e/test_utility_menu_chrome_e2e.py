@@ -43,7 +43,7 @@ from tests.support.chrome_mcp_e2e import (
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(600)]
 
 _LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-_LOCALES = ("en", "zh", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh")
 
 _DESKTOP_VIEWPORT = (1280, 900)
 _PHONE_VIEWPORT = (390, 844)

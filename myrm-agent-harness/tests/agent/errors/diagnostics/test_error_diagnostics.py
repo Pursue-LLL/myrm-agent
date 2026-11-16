@@ -246,7 +246,7 @@ def test_diagnose_truncation_tool_call_zh() -> None:
     assert result.locale == "zh-CN"
 
 
-@pytest.mark.parametrize("locale", ["en", "zh-CN", "zh-TW", "ja", "ko", "de"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 @pytest.mark.parametrize("truncation_type", ["tool_call_retry", "tool_call_truncated"])
 def test_tool_call_truncation_diagnostics_are_translated_in_every_locale(truncation_type: str, locale: str) -> None:
     """Retry and give-up diagnostics reach the user through the status event; a missing key would leak a placeholder."""
@@ -332,18 +332,6 @@ class TestGetRecoveryActions:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="zh-CN")
         assert actions[0]["label"] == "更新 API 密钥"
 
-    def test_japanese_locale(self) -> None:
-        actions = LLMErrorDiagnostic.get_recovery_actions("billing", locale="ja")
-        assert actions[0]["label"] == "残高をチャージ"
-
-    def test_korean_locale(self) -> None:
-        actions = LLMErrorDiagnostic.get_recovery_actions("model", locale="ko")
-        assert actions[0]["label"] == "모델 변경"
-
-    def test_german_locale(self) -> None:
-        actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="de")
-        assert actions[0]["label"] == "API-Schlüssel aktualisieren"
-
     def test_unsupported_locale_falls_back_to_english(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="fr")
         assert actions[0]["label"] == "Update API Key"
@@ -352,9 +340,9 @@ class TestGetRecoveryActions:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale="zh")
         assert actions[0]["label"] == "更新 API 密钥"
 
-    def test_underscore_zh_tw_reads_the_traditional_label(self) -> None:
+    def test_underscore_zh_tw_reads_the_simplified_label(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("billing", locale="zh_TW")
-        assert actions[0]["label"] == "儲值餘額"
+        assert actions[0]["label"] == "充值余额"
 
     def test_none_locale_falls_back_to_detected(self) -> None:
         actions = LLMErrorDiagnostic.get_recovery_actions("api_key", locale=None)

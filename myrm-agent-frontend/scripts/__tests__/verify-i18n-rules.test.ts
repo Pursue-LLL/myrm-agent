@@ -5,8 +5,7 @@ import { createContext } from '../verify-i18n/context.mjs';
 import { verifyKanbanClosure } from '../verify-i18n/namespace-keys.mjs';
 import { verifyEnglishSentenceResidue } from '../verify-i18n/purity-gates.mjs';
 import {
-  FOREIGN_SCRIPT_DE_RE,
-  FOREIGN_SCRIPT_RE,
+  NON_LATIN_RE,
   containsResidue,
   isBilingualDirty,
   isEnglishSentenceResidue,
@@ -27,7 +26,7 @@ describe('placeholderSet', () => {
 
 describe('isBilingualDirty', () => {
   it('flags "local / English" pairs in either order', () => {
-    expect(isBilingualDirty('はい / Yes')).toBe(true);
+    expect(isBilingualDirty('是 / Yes')).toBe(true);
     expect(isBilingualDirty('Context Health / 上下文健康')).toBe(true);
   });
 
@@ -37,26 +36,26 @@ describe('isBilingualDirty', () => {
 
   it('ignores placeholder pairs, single-language values and over-long values', () => {
     expect(isBilingualDirty('{shown} / {total}')).toBe(false);
-    expect(isBilingualDirty('はい')).toBe(false);
+    expect(isBilingualDirty('是')).toBe(false);
     expect(isBilingualDirty('Yes / No')).toBe(false);
-    expect(isBilingualDirty(`はい / ${'Y'.repeat(200)}`)).toBe(false);
-    expect(isBilingualDirty(['はい / Yes'] as unknown as string)).toBe(false);
+    expect(isBilingualDirty(`是 / ${'Y'.repeat(200)}`)).toBe(false);
+    expect(isBilingualDirty(['是 / Yes'] as unknown as string)).toBe(false);
   });
 });
 
 describe('containsResidue', () => {
   it('tests strings directly and arrays element by element', () => {
-    expect(containsResidue('Datei 漢字', FOREIGN_SCRIPT_RE)).toBe(true);
-    expect(containsResidue(['Datei', '漢字'], FOREIGN_SCRIPT_RE)).toBe(true);
-    expect(containsResidue(['Datei', 42], FOREIGN_SCRIPT_RE)).toBe(false);
-    expect(containsResidue(42, FOREIGN_SCRIPT_RE)).toBe(false);
+    expect(containsResidue('File 漢字', NON_LATIN_RE)).toBe(true);
+    expect(containsResidue(['File', '漢字'], NON_LATIN_RE)).toBe(true);
+    expect(containsResidue(['File', 42], NON_LATIN_RE)).toBe(false);
+    expect(containsResidue(42, NON_LATIN_RE)).toBe(false);
   });
 
-  it('treats hangul as residue only for the de script range', () => {
-    expect(FOREIGN_SCRIPT_RE.test('あ')).toBe(true);
-    expect(FOREIGN_SCRIPT_DE_RE.test('あ')).toBe(true);
-    expect(FOREIGN_SCRIPT_RE.test('한')).toBe(false);
-    expect(FOREIGN_SCRIPT_DE_RE.test('한')).toBe(true);
+  it('covers Han, kana, hangul and full-width punctuation, but not Latin text', () => {
+    for (const sample of ['汉', 'あ', '한', '，']) {
+      expect(NON_LATIN_RE.test(sample), sample).toBe(true);
+    }
+    expect(NON_LATIN_RE.test('Save the file, please.')).toBe(false);
   });
 });
 
@@ -76,11 +75,11 @@ describe('isEnglishSentenceResidue', () => {
 describe('verifyEnglishSentenceResidue', () => {
   const config = { shellAllowlists: { allowedSameValues: new Set<string>(), allowedSameKeys: new Set<string>() } };
 
-  function run(localeValue: string) {
+  function run(localeValue: string, lang = 'zh') {
     const ctx = createContext('/unused');
-    ctx.translations = { en: { k: 'Please click the button to continue.' }, ja: { k: localeValue } };
+    ctx.translations = { en: { k: 'Please click the button to continue.' }, [lang]: { k: localeValue } };
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    return { ctx, errors: verifyEnglishSentenceResidue(ctx, config, 'ja', ['k']) };
+    return { ctx, errors: verifyEnglishSentenceResidue(ctx, config, lang, ['k']) };
   }
 
   it('flags an untranslated sentence even when it carries non-ASCII punctuation', () => {
@@ -90,7 +89,13 @@ describe('verifyEnglishSentenceResidue', () => {
   });
 
   it('accepts values that contain a non-ASCII letter', () => {
-    const { ctx, errors } = run('ボタンをクリックして続行 — please wait');
+    const { ctx, errors } = run('点击按钮继续 — please wait');
+    expect(errors).toEqual([]);
+    expect(ctx.hasErrors).toBe(false);
+  });
+
+  it('judges zh only', () => {
+    const { ctx, errors } = run('Please click the button to proceed.', 'en');
     expect(errors).toEqual([]);
     expect(ctx.hasErrors).toBe(false);
   });

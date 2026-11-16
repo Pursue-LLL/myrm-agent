@@ -3,8 +3,8 @@
 The channel locale catalog is the single source of truth for every user-visible
 system message (busy acks, topic/workspace bindings, progress labels, deliverable
 notes). Missing keys silently degrade a locale to another language through the
-BCP 47 fallback chain, so a gap in e.g. `ja.ftl` shows English (or Simplified
-Chinese) to Japanese users.
+BCP 47 fallback chain, so a gap in e.g. `zh-CN.ftl` shows English to Chinese
+users.
 
 These guards enforce structural and behavioral consistency across all locale
 files:

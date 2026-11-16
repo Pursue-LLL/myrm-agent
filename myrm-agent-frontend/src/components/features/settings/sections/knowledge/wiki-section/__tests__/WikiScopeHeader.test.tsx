@@ -36,12 +36,12 @@ describe('WikiScopeHeader', () => {
   });
 
   it('offers the default scope first, then every agent under its localised name', () => {
-    world.locale = 'ja';
+    world.locale = 'zh';
     renderHeader();
     expect(screen.getAllByRole('option').map((option) => option.textContent)).toEqual([
       'agentScopeDefault',
-      'a1:Alpha:ja',
-      'a2:Beta:ja',
+      'a1:Alpha:zh',
+      'a2:Beta:zh',
     ]);
   });
 

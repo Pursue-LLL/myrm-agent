@@ -1,6 +1,6 @@
 """A locale reads the bundle of its own language before English, whatever region or script the tag carries.
 
-``LANG=ja_JP.UTF-8`` is the shape a real system reports: it carries a region, and the bundles are named by language.
+``LANG=zh_CN.UTF-8`` is the shape a real system reports: it carries a region, and the bundles are named by language.
 """
 
 from __future__ import annotations
@@ -11,14 +11,13 @@ from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_coo
 from myrm_agent_harness.agent.errors.diagnostics.i18n import LocaleManager, get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_recovery_actions
 
-_REGIONAL = [
-    ("ja-JP", "ja"),
-    ("ja_JP", "ja"),
-    ("de-DE", "de"),
-    ("de-AT", "de"),
-    ("ko-KR", "ko"),
-    ("ko_KR", "ko"),
+_REGIONAL_CHINESE = [
+    ("zh-CN", "zh-CN"),
+    ("zh_CN", "zh-CN"),
+    ("zh-SG", "zh-CN"),
+    ("zh-Hans", "zh-CN"),
 ]
+_REGIONAL_ENGLISH = ["en-US", "en_GB", "en-AU"]
 
 
 @pytest.fixture
@@ -26,7 +25,7 @@ def manager() -> LocaleManager:
     return get_locale_manager()
 
 
-@pytest.mark.parametrize(("tag", "language"), _REGIONAL)
+@pytest.mark.parametrize(("tag", "language"), _REGIONAL_CHINESE)
 def test_a_regional_variant_reads_the_bundle_of_its_language(tag: str, language: str, manager: LocaleManager) -> None:
     message = manager.translate("rate_limit", "user_message", tag)
 
@@ -34,7 +33,12 @@ def test_a_regional_variant_reads_the_bundle_of_its_language(tag: str, language:
     assert message != manager.translate("rate_limit", "user_message", "en")
 
 
-@pytest.mark.parametrize(("tag", "language"), _REGIONAL)
+@pytest.mark.parametrize("tag", _REGIONAL_ENGLISH)
+def test_an_english_regional_variant_reads_the_english_bundle(tag: str, manager: LocaleManager) -> None:
+    assert manager.translate("rate_limit", "user_message", tag) == manager.translate("rate_limit", "user_message", "en")
+
+
+@pytest.mark.parametrize(("tag", "language"), _REGIONAL_CHINESE)
 def test_a_regional_variant_reads_the_steps_and_the_cooldown_of_its_language(tag: str, language: str) -> None:
     manager = get_locale_manager()
 
@@ -45,16 +49,13 @@ def test_a_regional_variant_reads_the_steps_and_the_cooldown_of_its_language(tag
     assert format_cooldown_hint(90_000, tag) != format_cooldown_hint(90_000, "en")
 
 
-@pytest.mark.parametrize(("tag", "language"), _REGIONAL)
+@pytest.mark.parametrize(("tag", "language"), _REGIONAL_CHINESE)
 def test_the_buttons_and_the_text_of_a_regional_variant_share_a_language(tag: str, language: str) -> None:
     assert build_recovery_actions("api_key", tag) == build_recovery_actions("api_key", language)
 
 
-@pytest.mark.parametrize(
-    ("system_locale", "language"),
-    [("ja_JP.UTF-8", "ja"), ("de_DE.UTF-8", "de"), ("ko_KR.UTF-8", "ko"), ("de_AT.UTF-8", "de")],
-)
-def test_the_system_locale_of_a_machine_reads_its_language(
+@pytest.mark.parametrize(("system_locale", "language"), [("zh_CN.UTF-8", "zh-CN"), ("zh_SG.UTF-8", "zh-CN")])
+def test_the_system_locale_of_a_chinese_machine_reads_chinese(
     system_locale: str, language: str, manager: LocaleManager, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("MYRM_LOCALE", raising=False)
@@ -66,14 +67,24 @@ def test_the_system_locale_of_a_machine_reads_its_language(
     assert text != manager.translate("rate_limit", "user_message", "en")
 
 
+@pytest.mark.parametrize("system_locale", ["en_US.UTF-8", "en_GB.UTF-8"])
+def test_the_system_locale_of_an_english_machine_reads_english(
+    system_locale: str, manager: LocaleManager, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("MYRM_LOCALE", raising=False)
+    monkeypatch.setenv("LC_ALL", system_locale)
+
+    assert manager.translate("rate_limit", "user_message") == manager.translate("rate_limit", "user_message", "en")
+
+
 @pytest.mark.parametrize(
     ("locale", "chain"),
     [
-        ("ja-JP", ("ja-JP", "ja", "en")),
-        ("ja", ("ja", "en")),
-        ("de_AT", ("de_AT", "de-AT", "de", "en")),
-        ("JA-jp", ("JA-jp", "ja", "en")),
+        ("zh-CN", ("zh-CN", "en")),
+        ("zh_cn", ("zh_cn", "zh-CN", "en")),
+        ("ZH-cn", ("ZH-cn", "zh-CN", "en")),
         ("en-US", ("en-US", "en")),
+        ("en_GB", ("en_GB", "en-GB", "en")),
         ("fr", ("fr", "en")),
         ("C", ("C", "en")),
         ("zh-HK", ("zh-HK", "zh-TW", "zh-CN", "en")),

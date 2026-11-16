@@ -215,18 +215,18 @@ class TestGoalTerminalNotifier:
         mock_gateway = _gateway_with_send_now(return_value="mid-1")
 
         data = _goal_event_data()
-        data["locale"] = "ja"
+        data["locale"] = "zh-CN"
 
         with (
             patch(
                 "app.core.channel_bridge.goal_terminal_notifier.channel_t",
-                return_value="ja notification",
+                return_value="zh notification",
             ) as mock_t,
             patch("app.core.channel_bridge.channel_gateway", mock_gateway),
         ):
             await notifier._deliver(data)
 
-        assert mock_t.call_args[0][0] == "ja"
+        assert mock_t.call_args[0][0] == "zh-CN"
 
     @pytest.mark.asyncio
     async def test_deliver_defaults_locale_to_en(self) -> None:

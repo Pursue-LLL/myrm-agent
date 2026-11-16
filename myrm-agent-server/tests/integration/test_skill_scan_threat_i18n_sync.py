@@ -17,7 +17,7 @@ from myrm_agent_harness.backends.skills.scanning.patterns import ALL_PATTERN_GRO
 
 FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
 
-LOCALE_FILES = ("en.json", "zh.json", "zh-TW.json", "ja.json", "ko.json", "de.json")
+LOCALE_FILES = ("en.json", "zh.json")
 
 # Classes reported outside the regex pattern table: Unicode and AST passes in scanning/scanner.py and
 # scanning/ast_analyzer.py, the optional LLM audit, and package audits (scanning/package_audit.py).

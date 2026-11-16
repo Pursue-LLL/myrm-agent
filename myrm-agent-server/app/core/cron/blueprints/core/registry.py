@@ -41,7 +41,6 @@ from app.core.cron.blueprints.core.types import (
     _time_to_cron,
     _time_to_cron_weekday,
     _time_to_cron_with_weekdays,
-    _with_supplemental_locales,
 )
 
 __all__ = [
@@ -58,9 +57,7 @@ __all__ = [
     "get_blueprints_for_tool_description",
 ]
 
-_RAW_BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (*_DAILY, *_FINANCE, *_KNOWLEDGE, *_MARKETING)
-
-BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = tuple(_with_supplemental_locales(bp) for bp in _RAW_BUILTIN_BLUEPRINTS)
+BUILTIN_BLUEPRINTS: tuple[CronBlueprint, ...] = (*_DAILY, *_FINANCE, *_KNOWLEDGE, *_MARKETING)
 
 _BLUEPRINT_MAP: dict[str, CronBlueprint] = {bp.id: bp for bp in BUILTIN_BLUEPRINTS}
 
