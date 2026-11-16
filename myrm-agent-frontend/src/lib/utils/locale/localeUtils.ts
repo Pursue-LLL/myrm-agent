@@ -5,7 +5,8 @@
  * [OUTPUT]
  * - NEXT_LOCALE_COOKIE_NAME: next-intl locale cookie 名称常量
  * - getClientLocale(): 客户端从 document.cookie 读取当前 locale
- * - normalizeLocaleForBackend(): 前端 locale → 后端格式映射
+ * - normalizeLocaleForBackend(): 前端 locale → 后端格式映射（应用不再提供的语言映射为 undefined）
+ * - resolveBackendLocale(): 后端回复语言 — 已保存偏好仍受支持时用偏好，否则用界面语言 cookie
  * - parseLocaleQueryParam(): 营销 ?locale= 参数解析
  * - urlWithoutLocaleParam(): 剥离 locale 参数的 URL 克隆
  * - negotiateLocale(): RFC 7231 Accept-Language 协商最佳匹配 locale
@@ -39,25 +40,39 @@ export function getClientLocale(): string | null {
   return null;
 }
 
-/**
- * Normalize locale to backend format
- * Frontend uses: 'zh', 'en'
- * Backend expects: 'zh-CN', 'en'; any other saved value is relayed unchanged.
- */
-export function normalizeLocaleForBackend(frontendLocale: string | null): string | undefined {
-  if (!frontendLocale) {
-    return undefined;
-  }
-
-  return frontendLocale === 'zh' ? 'zh-CN' : frontendLocale;
-}
-
 /** Parse `?locale=` from marketing-site CTAs into a supported App locale. */
 export function parseLocaleQueryParam(value: string | null): Locale | null {
   if (!value) {
     return null;
   }
   return (locales as readonly string[]).includes(value) ? (value as Locale) : null;
+}
+
+/** The App locale a stored value stands for: a supported locale itself, or the one a regional tag (zh-TW) belongs to. */
+function toAppLocale(value: string | null | undefined): Locale | null {
+  if (!value) {
+    return null;
+  }
+  return parseLocaleQueryParam(value) ?? parseLocaleQueryParam(value.split(/[-_]/)[0].toLowerCase());
+}
+
+/**
+ * Normalize locale to backend format
+ * Frontend uses: 'zh', 'en'
+ * Backend expects: 'zh-CN', 'en'. A value the App does not offer (e.g. a language saved before it was retired)
+ * maps to undefined, so the caller falls through to its next source instead of relaying it.
+ */
+export function normalizeLocaleForBackend(value: string | null | undefined): string | undefined {
+  const locale = toAppLocale(value);
+  if (!locale) {
+    return undefined;
+  }
+  return locale === 'zh' ? 'zh-CN' : locale;
+}
+
+/** The locale the backend answers in: the saved preference while the App still offers it, else the interface language. */
+export function resolveBackendLocale(saved: string | null | undefined, cookie: string | null): string | undefined {
+  return normalizeLocaleForBackend(saved) ?? normalizeLocaleForBackend(cookie);
 }
 
 /** Clone URL without `locale` search param (preserves redirect, token, utm, etc.). */

@@ -32,7 +32,7 @@ import useQuoteStore from '../useQuoteStore';
 import { resolveKanbanDefaultBoardIdForRequest } from '@/lib/kanban/kanbanChatBoard';
 import { createAISearchStream } from '@/services/chat';
 import { getBrowserTimezone } from '@/lib/utils/messageUtils';
-import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
+import { getClientLocale, resolveBackendLocale } from '@/lib/utils/locale';
 import { getCurrentTimestamp } from '@/lib/utils/timeUtils';
 import { normalizeMCPServiceConfigs } from '@/lib/utils/mcp-config';
 import { consumeMigrationReadinessAnchorForAgent, peekMigrationBoundProjectId } from '@/lib/migrationChatHandoff';
@@ -126,9 +126,7 @@ export const createMessageRequest = async (
 
   // Prioritize locale from personalSettings, fallback to cookie
   const configStore = useConfigStore.getState();
-  const savedLocale = configStore.personalSettings?.locale;
-  const cookieLocale = getClientLocale();
-  const userLocale = normalizeLocaleForBackend(savedLocale || cookieLocale);
+  const userLocale = resolveBackendLocale(configStore.personalSettings?.locale, getClientLocale());
   const reasoningDisplayMode =
     configStore.personalSettings?.reasoningDisplayMode ?? configStore.reasoningDisplayMode ?? 'collapsed';
 

@@ -936,10 +936,6 @@
       "title": "Allow discovery and delegation by other agents",
       "description": "When enabled, other agents can discover and call this agent during automatic team formation. When disabled, this agent is not discovered automatically, but you can still reference it explicitly with @."
     },
-    "formalKoreanReplies": {
-      "title": "Formal Korean replies",
-      "description": "Replies use polite formal Korean (hamnida style) suited for business email, meeting notes, and office workflows."
-    },
     "openapi": {
       "title": "OpenAPI Services",
       "subtitle": "Zero-code REST API tool integration via OpenAPI specs",

@@ -3,6 +3,7 @@ import {
   negotiateLocale,
   normalizeLocaleForBackend,
   parseLocaleQueryParam,
+  resolveBackendLocale,
   urlWithoutLocaleParam,
 } from '../localeUtils';
 
@@ -16,13 +17,50 @@ describe('localeUtils', () => {
       expect(normalizeLocaleForBackend('en')).toBe('en');
     });
 
-    it('should return undefined for null input', () => {
+    it('should return undefined for empty input', () => {
       expect(normalizeLocaleForBackend(null)).toBeUndefined();
+      expect(normalizeLocaleForBackend(undefined)).toBeUndefined();
+      expect(normalizeLocaleForBackend('')).toBeUndefined();
     });
 
-    it('should pass through a saved locale the app no longer offers', () => {
-      expect(normalizeLocaleForBackend('ja')).toBe('ja');
-      expect(normalizeLocaleForBackend('fr')).toBe('fr');
+    it.each([
+      ['zh-CN', 'zh-CN'],
+      ['zh-TW', 'zh-CN'],
+      ['zh_Hant', 'zh-CN'],
+      ['en-US', 'en'],
+      ['EN', 'en'],
+    ])('should map the regional tag %s to the offered locale (%s)', (tag, expected) => {
+      expect(normalizeLocaleForBackend(tag)).toBe(expected);
+    });
+
+    it.each(['ja', 'ko', 'de', 'fr', 'ja-JP'])(
+      'should map the language %s the app does not offer to undefined',
+      (tag) => {
+        expect(normalizeLocaleForBackend(tag)).toBeUndefined();
+      },
+    );
+  });
+
+  describe('resolveBackendLocale', () => {
+    it('prefers the saved locale over the cookie', () => {
+      expect(resolveBackendLocale('zh-CN', 'en')).toBe('zh-CN');
+      expect(resolveBackendLocale('en', 'zh')).toBe('en');
+    });
+
+    it('falls back to the cookie when nothing is saved', () => {
+      expect(resolveBackendLocale(undefined, 'en')).toBe('en');
+      expect(resolveBackendLocale(null, 'zh')).toBe('zh-CN');
+      expect(resolveBackendLocale('', 'en')).toBe('en');
+    });
+
+    it.each(['ja', 'ko', 'de'])('follows the interface language when the saved locale is the retired %s', (retired) => {
+      expect(resolveBackendLocale(retired, 'zh')).toBe('zh-CN');
+      expect(resolveBackendLocale(retired, 'en')).toBe('en');
+    });
+
+    it('is undefined when neither source names an offered locale', () => {
+      expect(resolveBackendLocale(undefined, null)).toBeUndefined();
+      expect(resolveBackendLocale('ja', 'ko')).toBeUndefined();
     });
   });
 

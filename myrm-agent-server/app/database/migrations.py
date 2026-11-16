@@ -6,7 +6,7 @@ sqlalchemy.ext.asyncio::AsyncEngine (POS: 异步 SQLAlchemy 引擎)
 app.database.personality_style_merge::MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL (POS: 沟通风格并入 system_prompt 的冻结语句)
 
 [OUTPUT]
-MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / has_pending_migrations(engine)（是否还有待执行的迁移，决定是否需要迁移前快照） / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full） / REARM_STALLED_CRON_JOBS_SQL（启用却无下一时刻的周期任务重订） / PAUSE_STALLED_ONCE_CRON_JOBS_SQL（同样停摆的一次性任务置为暂停）
+MIGRATION_STATEMENTS / INDEX_STATEMENTS / run_migrations(engine) / has_pending_migrations(engine)（是否还有待执行的迁移，决定是否需要迁移前快照） / BACKFILL_LEGACY_WAKEUP_NOTICE_SQL（没有标记的后台完成通知行补 followup 标记） / REJECT_LEGACY_TOOL_STUCK_APPROVALS_SQL（遗留的循环守卫暂停 PENDING 审批行置为 REJECTED） / CLEAR_BUILTIN_SEARCH_MEMORY_POLICY_SQL（快速 / 深度搜索预置体行里的记忆策略覆盖清空） / MERGE_AGENT_PERSONALITY_STYLE_INTO_SYSTEM_PROMPT_SQL（已选沟通风格的自定义智能体把风格文本并入 system_prompt） / NORMALIZE_RETIRED_PROMPT_MODES_SQL（已退役的 lean / naked 提示词模式行改为 full） / REARM_STALLED_CRON_JOBS_SQL（启用却无下一时刻的周期任务重订） / PAUSE_STALLED_ONCE_CRON_JOBS_SQL（同样停摆的一次性任务置为暂停） / STRIP_RETIRED_RESPONSE_LOCALE_POLICY_SQL（智能体参数里已退役的回复语体键移除） / STRIP_RETIRED_RESPONSE_LOCALE_POLICY_FROM_SNAPSHOTS_SQL（回滚快照里的同一键移除）
 
 [POS]
 Server 层 SQLite 有状态迁移脚本，追加式维护 schema 演进。
@@ -75,6 +75,26 @@ REARM_STALLED_CRON_JOBS_SQL = (
 PAUSE_STALLED_ONCE_CRON_JOBS_SQL = (
     "UPDATE cron_jobs SET status = 'paused' "
     "WHERE status = 'active' AND next_run_at IS NULL AND json_extract(schedule, '$.kind') = 'once'"
+)
+
+# The reply-register policy (``response_locale_policy``) no longer exists and no code reads the key, so it is removed
+# from every agent that holds one; an agent left with no parameters stores NULL, as every save writes it. A row whose
+# ``engine_params`` is NULL, is not valid JSON or has no such key is left alone, and a second pass finds nothing to change.
+STRIP_RETIRED_RESPONSE_LOCALE_POLICY_SQL = (
+    "UPDATE agents SET engine_params = CASE "
+    "WHEN json_remove(engine_params, '$.response_locale_policy') = '{}' THEN NULL "
+    "ELSE json_remove(engine_params, '$.response_locale_policy') END "
+    "WHERE CASE WHEN json_valid(engine_params) "
+    "THEN json_type(engine_params, '$.response_locale_policy') IS NOT NULL ELSE 0 END"
+)
+
+# A rollback snapshot holds the agent's parameters too; without this a rollback would write the retired key back into a
+# live agent. The edit history is a read-only record and keeps what each version held.
+STRIP_RETIRED_RESPONSE_LOCALE_POLICY_FROM_SNAPSHOTS_SQL = (
+    "UPDATE agent_profile_snapshots "
+    "SET snapshot_data = json_remove(snapshot_data, '$.engine_params.response_locale_policy') "
+    "WHERE CASE WHEN json_valid(snapshot_data) "
+    "THEN json_type(snapshot_data, '$.engine_params.response_locale_policy') IS NOT NULL ELSE 0 END"
 )
 
 # 数据库迁移语句，按顺序执行；版本号就是列表下标，只在末尾追加，已发布的语句不删、不改、不挪位
@@ -760,6 +780,8 @@ MIGRATION_STATEMENTS: list[str] = [
     "ALTER TABLE agents DROP COLUMN acceptance_criteria",
     REARM_STALLED_CRON_JOBS_SQL,
     PAUSE_STALLED_ONCE_CRON_JOBS_SQL,
+    STRIP_RETIRED_RESPONSE_LOCALE_POLICY_SQL,
+    STRIP_RETIRED_RESPONSE_LOCALE_POLICY_FROM_SNAPSHOTS_SQL,
 ]
 
 # 创建索引的SQL语句列表

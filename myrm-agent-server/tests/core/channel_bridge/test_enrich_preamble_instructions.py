@@ -166,12 +166,12 @@ async def test_unknown_session_style_adds_no_block() -> None:
 
 
 @pytest.mark.asyncio
-async def test_response_locale_suffix_from_profile() -> None:
-    """Agent profile response_locale_policy appends Korean honorific suffix."""
+async def test_retired_reply_policy_key_in_a_saved_profile_changes_nothing() -> None:
+    """An agent saved before the reply-register policy was retired still carries its key; the prompt ignores it."""
     from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
     profile = ResolvedAgentProfile(
-        agent_id="agent-ko",
+        agent_id="agent-saved",
         skill_ids=(),
         mcp_ids=(),
         enabled_builtin_tools=(),
@@ -187,10 +187,9 @@ async def test_response_locale_suffix_from_profile() -> None:
         user_instructions="Base",
         resolved_profile=profile,
         agent_subagent_ids=None,
-        resolved_agent_id="agent-ko",
+        resolved_agent_id="agent-saved",
     )
-    assert "Base" in result
-    assert "합니다" in result
+    assert result == "Base"
 
 
 @pytest.mark.asyncio

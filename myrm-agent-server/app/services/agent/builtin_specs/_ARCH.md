@@ -17,7 +17,7 @@
 | `core.py` | 核心 | 核心预置智能体规格（`_CORE_BUILTIN_AGENTS`）；`builtin-economy` = Knowledge Work Cowork preset（`KNOWLEDGE_WORK_SYSTEM_PROMPT` + `CONCISE_REPLY_STYLE`） | ✅ |
 | `search.py` | 核心 | Web 搜索预置智能体（`prompt_mode=search`，`max_iterations=30/50` 轮数预算）；Web UI  persona，非 Channel 绑定目标 | ✅ |
 | `extended.py` | 核心 | 扩展预置智能体规格（`_EXTENDED_BUILTIN_AGENTS`） | ✅ |
-| `vertical.py` | 核心 | 垂直领域预置智能体规格（`_VERTICAL_BUILTIN_AGENTS`）；含 **`builtin-ko-office`**（`response_locale_policy` 正式韩语） | ✅ |
+| `vertical.py` | 核心 | 垂直领域预置智能体规格（`_VERTICAL_BUILTIN_AGENTS`） | ✅ |
 | `builtin_tool_ids.py` | 核心 | `enabled_builtin_tools` SSOT：19 canonical IDs（17 UI 可切换 + 2 Agent 基线无开关）；含 `skill_market` / `skill_manage`（默认 OFF，Turn1 条件挂载）；`strip_deploy_incompatible_builtin_tools()` 按 deploy 剔除 `computer_use`（VNC）与 `external_cli`（仅 local/Tauri）；`normalize` 静默剥离 baseline ID；`persist_enabled_builtin_tools` DB 写校验 | ✅ |
 | `builtin_tool_validation.py` | 辅助 | Pydantic `RequiredBuiltinTools` / `OptionalBuiltinTools` validators for DTO/API models | ✅ |
 | `builtin_initializer.py` | 核心 | Built-in Agent 自动初始化 — lifespan Phase 1b 幂等创建 `builtin_agent_specs` 中的全部预置智能体（从该模块导入规格）；预置体默认不绑定 user 技能（`default_skill_ids` 为空即「不筛选」）；prebuilt 技能可见性由**用户开关** `enabled_prebuilt_ids` 统一决定（`app/core/skills/loader.py::create_skill_backend` 的 `allowed_prebuilt_ids` 白名单），与 agent 无关——所有预置体共享同一份用户级启用集（新装默认为空）；sync spec-controlled 字段含 `memory_extraction_preset` 与 `max_iterations`；`suggestion_prompts` 仅在 DB 值为空时填充（保护用户自定义）；re-export `_BUILTIN_AGENTS`/`_TOOL_*` 保持外部导入兼容 | ✅ |
