@@ -1,9 +1,8 @@
 """Closing write of a run: the job's new state once the run has ended.
 
 [INPUT]
-- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms (POS: pure engine helpers: error classification and backoff)
+- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run (POS: pure engine helpers: error classification, backoff and the next slot to book)
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
-- toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
 - toolkits.cron.types::CronJob, JobResult, JobStatus, RunStatus, ScheduleKind (POS: Cron job domain types.)
 
@@ -23,9 +22,12 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.engine.helpers import classify_transient_error, error_backoff_ms
+from myrm_agent_harness.toolkits.cron.engine.helpers import (
+    classify_transient_error,
+    error_backoff_ms,
+    next_eligible_run,
+)
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
 from myrm_agent_harness.toolkits.cron.types import JobStatus, RunStatus, ScheduleKind
 
 if TYPE_CHECKING:
@@ -85,7 +87,7 @@ class RunCloserMixin:
             )
         elif result.success or not result.retry_safe:
             try:
-                job.next_run_at = compute_next_run(job.schedule, finished)
+                job.next_run_at = next_eligible_run(job, finished, last_run_at=finished)
             except Exception as exc:
                 self._handle_schedule_compute_error(job, exc, finished)
         else:

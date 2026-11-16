@@ -2,7 +2,7 @@
 
 [INPUT]
 - infra.incremental.types::ResetReason (POS: Domain types for incremental monitoring.)
-- cron.engine.parser::compute_next_run (POS: cron expression parser and validator)
+- cron.engine.helpers::next_eligible_run (POS: pure engine helpers: the next slot to book)
 - cron.engine.scheduler::CronScheduler (POS: timer-based scheduling engine)
 - cron.manager_validation::CronValidationMixin (POS: validation half of the cron CRUD manager)
 - cron.types::CronJob, CronJobPatch, JobStatus (POS: cron data models)
@@ -22,7 +22,7 @@ import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
+from myrm_agent_harness.toolkits.cron.engine.helpers import next_eligible_run
 from myrm_agent_harness.toolkits.cron.manager_validation import CronValidationMixin
 from myrm_agent_harness.toolkits.cron.types import JobStatus
 
@@ -88,7 +88,6 @@ class CronUpdateMixin(CronValidationMixin):
         if patch.schedule is not None:
             self._validate_schedule(patch.schedule)
             job.schedule = patch.schedule
-            job.next_run_at = compute_next_run(patch.schedule, now)
         if patch.prompt is not None and patch.prompt != job.prompt:
             job.prompt = patch.prompt
             if job.monitor_config and job.monitor_config.enabled:
@@ -206,6 +205,9 @@ class CronUpdateMixin(CronValidationMixin):
             job.last_error = None
         elif patch.last_error is not None:
             job.last_error = patch.last_error
+        if patch.schedule is not None:
+            # After every field is applied: the slot depends on the cooldown and the active window too.
+            job.next_run_at = next_eligible_run(job, now)
         job.updated_at = now
 
         if reset_reason:

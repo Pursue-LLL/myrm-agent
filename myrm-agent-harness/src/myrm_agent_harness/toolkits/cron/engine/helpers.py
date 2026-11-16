@@ -3,17 +3,19 @@
 All public functions are pure (no I/O) and safe to call from any context.
 
 [INPUT]
-- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig (POS: Cron job domain types.)
+- toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
+- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig, Schedule, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
 - resolve_stagger_ms: Compute the effective stagger delay for a job.
 - is_within_active_hours: Return True if *now* falls within the active window, or if no window is set.
+- next_eligible_run: The slot to book as a job's next run, with cooldown, 60 s floor and active window applied.
 - is_stale_run: Detect a zombie task whose execution was interrupted by an unclean shutdown.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
 
 [POS]
-Pure engine helpers: stagger resolution, schedule-window and backoff checks, the pre-execution guards with the
-notice an automatic pause raises, failure-alert resolution and telemetry extraction.
+Pure engine helpers: stagger resolution, schedule-window and backoff checks, the next slot to book, the pre-execution
+guards with the notice an automatic pause raises, failure-alert resolution and telemetry extraction.
 """
 
 from __future__ import annotations
@@ -22,7 +24,8 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, FailureAlertConfig
+from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
+from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, FailureAlertConfig, ScheduleKind
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.types import (
@@ -30,11 +33,18 @@ if TYPE_CHECKING:
         CronJob,
         FailureAlertConfig,
         JobResult,
+        Schedule,
         TransientErrorKind,
     )
 
 _DEFAULT_TOP_OF_HOUR_STAGGER_MS = 5 * 60 * 1000
 _STALE_MARGIN_S = 60
+# Candidates examined while looking for a slot inside the active window; a window that no slot of the schedule
+# reaches (a daily 09:30 job restricted to the evening) must not loop forever.
+_MAX_SLOT_SCAN = 2000
+# The slot is booked before the run starts, so nothing paces a schedule that can fire faster than once a minute
+# (an interval, or a cron with a seconds field) except this floor.
+_MIN_RECURRING_GAP_S = 60
 
 # ---------------------------------------------------------------------------
 # UTC normalisation
@@ -60,8 +70,6 @@ def resolve_stagger_ms(job: CronJob) -> int:
     fire at minute-0 (e.g. ``0 * * * *``, ``0 9 * * *``) get a 5-minute
     random window to avoid thundering-herd in multi-user Sandbox scenarios.
     """
-    from myrm_agent_harness.toolkits.cron.types import ScheduleKind
-
     sched = job.schedule
     if sched.stagger_ms is not None:
         return max(0, sched.stagger_ms)
@@ -174,6 +182,40 @@ def pre_execution_check(job: CronJob, now: datetime) -> str | None:
         if elapsed < job.cooldown_seconds:
             return "cooldown_active"
     return None
+
+
+def _can_fire_within_a_minute(schedule: Schedule) -> bool:
+    """An interval, or a cron whose field count is not the minute-aligned five."""
+    return schedule.kind == ScheduleKind.INTERVAL or len((schedule.expr or "").split()) != 5
+
+
+def next_eligible_run(job: CronJob, after: datetime, *, last_run_at: datetime | None = None) -> datetime | None:
+    """The slot to book as a job's next regular run: the first one after ``after`` that clears the cooldown and
+    the floor and lies in the active window.
+
+    Create, resume, schedule edits, run closing, skipped runs and recovery all book through this function, so a
+    booked slot is one the dispatch guards accept. A one-shot names its own instant and nothing moves it.
+    ``last_run_at`` stands in for the stored one when the closing write has not saved it yet. A 5-field cron is
+    minute-aligned, so the floor is not applied to it: flooring against a run's finish time would skip slots.
+    When no slot inside the window turns up within ``_MAX_SLOT_SCAN`` candidates, the last candidate comes back
+    and the dispatch guards record it as skipped and book again.
+    """
+    if job.schedule.kind == ScheduleKind.ONCE:
+        return compute_next_run(job.schedule, _ensure_utc(after))
+    earliest = _ensure_utc(after)
+    last = last_run_at or job.last_run_at
+    if job.cooldown_seconds > 0 and last:
+        earliest = max(earliest, _ensure_utc(last) + timedelta(seconds=job.cooldown_seconds))
+    candidate = compute_next_run(job.schedule, earliest)
+    if candidate is not None and _can_fire_within_a_minute(job.schedule):
+        floor = earliest + timedelta(seconds=_MIN_RECURRING_GAP_S)
+        if candidate < floor:
+            candidate = floor if job.schedule.kind == ScheduleKind.INTERVAL else compute_next_run(job.schedule, floor)
+    for _ in range(_MAX_SLOT_SCAN):
+        if candidate is None or is_within_active_hours(job.active_hours, now=candidate):
+            return candidate
+        candidate = compute_next_run(job.schedule, candidate)
+    return candidate
 
 
 def auto_pause_notice(job: CronJob, skip_reason: str) -> CronNotice | None:
