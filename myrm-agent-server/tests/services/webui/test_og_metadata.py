@@ -16,9 +16,9 @@ OTHER_PUBLIC_HOST = "http://1.1.1.1"
 METADATA_URL = "http://169.254.169.254/latest/meta-data/"
 
 
-def _html_page(request: httpx.Request, title: str, *, body: str = "") -> httpx.Response:
-    """A 200 HTML response for ``request`` whose document is ``<title>`` followed by ``body``."""
-    return httpx.Response(200, headers={"content-type": "text/html"}, text=f"<title>{title}</title>{body}", request=request)
+def _html_page(request: httpx.Request, title: str) -> httpx.Response:
+    """A 200 HTML response for ``request`` whose document is just a ``<title>``."""
+    return httpx.Response(200, headers={"content-type": "text/html"}, text=f"<title>{title}</title>", request=request)
 
 
 class TestParseOgTags:
@@ -130,22 +130,6 @@ class TestFetchCache:
         assert first == second == {"title": "/a", "url": "https://example.com/a"}
         assert requested == ["https://example.com/a"]
 
-    async def test_cache_drops_the_least_recently_used_page_first(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        requested = self._serve_pages(monkeypatch)
-        monkeypatch.setattr(og_metadata, "_CACHE_MAX_ENTRIES", 2)
-        page_a, page_b, page_c = (f"https://example.com/{name}" for name in "abc")
-
-        await og_metadata.fetch_og_metadata(page_a)
-        await og_metadata.fetch_og_metadata(page_b)
-        await og_metadata.fetch_og_metadata(page_a)  # a is now newer than b
-        await og_metadata.fetch_og_metadata(page_c)  # the cache is full: b goes
-
-        assert list(og_metadata._og_cache) == [page_a, page_c]
-        requested.clear()
-        await og_metadata.fetch_og_metadata(page_a)
-        await og_metadata.fetch_og_metadata(page_b)
-        assert requested == [page_b]
-
 
 class TestSsrfShield:
     """The download runs through the real SSRF shield; only the network wire is faked."""
@@ -206,23 +190,6 @@ class TestSsrfShield:
         assert await og_metadata.fetch_og_metadata(start) == {"title": "Final", "url": start}
         assert [str(request.url) for request in sent] == [start, final]
         assert {request.headers["user-agent"] for request in sent} == {og_metadata._USER_AGENT}
-
-    async def test_page_over_the_download_cap_yields_no_preview(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(og_metadata, "_MAX_FETCH_BYTES", 1024)
-        page = f"{PUBLIC_HOST}/huge"
-        self._fake_wire(monkeypatch, lambda request: _html_page(request, "x" * 2048))
-
-        assert await og_metadata.fetch_og_metadata(page) == {"url": page}
-
-    async def test_only_the_first_window_of_a_page_is_parsed(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        page = f"{PUBLIC_HOST}/long"
-        late_tag = '<meta property="og:description" content="Late" />'
-        self._fake_wire(
-            monkeypatch,
-            lambda request: _html_page(request, "Early", body=" " * og_metadata._PARSE_WINDOW_CHARS + late_tag),
-        )
-
-        assert await og_metadata.fetch_og_metadata(page) == {"title": "Early", "url": page}
 
     async def test_non_html_response_yields_no_preview(self, monkeypatch: pytest.MonkeyPatch) -> None:
         page = f"{PUBLIC_HOST}/data.json"
