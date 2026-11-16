@@ -110,13 +110,13 @@ class ToolSetupBaseMixin(ExternalAgentsMixin):
     def _tool_description_locale(self) -> str:
         """The language the harness writes tool descriptions in for this session.
 
-        The prompt locale is what the system prompt is written in, so it leads; an IM channel without any language of
-        its own gets the channel's default, which is how a Feishu session reads Chinese descriptions.
+        The session language leads; an IM channel without one gets the channel's default, which is how a Feishu session
+        reads Chinese descriptions.
         """
         from app.core.agent.tool_description_locale import resolve_tool_description_locale
 
         # getattr: a host that mounts only some tool families may carry no language attributes.
         return resolve_tool_description_locale(
-            agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
+            agent_locale=getattr(self, "locale", None),
             channel=getattr(self, "channel_name", None),
         )

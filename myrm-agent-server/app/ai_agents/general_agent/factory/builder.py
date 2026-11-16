@@ -48,7 +48,6 @@ async def build_general_agent(
         user_id = SINGLE_TENANT_USER_ID
 
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
-    effective_prompt_locale = getattr(agent_wrapper, "prompt_locale", None) or getattr(agent_wrapper, "locale", None)
 
     from typing import cast
 
@@ -191,7 +190,7 @@ async def build_general_agent(
         agent_wrapper,
         mount_plan=mount_plan,
         channel_notify_tool_loaded=channel_notify_tool_loaded,
-        prompt_locale=effective_prompt_locale,
+        prompt_locale=agent_wrapper.locale,
     )
 
     # 9. Call framework API
@@ -344,7 +343,7 @@ async def build_general_agent(
         max_iterations=agent_wrapper.max_iterations or 100,
         unattended=getattr(agent_wrapper, "unattended_mode", False),
         locale=agent_wrapper.locale,
-        prompt_locale=effective_prompt_locale,
+        prompt_locale=agent_wrapper.locale,
         channel_name=agent_wrapper.channel_name,
         security_config=security_ext._build_security_config(),
         engine_params=normalized_engine_params,

@@ -1,7 +1,7 @@
 """Tool setup forwards the session's description locale into the tools that come in two languages.
 
-The harness exposes bilingual (en/zh) LLM tool descriptions; the host's ``_tool_description_locale`` binds the agent,
-prompt and channel locale, and a tool setup that does not hand it to its factory shows every session the English text.
+The harness exposes bilingual (en/zh) LLM tool descriptions; the host's ``_tool_description_locale`` binds the session
+and channel language, and a tool setup that does not hand it to its factory shows every session the English text.
 web_fetch_tool is checked at the factory call (the Turn1 schema-locale contract, same as web_search); the skill market
 and manage tools by the descriptions they end up with.
 """
@@ -73,27 +73,25 @@ class _SkillHost(ToolSetupMixin):
     enable_skill_manage = True
     force_skill_manage = False
     locale: str | None = None
-    prompt_locale: str | None = None
     channel_name: str | None = None
 
 
 @pytest.mark.parametrize(
-    ("locale", "prompt_locale", "channel", "described_in"),
+    ("locale", "channel", "described_in"),
     [
-        pytest.param("zh-CN", None, "web_chat", "zh-CN", id="chinese-session"),
-        pytest.param(None, None, "feishu", "zh-CN", id="im-channel-without-a-session-language"),
-        pytest.param("en", None, "feishu", "en", id="english-session-on-an-im-channel"),
-        pytest.param("en", "zh-CN", "web_chat", "zh-CN", id="prompt-locale-leads"),
-        pytest.param("fr", None, "web_chat", "en", id="language-without-a-translation"),
-        pytest.param(None, None, "web_chat", "en", id="no-language-at-all"),
+        pytest.param("zh-CN", "web_chat", "zh-CN", id="chinese-session"),
+        pytest.param(None, "feishu", "zh-CN", id="im-channel-without-a-session-language"),
+        pytest.param("en", "feishu", "en", id="english-session-on-an-im-channel"),
+        pytest.param("fr", "web_chat", "en", id="language-without-a-translation"),
+        pytest.param(None, "web_chat", "en", id="no-language-at-all"),
     ],
 )
 def test_skill_tools_are_described_in_the_language_of_the_session(
-    monkeypatch: pytest.MonkeyPatch, locale: str | None, prompt_locale: str | None, channel: str, described_in: str
+    monkeypatch: pytest.MonkeyPatch, locale: str | None, channel: str, described_in: str
 ) -> None:
     monkeypatch.delenv("MYRM_LOCALE", raising=False)
     host = _SkillHost()
-    host.locale, host.prompt_locale, host.channel_name = locale, prompt_locale, channel
+    host.locale, host.channel_name = locale, channel
     tools: list[object] = []
 
     host._setup_skill_market_tool(tools, SimpleNamespace(install_from_url=object(), uninstall=object()))
