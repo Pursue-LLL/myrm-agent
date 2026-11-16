@@ -60,6 +60,14 @@ describe('CapabilityEditor capability toggles', () => {
     }
   });
 
+  it('says what a run with nothing chosen can still do, and only while nothing is chosen', () => {
+    const { rerender } = render(<CapabilityEditor job={jobWithCapabilities([])} onUpdated={vi.fn()} />);
+    expect(screen.getByText(en.cron.capabilitiesAllHint)).toBeInTheDocument();
+
+    rerender(<CapabilityEditor job={jobWithCapabilities(['shell_exec'])} onUpdated={vi.fn()} />);
+    expect(screen.queryByText(en.cron.capabilitiesAllHint)).not.toBeInTheDocument();
+  });
+
   it.each(Object.entries(locales))(
     'names and describes every capability the editor offers in %s',
     (_locale, messages) => {

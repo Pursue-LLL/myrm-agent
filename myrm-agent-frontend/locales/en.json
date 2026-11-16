@@ -7342,8 +7342,8 @@
       "ttl_expired": "TTL expired"
     },
     "capabilitiesLabel": "Capability Fence",
-    "capabilitiesDesc": "Declare which tool capabilities this task may use. Leave empty for all capabilities",
-    "capabilitiesAllHint": "Unrestricted (all capabilities)",
+    "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused.",
+    "capabilitiesAllHint": "Nothing chosen: read files, search and open web pages only",
     "failClosedHint": "Scheduled tasks deny dangerous operations by default. Configure capability fence below or enable YOLO mode in agent security settings.",
     "capabilitiesUpdated": "Capability fence updated",
     "capabilitiesCleared": "Capability fence cleared",
