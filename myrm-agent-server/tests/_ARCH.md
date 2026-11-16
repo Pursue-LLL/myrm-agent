@@ -93,7 +93,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/monitoring/test_trace_id_unification.py` | 模块 | 一次请求一个 id（子进程 + OTLP 接收端 + 真实 `TracingMiddleware` 与异常处理器）：成功、服务端故障、未捕获异常与入站合法 `X-Trace-Id` 四种请求里，响应头 = 错误信封 `error.trace_id` = 经 `asyncio.create_task` 创建的根 span 的 trace id；去掉生成器装配或打开 FastAPI 请求 span 即失败 |
 | `server/test_lifespan_config_migration.py` | 单元 | 启动阶段在每种部署模式下都调用 `seal_stored_configs`：调用不在任何 `if` 之下、失败只记警告不外抛（读启动函数源码，删掉调用或加上模式判断即红） |
 | `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后；提交被拒（队列满）只记警告、不拖垮启动（读启动函数源码，删掉提交、挪到启动之前或去掉保护即红） |
-| `server/test_lifespan_background.py` | 单元 | 后台任务分两步启动：孤儿目标恢复在 socket 绑定后启动；预热（含预置技能对账）在就绪路由首次报告数据库就绪后的稳定期启动，无人查询就绪时由兜底延迟启动，反复的就绪轮询不会把启动往后推；关闭时取消尚未触发的启动、之后的就绪通知不再启动任何任务；任务失败记 ERROR 且不影响其余、预热任务全部结束后才结束启动期 GC 暂停 |
+| `server/test_lifespan_background.py` | 单元 | 后台任务分两步启动：孤儿目标恢复在 socket 绑定后启动；预热（含预置技能对账，它是预热里第一个启动的任务）在就绪路由首次报告数据库就绪后的稳定期启动，无人查询就绪时由兜底延迟启动，反复的就绪轮询不会把启动往后推；关闭时取消尚未触发的启动、之后的就绪通知不再启动任何任务；任务失败记 ERROR 且不影响其余、预热任务全部结束后才结束启动期 GC 暂停 |
 | `server/test_lifespan_prebuilt_skills.py` | 单元 | 预置技能同步在 lifespan 里的两个步骤：启动步骤只在本地模式请求沿用上次的完整同步、沙箱模式不请求，并照旧把结果发布给更新面板与技能启用状态；预热步骤只在对账确有变更时才发布；阶段 1b 确实调用启动步骤（读 `_phase_1b_parallel` 源码，去掉调用即红） |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |

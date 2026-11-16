@@ -6,7 +6,7 @@
 [OUTPUT]
 - Coverage that recovery starts after the bind delay, that the warm-up waits for the first screen (readiness reporting the
   database ready) or the fallback delay, that polling readiness cannot push the warm-up back, that every task runs (the
-  route-table walk on the application the lifespan handed over), that a failure is logged, that the settle step waits for
+  route-table walk on the application the lifespan handed over) and the prebuilt verification runs first, that a failure is logged, that the settle step waits for
   the warm-up, and that a shutdown cancels the starts that have not fired
 
 [POS]
@@ -136,6 +136,19 @@ async def test_readiness_starts_the_warmup_after_the_settle_delay(monkeypatch: p
 
     await _until(lambda: sorted(started) == _ALL_TASKS)
     assert loop.time() - asked_at >= background.FIRST_SCREEN_SETTLE_SECONDS - 0.01
+
+    release.set()
+    await settled[0]
+
+
+async def test_the_prebuilt_verification_is_the_first_warmup_task_to_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    started: list[str] = []
+    release = _install_fakes(monkeypatch, started)
+    settled = _capture_settle(monkeypatch)
+
+    await _boot_and_load_first_screen(started)
+
+    assert started[len(_RECOVERY_TASKS)] == "prebuilt-verification"
 
     release.set()
     await settled[0]
