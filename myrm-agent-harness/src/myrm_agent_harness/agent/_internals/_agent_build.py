@@ -75,7 +75,7 @@ __all__ = ["build_middlewares", "build_tools", "create_registry", "emit_tools_sn
 
 def build_middlewares(
     registry: ToolRegistry,
-    user_middlewares: list[object],
+    user_middlewares: Sequence[object],
     engine_params: EngineParams | None = None,
 ) -> list[Any]:
     """Build the full middleware chain for a BaseAgent.
@@ -236,12 +236,12 @@ def _weave_dynamic_schemas(resolved_tools: list[BaseTool]) -> list[BaseTool]:
 async def build_tools(
     registry: ToolRegistry,
     user_tools: list[BaseTool],
-    cached_middlewares: list[object],
+    cached_middlewares: Sequence[object] | None,
 ) -> list[BaseTool]:
     """Build the resolved tool list via ToolRegistry.
 
     Registers user tools first, then collects any tools exposed by
-    middlewares (e.g. ``get_tools()``).
+    middlewares (e.g. ``get_tools()``); an agent without a built middleware chain exposes none.
     """
     from myrm_agent_harness.agent.tool_management import ToolBindMode
 
@@ -250,7 +250,7 @@ async def build_tools(
         source=ToolSource.USER,
     )
 
-    for mw in cached_middlewares:
+    for mw in cached_middlewares or ():
         get_tools = getattr(mw, "get_tools", None)
         if callable(get_tools):
             try:

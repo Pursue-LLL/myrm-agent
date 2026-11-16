@@ -113,10 +113,11 @@ class BaseAgentChildrenMixin:
             get_global_wakeup_handler,
         )
 
-        session_id = None
+        session_id: str | None = None
         agent_id = "unknown"
         if self._last_context:
-            session_id = self._last_context.get("session_id")
+            raw_session_id = self._last_context.get("session_id")
+            session_id = raw_session_id if isinstance(raw_session_id, str) else None
             agent_id = str(self._last_context.get("agent_id", "unknown"))
 
         # 1. Notify global handler (for actual background wakeup)

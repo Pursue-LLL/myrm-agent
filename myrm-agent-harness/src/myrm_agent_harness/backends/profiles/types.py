@@ -76,7 +76,7 @@ class AgentProfile:
     skills: list[str] | None = None
     """Bound skill IDs."""
 
-    skill_configs: dict[str, dict] | None = None
+    skill_configs: dict[str, dict[str, object]] | None = None
     """Per-agent skill configurations (e.g. is_core)."""
 
     tools_allowed: list[str] | None = None
@@ -92,7 +92,7 @@ class AgentProfile:
     """User-defined slash command → Skill bindings for this agent."""
 
     no_builtin_tools: bool = False
-    """If True, disable all built-in meta tools and start with a completely empty action space."""
+    """If True, leaves out every built-in meta tool; the tools the host supplies and middleware tools stay."""
 
     metadata: dict[str, object] = field(default_factory=dict)
     """Business-layer extension fields (e.g. home_directory, permissions)."""

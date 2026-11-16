@@ -31,7 +31,8 @@ def _flow_result(mount: SkillMountResult | None) -> MarketInstallFlowResult:
 
 def _market() -> NonCallableMagicMock:
     """Autospec of the real facade, so a call the facade does not accept fails here instead of in production."""
-    return create_autospec(SkillMarketService, instance=True)
+    market: NonCallableMagicMock = create_autospec(SkillMarketService, instance=True)
+    return market
 
 
 def _hit() -> SkillSearchResult:

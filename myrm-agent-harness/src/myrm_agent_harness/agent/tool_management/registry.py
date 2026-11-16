@@ -196,8 +196,8 @@ class ToolRegistry:
         Sort rule: first by ``ToolLayer`` (CORE → HIGH_PRIORITY → EXTENDED → EXTERNAL),
         then HIGH_PRIORITY group priority, then alphabetically within each tier.
 
-        When ``no_builtin_tools=True``, only user-provided/external domain tools are kept;
-        all built-in framework meta tools (source == ToolSource.META) are excluded.
+        When ``no_builtin_tools=True``, the built-in framework meta tools (source == ToolSource.META) are excluded;
+        tools of every other source (user-provided, middleware, external domain) stay.
 
         Only returns Turn1-bound tools (``bind_mode == TURN1``).
         """

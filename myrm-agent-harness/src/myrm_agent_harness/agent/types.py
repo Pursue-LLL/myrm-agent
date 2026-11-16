@@ -142,7 +142,6 @@ class WorkspaceBinding:
     root_path: str
     chat_id: str | None = None
     task_id: str | None = None
-    inherit_parent: bool = False
 
 
 @dataclass(frozen=True, slots=True)

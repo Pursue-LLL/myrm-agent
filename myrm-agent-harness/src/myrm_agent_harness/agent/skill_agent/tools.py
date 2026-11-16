@@ -13,8 +13,9 @@
 [POS]
 Tool building mixin for SkillAgent. Assembles meta-tools, skill_manage_tool (from ``write_backend``, unless the
 caller supplies one), todo_write (planning, or a top-level agent resuming workspace todos), wiki tools, and
-RUNTIME_ONLY hooks; ``config.no_builtin_tools`` leaves out every built-in meta tool. The skill market tool is not
-built here: the host mounts it through ``tools=``. The class-body annotations are the contract with the host class.
+RUNTIME_ONLY hooks; ``config.no_builtin_tools`` leaves out every built-in meta tool, the skill_manage_tool built
+from ``write_backend`` included. The skill market tool is not built here: the host mounts it through ``tools=``.
+The class-body annotations are the contract with the host class.
 """
 
 from __future__ import annotations
@@ -28,7 +29,6 @@ from myrm_agent_harness.agent.meta_tools import get_meta_tools
 from myrm_agent_harness.agent.middlewares._session_context import get_is_subagent
 from myrm_agent_harness.agent.tool_management import (
     ToolBindMode,
-    ToolSnapshot,
     ToolSource,
 )
 from myrm_agent_harness.toolkits.storage import storage_config
@@ -130,22 +130,6 @@ class SkillAgentToolsMixin:
         registry = self._tool_registry
         prompt_locale = self._prompt_locale()
 
-        supplemental_user_tools: list[BaseTool] = []
-        user_has_manage_tool = any(getattr(tool, "name", None) == "skill_manage_tool" for tool in self.user_tools)
-        if self.write_backend is not None and not user_has_manage_tool:
-            from myrm_agent_harness.agent.meta_tools.skills.manage import (
-                create_skill_manage_tool,
-            )
-
-            supplemental_user_tools.append(
-                create_skill_manage_tool(
-                    self.write_backend,
-                    self.skill_backend,
-                    locale=prompt_locale,
-                )
-            )
-            logger.info(" skill_manage_tool mounted via write_backend (server/user_tools SSOT)")
-
         meta_tools = get_meta_tools(
             skills,
             self.skill_backend,
@@ -161,6 +145,17 @@ class SkillAgentToolsMixin:
             locale=prompt_locale,
         )
 
+        # Built from ``write_backend``, this is a built-in meta tool like the rest: ``no_builtin_tools`` leaves it out.
+        # One the host passes in through ``tools=`` is a host tool and stays.
+        user_has_manage_tool = any(getattr(tool, "name", None) == "skill_manage_tool" for tool in self.user_tools)
+        if self.write_backend is not None and not user_has_manage_tool:
+            from myrm_agent_harness.agent.meta_tools.skills.manage import (
+                create_skill_manage_tool,
+            )
+
+            meta_tools.append(create_skill_manage_tool(self.write_backend, self.skill_backend, locale=prompt_locale))
+            logger.info("skill_manage_tool built from write_backend")
+
         todo_tool = self._create_todo_write_tool()
         if todo_tool is not None:
             meta_tools.append(todo_tool)
@@ -175,10 +170,7 @@ class SkillAgentToolsMixin:
         else:
             logger.info("no_builtin_tools is enabled: built-in meta tools are excluded from action space")
 
-        registry.register_many(
-            normalize_tool_names([*self.user_tools, *supplemental_user_tools]),
-            source=ToolSource.USER,
-        )
+        registry.register_many(normalize_tool_names(self.user_tools), source=ToolSource.USER)
 
         all_middlewares: list[object] = list(self.user_middlewares)
         if self._cached_middlewares:
@@ -220,7 +212,7 @@ class SkillAgentToolsMixin:
         self._runtime_skill_count = len(skills)
         self._runtime_tool_count = len(resolved)
 
-        logger.warning(
+        logger.info(
             "SkillAgent._build_tools resolved %d tools, %d skills: %s",
             len(resolved),
             len(skills),
@@ -272,7 +264,7 @@ class SkillAgentToolsMixin:
             )
 
             tool = create_todo_write_tool(workspace_root=self._resolve_task_workspace_root())
-            logger.warning(" todo_write auto-created")
+            logger.info("todo_write auto-created")
             return tool
         except Exception as e:
             logger.warning("todo_write auto-creation failed: %s", e)
@@ -324,7 +316,7 @@ class SkillAgentToolsMixin:
             self._register_large_doc_ingest(structure, compiler)
 
             logger.info(
-                " wiki tools auto-created (3 tools, base_dir=%s, shared=%d)",
+                "wiki tools auto-created (3 tools, base_dir=%s, shared=%d)",
                 self._wiki_base_dir,
                 len(self._wiki_public_dirs),
             )
@@ -364,10 +356,6 @@ class SkillAgentToolsMixin:
             logger.info("Large doc auto-ingested into wiki for RAG: %s (%s)", filename, doc_hash)
 
         register_large_doc_ingest_callback(_ingest_large_doc)
-
-    def get_tool_snapshot(self) -> list[ToolSnapshot]:
-        """Return a serializable snapshot of the current tool set."""
-        return self._tool_registry.snapshot()
 
     async def _get_skill_storage_paths(self) -> list[str]:
         """Get all skill storage paths (absolute)."""
