@@ -39,7 +39,7 @@ flowchart TD
 | `src-tauri/src/runtime/` | Sidecar 编排、Appshot、Watchdog | [src-tauri/src/runtime/_ARCH.md](src-tauri/src/runtime/_ARCH.md) |
 | `src-tauri/src/commands/` | Tauri IPC 命令 | [src-tauri/src/commands/_ARCH.md](src-tauri/src/commands/_ARCH.md) |
 | `src-tauri/src/utils/` | 平台工具（锁屏、凭据、隔离修复、OTA 校验、进程强杀） | [src-tauri/src/utils/_ARCH.md](src-tauri/src/utils/_ARCH.md) |
-| `src-tauri/frontend-shell/` | Release WebView 启动骨架页（中/英文案，`withGlobalTauri` + 启动失败事件；不轮询、不自行跳转：Rust 在 Next 应答后导航到产品页，后端启动失败时带 `startup_error` 回到本页显示原因） | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
+| `src-tauri/frontend-shell/` | Release WebView 启动骨架页（中/英文案，`withGlobalTauri` + 启动失败事件；不轮询、不自行跳转：Rust 在 Next 应答后导航到产品页，后端启动失败时带 `startup_error` 回到本页显示失败面板） | [src-tauri/frontend-shell/_ARCH.md](src-tauri/frontend-shell/_ARCH.md) |
 | `sidecar/` | PyInstaller 后端 Sidecar 构建入口 | [sidecar/_ARCH.md](sidecar/_ARCH.md) |
 | `scripts/` | 构建、验签、分形门禁 | [scripts/_ARCH.md](scripts/_ARCH.md) |
 

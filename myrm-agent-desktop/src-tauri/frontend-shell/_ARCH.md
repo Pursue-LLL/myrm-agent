@@ -6,7 +6,7 @@
 - 系统语言（`navigator.language`）：任一中文变体显示中文，其余显示英文
 
 [OUTPUT]
-- Release 启动面板：只显示启动/失败状态；Rust 在 Next standalone 就绪后导航，后端启动失败时携带 `startup_error` 回到本页显示原因
+- Release 启动面板：只显示启动/失败状态；Rust 在 Next standalone 就绪后导航，后端启动失败时携带 `startup_error` 回到本页显示失败面板
 
 [POS]
 tauri.conf.json#build.frontendDist 静态单文件；Dev 模式不加载。
@@ -15,11 +15,11 @@ tauri.conf.json#build.frontendDist 静态单文件；Dev 模式不加载。
 
 Release 模式启动面板：`tauri.conf.json#build.frontendDist` 指向本目录。本页**不做端口轮询、也不自行跳转**：
 Rust 在 Next standalone 就绪后导航到产品页；若后端启动失败，Rust 会带 `startup_error` 查询参数导航回本页，
-由本页直接显示失败原因（事件监听可能因极早失败而错过，查询参数是兜底）。Dev 模式直连 `devUrl`（`:3000`），不加载此页。
+由本页直接显示失败面板（事件监听可能因极早失败而错过，查询参数是兜底）。Dev 模式直连 `devUrl`（`:3000`），不加载此页。
 
 壳页与 Next 不同源，读不到 Next 来源下保存的界面语言与主题，所以语言取系统语言，配色固定为产品的默认深色。
 
-失败面板分两层：本地化的处理指引（中/英）与 Rust 给出的原始原因（原样显示、可选中复制，供反馈问题时粘贴）。
+失败面板默认只显示本地化的处理指引（中/英）。Rust 给出的原始原因面向开发者（含路径、系统错误），折叠在「查看详情」里，展开后原样显示、可选中复制，供反馈问题时粘贴；没有原因时不出现该入口。
 
 父模块：[../../_ARCH.md](../../_ARCH.md)
 
@@ -27,7 +27,7 @@ Rust 在 Next standalone 就绪后导航到产品页；若后端启动失败，R
 
 | 文件 | 职责 |
 |------|------|
-| `index.html` | 产品级同构骨架屏（Progressive Skeleton Shell）：0.05s 瞬时呈现工作台轮廓；全部可见文案以 JSON 内联在 `#shell-copy`（zh / en 两套，键必须一致且全部被使用，Launch Contract 校验）；监听启动失败事件并读取 `startup_error` 查询参数，显示本地化指引与原始原因；导航由 Rust 统一驱动；系统设置了「减少动态效果」时所有循环动画静止 |
+| `index.html` | 产品级同构骨架屏（Progressive Skeleton Shell）：0.05s 瞬时呈现工作台轮廓；全部可见文案以 JSON 内联在 `#shell-copy`（zh / en 两套，键必须一致且全部被使用，Launch Contract 校验）；监听启动失败事件并读取 `startup_error` 查询参数，显示本地化指引，原始原因折叠在详情里；导航由 Rust 统一驱动；系统设置了「减少动态效果」时所有循环动画静止 |
 
 ## 约束
 
