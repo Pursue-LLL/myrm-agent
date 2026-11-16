@@ -1,102 +1,34 @@
 """Import competitor API keys into user provider config (opt-in, local only).
 
 [INPUT]
-source_payload_loader env key names; app.services.config.service (POS: 配置核心业务逻辑);
-myrm_agent_harness transport PROFILES (POS: the key variables each provider reads) and BUILTIN_PROVIDER_ROUTE_SEGMENT
+app.services.migration.env_secrets (POS: which variables count as keys, and how a .env is read);
+app.services.config.service (POS: 配置核心业务逻辑); myrm_agent_harness BUILTIN_PROVIDER_ROUTE_SEGMENT
 
 [OUTPUT]
 import_external_source_secrets(): merge detected .env keys into providers config; seed minimal provider stubs when none exist
 
 [POS]
-Server business layer — explicit user-consented secret migration from external assistant installs. The variables read
-are the ones the transport itself reads for a provider (so a key a competitor's ``.env`` shares with us is found by the
-same name) plus the aliases competitors use; only providers a key alone makes usable are imported, never one that also
-needs an endpoint the ``.env`` does not carry (Azure, Bedrock, any provider reached through a shared OpenAI endpoint).
+Server business layer — explicit user-consented secret migration from external assistant installs. What counts as a key
+is decided once in ``env_secrets`` (the same list the migration preview uses), so the import brings what the wizard
+announced.
 """
 
 from __future__ import annotations
 
-import io
 import uuid
 from pathlib import Path
 
-from dotenv import dotenv_values
 from myrm_agent_harness.agent.config import BUILTIN_PROVIDER_ROUTE_SEGMENT
-from myrm_agent_harness.toolkits.llms.transport import PROFILES
 
 from app.config.deploy_mode import is_local_mode
 from app.services.config.service import config_service
-
-# The providers a key alone makes usable, with their settings-UI display names (the frontend's ``providerCatalog.ts``).
-_IMPORTABLE_PROVIDERS: dict[str, str] = {
-    "openai": "OpenAI",
-    "anthropic": "Anthropic",
-    "gemini": "Google Gemini",
-    "deepseek": "DeepSeek",
-    "openrouter": "OpenRouter",
-    "zai": "Z.AI (Zhipu AI)",
-    "xai": "xAI",
-    "ollama": "Ollama",
-    "moonshot": "Moonshot AI",
-    "lm_studio": "LM Studio",
-    "groq": "Groq",
-    "dashscope": "Dashscope (Qwen)",
-    "minimax": "MiniMax",
-    "mistral": "Mistral AI",
-    "together_ai": "Together AI",
-    "volcengine": "Doubao (Volcengine)",
-    "fireworks_ai": "Fireworks AI",
-    "perplexity": "Perplexity AI",
-    "xiaomi_mimo": "Xiaomi MiMo",
-    "vercel_ai_gateway": "Vercel AI Gateway",
-}
-
-# The key variables come from the transport's own table; Vercel's gateway has no profile of its own (it is reached
-# through the OpenAI wire at a fixed endpoint), so its variables are named here.
-_ENV_TO_PROVIDER_ID: dict[str, str] = {
-    env: provider_id
-    for provider_id in _IMPORTABLE_PROVIDERS
-    if provider_id in PROFILES
-    for env in PROFILES[provider_id].api_key_env
-}
-_ENV_TO_PROVIDER_ID.update(
-    {
-        # Variable names other assistants use for a provider the transport names differently
-        # (documented in Hermes Agent's ``.env.example``).
-        "GLM_API_KEY": "zai",
-        "KIMI_API_KEY": "moonshot",
-        "XIAOMI_API_KEY": "xiaomi_mimo",
-        "AI_GATEWAY_API_KEY": "vercel_ai_gateway",
-        "VERCEL_AI_GATEWAY_KEY": "vercel_ai_gateway",
-        "VERCEL_API_KEY": "vercel_ai_gateway",
-    }
-)
-
-
-def _read_env_secrets(env_path: Path) -> dict[str, str]:
-    """The importable keys of a ``.env`` file, read by python-dotenv's grammar (quotes, ``export``, comments).
-
-    Nothing is interpolated: ``${NAME}`` would otherwise read this process's environment into the result, and a
-    reference left unresolved is not a key, so it is skipped.
-    """
-    try:
-        content = env_path.read_text(encoding="utf-8", errors="ignore")
-    except OSError:
-        return {}
-
-    values = dotenv_values(stream=io.StringIO(content), interpolate=False)
-    secrets: dict[str, str] = {}
-    for name, raw in values.items():
-        value = (raw or "").strip()
-        if name in _ENV_TO_PROVIDER_ID and value and "${" not in value:
-            secrets[name] = value
-    return secrets
+from app.services.migration.env_secrets import ENV_TO_PROVIDER_ID, IMPORTABLE_PROVIDERS, read_env_secrets
 
 
 def _minimal_provider_stub(provider_id: str, secret_value: str) -> dict[str, object]:
     stub: dict[str, object] = {
         "id": provider_id,
-        "name": _IMPORTABLE_PROVIDERS[provider_id],
+        "name": IMPORTABLE_PROVIDERS[provider_id],
         "routingProfile": BUILTIN_PROVIDER_ROUTE_SEGMENT[provider_id],
         "isEnabled": True,
         "apiKeys": [
@@ -122,7 +54,7 @@ def _seed_provider_stubs(
     typed: list[dict[str, object]] = [provider for provider in providers_raw if isinstance(provider, dict)]
     existing_ids = {str(provider.get("id", "")).strip() for provider in typed if str(provider.get("id", "")).strip()}
     for env_name, secret_value in secrets.items():
-        provider_id = _ENV_TO_PROVIDER_ID[env_name]
+        provider_id = ENV_TO_PROVIDER_ID[env_name]
         if provider_id in existing_ids:
             continue
         typed.append(_minimal_provider_stub(provider_id, secret_value))
@@ -159,7 +91,7 @@ async def import_external_source_secrets(root: Path) -> dict[str, object]:
     if not env_path.is_file():
         return {"imported_keys": [], "skipped_keys": [], "message": "No .env file found"}
 
-    secrets = _read_env_secrets(env_path)
+    secrets = read_env_secrets(env_path)
     if not secrets:
         return {"imported_keys": [], "skipped_keys": [], "message": "No importable API keys in .env"}
 
@@ -186,7 +118,7 @@ async def import_external_source_secrets(root: Path) -> dict[str, object]:
     skipped: list[str] = []
 
     for env_name, secret_value in secrets.items():
-        provider_id = _ENV_TO_PROVIDER_ID[env_name]
+        provider_id = ENV_TO_PROVIDER_ID[env_name]
         matched = False
         for provider in providers_raw:
             if not isinstance(provider, dict):

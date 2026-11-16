@@ -24,6 +24,7 @@
 | `test_loader_utils.py` | 辅助 | `_loader_utils` 共享函数 |
 | `test_source_model_migrator.py` | 辅助 | Hermes auxiliary + OpenClaw default model；routing 仅 migrated_slots 非空时启用 |
 | `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入 |
+| `test_env_secrets.py` | 辅助 | 迁移预览、payload key 名与导入三处读同一份 `.env` 时对「什么算 key」的结论一致（export 前缀、带注释的引号值、别名、空值、`${…}` 引用、缺文件） |
 | `test_import_archive_dry_run.py` | 辅助 | import archive dry-run 编排 |
 | `test_lane_previews.py` | 辅助 | 四车道 preview DTO |
 | `test_instruction_rollback.py` | 辅助 | 指令车道回滚 |
