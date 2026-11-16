@@ -1,20 +1,20 @@
-"""Chat agent market install adapter delegates to market_install_flow."""
+"""Chat agent market adapter: search unwraps market hits, installs delegate to market_install_flow."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, NonCallableMagicMock, create_autospec
 
 import pytest
-from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult
+from myrm_agent_harness.agent.skills.market.service import EnrichedSearchResult
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult, SkillSearchResult
 
 from app.core.skills.discovery.agent_market_install import (
     AgentSessionSkillMarketBackend,
-    make_agent_session_install_from_url_fn,
-    wrap_skill_market_backend_for_agent_session,
+    install_from_url_for_agent_session,
 )
 from app.core.skills.discovery.market_install_flow import MarketInstallFlowResult
+from app.core.skills.marketplace.market_service import SkillMarketService
 
 
 @dataclass(frozen=True)
@@ -31,8 +31,25 @@ def _flow_result() -> MarketInstallFlowResult:
     )
 
 
+def _market() -> NonCallableMagicMock:
+    """Autospec of the real facade, so a call the facade does not accept fails here instead of in production."""
+    return create_autospec(SkillMarketService, instance=True)
+
+
+def _hit() -> SkillSearchResult:
+    return SkillSearchResult(
+        id="demo",
+        name="Demo",
+        description="A demo skill",
+        source="clawhub",
+        author="author",
+        install_url="https://example.com/demo",
+        install_method="git",
+    )
+
+
 @pytest.mark.asyncio
-async def test_wrapped_backend_install_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_install_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     flow_fn = AsyncMock(return_value=_flow_result())
     adopt = AsyncMock()
     monkeypatch.setattr(
@@ -43,7 +60,7 @@ async def test_wrapped_backend_install_delegates_to_flow(monkeypatch: pytest.Mon
         "app.core.skills.discovery.agent_market_install.complete_discovery_adoption",
         adopt,
     )
-    backend = AgentSessionSkillMarketBackend(SimpleNamespace())
+    backend = AgentSessionSkillMarketBackend(_market())
 
     out = await backend.install("skill-a", "clawhub", user_id="u1")
 
@@ -58,15 +75,14 @@ async def test_wrapped_backend_install_delegates_to_flow(monkeypatch: pytest.Mon
 
 
 @pytest.mark.asyncio
-async def test_install_from_url_fn_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_install_from_url_delegates_to_flow(monkeypatch: pytest.MonkeyPatch) -> None:
     flow_fn = AsyncMock(return_value=_flow_result())
     monkeypatch.setattr(
         "app.core.skills.discovery.agent_market_install.run_market_install_flow_from_url",
         flow_fn,
     )
-    install_url = make_agent_session_install_from_url_fn(object())
 
-    await install_url("https://github.com/o/r", None)
+    await install_from_url_for_agent_session("https://github.com/o/r", None)
 
     flow_fn.assert_awaited_once_with(
         "https://github.com/o/r",
@@ -76,16 +92,19 @@ async def test_install_from_url_fn_delegates_to_flow(monkeypatch: pytest.MonkeyP
 
 
 @pytest.mark.asyncio
-async def test_wrapped_backend_delegates_search_and_detail() -> None:
-    inner = SimpleNamespace(
-        search=AsyncMock(return_value=["hit"]),
-        get_detail=AsyncMock(return_value={"id": "x"}),
-        extra_flag=True,
-    )
-    backend = wrap_skill_market_backend_for_agent_session(inner)
+async def test_search_unwraps_market_hits_and_forwards_arguments() -> None:
+    market = _market()
+    hit = _hit()
+    market.search.return_value = [EnrichedSearchResult(result=hit, installed_version="1.0.0", upgrade_available=True)]
 
-    assert await backend.search("q", limit=3) == ["hit"]
-    inner.search.assert_awaited_once_with("q", limit=3)
-    assert await backend.get_detail("sid", "clawhub") == {"id": "x"}
-    inner.get_detail.assert_awaited_once_with("sid", "clawhub")
-    assert backend.extra_flag is True
+    assert await AgentSessionSkillMarketBackend(market).search("q", limit=3) == [hit]
+    market.search.assert_awaited_once_with("q", limit=3)
+
+
+@pytest.mark.asyncio
+async def test_search_forwards_the_protocol_default_limit() -> None:
+    market = _market()
+    market.search.return_value = []
+
+    assert await AgentSessionSkillMarketBackend(market).search("q") == []
+    market.search.assert_awaited_once_with("q", limit=10)

@@ -163,19 +163,3 @@ class SkillMarketBackend(Protocol):
             安装结果
         """
         ...
-
-    async def get_detail(
-        self,
-        skill_id: str,
-        source: str,
-    ) -> SkillSearchResult | None:
-        """获取技能详情
-
-        Args:
-            skill_id: 技能 ID
-            source: 技能来源
-
-        Returns:
-            技能详情，未找到返回 None
-        """
-        ...

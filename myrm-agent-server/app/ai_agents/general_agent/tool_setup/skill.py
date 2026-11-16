@@ -20,6 +20,8 @@ if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
 
+    from app.core.skills.marketplace.market_service import SkillMarketService
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,22 +38,22 @@ class SkillToolsMixin(ToolSetupBaseMixin):
         """
         return self.enable_skill_manage or self.force_skill_manage
 
-    def _setup_skill_market_tool(self, tools: list[object], market_backend: object) -> None:
+    def _setup_skill_market_tool(self, tools: list[object], market_service: SkillMarketService) -> None:
         """Turn1 mount skill_market_tool via server product layer (not get_meta_tools)."""
         from myrm_agent_harness.agent.meta_tools.skills.market import (
             create_skill_market_tool,
         )
 
         from app.core.skills.discovery.agent_market_install import (
-            make_agent_session_install_from_url_fn,
-            wrap_skill_market_backend_for_agent_session,
+            AgentSessionSkillMarketBackend,
+            install_from_url_for_agent_session,
         )
 
-        backend = wrap_skill_market_backend_for_agent_session(market_backend)
+        backend = AgentSessionSkillMarketBackend(market_service)
         install_url_fn = None
-        if getattr(market_backend, "install_from_url", None) is not None:
-            install_url_fn = make_agent_session_install_from_url_fn(market_backend)
-        uninstall_fn = getattr(market_backend, "uninstall", None)
+        if getattr(market_service, "install_from_url", None) is not None:
+            install_url_fn = install_from_url_for_agent_session
+        uninstall_fn = getattr(market_service, "uninstall", None)
         tools.append(
             create_skill_market_tool(
                 backend,
