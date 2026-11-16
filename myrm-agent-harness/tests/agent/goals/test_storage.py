@@ -1,3 +1,4 @@
+import logging
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -285,3 +286,92 @@ async def test_list_active_sessions_idempotent_after_pause(goal_storage: GoalSto
 
     # Running again should still be empty
     assert await goal_storage.list_active_sessions() == []
+
+
+# --- Session index reads: a missing key is normal, any other failure is reported ---
+
+_STORAGE_LOGGER = "myrm_agent_harness.agent.goals.storage"
+_INDEXES = ["active", "latest"]
+
+
+def _break_index(root: Path, index: str, session_id: str, kind: str) -> None:
+    """Make an index key unreadable the way a damaged data directory would."""
+    target = root / f"goals_{index}" / session_id
+    if kind == "directory":
+        target.mkdir(parents=True)
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(b"\xff\xfe")
+
+
+async def _read_index(storage: GoalStorage, index: str, session_id: str) -> str | None:
+    getter = storage.get_active_goal_id if index == "active" else storage.get_latest_goal_id
+    return await getter(session_id)
+
+
+def _storage_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [r for r in caplog.records if r.name == _STORAGE_LOGGER]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("index", _INDEXES)
+async def test_a_missing_index_reads_as_no_goal_without_logging(
+    goal_storage: GoalStorage, caplog: pytest.LogCaptureFixture, index: str
+) -> None:
+    with caplog.at_level(logging.DEBUG, logger=_STORAGE_LOGGER):
+        assert await _read_index(goal_storage, index, "never-had-a-goal") is None
+    assert _storage_records(caplog) == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["directory", "not_utf8"])
+@pytest.mark.parametrize("index", _INDEXES)
+async def test_an_unreadable_index_reads_as_no_goal_and_names_the_session(
+    goal_storage: GoalStorage, tmp_path: Path, caplog: pytest.LogCaptureFixture, index: str, kind: str
+) -> None:
+    _break_index(tmp_path, index, "damaged-session", kind)
+    with caplog.at_level(logging.WARNING, logger=_STORAGE_LOGGER):
+        assert await _read_index(goal_storage, index, "damaged-session") is None
+    [record] = _storage_records(caplog)
+    assert record.levelno == logging.WARNING
+    assert f"Goal {index} index for session 'damaged-session'" in record.getMessage()
+
+
+@pytest.mark.asyncio
+async def test_a_repeated_failure_warns_once_per_window_and_again_after_it(
+    goal_storage: GoalStorage, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _break_index(tmp_path, "latest", "s-repeat", "directory")
+    with caplog.at_level(logging.DEBUG, logger=_STORAGE_LOGGER):
+        for _ in range(3):
+            await goal_storage.get_latest_goal_id("s-repeat")
+        assert [r.levelno for r in _storage_records(caplog)] == [logging.WARNING, logging.DEBUG, logging.DEBUG]
+
+        goal_storage._index_warned_at[("latest", "s-repeat")] = float("-inf")  # the window has elapsed
+        await goal_storage.get_latest_goal_id("s-repeat")
+    assert _storage_records(caplog)[-1].levelno == logging.WARNING
+
+
+@pytest.mark.asyncio
+async def test_each_session_and_index_gets_its_own_warning(
+    goal_storage: GoalStorage, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    for index, session_id in [("latest", "s-one"), ("latest", "s-two"), ("active", "s-one")]:
+        _break_index(tmp_path, index, session_id, "directory")
+    with caplog.at_level(logging.WARNING, logger=_STORAGE_LOGGER):
+        await goal_storage.get_latest_goal_id("s-one")
+        await goal_storage.get_latest_goal_id("s-two")
+        await goal_storage.get_active_goal_id("s-one")
+    assert len(_storage_records(caplog)) == 3
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("hostile_id", ["x\nforged WARNING line", "x\x00y"])
+async def test_a_hostile_session_id_cannot_forge_log_lines(
+    goal_storage: GoalStorage, caplog: pytest.LogCaptureFixture, hostile_id: str
+) -> None:
+    with caplog.at_level(logging.WARNING, logger=_STORAGE_LOGGER):
+        assert await goal_storage.get_latest_goal_id(hostile_id) is None
+    [record] = _storage_records(caplog)
+    assert "\n" not in record.getMessage()
+    assert "\x00" not in record.getMessage()
