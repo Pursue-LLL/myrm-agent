@@ -17,8 +17,8 @@ try {
 }
 
 // Markers survive minification: property names and string literals are never renamed. The quoted
-// "/settings/" comes only from the bundled pushTargetUrl module; unquoted, it would also match the
-// precache manifest URLs that sit in the same file.
+// "/settings/" comes only from the bundled pushTargetUrl module; unquoted, a prerendered settings
+// page in the precache manifest (server/app/settings/....html) would satisfy it without that module.
 const required = ['showNotification', 'notificationclick', 'favicon-32.png', '.navigate(', '"/settings/"'];
 // A production build (NODE_ENV=production) folds the development logger away.
 const forbidden = ['groupCollapsed'];
