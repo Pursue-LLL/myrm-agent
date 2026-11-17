@@ -4,12 +4,14 @@
  * - @/store/chat/types::MentionReference (POS: Store 引用契约)
  * - @/store/useAgentStore (POS: 获取本地已加载数字员工列表)
  * - @/components/agent/builtin-agent-i18n::getBuiltinAgentName (POS: 数字员工多语言名称)
+ * - @/lib/constants/chat-history-search::HISTORY_SEARCH_MAX_LENGTH (POS: 服务端接受的聊天历史查询最大长度)
+ * - @/lib/utils/firstChars::firstChars (POS: 按字符数截断文本，不拆开一个字符)
  *
  * [OUTPUT]
  * - ReferenceMentionState: 引用自动补全内部状态类型
+ * - MentionPlan / MentionMode: 光标前文本对 @ 菜单的诉求（模式、发给服务端的查询、即时本地结果、是否会发起服务端搜索）
  * - DEBOUNCE_MS: 防抖时延常量
- * - extractMentionQuery: 提取光标前 @ 提及词
- * - staticSpecialMatches: 静态特殊命令匹配
+ * - planMention: 由输入文本与光标位置一次算出 MentionPlan
  * - historyResultToSuggestion: 历史会话引用转换
  * - toMentionReference: 建议项转 Store 引用实体
  * - replacementFor: 建议项转输入框替换文本
@@ -23,6 +25,8 @@ import type { ReferenceSuggestion, ReferenceSuggestionSource, SearchResult } fro
 import type { MentionReference } from '@/store/chat/types';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
+import { firstChars } from '@/lib/utils/firstChars';
 
 export interface ReferenceMentionState {
   isOpen: boolean;
@@ -32,6 +36,25 @@ export interface ReferenceMentionState {
   mentionStart: number;
   /** A server search for this mention is waiting out the debounce or on its way; an empty list is not final yet. */
   isSearching: boolean;
+}
+
+export type MentionMode = 'folder' | 'wiki' | 'chat' | 'plain';
+
+/** What the text before the cursor asks of the @ menu, worked out once so the menu and its server request agree. */
+export interface MentionPlan {
+  /** The text after the `@`, mode prefix included. */
+  rawQuery: string;
+  /** Where the `@` sits in the input. */
+  start: number;
+  mode: MentionMode;
+  /** The query for the server: the mode prefix is dropped and a `@chat:` query is cut to what the server accepts. */
+  query: string;
+  /** The commands that match the query; only a plain mention offers any. */
+  specialResults: ReferenceSuggestion[];
+  /** What the menu shows before the server answers: the loaded agents and the matching commands. */
+  localResults: ReferenceSuggestion[];
+  /** A server request follows this mention, so an empty list is not final yet. */
+  willSearch: boolean;
 }
 
 export const DEBOUNCE_MS = 180;
@@ -129,7 +152,7 @@ export const STATIC_SPECIAL_RESULTS: ReferenceSuggestion[] = [
   },
 ];
 
-export function extractMentionQuery(text: string, cursorPos: number): { query: string; start: number } | null {
+function extractMentionQuery(text: string, cursorPos: number): { query: string; start: number } | null {
   const before = text.slice(0, cursorPos);
   const atIndex = before.lastIndexOf('@');
   if (atIndex === -1) {
@@ -146,7 +169,7 @@ export function extractMentionQuery(text: string, cursorPos: number): { query: s
   return { query, start: atIndex };
 }
 
-export function staticSpecialMatches(query: string): ReferenceSuggestion[] {
+function staticSpecialMatches(query: string): ReferenceSuggestion[] {
   const lowerQuery = query.toLowerCase();
   return STATIC_SPECIAL_RESULTS.filter((item) => {
     const token = item.basename.replace(/^@/, '').replace(/:$/, '').toLowerCase();
@@ -188,6 +211,47 @@ export function buildAgentSuggestions(query: string, locale: string): ReferenceS
         avatar_url: a.avatar_url,
       };
     });
+}
+
+const MODE_PREFIXES = { folder: 'folder:', wiki: 'wiki:', chat: 'chat:' } as const;
+
+function mentionMode(rawQuery: string): MentionMode {
+  for (const mode of ['folder', 'wiki', 'chat'] as const) {
+    if (rawQuery.startsWith(MODE_PREFIXES[mode])) {
+      return mode;
+    }
+  }
+  return 'plain';
+}
+
+export function planMention(
+  text: string,
+  cursorPos: number,
+  locale: string,
+  chatId: string | undefined,
+): MentionPlan | null {
+  const mention = extractMentionQuery(text, cursorPos);
+  if (!mention) {
+    return null;
+  }
+
+  const mode = mentionMode(mention.query);
+  const unprefixed = mode === 'plain' ? mention.query : mention.query.slice(MODE_PREFIXES[mode].length);
+  // The server answers an empty or over-long query with HTTP 422, and a paste after `@chat:` has no space to end the
+  // mention early.
+  const query = mode === 'chat' ? firstChars(unprefixed, HISTORY_SEARCH_MAX_LENGTH) : unprefixed;
+  const specialResults = mode === 'plain' ? staticSpecialMatches(mention.query) : [];
+
+  return {
+    rawQuery: mention.query,
+    start: mention.start,
+    mode,
+    query,
+    specialResults,
+    localResults: mode === 'plain' ? [...buildAgentSuggestions(query, locale), ...specialResults] : specialResults,
+    // Only a mention that is followed by a server request has an empty list that is not final yet.
+    willSearch: mode === 'chat' ? query !== '' : Boolean(chatId),
+  };
 }
 
 export function historyResultToSuggestion(item: SearchResult): ReferenceSuggestion {
