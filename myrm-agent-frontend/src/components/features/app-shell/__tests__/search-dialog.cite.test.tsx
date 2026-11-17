@@ -163,6 +163,18 @@ describe('SearchDialog cite to composer', () => {
   });
 });
 
+describe('SearchDialog query box', () => {
+  it('stops typing and pasting at the 200 characters the server accepts', async () => {
+    render(
+      <SearchDialog open onOpenChange={mockOnOpenChange}>
+        <div />
+      </SearchDialog>,
+    );
+
+    expect(await screen.findByPlaceholderText('search.placeholder')).toHaveAttribute('maxlength', '200');
+  });
+});
+
 describe('SearchDialog telling its host that a result was taken', () => {
   beforeEach(() => {
     mockPush.mockReset();

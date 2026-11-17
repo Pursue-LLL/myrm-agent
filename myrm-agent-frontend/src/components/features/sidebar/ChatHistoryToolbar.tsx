@@ -2,7 +2,8 @@
 
 /**
  * [INPUT]
- * - ./useHistorySearch::HistorySearch, HISTORY_SEARCH_MAX_LENGTH (POS: 搜索框的开合与输入状态，及它能容纳的最大长度)
+ * - ./useHistorySearch::HistorySearch (POS: 搜索框的开合与输入状态)
+ * - @/lib/constants/chat-history-search::HISTORY_SEARCH_MAX_LENGTH (POS: 聊天历史搜索框的长度上限，等于服务端对查询的上限)
  * - @/components/features/settings/sections/integration/channels/ChannelIcon (POS: 来源图标)
  *
  * [OUTPUT]
@@ -19,8 +20,9 @@
 import { ListChecks, Loader2, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
-import { HISTORY_SEARCH_MAX_LENGTH, type HistorySearch } from './useHistorySearch';
+import type { HistorySearch } from './useHistorySearch';
 
 interface ChatHistoryToolbarProps {
   sources: readonly string[];
