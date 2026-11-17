@@ -201,4 +201,69 @@ describe('RunRow', () => {
     expect(screen.getByText('web_search')).toBeInTheDocument();
     expect(screen.queryByText(/^step \d+$/)).not.toBeInTheDocument();
   });
+
+  it('labels a progress note step by its note and a tool step by its tool', async () => {
+    renderRow(
+      makeRun({
+        has_execution_steps: true,
+        metadata: {
+          progressSteps: [
+            { step_key: 'heartbeat', items: [{ text: 'Step 2/5: Parsing data' }] },
+            { tool_name: 'web_search', step_key: 'tool_call', items: [{ text: 'query' }] },
+            { step_key: 'planning' },
+          ],
+        },
+      }),
+    );
+
+    await userEvent.click(header(/Daily AI digest/));
+
+    expect(screen.getByText('Step 2/5: Parsing data')).toBeInTheDocument();
+    expect(screen.getByText('web_search')).toBeInTheDocument();
+    expect(screen.getByText('planning')).toBeInTheDocument();
+    expect(screen.queryByText('heartbeat')).not.toBeInTheDocument();
+    expect(screen.queryByText('query')).not.toBeInTheDocument();
+  });
+
+  describe('circuit break', () => {
+    // The loop guard's message quotes the tool call it stopped.
+    const LOOP_GUARD_TEXT = 'RUNAWAY_CIRCUIT_BREAKER: web_search repeated 5 times with {"q":"weather"}';
+
+    it('reads in the cron panel wording, never in the loop guard text', async () => {
+      renderRow(
+        makeRun({
+          status: 'circuit_break',
+          error: LOOP_GUARD_TEXT,
+          stop_reason: makeStopReason({ message: LOOP_GUARD_TEXT }),
+        }),
+      );
+
+      expect(screen.getByText('circuitBreakBanner')).toBeInTheDocument();
+      expect(screen.queryByText(/RUNAWAY_CIRCUIT_BREAKER/)).not.toBeInTheDocument();
+
+      await userEvent.click(header(/Daily AI digest/));
+
+      expect(screen.getByText('circuitBreakTitle')).toBeInTheDocument();
+      expect(screen.getByText('circuitBreakDesc')).toBeInTheDocument();
+      expect(screen.queryByText('circuitBreakBanner')).not.toBeInTheDocument();
+      expect(screen.queryByText(/RUNAWAY_CIRCUIT_BREAKER/)).not.toBeInTheDocument();
+      expect(screen.queryByText('stopReasonError')).not.toBeInTheDocument();
+    });
+
+    it('explains itself in the collapsed row even when the run recorded no error text', () => {
+      renderRow(makeRun({ status: 'circuit_break', error: null, stop_reason: null, summary: 'partial digest' }));
+
+      expect(screen.getByText('circuitBreakBanner')).toBeInTheDocument();
+      expect(screen.queryByText('partial digest')).not.toBeInTheDocument();
+    });
+
+    it('leaves an ordinary failure with its own error text', async () => {
+      renderRow(makeRun({ status: 'error', error: 'boom' }));
+
+      expect(screen.queryByText('circuitBreakBanner')).not.toBeInTheDocument();
+      await userEvent.click(header(/Daily AI digest/));
+      expect(screen.queryByText('circuitBreakTitle')).not.toBeInTheDocument();
+      expect(screen.getByText('boom')).toBeInTheDocument();
+    });
+  });
 });

@@ -90,6 +90,19 @@ function stopReasonLabelKey(code: string | undefined): string {
   return 'stopReasonUnknown';
 }
 
+interface ProgressStep {
+  tool_name?: string;
+  step_key?: string;
+  items?: { text?: string }[];
+  error?: string;
+}
+
+// A tool step is named by its tool; a progress note (a kanban task's heartbeat) has no tool, and its note reads
+// better than its internal key.
+function stepLabel(step: ProgressStep): string | undefined {
+  return step.tool_name || step.items?.[0]?.text || step.step_key;
+}
+
 type Translator = ReturnType<typeof useTranslations>;
 
 // The icon shows the state; this word is what assistive tech reads. It reuses the Hub's filter and stop-reason copy
@@ -126,11 +139,16 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
   const summary = skipLabel ?? run.summary;
   const canShowTrace = run.source === 'kanban' && run.task_id != null;
   const hasDetail = !!(run.output || run.error || run.stop_reason || run.has_execution_steps || canShowTrace);
-  const stopReasonLabel = run.stop_reason ? t(stopReasonLabelKey(run.stop_reason.code)) : null;
-  const stopReasonMessage = run.stop_reason?.message?.trim() || null;
-  const compactStopReason = !run.error ? stopReasonMessage : null;
+  const isCircuitBreak = run.status === 'circuit_break';
+  // A circuit break's error and stop reason quote the tool call the loop guard stopped; the cron panel's own
+  // wording for it replaces them.
+  const error = isCircuitBreak ? null : run.error;
+  const stopReason = isCircuitBreak ? null : run.stop_reason;
+  const stopReasonLabel = stopReason ? t(stopReasonLabelKey(stopReason.code)) : null;
+  const stopReasonMessage = stopReason?.message?.trim() || null;
+  const compactStopReason = !error ? stopReasonMessage : null;
   // The server mirrors the error text into the stop reason message; the error block already shows it.
-  const stopReasonDetail = stopReasonMessage !== run.error?.trim() ? stopReasonMessage : null;
+  const stopReasonDetail = stopReasonMessage !== error?.trim() ? stopReasonMessage : null;
 
   // The header is the only toggle: the detail region holds its own controls (trace replay, export, selectable
   // output), so it must not sit inside the element that collapses the row. Button content is phrasing-only.
@@ -152,13 +170,18 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
             </span>
           )}
         </span>
-        {!expanded && run.error && (
-          <span className="block text-[11px] text-destructive-text font-mono truncate">{run.error}</span>
+        {!expanded && isCircuitBreak && (
+          <span className="block text-[11px] font-medium text-rose-600 dark:text-rose-400 truncate">
+            {tCron('circuitBreakBanner')}
+          </span>
         )}
-        {!expanded && !run.error && compactStopReason && (
+        {!expanded && error && (
+          <span className="block text-[11px] text-destructive-text font-mono truncate">{error}</span>
+        )}
+        {!expanded && !error && compactStopReason && (
           <span className="block text-[11px] text-warning truncate">{compactStopReason}</span>
         )}
-        {!expanded && !run.error && !compactStopReason && summary && (
+        {!expanded && !error && !compactStopReason && !isCircuitBreak && summary && (
           <span className="block text-[11px] text-muted-foreground truncate">{summary}</span>
         )}
       </span>
@@ -206,12 +229,21 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
               {output}
             </pre>
           )}
-          {run.error && (
+          {isCircuitBreak && (
+            <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 p-2.5 text-xs text-rose-600 dark:text-rose-400 space-y-1">
+              <div className="flex items-center gap-1.5 font-semibold">
+                <ShieldAlert className="h-3.5 w-3.5 shrink-0" />
+                <span>{tCron('circuitBreakTitle')}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed opacity-90">{tCron('circuitBreakDesc')}</p>
+            </div>
+          )}
+          {error && (
             <pre className="text-xs text-destructive-text bg-red-500/5 rounded-lg p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-              {run.error}
+              {error}
             </pre>
           )}
-          {run.stop_reason && (
+          {stopReason && (
             <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-2 space-y-1">
               <p className="text-[10px] font-medium text-amber-700 dark:text-amber-300 uppercase tracking-wide">
                 {t('stopReasonTitle')}
@@ -242,20 +274,15 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
                 {t('executionSteps')} ({(run.metadata.progressSteps as unknown[]).length})
               </p>
               <div className="space-y-0.5">
-                {(run.metadata.progressSteps as Array<{ tool_name?: string; step_key?: string; error?: string }>).map(
-                  (step, idx) => (
-                    <div key={idx} className="flex items-center gap-1.5 text-[10px]">
-                      <span
-                        className={cn(
-                          'h-1.5 w-1.5 rounded-full shrink-0',
-                          step.error ? 'bg-red-400' : 'bg-emerald-400',
-                        )}
-                      />
-                      <span className="font-mono text-foreground/80 truncate">{step.tool_name || step.step_key}</span>
-                      {step.error && <span className="text-destructive-text truncate ml-1">{step.error}</span>}
-                    </div>
-                  ),
-                )}
+                {(run.metadata.progressSteps as ProgressStep[]).map((step, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 text-[10px]">
+                    <span
+                      className={cn('h-1.5 w-1.5 rounded-full shrink-0', step.error ? 'bg-red-400' : 'bg-emerald-400')}
+                    />
+                    <span className="font-mono text-foreground/80 truncate">{stepLabel(step)}</span>
+                    {step.error && <span className="text-destructive-text truncate ml-1">{step.error}</span>}
+                  </div>
+                ))}
               </div>
             </div>
           )}
