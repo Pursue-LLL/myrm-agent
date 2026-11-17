@@ -7346,7 +7346,7 @@
       "ttl_expired": "TTL 过期"
     },
     "capabilitiesLabel": "能力围栏",
-    "capabilitiesDesc": "选择此任务可以自行完成的事。定时运行期间没有人能即时批准，没选的能力会被直接拒绝。付款、Google Workspace 写入命令、读过凭据文件后向外发送数据，以及受保护文件，即使选了相关能力，无人值守时也一律不会执行。",
+    "capabilitiesDesc": "选择此任务可以自行完成的事。定时运行期间没有人能即时批准，没选的能力会被直接拒绝。即使选了相关能力，无人值守的运行仍会拦下触及受保护文件的步骤，以及看起来像付款、Google Workspace 写入、读过凭据文件后向「域名白名单」之外的站点发送数据的步骤。",
     "capabilitiesAllHint": "未选择：仅能读取文件、搜索和打开网页",
     "toolsAllowedLabel": "内置工具范围",
     "toolsAllowedDesc": "限制任务运行时挂载的内置工具，与绑定的智能体配置求交。留空表示不额外限制。",
@@ -7380,7 +7380,7 @@
     "verificationError": "复核异常",
     "verificationSummary": "交付复核",
     "verificationRunOkReviewFailed": "任务已完成，交付复核未通过 — 展开查看详情。",
-    "blockedHint": "超出「能力围栏」或「允许的路径」的步骤，可在任务设置中放开。付款、Google Workspace 写入命令、读过凭据文件后向外发送数据，以及受保护文件，无人值守时一律不会执行。",
+    "blockedHint": "超出「能力围栏」或「允许的路径」的步骤，可在任务设置中放开。无论怎样设置，无人值守的运行仍会拦下触及受保护文件的步骤，以及看起来像付款、Google Workspace 写入、读过凭据文件后向「域名白名单」之外的站点发送数据的步骤。",
     "connectorDegradedBadge": "连接器异常",
     "connectorFixSuggestion": "排障建议",
     "connectorHealthStatus": "连接器健康",
