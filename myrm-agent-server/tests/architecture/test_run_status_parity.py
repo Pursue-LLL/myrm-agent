@@ -49,6 +49,4 @@ def test_run_enum_matches_between_api_and_web_client(name: str) -> None:
         f"The API can send {name} values the web client has no member for (add them to services/runs.ts and give "
         f"the Hub row an icon and label): {sorted(api - frontend)}"
     )
-    assert not frontend - api, (
-        f"services/runs.ts lists {name} values the API never sends (remove them): {sorted(frontend - api)}"
-    )
+    assert not frontend - api, f"services/runs.ts lists {name} values the API never sends (remove them): {sorted(frontend - api)}"
