@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import sqlite3
-from collections.abc import AsyncIterator, Awaitable, Callable, Generator, Iterable
+from collections.abc import AsyncIterator, Callable, Coroutine, Generator, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol, cast
@@ -48,7 +48,7 @@ class StoreCase:
 
     name: str
     make: Callable[[Path], Store]
-    use: Callable[[Store], Awaitable[object]]  # the first call, which opens the connection
+    use: Callable[[Store], Coroutine[object, object, object]]  # the first call, which opens the connection
     connection: Callable[[Store], aiosqlite.Connection | None]  # the connection the store keeps
     table_statement: str  # a table-creating statement that runs on every open
     tables: tuple[str, ...]
