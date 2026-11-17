@@ -192,11 +192,13 @@ async def _revert_single(snap: FileSnapshot, executor: CodeExecutor | None, sess
         if not path.exists():
             return _SingleRevertResult(success=False, warning=f"File no longer exists: {snap.path}. Cannot revert.")
 
-        current_content = path.read_text("utf-8")
+        # Bytes in both directions: text mode rewrites line endings (it writes "\n" as "\r\n" on Windows), so a CRLF
+        # file would not compare equal to its snapshot and would not come back byte-for-byte.
+        current_content = path.read_bytes().decode("utf-8")
         if current_content == snap.original_content:
             return _SingleRevertResult(success=True)
 
-        path.write_text(snap.original_content, "utf-8")
+        path.write_bytes(snap.original_content.encode("utf-8"))
 
         guard = get_file_integrity_guard(executor)
         if guard is not None:

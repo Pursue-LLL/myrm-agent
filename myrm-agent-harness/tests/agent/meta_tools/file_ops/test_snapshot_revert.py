@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,10 +20,18 @@ from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer im
     set_current_message_id,
 )
 from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
+from tests.support.windows_text_mode import emulate_windows_text_mode
+
+_REVERTED_TEXTS = {
+    "lf": "alpha\nbeta\n",
+    "crlf": "alpha\r\nbeta\r\n",
+    "mixed": "alpha\r\nbeta\ngamma\r\n",
+    "unicode_crlf": "héllo\r\n世界\r\n",
+}
 
 
 @pytest.fixture(autouse=True)
-def reset_store():
+def reset_store() -> Iterator[None]:
     """Reset singleton between tests."""
     SnapshotStore.reset()
     yield
@@ -31,7 +40,7 @@ def reset_store():
 
 class TestSnapshotObserver:
     @pytest.mark.asyncio
-    async def test_on_file_created(self):
+    async def test_on_file_created(self) -> None:
         observer = SnapshotObserver()
         set_current_message_id("test-create")
 
@@ -48,7 +57,7 @@ class TestSnapshotObserver:
         assert snaps[0].original_content is None
 
     @pytest.mark.asyncio
-    async def test_on_file_modified(self):
+    async def test_on_file_modified(self) -> None:
         observer = SnapshotObserver()
         set_current_message_id("test-modify")
 
@@ -65,7 +74,7 @@ class TestSnapshotObserver:
         assert snaps[0].original_content == "old-content"
 
     @pytest.mark.asyncio
-    async def test_on_file_modified_skips_large_file(self):
+    async def test_on_file_modified_skips_large_file(self) -> None:
         observer = SnapshotObserver()
         set_current_message_id("test-large")
 
@@ -82,7 +91,7 @@ class TestSnapshotObserver:
         assert snaps[0].skip_reason == SnapshotSkipReason.FILE_TOO_LARGE
 
     @pytest.mark.asyncio
-    async def test_on_file_viewed_noop(self):
+    async def test_on_file_viewed_noop(self) -> None:
         observer = SnapshotObserver()
         await observer.on_file_viewed("/a.py")
         store = SnapshotStore.get()
@@ -91,7 +100,7 @@ class TestSnapshotObserver:
 
 class TestRevertService:
     @pytest.mark.asyncio
-    async def test_revert_modify(self):
+    async def test_revert_modify(self) -> None:
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("modified-content")
@@ -108,7 +117,7 @@ class TestRevertService:
                 os.remove(path)
 
     @pytest.mark.asyncio
-    async def test_revert_create(self):
+    async def test_revert_create(self) -> None:
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("new file")
@@ -121,20 +130,20 @@ class TestRevertService:
         assert not os.path.exists(path)
 
     @pytest.mark.asyncio
-    async def test_revert_no_snapshots(self):
+    async def test_revert_no_snapshots(self) -> None:
         result = await RevertService.revert_message("none", "none")
         assert result.reverted_files == []
         assert len(result.warnings) > 0
 
     @pytest.mark.asyncio
-    async def test_revert_file_not_found(self):
+    async def test_revert_file_not_found(self) -> None:
         store = SnapshotStore.get()
         store.record("s1", "m1", FileSnapshot("/nonexistent.py", SnapshotOp.MODIFY, "old"))
         result = await RevertService.revert_message("s1", "m1")
         assert "/nonexistent.py" in result.skipped_files
 
     @pytest.mark.asyncio
-    async def test_revert_already_matches(self):
+    async def test_revert_already_matches(self) -> None:
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("original")
@@ -148,7 +157,7 @@ class TestRevertService:
             os.remove(path)
 
     @pytest.mark.asyncio
-    async def test_revert_non_utf8_content_skips(self):
+    async def test_revert_non_utf8_content_skips(self) -> None:
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as f:
             f.write(b"\xff\xfe\x00\x01binary-bytes")
@@ -165,7 +174,7 @@ class TestRevertService:
                 os.remove(path)
 
     @pytest.mark.asyncio
-    async def test_get_message_changes_skipped(self):
+    async def test_get_message_changes_skipped(self) -> None:
         store = SnapshotStore.get()
         store.record_skipped("s1", "m1", "/big.py", SnapshotOp.MODIFY, SnapshotSkipReason.FILE_TOO_LARGE)
         changes = await RevertService.get_message_changes("s1", "m1")
@@ -174,7 +183,7 @@ class TestRevertService:
         assert changes[0].skip_reason == "file_too_large"
 
     @pytest.mark.asyncio
-    async def test_revert_message_only_skipped(self):
+    async def test_revert_message_only_skipped(self) -> None:
         store = SnapshotStore.get()
         store.record_skipped("s1", "m1", "/big.py", SnapshotOp.MODIFY, SnapshotSkipReason.FILE_TOO_LARGE)
         result = await RevertService.revert_message("s1", "m1")
@@ -182,7 +191,7 @@ class TestRevertService:
         assert "/big.py" in result.skipped_files
 
     @pytest.mark.asyncio
-    async def test_revert_message_mixed_includes_non_revertible_in_skipped(self):
+    async def test_revert_message_mixed_includes_non_revertible_in_skipped(self) -> None:
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("v2")
@@ -197,7 +206,7 @@ class TestRevertService:
             Path(small_path).unlink(missing_ok=True)
 
     @pytest.mark.asyncio
-    async def test_get_message_changes(self):
+    async def test_get_message_changes(self) -> None:
         store = SnapshotStore.get()
         store.record("s1", "m1", FileSnapshot("/a.py", SnapshotOp.MODIFY, "old"))
         store.record("s1", "m1", FileSnapshot("/b.py", SnapshotOp.CREATE, None))
@@ -209,7 +218,7 @@ class TestRevertService:
         assert changes[1].has_original is False
 
     @pytest.mark.asyncio
-    async def test_dedup_same_file(self):
+    async def test_dedup_same_file(self) -> None:
         """Multiple edits to same file: revert should use first snapshot's content."""
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -226,7 +235,7 @@ class TestRevertService:
                 os.remove(path)
 
     @pytest.mark.asyncio
-    async def test_revert_session(self):
+    async def test_revert_session(self) -> None:
         """Revert all changes in a session."""
         store = SnapshotStore.get()
         paths: list[str] = []
@@ -248,7 +257,7 @@ class TestRevertService:
                     os.remove(p)
 
     @pytest.mark.asyncio
-    async def test_get_session_changes(self):
+    async def test_get_session_changes(self) -> None:
         store = SnapshotStore.get()
         store.record("s1", "m1", FileSnapshot("/a.py", SnapshotOp.MODIFY, "old"))
         store.record("s1", "m2", FileSnapshot("/b.py", SnapshotOp.CREATE, None))
@@ -259,7 +268,7 @@ class TestRevertService:
         assert len(changes["m2"]) == 1
 
     @pytest.mark.asyncio
-    async def test_revert_create_with_container_path(self):
+    async def test_revert_create_with_container_path(self) -> None:
         """Container-abstract snapshot paths (/workspace/...) must map to the real file."""
         from myrm_agent_harness.core.context_vars import workspace_root_var
 
@@ -276,7 +285,7 @@ class TestRevertService:
         workspace_root_var.set("")
 
     @pytest.mark.asyncio
-    async def test_revert_modify_with_container_path(self):
+    async def test_revert_modify_with_container_path(self) -> None:
         from myrm_agent_harness.core.context_vars import workspace_root_var
 
         store = SnapshotStore.get()
@@ -292,7 +301,7 @@ class TestRevertService:
         workspace_root_var.set("")
 
     @pytest.mark.asyncio
-    async def test_revert_plain_absolute_path_unchanged(self):
+    async def test_revert_plain_absolute_path_unchanged(self) -> None:
         """Non-container absolute paths must still revert without workspace binding."""
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -307,7 +316,7 @@ class TestRevertService:
             os.remove(path)
 
     @pytest.mark.asyncio
-    async def test_revert_modify_no_original(self):
+    async def test_revert_modify_no_original(self) -> None:
         """MODIFY snapshot with None original_content should be skipped."""
         store = SnapshotStore.get()
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
@@ -320,3 +329,23 @@ class TestRevertService:
             assert path in result.skipped_files
         finally:
             os.remove(path)
+
+
+class TestRevertKeepsLineEndings:
+    """A reverted file holds the snapshot's text byte-for-byte, also where text mode translates newlines (Windows)."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("current", [b"modified\r\n", None], ids=["differs", "already_original"])
+    @pytest.mark.parametrize("original", _REVERTED_TEXTS.values(), ids=_REVERTED_TEXTS.keys())
+    async def test_file_holds_the_snapshot_bytes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, original: str, current: bytes | None
+    ) -> None:
+        path = tmp_path / "f.txt"
+        path.write_bytes(original.encode("utf-8") if current is None else current)
+        SnapshotStore.get().record("s1", "m1", FileSnapshot(str(path), SnapshotOp.MODIFY, original))
+        emulate_windows_text_mode(monkeypatch)
+
+        result = await RevertService.revert_message("s1", "m1")
+
+        assert str(path) in result.reverted_files
+        assert path.read_bytes() == original.encode("utf-8")

@@ -8,6 +8,16 @@ from pathlib import Path
 import pytest
 
 from myrm_agent_harness.infra.atomic_write import async_atomic_write, atomic_write
+from tests.support.windows_text_mode import emulate_windows_text_mode
+
+_VERBATIM_TEXTS = {
+    "lf": "alpha\nbeta\n",
+    "crlf": "alpha\r\nbeta\r\n",
+    "mixed": "alpha\r\nbeta\ngamma\r\n",
+    "lone_cr": "alpha\rbeta\r",
+    "no_final_newline": "alpha\r\nbeta",
+    "unicode_crlf": "héllo\r\n世界\r\n",
+}
 
 
 class TestAtomicWriteText:
@@ -66,6 +76,29 @@ class TestAtomicWriteText:
         atomic_write(target, "data")
         remaining = list(tmp_path.iterdir())
         assert remaining == [target]
+
+
+class TestAtomicWriteTextIsVerbatim:
+    """Text is stored byte-for-byte also where the default text mode translates newlines (Windows)."""
+
+    @pytest.mark.parametrize("text", _VERBATIM_TEXTS.values(), ids=_VERBATIM_TEXTS.keys())
+    def test_file_holds_exactly_the_utf8_bytes_of_the_text(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, text: str
+    ) -> None:
+        emulate_windows_text_mode(monkeypatch)
+        target = tmp_path / "f.txt"
+
+        atomic_write(target, text)
+
+        assert target.read_bytes() == text.encode("utf-8")
+
+    def test_async_write_holds_the_same_bytes(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        emulate_windows_text_mode(monkeypatch)
+        target = tmp_path / "f.txt"
+
+        asyncio.run(async_atomic_write(target, _VERBATIM_TEXTS["crlf"]))
+
+        assert target.read_bytes() == _VERBATIM_TEXTS["crlf"].encode("utf-8")
 
 
 class TestAtomicWriteBytes:
