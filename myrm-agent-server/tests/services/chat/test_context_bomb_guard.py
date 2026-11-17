@@ -190,6 +190,20 @@ def test_spilled_message_keeps_an_explicit_skill_invocation_in_front(tmp_path: P
     assert invocation.text.startswith("<file_spillover path=")
 
 
+def test_a_reference_list_past_the_grammar_limit_is_parked_with_the_text_and_not_kept_in_front(tmp_path: Path) -> None:
+    """Such a list is ordinary text: kept in front of the stub it would put the prompt over the limits again."""
+    references = ",".join(["a"] * USER_TEXT_LIMITS.max_message_chars)
+    query = f"[use {references}] " + _OVERSIZED
+
+    transformed, parked = ContextBombDefenseService.guard_and_spill_query(query, workspace_dir=tmp_path)
+
+    assert parked.is_spilled
+    assert isinstance(transformed, str)
+    assert not ContextBombDefenseService.is_oversized(transformed)
+    assert parked.relative_path is not None
+    assert (tmp_path / parked.relative_path).read_text(encoding="utf-8") == query
+
+
 def test_a_text_within_the_limit_of_a_person_goes_into_the_prompt_as_it_is(tmp_path: Path) -> None:
     text = paste_between_the_limits()
 

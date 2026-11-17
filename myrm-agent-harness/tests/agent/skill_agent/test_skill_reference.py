@@ -1,6 +1,8 @@
 """`[use <reference>]` finds the skill a user means, whatever name the backend lists it under.
 
-The tag only counts at the very start of the text and carries one or more comma-separated references.
+The tag only counts at the very start of the text and carries one or more comma-separated references, at most
+``MAX_REFERENCE_LIST_CHARS`` characters of them: a longer list is ordinary text, so a tag stays small and the grammar
+scans a run of whitespace in linear time.
 The slash palette sends the catalog name (``audit-probe``). A product backend may list the same skill
 under a runtime name (``audit_probe_skill``) with a storage id that is neither (``local::...``); the SOP
 preload and the skill hooks must still reach it, and must never guess between two skills.
@@ -8,6 +10,7 @@ preload and the skill hooks must still reach it, and must never guess between tw
 
 from __future__ import annotations
 
+import time
 from collections.abc import AsyncGenerator, Iterator
 from unittest.mock import AsyncMock
 
@@ -18,7 +21,11 @@ from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.hooks import get_hook_executor, set_hook_executor
 from myrm_agent_harness.agent.hooks.types import CommandHookDefinition, HookEvent
 from myrm_agent_harness.agent.skill_agent import SkillAgent, wait_all_background_tasks
-from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag, resolve_skill_reference
+from myrm_agent_harness.agent.skill_agent.skill_reference import (
+    MAX_REFERENCE_LIST_CHARS,
+    parse_use_tag,
+    resolve_skill_reference,
+)
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
@@ -94,6 +101,35 @@ class TestUseTagGrammar:
         tag = parse_use_tag("[use a,b,] args")
         assert tag is not None
         assert tag.references == ("a", "b")
+
+    def test_any_whitespace_may_stand_between_the_keyword_and_the_first_name(self) -> None:
+        tag = parse_use_tag("[use \n\t  a ,b ] go")
+        assert tag is not None
+        assert tag.references == ("a", "b")
+        assert tag.tag == "[use \n\t  a ,b ]"
+
+    @pytest.mark.parametrize(
+        ("reference_list", "is_tag"),
+        [
+            ("a" * MAX_REFERENCE_LIST_CHARS, True),
+            ("a" * (MAX_REFERENCE_LIST_CHARS + 1), False),
+            (",".join(f"skill-{index}" for index in range(600)), False),
+        ],
+        ids=["at-the-limit", "one-past-the-limit", "hundreds-of-names"],
+    )
+    def test_a_reference_list_longer_than_the_limit_is_ordinary_text(self, reference_list: str, is_tag: bool) -> None:
+        assert (parse_use_tag(f"[use {reference_list}] go") is not None) is is_tag
+
+    @pytest.mark.parametrize(
+        "text",
+        ["[use" + " " * 100_000, "[use" + " " * 100_000 + "a", "[use" + " \n\t" * 33_334],
+        ids=["spaces", "spaces-then-a-name", "mixed-whitespace"],
+    )
+    def test_a_long_run_of_whitespace_after_the_keyword_is_rejected_in_linear_time(self, text: str) -> None:
+        """Overlapping whitespace quantifiers cost seconds here, and bounding the list alone does not cure it."""
+        started = time.perf_counter()
+        assert parse_use_tag(text) is None
+        assert time.perf_counter() - started < 0.25
 
 
 def _meta(name: str, storage_skill_id: str | None = None) -> SkillMetadata:
@@ -223,6 +259,14 @@ async def test_two_references_to_one_skill_inject_it_once(streamed_hooks: list[l
 
     assert [skill.name for skill in preloaded] == ["audit_probe_skill"]
     assert query.count("--- Skill: audit_probe_skill ---") == 1
+
+
+@pytest.mark.asyncio
+async def test_a_reference_list_past_the_limit_invokes_nothing() -> None:
+    agent = _agent(_meta("audit_probe_skill", _STORAGE_ID))
+    text = "[use audit-probe," + "x," * MAX_REFERENCE_LIST_CHARS + "] go"
+
+    assert await agent._preload_explicit_skill(text) == (text, None, [])
 
 
 @pytest.mark.asyncio

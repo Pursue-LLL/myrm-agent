@@ -4,6 +4,7 @@
 - backends.skills.types::SkillMetadata (POS: skill metadata)
 
 [OUTPUT]
+- MAX_REFERENCE_LIST_CHARS: the longest reference list a ``[use ...]`` tag may carry
 - parse_use_tag(): the leading ``[use ...]`` tag of a user text, or None
 - UseTag: the tag's skill references, its literal text and the user text behind it
 - resolve_skill_reference(): the skill a reference points at, or None; used by the ``[use]`` preload,
@@ -13,6 +14,7 @@
 SSOT of the explicit-invocation wire format shared by the agent and by hosts that decorate user text.
 The tag only counts at the very start of the text, so a host that prefixes anything (a delivery banner,
 a timestamp) must put it behind the tag (``UseTag.tag``, ``UseTag.text``) or the invocation goes unnoticed.
+A tag names a handful of skills: a reference list longer than ``MAX_REFERENCE_LIST_CHARS`` is ordinary text.
 
 People, models and stored sessions name a skill in slightly different spellings: a user types the catalog
 name (``my-skill``), a model may append the ``_skill`` suffix, a stored session may hold the runtime spelling
@@ -31,7 +33,17 @@ if TYPE_CHECKING:
 
     from myrm_agent_harness.backends.skills.types import SkillMetadata
 
-_USE_TAG = re.compile(r"^\[use\s+([\w,\s-]+)\]\s*(.*)", re.DOTALL)
+MAX_REFERENCE_LIST_CHARS = 1_024
+"""The longest reference list a tag may carry (15 names of the longest length a skill may have; far more in practice).
+
+A longer list is ordinary text: every host that decorates the message re-emits the tag in front of it, so a list
+nobody types by hand would otherwise travel in full wherever the tag goes.
+"""
+
+# The list opens on a non-space character so the whitespace after ``[use`` and the whitespace inside the list never
+# compete for the same characters: with that overlap, ``[use`` followed by a long run of spaces and no ``]``
+# backtracks super-linearly.
+_USE_TAG = re.compile(rf"^\[use\s+([\w,-][\w,\s-]{{0,{MAX_REFERENCE_LIST_CHARS - 1}}})\]\s*(.*)", re.DOTALL)
 _SKILL_SUFFIX = "_skill"
 _SEPARATORS = re.compile(r"[-\s]+")
 
@@ -49,7 +61,10 @@ class UseTag:
 
 
 def parse_use_tag(text: str) -> UseTag | None:
-    """The explicit-invocation tag ``text`` starts with, or None (a tag elsewhere in the text does not count)."""
+    """The explicit-invocation tag ``text`` starts with, or None (a tag elsewhere in the text does not count).
+
+    A reference list longer than ``MAX_REFERENCE_LIST_CHARS`` is not a tag: the text is returned as ordinary text.
+    """
     match = _USE_TAG.match(text)
     if match is None:
         return None

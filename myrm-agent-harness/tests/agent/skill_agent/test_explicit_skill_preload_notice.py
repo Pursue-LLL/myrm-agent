@@ -4,7 +4,9 @@ Covers:
 - Each reason a named skill is left out is named in the NOTE: an unknown name, an SOP that cannot be read (the
   backend has none, it is empty, the loader raises) and the size budget
 - One NOTE per message, between the header and the first SOP; none when every named skill was delivered
-- A message in which no named skill can deliver an SOP is returned as typed, so Rule 6 still sees the tag
+- A message in which no named skill can deliver an SOP is returned as typed, with or without the built-in skill
+  tools: an agent that has them reads the tag under the ``[use <name>]`` rule of ``skill_select_tool``, one that
+  does not receives the text as the user wrote it
 - The NOTE sends the model to ``skill_select_tool`` only when the agent has the built-in skill tools
 - The expanded message still passes the input guard, which screens the whole user message
 
@@ -144,8 +146,9 @@ async def test_a_message_that_carries_every_named_skill_has_no_note() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_message_in_which_no_named_skill_delivers_an_sop_is_returned_as_typed() -> None:
-    agent = _agent({}, "beta")
+@pytest.mark.parametrize("no_builtin_tools", [False, True], ids=["built-in-tools", "no-built-in-tools"])
+async def test_a_message_in_which_no_named_skill_delivers_an_sop_is_returned_as_typed(no_builtin_tools: bool) -> None:
+    agent = _agent({}, "beta", no_builtin_tools=no_builtin_tools)
 
     result = await agent._preload_explicit_skill("[use beta,ghost] go")
 

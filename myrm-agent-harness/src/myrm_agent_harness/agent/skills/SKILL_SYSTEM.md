@@ -306,7 +306,7 @@ overflow_count= 候选 - 显示（预算挤掉的候选；外围技能不算）
 
 ### 4.4 缓存策略
 
-SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取；backend 读取抛错时记一条 WARNING 并返回空串，`skill_select_tool` 回一条加载失败的条目、`[use]` 预载跳过该技能（并在消息里点名），两者都不把它记为已加载、也不记使用；已加载内容的前缀字节不变，**无需修改**。
+SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取；backend 读取抛错时记一条 WARNING 并返回空串，`skill_select_tool` 回一条加载失败的条目、`[use]` 预载跳过该技能（同一条 `[use]` 里还有别的技能交付时，消息里点名它），两者都不把它记为已加载、也不记使用；已加载内容的前缀字节不变，**无需修改**。
 
 ---
 
@@ -371,7 +371,7 @@ SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读�
 ### 6.2 选择
 
 - **隐式选择**：模型调用 `skill_select_tool(skill_names)`。首次加载返回完整 SOP；同一技能再次被选中只返回约 200 token 的摘要，同一次调用里重复写的名字也只加载一次。
-- **显式选择**：用户用斜杠命令或命令面板触发时，消息形如 `[use skill_name] args`，`SkillAgent._preload_explicit_skill()` 把 SOP 直接注入查询，省掉一次模型往返。点名的技能里没能交付 SOP 的（名字不存在、SOP 读不出、超出预载体积预算），在消息头部之后用一行 `[NOTE: ...]` 写明名字与原因：模型据此调用 `skill_select_tool` 自行加载，没有内置技能工具的智能体则告知用户；点名的技能一个也交付不了时，消息原样保留，由规则 6 兜底。
+- **显式选择**：用户用斜杠命令或命令面板触发时，消息形如 `[use skill_name] args`，`SkillAgent._preload_explicit_skill()` 把 SOP 直接注入查询，省掉一次模型往返。点名的技能里没能交付 SOP 的（名字不存在、SOP 读不出、超出预载体积预算），在消息头部之后用一行 `[NOTE: ...]` 写明名字与原因：模型据此调用 `skill_select_tool` 自行加载，没有内置技能工具的智能体则告知用户；点名的技能一个也交付不了时，消息原样保留、不加 NOTE：有内置技能工具的智能体按 `skill_select_tool` 的规则 6（消息以 `[use <skill_name>]` 开头或按名字提到技能，就必须选择该技能）自行加载，没有的智能体收到的就是用户键入的原文。标签里的技能列表至多 1,024 个字符（`MAX_REFERENCE_LIST_CHARS`），更长的不算标签，整条消息按普通文本处理。
 
 ### 6.3 选中之后
 
