@@ -28,7 +28,6 @@ import logging
 import shlex
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
 from contextvars import ContextVar, Token
 from pathlib import Path
 
@@ -120,25 +119,6 @@ class CodeExecutor(ABC):
         exc_tb: object,
     ) -> None:
         await self.close()
-
-    async def execute_bash_stream(self, context: ExecutionContext) -> AsyncIterator[str]:
-        """Execute a Bash command with real-time output streaming.
-
-        Yields output chunks as they become available. Subclasses should override
-        for true streaming via subprocess PIPE readline. The default implementation
-        falls back to batch execution and yields the full output at once.
-
-        Args:
-            context: Execution context (code field is the Bash command).
-
-        Yields:
-            Output chunks (stdout lines).
-        """
-        result = await self.execute_bash(context)
-        if result.stdout:
-            yield result.stdout
-        if result.stderr:
-            yield result.stderr
 
     async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:
         """Spawn a background process returning live stdio streams.

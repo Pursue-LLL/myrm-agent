@@ -2,7 +2,7 @@
 
 [INPUT]
 session.models::SessionConfig, SessionExecutionResult, SessionState (POS: Plain session value types)
-session.command_stream::CommandStreamMixin (POS: Command output pump: execute/stream with auto-tee, SSE flood protection, PII scrubbing, cancel/timeout exit)
+session.command_stream::CommandStreamMixin (POS: Command output pump with auto-tee, SSE flood protection, PII scrubbing, cancel/timeout exit)
 session.process_tree::kill_process_tree (POS: Stops a shell and every process it started)
 session.shell_flavor::get_flavor (POS: Platform-specific shell command formatting)
 security.script_armor::prepare_armored_command, sweep_stale_materialized_scripts (POS: Execution security armor wrapping script materialization, cleanup, and orphan sweeps)
@@ -69,7 +69,6 @@ class PersistentSession(CommandStreamMixin, ABC):
         self.process: asyncio.subprocess.Process | None = None
         self._lock = asyncio.Lock()
         self._state = SessionState.IDLE
-        self._state_changed = asyncio.Event()
 
         self._consecutive_failures = 0
         self._last_returncode: int | None = None
@@ -88,27 +87,7 @@ class PersistentSession(CommandStreamMixin, ABC):
         if old_state == new_state:
             return
         self._state = new_state
-        self._state_changed.set()
-        self._state_changed.clear()
         logger.debug(f" Session {self.config.session_id} state: {old_state.name} -> {new_state.name}")
-
-    async def _ensure_active(self) -> None:
-        """Ensure the session is active, waiting for it if it's currently starting/recovering."""
-        while True:
-            if self._state == SessionState.ACTIVE and self.is_alive:
-                return
-
-            if self._state in (
-                SessionState.IDLE,
-                SessionState.TERMINATED,
-                SessionState.CLOSING,
-            ) or (self._state == SessionState.ACTIVE and not self.is_alive):
-                await self.start()
-                return
-
-            if self._state in (SessionState.STARTING, SessionState.RECOVERING):
-                await self._state_changed.wait()
-                continue
 
     async def start(self) -> None:
         """Locking entry point for starting the session."""
@@ -188,7 +167,10 @@ class PersistentSession(CommandStreamMixin, ABC):
         return dataclasses.replace(result, duration=time.perf_counter() - start_time)
 
     async def _ensure_active_unlocked(self) -> None:
-        """Unlocked version of ensure_active."""
+        """Start the session unless it is running.
+
+        Takes no session lock; a session that is starting or recovering is left to finish.
+        """
         while True:
             if self._state == SessionState.ACTIVE and self.is_alive:
                 return

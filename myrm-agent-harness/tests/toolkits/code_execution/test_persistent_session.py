@@ -1,8 +1,10 @@
-"""Tests for PersistentSession execution, wedge recovery, auto-restart, timeouts and stream edge cases."""
+"""Tests for PersistentSession execution, wedge recovery, auto-restart, timeouts and process-death edge cases."""
 
 from __future__ import annotations
 
 import asyncio
+import os
+import signal
 
 import pytest
 
@@ -112,52 +114,6 @@ class TestSessionWedgeRecovery:
             assert recovered.success
             assert recovered.stdout == "ok"
             assert state_of(session) == SessionState.ACTIVE
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_stream_timeout_wedge_recovered(self) -> None:
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks: list[str] = []
-            async for chunk in session.execute_stream("sleep 30", timeout=1):
-                chunks.append(chunk)
-            assert any("Timeout" in c for c in chunks)
-            assert session.state == SessionState.TERMINATED
-
-            recovered = await session.execute("echo ok", timeout=5)
-            assert recovered.success
-            assert recovered.stdout == "ok"
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_a_streamed_command_that_reads_stdin_gets_end_of_file_and_the_shell_lives_on(self) -> None:
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks = [chunk async for chunk in session.execute_stream("cat", timeout=5)]
-            assert not any("[ERROR]" in c for c in chunks)
-            assert state_of(session) == SessionState.ACTIVE
-
-            after = await session.execute("echo ok", timeout=5)
-            assert after.stdout == "ok"
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_a_streamed_command_with_an_unreadable_exit_code_replaces_the_shell(self) -> None:
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks = [chunk async for chunk in session.execute_stream(_UNREADABLE_EXIT_CODE, timeout=5)]
-            assert any("corrupted" in c for c in chunks)
-            assert session.state == SessionState.TERMINATED
-
-            recovered = await session.execute("echo ok", timeout=5)
-            assert recovered.success
-            assert recovered.stdout == "ok"
         finally:
             await session.close()
 
@@ -321,74 +277,38 @@ class TestCoverageEdgeCases:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_execute_stream_timeout(self) -> None:
-        session = LocalPersistentSession(make_config(timeout=1))
-        await session.start()
-        try:
-            # Sleep 5, timeout 1
-            cmd = "sleep 5"
-            chunks = []
-            async for chunk in session.execute_stream(cmd, timeout=1):
-                chunks.append(chunk)
-
-            output = "".join(chunks)
-            assert "[ERROR] Timeout After 1s" in output
-            assert "shell was restarted" in output
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_execute_stream_process_death(self) -> None:
+    async def test_a_shell_killed_during_a_command_reports_the_crash(self) -> None:
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-            # Kill process during execute stream
-            async def run_and_collect() -> str:
-                chunks: list[str] = []
-                async for chunk in session.execute_stream("sleep 10"):
-                    chunks.append(chunk)
-                return "".join(chunks)
-
-            task = asyncio.create_task(run_and_collect())
+            running = asyncio.create_task(session._execute_core("sleep 10", timeout=10))
             await asyncio.sleep(0.5)
             # SIGKILL (untrappable) mimics a real unexpected crash — the EXIT
             # trap cannot fire, stdout hits EOF and the session must surface
             # the fatal error instead of hanging.
-            import os
-            import signal
-
             assert session.process is not None
             os.killpg(os.getpgid(session.process.pid), signal.SIGKILL)
-            output = await task
+            result = await running
 
-            assert "Session process ended unexpectedly" in output
+            assert not result.success
+            assert result.error is not None
+            assert "Session process ended unexpectedly" in result.error
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_execute_stream_sigterm_graceful_markers(self) -> None:
+    async def test_a_shell_terminated_during_a_command_is_not_reported_as_a_crash(self) -> None:
         """SIGTERM is catchable: the EXIT trap emits the marker pair so the
-        stream finishes normally instead of misreporting an unexpected crash."""
+        command finishes normally instead of being misreported as an unexpected crash."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-
-            async def run_and_collect() -> str:
-                chunks: list[str] = []
-                async for chunk in session.execute_stream("sleep 10"):
-                    chunks.append(chunk)
-                return "".join(chunks)
-
-            task = asyncio.create_task(run_and_collect())
+            running = asyncio.create_task(session._execute_core("sleep 10", timeout=10))
             await asyncio.sleep(0.5)
-            import os
-            import signal
-
             assert session.process is not None
             os.killpg(os.getpgid(session.process.pid), signal.SIGTERM)
-            output = await task
+            result = await running
 
-            assert "Session process ended unexpectedly" not in output
-            assert "[ERROR]" not in output
+            assert result.error is None
         finally:
             await session.close()

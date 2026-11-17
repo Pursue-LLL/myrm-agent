@@ -20,7 +20,6 @@ Execution-layer bulkhead isolation for background shadow workloads.
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar, Token
 from pathlib import Path
@@ -96,10 +95,6 @@ class ShadowExecutorMiddleware(CodeExecutorMiddleware):
 
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         raise PermissionError("Bash execution is blocked in shadow context.")
-
-    async def execute_bash_stream(self, context: ExecutionContext) -> AsyncIterator[str]:
-        raise PermissionError("Bash execution is blocked in shadow context.")
-        yield ""  # pragma: no cover — satisfies async generator typing
 
     async def write_file(self, path: str, content: str) -> None:
         await self._assert_write_allowed(path)

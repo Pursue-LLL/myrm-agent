@@ -12,30 +12,24 @@ from myrm_agent_harness.toolkits.code_execution.session import (
     LocalPersistentSession,
 )
 from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
-from tests.toolkits.code_execution._session_helpers import make_config, state_of
+from tests.toolkits.code_execution._session_helpers import captured_stdout_chunks, make_config, state_of
 
 
 class TestStreamThrottlingAndOOM:
     @pytest.mark.asyncio
-    async def test_sse_throttle_and_valve(self) -> None:
-        """Test SSE throttle (10FPS) and volume valve (500KB) during execute_stream."""
+    async def test_sse_valve_suspends_the_live_output(self) -> None:
+        """Past 500KB of live output the terminal stream is suspended with a warning instead of flooding the UI."""
         session = LocalPersistentSession(make_config(timeout=10))
         await session.start()
         try:
-            # Output 600KB of data to trigger the 500KB valve
-            cmd = "python3 -c \"print('x' * 600000)\""
+            # 600KB of output triggers the 500KB valve
+            with captured_stdout_chunks() as chunks:
+                result = await session.execute("python3 -c \"print('x' * 600000)\"")
 
-            chunks = []
-            async for chunk in session.execute_stream(cmd):
-                chunks.append(chunk)
-
-            warning_found = False
-            for c in chunks:
-                if "System Warning: Terminal stream suspended" in c:
-                    warning_found = True
-                    break
-
-            assert warning_found, "Volume valve did not trigger"
+            assert result.success
+            assert any("System Warning: Terminal stream suspended" in chunk for chunk in chunks), (
+                "Volume valve did not trigger"
+            )
         finally:
             await session.close()
 
@@ -266,10 +260,10 @@ class TestInitializeShellEdge:
 class TestEnsureActiveEdge:
     @pytest.mark.asyncio
     async def test_ensure_active_from_idle(self) -> None:
-        """_ensure_active starts session when in IDLE state."""
+        """A session that was never started is started."""
         session = LocalPersistentSession(make_config())
         assert session.state == SessionState.IDLE
-        await session._ensure_active()
+        await session._ensure_active_unlocked()
         try:
             assert state_of(session) == SessionState.ACTIVE
             assert session.is_alive
@@ -278,12 +272,12 @@ class TestEnsureActiveEdge:
 
     @pytest.mark.asyncio
     async def test_ensure_active_from_terminated(self) -> None:
-        """_ensure_active restarts session from TERMINATED state."""
+        """A terminated session is started again."""
         session = LocalPersistentSession(make_config())
         await session.start()
         await session.close()
         assert session.state == SessionState.TERMINATED
-        await session._ensure_active()
+        await session._ensure_active_unlocked()
         try:
             assert state_of(session) == SessionState.ACTIVE
         finally:
@@ -337,12 +331,11 @@ class TestAutoTeeAndDiskQuota:
             ):
                 cmd = "python3 -c \"print('B' * 2000000)\""
 
-                chunks = []
-                async for chunk in session.execute_stream(cmd):
-                    chunks.append(chunk)
+                with captured_stdout_chunks() as chunks:
+                    result = await session.execute(cmd)
 
-                output = "".join(chunks)
-                assert "Terminal stream suspended to prevent UI freeze" in output
+                assert result.success
+                assert "Terminal stream suspended to prevent UI freeze" in "".join(chunks)
 
                 tee_dir = os.path.join(config.work_dir, ".myrm", "tee")
                 log_files = glob.glob(os.path.join(tee_dir, "cmd_*.log"))

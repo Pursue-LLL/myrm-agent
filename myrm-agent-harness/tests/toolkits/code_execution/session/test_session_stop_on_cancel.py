@@ -121,28 +121,6 @@ async def test_cancelling_the_task_running_a_command_stops_the_command_and_leave
 
 
 @pytest.mark.asyncio
-async def test_a_cancelled_stream_ends_with_a_cancelled_marker(tmp_path: Path) -> None:
-    marker = "sleep 4711.6"
-    token = CancellationToken("req-1")
-    async with _session(tmp_path, marker) as session:
-        chunks: list[str] = []
-
-        async def consume() -> None:
-            async for chunk in session.execute_stream(f"echo started; {marker}", cancel_token=token):
-                chunks.append(chunk)
-
-        consuming = asyncio.create_task(consume())
-        await wait_until(lambda: process_alive(marker))
-        token.cancel()
-        await asyncio.wait_for(consuming, _SETTLE_S)
-
-        text = "".join(chunks)
-        assert "started" in text
-        assert "[ERROR] Cancelled" in text
-        assert not process_alive(marker)
-
-
-@pytest.mark.asyncio
 @pytest.mark.parametrize("how", ["cancel", "timeout"])
 async def test_a_sandboxed_shell_leaves_no_orphaned_descendants(tmp_path: Path, how: str) -> None:
     """With a native sandbox the shell shares the server's process group; killing the group is not an option."""

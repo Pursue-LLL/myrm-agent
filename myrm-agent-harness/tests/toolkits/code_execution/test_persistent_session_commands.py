@@ -9,7 +9,7 @@ import pytest
 from myrm_agent_harness.toolkits.code_execution.session import (
     LocalPersistentSession,
 )
-from tests.toolkits.code_execution._session_helpers import make_config
+from tests.toolkits.code_execution._session_helpers import captured_stdout_chunks, make_config
 
 
 class TestLifecycleSafety:
@@ -29,24 +29,6 @@ class TestLifecycleSafety:
             assert result.exit_code == 0
             assert "hello __MYRM_EXIT__ world" in result.stdout
             assert "after" in result.stdout
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_stream_path_marker_like_output_not_truncated(self) -> None:
-        """Stream path keeps marker-like user output intact (mirror of execute)."""
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks = []
-            async for chunk in session.execute_stream(
-                'echo "__MYRM_END_00000000__"; echo "__MYRM_EXIT_ffffffff__"; echo done'
-            ):
-                chunks.append(chunk)
-            combined = "".join(chunks)
-            assert "__MYRM_END_00000000__" in combined
-            assert "__MYRM_EXIT_ffffffff__" in combined
-            assert "done" in combined
         finally:
             await session.close()
 
@@ -151,52 +133,6 @@ class TestLifecycleSafety:
             result = await session.execute("if true; then\n echo x")
             assert not result.success
             assert "unexpected end of file" in (result.error or "")
-            assert session.is_alive
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_stream_path_rejects_syntax_error(self) -> None:
-        """execute_stream applies the same syntax gate as execute."""
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks = [c async for c in session.execute_stream("echo hi\n}\necho bye")]
-            combined = "".join(chunks)
-            assert "[ERROR]" in combined
-            assert "syntax error" in combined
-            assert session.is_alive
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_stream_path_comment_only_returns(self) -> None:
-        """execute_stream also survives comment-only commands (shared wrapper)."""
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks = []
-            async with asyncio.timeout(6):
-                async for c in session.execute_stream("# just a comment"):
-                    chunks.append(c)
-            combined = "".join(chunks)
-            assert "[ERROR]" not in combined
-            assert session.is_alive
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_stream_path_empty_command_returns(self) -> None:
-        """execute_stream also survives blank commands (shared wrapper)."""
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            chunks = []
-            async with asyncio.timeout(6):
-                async for c in session.execute_stream("   "):
-                    chunks.append(c)
-            combined = "".join(chunks)
-            assert "[ERROR]" not in combined
             assert session.is_alive
         finally:
             await session.close()
@@ -344,20 +280,18 @@ class TestLifecycleSafety:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_stream_path_scrubs_sensitive_info(self) -> None:
-        """execute_stream PII-scrubs the real-time SSE output like the execute
-        path: host paths and credential tokens must not reach the UI."""
+    async def test_live_output_scrubs_sensitive_info(self) -> None:
+        """The real-time SSE output is PII-scrubbed: host paths and credential
+        tokens must not reach the UI."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-            chunks = []
-            async for chunk in session.execute_stream(
-                "echo /Users/alice/secret sk-ant-abcdefghijklmnopqrstuvwxyz123456"
-            ):
-                chunks.append(chunk)
-            combined = "".join(chunks)
-            assert "/Users/alice" not in combined
-            assert "sk-ant-abcdefghijklmnopqrstuvwxyz123456" not in combined
-            assert "<HOME>" in combined
+            with captured_stdout_chunks() as chunks:
+                result = await session.execute("echo /Users/alice/secret sk-ant-abcdefghijklmnopqrstuvwxyz123456")
+            assert result.success
+            shown = "".join(chunks)
+            assert "/Users/alice" not in shown
+            assert "sk-ant-abcdefghijklmnopqrstuvwxyz123456" not in shown
+            assert "<HOME>" in shown
         finally:
             await session.close()

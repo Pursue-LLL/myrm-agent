@@ -17,6 +17,7 @@ from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSe
 from myrm_agent_harness.toolkits.code_execution.session.models import CommandEnv
 from myrm_agent_harness.toolkits.code_execution.session.stream_buffer import ExecutionStreamBuffer
 from myrm_agent_harness.toolkits.code_execution.session.value_masker import MASK, ValueMasker
+from tests.toolkits.code_execution._session_helpers import captured_stdout_chunks
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="drives a real bash shell")
 
@@ -82,10 +83,12 @@ class TestResult:
         assert result.stdout == f"{'x' * lead}{MASK} tail"
 
 
-class TestStream:
+class TestLiveOutput:
     async def test_live_text_is_masked(self, session: LocalPersistentSession) -> None:
-        chunks = [chunk async for chunk in session.execute_stream('echo "token=$DB_PASS"', env=_ENV)]
+        with captured_stdout_chunks() as chunks:
+            result = await session.execute('echo "token=$DB_PASS"', env=_ENV)
 
+        assert result.success
         assert "".join(chunks).strip() == f"token={MASK}"
 
 

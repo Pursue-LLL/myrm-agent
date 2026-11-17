@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from collections.abc import AsyncIterator
 
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
@@ -63,8 +62,3 @@ class InProcessExecutor(CodeExecutor):
             stdout=stdout_bytes.decode(errors="replace"),
             stderr=stderr_bytes.decode(errors="replace"),
         )
-
-    async def execute_bash_stream(self, context: ExecutionContext) -> AsyncIterator[str]:
-        result = await self.execute_bash(context)
-        if result.stdout:
-            yield result.stdout

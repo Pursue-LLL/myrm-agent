@@ -87,17 +87,6 @@ class TestScopedEnv:
 
         assert await _read(session, "TOKEN_A") == "<unset>"
 
-    async def test_scoped_value_is_removed_after_a_stream(self, session: LocalPersistentSession) -> None:
-        chunks = [
-            chunk
-            async for chunk in session.execute_stream(
-                "printf '%s' \"$TOKEN_A\" | od -An -tx1 | tr -d ' \\n'", env=CommandEnv(scoped={"TOKEN_A": "streamed"})
-            )
-        ]
-
-        assert _hex("streamed") in "".join(chunks)
-        assert await _read(session, "TOKEN_A") == "<unset>"
-
     async def test_shell_state_the_command_made_is_kept(self, session: LocalPersistentSession) -> None:
         await session.execute("export KEPT=yes && cd /", env=CommandEnv(scoped={"TOKEN_A": "x"}))
 

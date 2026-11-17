@@ -14,8 +14,6 @@ Multiple middlewares can be composed into a policy chain.
 Decorator layer over CodeExecutor. Every new CodeExecutor operation must be forwarded here, otherwise a wrapped executor silently falls back to the shell-based default.
 """
 
-from collections.abc import AsyncIterator
-
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     ExecutionContext,
@@ -57,10 +55,6 @@ class CodeExecutorMiddleware(CodeExecutor):
 
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         return await self.inner.execute_bash(context)
-
-    async def execute_bash_stream(self, context: ExecutionContext) -> AsyncIterator[str]:
-        async for chunk in self.inner.execute_bash_stream(context):
-            yield chunk
 
     async def read_file(self, path: str) -> str:
         return await self.inner.read_file(path)
