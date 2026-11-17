@@ -43,20 +43,19 @@ export const ArtifactsCenter: React.FC = () => {
   const [verifyResult, setVerifyResult] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
-    fetchArtifacts();
+    const fetchArtifacts = async () => {
+      try {
+        const res = await fetch('/api/v1/files/artifacts/');
+        const data = await res.json();
+        setArtifacts(data.artifacts || []);
+      } catch (error) {
+        console.error('Failed to fetch artifacts', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchArtifacts();
   }, []);
-
-  const fetchArtifacts = async () => {
-    try {
-      const res = await fetch('/api/v1/files/artifacts/');
-      const data = await res.json();
-      setArtifacts(data.artifacts || []);
-    } catch (error) {
-      console.error('Failed to fetch artifacts', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadVersions = async (artifact: Artifact) => {
     setSelectedArtifact(artifact);
@@ -155,12 +154,12 @@ export const ArtifactsCenter: React.FC = () => {
                         {verifyResult[v.id] === true ? (
                           <span className="flex items-center gap-1 text-xs text-green-600 bg-green-500/10 px-2 py-1 rounded-full">
                             <IconShieldCheck className="w-3 h-3" />
-                            {t('tamper_free')}
+                            {t('integrity_ok')}
                           </span>
                         ) : verifyResult[v.id] === false ? (
                           <span className="flex items-center gap-1 text-xs text-red-600 bg-red-500/10 px-2 py-1 rounded-full">
                             <IconAlertCircle className="w-3 h-3" />
-                            {t('corrupted')}
+                            {t('integrity_failed')}
                           </span>
                         ) : (
                           <button

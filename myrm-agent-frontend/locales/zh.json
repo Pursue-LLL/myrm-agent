@@ -6336,11 +6336,11 @@
     "title": "工件",
     "empty": "暂无工件资产",
     "emptyDesc": "智能体在对话中生成的报告、图表、代码将自动归档在此",
-    "select_prompt": "选择左侧工件查看不可变时间线",
+    "select_prompt": "选择左侧工件查看版本时间线",
     "no_desc": "无描述",
-    "version_history": "版本时间线（不可篡改）",
-    "tamper_free": "防篡改校验通过",
-    "corrupted": "文件已被篡改！",
+    "version_history": "版本时间线",
+    "integrity_ok": "完整性校验通过",
+    "integrity_failed": "完整性校验未通过",
     "verifying": "校验中...",
     "verify_hash": "验证完整性",
     "loading_versions": "加载版本中...",
@@ -7470,7 +7470,7 @@
     "sessionTargetSelectChat": "选择要绑定的对话...",
     "threadAutomationTooltip": "线程自动化 — 每次执行回到此对话",
     "failureAlertLabel": "失败告警",
-    "failureAlertDesc": "连续失败达到阈值后发送告警",
+    "failureAlertDesc": "连续失败达到阈值后发送告警；导致任务被自动暂停的那次失败会立即告警。",
     "failureAlertAfter": "失败次数阈值",
     "failureAlertCooldown": "告警冷却时间（秒）",
     "failureAlertUpdated": "失败告警已更新",
@@ -9512,9 +9512,9 @@
     "title": "工具执行审批",
     "spendProtection": {
       "title": "金融交易支出保护",
-      "description": "智能体正在请求外部资金支出，参数完整性已由密码学封签保护。",
+      "description": "智能体正在请求外部资金支出，请核对金额后再批准。",
       "amount": "支出金额",
-      "tamperProtected": "SHA-256 防篡改保护"
+      "actionBound": "已锁定本笔支出"
     },
     "batchTitle": "批量审批 ({count} 个工具)",
     "batchHighRisk": {

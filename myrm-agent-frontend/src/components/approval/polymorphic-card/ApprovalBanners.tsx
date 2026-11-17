@@ -19,7 +19,7 @@ export function SpendProtectionBanner({ spendConfig }: { spendConfig: SpendConfi
         </div>
         {spendConfig.actionDigest && (
           <span className="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-mono text-amber-800 dark:text-amber-300">
-            {t('spendProtection.tamperProtected')}
+            {t('spendProtection.actionBound')}
           </span>
         )}
       </div>
