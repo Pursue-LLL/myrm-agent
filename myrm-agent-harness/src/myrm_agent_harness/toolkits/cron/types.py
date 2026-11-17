@@ -415,6 +415,7 @@ class CronNoticeKind(StrEnum):
     RUN_FAILED = "run_failed"
     JOB_EXPIRED = "job_expired"
     JOB_MAX_FIRES_REACHED = "job_max_fires_reached"
+    JOB_PAUSED_BY_FAILURE = "job_paused_by_failure"
 
 
 @dataclass(frozen=True, slots=True)

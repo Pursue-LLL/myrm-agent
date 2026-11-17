@@ -12,7 +12,7 @@ records the runs it cuts off before it cancels them.
 
 [INPUT]
 - cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
-- cron.engine.helpers::_ensure_utc, is_past_misfire_grace (POS: scheduling helper utilities)
+- cron.engine.helpers::_ensure_utc, is_past_misfire_grace (POS: pure engine helpers: UTC normalisation and the misfire-grace check among the schedule-window helpers)
 - cron.engine.recovery::StartupRecovery (POS: startup recovery for missed jobs)
 - cron.engine.scheduler_dispatch::SchedulerDispatchMixin (POS: admission, trigger dispatch and the guarded execution path, mixed into the scheduler)
 - cron.types::CronConfig, CronJob, JobType (POS: cron data models)

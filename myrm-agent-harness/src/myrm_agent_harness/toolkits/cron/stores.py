@@ -7,6 +7,7 @@ Thread-safe for asyncio (single event loop) via ``asyncio.Lock``.
 
 [INPUT]
 - infra.incremental.types::MonitorState (POS: Domain types for incremental monitoring.)
+- cron.run_status_filter::matching_run_statuses (POS: the stored statuses a run-history status filter selects)
 
 [OUTPUT]
 - InMemoryCronStore: CronStore backed by plain dicts — zero external dependencies.
@@ -22,6 +23,7 @@ from copy import deepcopy
 from datetime import UTC, datetime
 
 from myrm_agent_harness.infra.incremental.types import MonitorState
+from myrm_agent_harness.toolkits.cron.run_status_filter import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronRunRecord,
@@ -181,7 +183,8 @@ class InMemoryCronStore:
         if job_id is not None:
             result = [r for r in result if r.job_id == job_id]
         if status:
-            result = [r for r in result if r.status == status]
+            wanted = matching_run_statuses(status)
+            result = [r for r in result if r.status in wanted]
 
         result.sort(key=lambda r: r.started_at, reverse=True)
         return result[offset : offset + limit]
@@ -197,7 +200,8 @@ class InMemoryCronStore:
             if job_id is not None:
                 runs = [r for r in runs if r.job_id == job_id]
             if status:
-                runs = [r for r in runs if r.status == status]
+                wanted = matching_run_statuses(status)
+                runs = [r for r in runs if r.status in wanted]
             return len(runs)
 
     async def purge_old_runs(self, before: datetime) -> int:

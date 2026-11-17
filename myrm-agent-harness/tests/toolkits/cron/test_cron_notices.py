@@ -8,12 +8,14 @@ stand-ins.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from myrm_agent_harness.toolkits.cron import CronConfig, CronNoticeCallback, CronScheduler
+from myrm_agent_harness.toolkits.cron.engine import run_closer
 from myrm_agent_harness.toolkits.cron.engine.helpers import auto_pause_notice
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.cron.types import (
@@ -30,6 +32,16 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
+ONCE = Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(UTC) + timedelta(hours=1))
+
+FAILED = JobResult(success=False, error="pump is dry")
+# The loop guard's message quotes the call it stopped, and here the call carries transient-error keywords.
+BREAKER = JobResult(
+    success=False, error="RUNAWAY_CIRCUIT_BREAKER: web_search repeated 5 times (rate limit 429)", circuit_broken=True
+)
+PAUSED_BY_FAILURE = CronNotice(kind=CronNoticeKind.JOB_PAUSED_BY_FAILURE, job_name="Water the plants")
+# A job that delivers nowhere raises no run notice, so a pause notice stands alone.
+DELIVERS_NOWHERE = DeliveryConfig(channel="none")
 
 
 def _job() -> CronJob:
@@ -45,9 +57,12 @@ class _Runner:
     def __init__(self) -> None:
         self.result = JobResult(success=True, output="done")
         self.runs = 0
+        self.during_run: Callable[[CronJob], Awaitable[None]] | None = None
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
         self.runs += 1
+        if self.during_run is not None:
+            await self.during_run(job)
         return self.result
 
 
@@ -143,6 +158,100 @@ async def test_a_skip_that_pauses_nothing_raises_no_notice(stack: Stack) -> None
     assert stack.notices == []
 
 
+async def test_the_pause_notice_follows_the_failed_run_that_caused_it(stack: Stack) -> None:
+    stack.runner.result = FAILED
+
+    stored = await stack.dispatch(replace(_job(), consecutive_failures=2, chat_id="chat-7"))
+
+    assert stored.status == JobStatus.PAUSED
+    assert [notice.kind for notice in stack.notices] == [
+        CronNoticeKind.RUN_FAILED,
+        CronNoticeKind.JOB_PAUSED_BY_FAILURE,
+    ]
+    assert stack.notices[1] == PAUSED_BY_FAILURE
+
+
+@pytest.mark.parametrize(
+    ("schedule", "consecutive_failures", "result"),
+    [
+        (EVERY_HOUR, 2, FAILED),
+        (EVERY_HOUR, 0, BREAKER),
+        (ONCE, 0, FAILED),
+        (ONCE, 0, BREAKER),
+    ],
+    ids=["third consecutive failure", "circuit break", "one-time failure", "one-time circuit break"],
+)
+async def test_a_run_that_pauses_its_job_says_so_even_when_the_job_delivers_nowhere(
+    stack: Stack, schedule: Schedule, consecutive_failures: int, result: JobResult
+) -> None:
+    stack.runner.result = result
+    job = replace(_job(), schedule=schedule, consecutive_failures=consecutive_failures, delivery=DELIVERS_NOWHERE)
+
+    stored = await stack.dispatch(job)
+
+    assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stack.notices == [PAUSED_BY_FAILURE]
+
+
+@pytest.mark.parametrize(
+    ("schedule", "result"),
+    [
+        (EVERY_HOUR, FAILED),
+        (EVERY_HOUR, JobResult(success=True, output="done")),
+        (ONCE, JobResult(success=False, error="429 too many requests")),
+    ],
+    ids=["first failure retried with backoff", "success", "one-time transient failure retried"],
+)
+async def test_a_run_that_leaves_its_job_active_raises_no_pause_notice(
+    stack: Stack, schedule: Schedule, result: JobResult
+) -> None:
+    stack.runner.result = result
+
+    stored = await stack.dispatch(replace(_job(), schedule=schedule, delivery=DELIVERS_NOWHERE))
+
+    assert stored.status == JobStatus.ACTIVE
+    assert stack.notices == []
+
+
+async def test_a_job_the_user_paused_during_the_run_raises_no_pause_notice(stack: Stack) -> None:
+    async def pause_it(running: CronJob) -> None:
+        latest = await stack.store.get_job(running.id)
+        assert latest is not None
+        await stack.store.save_job(replace(latest, status=JobStatus.PAUSED))
+
+    stack.runner.result = FAILED
+    stack.runner.during_run = pause_it
+
+    stored = await stack.dispatch(replace(_job(), consecutive_failures=2, delivery=DELIVERS_NOWHERE))
+
+    assert stored.status == JobStatus.PAUSED
+    assert stack.notices == []
+
+
+async def test_a_schedule_that_cannot_be_computed_pauses_its_job_and_says_so(
+    stack: Stack, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unparsable(*args: object, **kwargs: object) -> datetime:
+        raise ValueError("unparsable schedule")
+
+    monkeypatch.setattr(run_closer, "next_eligible_run", unparsable)
+
+    stored = await stack.dispatch(replace(_job(), consecutive_failures=2, delivery=DELIVERS_NOWHERE))
+
+    assert stored.status == JobStatus.PAUSED
+    assert stack.notices == [PAUSED_BY_FAILURE]
+
+
+async def test_a_one_time_circuit_break_is_paused_and_recorded_as_one_not_retried(stack: Stack) -> None:
+    stack.runner.result = BREAKER
+
+    stored = await stack.dispatch(replace(_job(), schedule=ONCE, delivery=DELIVERS_NOWHERE))
+
+    assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stored.last_status == RunStatus.CIRCUIT_BREAK
+    assert stored.last_error == BREAKER.error
+
+
 async def test_a_notice_callback_that_raises_fails_neither_the_run_nor_the_pause(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -153,9 +262,12 @@ async def test_a_notice_callback_that_raises_fails_neither_the_run_nor_the_pause
     with caplog.at_level(logging.WARNING):
         ran = await stack.dispatch()
         paused = await stack.dispatch(replace(_job(), max_fires=1, fire_count=1))
+        stack.runner.result = FAILED
+        failed = await stack.dispatch(replace(_job(), consecutive_failures=2))
 
     assert ran.last_status == RunStatus.OK
     assert paused.status == JobStatus.PAUSED
+    assert failed.status == JobStatus.PAUSED
     assert "was not delivered: bus is down" in caplog.text
 
 
@@ -164,9 +276,12 @@ async def test_a_scheduler_without_a_notice_callback_runs_and_pauses_normally() 
 
     ran = await stack.dispatch()
     paused = await stack.dispatch(replace(_job(), max_fires=1, fire_count=1))
+    stack.runner.result = FAILED
+    failed = await stack.dispatch(replace(_job(), consecutive_failures=2))
 
     assert ran.last_status == RunStatus.OK
     assert paused.status == JobStatus.PAUSED
+    assert failed.status == JobStatus.PAUSED
 
 
 @pytest.mark.parametrize(

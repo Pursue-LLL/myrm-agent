@@ -156,7 +156,8 @@ class CronStore(Protocol):
     ) -> list[CronRunRecord]:
         """Return recent run records, newest first.
 
-        When ``job_id`` is None, returns runs across all jobs (global view).
+        When ``job_id`` is None, returns runs across all jobs (global view). ``status`` selects the runs that ended in
+        it; ``error`` selects every failed run, a circuit break included (``run_status_filter.matching_run_statuses``).
         """
         ...
 
@@ -166,7 +167,7 @@ class CronStore(Protocol):
         *,
         status: str | None = None,
     ) -> int:
-        """Count run records matching the given filters."""
+        """Count run records matching the given filters; ``status`` means what it does for ``list_runs``."""
         ...
 
     async def purge_old_runs(self, before: datetime) -> int:
