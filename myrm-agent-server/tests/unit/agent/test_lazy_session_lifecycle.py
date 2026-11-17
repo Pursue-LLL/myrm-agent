@@ -299,6 +299,7 @@ async def test_orphan_session_diagnostic_probe():
         report = await probe.check_health()
         assert report.status == "pass"
         assert report.code == "INFO_ORPHAN_SESSIONS_DETECTED"
+        assert report.meta_data is not None
         assert report.meta_data.get("orphan_session_count") == 5
 
 

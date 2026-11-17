@@ -3,7 +3,7 @@
 Uses real SQLite via the `session_factory` fixture — no mocking DB layer. Validates:
 1. `write_interrupted_turn_marker` creates the chat's marker, replaces an earlier one and records the id the user's
    message was stored under
-2. `_clear_interrupted_turn_marker` removes the chat's marker
+2. `_clear_interrupted_turn_marker` removes the marker row it is given
 3. The replay of an interrupted turn does not repeat the interrupted user's message as history
 """
 
@@ -61,13 +61,14 @@ async def test_write_marker_function_creates_and_replaces(session_factory, test_
 
 @pytest.mark.asyncio
 async def test_clear_marker_function(session_factory, test_chat):
-    """_clear_interrupted_turn_marker should remove marker for given chat_id."""
+    """_clear_interrupted_turn_marker should remove the marker row it is given."""
     from app.services.agent.stream_session.stream_finalize import _clear_interrupted_turn_marker
 
+    marker_id = str(uuid.uuid4())
     async with session_factory() as db:
         db.add(
             InterruptedTurnMarker(
-                id=str(uuid.uuid4()),
+                id=marker_id,
                 chat_id=test_chat,
                 user_message_id="msg-clear",
                 action_mode="fast",
@@ -76,7 +77,7 @@ async def test_clear_marker_function(session_factory, test_chat):
         await db.commit()
 
     with patch("app.platform_utils.get_session_factory", return_value=session_factory):
-        await _clear_interrupted_turn_marker(test_chat)
+        await _clear_interrupted_turn_marker(test_chat, marker_id=marker_id)
 
     async with session_factory() as db:
         result = await db.execute(

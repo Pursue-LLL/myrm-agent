@@ -5,7 +5,7 @@
 - ApprovalRegistry pending counts (async refresh)
 
 [OUTPUT]
-- RunDigestStore: get/update/clear per chat_id + SSE publish; terminal_failures lists chats whose last run failed or was cancelled
+- RunDigestStore: get/update/clear per chat_id + SSE publish; terminal_failures lists chats whose last run failed or was cancelled; an approval raised with no live run publishes the chat as waiting, then as idle once its approvals are resolved
 - RunSession: the live run of a chat, returned by begin_run so that the turn which began a run is the one that ends it
 
 [POS]
@@ -32,9 +32,10 @@ logger = logging.getLogger(__name__)
 @dataclass(slots=True)
 class RunSession:
     started_at: float
-    phase: RunDigestPhase = RunDigestPhase.RUNNING
     pending_approval_count: int = 0
     progress_steps: list[dict[str, object]] = field(default_factory=list)
+    # Opened by an approval while the chat had no live run: no turn will end it, so its last approval does.
+    approval_only: bool = False
 
 
 class RunDigestStore:
@@ -117,6 +118,7 @@ class RunDigestStore:
         if session is None:
             session = RunSession(started_at=time.monotonic())
             cls._sessions[chat_id] = session
+        session.approval_only = False
         session.progress_steps = list(progress_steps)
         if pending_approval_count is not None:
             session.pending_approval_count = pending_approval_count
@@ -133,19 +135,29 @@ class RunDigestStore:
 
     @classmethod
     def set_pending_approval_count(cls, chat_id: str, count: int) -> None:
+        """Record the chat's pending approvals and publish the digest they put it in.
+
+        Approvals raised while no run is live leave the chat idle once the last one is resolved, because the session
+        they open has no turn to end it.
+        """
+        count = max(0, count)
         session = cls._sessions.get(chat_id)
-        if session is None and count <= 0:
-            return
         if session is None:
-            session = RunSession(started_at=time.monotonic())
+            if count == 0:
+                return
+            session = RunSession(started_at=time.monotonic(), approval_only=True)
             cls._sessions[chat_id] = session
-        session.pending_approval_count = max(0, count)
-        phase = RunDigestPhase.WAITING_APPROVAL if session.pending_approval_count > 0 else RunDigestPhase.RUNNING
+        session.pending_approval_count = count
+        if session.approval_only and count == 0:
+            del cls._sessions[chat_id]
+            cls._publish(chat_id, RunDigestPhase.IDLE, [])
+            return
+        phase = RunDigestPhase.WAITING_APPROVAL if count > 0 else RunDigestPhase.RUNNING
         cls._publish(
             chat_id,
             phase,
             session.progress_steps,
-            pending_approval_count=session.pending_approval_count,
+            pending_approval_count=count,
             elapsed_seconds=int(time.monotonic() - session.started_at),
         )
 

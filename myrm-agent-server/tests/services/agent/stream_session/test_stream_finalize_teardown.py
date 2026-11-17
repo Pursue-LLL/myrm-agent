@@ -1,10 +1,10 @@
 """What the end of a turn leaves behind: the stored message, the crash marker, the registrations and the run record.
 
 Real scenario: a turn ends, whether the answer finished or the user pressed Stop. The answer is stored with how long
-the first token took, the write-ahead marker that would resume a crashed turn is cleared only once the answer is
-stored, the Stop handle, steering registration and goal provider the turn held are given back (the provider by its
-own handle, so a turn the server started meanwhile keeps its own), and a stopped turn is recorded as stopped instead
-of finished.
+the first token took, the write-ahead marker the turn wrote is cleared only once the answer is stored (a turn that
+wrote none clears none), the Stop handle, steering registration and goal provider the turn held are given back (the
+provider by its own handle, so a turn the server started meanwhile keeps its own), and a stopped turn is recorded as
+stopped instead of finished.
 """
 
 from __future__ import annotations
@@ -23,11 +23,13 @@ from app.services.agent.stream_session.stream_loop import ApprovalTimeoutHolder,
 _FINALIZE = "app.services.agent.stream_session.stream_finalize"
 CHAT_ID = "chat-teardown"
 MESSAGE_ID = "msg-teardown"
+MARKER_ID = "marker-teardown"
 
 
 def _make_session(*, cancelled: bool = False) -> MagicMock:
     session = MagicMock()
     session.pending_session_draft = None
+    session.turn_marker_id = MARKER_ID
     session.request.chat_id = CHAT_ID
     session.request.message_id = MESSAGE_ID
     session.request.timezone = "UTC"
@@ -116,7 +118,18 @@ async def test_the_crash_marker_is_cleared_only_after_the_answer_is_stored() -> 
     teardown = await _end_turn(_make_session())
 
     assert teardown.calls == ["persist", "marker"]
-    teardown.clear_marker.assert_awaited_once_with(CHAT_ID)
+    teardown.clear_marker.assert_awaited_once_with(CHAT_ID, marker_id=MARKER_ID)
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_wrote_no_marker_clears_none() -> None:
+    """A resume writes no marker, so whatever marker the chat holds when it ends belongs to another turn."""
+    session = _make_session()
+    session.turn_marker_id = None
+
+    teardown = await _end_turn(session)
+
+    teardown.clear_marker.assert_not_awaited()
 
 
 @pytest.mark.asyncio

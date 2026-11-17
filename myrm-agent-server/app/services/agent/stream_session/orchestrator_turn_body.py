@@ -11,13 +11,13 @@
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
-- execute_agent_turn_after_reserve: register cancel token → bind workspace → persist → pre-reply compact → history → agent session → pump (background); gives back what it registered on every exit
+- execute_agent_turn_after_reserve: register cancel token → bind workspace → persist → pre-reply compact → history → agent session → pump (background); a turn refused or failed before its own state is registered ends through fail_buffered_turn, and every later exit gives back what the turn registered
 - fail_buffered_turn: end a turn that failed before its stream started with an error SSE and release its cancel token
 - write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable, returning the id of the marker row
 
 [POS]
 E1 turn body: runs inside the background task started by orchestrator_turn_launch while clients already subscribe to the buffer during pre-reply compact and orchestrator setup.
-The body owns the registrations it makes (steering token, goal provider, run digest, collector, replay marker): finalize ends a turn that ran, and the body's finally ends every other exit.
+The body owns the registrations it makes (steering token, goal provider, run digest, collector, replay marker): finalize ends a turn that ran, and the body's finally, which opens with the steering token's registration, ends every other exit.
 """
 
 from __future__ import annotations
@@ -224,7 +224,7 @@ async def execute_agent_turn_after_reserve(
                         request, params, user_message_id=persisted_message_id
                     )
                 except Exception as marker_exc:
-                    logger.debug("Turn marker write skipped: %s", marker_exc)
+                    logger.warning("Turn marker write skipped: %s", marker_exc)
 
         await pump_to_buffer(session, buffer)
     finally:

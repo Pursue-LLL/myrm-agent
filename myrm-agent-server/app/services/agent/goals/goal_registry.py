@@ -230,10 +230,11 @@ class GoalRegistry:
     async def turn_provider(cls, session_id: str) -> AsyncIterator["GoalProvider"]:
         """The session's provider for a turn the server starts itself: registered while the turn runs, released when it ends.
 
-        A chat turn registers its provider at setup and gives it back when its stream finalizes. A turn started
-        without a chat stream (the unattended goal turn) holds the provider through this context instead, so its
-        agent and its goal callbacks share one live handle, and nothing it registered stays registered after it,
-        however it ends.
+        A chat turn registers its provider at setup and gives it back through its own teardown: its stream's
+        finalize, or the turn body's cleanup for an exit that never reached the stream. A turn started without a
+        chat stream (the unattended goal turn) holds the provider through this context instead, so its agent and
+        its goal callbacks share one live handle, and nothing it registered stays registered after it, however it
+        ends.
         """
         provider = cls.register(session_id)
         try:

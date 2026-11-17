@@ -39,9 +39,10 @@ async def auto_continue_interrupted_turns() -> None:
 
     Scans ``interrupted_turn_markers`` for entries within the freshness window.
     For each qualifying marker, constructs a lightweight agent stream request
-    and dispatches it in the background. The marker is cleaned up by the
-    normal stream finalization path on success, or incremented and pruned
-    on repeated failure (crash-loop breaker).
+    and dispatches it in the background. The dispatching worker removes the
+    marker when the replay ends, however it ends; a replay that crashes the
+    process again leaves it with a raised attempt count, and the scan prunes
+    it once the count reaches the cap (crash-loop breaker).
     """
     try:
         # Check user preference (default: enabled)
@@ -210,10 +211,10 @@ async def _dispatch_auto_continue(
         except Exception as notif_err:
             logger.error("Failed to create auto-continue failure notification: %s", notif_err)
     finally:
-        # Cleanup marker (stream_finalize may have already done this on success)
+        # The replay runs outside stream finalize, so this worker removes the marker it replayed.
         try:
             async with session_factory() as db:
                 await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker.id))
                 await db.commit()
         except Exception as cleanup_err:
-            logger.debug("Auto-continue marker cleanup: %s", cleanup_err)
+            logger.warning("Auto-continue marker cleanup: %s", cleanup_err)

@@ -12,8 +12,8 @@
 - myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: key under which a stored card remembers the pause it was announced for)
 
 [OUTPUT]
-- finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt and release the turn's session state
-- release_unfinished_turn: tear down a turn whose stream never reached finalize (safety net of the turn body)
+- finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt, remove the replay marker the turn wrote and release the turn's session state
+- release_unfinished_turn: tear down a turn whose stream never reached finalize (safety net of the turn body); a stopped turn takes the replay marker it wrote with it
 - release_turn_registrations: give back the Stop handle, steering token and goal provider a turn registered, each by the handle the turn holds
 - assistant_turn_payload: the content and extra data a collector's turn is stored with (shared with the persistence of a timer-resumed turn)
 
@@ -212,12 +212,18 @@ async def _persist_assistant_turn(session: AgentStreamSession, draft: PendingSes
 
 
 async def _clear_turn_marker(session: AgentStreamSession) -> None:
-    """Clear the crash auto-continue marker on normal completion (best-effort)."""
-    if session.request.chat_id:
-        try:
-            await _clear_interrupted_turn_marker(session.request.chat_id)
-        except Exception as marker_exc:
-            logger.debug("Turn marker cleanup skipped: %s", marker_exc)
+    """Remove the replay marker this turn wrote, and only that one (best-effort).
+
+    The chat's next turn replaces the marker with its own row, which a turn that ends late must leave in place; a turn
+    that wrote none (a resume) has nothing to remove.
+    """
+    chat_id = session.request.chat_id
+    if not chat_id or session.turn_marker_id is None:
+        return
+    try:
+        await _clear_interrupted_turn_marker(chat_id, marker_id=session.turn_marker_id)
+    except Exception as exc:
+        logger.warning("Replay marker of a turn was not cleared: chat_id=%s, error=%s", chat_id, exc)
 
 
 def _arm_pending_interrupt_timeout(session: AgentStreamSession, approval: ApprovalTimeoutHolder) -> None:
@@ -368,29 +374,24 @@ async def release_unfinished_turn(session: AgentStreamSession) -> None:
             _close_run_digest(session)
         except Exception as exc:
             logger.warning("Run digest of an unfinished turn was not closed: chat_id=%s, error=%s", chat_id, exc)
-    if stopped and chat_id and session.turn_marker_id is not None:
-        try:
-            await _clear_interrupted_turn_marker(chat_id, marker_id=session.turn_marker_id)
-        except Exception as exc:
-            logger.warning("Replay marker of a stopped turn was not cleared: chat_id=%s, error=%s", chat_id, exc)
+    if stopped:
+        await _clear_turn_marker(session)
     session.torn_down = True
 
 
-async def _clear_interrupted_turn_marker(chat_id: str, *, marker_id: str | None = None) -> None:
-    """Remove the chat's write-ahead marker, or only the marker row `marker_id` when the caller wrote that one.
-
-    A turn that ends after the chat's next turn replaced the marker passes its own `marker_id`, so the next turn's
-    marker stays.
-    """
+async def _clear_interrupted_turn_marker(chat_id: str, *, marker_id: str) -> None:
+    """Remove the write-ahead marker row `marker_id` of the chat, so the marker of the chat's next turn stays."""
     from sqlalchemy import delete
 
     from app.database.models.chat import InterruptedTurnMarker
     from app.platform_utils import get_session_factory
 
-    statement = delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id)
-    if marker_id is not None:
-        statement = statement.where(InterruptedTurnMarker.id == marker_id)
     factory = get_session_factory()
     async with factory() as db:
-        await db.execute(statement)
+        await db.execute(
+            delete(InterruptedTurnMarker).where(
+                InterruptedTurnMarker.chat_id == chat_id,
+                InterruptedTurnMarker.id == marker_id,
+            )
+        )
         await db.commit()

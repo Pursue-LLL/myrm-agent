@@ -142,7 +142,8 @@ async def _run_turn_body() -> None:
     )
 
 
-def _assert_no_registration_left() -> None:
+def _assert_no_registration_left(stop_handles_before: int) -> None:
+    assert CancellationRegistry.get_active_count() == stop_handles_before
     assert SteeringRegistry.get_token(CHAT_ID) is None
     assert GoalRegistry.get_provider(CHAT_ID) is None
     assert ACTIVE_COLLECTORS.get(CHAT_ID) is None
@@ -162,8 +163,7 @@ async def test_a_turn_stopped_while_queued_gives_back_everything_and_closes_as_c
 
     await _run_turn_body()
 
-    _assert_no_registration_left()
-    assert CancellationRegistry.get_active_count() == baseline
+    _assert_no_registration_left(baseline)
     digest = RunDigestStore.get(CHAT_ID)
     assert digest is not None
     assert digest.phase is RunDigestPhase.CANCELLED
@@ -174,9 +174,11 @@ async def test_a_turn_stopped_while_queued_gives_back_everything_and_closes_as_c
 
 
 @pytest.mark.asyncio
-async def test_a_setup_failure_after_the_first_registration_gives_back_steering_and_goal(
+async def test_a_setup_failure_after_the_first_registration_gives_back_everything(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    baseline = CancellationRegistry.get_active_count()
+
     async def failing_context(*_args: object, **_kwargs: object) -> dict[str, object]:
         raise RuntimeError("context unavailable")
 
@@ -188,7 +190,7 @@ async def test_a_setup_failure_after_the_first_registration_gives_back_steering_
     with pytest.raises(RuntimeError, match="context unavailable"):
         await _run_turn_body()
 
-    _assert_no_registration_left()
+    _assert_no_registration_left(baseline)
     assert RunDigestStore.get(CHAT_ID) is None
 
 
@@ -206,8 +208,7 @@ async def test_a_pump_failure_closes_the_turn_as_failed_and_keeps_its_marker_for
     with pytest.raises(RuntimeError, match="pump died"):
         await _run_turn_body()
 
-    _assert_no_registration_left()
-    assert CancellationRegistry.get_active_count() == baseline
+    _assert_no_registration_left(baseline)
     digest = RunDigestStore.get(CHAT_ID)
     assert digest is not None
     assert digest.phase is RunDigestPhase.ERROR

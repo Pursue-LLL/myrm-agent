@@ -7,7 +7,7 @@
 - app.services.agent.streaming_support.sse_helpers::error_sse (POS: SSE 事件辅助层。提供 SSE 事件解析与错误格式化)
 - app.schemas.streaming::SSEEnvelope (POS: 业务层 SSE 序列化防腐层。保证发送给前端的每个 chunk 符合统一类型)
 - app.services.project.orchestrator::project_orchestrator (POS: 项目并发控制。确保同一个项目的多个 Agent 不会并发修改工作区文件)
-- app.services.agent.stream_session.session_reservation::release_unstreamed_reservation (POS: clears a reservation the stream never took over and reopens a resume's interrupt)
+- app.services.agent.stream_session.session_reservation::release_unstreamed_reservation (POS: clears the reservation of one turn, by its message id, that the stream never took over, and reopens a resume's interrupt)
 - app.services.infra.system_notification::SystemNotificationService (POS: System notification persistence service for API/business layers)
 - myrm_agent_harness.agent.streaming.stream_buffer::ResilientStreamBuffer (POS: Harness engine-layer SSE reconnect replay buffer)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support.)
@@ -136,7 +136,11 @@ async def pump_to_buffer(session: AgentStreamSession, buffer: ResilientStreamBuf
         if project_id and lock_acquired:
             project_orchestrator.release(project_id)
         if session.request.chat_id:
-            release_unstreamed_reservation(session.request.chat_id, was_resume=session.request.resume_value is not None)
+            release_unstreamed_reservation(
+                session.request.chat_id,
+                message_id=message_id,
+                was_resume=session.request.resume_value is not None,
+            )
         await buffer.end_stream()
 
         # A long-running or detached turn keeps going after its client left; tell the user once it ends.
