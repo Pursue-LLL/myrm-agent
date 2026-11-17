@@ -148,7 +148,7 @@ def openai_endpoint(route: Route, opts: CallOptions, path: str) -> tuple[str, di
     base = route.base_url
     if not base:
         raise UnsupportedProviderError(f"Provider '{route.profile.id}' needs an api_base: it has no default endpoint")
-    headers: dict[str, str] = dict(route.profile.headers)
+    headers: dict[str, str] = {}
     query: dict[str, str] = dict(route.query)
     if route.profile.wire == "azure_openai":
         if path == "/responses":  # the Responses API addresses the model in the body, not by deployment

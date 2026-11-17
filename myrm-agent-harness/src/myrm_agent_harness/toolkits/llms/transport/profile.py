@@ -39,7 +39,6 @@ TextFlattening = Literal["never", "text_only", "always"]
 CacheControl = Literal["never", "always", "custom_base"]
 
 _EMPTY: Final[Mapping[str, object]] = MappingProxyType({})
-_EMPTY_HEADERS: Final[Mapping[str, str]] = MappingProxyType({})
 
 # OpenAI reasoning families reject `max_tokens` and any temperature other than 1.
 _OPENAI_REASONING_MODEL: Final = re.compile(r"^(?:o[1-9]\d*(?:[-.]|$)|gpt-5(?!.*chat)|codex)", re.IGNORECASE)
@@ -71,8 +70,6 @@ class ProviderProfile:
     extra_body: Mapping[str, object] = field(default=_EMPTY)
     # Models matching this pattern use `max_completion_tokens` and accept only temperature 1.
     reasoning_model: re.Pattern[str] | None = None
-    # Request headers the provider expects on every call (under the caller's own).
-    headers: Mapping[str, str] = field(default=_EMPTY_HEADERS)
     cache_control: CacheControl = "never"
     # Whether the provider serves the OpenAI Responses endpoint next to chat completions.
     responses: bool = False
@@ -89,7 +86,6 @@ def _profile(
     flatten_text: TextFlattening = "never",
     extra_body: Mapping[str, object] = _EMPTY,
     reasoning_model: re.Pattern[str] | None = None,
-    headers: Mapping[str, str] = _EMPTY_HEADERS,
     cache_control: CacheControl = "never",
     responses: bool = False,
 ) -> ProviderProfile:
@@ -104,7 +100,6 @@ def _profile(
         flatten_text=flatten_text,
         extra_body=extra_body,
         reasoning_model=reasoning_model,
-        headers=headers,
         cache_control=cache_control,
         responses=responses,
     )
