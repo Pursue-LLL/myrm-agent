@@ -1,7 +1,10 @@
 """IdleTaskRegistry persistence semantics and the aiosqlite-unavailable guards."""
 
+import asyncio
+import sqlite3
 from pathlib import Path
 
+import aiosqlite
 import pytest
 
 from myrm_agent_harness.agent.background_worker import registry as registry_module
@@ -69,6 +72,41 @@ async def test_has_pending_sees_the_session_and_global_queues_only_while_rows_ar
 
     await registry.requeue(task.id)
     assert await registry.has_pending("s1") is True
+
+
+@pytest.mark.asyncio
+async def test_a_claim_cancelled_before_its_row_is_fetched_leaves_no_write_lock(
+    registry: IdleTaskRegistry, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await registry.enqueue("s1", "cognitive_consolidation", {})
+    claim_fetch_started = asyncio.Event()
+    real_fetchone = aiosqlite.Cursor.fetchone
+
+    async def fetchone_that_waits_to_be_cancelled(cursor: aiosqlite.Cursor) -> sqlite3.Row | None:
+        # Only the claim's ``RETURNING *`` row: opening the connection fetches the journal-mode PRAGMA row the same way.
+        if cursor.description and cursor.description[0][0] == "id":
+            claim_fetch_started.set()
+            await asyncio.Event().wait()
+        return await real_fetchone(cursor)
+
+    monkeypatch.setattr(aiosqlite.Cursor, "fetchone", fetchone_that_waits_to_be_cancelled)
+
+    claim = asyncio.create_task(registry.acquire_next("s1"))
+    async with asyncio.timeout(10):
+        await claim_fetch_started.wait()
+    claim.cancel()
+    with pytest.raises(asyncio.CancelledError) as cancelled:
+        await claim
+
+    # ``cancelled`` still references the abandoned claim's frames and so its cursor, as the frames of a cancelled task
+    # do until the garbage collector runs: the idle queue's write lock must be gone while that cursor is alive.
+    other = sqlite3.connect(registry.db_path, timeout=0)
+    try:
+        other.execute("BEGIN IMMEDIATE")
+        other.rollback()
+    finally:
+        other.close()
+    assert cancelled.value.__traceback__ is not None
 
 
 def test_registry_is_shared_per_process_and_a_different_root_is_rejected_loudly(

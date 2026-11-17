@@ -11,6 +11,7 @@ per-connection PRAGMA blocks.
 - SQLiteProfile + presets (DEFAULT/DURABLE/SENSITIVE/CACHE/READONLY)
 - harden_connection_sync / harden_connection_async
 - connect_async (short-lived) / open_hardened_async (long-lived, returned only once fully set up)
+- RollbackBeforeCloseConnection (connection class of both; also for any engine that opens its own connections)
 - prepare_database_file + integrity guards + WAL checkpoint helpers + incremental_vacuum
 - SQLiteIntegrityError
 
@@ -21,6 +22,7 @@ Public package facade for ``utils.db.sqlite``. Import this from any store.
 from __future__ import annotations
 
 from .hardening import (
+    RollbackBeforeCloseConnection,
     connect_async,
     harden_connection_async,
     harden_connection_sync,
@@ -57,6 +59,7 @@ __all__ = [
     "DURABLE",
     "READONLY",
     "SENSITIVE",
+    "RollbackBeforeCloseConnection",
     "SQLiteIntegrityError",
     "SQLiteProfile",
     "SchemaGateError",
