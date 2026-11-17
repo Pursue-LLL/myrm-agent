@@ -12,7 +12,7 @@ MessageFtsSearchRow: Typed result row for message search.
 
 [POS]
 聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略；FTS 无命中时按键入文本（raw_query）做子串回退，
-回退命中的预览与 FTS 同形：以匹配为中心的窗口，匹配处高亮。
+回退命中的预览是以匹配为中心、匹配处高亮的窗口，宽度与标记同 FTS5 `snippet()`。
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ from app.database.repositories.like_pattern import LIKE_ESCAPE_CLAUSE, like_cont
 
 logger = logging.getLogger(__name__)
 
-# FTS5 ``snippet()`` counts trigram tokens, and N overlapping trigrams span N + 2 characters. The substring fallback cuts the
-# same window with the same markers, so a message previews the same whichever channel found it.
+# FTS5 ``snippet()`` counts trigram tokens, and N overlapping trigrams span N + 2 characters. The substring fallback cuts a
+# window of the same width with the same markers and ellipsis; where the window starts is its own rule (``substring_snippet``).
 _MARK_OPEN = "<mark>"
 _MARK_CLOSE = "</mark>"
 _ELLIPSIS = "..."
@@ -54,11 +54,16 @@ class ChatMessageSearchRepository:
 
     @staticmethod
     def substring_snippet(content: str, needle: str) -> str:
-        """The preview of ``content`` for a message the substring fallback found: the window FTS5 ``snippet()`` would cut.
+        """The preview of ``content`` for a message the substring fallback found: a window as wide as FTS5 ``snippet()`` cuts.
 
         The window is centred on the first ``needle`` (pinned to the start or the end of the text when the match is near
-        it) with every ``needle`` in it marked, and ``...`` shows where the text goes on. ``LIKE`` and ``re`` fold case
-        a little differently, so a text the fallback matched but ``re`` cannot place previews its head, unmarked.
+        it) with every ``needle`` in it marked, and ``...`` shows where the text goes on. FTS5 chooses its window by its own
+        rules, so one message can preview from a different start: FTS5 begins at the head of the text for a match that
+        starts within the first 40 characters, just after a ``". "`` that keeps the match in view, and wherever its scoring
+        prefers when several matches share a window (for a single match the two starts are up to about 20 characters
+        apart). It also marks adjacent or overlapping matches as one span. ``LIKE`` folds ASCII case and ``re`` folds
+        Unicode case, so every row the fallback selects has a match to centre on; a ``needle`` that has none still
+        previews the head of the text, unmarked.
         """
         pattern = re.compile(re.escape(needle), re.IGNORECASE)
         match = pattern.search(content)
