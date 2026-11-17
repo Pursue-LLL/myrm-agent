@@ -1,6 +1,9 @@
-import type { CronJob, CronRun, JobStatus } from '@/services/cron';
+import type { CronJob, CronRun, JobStatus, RunStatus } from '@/services/cron';
 
 const SYSTEM_JOB_PREFIX = '__';
+
+/** The stored name of the heartbeat, the one system job the application creates itself: the user never chose it. */
+export const HEARTBEAT_JOB_NAME = '__heartbeat__';
 
 export function isSystemJob(job: CronJob): boolean {
   return job.name.startsWith(SYSTEM_JOB_PREFIX);
@@ -185,8 +188,34 @@ export function formatRelativeTime(
   return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric' }).format(then);
 }
 
+// The run statuses that count as a failure, as the server counts them: an error and a loop-guard break.
+const FAILED_RUN_STATUSES: ReadonlySet<RunStatus> = new Set<RunStatus>(['error', 'circuit_break']);
+
+export function isFailedRunStatus(status: RunStatus | undefined): boolean {
+  return status !== undefined && FAILED_RUN_STATUSES.has(status);
+}
+
+/** A job that needs the user's eye: its last run failed, or it is on a failure streak. */
+export function isFailingJob(job: CronJob): boolean {
+  return job.consecutive_failures > 0 || isFailedRunStatus(job.last_status);
+}
+
+export type RunStatusLabelKey = 'runOk' | 'runError' | 'runSkipped' | 'runCircuitBreak';
+
+/** The word for each run status; a circuit break has its own, not the plain error's. */
+const RUN_STATUS_LABEL_KEYS: Record<RunStatus, RunStatusLabelKey> = {
+  ok: 'runOk',
+  error: 'runError',
+  skipped: 'runSkipped',
+  circuit_break: 'runCircuitBreak',
+};
+
+export function runStatusLabelKey(status: RunStatus): RunStatusLabelKey {
+  return RUN_STATUS_LABEL_KEYS[status];
+}
+
 export function statusBorderColor(job: CronJob): string {
-  if (job.consecutive_failures > 0 || job.last_status === 'error') {
+  if (isFailingJob(job)) {
     return 'border-l-destructive';
   }
   if (job.status === 'active') {
@@ -242,7 +271,7 @@ export function computeStats(jobs: CronJob[]) {
     } else if (j.status === 'paused') {
       paused++;
     }
-    if (j.last_status === 'error' || j.consecutive_failures > 0) {
+    if (isFailingJob(j)) {
       errored++;
     }
   }
@@ -256,7 +285,7 @@ export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string)
   } else if (filter === 'paused') {
     result = result.filter((j) => j.status === 'paused');
   } else if (filter === 'error') {
-    result = result.filter((j) => j.last_status === 'error' || j.consecutive_failures > 0);
+    result = result.filter(isFailingJob);
   }
   if (query) {
     const q = query.toLowerCase();

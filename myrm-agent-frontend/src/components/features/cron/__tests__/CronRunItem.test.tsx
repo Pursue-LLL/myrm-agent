@@ -142,4 +142,25 @@ describe('CronRunItem', () => {
     expect(screen.getByText('statOutput: 300')).toBeInTheDocument();
     expect(screen.getByText('web_search')).toBeInTheDocument();
   });
+
+  describe('job name', () => {
+    it('names the job a run belongs to when asked to', () => {
+      render(<CronRunItem run={{ ...baseRun, job_name: 'Daily digest' }} isLast={false} showJobName />);
+
+      expect(screen.getByText('Daily digest')).toBeInTheDocument();
+    });
+
+    it('shows the heartbeat by its title, not by its reserved stored name', () => {
+      render(<CronRunItem run={{ ...baseRun, job_name: '__heartbeat__' }} isLast={false} showJobName />);
+
+      expect(screen.getByText('title')).toBeInTheDocument();
+      expect(screen.queryByText('__heartbeat__')).toBeNull();
+    });
+
+    it('leaves the name out when not asked to show it', () => {
+      render(<CronRunItem run={{ ...baseRun, job_name: 'Daily digest' }} isLast={false} />);
+
+      expect(screen.queryByText('Daily digest')).toBeNull();
+    });
+  });
 });

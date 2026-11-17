@@ -20,6 +20,7 @@ import { Textarea } from '@/components/primitives/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
 import Toggle from '@/components/features/settings/common/Toggle';
 import SettingsSection from '../SettingsSection';
+import HeartbeatLastRun from './HeartbeatLastRun';
 import { enableHeartbeat, disableHeartbeat, getHeartbeatStatus } from '@/services/heartbeat';
 import { isRiskHeldError } from '@/services/riskHeldToast';
 import useAgentStore from '@/store/useAgentStore';
@@ -517,20 +518,7 @@ const HeartbeatSection = memo(() => {
                 {t('scheduleDescription')}: {status.schedule_description}
               </p>
             )}
-            {status.last_run_at && (
-              <p>
-                {t('lastRun')}: {new Date(status.last_run_at).toLocaleString()}
-                {status.last_status && (
-                  <span
-                    className={
-                      status.last_status === 'ok' ? 'text-green-600 dark:text-green-400 ml-2' : 'text-red-500 ml-2'
-                    }
-                  >
-                    ({status.last_status})
-                  </span>
-                )}
-              </p>
-            )}
+            {status.last_run_at && <HeartbeatLastRun at={status.last_run_at} status={status.last_status} />}
             {status.next_run_at && (
               <p>
                 {t('nextRun')}: {new Date(status.next_run_at).toLocaleString()}

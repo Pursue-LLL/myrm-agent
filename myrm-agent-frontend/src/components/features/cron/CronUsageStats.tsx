@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Coins, Timer, TrendingUp } from 'lucide-react';
 import { Skeleton } from '@/components/primitives/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/primitives/table';
 import { cn } from '@/lib/utils/classnameUtils';
 import { fetchUsageStats, type UsageStatsResponse, type UsageByJob, type UsageByModel } from '@/services/cron';
+import { useJobDisplayName } from './useJobDisplayName';
 
 const PERIOD_OPTIONS = [7, 30, 0] as const;
 type Period = (typeof PERIOD_OPTIONS)[number];
@@ -30,23 +31,36 @@ function pct(part: number, total: number): string {
 
 export default function CronUsageStats() {
   const t = useTranslations('cron');
+  const jobDisplayName = useJobDisplayName();
   const [data, setData] = useState<UsageStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>(7);
 
-  const load = useCallback(async (days: Period) => {
-    setLoading(true);
-    try {
-      const res = await fetchUsageStats(days);
-      setData(res);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // A response for a period the user has already left must not replace the one they asked for.
   useEffect(() => {
-    load(period);
-  }, [period, load]);
+    let stale = false;
+    fetchUsageStats(period)
+      .then((res) => {
+        if (!stale) {
+          setData(res);
+        }
+      })
+      .finally(() => {
+        if (!stale) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      stale = true;
+    };
+  }, [period]);
+
+  const changePeriod = (next: Period) => {
+    if (next !== period) {
+      setLoading(true);
+      setPeriod(next);
+    }
+  };
 
   const periodLabel = useMemo(
     () =>
@@ -77,7 +91,7 @@ export default function CronUsageStats() {
   if (summary.total_runs === 0) {
     return (
       <div className="space-y-4 p-1">
-        <PeriodSelector period={period} labels={periodLabel} onChange={setPeriod} />
+        <PeriodSelector period={period} labels={periodLabel} onChange={changePeriod} />
         <div className="text-center py-12 text-muted-foreground">
           <Coins className="h-10 w-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm">{t('noUsageData')}</p>
@@ -90,7 +104,7 @@ export default function CronUsageStats() {
 
   return (
     <div className="space-y-4 p-1">
-      <PeriodSelector period={period} labels={periodLabel} onChange={setPeriod} />
+      <PeriodSelector period={period} labels={periodLabel} onChange={changePeriod} />
 
       <div className="rounded-lg border bg-gradient-to-br from-primary/5 via-card to-card p-4 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3 border-border/60">
@@ -149,7 +163,7 @@ export default function CronUsageStats() {
             <TableBody>
               {by_job.map((row: UsageByJob) => (
                 <TableRow key={row.job_id}>
-                  <TableCell className="truncate max-w-[200px]">{row.job_name}</TableCell>
+                  <TableCell className="truncate max-w-[200px]">{jobDisplayName(row.job_name)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{row.runs}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatTokens(row.total_tokens)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">

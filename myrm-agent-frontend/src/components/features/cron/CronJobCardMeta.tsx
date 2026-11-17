@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * [INPUT] @/services/cron::CronJob (POS: Cron 任务 DTO), @/store/useCronStore::jobs (POS: context_from 引用的上游任务名)
+ * [INPUT] @/services/cron::CronJob (POS: Cron 任务 DTO), @/store/useCronStore::jobs (POS: context_from 引用的上游任务名), ./cron-utils::isFailedRunStatus, runStatusLabelKey (POS: 失败状态判定与运行状态标签)
  * [OUTPUT] CronJobMetaBadges: 卡片元信息行（调度、Agent、会话、投递、触发器、上下文、技能、到期、超时、下次/上次运行徽标）
  * [POS] CronJobCard 的只读元信息区块；上次运行的状态着色与相对时间在此计算。
  */
@@ -31,15 +31,19 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/primitives
 import { cn } from '@/lib/utils/classnameUtils';
 import type { CronJob } from '@/services/cron';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
-import { formatNextRun, formatRelativeTime, formatTime, formatTimeoutSeconds } from './cron-utils';
+import {
+  formatNextRun,
+  formatRelativeTime,
+  formatTime,
+  formatTimeoutSeconds,
+  isFailedRunStatus,
+  runStatusLabelKey,
+} from './cron-utils';
 import { humanizeSchedule, type ScheduleT } from './cron-blueprints';
 import useCronStore from '@/store/useCronStore';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import { CronWorkflowTemplateBadge } from './CronWorkflowTemplateBinding';
-
-// The tooltip names a last run that did not succeed; a circuit break has its own word, not the plain error's.
-const LAST_RUN_STATUS_KEY = { error: 'runError', skipped: 'runSkipped', circuit_break: 'runCircuitBreak' } as const;
 
 function ScheduleLabel({ job, t, locale }: { job: CronJob; t: ScheduleT; locale: string }) {
   const s = job.schedule;
@@ -93,12 +97,11 @@ export const CronJobMetaBadges = memo(({ job }: { job: CronJob }) => {
   const tCommon = useTranslations('common');
   const locale = useLocale();
   const allJobs = useCronStore((s) => s.jobs);
-  const lastRunColor =
-    job.last_status === 'error' || job.last_status === 'circuit_break'
-      ? 'text-rose-600 dark:text-rose-400'
-      : job.last_status === 'skipped'
-        ? 'text-amber-600 dark:text-amber-400'
-        : 'text-muted-foreground';
+  const lastRunColor = isFailedRunStatus(job.last_status)
+    ? 'text-rose-600 dark:text-rose-400'
+    : job.last_status === 'skipped'
+      ? 'text-amber-600 dark:text-amber-400'
+      : 'text-muted-foreground';
 
   return (
     <>
@@ -278,7 +281,7 @@ export const CronJobMetaBadges = memo(({ job }: { job: CronJob }) => {
           <TooltipContent>
             {job.last_status && job.last_status !== 'ok' && (
               <span className="mr-1 font-medium">
-                {t(LAST_RUN_STATUS_KEY[job.last_status])}
+                {t(runStatusLabelKey(job.last_status))}
                 {' · '}
               </span>
             )}
