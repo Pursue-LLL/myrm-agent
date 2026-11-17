@@ -10690,11 +10690,7 @@
       "applyFailed": "应用失败",
       "sourceDraft": "草稿成长",
       "sourceEvolution": "进化审核",
-      "growthType": "类型：{type}",
-      "today": "今天",
-      "yesterday": "昨天",
-      "daysAgo": "{count}天前",
-      "weeksAgo": "{count}周前"
+      "growthType": "类型：{type}"
     },
     "empty": {
       "title": "开始和 Agent 对话",

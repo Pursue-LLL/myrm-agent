@@ -10690,11 +10690,7 @@
       "applyFailed": "Apply Failed",
       "sourceDraft": "Draft Growth",
       "sourceEvolution": "Evolution Review",
-      "growthType": "Type: {type}",
-      "today": "Today",
-      "yesterday": "Yesterday",
-      "daysAgo": "{count}d ago",
-      "weeksAgo": "{count}w ago"
+      "growthType": "Type: {type}"
     },
     "empty": {
       "title": "Start chatting with Agent",
