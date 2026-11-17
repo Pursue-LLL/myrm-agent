@@ -1,4 +1,6 @@
 import { fetchWithTimeout } from '@/lib/api';
+import { ADVISOR_QUESTION_MAX_LENGTH } from '@/lib/constants/advisor-question';
+import { firstChars } from '@/lib/utils/firstChars';
 import { riskHeldErrorFromResponse } from '@/services/riskHeldToast';
 
 export interface RunDigestStep {
@@ -47,7 +49,8 @@ export async function askAdvisor(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      question,
+      // The server refuses a longer question (HTTP 422); one a command hands the panel has no box to stop it, so it is cut here.
+      question: firstChars(question, ADVISOR_QUESTION_MAX_LENGTH),
       selection_snippet: selectionSnippet ?? null,
     }),
   });
@@ -65,8 +68,8 @@ export async function askAdvisor(
   return json.data;
 }
 
-export async function fetchAdvisorMessages(chatId: string): Promise<AdvisorMessage[]> {
-  const res = await fetchWithTimeout(`/chats/${chatId}/copilot/advisor/messages`);
+export async function fetchAdvisorMessages(chatId: string, signal?: AbortSignal): Promise<AdvisorMessage[]> {
+  const res = await fetchWithTimeout(`/chats/${chatId}/copilot/advisor/messages`, { signal });
   if (!res.ok) {
     return [];
   }

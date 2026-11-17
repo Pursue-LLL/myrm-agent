@@ -10,15 +10,18 @@ from __future__ import annotations
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
 from httpx import ASGITransport
 
+from app.services.copilot.advisor_thread_store import AdvisorThreadStore
 from tests.support.minimal_app import build_minimal_app
 
 _LIMITS_PATH = Path(__file__).resolve().parents[4] / "shared" / "config" / "chat_input_limits.json"
 _API = "/api/v1"
+_ADVISOR_CHAT = "chat-advisor-limit"
 # A rare han character is one character to the server and two UTF-16 units to a browser. The limit is counted in the
 # server's unit, so the boundary is probed with characters that tell the two units apart.
 _CHARACTER = "\U00020bb7"
@@ -48,10 +51,20 @@ async def _compact_chat(client: httpx.AsyncClient, text: str) -> httpx.Response:
     return await client.post(f"{_API}/chats/chat-1/compact", json={"focus_topic": text})
 
 
+async def _ask_advisor(client: httpx.AsyncClient, text: str) -> httpx.Response:
+    # Past the length check the handler would ask a model; the stub keeps this test to the length check.
+    with patch("app.api.chats.chat.copilot.ask_advisor", new_callable=AsyncMock, return_value=("a reply", "tier0")):
+        try:
+            return await client.post(f"{_API}/chats/{_ADVISOR_CHAT}/copilot/advisor/ask", json={"question": text})
+        finally:
+            AdvisorThreadStore.clear(_ADVISOR_CHAT)
+
+
 # A limit in the JSON with no route listed here, or a route with no limit, fails the first test below.
 _ROUTES_BY_LIMIT: dict[str, tuple[_Send, ...]] = {
     "history_search_query": (_search_messages, _search_citable_chats, _filter_sidebar, _search_shared_context_history),
     "compact_focus_topic": (_compact_chat,),
+    "advisor_question": (_ask_advisor,),
 }
 _CASES = [
     pytest.param(limit, send, id=send.__name__.removeprefix("_")) for limit, routes in _ROUTES_BY_LIMIT.items() for send in routes

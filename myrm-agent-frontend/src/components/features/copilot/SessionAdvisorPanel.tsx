@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
+import { ADVISOR_QUESTION_MAX_LENGTH } from '@/lib/constants/advisor-question';
 import { askAdvisor, clearAdvisorMessages, fetchAdvisorMessages, type AdvisorMessage } from '@/services/copilot';
 import { Button } from '@/components/primitives/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/primitives/sheet';
@@ -29,10 +30,7 @@ export default function SessionAdvisorPanel({
   const pendingRef = useRef(false);
   const autoAskKeyRef = useRef('');
 
-  const loadMessages = useCallback(async () => {
-    const rows = await fetchAdvisorMessages(chatId);
-    setMessages(rows);
-  }, [chatId]);
+  const loadMessages = useCallback((signal?: AbortSignal) => fetchAdvisorMessages(chatId, signal), [chatId]);
 
   const performAsk = useCallback(
     async (question: string) => {
@@ -46,7 +44,7 @@ export default function SessionAdvisorPanel({
       try {
         const result = await askAdvisor(chatId, trimmed, selectionSnippet);
         if (result) {
-          await loadMessages();
+          setMessages(await loadMessages());
         } else {
           // A refused or failed ask must not eat what the user typed; a newer draft wins.
           setInput((current) => current || trimmed);
@@ -65,7 +63,16 @@ export default function SessionAdvisorPanel({
       autoAskKeyRef.current = '';
       return;
     }
-    void loadMessages();
+    // A thread that arrives after the panel closed or moved to another chat is not the one on screen.
+    const controller = new AbortController();
+    loadMessages(controller.signal)
+      .then((rows) => {
+        if (!controller.signal.aborted) {
+          setMessages(rows);
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
   }, [open, loadMessages]);
 
   useEffect(() => {
@@ -127,6 +134,7 @@ export default function SessionAdvisorPanel({
             data-testid="copilot-advisor-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            maxLength={ADVISOR_QUESTION_MAX_LENGTH}
             rows={3}
             placeholder={t('advisorPlaceholder')}
             className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
