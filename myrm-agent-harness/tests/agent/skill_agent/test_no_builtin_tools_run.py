@@ -2,9 +2,9 @@
 
 The registry an agent rebuilds its graph from (``add_tools``, a model failover) holds only the host's tools after
 any number of turns, also when the skill library is large enough to mount ``skill_search_tool`` on an agent that
-keeps the built-in tools. Nothing the model is sent speaks of the skill tools it does not have, while the skills a
-turn bound are still on its receipt and a skill the user names is still preloaded. The tests run real turns over a
-scripted model and read what the model is bound with and sent.
+keeps the built-in tools. A plain turn sends the model neither the skill catalog nor a word about the skill tools it
+does not have, while the skills a turn bound are still on its receipt and a skill the user names is still preloaded.
+The tests run real turns over a scripted model and read what the model is bound with and sent.
 """
 
 from __future__ import annotations
