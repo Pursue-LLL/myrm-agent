@@ -70,10 +70,7 @@ class SkillBackend(Protocol):
             skill_ids: List of skill IDs to load
 
         Returns:
-            List of skill metadata
-
-        Raises:
-            SkillNotFoundError: If a skill ID is not found
+            Metadata of the skills that exist; an unknown ID is left out, not an error
         """
         ...
 
@@ -87,7 +84,7 @@ class SkillBackend(Protocol):
             skill_name: Name of the skill as this backend lists it
 
         Returns:
-            SKILL.md content (without YAML frontmatter)
+            SKILL.md content as stored: YAML frontmatter included, stripped later by the document loader
 
         Raises:
             FileNotFoundError: If the skill or its SKILL.md cannot be read. A failure must raise and
