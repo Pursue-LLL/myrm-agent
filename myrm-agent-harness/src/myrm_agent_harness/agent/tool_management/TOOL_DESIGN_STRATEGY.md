@@ -130,17 +130,17 @@ class ToolLayer(IntEnum):
 - **工具数量**: 登记 **37** EXTENDED（harness 静态；见 TOOL_COUNT 块）
 - **Token 消耗**: 逐工具描述 token 与各场景合计见 `DEFAULT_AGENT_TOKEN_INVENTORY.md` §四、§总计估算；全部 EXTENDED 工具同轮 bind 的描述合计约 6,145（粗估，不含 `delegate_task_tool` 的运行期名册）
 
-**子分类**:
+**子分类**（下表「会话搜索」「统一知识检索」两行的增量是英文、o200k_base 的约数：description 取 `build_memory_search_tool_description`、`build_memory_save_tool_description` 的输出，args schema 取 `tool_bind_kwargs` 绑出的函数负载里 `parameters` 的紧凑 JSON，与线路预算测试 `test_tool_wire_budget_gate.py` 同口径，不是 `measure_tool_schema_tokens.py` 的 Schema 列；没有脚本算得出这些变体，只写约数，量级不变不必改）:
 
 | 子类 | 加载条件 | 典型工具 | Token 消耗 |
 |------|---------|---------|----------:|
 | 能力发现网关（**TURN1**，条件绑定） | `hidden_skill_count > 0` 且存在 model_invocable bound skills | skill_search_tool | 277（条件绑定；未挂载 `skill_market_tool` 时 289） |
 | 技能管理与市场 | 启用技能市场/管理 | skill_manage_tool, skill_market_tool | ~513 |
-| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 的 description 117 → 239（+122）、args schema 124 → 181（+57）：未开启时 schema 不带 `corpus` 与 `expand_*` |
+| 会话搜索（opt-in） | `memoryEnableConversationSearch=true` 且非无痕 | `memory_search_tool`（corpus=sessions ACL；不新增独立工具） | 含于 memory×3；开启后 memory_search 的 description 约增 120、args schema 约增 60：未开启时 schema 不带 `corpus` 与 `expand_*` |
 | 浏览器工具 | `enabled_builtin_tools: browser` | browser_navigate_tool, browser_snapshot_tool, ... (8个) | ~762 |
 | 定时任务工具 | cron 能力 wired；勾选 cron 时 Turn1 | cron_manage_tool | ~1,300 |
 | Wiki 工具 | `enabled_builtin_tools: wiki` | wiki_query_tool, wiki_ingest_tool, wiki_apply_tool；wiki_compile/maintain 仅 REST/admin | ~344 |
-| 统一知识检索 | wiki + memory 双开 | memory_search_tool 的 wiki corpus 说明、memory_save_tool 的 wiki 边界段 | 增加 ~127（memory_search description +49、args schema +20，memory_save description +58） |
+| 统一知识检索 | wiki + memory 双开 | memory_search_tool 的 wiki corpus 说明、memory_save_tool 的 wiki 边界段 | 增加约 130（memory_search description 约 50、args schema 约 20，memory_save description 约 60） |
 | 子 Agent 工具 | SubagentManagementExtension + entitlements | delegate_task_tool, subagent_control_tool | ~347 + 运行期名册 |
 | 答案自审工具 | `enabled_builtin_tools: answer_tool` | request_answer_user_tool | 327（EN）/ 512（ZH） |
 | Goal / planning 工具 | active Goal / `planning` opt-in | complete_goal_tool, todo_write | ~298 |
