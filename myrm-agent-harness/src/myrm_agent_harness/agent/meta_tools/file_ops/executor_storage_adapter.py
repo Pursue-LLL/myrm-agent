@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 from myrm_agent_harness.toolkits.storage.base import FileInfo, StorageProvider
 
 if TYPE_CHECKING:
@@ -35,16 +34,6 @@ class ExecutorStorageAdapter(StorageProvider):
     @property
     def workspace_path(self) -> str:
         return self._executor.workspace_path
-
-    def _get_full_path(self, path: str) -> str:
-        """Synchronous path resolution (compatible with StorageBackendStrategy.get_actual_path)."""
-        from pathlib import Path as _Path
-
-        wp = _Path(self._executor.workspace_path).resolve()
-        clean = WorkspacePathResolver.container_relative(path) or path
-        if _Path(clean).is_absolute():
-            return str(_Path(clean).resolve())
-        return str((wp / clean).resolve())
 
     async def read(self, key: str) -> bytes:
         return await self._executor.read_file_bytes(key)

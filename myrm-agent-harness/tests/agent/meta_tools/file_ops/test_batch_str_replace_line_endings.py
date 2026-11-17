@@ -47,6 +47,20 @@ def test_every_edit_of_a_batch_applies_to_crlf_content() -> None:
     assert result == "def a():\r\n    return 10\r\n\r\ndef b():\r\n    return 20\r\n"
 
 
+@pytest.mark.parametrize(
+    "old",
+    ["def a():\n        return 1", "def a():  \n    return 1  "],
+    ids=["indented_deeper_than_the_file", "trailing_spaces"],
+)
+def test_a_fuzzy_match_on_crlf_content_keeps_every_line_crlf(old: str) -> None:
+    result, strategies = apply_batch_str_replace(
+        _CRLF, (StrReplaceEdit(old_str=old, new_str="def a():\n    return 10"),)
+    )
+
+    assert "exact" not in strategies
+    assert result == _EDITED
+
+
 def test_overlapping_multi_line_edits_are_rejected_on_crlf_content() -> None:
     edits = (
         StrReplaceEdit(old_str="def a():\n    return 1", new_str="x"),
@@ -82,3 +96,11 @@ def test_a_file_that_separates_its_lines_with_lone_cr_is_matched_and_written_as_
     result, _ = apply_batch_str_replace("a\rb\rc", (StrReplaceEdit(old_str="b", new_str="B"),))
 
     assert result == "a\rB\rc"
+
+
+def test_a_file_without_a_line_break_is_edited_as_it_is() -> None:
+    result, _ = apply_batch_str_replace(
+        "single line no newline", (StrReplaceEdit(old_str="single", new_str="replaced"),)
+    )
+
+    assert result == "replaced line no newline"

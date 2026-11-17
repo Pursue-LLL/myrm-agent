@@ -67,34 +67,6 @@ class FileSystemStrategy(ABC):
         pass
 
     @abstractmethod
-    async def delete_file(self, path: str) -> None:
-        """删除文件
-
-        Args:
-            path: 文件路径
-
-        Raises:
-            FileNotFoundError: 文件不存在
-            PermissionError: 权限不足
-        """
-        pass
-
-    @abstractmethod
-    async def replace_text(self, path: str, old_str: str, new_str: str) -> None:
-        """替换文件中的文本
-
-        Args:
-            path: 文件路径
-            old_str: 要替换的文本
-            new_str: 替换后的文本
-
-        Raises:
-            FileNotFoundError: 文件不存在
-            ValueError: 文本未找到或有多个匹配
-        """
-        pass
-
-    @abstractmethod
     async def is_directory(self, path: str) -> bool:
         """检查路径是否为目录
 
@@ -150,17 +122,5 @@ class FileSystemStrategy(ABC):
 
         Raises:
             FileNotFoundError: 文件不存在
-        """
-        pass
-
-    @abstractmethod
-    def get_actual_path(self, path: str) -> str:
-        """获取实际文件路径
-
-        Args:
-            path: 相对路径
-
-        Returns:
-            绝对路径
         """
         pass

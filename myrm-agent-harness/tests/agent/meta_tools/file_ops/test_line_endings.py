@@ -4,7 +4,6 @@ Covers:
 - detect_line_ending: CRLF, LF, empty, single-line, mixed
 - normalize_line_endings: LF→LF, LF→CRLF, CRLF→LF, CRLF→CRLF, mixed, lone CR, idempotence
 - view_lines: CRLF, lone CR and LF all end a line in a view
-- StorageBackendStrategy.replace_text: CRLF preservation for exact + fuzzy match
 - FileOperationService._execute_create: a new file keeps the line endings it was given
 """
 
@@ -12,7 +11,7 @@ from __future__ import annotations
 
 import io
 import itertools
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -161,104 +160,6 @@ class TestViewLines:
 
     def test_no_lines_shows_no_lines(self) -> None:
         assert view_lines([]) == []
-
-
-# ── StorageBackendStrategy.replace_text CRLF preservation ───────────
-
-
-@pytest.mark.asyncio
-async def test_replace_text_preserves_crlf() -> None:
-    """Exact match on a CRLF file should produce a CRLF result."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    crlf_content = "line1\r\nline2\r\nline3\r\n"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=crlf_content)
-    storage.write_text = AsyncMock()
-
-    strategy = StorageBackendStrategy(storage)
-    await strategy.replace_text("test.txt", "line2", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert "\r\n" in written
-    assert "replaced\r\n" in written
-    assert "\n" not in written.replace("\r\n", "")
-
-
-@pytest.mark.asyncio
-async def test_replace_text_lf_unchanged() -> None:
-    """LF files should stay LF after replacement."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    lf_content = "line1\nline2\nline3\n"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=lf_content)
-    storage.write_text = AsyncMock()
-
-    strategy = StorageBackendStrategy(storage)
-    await strategy.replace_text("test.txt", "line2", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert "\r\n" not in written
-    assert "replaced\n" in written
-
-
-@pytest.mark.asyncio
-async def test_replace_text_fuzzy_preserves_crlf() -> None:
-    """Fuzzy match path should also preserve CRLF."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    crlf_content = "  line1\r\n  line2\r\n  line3\r\n"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=crlf_content)
-    storage.write_text = AsyncMock()
-
-    fuzzy_result = MagicMock()
-    fuzzy_result.success = True
-    fuzzy_result.content = "  line1\n  replaced\n  line3\n"
-    fuzzy_result.strategy = "whitespace_normalized"
-    fuzzy_result.confidence = 0.95
-
-    strategy = StorageBackendStrategy(storage)
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.batch_str_replace.fuzzy_replace",
-        return_value=fuzzy_result,
-    ):
-        await strategy.replace_text("test.txt", "line2_typo", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert "\r\n" in written
-    assert "\n" not in written.replace("\r\n", "")
-
-
-@pytest.mark.asyncio
-async def test_replace_text_single_line_no_normalization() -> None:
-    """Single-line file (no newlines) should skip normalization."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    content = "single line no newline"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=content)
-    storage.write_text = AsyncMock()
-
-    strategy = StorageBackendStrategy(storage)
-    await strategy.replace_text("test.txt", "single", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert written == "replaced line no newline"
-    assert "\r\n" not in written
 
 
 # ── FileOperationService._execute_create line endings ──────────────

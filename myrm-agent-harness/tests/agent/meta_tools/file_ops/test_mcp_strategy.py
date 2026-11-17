@@ -1,8 +1,7 @@
 """Tests for MCPFileSystemStrategy (virtual /mcp/ path read strategy).
 
-Covers read_file / write_file / delete_file / replace_text / is_directory /
-list_directory / exists / get_file_size / get_actual_path / _read_mcp_function_doc /
-_get_mcp_call_rules across MCP-skill and non-MCP-skill paths.
+Covers read_file / write_file / is_directory / list_directory / exists / get_file_size /
+_read_mcp_function_doc across MCP-skill and non-MCP-skill paths.
 """
 
 from __future__ import annotations
@@ -81,10 +80,6 @@ class TestReadAndExists:
     async def test_exists_unknown_function_false(self, strategy) -> None:
         assert await strategy.exists("/mcp/mcp_12306_mcp_skill/missing.md") is False
 
-    async def test_get_actual_path_returns_self(self, strategy) -> None:
-        path = "/mcp/mcp_12306_mcp_skill/get-tickets.md"
-        assert strategy.get_actual_path(path) == path
-
 
 class TestIsDirectory:
     async def test_skill_dir(self, strategy) -> None:
@@ -125,14 +120,6 @@ class TestWriteDenied:
     async def test_write_file_denied(self, strategy) -> None:
         with pytest.raises(PermissionError):
             await strategy.write_file("/mcp/x/y.md", "content")
-
-    async def test_delete_file_denied(self, strategy) -> None:
-        with pytest.raises(PermissionError):
-            await strategy.delete_file("/mcp/x/y.md")
-
-    async def test_replace_text_denied(self, strategy) -> None:
-        with pytest.raises(PermissionError):
-            await strategy.replace_text("/mcp/x/y.md", "a", "b")
 
 
 class TestReadDocErrors:
