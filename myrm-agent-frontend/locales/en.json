@@ -7339,7 +7339,7 @@
       "ttl_expired": "TTL expired"
     },
     "capabilitiesLabel": "Capability Fence",
-    "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused. Even with a matching capability chosen, an unattended run still stops steps that touch protected files, and steps that look like payments, Google Workspace writes, or sending data to sites outside your Domain Allowlist after a credential file was read.",
+    "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused. Even with a matching capability chosen, an unattended run still stops steps that touch protected files, and steps that look like payments, Google Workspace writes, or sending data out after a credential file was read (opening web pages on your Domain Allowlist doesn't count).",
     "capabilitiesAllHint": "Nothing chosen: read files, search and open web pages only",
     "toolsAllowedLabel": "Built-in Tools Scope",
     "toolsAllowedDesc": "Limit which built-in tools mount at run time. Intersected with the bound agent profile. Leave empty for no extra restriction.",
@@ -7373,7 +7373,7 @@
     "verificationError": "Verify Error",
     "verificationSummary": "Delivery review",
     "verificationRunOkReviewFailed": "Task completed; delivery review did not pass — expand for details.",
-    "blockedHint": "Steps outside this job's Capability Fence or Allowed Paths can be allowed in the job settings. Whatever you allow, an unattended run still stops steps that touch protected files, and steps that look like payments, Google Workspace writes, or sending data to sites outside your Domain Allowlist after a credential file was read.",
+    "blockedHint": "Steps outside this job's Capability Fence or Allowed Paths can be allowed in the job settings. Whatever you allow, an unattended run still stops steps that touch protected files, and steps that look like payments, Google Workspace writes, or sending data out after a credential file was read (opening web pages on your Domain Allowlist doesn't count).",
     "connectorDegradedBadge": "Connector Degraded",
     "connectorFixSuggestion": "Troubleshooting Suggestion",
     "connectorHealthStatus": "Connector Health",

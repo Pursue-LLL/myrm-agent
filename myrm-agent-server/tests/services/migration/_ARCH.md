@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-外部助手数据迁移业务层回归测试。覆盖五源 discover/load/split、e2e dry-run、instruction rollback、skills binding。与 `tests/architecture/test_migration_source_closure.py` 互补：本目录测行为，architecture 测 probe/loader 封闭集合同步。
+外部助手数据迁移业务层回归测试。覆盖各来源的 discover/load/split、e2e dry-run、instruction rollback、skills binding、MCP 与 Hermes cron 转换、转录本会话车道、`.usage.json` sidecar 导入。与 `tests/architecture/test_migration_source_closure.py` 互补：本目录测行为，architecture 测 probe/loader 封闭集合同步。
 
 上级：`app/services/migration/_ARCH.md`（Wizard 本机 6 源 + ZIP 通道的封闭集合政策）。
 
@@ -14,7 +14,7 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `test_source_discovery.py` | 核心 | 五源 filesystem discover（confidence、多源共存、edge cases） |
+| `test_source_discovery.py` | 核心 | Hermes / Claude Code / OpenClaw / Codex / Pi 的 filesystem discover（confidence、多源共存、edge cases） |
 | `test_source_manifest.py` | 核心 | 迁移来源 manifest SSOT（ids、import map、local-scan 封闭集、payload 结构） |
 | `test_source_payload_loader.py` | 核心 | load_source_payload / build_coverage_items |
 | `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分 |
@@ -30,6 +30,14 @@
 | `test_instruction_rollback.py` | 辅助 | 指令车道回滚 |
 | `test_skill_binding.py` | 辅助 | 技能审核后 agent 绑定 |
 | `test_workspace_bind_candidates.py` | 辅助 | OpenClaw migration workspace bind 候选路径 + fingerprint |
+| `test_assistant_memory_loaders.py` | 核心 | Claude Code / Codex / PLUR 记忆车道的 probe 与 loader：Claude 自动记忆与指令分离、索引仅作兜底、自定义 `autoMemoryDirectory`、dry-run 导入记忆车道；沙箱 payload 只读取上传根目录内的文件 |
+| `test_pi_migration.py` | 核心 | Pi 来源的 probe 与 loader：AGENTS.md / sessions / skills / auth 的 discover，auth 读成 env key，会话边缘情形（空文件、坏 JSON、非会话头、非消息条目、列表内容块拼接），指令计划 |
+| `test_codex_obsidian_vault_hints.py` | 辅助 | Codex 迁移的 Obsidian vault 线索：从 settings 嵌套键提取 vault 路径、`load_codex` 产出线索、workspace bind 候选、扫描附近 vault |
+| `test_session_lane.py` | 辅助 | `SessionMigrationService` 预览与确认落库（Chat / Message 表）；Claude / Codex / Hermes 转录本加载 |
+| `test_mcp_config_converter.py` | 辅助 | 其他助手的 MCP 配置转换：Hermes stdio 与 tool filters、远程 keepalive 保留与过小忽略、`http` 别名映射 `streamable_http`、显式 `hostSerial` 优先于并行标志、布尔值不覆盖默认、Claude SSE、无效条目跳过；配置 dict 与预览输出 |
+| `test_hermes_cron_converter.py` | 辅助 | Hermes cron 迁移转换：schedule 映射、忽略源模型字段、跳过无 agent 脚本的任务、跳过项预览行、从根目录读取 jobs、loader 带出 cron 计划、readiness 的 Hermes 门控告警 |
+| `test_usage_sidecar_import.py` | 辅助 | Hermes `.usage.json` sidecar：读取与容错、字段映射为 `.stats.json`（状态与计数容错）、技能迁移写入账本且不覆盖已有账本、已有技能缺账本时补种 |
+| `test_usage_sidecar_integration.py` | 辅助 | `.usage.json` 端到端：载入技能 payload → 写 `.stats.json` → harness 的 `SkillStatsCollector` 读取一致；部分命中只给匹配技能账本，curator 不把迁入技能判为陈旧（有计数无时间戳、pinned 豁免），数组形 JSON 与超大计数容错 |
 
 ---
 
@@ -37,6 +45,8 @@
 
 - `app.services.migration.*`
 - `app.services.memory.imports.import_adapters`
+- `app.database.models`（会话车道落库）
+- `myrm_agent_harness`（cron 类型、技能 `.stats.json` 账本与 `SkillStatsCollector`、转录本类型）
 - `tests/architecture/test_migration_source_closure.py` — 结构闭包（非本目录）
 
 ---

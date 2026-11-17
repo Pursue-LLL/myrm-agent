@@ -150,8 +150,8 @@ class TaintTracker:
     ) -> dict[TaintLabel, set[str]] | None:
         """Check if calling this tool violates any taint policy.
 
-        Returns a dictionary mapping conflicting TaintLabels to their sources,
-        or None if clean or the call names only trusted hosts.
+        Returns a dictionary mapping conflicting TaintLabels to their sources, or None if clean or every
+        ``url`` or ``urls`` value of the call is on the trusted list; a call without such an argument is not exempt.
         """
         # One untrusted URL among several keeps the call a sink: the data could leave through it.
         if trusted_hosts and tool_input:

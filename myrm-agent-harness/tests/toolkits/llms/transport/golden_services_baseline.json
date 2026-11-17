@@ -3,7 +3,7 @@
   "client_library": "litellm 1.97.0",
   "configuration": "production (LITELLM_LOCAL_MODEL_COST_MAP, drop_params, modify_params, custom providers registered; response cache off)",
   "matrix": "golden_services.py",
-  "pruned_cases": "image cases of the retired dall-e models and of the multi-image scenario were removed together with their code paths; no remaining case was re-recorded",
+  "pruned_cases": "none of the image cases of the retired dall-e models or of the multi-image scenario is in this baseline (their code paths are gone); every other case is as it was recorded",
   "recorded_at_commit": "b218e6f1d7",
   "voyage_default_base_cases": "recorded at 8dbc4c4af6 against litellm 1.97.0, the caller having stopped sending encoding_format to Voyage; all other cases at b218e6f1d7"
  },

@@ -65,8 +65,8 @@ describe('CronRunBlockedActions', () => {
       screen.getByText(
         "Steps outside this job's Capability Fence or Allowed Paths can be allowed in the job settings. " +
           'Whatever you allow, an unattended run still stops steps that touch protected files, and steps that ' +
-          'look like payments, Google Workspace writes, or sending data to sites outside your Domain Allowlist ' +
-          'after a credential file was read.',
+          'look like payments, Google Workspace writes, or sending data out after a credential file was read ' +
+          "(opening web pages on your Domain Allowlist doesn't count).",
       ),
     ).toBeInTheDocument();
   });
