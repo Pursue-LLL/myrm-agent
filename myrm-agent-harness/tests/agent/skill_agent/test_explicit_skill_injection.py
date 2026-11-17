@@ -10,7 +10,8 @@ Covers:
 - The header names only the skills whose SOP was delivered (bundle and single form)
 
 How the SOP reaches the model (template variable, content blocks) is covered in
-test_explicit_skill_injection_delivery.py, the tag grammar in test_skill_reference.py and what run() does with a
+test_explicit_skill_injection_delivery.py, the NOTE that names the skills a message could not carry in
+test_explicit_skill_preload_notice.py, the tag grammar in test_skill_reference.py and what run() does with a
 bundle in test_skill_run_usage.py.
 """
 
@@ -301,7 +302,7 @@ class TestPreloadExplicitSkill:
         assert matched is not None
         assert matched.name == "found_skill"
         assert "# Found" in query
-        assert "missing_skill" not in query
+        assert "--- Skill: missing_skill ---" not in query
         assert "preloaded" in query.lower()
 
     @pytest.mark.asyncio
@@ -318,7 +319,7 @@ class TestPreloadExplicitSkill:
         assert matched.name == "readable_skill"
         assert [skill.name for skill in preloaded] == ["readable_skill"]
         assert "# Readable" in query
-        assert "unreadable_skill" not in query
+        assert "--- Skill: unreadable_skill ---" not in query
 
     @pytest.mark.asyncio
     async def test_bundle_all_skills_missing(self) -> None:
@@ -374,8 +375,9 @@ class TestPreloadExplicitSkill:
 
         query, _primary, _preloaded = await agent._preload_explicit_skill(f"[use {refs}] go")
 
-        assert header in query
-        assert "beta" not in query
+        first_line = query.split("\n")[0]
+        assert header in first_line
+        assert "beta" not in first_line
 
     @pytest.mark.asyncio
     async def test_bundle_with_instruction_in_user_args(self) -> None:

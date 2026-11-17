@@ -3,7 +3,8 @@
 The registry an agent rebuilds its graph from (``add_tools``, a model failover) holds only the host's tools after
 any number of turns, also when the skill library is large enough to mount ``skill_search_tool`` on an agent that
 keeps the built-in tools. A plain turn sends the model neither the skill catalog nor a word about the skill tools it
-does not have, while the skills a turn bound are still on its receipt and a skill the user names is still preloaded.
+does not have, while the skills a turn bound are still on its receipt and a skill the user names is still preloaded
+(one the preload leaves out is named in a NOTE that points at the skill tool only when the agent has it).
 The switch decides this, not the names of the tools the model is bound with: a host tool that shares the name of a
 built-in skill tool does not bring the catalog back. The tests run real turns over a scripted model and read what
 the model is bound with and sent.
@@ -190,8 +191,7 @@ async def test_the_turn_receipt_lists_the_bound_skills_either_way(tmp_path: Path
     assert sorted(row["name"] for row in receipt) == sorted(skill.name for skill in _SKILLS)
 
 
-@pytest.mark.asyncio
-async def test_a_skill_the_user_names_is_still_preloaded_without_the_built_in_tools(tmp_path: Path) -> None:
+def _agent_with_alpha_on_disk(tmp_path: Path, *, no_builtin_tools: bool) -> tuple[SkillAgent, _RecordingModel]:
     skill_dir = tmp_path / "skills" / "alpha"
     skill_dir.mkdir(parents=True)
     (skill_dir / "SKILL.md").write_text(
@@ -202,8 +202,14 @@ async def test_a_skill_the_user_names_is_still_preloaded_without_the_built_in_to
         llm=model,
         skill_backend=LocalSkillBackend(tmp_path / "skills"),
         tools=[host_a_tool],
-        config=AgentRuntimeConfig(no_builtin_tools=True),
+        config=AgentRuntimeConfig(no_builtin_tools=no_builtin_tools),
     )
+    return agent, model
+
+
+@pytest.mark.asyncio
+async def test_a_skill_the_user_names_is_still_preloaded_without_the_built_in_tools(tmp_path: Path) -> None:
+    agent, model = _agent_with_alpha_on_disk(tmp_path, no_builtin_tools=True)
 
     await _run_turn(agent, tmp_path, query="[use alpha] hello")
 
@@ -211,3 +217,20 @@ async def test_a_skill_the_user_names_is_still_preloaded_without_the_built_in_to
     assert 'The skill "alpha" has been preloaded by the user' in prompt
     assert "Follow the alpha procedure." in prompt
     assert "<bound_skills" not in prompt
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("no_builtin_tools", "names_the_tool"), [(False, True), (True, False)], ids=["built-in-tools", "no-built-in-tools"]
+)
+async def test_the_note_for_a_skill_left_out_of_the_preload_names_the_skill_tool_only_with_the_built_in_tools(
+    tmp_path: Path, no_builtin_tools: bool, names_the_tool: bool
+) -> None:
+    agent, model = _agent_with_alpha_on_disk(tmp_path, no_builtin_tools=no_builtin_tools)
+
+    await _run_turn(agent, tmp_path, query="[use alpha,ghost] hello")
+
+    (prompt, *_) = model.prompts
+    (note,) = (line for line in prompt.split("\n") if line.startswith("[NOTE:"))
+    assert "ghost (not found)" in note
+    assert ("skill_select_tool" in note) is names_the_tool
