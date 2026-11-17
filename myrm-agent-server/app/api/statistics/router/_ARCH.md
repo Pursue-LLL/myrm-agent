@@ -10,7 +10,7 @@
 | `common.py` | 辅助 | 共享 `APIRouter` 与 logger | ✅ |
 | `usage.py` | 核心 | usage 统计、雷达、按天/按会话用量 | ✅ |
 | `tools.py` | 核心 | 工具稳定性与 Agent 工具健康 | ✅ |
-| `activity.py` | 核心 | 全局活跃模式、Top 会话与导航徽标 | ✅ |
+| `activity.py` | 核心 | 全局活跃模式、Top 会话与导航徽标；徽标的 `cronFailures` 数最近 24 小时里 `matching_run_statuses("error")`（错误与熔断）的 cron 运行，与运行列表的失败筛选同一定义 | ✅ |
 
 ## 依赖关系
 

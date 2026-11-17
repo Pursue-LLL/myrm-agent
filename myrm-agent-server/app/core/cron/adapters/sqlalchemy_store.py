@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from myrm_agent_harness.infra.incremental.types import MonitorState
+from myrm_agent_harness.toolkits.cron import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronRunRecord,
@@ -323,7 +324,7 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
             if job_id is not None:
                 stmt = stmt.where(CronRunModel.job_id == job_id)
             if status:
-                stmt = stmt.where(CronRunModel.status == status)
+                stmt = stmt.where(CronRunModel.status.in_(matching_run_statuses(status)))
             stmt = stmt.order_by(CronRunModel.started_at.desc()).offset(offset).limit(limit)
             result = await session.execute(stmt)
             return [run_to_domain(r) for r in result.scalars().all()]
@@ -339,7 +340,7 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
             if job_id is not None:
                 stmt = stmt.where(CronRunModel.job_id == job_id)
             if status:
-                stmt = stmt.where(CronRunModel.status == status)
+                stmt = stmt.where(CronRunModel.status.in_(matching_run_statuses(status)))
             return (await session.execute(stmt)).scalar() or 0
 
     async def purge_old_runs(self, before: datetime) -> int:

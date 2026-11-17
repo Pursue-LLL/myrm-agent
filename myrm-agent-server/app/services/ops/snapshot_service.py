@@ -7,6 +7,7 @@
 - app.services.agent.execution_cache::get_execution_cache (POS: 执行单元缓存单例)
 - app.core.infra.health.health_snapshot::collect_health_snapshot (POS: 健康报告采集)
 - app.database.connection::get_session (POS: 数据库异步 session 获取工厂)
+- myrm_agent_harness.toolkits.cron::matching_run_statuses (POS: 失败运行的唯一定义，`error` 筛选选出的存储状态)
 - app.schemas.ops::* (POS: 快照响应 DTOs)
 
 [OUTPUT]
@@ -31,6 +32,7 @@ try:
 except ImportError:  # Windows has no resource module; the RSS field then stays unset
     resource = None  # type: ignore[assignment]
 
+from myrm_agent_harness.toolkits.cron import matching_run_statuses
 from sqlalchemy import func, select
 
 from app.config.deploy_mode import get_deploy_mode
@@ -239,7 +241,7 @@ class OpsAggregatedSnapshotService:
                     select(func.count())
                     .select_from(CronRunModel)
                     .where(
-                        CronRunModel.status.in_(("failed", "error")),
+                        CronRunModel.status.in_(matching_run_statuses("error")),
                         CronRunModel.started_at >= twenty_four_hours_ago,
                     )
                 )

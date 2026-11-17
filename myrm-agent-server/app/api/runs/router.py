@@ -5,7 +5,7 @@
 - app.services.agent.shell_background_tasks (POS: Shell background tasks)
 
 [OUTPUT]
-- GET /runs — paginated unified run list (source filter, status filter)
+- GET /runs — paginated unified run list (source filter, status filter; `status=error` selects every failed run)
 
 [POS]
 Read-only aggregation endpoint. Queries Cron runs, Kanban task runs, and Background
@@ -21,6 +21,8 @@ from typing import cast
 from fastapi import APIRouter, Query
 
 from app.api.runs.schemas import (
+    CRON_RUN_STATUSES,
+    FAILED_RUN_STATUSES,
     RunSource,
     RunStatus,
     UnifiedRunResponse,
@@ -30,6 +32,7 @@ from app.api.runs.stop_reason import (
     extract_stop_reason_from_metadata,
     stop_reason_from_error,
     stop_reason_from_shell_task,
+    to_run_stop_reason,
 )
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -44,6 +47,15 @@ def _safe_dt(dt: datetime | None, fallback: datetime | None = None) -> datetime:
     return dt
 
 
+def _matches_status_filter(status: RunStatus, status_filter: RunStatus | None) -> bool:
+    """`error` selects every failed run (an error, a timeout, a circuit break); any other filter selects its own status."""
+    if status_filter is None:
+        return True
+    if status_filter == "error":
+        return status in FAILED_RUN_STATUSES
+    return status == status_filter
+
+
 async def _fetch_cron_runs(
     status_filter: RunStatus | None,
     limit: int,
@@ -55,19 +67,12 @@ async def _fetch_cron_runs(
     if mgr is None:
         return [], False
 
-    cron_status_map: dict[str, str] = {
-        "ok": "ok",
-        "error": "error",
-        "skipped": "skipped",
-    }
-
-    if status_filter is not None and status_filter not in cron_status_map:
+    if status_filter is not None and status_filter not in CRON_RUN_STATUSES:
         # Historical cron runs only persist terminal statuses; non-matching filters yield no rows.
         return [], True
 
-    filter_status = cron_status_map[status_filter] if status_filter else None
-
-    runs = await mgr.list_runs(limit=limit, offset=0, status=filter_status)
+    # The store reads `error` as every failed run it holds, so the cron rows agree with the other sources.
+    runs = await mgr.list_runs(limit=limit, offset=0, status=status_filter)
 
     job_ids = list({r.job_id for r in runs})
     all_jobs = await mgr.list_jobs() if job_ids else []
@@ -79,7 +84,7 @@ async def _fetch_cron_runs(
         job_name = job.name if job else r.job_id
         agent_id = job.agent_id if job else None
 
-        run_status: RunStatus = cast(RunStatus, r.status) if r.status in ("ok", "error", "skipped", "circuit_break") else "error"
+        run_status: RunStatus = cast(RunStatus, r.status) if r.status in CRON_RUN_STATUSES else "error"
         metadata = r.metadata if isinstance(r.metadata, dict) else None
         has_execution_steps = bool(metadata and metadata.get("progressSteps"))
         stop_reason = extract_stop_reason_from_metadata(metadata) or stop_reason_from_error(r.error, run_status)
@@ -100,7 +105,7 @@ async def _fetch_cron_runs(
                 agent_id=agent_id,
                 job_id=r.job_id,
                 has_execution_steps=has_execution_steps,
-                stop_reason=stop_reason,
+                stop_reason=to_run_stop_reason(stop_reason),
             )
         )
     return results, True
@@ -140,7 +145,7 @@ async def _fetch_kanban_runs(
         if task.status in excluded:
             continue
         task_status = _kanban_task_to_run_status(task.status.value, task.error)
-        if status_filter and task_status != status_filter:
+        if not _matches_status_filter(task_status, status_filter):
             continue
 
         started = _safe_dt(task.created_at)
@@ -173,7 +178,7 @@ async def _fetch_kanban_runs(
                 agent_id=task.agent_id,
                 task_id=task.task_id,
                 has_execution_steps=bool(progress_steps),
-                stop_reason=stop_reason,
+                stop_reason=to_run_stop_reason(stop_reason),
             )
         )
     return results, True
@@ -198,7 +203,7 @@ async def _fetch_background_shell_runs(
             task_status = "cancelled"
         else:
             task_status = "error"
-        if status_filter and task_status != status_filter:
+        if not _matches_status_filter(task_status, status_filter):
             continue
 
         started = datetime.fromtimestamp(t.created_at, tz=timezone.utc)
@@ -218,7 +223,7 @@ async def _fetch_background_shell_runs(
                 finished_at=finished,
                 duration_ms=duration_ms,
                 summary=_truncate(t.result_preview, 200) if t.result_preview else None,
-                stop_reason=stop_reason,
+                stop_reason=to_run_stop_reason(stop_reason),
             )
         )
     return results, True

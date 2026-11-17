@@ -37,7 +37,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
-| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、被崩溃打断的运行、自动暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染），发布 `CRON_UPDATED` 与 `SYSTEM_NOTIFICATION` | ✅ |
+| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、被崩溃打断的运行、自动暂停：到期、达到次数上限、失败导致的暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染），发布 `CRON_UPDATED` 与 `SYSTEM_NOTIFICATION` | ✅ |
 | `blueprints/` | 子包 | 自动化蓝图：`core/` 类型与注册/填充逻辑，`catalog/` 按主题存放 21 个内置蓝图；详见 [blueprints/_ARCH.md](blueprints/_ARCH.md) | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
@@ -115,6 +115,7 @@ JobResult (text + metadata)
 - **三级优先级链**：告警投递目的地解析为 `job.failure_delivery > CronConfig.failure_delivery > job.delivery`。
   `CronConfig.failure_delivery` 通过环境变量 `CRON_FAILURE_WEBHOOK_URL` 配置，作为全局安全网防止渠道宕机时告警静默丢失。
   `_maybe_send_failure_alert()` 使用 `dataclasses.replace()` 创建临时 job 副本以替换 delivery 字段
+- **暂停时不受限**：这次收尾写入把任务暂停时（熔断、连续失败超过 `max_retries`、一次性任务终局失败），告警不受 `after` 阈值与冷却限制，立即发出；暂停后任务不再运行，用户只能由这条消息得知（`engine/failure_alerts.py`）
 - **重置**：任务成功执行后清除 `last_failure_alert_at`
 - **前端**：CronRunHistory 提供 FailureDeliveryEditor + FailureAlertEditor，CronJobCard 显示 alert 标签
 
@@ -167,7 +168,7 @@ harness `JobExecutor` 用 `asyncio.wait_for` 包装 `runner.run(job)`，超时�
 两层，各管一段：
 
 - **进程内重试**（`AgentJobRunner._run_with_retries`）：agent 任务一次触发失败后，最多再跑 `max_retries` 次，间隔 `min(retry_backoff_ms × 2^attempt, 30s)` 加抖动；带 `retry_at` 的推迟与熔断不重试。
-- **按计划重试**（harness `JobExecutor._update_after_run`）：整次触发失败后，下次执行时间按失败次数取退避档 `BACKOFF_SCHEDULE_MS`（30s → 1m → 5m → 15m → 60m）；连续失败超过 `max_retries` 次自动暂停。一次性任务只对瞬时错误（限流、过载、网络、超时、5xx）重试。
+- **按计划重试**（harness `JobExecutor._update_after_run`）：整次触发失败后，下次执行时间按失败次数取退避档 `BACKOFF_SCHEDULE_MS`（30s → 1m → 5m → 15m → 60m）；连续失败超过 `max_retries` 次自动暂停。一次性任务只对瞬时错误（限流、过载、网络、超时、5xx）重试；熔断是循环保护的裁决，它的消息引用被拦下的工具与参数、可能带瞬时关键词，所以不按关键词判瞬时、不重试。
 
 `JobResult.retry_safe=False` 的运行两层都不重试，三类原因：已经发起过会改变状态的工具调用（步骤记录里有对 `is_mutating_tool` 判为有副作用的工具，未登记的工具按有副作用计；动态工作流任务以任一步骤开始为准）、用尽了整段时间预算、失败的原因重跑也不会消失。后者由 `adapters/failure_recoverability.is_transient_failure` 判定：agent 流的 `MyrmLLMError` 取它记录的 `error_code`，其余异常现场分类，按 `FailoverReason.recoverability` 只有 TRANSIENT 可重跑（未知原因按 TRANSIENT）；缺少必需设置（`ConfigIncompleteError`）同样不重跑。任务本身被门禁拒绝（没有 prompt、提示词注入扫描、工作流模板执行校验，以及一次性任务的预算用尽）恒不重跑。进程内不再重跑；recurring 任务把下次执行定到下一个常规时间点而不是退避时间，一次性任务直接暂停；失败照常计数，第 `max_retries + 1` 次连续失败时暂停。失败告警不等 `after` 次连续失败，立即发出（冷却仍生效），正文只写任务名、连续失败次数、最后一次错误，以及「不会提前重跑」和下次常规执行时间。没有发起过这类工具调用、失败原因又是瞬时的运行（例如模型服务商限流、过载、网络错误，或只做了搜索、读文件之后的失败）仍按上面两层重试。
 
@@ -249,7 +250,8 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 引擎只陈述事实：每次运行结果、每次被崩溃打断的运行与每次自动暂停都以 `CronNotice` 交给调度器的 `on_notice` 回调（`adapters/setup.py` 接 `notifier.publish_cron_notice`），级别与措辞由本层决定。
 
 - **后端**：`notifier.py` 发布 `CRON_UPDATED`（刷新定时任务视图）与 `SYSTEM_NOTIFICATION`（用户读到的提示），经 SSE 到 WebUI，同一事件也进 Web Push、IM 卡片与语音播报；两条事件都用事件总线默认的回放，服务启动时（崩溃恢复）发出、早于任何客户端连接的通知，之后连上的客户端仍会收到（`tests/core/cron/test_cron_notifier.py`）
-- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED`（含被崩溃打断的运行）→ `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
+- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED`（含被崩溃打断的运行）→ `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED` / `JOB_PAUSED_BY_FAILURE`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
+- **失败暂停**：`JOB_PAUSED_BY_FAILURE` 由运行收尾（`run_closer._update_after_run`）在唯一出口发出，只在这次写入把任务从非暂停改为暂停时发一次，覆盖熔断、连续失败超过 `max_retries`、一次性任务终局失败、算不出下一个槽位这几条暂停路径；用户在运行途中自己暂停的任务不通知；崩溃循环保护的暂停（`recovery.py`）不在其内。它排在这次运行的 `RUN_FAILED` 之后，且与投递渠道无关，投递渠道为 `none` 的任务也会收到；文案不分原因（`cron_notice_failure_message`）
 - **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN）；运行结果的正文是执行输出（失败时是错误）的前 100 个字符
 - **过滤**：`delivery_status=skipped`（SILENT 响应）不发通知
 - **语音**：运行结果沿用 `voice_background_task_done` 类型；任务绑定了聊天时，双工语音在该聊天里播报
