@@ -36,9 +36,9 @@ def test_assistant_tool_calls_become_function_call_items() -> None:
         }
     ]
     converted = chat_messages_to_responses_input(messages)
-    assert converted[1]["type"] == "function_call"
-    assert converted[1]["name"] == "web_search"
-    assert converted[1]["call_id"] == "call_123"
+    assert [item["type"] for item in converted] == ["function_call"]
+    assert converted[0]["name"] == "web_search"
+    assert converted[0]["call_id"] == "call_123"
 
 
 def test_two_turn_tool_history() -> None:
@@ -102,6 +102,63 @@ def test_assistant_reasoning_items_replay_before_message() -> None:
     assert replayed["summary"] == []
     assert converted[2]["role"] == "assistant"
     assert converted[3]["role"] == "user"
+
+
+_REASONING = {"type": "reasoning", "id": "rs_1", "encrypted_content": "enc"}
+
+
+def _tool_call(call_id: str) -> dict[str, object]:
+    return {"id": call_id, "type": "function", "function": {"name": "bash", "arguments": "{}"}}
+
+
+def _shape(items: list[dict[str, object]]) -> list[object]:
+    return [item.get("type") or item["role"] for item in items]
+
+
+def test_a_tool_only_turn_replays_its_reasoning_straight_into_the_function_calls() -> None:
+    messages = [
+        {"role": "user", "content": "go"},
+        {
+            "role": "assistant",
+            "content": "",
+            "responses_reasoning_items": [_REASONING],
+            "tool_calls": [_tool_call("call_1"), _tool_call("call_2")],
+        },
+        {"role": "tool", "tool_call_id": "call_1", "content": "ok"},
+        {"role": "tool", "tool_call_id": "call_2", "content": "ok"},
+    ]
+    converted = chat_messages_to_responses_input(messages)
+    assert _shape(converted) == [
+        "user",
+        "reasoning",
+        "function_call",
+        "function_call",
+        "function_call_output",
+        "function_call_output",
+    ]
+
+
+def test_a_turn_with_text_and_a_tool_call_keeps_the_order_the_model_produced() -> None:
+    messages = [
+        {
+            "role": "assistant",
+            "content": "checking",
+            "responses_reasoning_items": [_REASONING],
+            "tool_calls": [_tool_call("call_1")],
+        }
+    ]
+    assert _shape(chat_messages_to_responses_input(messages)) == ["reasoning", "assistant", "function_call"]
+
+
+def test_assistant_content_that_is_null_or_blank_is_no_message() -> None:
+    for content in (None, "", "  \n", [], [{"type": "output_text", "text": ""}]):
+        messages = [{"role": "assistant", "content": content, "tool_calls": [_tool_call("call_1")]}]
+        assert _shape(chat_messages_to_responses_input(messages)) == ["function_call"]
+
+
+def test_a_turn_with_no_output_replays_no_reasoning() -> None:
+    messages = [{"role": "assistant", "content": "", "responses_reasoning_items": [_REASONING]}]
+    assert chat_messages_to_responses_input(messages) == []
 
 
 def test_tool_call_without_id_gets_deterministic_call_id() -> None:

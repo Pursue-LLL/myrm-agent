@@ -33,11 +33,30 @@ RESPONSES_RULES: tuple[AllowedDiff, ...] = (
         providers=("openai_gpt5", "xai"),
     ),
     AllowedDiff(
+        "responses-no-empty-assistant-message",
+        "An assistant turn without text sends no message item: the baseline library put an empty one between the "
+        "turn's reasoning and its function call, a shape the model never produced (Muse Spark answers a history "
+        "carrying one with stray words or a failed response).",
+        "~",
+        r"/body/input",
+        providers=("openai", "openai_like", "openrouter"),
+        scenarios=("responses_tools",),
+    ),
+    AllowedDiff(
         "responses-input-item-fields",
         "Input items omit the optional `type: message` and the default image `detail`.",
         "-",
         r"/body/input\[\d+\](/type|/content\[\d+\]/detail)",
         providers=("xai",),
+    ),
+    AllowedDiff(
+        "xai-tool-output-string",
+        "A tool result is sent as the plain string the Responses API defines for `function_call_output`; the "
+        "baseline library sent xAI the same text as `input_text` parts.",
+        "~",
+        r"/body/input\[\d+\]/output",
+        providers=("xai",),
+        scenarios=("tool_history", "reasoning_tools"),
     ),
     AllowedDiff(
         "xai-search-tools",

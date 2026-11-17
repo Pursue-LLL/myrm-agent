@@ -107,35 +107,25 @@ def _normalize_tool_arguments(raw_arguments: object) -> str:
     return str(raw_arguments or "{}")
 
 
-def _append_responses_reasoning_items(result: list[dict[str, Any]], msg: dict[str, Any]) -> None:
+def _responses_reasoning_items(msg: dict[str, Any]) -> list[dict[str, Any]]:
     items = msg.get("responses_reasoning_items")
     if not isinstance(items, list):
-        return
+        return []
+    replayed: list[dict[str, Any]] = []
     for item in items:
         if isinstance(item, dict) and item.get("type") == "reasoning":
             entry = dict(item)
             if "summary" not in entry:
                 entry["summary"] = []
-            result.append(entry)
+            replayed.append(entry)
+    return replayed
 
 
-def _append_assistant_message(
-    result: list[dict[str, Any]],
-    msg: dict[str, Any],
-    *,
-    content: object,
-) -> None:
-    _append_responses_reasoning_items(result, msg)
-    role = "assistant"
-    parts, text = _content_to_parts(content, role)
-    if parts:
-        result.append({"role": role, "content": parts})
-    elif text.strip():
-        result.append({"role": role, "content": text})
-
+def _function_call_items(msg: dict[str, Any], *, first_index: int) -> list[dict[str, Any]]:
     tool_calls = msg.get("tool_calls")
     if not isinstance(tool_calls, list):
-        return
+        return []
+    items: list[dict[str, Any]] = []
     for index, tc in enumerate(tool_calls):
         if not isinstance(tc, dict):
             continue
@@ -145,12 +135,11 @@ def _append_assistant_message(
         fn_name = fn.get("name")
         if not isinstance(fn_name, str) or not fn_name.strip():
             continue
+        arguments = _normalize_tool_arguments(fn.get("arguments", "{}"))
         call_id = tc.get("id")
         if not isinstance(call_id, str) or not call_id.strip():
-            arguments = _normalize_tool_arguments(fn.get("arguments", "{}"))
-            call_id = _deterministic_call_id(fn_name, arguments, len(result) + index)
-        arguments = _normalize_tool_arguments(fn.get("arguments", "{}"))
-        result.append(
+            call_id = _deterministic_call_id(fn_name, arguments, first_index + index)
+        items.append(
             {
                 "type": "function_call",
                 "call_id": _clamp_responses_call_id(call_id),
@@ -158,6 +147,25 @@ def _append_assistant_message(
                 "arguments": arguments,
             }
         )
+    return items
+
+
+def _append_assistant_turn(result: list[dict[str, Any]], msg: dict[str, Any]) -> None:
+    """Append one assistant turn as the output items the model produced for it.
+
+    A turn that only called tools has no message item: an empty message between a reasoning item and
+    its function call is a shape the model never produced, and Muse Spark answers a history carrying
+    one with stray words or a failed response. The reasoning items replay only together with the
+    output they preceded, because a reasoning item is valid only when its output follows it.
+    """
+    output: list[dict[str, Any]] = []
+    parts, text = _content_to_parts(msg.get("content") or "", "assistant")
+    if text.strip():
+        output.append({"role": "assistant", "content": parts})
+    output.extend(_function_call_items(msg, first_index=len(result) + len(output)))
+    if output:
+        result.extend(_responses_reasoning_items(msg))
+        result.extend(output)
 
 
 def _append_tool_output(result: list[dict[str, Any]], msg: dict[str, Any]) -> None:
@@ -192,7 +200,7 @@ def chat_messages_to_responses_input(messages: list[dict[str, Any]]) -> list[dic
             _append_tool_output(result, msg)
             continue
         if role == "assistant":
-            _append_assistant_message(result, msg, content=msg.get("content", ""))
+            _append_assistant_turn(result, msg)
             continue
 
         normalized_role = _normalize_role(role)
