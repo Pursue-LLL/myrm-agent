@@ -21,81 +21,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Toggle from '@/components/features/settings/common/Toggle';
 import SettingsSection from '../SettingsSection';
 import HeartbeatLastRun from './HeartbeatLastRun';
+import {
+  buildCronExpr,
+  DAY_PRESETS,
+  getSystemTimezone,
+  HOUR_OPTIONS,
+  INTERVAL_OPTIONS,
+  MINUTE_OPTIONS,
+  parseCronExpr,
+} from './heartbeatSchedule';
 import { enableHeartbeat, disableHeartbeat, getHeartbeatStatus } from '@/services/heartbeat';
 import { isRiskHeldError } from '@/services/riskHeldToast';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 
 import type { HeartbeatEnableRequest, HeartbeatStatus, ScheduleKind } from '@/services/heartbeat';
-
-const INTERVAL_OPTIONS = [
-  { value: '900000', labelKey: '15min' },
-  { value: '1800000', labelKey: '30min' },
-  { value: '3600000', labelKey: '1h' },
-  { value: '7200000', labelKey: '2h' },
-  { value: '14400000', labelKey: '4h' },
-] as const;
-
-const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => ({
-  value: String(i),
-  label: String(i).padStart(2, '0'),
-}));
-
-const MINUTE_OPTIONS = [
-  { value: '0', label: '00' },
-  { value: '15', label: '15' },
-  { value: '30', label: '30' },
-  { value: '45', label: '45' },
-];
-
-type DayPreset = 'everyday' | 'weekdays' | 'weekends';
-
-const DAY_PRESETS: DayPreset[] = ['everyday', 'weekdays', 'weekends'];
-
-function dayPresetToCronDow(preset: DayPreset): string {
-  switch (preset) {
-    case 'everyday':
-      return '*';
-    case 'weekdays':
-      return '1-5';
-    case 'weekends':
-      return '0,6';
-  }
-}
-
-function cronDowToPreset(dow: string): DayPreset {
-  if (dow === '1-5') {
-    return 'weekdays';
-  }
-  if (dow === '0,6' || dow === '6,0') {
-    return 'weekends';
-  }
-  return 'everyday';
-}
-
-function parseCronExpr(expr: string): { hour: string; minute: string; dayPreset: DayPreset } {
-  const parts = expr.split(/\s+/);
-  if (parts.length < 5) {
-    return { hour: '9', minute: '0', dayPreset: 'everyday' };
-  }
-  return {
-    minute: parts[0] ?? '0',
-    hour: parts[1] ?? '9',
-    dayPreset: cronDowToPreset(parts[4] ?? '*'),
-  };
-}
-
-function buildCronExpr(hour: string, minute: string, dayPreset: DayPreset): string {
-  return `${minute} ${hour} * * ${dayPresetToCronDow(dayPreset)}`;
-}
-
-function getSystemTimezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
-  } catch {
-    return 'UTC';
-  }
-}
+import type { DayPreset } from './heartbeatSchedule';
 
 interface RhythmPreset {
   id: 'morning' | 'evening';
