@@ -30,6 +30,7 @@ from .._loader_utils import (
     read_yaml,
     serialize_transcript,
 )
+from ..env_secrets import KEY_FROM_AUTH
 
 _FRONTMATTER_BOUNDARY = "\n---"
 _CLAUDE_MEMORY_INDEX_NAME = "MEMORY.md"
@@ -107,7 +108,7 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                     norm = str(prov).strip().upper()
                     key_name = f"{norm}_API_KEY"
                     if key_name not in existing_names:
-                        existing_env_keys.append({"name": key_name})
+                        existing_env_keys.append({"name": key_name, "source": KEY_FROM_AUTH})
                         existing_names.add(key_name)
                 result["env_keys"] = existing_env_keys
             strategies = auth_data.get("credential_pool_strategies") or auth_data.get("pool_strategies")
@@ -315,6 +316,18 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
     return {"gbrain_pages": pages, "_source": "gbrain"}
 
 
-from .._loaders_claude import load_claude, load_claude_auto_memory  # noqa: E402, F401
-from .._loaders_openclaw import load_openclaw  # noqa: E402, F401
-from .._loaders_pi import load_pi  # noqa: E402, F401
+from .._loaders_claude import load_claude, load_claude_auto_memory  # noqa: E402
+from .._loaders_openclaw import load_openclaw  # noqa: E402
+from .._loaders_pi import load_pi  # noqa: E402
+
+__all__ = [
+    "load_chatgpt",
+    "load_claude",
+    "load_claude_auto_memory",
+    "load_codex",
+    "load_gbrain",
+    "load_hermes",
+    "load_openclaw",
+    "load_pi",
+    "load_plur",
+]

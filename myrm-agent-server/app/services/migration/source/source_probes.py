@@ -63,7 +63,8 @@ def discover_hermes(explicit_home: Path | None) -> ExternalSource | None:
         if path.is_file():
             source.files.append(DiscoveredFile(path=str(path), kind=kind, size_bytes=path.stat().st_size))
             if kind == "env":
-                source.has_api_keys = _detect_api_keys_in_env(path) or source.has_api_keys
+                source.has_importable_keys = _detect_api_keys_in_env(path)
+                source.has_api_keys = source.has_importable_keys or source.has_api_keys
             elif kind == "auth":
                 source.has_api_keys = True
 

@@ -14,24 +14,24 @@
 
 | 文件 | 地位 | 职责 |
 |------|------|------|
-| `test_source_discovery.py` | 核心 | Hermes / Claude Code / OpenClaw / Codex / Pi 的 filesystem discover（confidence、多源共存、edge cases） |
+| `test_source_discovery.py` | 核心 | Hermes / Claude Code / OpenClaw / Codex / Pi 的 filesystem discover（confidence、多源共存、edge cases；`has_importable_keys` 只认 `.env` 里能导入的 key，auth.json 与只含不支持变量的 `.env` 不算） |
 | `test_source_manifest.py` | 核心 | 迁移来源 manifest SSOT（ids、import map、local-scan 封闭集、payload 结构） |
-| `test_source_payload_loader.py` | 核心 | load_source_payload / build_coverage_items |
-| `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分 |
+| `test_source_payload_loader.py` | 核心 | load_source_payload / build_coverage_items；Hermes 的 key 名按来源标记（`.env` 为 env，凭证池为 auth） |
+| `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分；`has_api_keys` / `has_importable_keys` 的判断 |
 | `test_migration_source_coverage.py` | 核心 | import source 映射、auto 路由回归、manifest 封闭集合 |
 | `test_migration_e2e.py` | 核心 | discover → dry-run 端到端（hermes/openclaw） |
 | `test_loaders_openclaw_extended.py` | 辅助 | OpenClaw 多 workspace / sessions loader 分支 |
 | `test_loader_utils.py` | 辅助 | `_loader_utils` 共享函数 |
 | `test_source_model_migrator.py` | 辅助 | Hermes auxiliary + OpenClaw default model；routing 仅 migrated_slots 非空时启用 |
-| `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入 |
-| `test_env_secrets.py` | 辅助 | 迁移预览、payload key 名与导入三处读同一份 `.env` 时对「什么算 key」的结论一致（export 前缀、带注释的引号值、别名、空值、`${…}` 引用、缺文件） |
+| `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入：已有行（id 或 routingProfile 匹配）直接填 key 并带 expected_version、单凭 key 即可用的 provider 才新建行、多端点 provider 记为 needs_endpoint 且不写入、没有对应 provider 的变量按名列出，结果不含值，仅本机/Tauri 可用 |
+| `test_env_secrets.py` | 辅助 | 迁移预览、payload key 名与导入三处读同一份 `.env` 时对「什么算 key」的结论一致（export 前缀、带注释的引号值、别名、空值、`${…}` 引用、缺文件）；没有对应 provider 的 key 变量名按文件顺序列出；payload 的 key 名带来源标记；`MULTI_ENDPOINT_PROVIDERS` 是 `IMPORTABLE_PROVIDERS` 的子集 |
 | `test_import_archive_dry_run.py` | 辅助 | import archive dry-run 编排 |
-| `test_lane_previews.py` | 辅助 | 四车道 preview DTO |
+| `test_lane_previews.py` | 辅助 | 四车道 preview DTO；凭证车道按「无 key / 可 opt-in 导入 / 只能手动填写 / provider 未就绪」给出提示 |
 | `test_instruction_rollback.py` | 辅助 | 指令车道回滚 |
 | `test_skill_binding.py` | 辅助 | 技能审核后 agent 绑定 |
 | `test_workspace_bind_candidates.py` | 辅助 | OpenClaw migration workspace bind 候选路径 + fingerprint |
 | `test_assistant_memory_loaders.py` | 核心 | Claude Code / Codex / PLUR 记忆车道的 probe 与 loader：Claude 自动记忆与指令分离、索引仅作兜底、自定义 `autoMemoryDirectory`、dry-run 导入记忆车道；沙箱 payload 只读取上传根目录内的文件 |
-| `test_pi_migration.py` | 核心 | Pi 来源的 probe 与 loader：AGENTS.md / sessions / skills / auth 的 discover，auth 读成 env key，会话边缘情形（空文件、坏 JSON、非会话头、非消息条目、列表内容块拼接），指令计划 |
+| `test_pi_migration.py` | 核心 | Pi 来源的 probe 与 loader：AGENTS.md / sessions / skills / auth 的 discover，auth 读成 env key 名（来源标记 auth，不算可导入），会话边缘情形（空文件、坏 JSON、非会话头、非消息条目、列表内容块拼接），指令计划 |
 | `test_codex_obsidian_vault_hints.py` | 辅助 | Codex 迁移的 Obsidian vault 线索：从 settings 嵌套键提取 vault 路径、`load_codex` 产出线索、workspace bind 候选、扫描附近 vault |
 | `test_session_lane.py` | 辅助 | `SessionMigrationService` 预览与确认落库（Chat / Message 表）；Claude / Codex / Hermes 转录本加载 |
 | `test_mcp_config_converter.py` | 辅助 | 其他助手的 MCP 配置转换：Hermes stdio 与 tool filters、远程 keepalive 保留与过小忽略、`http` 别名映射 `streamable_http`、显式 `hostSerial` 优先于并行标志、布尔值不覆盖默认、Claude SSE、无效条目跳过；配置 dict 与预览输出 |

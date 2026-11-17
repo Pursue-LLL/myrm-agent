@@ -50,6 +50,7 @@ const source: ExternalSource = {
   memory_count_estimate: 3,
   skill_count: 2,
   has_api_keys: false,
+  can_import_secrets: false,
 };
 
 const response = (sources: ExternalSource[]): DiscoveryResponse => ({

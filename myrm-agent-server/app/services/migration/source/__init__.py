@@ -80,6 +80,7 @@ from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
     has_api_keys,
+    has_importable_keys,
 )
 from app.services.migration.source.source_probes import (
     discover_claude,
@@ -123,6 +124,7 @@ __all__ = [
     "extract_pending_skills",
     "external_source_providers_configured",
     "has_api_keys",
+    "has_importable_keys",
     "import_external_source_secrets",
     "instruction_char_total",
     "is_source_discovery_payload",

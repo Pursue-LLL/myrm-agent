@@ -5,61 +5,85 @@ app.services.migration.env_secrets (POS: which variables count as keys, and how 
 app.services.config.service (POS: 配置核心业务逻辑); myrm_agent_harness BUILTIN_PROVIDER_ROUTE_SEGMENT
 
 [OUTPUT]
-import_external_source_secrets(): merge detected .env keys into providers config; seed minimal provider stubs when none exist
+import_external_source_secrets(): merge detected .env keys into providers config, creating the provider rows a key alone
+makes usable; returns the imported variable names and the names left alone with the reason (SecretsImportResult)
 
 [POS]
 Server business layer — explicit user-consented secret migration from external assistant installs. What counts as a key
 is decided once in ``env_secrets`` (the same list the migration preview uses), so the import brings what the wizard
-announced.
+announced and names everything it did not bring.
 """
 
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from myrm_agent_harness.agent.config import BUILTIN_PROVIDER_ROUTE_SEGMENT
 
 from app.config.deploy_mode import is_local_mode
 from app.services.config.service import config_service
-from app.services.migration.env_secrets import ENV_TO_PROVIDER_ID, IMPORTABLE_PROVIDERS, read_env_secrets
+from app.services.migration.env_secrets import (
+    ENV_TO_PROVIDER_ID,
+    IMPORTABLE_PROVIDERS,
+    MULTI_ENDPOINT_PROVIDERS,
+    read_env_keys,
+)
+
+# Why a key variable was left alone: no provider in Myrm takes it (``unsupported``), or its provider offers several
+# endpoints and the user has no row for it yet, so the key's endpoint is theirs to choose (``needs_endpoint``).
+SkipReason = Literal["unsupported", "needs_endpoint"]
 
 
-def _minimal_provider_stub(provider_id: str, secret_value: str) -> dict[str, object]:
-    stub: dict[str, object] = {
+@dataclass(frozen=True)
+class SkippedKey:
+    """A key variable the import left alone: its name (never its value) and why."""
+
+    name: str
+    reason: SkipReason
+
+
+@dataclass(frozen=True)
+class SecretsImportResult:
+    imported_keys: list[str]
+    skipped_keys: list[SkippedKey]
+
+
+def _find_slot(providers: list[dict[str, object]], provider_id: str) -> dict[str, object] | None:
+    """The row the provider's key belongs in: the one with its id, or one the user routes through it."""
+    return next((row for row in providers if provider_id in (row.get("id"), row.get("routingProfile"))), None)
+
+
+def _new_provider(provider_id: str) -> dict[str, object]:
+    row: dict[str, object] = {
         "id": provider_id,
         "name": IMPORTABLE_PROVIDERS[provider_id],
         "routingProfile": BUILTIN_PROVIDER_ROUTE_SEGMENT[provider_id],
         "isEnabled": True,
-        "apiKeys": [
+    }
+    if provider_id == "vercel_ai_gateway":
+        row["apiUrl"] = "https://ai-gateway.vercel.sh/v1"
+    return row
+
+
+def _put_key(row: dict[str, object], secret: str) -> None:
+    """Make ``secret`` the row's active key (the first one, when it already has some) and enable the row."""
+    api_keys = row.get("apiKeys")
+    if isinstance(api_keys, list) and api_keys and isinstance(api_keys[0], dict):
+        api_keys[0]["key"] = secret
+        api_keys[0]["isActive"] = True
+    else:
+        row["apiKeys"] = [
             {
                 "id": str(uuid.uuid4()),
-                "key": secret_value,
+                "key": secret,
                 "remark": "Imported from external source migration",
                 "isActive": True,
             }
-        ],
-    }
-    if provider_id == "vercel_ai_gateway":
-        stub["apiUrl"] = "https://ai-gateway.vercel.sh/v1"
-    return stub
-
-
-def _seed_provider_stubs(
-    providers_raw: list[object],
-    secrets: dict[str, str],
-) -> list[dict[str, object]]:
-    """Append minimal provider rows for env keys that have no matching slot."""
-
-    typed: list[dict[str, object]] = [provider for provider in providers_raw if isinstance(provider, dict)]
-    existing_ids = {str(provider.get("id", "")).strip() for provider in typed if str(provider.get("id", "")).strip()}
-    for env_name, secret_value in secrets.items():
-        provider_id = ENV_TO_PROVIDER_ID[env_name]
-        if provider_id in existing_ids:
-            continue
-        typed.append(_minimal_provider_stub(provider_id, secret_value))
-        existing_ids.add(provider_id)
-    return typed
+        ]
+    row["isEnabled"] = True
 
 
 async def external_source_providers_configured() -> bool:
@@ -80,8 +104,8 @@ async def external_source_providers_configured() -> bool:
     return False
 
 
-async def import_external_source_secrets(root: Path) -> dict[str, object]:
-    """Read competitor .env and merge allowed API keys into providers config."""
+async def import_external_source_secrets(root: Path) -> SecretsImportResult:
+    """Read the competitor ``.env`` and merge its importable API keys into the providers config."""
 
     if not is_local_mode():
         msg = "Secret import requires local or Tauri deployment mode"
@@ -89,66 +113,44 @@ async def import_external_source_secrets(root: Path) -> dict[str, object]:
 
     env_path = root / ".env"
     if not env_path.is_file():
-        return {"imported_keys": [], "skipped_keys": [], "message": "No .env file found"}
+        return SecretsImportResult(imported_keys=[], skipped_keys=[])
 
-    secrets = read_env_secrets(env_path)
-    if not secrets:
-        return {"imported_keys": [], "skipped_keys": [], "message": "No importable API keys in .env"}
+    keys = read_env_keys(env_path)
+    unsupported = [SkippedKey(name, "unsupported") for name in keys.unsupported]
+    if not keys.importable:
+        return SecretsImportResult(imported_keys=[], skipped_keys=unsupported)
 
     record = await config_service.get("providers")
     config_version: str | None = None
-    if record is None:
-        config_value: dict[str, object] = {"providers": []}
-    else:
+    config_value: dict[str, object] = {"providers": []}
+    if record is not None:
         config_version = record.version
-        raw_value = record.value
-        if not isinstance(raw_value, dict):
-            return {"imported_keys": [], "skipped_keys": list(secrets.keys()), "message": "Invalid providers config"}
-        config_value = raw_value
+        if not isinstance(record.value, dict):
+            msg = "Providers config is not an object"
+            raise ValueError(msg)
+        config_value = record.value
 
     providers_raw = config_value.get("providers")
-    if not isinstance(providers_raw, list):
-        providers_raw = []
-
-    seeded = _seed_provider_stubs(providers_raw, secrets)
-    config_value["providers"] = seeded
-    providers_raw = seeded
+    providers: list[dict[str, object]] = (
+        [row for row in providers_raw if isinstance(row, dict)] if isinstance(providers_raw, list) else []
+    )
 
     imported: list[str] = []
-    skipped: list[str] = []
-
-    for env_name, secret_value in secrets.items():
+    needs_endpoint: list[SkippedKey] = []
+    for env_name, secret in keys.importable.items():
         provider_id = ENV_TO_PROVIDER_ID[env_name]
-        matched = False
-        for provider in providers_raw:
-            if not isinstance(provider, dict):
+        row = _find_slot(providers, provider_id)
+        if row is None:
+            if provider_id in MULTI_ENDPOINT_PROVIDERS:
+                needs_endpoint.append(SkippedKey(env_name, "needs_endpoint"))
                 continue
-            if provider.get("id") != provider_id and provider.get("routingProfile") != provider_id:
-                continue
-            matched = True
-            api_keys = provider.get("apiKeys")
-            if not isinstance(api_keys, list):
-                api_keys = []
-            if api_keys and isinstance(api_keys[0], dict):
-                api_keys[0]["key"] = secret_value
-                api_keys[0]["isActive"] = True
-            else:
-                api_keys = [
-                    {
-                        "id": str(uuid.uuid4()),
-                        "key": secret_value,
-                        "remark": "Imported from external source migration",
-                        "isActive": True,
-                    }
-                ]
-            provider["apiKeys"] = api_keys
-            provider["isEnabled"] = True
-            imported.append(env_name)
-            break
-        if not matched:
-            skipped.append(env_name)
+            row = _new_provider(provider_id)
+            providers.append(row)
+        _put_key(row, secret)
+        imported.append(env_name)
 
     if imported:
+        config_value["providers"] = providers
         await config_service.set(
             "providers",
             config_value,
@@ -156,12 +158,4 @@ async def import_external_source_secrets(root: Path) -> dict[str, object]:
             expected_version=config_version,
         )
 
-    message = f"Imported {len(imported)} API key(s)" if imported else "No matching providers to update"
-    if imported and config_version is None:
-        message = f"Created provider slots and imported {len(imported)} API key(s)"
-
-    return {
-        "imported_keys": imported,
-        "skipped_keys": skipped,
-        "message": message,
-    }
+    return SecretsImportResult(imported_keys=imported, skipped_keys=[*needs_endpoint, *unsupported])

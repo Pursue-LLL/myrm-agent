@@ -86,6 +86,7 @@ describe('migration wizard preview group labels', () => {
           memory_count_estimate: 2,
           skill_count: 1,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={dryRun}
         importing={false}

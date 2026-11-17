@@ -109,10 +109,15 @@ def build_lane_previews(
     memory_status: str,
     skill_count: int,
     has_api_keys: bool,
+    secrets_importable: bool,
     providers_ready: bool,
     include_episodic: bool,
 ) -> list[MigrationLanePreview]:
-    """Build four-lane preview rows for the GUI."""
+    """Build four-lane preview rows for the GUI.
+
+    ``secrets_importable`` is whether the opt-in key import can bring this source's keys; other keys it holds are left
+    to manual entry.
+    """
 
     persona_len = len(instruction.agent_persona.strip())
     global_len = len(instruction.global_supplement.strip())
@@ -153,8 +158,12 @@ def build_lane_previews(
     if has_api_keys:
         if providers_ready:
             credential_status = "manual"
-            credential_detail = "API keys available (opt-in import)"
-            credential_parts = [LaneDetailPart("credential_opt_in")]
+            if secrets_importable:
+                credential_detail = "API keys available (opt-in import)"
+                credential_parts = [LaneDetailPart("credential_opt_in")]
+            else:
+                credential_detail = "API keys found — enter them in provider settings"
+                credential_parts = [LaneDetailPart("credential_manual")]
         else:
             credential_status = "critical"
             credential_detail = "API keys in .env but no model providers configured — set up providers first"

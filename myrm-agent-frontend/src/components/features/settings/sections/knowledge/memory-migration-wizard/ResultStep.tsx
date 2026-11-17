@@ -13,6 +13,7 @@ import { isLocalMode } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 import { recheckImportReadiness } from '@/services/memory/archive';
 import type { MemoryImportConfirmResponse, MemoryImportReadiness } from '@/services/memory/archive';
+import type { SecretsImportResponse } from '@/services/migrationDiscovery';
 import type { SkillMigrationSubmitResponse } from '@/services/skill/migration';
 import useChatStore from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
@@ -25,6 +26,7 @@ import {
   IMPORT_READINESS_STYLES,
 } from '../MigrationWizardReadiness';
 import MigrationVaultBindPanel from '../MigrationVaultBindPanel';
+import { SecretsImportNotice } from './SecretsImportNotice';
 import type { TranslationFn } from './wizardShared';
 
 /** The chat start page, with the imported agent applied by the chat window's URL entry. */
@@ -36,7 +38,7 @@ export function ResultStep({
   result,
   skillSubmitResult,
   skillSubmitFailed,
-  secretsImportMessage,
+  secretsImport,
   rollingBack,
   onRollback,
   onRetrySkillSubmit,
@@ -49,7 +51,7 @@ export function ResultStep({
   result: MemoryImportConfirmResponse;
   skillSubmitResult: SkillMigrationSubmitResponse | null;
   skillSubmitFailed: boolean;
-  secretsImportMessage: string | null;
+  secretsImport: SecretsImportResponse | null;
   rollingBack: boolean;
   onRollback: () => void;
   onRetrySkillSubmit: () => void;
@@ -155,7 +157,7 @@ export function ResultStep({
         {skillSubmitFailed && (
           <p className="text-sm text-amber-600 dark:text-amber-400">{t('result.skillsSubmitFailed')}</p>
         )}
-        {secretsImportMessage && <p className="text-sm text-muted-foreground">{secretsImportMessage}</p>}
+        <SecretsImportNotice result={secretsImport} t={t} />
         {result.agent_created && result.target_agent_id && (
           <p className="text-sm text-muted-foreground">{t('result.agentCreated', { id: result.target_agent_id })}</p>
         )}

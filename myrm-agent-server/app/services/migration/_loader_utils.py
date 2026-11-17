@@ -18,7 +18,7 @@ from pathlib import Path
 
 import yaml
 
-from app.services.migration.env_secrets import read_env_secrets
+from app.services.migration.env_secrets import KEY_FROM_ENV, read_env_keys
 
 _MEMORY_BULLET_PATTERN = re.compile(r"^[-*]\s+(.+)$", re.MULTILINE)
 
@@ -60,8 +60,8 @@ def find_file(root: Path, *relative_parts: str) -> Path | None:
 
 
 def extract_env_key_names(env_path: Path) -> list[dict[str, str]]:
-    """The names of the provider keys a ``.env`` holds, by the grammar and list the import itself uses."""
-    return [{"name": name} for name in read_env_secrets(env_path)]
+    """The names of the provider keys a ``.env`` holds that the import reads, by the grammar and list it uses."""
+    return [{"name": name, "source": KEY_FROM_ENV} for name in read_env_keys(env_path).importable]
 
 
 def load_skill_directories(skills_dir: Path, *, source: str) -> list[dict[str, object]]:

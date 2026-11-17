@@ -142,7 +142,9 @@ export function PreviewStep({
 
       {dryRun.providers_configured === false && source.has_api_keys && (
         <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-xs text-destructive-text">
-          <p>{t('preview.providersMissingHint')}</p>
+          <p>
+            {t(source.can_import_secrets ? 'preview.providersMissingImportableHint' : 'preview.providersMissingHint')}
+          </p>
           <Button asChild size="sm" variant="outline" className="h-7 text-xs">
             <Link href="/settings/models">{t('preview.configureProvidersLink')}</Link>
           </Button>
@@ -218,7 +220,7 @@ export function PreviewStep({
           </Button>
         </div>
 
-        {source.has_api_keys && (
+        {source.can_import_secrets && (
           <label className="flex cursor-pointer items-start gap-2 text-xs">
             <input
               type="checkbox"

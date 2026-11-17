@@ -178,6 +178,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={dryRun}
         importing={false}
@@ -259,6 +260,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={withMappings}
         importing={false}
@@ -313,6 +315,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={withLanes}
         importing={false}
@@ -360,6 +363,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: true,
+          can_import_secrets: false,
         }}
         dryRun={withCredentialPool}
         importing={false}
@@ -408,6 +412,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 1,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={withPluralLanes}
         importing={false}
@@ -448,6 +453,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={withUnknownPart}
         importing={false}
@@ -498,6 +504,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={withSessions}
         importing={false}
@@ -532,6 +539,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 2,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={dryRun}
         importing={false}
@@ -561,6 +569,7 @@ describe('migration wizard preview copy', () => {
           memory_count_estimate: 4,
           skill_count: 3,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={{
           ...dryRun,

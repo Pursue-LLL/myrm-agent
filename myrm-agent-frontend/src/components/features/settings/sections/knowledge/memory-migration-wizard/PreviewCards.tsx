@@ -27,6 +27,7 @@ export const LANE_DETAIL_CODES = [
   'skill_pending',
   'skill_none',
   'credential_opt_in',
+  'credential_manual',
   'credential_no_providers',
   'credential_none',
   'cron_importable',

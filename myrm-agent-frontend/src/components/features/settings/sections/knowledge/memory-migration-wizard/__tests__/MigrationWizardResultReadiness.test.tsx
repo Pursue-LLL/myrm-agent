@@ -112,7 +112,7 @@ describe('ResultStep readiness gating', () => {
         }}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -141,7 +141,7 @@ describe('ResultStep readiness gating', () => {
         result={baseResult}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -166,7 +166,7 @@ describe('ResultStep readiness gating', () => {
         result={baseResult}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -195,7 +195,7 @@ describe('ResultStep readiness gating', () => {
         result={{ ...baseResult, target_agent_id: 'my agent&1' }}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -218,7 +218,7 @@ describe('ResultStep readiness gating', () => {
         result={baseResult}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -253,7 +253,7 @@ describe('ResultStep readiness gating', () => {
         }}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -281,7 +281,7 @@ describe('ResultStep conversation search opt-in', () => {
         result={baseResult}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -306,7 +306,7 @@ describe('ResultStep conversation search opt-in', () => {
         result={baseResult}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -325,7 +325,7 @@ describe('ResultStep conversation search opt-in', () => {
         result={baseResult}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -367,7 +367,7 @@ describe('ResultStep conversation search opt-in', () => {
         }}
         skillSubmitResult={null}
         skillSubmitFailed={false}
-        secretsImportMessage={null}
+        secretsImport={null}
         rollingBack={false}
         onRollback={() => undefined}
         onRetrySkillSubmit={() => undefined}
@@ -426,6 +426,7 @@ describe('PreviewStep trusted source disclosure gate', () => {
           memory_count_estimate: 5,
           skill_count: 2,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={dummyDryRun}
         importing={false}
@@ -465,6 +466,7 @@ describe('PreviewStep trusted source disclosure gate', () => {
           memory_count_estimate: 3,
           skill_count: 0,
           has_api_keys: false,
+          can_import_secrets: false,
         }}
         dryRun={{
           ...dummyDryRun,

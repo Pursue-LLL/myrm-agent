@@ -31,7 +31,7 @@ from app.services.migration.source.source_manifest import (
     migration_source_manifest_authoritative_for_ids,
     migration_source_manifest_payload,
 )
-from app.services.migration.source.source_secrets_importer import import_external_source_secrets
+from app.services.migration.source.source_secrets_importer import SkipReason, import_external_source_secrets
 
 router = APIRouter(prefix="/migration", tags=["migration"])
 logger = logging.getLogger(__name__)
@@ -51,6 +51,8 @@ class ExternalSourceResponse(BaseModel):
     memory_count_estimate: int = 0
     skill_count: int = 0
     has_api_keys: bool = False
+    # The opt-in key import can bring this source's keys: they sit in its ``.env`` and the deployment allows the import.
+    can_import_secrets: bool = False
 
 
 class MigrationSourceManifestItemResponse(BaseModel):
@@ -78,6 +80,7 @@ def _to_response(source: ExternalSource) -> ExternalSourceResponse:
         memory_count_estimate=source.memory_count_estimate,
         skill_count=source.skill_count,
         has_api_keys=source.has_api_keys,
+        can_import_secrets=source.has_importable_keys and is_local_mode(),
     )
 
 
@@ -105,10 +108,16 @@ class SecretsImportRequest(BaseModel):
     competitor: str = Field(..., min_length=1, description="Source identifier")
 
 
+class SkippedKeyResponse(BaseModel):
+    """A key variable the import left alone: its name (never its value) and why."""
+
+    name: str
+    reason: SkipReason
+
+
 class SecretsImportResponse(BaseModel):
     imported_keys: list[str]
-    skipped_keys: list[str]
-    message: str
+    skipped_keys: list[SkippedKeyResponse]
 
 
 @router.post("/secrets/import", response_model=SecretsImportResponse)
@@ -124,9 +133,8 @@ async def import_external_source_secrets_endpoint(body: SecretsImportRequest) ->
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return SecretsImportResponse(
-        imported_keys=[str(k) for k in result.get("imported_keys", []) if isinstance(k, str)],
-        skipped_keys=[str(k) for k in result.get("skipped_keys", []) if isinstance(k, str)],
-        message=str(result.get("message", "")),
+        imported_keys=result.imported_keys,
+        skipped_keys=[SkippedKeyResponse(name=key.name, reason=key.reason) for key in result.skipped_keys],
     )
 
 

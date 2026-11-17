@@ -24,6 +24,7 @@ from ._loader_utils import (
     read_json,
     read_text,
 )
+from .env_secrets import KEY_FROM_AUTH
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,7 @@ def _extract_pi_auth_keys(auth_path: Path) -> list[dict[str, str]]:
     for provider_id in sorted(data):
         normalized = provider_id.strip().lower()
         if normalized in _PI_AUTH_KEY_PROVIDERS:
-            keys.append({"name": f"{normalized.upper()}_API_KEY"})
+            keys.append({"name": f"{normalized.upper()}_API_KEY", "source": KEY_FROM_AUTH})
     return keys
 
 

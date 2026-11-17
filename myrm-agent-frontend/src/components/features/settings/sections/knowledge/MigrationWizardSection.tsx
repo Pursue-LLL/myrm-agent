@@ -32,6 +32,7 @@ import {
   PASTED_MEMORY_IMPORT_SOURCE,
   type ExternalSource,
   type DiscoveryResponse,
+  type SecretsImportResponse,
 } from '@/services/migrationDiscovery';
 import {
   confirmImportMemories,
@@ -82,7 +83,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   const [importResult, setImportResult] = useState<MemoryImportConfirmResponse | null>(null);
   const [skillSubmitResult, setSkillSubmitResult] = useState<SkillMigrationSubmitResponse | null>(null);
   const [skillSubmitFailed, setSkillSubmitFailed] = useState(false);
-  const [secretsImportMessage, setSecretsImportMessage] = useState<string | null>(null);
+  const [secretsImport, setSecretsImport] = useState<SecretsImportResponse | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
   const [retryingSkills, setRetryingSkills] = useState(false);
   const [workspaceBindCandidates, setWorkspaceBindCandidates] = useState<MigrationWorkspaceBindCandidate[]>([]);
@@ -250,6 +251,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         memory_count_estimate: 0,
         skill_count: 0,
         has_api_keys: false,
+        can_import_secrets: false,
       };
       setSelectedSource(pastedSource);
       setDryRunResult(result);
@@ -268,7 +270,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     }
     setImporting(true);
     setSkillSubmitFailed(false);
-    setSecretsImportMessage(null);
+    setSecretsImport(null);
     try {
       const result = await confirmImportMemories(dryRunResult.dry_run_id, true, importSessions);
       setImportResult(result);
@@ -287,13 +289,13 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         setSkillSubmitResult(null);
       }
 
-      if (importSecrets && selectedSource.has_api_keys) {
+      if (importSecrets && selectedSource.can_import_secrets) {
         try {
           const secretsResult = await importMigrationSecrets(selectedSource.competitor, selectedSource.root);
-          setSecretsImportMessage(secretsResult.message);
+          setSecretsImport(secretsResult);
           if (secretsResult.imported_keys.length > 0) {
             toast.success(t('secretsImportSuccess', { count: secretsResult.imported_keys.length }));
-          } else if ((secretsResult.skipped_keys?.length ?? 0) > 0) {
+          } else if (secretsResult.skipped_keys.length > 0) {
             toast.warning(t('secretsImportPartialSkip'));
           }
         } catch {
@@ -380,7 +382,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       setImportResult(null);
       setSkillSubmitResult(null);
       setSkillSubmitFailed(false);
-      setSecretsImportMessage(null);
+      setSecretsImport(null);
       void handleScan(true);
     } catch {
       toast.error(t('rollbackFailed'));
@@ -396,7 +398,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     setSelectedSource(null);
     setSkillSubmitResult(null);
     setSkillSubmitFailed(false);
-    setSecretsImportMessage(null);
+    setSecretsImport(null);
     setImportSecrets(false);
   }, []);
 
@@ -445,7 +447,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           result={importResult}
           skillSubmitResult={skillSubmitResult}
           skillSubmitFailed={skillSubmitFailed}
-          secretsImportMessage={secretsImportMessage}
+          secretsImport={secretsImport}
           rollingBack={rollingBack}
           onRollback={handleRollback}
           onRetrySkillSubmit={handleRetrySkillSubmit}

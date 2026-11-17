@@ -113,6 +113,26 @@ class TestCompetitorPayloadLoader:
         coverage = build_coverage_items(loaded)
         assert any(row["key"] == "credential_pool" and row["status"] == "ready" for row in coverage)
 
+    def test_hermes_key_names_say_whether_the_import_can_read_them(
+        self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        (hermes_fixture / ".env").write_text("OPENAI_API_KEY=sk-env\n", encoding="utf-8")
+        (hermes_fixture / "auth.json").write_text(
+            json.dumps({"credential_pool": {"openai": ["sk-pool"], "anthropic": ["sk-ant-pool"]}}),
+            encoding="utf-8",
+        )
+        loaded = load_source_payload(
+            {"competitor": "hermes", "root": str(hermes_fixture), "files": []},
+        )
+        assert loaded["env_keys"] == [
+            {"name": "OPENAI_API_KEY", "source": "env"},
+            {"name": "ANTHROPIC_API_KEY", "source": "auth"},
+        ]
+
     def test_load_openclaw(self, openclaw_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
             "app.services.migration.source.source_payload_loader.is_local_mode",
