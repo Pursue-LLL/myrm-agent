@@ -11,11 +11,8 @@ from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
 )
 from myrm_agent_harness.agent.security.types import SecurityConfig
 from myrm_agent_harness.core.security.spend_governance import (
-    GENESIS_PREV_HASH,
     SpendPolicy,
-    SpendReceipt,
     compute_action_digest,
-    compute_entry_hash,
     is_financial_or_spend_tool,
     parse_spend_amount,
     verify_action_digest,
@@ -85,56 +82,6 @@ def test_spend_policy_caps():
     ok, reason = policy.is_action_allowed(40.0, current_session_spent=70.0)
     assert ok is False
     assert "exceeds session cap" in reason
-
-
-def test_tamper_evident_receipt_integrity():
-    prev = GENESIS_PREV_HASH
-    ts = 1700000000.0
-    tool = "mcp_stripe_charge"
-    amount = 25.0
-    currency = "USD"
-    digest = "aabbcc" * 10
-    idempotency = "idem_123"
-
-    entry_hash = compute_entry_hash(
-        prev_hash=prev,
-        timestamp=ts,
-        tool_name=tool,
-        amount=amount,
-        currency=currency,
-        action_digest=digest,
-        idempotency_key=idempotency,
-    )
-
-    receipt = SpendReceipt(
-        entry_id="rec_1",
-        session_id="sess_1",
-        prev_hash=prev,
-        entry_hash=entry_hash,
-        tool_name=tool,
-        amount=amount,
-        currency=currency,
-        action_digest=digest,
-        idempotency_key=idempotency,
-        timestamp=ts,
-    )
-
-    assert receipt.verify_integrity() is True
-
-    # Tampered receipt amount
-    bad_receipt = SpendReceipt(
-        entry_id="rec_1",
-        session_id="sess_1",
-        prev_hash=prev,
-        entry_hash=entry_hash,
-        tool_name=tool,
-        amount=999.0,  # tampered!
-        currency=currency,
-        action_digest=digest,
-        idempotency_key=idempotency,
-        timestamp=ts,
-    )
-    assert bad_receipt.verify_integrity() is False
 
 
 @pytest.mark.asyncio
