@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from copy import deepcopy
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ import pytest
 from myrm_agent_harness.observability.tracing import TracingContext
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
+    CronRunRecord,
     DeliveryConfig,
     DeliveryStatus,
     JobResult,
@@ -17,6 +19,19 @@ from myrm_agent_harness.toolkits.cron.types import (
     RunStatus,
 )
 from tests.support.cron_executor_mocks import make_executor, make_job
+
+
+def _record_saved_runs(store: AsyncMock) -> list[CronRunRecord]:
+    """Make the mocked store keep every run it is asked to save and hand the record back, as a real store does."""
+    saved_runs: list[CronRunRecord] = []
+
+    def save_run(record: CronRunRecord) -> CronRunRecord:
+        saved_runs.append(record)
+        return record
+
+    store.save_run = AsyncMock(side_effect=save_run)
+    return saved_runs
+
 
 # ---------------------------------------------------------------------------
 # TracingContext injection in run_and_record
@@ -187,8 +202,7 @@ class TestRunAndRecordTracing:
         runner = AsyncMock()
         runner.run = AsyncMock(return_value=JobResult(success=False, error="Webhook returned 502: Bad Gateway"))
 
-        saved_runs = []
-        store.save_run = AsyncMock(side_effect=lambda r: saved_runs.append(r) or r)
+        saved_runs = _record_saved_runs(store)
 
         await executor.run_and_record(job, runner)
 
@@ -198,6 +212,7 @@ class TestRunAndRecordTracing:
         assert run_record.metadata is not None
         assert "connector_failure" in run_record.metadata
         conn_fail = run_record.metadata["connector_failure"]
+        assert isinstance(conn_fail, dict)
         assert conn_fail["category"] == "http_server_error"
         assert "secret99" not in conn_fail["target"]
         assert "502" in conn_fail["message"]
@@ -218,17 +233,18 @@ class TestRunAndRecordTracing:
         executor, store, delivery = make_executor()
         job = make_job(delivery=DeliveryConfig(channel="webhook", target="https://api.example.com/webhook"))
         delivery.deliver = AsyncMock(side_effect=RuntimeError("Webhook returned 502: Bad Gateway"))
-        original = {key: dict(value) for key, value in runner_metadata.items()}
+        original = deepcopy(runner_metadata)
         runner = AsyncMock()
         runner.run = AsyncMock(return_value=JobResult(success=True, output="ok", metadata=runner_metadata))
-        saved_runs = []
-        store.save_run = AsyncMock(side_effect=lambda r: saved_runs.append(r) or r)
+        saved_runs = _record_saved_runs(store)
 
         await executor.run_and_record(job, runner)
 
         metadata = saved_runs[0].metadata
         assert metadata is not None
-        assert metadata["connector_failure"]["category"] == expected_category
+        conn_fail = metadata["connector_failure"]
+        assert isinstance(conn_fail, dict)
+        assert conn_fail["category"] == expected_category
         assert {key: metadata[key] for key in runner_metadata if key != "connector_failure"} == {
             key: value for key, value in original.items() if key != "connector_failure"
         }
@@ -248,8 +264,7 @@ class TestRunAndRecordTracing:
             )
         )
 
-        saved_runs = []
-        store.save_run = AsyncMock(side_effect=lambda r: saved_runs.append(r) or r)
+        saved_runs = _record_saved_runs(store)
 
         await executor.run_and_record(job, runner)
 

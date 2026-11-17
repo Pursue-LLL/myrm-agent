@@ -7,6 +7,7 @@ accepts, and callers typed against the port would fail only at run time. These c
 from __future__ import annotations
 
 import inspect
+from collections.abc import Callable
 
 import pytest
 
@@ -18,7 +19,7 @@ PORT_METHODS = sorted(
 )
 
 
-def _parameters(function: object) -> dict[str, inspect.Parameter]:
+def _parameters(function: Callable[..., object]) -> dict[str, inspect.Parameter]:
     return {name: param for name, param in inspect.signature(function).parameters.items() if name != "self"}
 
 
