@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import sqlite3
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -57,6 +58,23 @@ def _transaction_state(conn: Connection) -> _TransactionState | None:
     """The open transaction's state, or ``None`` when the engine doesn't run the policy."""
     state = conn.info.get(_TRANSACTION_STATE_KEY)
     return state if isinstance(state, _TransactionState) else None
+
+
+class _RollbackBeforeCloseConnection(sqlite3.Connection):
+    """A connection that ends its transaction before it closes.
+
+    ``sqlite3_close_v2`` keeps a connection that still has an unfinished statement as a zombie, with its open
+    transaction (a write transaction's WAL write lock included), until that statement's cursor is garbage-collected.
+    SQLAlchemy discards a connection by closing it whenever a task is cancelled inside a statement, and the frames
+    of the cancelled task keep that cursor alive for an unbounded time: every other writer waits out its busy
+    timeout meanwhile. Rolling back first releases the lock whether or not a statement is left.
+    """
+
+    def close(self) -> None:
+        # Rolling back a connection that is already closed raises, and closing it twice is harmless.
+        with suppress(sqlite3.Error):
+            self.rollback()
+        super().close()
 
 
 def get_sqlite_busy_timeout_ms() -> int:
@@ -228,7 +246,7 @@ def create_engine() -> AsyncEngine:
         url,
         echo=echo,
         future=True,
-        connect_args={"check_same_thread": False},
+        connect_args={"check_same_thread": False, "factory": _RollbackBeforeCloseConnection},
         pool_size=pool_size,
         max_overflow=settings.database.sqlite_pool_max_overflow,
     )
