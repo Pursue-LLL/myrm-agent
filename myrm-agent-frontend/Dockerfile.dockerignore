@@ -1,6 +1,6 @@
-# Host state that git ignores stays out of the build context: dependencies, build and test output,
-# generated files and env files. Dependencies come from the deps stage, and `bun run build`
-# regenerates locales/namespaces, public/sw.js and .next.
+# The host's dependencies, build and test output, generated files and env files stay out of the
+# build context. Dependencies come from the deps stage, and `bun run build` regenerates
+# locales/namespaces, public/sw.js and .next.
 #
 # BuildKit applies this file to myrm-agent-frontend/Dockerfile. The context is the myrm-agent/ root
 # that the backend image shares, so the frontend rules carry the myrm-agent-frontend/ prefix.
