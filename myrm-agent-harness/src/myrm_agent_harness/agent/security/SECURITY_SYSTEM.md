@@ -763,7 +763,7 @@ class AllowlistEntry:
 
 - 连续拒绝达到 3 次（`_CONSECUTIVE_THRESHOLD`）：引导升级为"auto-mode 暂停，后续动作都需人工批准，停下来向用户解释"。任何一次被放行的操作都会让连续计数清零。
 - 累计拒绝达到 20 次（`_TOTAL_THRESHOLD`）：同样升级；之后一次显式批准把累计降到阈值以下以解除，平时每连续 3 次安全执行抵消 1 次累计拒绝。
-- 任一阈值被突破期间 auto-mode 真的被暂停（`batch_processor/decide.py`）：auto mode 下原本 ALLOW 的调用升级为 ASK（审计 `AUTO_MODE_SUSPENDED_ALLOW_ESCALATED`，审批卡标为高风险并隐藏"始终允许"），LLM 安全复核也不再自动放行。定时运行除外：没有人能解除暂停，且每个 ASK 本就由作业声明裁决，所以不因拒绝累积而暂停。
+- 任一阈值被突破期间 auto-mode 真的被暂停（`batch_processor/decide/allow_gates.py`、`decide/hitl.py`）：auto mode 下原本 ALLOW 的调用升级为 ASK（审计 `AUTO_MODE_SUSPENDED_ALLOW_ESCALATED`，审批卡标为高风险并隐藏"始终允许"），LLM 安全复核也不再自动放行。定时运行除外：没有人能解除暂停，且每个 ASK 本就由作业声明裁决，所以不因拒绝累积而暂停。
 - 定时运行（作业本身与它委派的子智能体：`SecurityConfig.is_cron` 为真，或 session key 以 `cron:` 开头）没有人可问，升级文案改为"不要重试被拒动作，先完成不依赖它们的部分，并在最终回复里说明被拦下的动作与原因"。
 - 计数按会话键隔离，进程内注册表上限 10000 个会话，超限淘汰最早的一个。
 
@@ -779,7 +779,7 @@ class AllowlistEntry:
 
 审批分两个 graph 节点（见 `HITL_SYSTEM.md`）：`ApprovalEvaluationMiddleware`（`middlewares/approval/evaluation/`）对一次模型响应里的调用只判定一次——审核模型、拒绝计数、限流这些副作用都发生在这里，结论存入私有状态键 `approval_evaluation`；`ToolApprovalMiddleware` 只读这份结论并向用户发问。用户答复后 LangGraph 会从发问节点的第一行重跑，副作用因此不会重复。
 
-`batch_processor.evaluate_tool_batch`（`batch_processor/{core,decide,yolo}.py`）对每个调用的判定顺序：
+`batch_processor.evaluate_tool_batch`（`batch_processor/{core,yolo}.py` 与 `decide/` 子包，阶段划分见 `batch_processor/decide/_ARCH.md`）对每个调用的判定顺序：
 
 ```
 0. YOLO 生效、组织策略允许该模型且不是定时运行 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝）；定时运行不走此分支

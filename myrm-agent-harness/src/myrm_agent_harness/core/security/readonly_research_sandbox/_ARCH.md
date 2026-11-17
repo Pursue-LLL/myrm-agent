@@ -16,4 +16,4 @@ Read-only research lease. While a session holds an active lease, the approval mi
 ## Key Dependencies
 
 - `core/security/tool_registry` — safety metadata, used to word the denial of destructive tools.
-- Called by the `agent/middlewares/approval/batch_processor/` package (`decide.py`, and `yolo.py` for YOLO batches), which asks `evaluate_tool` before every dispatch.
+- Called by the `agent/middlewares/approval/batch_processor/` package (`decide/preflight.py`, and `yolo.py` for YOLO batches), which asks `evaluate_tool` before every dispatch.
