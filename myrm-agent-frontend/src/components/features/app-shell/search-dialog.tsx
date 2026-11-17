@@ -337,6 +337,10 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
                     tabIndex={0}
                     onClick={() => handleResultClick(item.chat_id, String(item.id))}
                     onKeyDown={(event) => {
+                      // Enter and Space on the cite button inside the card are that button's, not the card's.
+                      if (event.target !== event.currentTarget) {
+                        return;
+                      }
                       if (event.key === 'Enter' || event.key === ' ') {
                         event.preventDefault();
                         handleResultClick(item.chat_id, String(item.id));

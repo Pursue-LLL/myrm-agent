@@ -196,6 +196,22 @@ describe('SearchDialog telling its host that a result was taken', () => {
     expect(mockOnPick).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { name: 'Enter', key: 'Enter' },
+    { name: 'Space', key: ' ' },
+  ])('leaves $name on the cite button to the button instead of opening the chat', async ({ key }) => {
+    await searchFor(otherChatItem);
+
+    // A keydown the card prevents is also one the browser no longer turns into the button's click.
+    const leftToTheButton = fireEvent.keyDown(screen.getAllByRole('button', { name: 'search.citeToComposer' })[0], {
+      key,
+    });
+
+    expect(leftToTheButton).toBe(true);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockOnPick).not.toHaveBeenCalled();
+  });
+
   it('tells the host after a result of another chat is cited into the composer', async () => {
     await searchFor(otherChatItem);
 
