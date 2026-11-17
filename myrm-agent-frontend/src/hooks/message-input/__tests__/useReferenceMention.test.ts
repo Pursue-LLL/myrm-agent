@@ -50,6 +50,7 @@ vi.mock('@/store/useChatStore', () => {
 
 import { useReferenceMention } from '@/hooks/message-input/useReferenceMention';
 import { DEBOUNCE_MS } from '@/hooks/message-input/useReferenceMentionUtils';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 
 describe('useReferenceMention chat mode', () => {
   beforeEach(() => {
@@ -153,25 +154,35 @@ describe('useReferenceMention chat mode', () => {
     }
   });
 
-  it('sends at most the 200 characters the server accepts of a long paste that has no space to end the mention', async () => {
+  it('sends at most the characters the server accepts of a long paste that has no space to end the mention', async () => {
     searchCitableChatsMock.mockResolvedValue({ items: [] });
-    const message = `@chat:${'长'.repeat(300)}`;
+    const message = `@chat:${'长'.repeat(HISTORY_SEARCH_MAX_LENGTH + 100)}`;
 
     renderHook(() => useReferenceMention(message, message.length));
 
     await waitFor(() => {
-      expect(searchCitableChatsMock).toHaveBeenCalledWith('长'.repeat(200), 20, 0, 'composer-chat');
+      expect(searchCitableChatsMock).toHaveBeenCalledWith(
+        '长'.repeat(HISTORY_SEARCH_MAX_LENGTH),
+        20,
+        0,
+        'composer-chat',
+      );
     });
   });
 
   it('cuts that query by character, so a character outside the basic plane is never split in half', async () => {
     searchCitableChatsMock.mockResolvedValue({ items: [] });
-    const message = `@chat:a${'𠮷'.repeat(300)}`;
+    const message = `@chat:a${'𠮷'.repeat(HISTORY_SEARCH_MAX_LENGTH + 100)}`;
 
     renderHook(() => useReferenceMention(message, message.length));
 
     await waitFor(() => {
-      expect(searchCitableChatsMock).toHaveBeenCalledWith(`a${'𠮷'.repeat(199)}`, 20, 0, 'composer-chat');
+      expect(searchCitableChatsMock).toHaveBeenCalledWith(
+        `a${'𠮷'.repeat(HISTORY_SEARCH_MAX_LENGTH - 1)}`,
+        20,
+        0,
+        'composer-chat',
+      );
     });
   });
 });

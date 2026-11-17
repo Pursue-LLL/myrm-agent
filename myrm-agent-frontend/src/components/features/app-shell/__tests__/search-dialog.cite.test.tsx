@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SearchDialog } from '../search-dialog';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import type { SearchResult } from '@/services/chat';
 
 const mockPush = vi.hoisted(() => vi.fn());
@@ -138,14 +139,17 @@ describe('SearchDialog cite to composer', () => {
 });
 
 describe('SearchDialog query box', () => {
-  it('stops typing and pasting at the 200 characters the server accepts', async () => {
+  it('stops typing and pasting at the characters the server accepts', async () => {
     render(
       <SearchDialog open onOpenChange={mockOnOpenChange}>
         <div />
       </SearchDialog>,
     );
 
-    expect(await screen.findByPlaceholderText('search.placeholder')).toHaveAttribute('maxlength', '200');
+    expect(await screen.findByPlaceholderText('search.placeholder')).toHaveAttribute(
+      'maxlength',
+      String(HISTORY_SEARCH_MAX_LENGTH),
+    );
   });
 });
 
