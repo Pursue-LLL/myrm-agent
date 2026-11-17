@@ -4,7 +4,7 @@
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
   core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
-  core.security.tool_registry::host_file_paths, url_arg_error, url_arg_hosts (POS: the files a call names, the canonical hosts of the URLs it names, and why a URL has no canonical form)
+  core.security.tool_registry::URL_BEARING_PERMISSIONS, host_file_paths, url_arg_error, url_arg_hosts (POS: the tools that take URLs, the files a call names, the canonical hosts of the URLs it names, and why a URL has no canonical form)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
@@ -50,7 +50,12 @@ from myrm_agent_harness.agent.security.types import (
     SecurityConfig,
 )
 from myrm_agent_harness.core.security.domain_match import host_matches
-from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_error, url_arg_hosts
+from myrm_agent_harness.core.security.tool_registry import (
+    URL_BEARING_PERMISSIONS,
+    host_file_paths,
+    url_arg_error,
+    url_arg_hosts,
+)
 
 
 def _wildcard_match(value: str, pattern: str) -> bool:
@@ -99,7 +104,6 @@ def check_capability(permission: str, target: str, capabilities: CapabilitySet) 
     )
 
 
-_URL_BEARING_PERMISSIONS: frozenset[str] = frozenset({"web_fetch", "net_fetch", "browser_navigate"})
 # Only a browser navigation asks about a domain outside the allowlist: a fetch only reads a page, and is held to the
 # blocklist and the ruleset.
 _DOMAIN_APPROVAL_PERMISSIONS: frozenset[str] = frozenset({"browser_navigate"})
@@ -113,7 +117,7 @@ _ACTION_SEVERITY: dict[PermissionAction, int] = {
 
 def _check_url_syntax(permission: str, tool_input: dict[str, object]) -> tuple[PermissionAction | None, str]:
     """Deny a URL-bearing tool when a URL it names has no canonical form: no list can judge the host a client would dial."""
-    if permission not in _URL_BEARING_PERMISSIONS:
+    if permission not in URL_BEARING_PERMISSIONS:
         return None, ""
     error = url_arg_error(tool_input)
     return (PermissionAction.DENY, f"URL not allowed: {error}") if error else (None, "")
@@ -123,7 +127,7 @@ def _check_domain_blocklist(
     permission: str, tool_input: dict[str, object], network_blocklist: tuple[str, ...]
 ) -> tuple[PermissionAction | None, str]:
     """Deny a URL-bearing tool when any host it names matches the network blocklist."""
-    if permission not in _URL_BEARING_PERMISSIONS or not network_blocklist:
+    if permission not in URL_BEARING_PERMISSIONS or not network_blocklist:
         return None, ""
     for hostname in url_arg_hosts(tool_input):
         if host_matches(hostname, network_blocklist):
@@ -175,7 +179,7 @@ def _resolve_targets(
     """
     if permission in _PATH_CHECKED_PERMISSIONS:
         return tuple(host_file_paths(tool_input)) or ("*",)
-    if permission in _URL_BEARING_PERMISSIONS:
+    if permission in URL_BEARING_PERMISSIONS:
         return url_arg_hosts(tool_input) or ("*",)
     return (_resolve_target(permission, tool_input, tool_name=tool_name),)
 

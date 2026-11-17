@@ -170,8 +170,8 @@ class TestResolveCronAsk:
         _read_credentials()
         trusted = dataclasses.replace(config, network_allowlist=("api.example.com",))
 
-        assert not _ask(trusted, dirs, "web_fetch_tool", {"url": "https://api.example.com/v1"}).denied
-        assert _ask(trusted, dirs, "web_fetch_tool", {"url": _EXFIL_URL}).denied
+        assert not _ask(trusted, dirs, "web_fetch_tool", {"urls": ["https://api.example.com/v1"]}).denied
+        assert _ask(trusted, dirs, "web_fetch_tool", {"urls": [_EXFIL_URL]}).denied
 
     def test_path_outside_the_job_directories_is_denied(self, config: SecurityConfig, dirs: Dirs) -> None:
         verdict = _ask(config, dirs, "grep_tool", {"path": str(dirs.elsewhere)})

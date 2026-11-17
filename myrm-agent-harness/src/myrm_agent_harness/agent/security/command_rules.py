@@ -13,8 +13,9 @@
   plain command it was written for
 
 [POS]
-Pure helpers of ``engine.py``: the engine owns the order of the layers, this module owns what a shell command
-line means to a rule, so a rule sees the same command the shell will run.
+Pure helpers of ``engine.py`` and of the command-egress check in ``guards/taint_tracker.py``: the engine owns the
+order of the layers, this module owns which tool inputs carry a command and what a command line means to a rule,
+so a rule and the taint guard see the same command the shell will run.
 """
 
 from __future__ import annotations

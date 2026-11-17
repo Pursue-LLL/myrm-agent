@@ -6,6 +6,7 @@
 
 [OUTPUT]
 - URL_ARG_KEYS: every argument name a network tool receives its URLs under
+- URL_BEARING_PERMISSIONS: the permission types of the tools that take those arguments; a host list judges their calls only
 - url_arg_values: each non-empty URL string among those arguments, passed as a string, a JSON array string or a list
 - url_host / url_arg_hosts: the canonical host an outbound URL names, and the distinct hosts of every URL a call names
 - url_arg_error: why a URL of the call has no canonical form, or None
@@ -13,8 +14,8 @@
 [POS]
 Shared by the permission engine (blocklist, per-domain approval and rule targets) and the taint exemption so
 that a URL sent as ``url`` or inside ``urls`` is judged the same way, and so that no judgement reads an
-argument the tool does not have: ``web_fetch_tool`` receives its pages in ``urls``, ``browser_navigate_tool``
-in ``url``.
+argument the tool does not have: ``URL_BEARING_PERMISSIONS`` names the tools that have them
+(``web_fetch_tool`` receives its pages in ``urls``, ``browser_navigate_tool`` in ``url``).
 """
 
 from __future__ import annotations
@@ -24,6 +25,8 @@ from myrm_agent_harness.utils.url_syntax import parse_outbound_hostname, parse_o
 from .file_args import coerce_path_list
 
 URL_ARG_KEYS: tuple[str, ...] = ("url", "urls")
+# A ``url`` key on any other call names nothing the tool dials, so no host list may judge such a call by it.
+URL_BEARING_PERMISSIONS: frozenset[str] = frozenset({"web_fetch", "net_fetch", "browser_navigate"})
 
 
 def url_arg_values(args: dict[str, object]) -> list[str]:

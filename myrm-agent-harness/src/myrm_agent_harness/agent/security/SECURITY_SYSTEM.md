@@ -303,30 +303,40 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 
 **位置**：`guards/taint_tracker.py`
 
-**防御目标**：阻止 prompt injection → command injection 的攻击链。当 LLM 上下文中包含了来自外部网络的不可信数据后，如果 Agent 试图执行 shell 命令或写入文件，这可能是注入攻击。
+**防御目标**：阻止 prompt injection → command injection 的攻击链。当 LLM 上下文中包含了来自外部网络的不可信数据后，如果 Agent 试图执行 shell 命令或写入文件，这可能是注入攻击；会话读过凭据之后，向外发送数据的调用同样是汇。
 
 **污点标签**：
 
 ```python
 class TaintLabel(StrEnum):
-    EXTERNAL_NETWORK = "external_network"  # 来自网络的不可信数据
-    SECRET = "secret"                      # 敏感信息
+    EXTERNAL_NETWORK = "external_network"    # 来自网络的不可信数据
+    SECRET = "secret"                        # 凭据、密钥
+    PII_SENSITIVE = "pii_sensitive"          # 个人敏感信息：隐私分类命中 S2/S3 时记录，目前没有汇读取它
+    UNTRUSTED_INGRESS = "untrusted_ingress"  # 来自不可信入站消息：宿主经 record_ingress_taint 写入
 ```
+
+回合开始前写入的标签会被 `reset_all_guards` 清掉，所以不可信入站回合另由围栏标记（见 `untrusted_ingress_fence.py`）。
 
 **污点源（Source）**：
 
 | 工具 | 污点标签 |
 |------|---------|
-| `web_fetch_tool` | `EXTERNAL_NETWORK` |
-| `web_search_tool` | `EXTERNAL_NETWORK` |
+| `web_fetch_tool`、`web_search_tool`、`browser_navigate_tool`、`browser_snapshot_tool`、`browser_extract_tool` | `EXTERNAL_NETWORK` |
+| `file_read_tool` | `SECRET`（只在读取的文件匹配凭据文件名单时，如 `.env`、`.netrc`、`.ssh/`、`.aws/`、`id_rsa`、`credentials.json`） |
+| `bash_code_execute_tool` | `SECRET`（只在命令形似读取凭据文件时） |
+
+污点源只看上表这些工具的参数：经写进运行中进程 stdin 的命令读出的凭据，以及 `grep_tool` 读出的凭据文件内容，都不记 `SECRET`。
 
 **污点汇（Sink）策略**：
 
 | 工具 | 阻止的污点 |
 |------|-----------|
-| `bash_code_execute_tool` | `EXTERNAL_NETWORK` |
-| `file_write_tool` | `EXTERNAL_NETWORK` |
-| `file_edit_tool` | `EXTERNAL_NETWORK` |
+| `bash_code_execute_tool`、`file_write_tool`、`file_edit_tool` | `EXTERNAL_NETWORK`、`UNTRUSTED_INGRESS` |
+| `web_fetch_tool`、`browser_navigate_tool`、`browser_snapshot_tool`、`browser_extract_tool` | `SECRET` |
+
+汇表 `TAINT_SINK_POLICIES` 的键是工具名；权限类型（`code_interpreter`、`shell_exec` 等）不是它的键。
+
+**命令文本的动态升级**：会话带 `SECRET` 污点时，命令文本形似网络传输（`_BASH_EGRESS_RE`）的调用也是 `SECRET` 的汇。命令文本取 `command`，其次 `code`，其次 `data`（`command_rules.command_text`）；调用的权限类型须属 `COMMAND_BEARING_PERMISSIONS`：`bash_code_execute_tool`，以及写进运行中进程 stdin 的 `bash_process_tool`（`write_stdin`、`submit_stdin`，权限类型按动作解析为 `shell_exec`）。后台启动的 shell 会把 stdin 读到的文字当命令执行，所以两条通道按同一份命令文本判定。
 
 **工作机制**：
 
@@ -335,7 +345,7 @@ class TaintLabel(StrEnum):
 3. **Reasoning-Blind Transcript Classifier**：如果启用了 `auto_mode_enabled`，在污点冲突提升为 ASK 之前（以及所有其他 engine 返回 ASK 的场景），会调用 Transcript Classifier（优先使用用户配置的轻量级 `auto_review_model`）。Classifier 采用 Reasoning-Blind 设计——只看用户消息（`intent_context`）和最近工具调用序列（`recent_tool_calls`，只含工具名+参数，不含 assistant 文本和工具输出），以防止 agent 通过自我合理化绕过审查。Classifier 同时接收当前会话的 Taint 标签（由 `middleware` 从 `TaintTracker.labels` 提取）和 Trust Context（用户配置的 `network_allowlist` 作为 `trusted_domains` 传递，帮助区分内部可信域名与外部不可信目标），其 Prompt 内置 Taint Context Rules 和 Trust Context Rules。Taint Context 使 Classifier 能理解 `EXTERNAL_NETWORK`（不可信网络数据）和 `SECRET`（凭据/密钥）的安全含义，在存在 taint 的会话中做出更谨慎的判断；Trust Context 使 Classifier 知道用户显式信任的域名（如公司内部 API），避免将 shell 命令中针对可信域名的网络操作误判为数据外泄（Trust Context 不覆盖 BLOCK RULES）。Classifier 根据四大阻止规则类别（销毁/外泄、降低安全态势、跨信任边界、绕过审查）和用户授权意图进行分步判断。如果符合用户预期则静默 ALLOW；如果违反阻止规则或超出用户授权范围则 DENY；如果无法判断（UNCERTAIN），则回退到 ASK 弹窗，**并将 Classifier 的疑虑分析（Reason）注入到弹窗提示中**，辅助用户决策（所有场景均已覆盖）。审查结果通过 Structured Output (Pydantic) 强制约束，确保解析鲁棒性。所有分类决策（ALLOW/DENY/UNCERTAIN）均通过 `record_decision` 记录到安全审计链。
 4. 每次 Agent run 开始时 `reset_taint_tracker()` 重置
 
-**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，若调用带有 `url` 或 `urls` 参数，且其中每个网址的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，或调用没有这两个参数，仍按汇处理。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
+**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，只有接收网址的工具可以豁免：调用的权限类型属 `URL_BEARING_PERMISSIONS`（`web_fetch_tool` 的 `urls`、`browser_navigate_tool` 的 `url`），且其中每个网址的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，或调用没有网址参数，仍按汇处理。其他工具（shell、文件写改、快照、提取、写进进程 stdin）不享受豁免，调用里带不带 `url` 或 `urls` 键都一样：这些工具不接收网址，键不代表它们要去的地方。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
 
 **保守策略与智能放行**：由于 LLM 是黑盒，无法确定它是否"忘记"了污点数据，因此一旦标记，污点在整个会话期间持续存在。传统做法是冲突时一律提升到用户审批（导致警报疲劳）。引入 Smart Intent Guard 后，系统能在保证安全的前提下，通过理解用户意图实现智能放行。
 
@@ -1166,7 +1176,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。四类的识别范围：付款类工具调用——工具名或参数命中资金类词表；集成写入命令——shell 与 code_interpreter 命令命中业务层注册的模式（注册表默认为空）；读过凭据文件后的外发请求——会话带 SECRET 污点后，`web_fetch`、浏览器的导航/快照/提取工具，以及 curl、wget、nc、ncat、socat、ssh、scp、rsync、ftp 后跟 http(s) 链接、或 curl、wget、nc、ncat、socat 带数据参数的 shell 命令（`taint_tracker.py` 的 `TAINT_SINK_POLICIES` 与 `_BASH_EGRESS_RE`），但 `web_fetch` 与浏览器导航的每个网址（`url`、`urls`）都在域名白名单（`network_allowlist`，见 3.5 节「可信主机豁免」）内时不算外发，快照与提取工具不带网址、shell 命令不解析主机，均不享受豁免；作业区之外的路径——路径分区检查不放行的文件调用（作业目录之外、敏感或受保护文件）。识别不到的形态（不带 http(s) 链接的 scp、rsync、ssh，nc 直连主机端口，经 code_interpreter 运行的脚本，未注册的集成写入）、读过网页内容这类非凭据污点之后的 shell 命令，以及读取与发送写在同一条 shell 命令里的单行命令（检查时会话还没有 SECRET 污点），仍由声明放行，是设计内残余。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。四类的识别范围：付款类工具调用——工具名或参数命中资金类词表；集成写入命令——shell 与 code_interpreter 命令命中业务层注册的模式（注册表默认为空）；读过凭据文件后的外发请求——会话带 SECRET 污点后，`web_fetch`、浏览器的导航/快照/提取工具，以及 curl、wget、nc、ncat、socat、ssh、scp、rsync、ftp 后跟 http(s) 链接、或 curl、wget、nc、ncat、socat 带数据参数的 shell 命令（bash 工具的命令，以及写进运行中进程 stdin 的文字；`taint_tracker.py` 的 `TAINT_SINK_POLICIES` 与 `_BASH_EGRESS_RE`），但 `web_fetch` 与浏览器导航的每个网址（`url`、`urls`）都在域名白名单（`network_allowlist`，见 3.5 节「可信主机豁免」）内时不算外发，快照与提取工具不带网址、shell 命令与 stdin 文字不解析主机，均不享受豁免，多带一个 `url` 键也不例外；作业区之外的路径——路径分区检查不放行的文件调用（作业目录之外、敏感或受保护文件）。识别不到的形态（不带 http(s) 链接的 scp、rsync、ssh，nc 直连主机端口，经 code_interpreter 运行的脚本，未注册的集成写入）、读过网页内容这类非凭据污点之后的 shell 命令、读取与发送写在同一条 shell 命令里的单行命令（检查时会话还没有 SECRET 污点），以及凭据经 stdin 里的命令或 `grep_tool` 读出的会话（污点源不认这两条读取通道），仍由声明放行，是设计内残余。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
 
 ### 本地模式浏览器放宽
 

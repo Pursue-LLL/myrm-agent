@@ -17,7 +17,7 @@ preserving the flat-module import surface for all consumers.
 - register_ptc_safety_metadata / get_ptc_safety_metadata / compute_canonical_args_hash
 - host_file_paths / is_url / coerce_path_list / PATHS_ALIAS_KEYS — the host files a file-tool call may open (``file_args.py``)
 - READ_RANGE_PATTERN / strip_read_range — the one grammar of a path argument's ``:START-END`` line range, shared by the file tools and the verdict (``file_args.py``)
-- url_arg_values / url_arg_hosts / url_host / url_arg_error — the URLs a network-tool call names, the hosts they name and why a URL has no canonical form (``url_args.py``)
+- URL_BEARING_PERMISSIONS / url_arg_values / url_arg_hosts / url_host / url_arg_error — the permission types of the tools that take URLs, the URLs a call of theirs names, the hosts they name and why a URL has no canonical form (``url_args.py``)
 - check_safety_coverage / _check_safety_coverage — module-load safety gate
 - _FAIL_CLOSED_DEFAULTS / _PTC_* — internal helpers
 """
@@ -54,7 +54,7 @@ from .safety_table import (
     TOOL_SAFETY_METADATA,
     SafetyMetadata,
 )
-from .url_args import url_arg_error, url_arg_hosts, url_arg_values, url_host
+from .url_args import URL_BEARING_PERMISSIONS, url_arg_error, url_arg_hosts, url_arg_values, url_host
 
 __all__ = [
     "AUTO_APPROVED_BUILTIN_TOOLS",
@@ -70,6 +70,7 @@ __all__ = [
     "TOOL_PERMISSION_MAP",
     "TOOL_SAFETY_METADATA",
     "TOOL_TO_GROUP",
+    "URL_BEARING_PERMISSIONS",
     "_FAIL_CLOSED_DEFAULTS",
     "_PTC_SAFETY_METADATA",
     "_PTC_TOOL_FLAT_INDEX",

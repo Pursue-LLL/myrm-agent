@@ -11,7 +11,8 @@ namespace, and memory_manage_tool resolves ids across the whole bound namespace 
 (including shared contexts) and applies delete/update without a pending review.
 
 [INPUT]
-- Tool names or tool instances from ToolRegistry / Agent runtime
+- Tool names of the calls the Agent runtime is about to run
+- core.security.tool_registry.registry::resolve_permission_type (POS: the abstract permission type of a tool name)
 - External ingress activation flag
 
 [OUTPUT]
@@ -19,7 +20,7 @@ namespace, and memory_manage_tool resolves ids across the whole bound namespace 
 - set_untrusted_ingress() / reset_untrusted_ingress(): ContextVar mutators
 - untrusted_ingress_scope(): Scoped mutator that marks everything run or spawned inside it, then restores the prior state
 - is_tool_allowed_under_untrusted_ingress(): Single tool authorization check
-- filter_untrusted_ingress_tools(): Tool list filtering for LLM tool binding
+- DISALLOWED_UNTRUSTED_TOOLS / DISALLOWED_UNTRUSTED_PERMISSIONS: the fenced tool names and the fenced permission types
 
 [POS]
 Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.
@@ -31,7 +32,7 @@ rewriting the owner's long-term memory.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -41,11 +42,13 @@ logger = logging.getLogger(__name__)
 
 # Tools strictly disallowed when handling untrusted external inputs.
 # These tools possess destructive host privileges (arbitrary shell, file mutation) or mutate
-# long-term memory (save a new entry, update/delete/correct an existing one).
+# long-term memory (save a new entry, update/delete/correct an existing one). Every entry is the name of a
+# tool: the check below runs without the call's arguments, so a permission type listed here would never match.
+# ``bash_process_tool`` types into the stdin of a running shell, which runs commands as the bash tool does.
 DISALLOWED_UNTRUSTED_TOOLS: frozenset[str] = frozenset(
     {
         "bash_code_execute_tool",
-        "shell_exec",
+        "bash_process_tool",
         "file_write_tool",
         "file_edit_tool",
         "memory_save_tool",
@@ -116,30 +119,3 @@ def is_tool_allowed_under_untrusted_ingress(tool_name: str) -> bool:
 
     perm_type = resolve_permission_type(clean_name)
     return perm_type not in DISALLOWED_UNTRUSTED_PERMISSIONS
-
-
-def filter_untrusted_ingress_tools(tool_names: Iterable[str]) -> list[str]:
-    """Filter an iterable of tool names, stripping destructive privileges if untrusted.
-
-    If untrusted ingress is NOT active, returns all tool names unchanged.
-    If untrusted ingress IS active, filters out any tool present in DISALLOWED_UNTRUSTED_TOOLS.
-    """
-    if not is_untrusted_ingress_active():
-        return list(tool_names)
-
-    allowed: list[str] = []
-    stripped: list[str] = []
-    for name in tool_names:
-        if is_tool_allowed_under_untrusted_ingress(name):
-            allowed.append(name)
-        else:
-            stripped.append(name)
-
-    if stripped:
-        logger.info(
-            "[INGRESS_FENCE] Stripped %d high-privilege tools: %s",
-            len(stripped),
-            ", ".join(stripped),
-        )
-
-    return allowed
