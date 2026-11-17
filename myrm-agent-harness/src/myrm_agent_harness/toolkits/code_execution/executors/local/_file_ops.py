@@ -10,8 +10,7 @@ toolkits.code_execution.executors.granted_roots::refuse_write_into_readonly_gran
 [OUTPUT]
 LocalFileOpsMixin: Mixin providing pathlib-based file I/O with a write guard that
 refuses credential paths, persona instruction files, read-only evidence, the
-active Goal's protected paths and directories granted read-only. Directory
-creation takes the same guard.
+active Goal's protected paths and directories granted read-only.
 
 [POS]
 Native file operations for local executor. Provides zero-subprocess-overhead
@@ -250,18 +249,9 @@ class LocalFileOpsMixin:
         safe = await self.resolve_path(path)
         return Path(safe).exists()
 
-    async def is_file(self: _FileOpsHost, path: str) -> bool:
-        safe = await self.resolve_path(path)
-        return Path(safe).is_file()
-
     async def is_dir(self: _FileOpsHost, path: str) -> bool:
         safe = await self.resolve_path(path)
         return Path(safe).is_dir()
-
-    async def mkdir(self: _FileOpsHost, path: str) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-        Path(safe).mkdir(parents=True, exist_ok=True)
 
     async def list_files(self: _FileOpsHost, path: str = ".", pattern: str = "*") -> list[str]:
         safe = await self.resolve_path(path)

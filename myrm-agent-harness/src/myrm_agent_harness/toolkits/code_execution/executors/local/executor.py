@@ -329,10 +329,6 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
             self._current_workspace = Path(workspace_path)
             self._current_workspace.mkdir(parents=True, exist_ok=True)
 
-    async def is_available(self) -> bool:
-        """Local executor is always available."""
-        return True
-
     def get_executor_name(self) -> str:
         """Return the executor name."""
         return "LocalExecutor"

@@ -14,7 +14,6 @@ from myrm_agent_harness.agent.sub_agents.spawn_capability import derive_spawn_ca
 from myrm_agent_harness.core.context_vars import (
     access_grants_var,
     open_access_grants,
-    protected_paths_var,
     scoped_value,
     session_access_roots_var,
 )
@@ -107,19 +106,14 @@ class TestReadOnlyGrant:
             await executor.delete_file(str(external / "note.txt"))
         assert (external / "note.txt").exists()
 
-    async def test_creating_a_directory_is_refused(self, executor: CodeExecutor, external: Path) -> None:
-        with pytest.raises(PermissionError, match="granted read-only"):
-            await executor.mkdir(str(external / "newdir"))
-        assert not (external / "newdir").exists()
-
     async def test_the_workspace_stays_writable_when_it_lies_inside_the_grant(
         self, executor: CodeExecutor, workspace: Path, external: Path, tmp_path: Path
     ) -> None:
         with scoped_value(session_access_roots_var, (AccessRoot(path=str(tmp_path), writable=False),)):
             await executor.write_file("a.txt", "in the workspace")
-            await executor.mkdir("made")
+            await executor.write_file("made/b.txt", "in a new workspace directory")
         assert (workspace / "a.txt").read_text() == "in the workspace"
-        assert (workspace / "made").is_dir()
+        assert (workspace / "made" / "b.txt").read_text() == "in a new workspace directory"
 
     async def test_a_writable_grant_nested_in_it_wins_for_its_own_directory(
         self, executor: CodeExecutor, external: Path
@@ -135,11 +129,13 @@ class TestReadOnlyGrant:
 
 @pytest.mark.usefixtures("grant_writable")
 class TestWritableGrant:
-    async def test_write_and_directory_creation_are_allowed(self, executor: CodeExecutor, external: Path) -> None:
+    async def test_writes_are_allowed_including_into_a_new_directory(
+        self, executor: CodeExecutor, external: Path
+    ) -> None:
         await executor.write_file(str(external / "new.txt"), "x")
-        await executor.mkdir(str(external / "newdir"))
+        await executor.write_file(str(external / "newdir" / "nested.txt"), "y")
         assert (external / "new.txt").read_text() == "x"
-        assert (external / "newdir").is_dir()
+        assert (external / "newdir" / "nested.txt").read_text() == "y"
 
 
 class TestRootsOfTheRunsOwnGrants:
@@ -180,14 +176,6 @@ class TestRootsOfTheRunsOwnGrants:
             grants.once = (AccessRoot(path=str(external), writable=True),)
             await executor.write_file(str(external / "new.txt"), "x")
         assert (external / "new.txt").read_text() == "x"
-
-
-async def test_creating_a_directory_obeys_the_active_goal_protection(workspace: Path) -> None:
-    ex = LocalExecutor(ExecutionConfig())
-    ex.bind_workspace(str(workspace))
-    with scoped_value(protected_paths_var, ("locked",)), pytest.raises(PermissionError):
-        await ex.mkdir("locked")
-    assert not (workspace / "locked").exists()
 
 
 @pytest.mark.usefixtures("grant_writable")

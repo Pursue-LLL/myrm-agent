@@ -15,7 +15,8 @@ Lifecycle: bind_workspace(path) -> execute()/execute_bash()/read_file()/... -> c
 - set_executor: Bind (or clear) the executor for the current async context.
 - reset_executor: Restore a previous executor binding from a ContextVar token.
 - require_executor: Return the current executor, raising if unavailable.
-- clear_and_close_stashed_executor: Remove and close stashed executor asynchronously.
+- stash_executor_for_session / get_stashed_executor: Session-keyed executor lookup that survives ContextVar loss.
+- clear_stashed_executor: Drop a session's stashed executor and close it in the background.
 - clear_all_stashed_executors_for_tests: Drop every stashed executor (test isolation).
 
 [POS]
@@ -233,11 +234,6 @@ class CodeExecutor(ABC):
         result = await self._exec_bash(f"test -e {shlex.quote(safe)} && echo 1 || echo 0")
         return result.stdout.strip() == "1"
 
-    async def is_file(self, path: str) -> bool:
-        safe = await self.resolve_path(path)
-        result = await self._exec_bash(f"test -f {shlex.quote(safe)} && echo 1 || echo 0")
-        return result.stdout.strip() == "1"
-
     async def is_dir(self, path: str) -> bool:
         safe = await self.resolve_path(path)
         result = await self._exec_bash(f"test -d {shlex.quote(safe)} && echo 1 || echo 0")
@@ -260,11 +256,6 @@ class CodeExecutor(ABC):
         if not answer.isdigit():
             raise OSError(f"Not a regular file: {path}")
         return int(answer)
-
-    async def mkdir(self, path: str) -> None:
-        """Create a directory (including parents)."""
-        safe = await self._resolve_for_write(path)
-        await self._exec_bash(f"mkdir -p {shlex.quote(safe)}")
 
     async def list_files(self, path: str = ".", pattern: str = "*") -> list[str]:
         """List files matching a pattern."""
@@ -306,17 +297,8 @@ class CodeExecutor(ABC):
         refuse_write_into_readonly_grant(safe, self.workspace_path)
         return safe
 
-    async def is_available(self) -> bool:
-        return True
-
     def get_executor_name(self) -> str:
         return self.__class__.__name__.removesuffix("Executor") or self.__class__.__name__
-
-    async def save_workspace(self, session_id: str, storage_path: str) -> bool:
-        return False
-
-    async def restore_workspace(self, session_id: str, storage_path: str) -> bool:
-        return False
 
     async def _exec_bash(self, command: str) -> ExecutionResult:
         """Internal bash execution helper for default file operations."""
@@ -396,16 +378,6 @@ def clear_stashed_executor(session_id: str) -> None:
             task.add_done_callback(_stashed_cleanup_tasks.discard)
         except RuntimeError:
             pass
-
-
-async def clear_and_close_stashed_executor(session_id: str) -> None:
-    """Remove stashed executor entry and explicitly close it on session teardown."""
-    executor = _session_executor_stash.pop(session_id, None)
-    if executor is not None:
-        try:
-            await executor.close()
-        except Exception as e:
-            logger.warning("Failed to close stashed executor for session %s: %s", session_id, e)
 
 
 def clear_all_stashed_executors_for_tests() -> None:

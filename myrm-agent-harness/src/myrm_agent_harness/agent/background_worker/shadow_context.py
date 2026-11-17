@@ -121,10 +121,6 @@ class ShadowExecutorMiddleware(CodeExecutorMiddleware):
         await self._assert_write_allowed(path)
         await self.inner.delete_file(path)
 
-    async def mkdir(self, path: str) -> None:
-        await self._assert_write_allowed(path)
-        await self.inner.mkdir(path)
-
     async def _exec_bash(self, command: str) -> ExecutionResult:
         raise PermissionError("Bash execution is blocked in shadow context.")
 

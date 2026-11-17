@@ -37,7 +37,6 @@ async def test_file_ops_roundtrip_with_quote_in_name(executor: CodeExecutor, tmp
     assert await executor.read_file_bytes(name) == b"hello"
 
     assert await executor.file_exists(name)
-    assert await executor.is_file(name)
     assert not await executor.is_dir(name)
 
     await executor.delete_file(name)
@@ -46,11 +45,10 @@ async def test_file_ops_roundtrip_with_quote_in_name(executor: CodeExecutor, tmp
 
 
 @pytest.mark.asyncio
-async def test_mkdir_and_is_dir_with_quote_in_name(executor: CodeExecutor, tmp_path: Path) -> None:
-    await executor.mkdir(_INJECTION_NAME)
+async def test_is_dir_with_quote_in_name(executor: CodeExecutor, tmp_path: Path) -> None:
+    (tmp_path / _INJECTION_NAME).mkdir()
 
     assert await executor.is_dir(_INJECTION_NAME)
-    assert (tmp_path / _INJECTION_NAME).is_dir()
     assert not (tmp_path / "PWNED").exists()
 
 

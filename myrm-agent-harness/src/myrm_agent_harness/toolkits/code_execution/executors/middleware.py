@@ -80,17 +80,11 @@ class CodeExecutorMiddleware(CodeExecutor):
     async def file_exists(self, path: str) -> bool:
         return await self.inner.file_exists(path)
 
-    async def is_file(self, path: str) -> bool:
-        return await self.inner.is_file(path)
-
     async def is_dir(self, path: str) -> bool:
         return await self.inner.is_dir(path)
 
     async def file_size(self, path: str) -> int:
         return await self.inner.file_size(path)
-
-    async def mkdir(self, path: str) -> None:
-        await self.inner.mkdir(path)
 
     async def list_files(self, path: str = ".", pattern: str = "*") -> list[str]:
         return await self.inner.list_files(path, pattern)
@@ -98,17 +92,8 @@ class CodeExecutorMiddleware(CodeExecutor):
     async def resolve_path(self, relative_path: str) -> str:
         return await self.inner.resolve_path(relative_path)
 
-    async def is_available(self) -> bool:
-        return await self.inner.is_available()
-
     def get_executor_name(self) -> str:
         return self.inner.get_executor_name()
-
-    async def save_workspace(self, session_id: str, storage_path: str) -> bool:
-        return await self.inner.save_workspace(session_id, storage_path)
-
-    async def restore_workspace(self, session_id: str, storage_path: str) -> bool:
-        return await self.inner.restore_workspace(session_id, storage_path)
 
     async def close(self) -> None:
         await self.inner.close()
