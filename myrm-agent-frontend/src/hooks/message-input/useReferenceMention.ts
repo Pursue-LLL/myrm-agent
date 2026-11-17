@@ -4,6 +4,7 @@
  * [INPUT]
  * - @/services/chat::suggestReferences (POS: Server-side safe reference suggestions)
  * - @/services/chat::searchCitableChats (POS: Prior conversation citable search)
+ * - @/lib/constants/chat-history-search::HISTORY_SEARCH_MAX_LENGTH (POS: Longest chat-history query the server accepts)
  * - ./useReferenceMentionUtils (POS: Reference extraction, formatting and suggestion builders)
  * - @/store/useChatStore (POS: Global chat state, selection and input update)
  * - @/store/useAgentStore (POS: Digital employee registry prefetch)
@@ -19,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
 import { suggestReferences, searchCitableChats, type ReferenceSuggestion } from '@/services/chat';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import {
@@ -89,9 +91,15 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     requestSeqRef.current = requestSeq;
 
     if (chatMode) {
+      // The server answers an empty or over-long query with HTTP 422, and a paste after `@chat:` has no space to end
+      // the mention early. Cutting by character, as the server counts, never splits a character outside the basic plane.
+      const citableQuery = Array.from(query).slice(0, HISTORY_SEARCH_MAX_LENGTH).join('');
+      if (!citableQuery) {
+        return;
+      }
       debounceRef.current = setTimeout(async () => {
         try {
-          const data = await searchCitableChats(query, 20, 0, chatId ?? undefined);
+          const data = await searchCitableChats(citableQuery, 20, 0, chatId ?? undefined);
           if (requestSeqRef.current !== requestSeq) {
             return;
           }
