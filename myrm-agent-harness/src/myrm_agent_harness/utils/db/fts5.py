@@ -106,7 +106,12 @@ def sanitize_fts5_query(query: str) -> str:
       `world.`, `` `code` ``) and keep `AND`/`OR`/`NOT` only between two
       operands, so a non-empty result always parses
 
-    A quoted term is a literal phrase: `world.` finds text that holds the dot.
+    A quoted term is a literal phrase: a trigram table finds `world.` only in
+    text that holds the dot, a unicode61 table also finds the word without it.
+
+    The result is an FTS5 expression, not the text that was typed (`C++`
+    becomes `C`, `it's` becomes `"it's"`), so a caller that falls back to a
+    substring scan reads the typed text and not this result.
     """
     if not query:
         return ""

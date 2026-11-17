@@ -2,6 +2,7 @@
 
 [INPUT]
 app.database.models::Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
+app.database.repositories.like_pattern::like_contains_pattern (POS: 聊天检索的子串通道：按键入文本逐字生成 LIKE 模式)
 sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
@@ -9,16 +10,21 @@ ChatMessageSearchRepository: FTS5 search over active chat messages, and chat-id-
 MessageFtsSearchRow: Typed result row for message search.
 
 [POS]
-聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略。
+聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略；FTS 无命中时按键入文本（raw_query）做子串回退。
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from typing import TypedDict
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.repositories.like_pattern import LIKE_ESCAPE_CLAUSE, like_contains_pattern
+
+logger = logging.getLogger(__name__)
 
 
 class MessageFtsSearchRow(TypedDict):
@@ -36,8 +42,12 @@ class ChatMessageSearchRepository:
     """Read-only FTS5 search for chat messages."""
 
     @staticmethod
-    async def get_matching_chat_ids(db: AsyncSession, safe_query: str, *, limit: int = 200) -> list[str]:
-        """Return distinct chat IDs whose messages match *safe_query* via FTS5 with short-query fallback."""
+    async def get_matching_chat_ids(db: AsyncSession, safe_query: str, *, raw_query: str, limit: int = 200) -> list[str]:
+        """Distinct chat ids whose messages match ``safe_query`` via FTS5, else contain ``raw_query`` as typed.
+
+        The substring fallback answers what the trigram index cannot (a query under three characters, or one the FTS
+        expression flattens), so it reads the typed text and not the FTS expression.
+        """
         if not safe_query:
             return []
 
@@ -60,23 +70,26 @@ class ChatMessageSearchRepository:
             chat_ids = [row[0] for row in result.fetchall()]
             if chat_ids:
                 return chat_ids
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("FTS5 chat-id match failed; falling back to the substring scan: %s", exc)
 
         # 2. Short-word / CJK fallback when trigram FTS yields 0 hits (e.g. query < 3 characters)
+        pattern = like_contains_pattern(raw_query)
+        if pattern is None:
+            return []
         fallback_sql = text(
-            """
+            f"""
             SELECT DISTINCT m.chat_id
             FROM messages m
             JOIN chats c ON c.id = m.chat_id
-            WHERE m.content LIKE :pattern
+            WHERE m.content LIKE :pattern {LIKE_ESCAPE_CLAUSE}
               AND m.is_active = 1
               AND c.is_incognito = 0
               AND c.deleted_at IS NULL
             LIMIT :limit
             """
         )
-        fallback_result = await db.execute(fallback_sql, {"pattern": f"%{safe_query}%", "limit": limit})
+        fallback_result = await db.execute(fallback_sql, {"pattern": pattern, "limit": limit})
         return [row[0] for row in fallback_result.fetchall()]
 
     @staticmethod
@@ -87,6 +100,8 @@ class ChatMessageSearchRepository:
         offset: int,
         since: datetime | None,
         until: datetime | None,
+        *,
+        raw_query: str,
     ) -> tuple[list[MessageFtsSearchRow], int]:
         time_clause = ""
         params: dict[str, object] = {"query": safe_query}
@@ -158,8 +173,11 @@ class ChatMessageSearchRepository:
             return messages, total
 
         # Two-tier fallback for short CJK or English keywords (< 3 chars)
+        pattern = like_contains_pattern(raw_query)
+        if pattern is None:
+            return [], 0
         fb_time_clause = ""
-        fb_params: dict[str, object] = {"pattern": f"%{safe_query}%"}
+        fb_params: dict[str, object] = {"pattern": pattern}
         if since is not None:
             fb_time_clause += " AND m.sent_at >= :since"
             fb_params["since"] = since
@@ -173,7 +191,7 @@ class ChatMessageSearchRepository:
             FROM messages m
             JOIN chats c ON c.id = m.chat_id
             LEFT JOIN conversation_recall_documents d ON d.chat_id = m.chat_id
-            WHERE m.content LIKE :pattern
+            WHERE m.content LIKE :pattern {LIKE_ESCAPE_CLAUSE}
               AND m.is_active = 1
               AND c.is_incognito = 0
               AND COALESCE(d.is_excluded, 0) = 0
@@ -197,7 +215,7 @@ class ChatMessageSearchRepository:
             FROM messages m
             JOIN chats c ON c.id = m.chat_id
             LEFT JOIN conversation_recall_documents d ON d.chat_id = m.chat_id
-            WHERE m.content LIKE :pattern
+            WHERE m.content LIKE :pattern {LIKE_ESCAPE_CLAUSE}
               AND m.is_active = 1
               AND c.is_incognito = 0
               AND COALESCE(d.is_excluded, 0) = 0

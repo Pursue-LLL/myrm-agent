@@ -63,6 +63,7 @@ async def _like_fallback(db: AsyncSession) -> set[str]:
     rows = await ConversationRecallRepository.search(
         db,
         safe_query=_SHORT,
+        raw_query=_SHORT,
         limit=10,
         current_chat_id=None,
         agent_id=None,

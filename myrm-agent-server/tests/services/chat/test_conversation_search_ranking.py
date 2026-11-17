@@ -16,7 +16,7 @@ from tests.services.chat.search_support import seed_chat_and_messages
 
 class TestConversationSearchRanking:
     @pytest.mark.asyncio
-    async def test_interactive_source_ranks_above_cron(self, fts_db: AsyncSession):
+    async def test_interactive_source_ranks_above_cron(self, fts_db: AsyncSession) -> None:
         cron_id = "chat-cron-alpha"
         web_id = "chat-web-alpha"
         now = datetime(2026, 4, 18, 12, 0, 0, tzinfo=timezone.utc)

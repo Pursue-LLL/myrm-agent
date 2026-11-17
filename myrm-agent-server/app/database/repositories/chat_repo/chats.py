@@ -1,11 +1,13 @@
 """[INPUT]
 - .common (POS: shared constants)
+- app.database.repositories.like_pattern (POS: the substring channel of chat search: LIKE patterns that match the typed text literally)
 
 [OUTPUT]
 - ChatsMixin
 
 [POS]
-ChatRepository mixin: chat list/detail, create/update, pins, trash lifecycle and compaction CAS.
+ChatRepository mixin: chat list/detail (sidebar keyword search over titles, first messages and message text), create/update,
+pins, trash lifecycle and compaction CAS.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from app.database.dto import ChatDTO
 from app.database.models import Chat, Message
+from app.database.repositories.like_pattern import LIKE_ESCAPE, like_contains_pattern
 
 from .common import (
     _INCOGNITO_BLANKED_FIELDS,
@@ -50,12 +53,10 @@ class ChatsMixin:
             where_clause.append(Chat.project_id == project_id)
         elif unassigned:
             where_clause.append(Chat.project_id.is_(None))
-        if keyword:
-            escaped = keyword.replace("%", r"\%").replace("_", r"\_")
-            pattern = f"%{escaped}%"
+        if keyword and (pattern := like_contains_pattern(keyword)) is not None:
             ilike_cond = or_(
-                Chat.title.ilike(pattern, escape="\\"),
-                Chat.first_message.ilike(pattern, escape="\\"),
+                Chat.title.ilike(pattern, escape=LIKE_ESCAPE),
+                Chat.first_message.ilike(pattern, escape=LIKE_ESCAPE),
             )
             fts_chat_ids = await MessagesMixin._fts_matching_chat_ids(db, keyword)
             if fts_chat_ids:
