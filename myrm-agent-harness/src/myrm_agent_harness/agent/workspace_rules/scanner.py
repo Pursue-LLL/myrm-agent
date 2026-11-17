@@ -7,9 +7,9 @@ Supported file types:
 - Root-level: AGENTS.md, CLAUDE.md, SOUL.md, MEMORY.md, .cursorrules, .clinerules, .myrm.md, .hermes.md, HERMES.md, .windsurfrules
 - Directory-based: .myrm/rules/*.md, .cursor/rules/*.mdc, .claude/CLAUDE.md, .github/copilot-instructions.md
 
-All discovered rule files are loaded and concatenated — multiple
-rule files can coexist (e.g. .myrm/rules/coding.md + AGENTS.md +
-.cursor/rules/style.mdc).
+Per directory, the first matching root file wins (_RULE_FILENAMES order);
+the rule directories, ADR records and KNOWN_ISSUES.md load alongside it
+(e.g. .myrm/rules/coding.md + AGENTS.md + .cursor/rules/style.mdc).
 
 Discovery traverses upward from workspace_root toward the git root
 to find rule files in parent directories (max 5 levels).
@@ -22,7 +22,7 @@ to find rule files in parent directories (max 5 levels).
 - agent.workspace_rules.adr_scanner::scan_adr_rules (POS: Living architecture decision record scanner and MADR status filter)
 
 [OUTPUT]
-- scan_workspace_rules(): Discover and load all rule files, returns list[RuleFile]
+- scan_workspace_rules(): Discover and load rule files (first root match + rule dirs), returns list[RuleFile]
 - RuleFile: Dataclass holding path, content, source type, blocked flag; display_name is its file name as prompt text
 
 [POS]
