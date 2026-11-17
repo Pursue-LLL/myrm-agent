@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   Ban,
   SkipForward,
+  ShieldAlert,
   ChevronDown,
   ChevronUp,
   Wrench,
@@ -26,13 +27,16 @@ const ExecutionTraceTimeline = dynamic(
   { ssr: false },
 );
 
+// An icon is a non-text element and needs 3:1 against the row: in light mode emerald and amber use the 600 tier
+// (their 500 tier stays under 3:1).
 const STATUS_ICON: Record<RunStatus, React.ReactNode> = {
   running: <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500 dark:text-blue-400" />,
-  ok: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />,
+  ok: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />,
   error: <XCircle className="h-3.5 w-3.5 text-red-500 dark:text-red-400" />,
   skipped: <SkipForward className="h-3.5 w-3.5 text-muted-foreground" />,
   cancelled: <Ban className="h-3.5 w-3.5 text-muted-foreground" />,
-  timed_out: <AlertTriangle className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />,
+  timed_out: <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />,
+  circuit_break: <ShieldAlert className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" />,
 };
 
 const SOURCE_LABEL_KEY: Record<RunSource, 'sourceCron' | 'sourceKanban' | 'sourceShell'> = {
@@ -86,6 +90,29 @@ function stopReasonLabelKey(code: string | undefined): string {
   return 'stopReasonUnknown';
 }
 
+type Translator = ReturnType<typeof useTranslations>;
+
+// The icon shows the state; this word is what assistive tech reads. It reuses the Hub's filter and stop-reason copy
+// (`runs`) and the cron panel's run-status copy (`cron`), so both locales already carry it.
+function statusLabel(status: RunStatus, t: Translator, tCron: Translator): string {
+  switch (status) {
+    case 'running':
+      return t('filterRunning');
+    case 'ok':
+      return t('filterOk');
+    case 'error':
+      return t('filterError');
+    case 'timed_out':
+      return t('stopReasonTimedOut');
+    case 'cancelled':
+      return t('stopReasonCancelled');
+    case 'skipped':
+      return tCron('runSkipped');
+    case 'circuit_break':
+      return tCron('runCircuitBreak');
+  }
+}
+
 export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslations> }) {
   const tCron = useTranslations('cron');
   const locale = useLocale();
@@ -102,12 +129,17 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
   const stopReasonLabel = run.stop_reason ? t(stopReasonLabelKey(run.stop_reason.code)) : null;
   const stopReasonMessage = run.stop_reason?.message?.trim() || null;
   const compactStopReason = !run.error ? stopReasonMessage : null;
+  // The server mirrors the error text into the stop reason message; the error block already shows it.
+  const stopReasonDetail = stopReasonMessage !== run.error?.trim() ? stopReasonMessage : null;
 
   // The header is the only toggle: the detail region holds its own controls (trace replay, export, selectable
   // output), so it must not sit inside the element that collapses the row. Button content is phrasing-only.
   const summaryContent = (
     <>
-      <span className="mt-0.5 shrink-0">{STATUS_ICON[run.status]}</span>
+      <span className="mt-0.5 shrink-0">
+        {STATUS_ICON[run.status]}
+        <span className="sr-only">{statusLabel(run.status, t, tCron)}</span>
+      </span>
       <span className="block flex-1 min-w-0 space-y-0.5">
         <span className="flex items-center gap-2">
           <span className="text-sm font-medium text-foreground truncate">{run.title}</span>
@@ -185,8 +217,8 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
                 {t('stopReasonTitle')}
               </p>
               {stopReasonLabel && <p className="text-xs text-foreground/90">{stopReasonLabel}</p>}
-              {stopReasonMessage && (
-                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{stopReasonMessage}</p>
+              {stopReasonDetail && (
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{stopReasonDetail}</p>
               )}
             </div>
           )}
