@@ -161,7 +161,11 @@ class AgentRuntimeSpec:
     no_builtin_tools: bool = False
     """When True, leaves out every built-in meta tool and the skill catalog that sends the model to them.
 
-    Tools the host passes in and middleware tools stay; the turn receipt still lists the bound skills.
+    Tools the host passes in and middleware tools stay; the turn receipt still lists the bound skills. The
+    catalog stays out even when a host tool shares the name of ``skill_select_tool`` or ``skill_search_tool``.
+    What a host tool's own text tells the model is the host's to keep true: the skill market tool
+    (``create_skill_market_tool``) sends the model to the skill catalog and ``skill_select_tool``, so a host that
+    sets this leaves it unmounted.
     """
     tool_groups: list[str] = field(default_factory=list)
     skill_ids: list[str] = field(default_factory=list)

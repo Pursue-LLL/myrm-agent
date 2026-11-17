@@ -5,6 +5,8 @@ External marketplace skill install meta-tool (LLM-facing name: `skill_market_too
 
 **Boundary**: searches and installs from **external sources** (GitHub, skills.sh, etc.). For skills already bound to the agent, use `skill_search_tool` + `skill_select_tool` instead.
 
+**Host contract**: the description and the install result send the model to the skill catalog and the built-in `skill_select_tool`. An agent running with `no_builtin_tools` gets neither, so its host leaves this tool unmounted.
+
 ## File & Submodule Index
 
 | File | Role | Description | I/O/P |

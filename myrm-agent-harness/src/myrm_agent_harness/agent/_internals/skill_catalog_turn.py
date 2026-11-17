@@ -15,9 +15,10 @@
 Turn-prep seam between ``agent_runtime.run_agent_loop`` and the catalog delivery module. Two
 fingerprints keep two concerns apart: the rendered catalog hash (read from the thread) decides
 whether an update message is due, the bound-set fingerprint (kept on the agent) decides whether the
-``skill_search`` index must be rebuilt. An agent running with ``no_builtin_tools`` has no
-``skill_select_tool`` or ``skill_search_tool`` to act on a catalog, so it gets neither the catalog nor
-the index; the turn receipt still lists its bound skills.
+``skill_search`` index must be rebuilt. ``no_builtin_tools`` is the gate for both: the catalog sends the
+model to the built-in ``skill_select_tool`` and ``skill_search_tool``, so an agent running with it gets neither
+the catalog nor the index, even when a host tool shares one of those names; the turn receipt still lists its
+bound skills.
 """
 
 from __future__ import annotations
@@ -55,8 +56,8 @@ CatalogAction = Literal["none", "skipped", "baseline", "update", "unchanged"]
 class CatalogDelivery:
     """Outcome of the catalog step of a turn.
 
-    ``none``: the turn has no catalog step (no skill backend, no new message, or an agent whose
-    model has no skill tools). ``skipped``: the bound skills could not be loaded, nothing was
+    ``none``: the turn has no catalog step (no skill backend, no new message, or an agent running
+    with ``no_builtin_tools``). ``skipped``: the bound skills could not be loaded, nothing was
     delivered and the thread's last-delivered catalog stands. ``tools_changed``: mounting or
     removing ``skill_search_tool`` changed the tool array, which invalidates the provider cache of
     the whole prefix.
@@ -81,9 +82,11 @@ def _skill_agent_with_backend(agent_state: BaseAgent) -> SkillAgent | None:
 
 
 def _model_can_load_skills(skill_agent: SkillAgent) -> bool:
-    """Whether the model has the skill tools a catalog sends it to (``skill_select_tool``, ``skill_search_tool``).
+    """Whether the framework gives the model its skill-loading path: the catalog and the tools it names.
 
-    Both are built-in meta tools, so an agent running with ``no_builtin_tools`` has neither.
+    The catalog sends the model to the built-in ``skill_select_tool`` and ``skill_search_tool``, which an agent
+    running with ``no_builtin_tools`` does not get. The switch decides, not the tools the model is bound to: a
+    host tool that shares one of those names does not bring the catalog back.
     """
     return not skill_agent.config.no_builtin_tools
 
@@ -182,8 +185,8 @@ async def deliver_bound_skills_catalog(
     A rebuilt conversation (``append`` / ``replace``) gets the baseline on its first HumanMessage.
     A continued thread keeps the baseline it has and gets an update on the new HumanMessage when the
     rendered catalog drifted from what the thread last delivered. A failed skill load delivers
-    nothing: the thread's last-delivered catalog stands and the next turn tries again. A model
-    without skill tools is delivered nothing either.
+    nothing: the thread's last-delivered catalog stands and the next turn tries again. An agent
+    running with ``no_builtin_tools`` is delivered nothing either.
     """
     skill_agent = _skill_agent_with_backend(agent_state)
     if skill_agent is None:
@@ -223,7 +226,7 @@ async def sync_bound_skills_for_resume(agent_state: BaseAgent) -> None:
     """Refresh the bound-skills receipt and the ``skill_search`` index before a HITL resume.
 
     The thread's messages are left alone: a bind-list drift during the pause reaches the model
-    as an update on the next new message. A model without skill tools has no index to refresh.
+    as an update on the next new message. An agent running with ``no_builtin_tools`` has no index to refresh.
     """
     skill_agent = _skill_agent_with_backend(agent_state)
     if skill_agent is None:
