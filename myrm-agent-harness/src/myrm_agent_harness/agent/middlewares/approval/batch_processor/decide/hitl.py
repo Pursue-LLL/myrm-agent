@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
+- myrm_agent_harness.agent.security.command_rules::COMMAND_BEARING_PERMISSIONS / command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.security.engine::extract_url_domains (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
 - myrm_agent_harness.agent.security.types::ReviewDecision (POS: Security type definitions — re-exported from core.security.types.)
 - myrm_agent_harness.core.security.spend_governance::is_financial_or_spend_tool / is_irreversible_social_action (POS: Foundational Agent Commerce governance module in core/security/.)
@@ -27,6 +28,7 @@ import json
 import logging
 
 from myrm_agent_harness.agent.security.audit import record_decision
+from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
 from myrm_agent_harness.agent.security.engine import extract_url_domains
 from myrm_agent_harness.agent.security.types import ReviewDecision
 from myrm_agent_harness.core.security.spend_governance import (
@@ -118,10 +120,8 @@ async def review_before_asking(ctx: BatchContext, verdicts: Verdicts, call: Call
         and not is_financial_or_spend_tool(tool_name, tool_input)
     ):
         # Build command representation for the classifier
-        if call.permission_type in ("shell_exec", "code_interpreter"):
-            command = str(
-                tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")
-            ).strip()
+        if call.permission_type in COMMAND_BEARING_PERMISSIONS:
+            command = command_text(call.permission_type, tool_input)
             if call.extra_ctx and "ptc_annotations" in call.extra_ctx:
                 command = f"{command}\n\n# PTC Annotations: {call.extra_ctx['ptc_annotations']}"
         else:

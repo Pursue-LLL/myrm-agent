@@ -73,7 +73,7 @@ class TestPythonSourceIsJudgedForHiddenCharactersOnly:
         assert action.value == DENY
 
     def test_typed_process_input_is_never_treated_as_python(self) -> None:
-        action, _ = check_shell_threats("shell_exec", {"command": PYTHON_WITH_REGEX_ANCHORS})
+        action, _ = check_shell_threats("shell_exec", {"data": PYTHON_WITH_REGEX_ANCHORS})
         assert action is not None
         assert action.value == DENY
 
@@ -114,7 +114,7 @@ class TestShellExecKeepsEveryCategory:
         ],
     )
     def test_typed_process_input_still_sees_the_full_analyzer(self, command: str) -> None:
-        action, _ = check_shell_threats("shell_exec", {"command": command})
+        action, _ = check_shell_threats("shell_exec", {"data": command})
         assert action is not None, f"{command!r} should still be judged for process input"
 
 

@@ -334,7 +334,7 @@ and ask for permission or alternative instructions.]
 |------|---------|
 | 核心中间件 | `myrm_agent_harness/agent/middlewares/approval/` |
 | Allowlist管理 | `myrm_agent_harness/agent/security/approval_flow.py` |
-| 权限评估引擎 | `myrm_agent_harness/agent/security/engine.py`（顺序与各层判定）· `myrm_agent_harness/agent/security/command_rules.py`（命令承载权限的目标提取、用户禁止清单、一行命令逐条判定的规则求值） |
+| 权限评估引擎 | `myrm_agent_harness/agent/security/engine.py`（顺序与各层判定）· `myrm_agent_harness/agent/security/command_rules.py`（命令承载权限的命令文本来源与目标提取、用户禁止清单、一行命令逐条判定的规则求值） |
 | IM渠道路由 | `app/channels/routing/router.py` |
 | Channel执行器 | `app/core/channel_bridge/agent_executor/` |
 | Frontend UI | `myrm-agent-frontend/src/components/features/chat-window/approval/AllowAlwaysConfirmDialog.tsx` + `AllowlistSection.tsx` |

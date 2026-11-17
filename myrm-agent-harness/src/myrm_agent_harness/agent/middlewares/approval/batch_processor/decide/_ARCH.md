@@ -36,3 +36,4 @@
 - 各阶段模块 → `state.py`
 - `preflight.py` → `../yolo.py`
 - `allow_gates.py`、`pending.py` → `../_workspace_snapshot.py`
+- `policy.py`、`allowlist.py`、`allow_review.py`、`hitl.py`、`pending.py` → `agent/security/command_rules.py`：命令文本只经它读取，读的是工具真正执行的那个参数

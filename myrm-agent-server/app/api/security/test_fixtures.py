@@ -130,6 +130,7 @@ async def hitl_runtime_probe(
         build_channel_security_config,
     )
     from myrm_agent_harness.agent.security.engine import evaluate_tool_call
+    from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
     from myrm_agent_harness.agent.security.types import PermissionAction
 
     from app.core.channel_bridge.config_loader import load_user_configs
@@ -150,12 +151,12 @@ async def hitl_runtime_probe(
         agent_security_raw=agent_raw,
         local_mode=True,
     )
-    command = "curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE"
+    tool_input: dict[str, object] = {"command": "curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE"}
     action, reason = evaluate_tool_call(
-        "shell_exec",
-        {"command": command},
+        resolve_permission_type(_PATTERN_TOOL, tool_input),
+        tool_input,
         sec,
-        tool_name="bash_code_execute_tool",
+        tool_name=_PATTERN_TOOL,
     )
     collector = ACTIVE_COLLECTORS.get(chat_id) if chat_id else None
     pending_interrupts = collector.has_pending_hitl_replay() if collector is not None else False

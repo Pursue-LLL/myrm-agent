@@ -5,6 +5,7 @@ All checks are pure functions — no side effects, no I/O, trivially testable.
 
 [INPUT]
 - approval_reason::ApprovalReasonCode, CodedReason (POS: tags each decision that waits for a human with a stable code)
+- command_rules::COMMAND_BEARING_PERMISSIONS, command_text (POS: the permission types whose tool input carries command text, and the text the tool runs)
 - path_security (POS: protected-file, sensitive-file, boundary and network-path predicates)
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
@@ -28,6 +29,7 @@ import re
 from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
+from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
 from myrm_agent_harness.agent.security.path_security import (
     is_executable_git_metadata_file,
     is_network_or_nt_path,
@@ -220,11 +222,8 @@ def check_navigate_scheme(permission: str, tool_input: dict[str, object]) -> tup
 # ---------------------------------------------------------------------------
 
 _SHELL_EXEC_PERMISSION = "shell_exec"
-# Every permission whose tool input is a command line the shell will run. ``shell_exec`` feeds a running
-# process, ``code_interpreter`` runs the line the bash tool was given; the analyzer must see both.
-_COMMAND_LINE_PERMISSIONS = frozenset({_SHELL_EXEC_PERMISSION, "code_interpreter"})
 # Categories whose evidence is unambiguous: bytes and quoting a command line never legitimately carries, and
-# a form that exists only to hide what runs. They are BLOCK-level and hold for every command-line permission
+# a form that exists only to hide what runs. They are BLOCK-level and hold for every command-bearing permission
 # (for Python source only the bytes apply, see ``check_shell_threats``), which closes the gap where the primary
 # shell tool ran with no analyzer at all. The remaining categories stay scoped to ``shell_exec`` because their
 # patterns also match ordinary agent work (``python -c``, ``node -e``, ``sudo``, ``;`` chaining, shell loops),
@@ -238,12 +237,12 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
     Returns (action, reason) if a threat is detected, or (None, "") if clean.
     BLOCK threats → DENY. ESCALATE threats → ASK.
 
-    ``shell_exec`` sees every category. A command-line permission that is not ``shell_exec``
+    ``shell_exec`` sees every category. A command-bearing permission that is not ``shell_exec``
     (``code_interpreter``, the bash tool) sees only the unconditional block categories, so an ordinary
     ``python -c`` or ``node -e`` keeps reaching the ruleset and the read-only classifier. Python source the bash
     tool runs in its wrapper is judged for hidden characters only (see below).
     """
-    if permission not in _COMMAND_LINE_PERMISSIONS:
+    if permission not in COMMAND_BEARING_PERMISSIONS:
         return None, ""
 
     from myrm_agent_harness.toolkits.code_execution.code_detector import runs_as_python
@@ -253,7 +252,7 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
         analyze_hidden_characters,
     )
 
-    command = str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()
+    command = command_text(permission, tool_input)
     if not command:
         return None, ""
 

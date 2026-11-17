@@ -122,11 +122,3 @@ def matches_command_pattern(pattern: str, command: str) -> bool:
     if base is None:
         return False
     return fnmatchcase(base, trimmed_pattern)
-
-
-def extract_shell_command(tool_args: dict[str, object] | None) -> str | None:
-    """Extract shell command text from bash tool arguments."""
-    if not tool_args:
-        return None
-    command = str(tool_args.get("command", "") or tool_args.get("code", "")).strip()
-    return command or None

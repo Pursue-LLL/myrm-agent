@@ -273,7 +273,7 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
         # 3. Blocked via shell command inspection
         assert (
             should_block_allow_always(
-                tool_call={"name": "bash", "args": {"command": "echo bad > AGENTS.md"}},
+                tool_call={"name": "bash_code_execute_tool", "args": {"command": "echo bad > AGENTS.md"}},
                 extra_ctx=None,
             )
             is True

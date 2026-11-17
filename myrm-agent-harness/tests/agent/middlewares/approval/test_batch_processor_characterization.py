@@ -85,35 +85,3 @@ async def test_interactive_ask_yields_pending_not_approved() -> None:
     assert idx == 0 and call is calls[0]
     assert permission_type
     assert reason == ""
-
-
-@pytest.mark.asyncio
-async def test_repo_declared_prefix_auto_approves_trusted_shell() -> None:
-    """A TRUSTED repo prefix turns an ASK shell command into an approval."""
-    config = _ask_config()
-    _install_session(config)
-    calls = [{"name": "bash_code_execute_tool", "args": {"command": "pytest -q"}, "id": "c1"}]
-
-    with (
-        patch(
-            "myrm_agent_harness.agent.security.command_allowlist_pattern.extract_shell_command",
-            return_value="pytest -q",
-        ),
-        patch(
-            "myrm_agent_harness.agent.security.workspace_trust.context.get_workspace_trust_level",
-            return_value=3,
-        ),
-        patch(
-            "myrm_agent_harness.agent.security.workspace_trust.context.get_repo_command_prefixes",
-            return_value=("pytest",),
-        ),
-        patch(
-            "myrm_agent_harness.agent.security.workspace_trust.gate.matches_repo_command_prefix",
-            return_value=True,
-        ),
-    ):
-        approved, denied, pending = await evaluate_tool_batch(calls, config, False, "/tmp", "s", {})
-
-    assert len(approved) == 1
-    assert denied == []
-    assert pending == []

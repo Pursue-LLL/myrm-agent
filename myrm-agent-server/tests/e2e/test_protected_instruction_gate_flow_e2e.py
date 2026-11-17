@@ -163,7 +163,7 @@ async def test_protected_instruction_files_task_flow_e2e() -> None:
 
             # Shell call tool object
             shell_tool_call = {
-                "name": "bash",
+                "name": "bash_code_execute_tool",
                 "args": {"command": shell_cmd},
             }
             assert (

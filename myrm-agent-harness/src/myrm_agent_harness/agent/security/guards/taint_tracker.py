@@ -8,7 +8,7 @@ tool produces tainted output, all subsequent tool calls to incompatible
 sinks are escalated to ASK (require user approval) rather than blocked.
 
 [INPUT]
-- agent.security.command_rules::COMMAND_BEARING_PERMISSIONS, command_text (POS: the permission types whose tool input carries command text, and that text)
+- agent.security.command_rules::command_text (POS: the text a command-bearing tool runs: the one field of its input the tool executes)
 - core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
 - core.security.tool_registry::URL_BEARING_PERMISSIONS, resolve_permission_type, url_arg_hosts (POS: the tools that take URLs, the permission type of a call, and the hosts of the URLs a call names under every argument spelling)
 
@@ -33,7 +33,7 @@ from collections.abc import Collection
 from contextvars import ContextVar
 from enum import StrEnum, unique
 
-from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
+from myrm_agent_harness.agent.security.command_rules import command_text
 from myrm_agent_harness.core.security.domain_match import host_matches
 from myrm_agent_harness.core.security.tool_registry import (
     URL_BEARING_PERMISSIONS,
@@ -172,10 +172,9 @@ class TaintTracker:
         # Dynamic sink escalation: with SECRET taint in the session, command text shaped like a network transfer is an
         # egress, whether the bash tool runs it or a running process receives it on stdin.
         if (
-            permission in COMMAND_BEARING_PERMISSIONS
-            and TaintLabel.SECRET in self._taints
+            TaintLabel.SECRET in self._taints
             and tool_input
-            and _BASH_EGRESS_RE.search(command_text(tool_input))
+            and _BASH_EGRESS_RE.search(command_text(permission, tool_input))
         ):
             blocked.add(TaintLabel.SECRET)
 

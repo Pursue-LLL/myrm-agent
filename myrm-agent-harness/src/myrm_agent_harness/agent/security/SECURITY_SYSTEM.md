@@ -336,7 +336,7 @@ class TaintLabel(StrEnum):
 
 汇表 `TAINT_SINK_POLICIES` 的键是工具名；权限类型（`code_interpreter`、`shell_exec` 等）不是它的键。
 
-**命令文本的动态升级**：会话带 `SECRET` 污点时，命令文本形似网络传输（`_BASH_EGRESS_RE`）的调用也是 `SECRET` 的汇。命令文本取 `command`，其次 `code`，其次 `data`（`command_rules.command_text`）；调用的权限类型须属 `COMMAND_BEARING_PERMISSIONS`：`bash_code_execute_tool`，以及写进运行中进程 stdin 的 `bash_process_tool`（`write_stdin`、`submit_stdin`，权限类型按动作解析为 `shell_exec`）。后台启动的 shell 会把 stdin 读到的文字当命令执行，所以两条通道按同一份命令文本判定。
+**命令文本的动态升级**：会话带 `SECRET` 污点时，命令文本形似网络传输（`_BASH_EGRESS_RE`）的调用也是 `SECRET` 的汇。调用的权限类型须属 `COMMAND_BEARING_PERMISSIONS`：`bash_code_execute_tool`（`code_interpreter`），以及写进运行中进程 stdin 的 `bash_process_tool`（`write_stdin`、`submit_stdin`，权限类型按动作解析为 `shell_exec`）；命令文本由 `command_rules.command_text` 按权限类型取得（见 Target Resolution 一节的「命令文本的来源」）。后台启动的 shell 会把 stdin 读到的文字当命令执行，所以两条通道按同一套判定。
 
 **工作机制**：
 
@@ -555,7 +555,7 @@ DEFAULT_RULESET = (
 
 ### Shell Command Analyzer（不可覆盖）
 
-`shell_command_analyzer.py` 在 `evaluate_tool_call()` 的第二步检查，**无论用户如何配置规则都无法覆盖**。仅对 `shell_exec` 权限类型生效。
+`shell_command_analyzer.py` 在 `evaluate_tool_call()` 的第二步检查，**无论用户如何配置规则都无法覆盖**。对命令承载权限类型（`COMMAND_BEARING_PERMISSIONS`：`code_interpreter`、`shell_exec`）生效，读的是该权限执行的那个参数。
 
 三层检测：注入向量（BLOCK）→ 危险命令模式（BLOCK）→ 可疑模式（ESCALATE→ASK）。详见 3.2.1 节。
 
@@ -602,9 +602,12 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 |---------|---------|---------|
 | `browser_navigate` | `url` | 提取规范主机（见 3.1「规范写法」）；没有规范写法的字符串（如不带协议的 `host:port`）以原文作为目标 |
 | `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的规范主机并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
-| `shell_exec` | `command` | 原始值 |
+| `code_interpreter`（`bash_code_execute_tool`） | `command` | 原始值（去首尾空白） |
+| `shell_exec`（`bash_process_tool` 的 `write_stdin` / `submit_stdin` / `close_stdin` / `kill`） | `data` | 原始值（去首尾空白）；`kill` 不带文字，目标为 `"*"` |
 | `file_read` / `file_write` | `path` | 原始值 |
 | 其他 | — | 返回 `"*"` |
+
+**命令文本的来源**：命令承载权限类型只有 `code_interpreter` 与 `shell_exec`，各自只读执行器真正执行的那一个参数（`command_rules.COMMAND_TEXT_KEY`，契约测试对照执行器的入参模型与 `resolve_permission_type` 钉死这张映射）。入参里多带的其它键（执行器的入参模型会丢弃未声明的键）不参与任何判定，所以各层看到的文字与实际执行的文字是同一份：权限引擎的目标与安全命令自动放行、Shell Command Analyzer、命令 denylist、污点外发汇、审核模型的跳过、cron 的集成写入检查、脚本文件的内容摘要、allow-always 的守卫、技能边界记入权限日志的操作文本，都经 `command_text` 取文本；允许列表的命令模式经 `launch_command` 取启动的命令（只有 `code_interpreter` 是一条启动的命令，进程 stdin 的文字不进入命令模式）。其它权限类型没有命令文本，这些检查对它们不产生判定。
 
 ### 规则集合并与配置解析
 

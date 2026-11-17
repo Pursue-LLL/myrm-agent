@@ -164,9 +164,7 @@ def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name
     """
     if permission == "mcp_invoke" and tool_name:
         return tool_name
-    if permission in COMMAND_BEARING_PERMISSIONS:
-        return command_text(tool_input) or "*"
-    return "*"
+    return command_text(permission, tool_input) or "*"
 
 
 def _resolve_targets(
@@ -341,7 +339,7 @@ def evaluate_tool_call(
             classify_command_risk,
         )
 
-        command = command_text(tool_input)
+        command = command_text(permission, tool_input)
         if command and classify_command_risk(command) == CommandRiskLevel.SAFE:
             return PermissionAction.ALLOW, "Safe read-only command auto-allow"
 

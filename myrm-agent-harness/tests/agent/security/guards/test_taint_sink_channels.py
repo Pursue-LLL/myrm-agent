@@ -88,6 +88,22 @@ def test_text_typed_into_a_running_process_is_judged_like_a_shell_command(action
     assert TaintLabel.SECRET in conflict
 
 
+@pytest.mark.parametrize("shadow", ["command", "code"])
+def test_typed_text_is_judged_whatever_an_ignored_key_says(shadow: str) -> None:
+    """``bash_process_tool`` types ``data``; a ``command`` key beside it is dropped by its input model."""
+    conflict = _after_credential_read().check_sink("bash_process_tool", {**_stdin(_EXFIL), shadow: "ls"})
+
+    assert conflict is not None
+    assert TaintLabel.SECRET in conflict
+
+
+@pytest.mark.parametrize("shadow", ["command", "code"])
+def test_text_in_an_ignored_key_is_no_sink(shadow: str) -> None:
+    tracker = _after_credential_read()
+
+    assert tracker.check_sink("bash_process_tool", {**_stdin("y"), shadow: _EXFIL}) is None
+
+
 def test_ordinary_text_typed_into_a_running_process_is_no_sink() -> None:
     tracker = _after_credential_read()
 

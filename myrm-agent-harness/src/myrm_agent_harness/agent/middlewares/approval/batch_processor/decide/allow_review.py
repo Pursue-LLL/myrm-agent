@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
+- myrm_agent_harness.agent.security.command_rules::command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.security.types::ReviewDecision (POS: Security type definitions — re-exported from core.security.types.)
 - myrm_agent_harness.toolkits.code_execution.security.risk_classifier::CommandRiskLevel / classify_command_risk (POS: Command risk classifier for approval auto-allow decisions.)
 - myrm_agent_harness.agent.middlewares.approval._batch_review::_security_reviewer / _run_llm_review / _truncate_tool_args (POS: Batch review helpers — LLM review and runtime domain tracking.)
@@ -22,6 +23,7 @@ import json
 import logging
 
 from myrm_agent_harness.agent.security.audit import record_decision
+from myrm_agent_harness.agent.security.command_rules import command_text
 from myrm_agent_harness.agent.security.types import ReviewDecision
 
 from ... import _batch_review
@@ -116,7 +118,8 @@ async def _settled_by_shell_review(ctx: BatchContext, verdicts: Verdicts, call: 
     A shell call that passes the engine as ALLOW is still reviewed in auto mode when the risk classifier does not
     call the command safe, so a broad user ALLOW rule cannot bypass the reviewer.
     """
-    if call.permission_type not in ("shell_exec", "code_interpreter") or not _auto_review_available(ctx):
+    shell_cmd = command_text(call.permission_type, call.tool_input)
+    if not shell_cmd or not _auto_review_available(ctx):
         return False
 
     from myrm_agent_harness.toolkits.code_execution.security.risk_classifier import (
@@ -124,9 +127,8 @@ async def _settled_by_shell_review(ctx: BatchContext, verdicts: Verdicts, call: 
         classify_command_risk,
     )
 
-    tool_name, tool_input = call.tool_name, call.tool_input
-    shell_cmd = str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()
-    if not shell_cmd or not (
+    tool_name = call.tool_name
+    if not (
         getattr(ctx.config, "classify_all_shell_in_auto_mode", False)
         or classify_command_risk(shell_cmd) != CommandRiskLevel.SAFE
     ):

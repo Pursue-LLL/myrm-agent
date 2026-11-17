@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import pytest
 
+from myrm_agent_harness.agent.security.command_rules import COMMAND_TEXT_KEY
 from myrm_agent_harness.agent.security.engine import evaluate_tool_call
 from myrm_agent_harness.agent.security.types import (
     PermissionAction,
@@ -24,9 +25,9 @@ _CONFIG = SecurityConfig()
 
 
 def _eval_shell(command: str) -> PermissionAction:
-    """Evaluate a shell_exec command through the full security pipeline."""
+    """Evaluate a command of the bash tool (``code_interpreter``) through the full security pipeline."""
     action, _ = evaluate_tool_call(
-        "shell_exec",
+        "code_interpreter",
         {"command": command},
         _CONFIG,
     )
@@ -302,7 +303,7 @@ class TestSqlGuardE2E:
         )
         action, reason = evaluate_tool_call(
             "shell_exec",
-            {"command": "psql -c 'DROP TABLE users'"},
+            {"data": "psql -c 'DROP TABLE users'"},
             auto_allow_config,
         )
         assert action == PermissionAction.ASK
@@ -317,7 +318,7 @@ class TestSqlGuardE2E:
         )
         action, _ = evaluate_tool_call(
             "shell_exec",
-            {"command": "psql -c 'SELECT 1; DROP TABLE users'"},
+            {"data": "psql -c 'SELECT 1; DROP TABLE users'"},
             auto_allow_config,
         )
         assert action == PermissionAction.ASK
@@ -331,7 +332,7 @@ class TestSqlGuardE2E:
         )
         action, _ = evaluate_tool_call(
             "shell_exec",
-            {"command": "psql -c 'SELECT 1'"},
+            {"data": "psql -c 'SELECT 1'"},
             auto_allow_config,
         )
         assert action == PermissionAction.ALLOW
@@ -342,7 +343,7 @@ class TestCommandReadAsTheShellRunsItE2E:
 
     @staticmethod
     def _evaluate(permission: str, command: str) -> PermissionAction:
-        action, _ = evaluate_tool_call(permission, {"command": command}, _CONFIG)
+        action, _ = evaluate_tool_call(permission, {COMMAND_TEXT_KEY[permission]: command}, _CONFIG)
         return action
 
     @pytest.mark.parametrize("permission", ["shell_exec", "code_interpreter"])

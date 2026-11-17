@@ -4,15 +4,12 @@
 - myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines exactly what this module re-exports, so the alias never widens the public API.)
 - myrm_agent_harness.agent.security.types::PermissionAction (POS: Security type definitions — re-exported from core.security.types.)
 - myrm_agent_harness.core.security.spend_governance::is_financial_or_spend_tool / is_irreversible_social_action (POS: Foundational Agent Commerce governance module in core/security/.)
-- myrm_agent_harness.agent.security.command_allowlist_pattern::extract_shell_command (POS: Layer 4 allowlist extension (C-minimal). Pattern entries never auto-approve compound shell commands; DENY rules in evaluate_tool_call still win first.)
-- myrm_agent_harness.agent.security.workspace_trust.context::get_repo_command_prefixes / get_workspace_trust_level (POS: Run-scoped state holder of the workspace_trust gate. ContextVars keep the decision isolated per async task, so concurrent runs on different workspaces never observe each other's trust level. Values are populated by runtime.py from a server-injected lookup.)
-- myrm_agent_harness.agent.security.workspace_trust.gate::matches_repo_command_prefix (POS: Pure predicate layer of the workspace_trust gate; no persistence and no server calls. Unknown (None) trust is treated as restricted. Path containment resolves symlinks before comparing, so a workspace symlink cannot be used to escape the trusted boundary.)
-- myrm_agent_harness.agent.security.workspace_trust.types::WorkspaceTrustLevel (POS: Leaf type module of the workspace_trust gate. Frozen dataclasses and one str-Enum, so the values are hashable and safe to pass across the async run boundary.)
+- myrm_agent_harness.agent.security.command_rules::launch_command (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.middlewares._session_context::get_agent_id / get_approval_session / get_approval_user_id (POS: Middleware session context — shared ContextVars for the middleware chain.)
 - myrm_agent_harness.agent.middlewares.approval.batch_processor.decide.state::BatchContext / CallState (POS: Shared state of the decision stages in ``decide/``: the stages read the batch context, write the call state, and settle a call by writing it into the verdict lists.)
 
 [OUTPUT]
-- apply_allowlist: turn an ASK into an ALLOW when the user's allowlist or the repo's declared prefixes cover the call
+- apply_allowlist: turn an ASK into an ALLOW when an entry of the user's allowlist covers the call
 
 [POS]
 Third decision stage. Only an ASK is looked up. A match is dropped when a gate that "always allow" must never lift
@@ -27,6 +24,7 @@ from myrm_agent_harness.agent.security.approval_flow import (
     get_allowlist,
 )
 from myrm_agent_harness.agent.security.audit import record_decision
+from myrm_agent_harness.agent.security.command_rules import launch_command
 from myrm_agent_harness.agent.security.path_security import (
     is_protected_instruction_file,
 )
@@ -40,7 +38,7 @@ from .state import BatchContext, CallState
 
 
 async def apply_allowlist(ctx: BatchContext, call: CallState) -> None:
-    """Raise an ASK to ALLOW when an allowlist entry (or a repo-declared prefix) covers the call."""
+    """Raise an ASK to ALLOW when an allowlist entry covers the call."""
     if call.action != PermissionAction.ASK:
         return
 
@@ -58,37 +56,13 @@ async def apply_allowlist(ctx: BatchContext, call: CallState) -> None:
     await allowlist.load_user(user_id)
     effective_tool_name = str(call.extra_ctx.get("ptc_tool_name_full", tool_name)) if call.extra_ctx else tool_name
     args_hash = ctx.args_hashes.get(call.idx)
-    from myrm_agent_harness.agent.security.command_allowlist_pattern import (
-        extract_shell_command,
-    )
-
-    shell_command = extract_shell_command(call.tool_input)
-
-    if shell_command and call.permission_type == "shell_exec":
-        from myrm_agent_harness.agent.security.workspace_trust.context import (
-            get_repo_command_prefixes,
-            get_workspace_trust_level,
-        )
-        from myrm_agent_harness.agent.security.workspace_trust.gate import (
-            matches_repo_command_prefix,
-        )
-        from myrm_agent_harness.agent.security.workspace_trust.types import (
-            WorkspaceTrustLevel,
-        )
-
-        if get_workspace_trust_level() == WorkspaceTrustLevel.TRUSTED:
-            prefixes = get_repo_command_prefixes()
-            if matches_repo_command_prefix(shell_command, prefixes):
-                call.action = PermissionAction.ALLOW
-                call.reason = "Repo-declared command prefix auto-approve"
-                record_decision(tool_name, "REPO_PREFIX_AUTO_APPROVE", call.reason)
 
     matching_allowlist_entry = allowlist.find_matching_entry(
         user_id,
         call.permission_type,
         effective_tool_name,
         args_hash,
-        command=shell_command,
+        command=launch_command(call.permission_type, call.tool_input),
         agent_id=current_agent_id,
         session_id=current_session_id,
     )

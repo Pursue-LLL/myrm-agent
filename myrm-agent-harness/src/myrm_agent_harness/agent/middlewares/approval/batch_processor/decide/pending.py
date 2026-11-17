@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
+- myrm_agent_harness.agent.security.command_rules::command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines exactly what this module re-exports, so the alias never widens the public API.)
 - myrm_agent_harness.core.security.remote_ops_ledger::derive_recovery_hint (POS: Foundation layer in core/security. Zero agent-internal dependencies.)
 - myrm_agent_harness.core.security.spend_governance::compute_action_digest / compute_script_content_hash / extract_script_file_target / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
@@ -22,6 +23,7 @@ from __future__ import annotations
 import logging
 
 from myrm_agent_harness.agent.security.audit import record_decision
+from myrm_agent_harness.agent.security.command_rules import command_text
 from myrm_agent_harness.agent.security.path_security import (
     is_protected_instruction_file,
 )
@@ -149,33 +151,24 @@ def _annotate_script_digests(ctx: BatchContext, call: CallState) -> None:
             extra_ctx["high_risk"] = True
 
     # TOCTOU Defense: extract mutable script operand and compute content digest (CVE-2026-32921)
-    if call.permission_type in ("shell_exec", "code_interpreter") or tool_name in (
-        "bash_code_execute_tool",
-        "execute_code",
-    ):
-        shell_cmd_for_snapshot = str(
-            tool_input.get("command", "")
-            or tool_input.get("code", "")
-            or tool_input.get("script", "")
-            or tool_input.get("cmd", "")
-        ).strip()
-        if shell_cmd_for_snapshot:
-            from myrm_agent_harness.agent.security.script_operand_verifier import (
-                compute_file_content_digest,
-                extract_script_file_operand,
-            )
+    command = command_text(call.permission_type, tool_input)
+    if command:
+        from myrm_agent_harness.agent.security.script_operand_verifier import (
+            compute_file_content_digest,
+            extract_script_file_operand,
+        )
 
-            script_path = extract_script_file_operand(shell_cmd_for_snapshot, workspace_root=ctx.workspace_root)
-            if script_path:
-                script_digest = compute_file_content_digest(script_path)
-                if script_digest:
-                    extra_ctx = call.context()
-                    extra_ctx["script_operand_path"] = script_path
-                    extra_ctx["script_operand_hash"] = script_digest
-                    extra_ctx["hide_allow_always"] = True
-                    logger.info(
-                        "[SCRIPT_OPERAND] Snapshotted script operand for %s: path=%s, sha256=%s",
-                        tool_name,
-                        script_path,
-                        script_digest[:12],
-                    )
+        script_path = extract_script_file_operand(command, workspace_root=ctx.workspace_root)
+        if script_path:
+            script_digest = compute_file_content_digest(script_path)
+            if script_digest:
+                extra_ctx = call.context()
+                extra_ctx["script_operand_path"] = script_path
+                extra_ctx["script_operand_hash"] = script_digest
+                extra_ctx["hide_allow_always"] = True
+                logger.info(
+                    "[SCRIPT_OPERAND] Snapshotted script operand for %s: path=%s, sha256=%s",
+                    tool_name,
+                    script_path,
+                    script_digest[:12],
+                )

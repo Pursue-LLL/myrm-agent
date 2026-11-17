@@ -1,6 +1,7 @@
 """Unattended (cron) resolution of approval asks.
 
 [INPUT]
+- agent.security.command_rules::command_text (POS: The text a command-bearing tool runs: the one field of its input the tool executes.)
 - agent.security.engine::check_tool_path_policy (POS: Path-zone verdict shared with the permission engine.)
 - agent.security.guards.taint_tracker::TaintLabel, get_taint_tracker (POS: Session-scoped data-flow taint state.)
 - agent.security.types::DEFAULT_CAPABILITIES, PermissionAction, SecurityConfig (POS: Security type hierarchy.)
@@ -28,6 +29,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from myrm_agent_harness.agent.security.command_rules import command_text
 from myrm_agent_harness.agent.security.engine import check_tool_path_policy
 from myrm_agent_harness.agent.security.guards.taint_tracker import TaintLabel, get_taint_tracker
 from myrm_agent_harness.agent.security.types import DEFAULT_CAPABILITIES, PermissionAction, SecurityConfig
@@ -35,8 +37,6 @@ from myrm_agent_harness.core.security.spend_governance import is_financial_or_sp
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     is_integration_mutation_command,
 )
-
-_SHELL_PERMISSIONS = frozenset({"shell_exec", "code_interpreter"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,13 +84,12 @@ def cron_never_class(
     if is_financial_or_spend_tool(tool_name, tool_input):
         return _PAYMENT_DENIED
 
-    if permission_type in _SHELL_PERMISSIONS:
-        command = str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()
-        if command and is_integration_mutation_command(command):
-            return _denied(
-                "integration write mutation",
-                "Tool denied: cron jobs cannot auto-approve Google/integration write operations.",
-            )
+    command = command_text(permission_type, tool_input)
+    if command and is_integration_mutation_command(command):
+        return _denied(
+            "integration write mutation",
+            "Tool denied: cron jobs cannot auto-approve Google/integration write operations.",
+        )
 
     # Recomputed instead of read from the escalation upstream: the call reaches this point whether the engine,
     # the taint check or an approval raised it, and the reviewer may have been unavailable.

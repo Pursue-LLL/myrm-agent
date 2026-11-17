@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.agent.security.command_rules::command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
 - myrm_agent_harness.agent.security.tool_registry::resolve_permission_type / resolve_safety_metadata / get_ptc_safety_metadata (POS: Tool safety registry — re-exported from core.security.tool_registry.)
 - myrm_agent_harness.agent.security.checks::check_path_policy (POS: Layers 2 and 2.5 of the permission engine's deterministic evaluation: per-call checks the engine composes with its rule lookup.)
@@ -17,6 +18,7 @@ is widened to ALLOW so it needs no approval prompt.
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.security.command_rules import command_text
 from myrm_agent_harness.agent.security.engine import evaluate_tool_call
 from myrm_agent_harness.agent.security.tool_registry import (
     resolve_permission_type,
@@ -62,8 +64,7 @@ def _apply_ptc_intent(ctx: BatchContext, call: CallState) -> None:
         get_ptc_safety_metadata,
     )
 
-    command = str(call.tool_input.get("command", ""))
-    ptc_intent = extract_ptc_intent(command)
+    ptc_intent = extract_ptc_intent(command_text(call.permission_type, call.tool_input))
     if not ptc_intent:
         return
 

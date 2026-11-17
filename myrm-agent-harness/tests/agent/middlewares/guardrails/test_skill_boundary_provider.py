@@ -85,10 +85,11 @@ async def test_aevaluate_allows_when_no_skills_loaded() -> None:
 async def test_aevaluate_allows_when_tool_has_no_permission_mapping() -> None:
     """Tools without a permission mapping must not invoke the checker."""
     _load_skill()
-    provider = SkillBoundaryProvider(permission_checker=MagicMock())
+    checker = MagicMock()
+    provider = SkillBoundaryProvider(permission_checker=checker)
     decision = await provider.aevaluate(_request("foo_tool"))
     assert decision.allow is True
-    provider._permission_checker.assert_not_called()
+    checker.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -201,10 +202,11 @@ async def test_ssot_web_fetch_uses_network_access_grant() -> None:
 async def test_ssot_mcp_tool_not_applicable_to_skills() -> None:
     """MCP tools resolve to mcp_invoke (own auth) and must not invoke the checker."""
     _load_skill()
-    provider = SkillBoundaryProvider(permission_checker=MagicMock())
+    checker = MagicMock()
+    provider = SkillBoundaryProvider(permission_checker=checker)
     decision = await provider.aevaluate(GuardrailRequest(tool_name="mcp__github__get_repo", tool_input={"repo": "x"}))
     assert decision.allow is True
-    provider._permission_checker.assert_not_called()
+    checker.assert_not_called()
 
 
 def test_extract_critical_params_falls_back_to_full_input() -> None:
@@ -212,6 +214,28 @@ def test_extract_critical_params_falls_back_to_full_input() -> None:
     provider = SkillBoundaryProvider()
     result = provider._extract_critical_params("env_tool", {"key": "HOME"})
     assert result == str({"key": "HOME"})
+
+
+@pytest.mark.parametrize(
+    ("tool_name", "tool_input", "expected"),
+    [
+        ("bash_code_execute_tool", {"command": "ls -la"}, "ls -la"),
+        ("bash_code_execute_tool", {"command": "ls -la", "script": "rm -rf /", "code": "rm -rf /"}, "ls -la"),
+        ("bash_process_tool", {"action": "write_stdin", "data": "yes"}, "yes"),
+        ("bash_process_tool", {"action": "write_stdin", "data": "yes", "command": "ls", "code": "ls"}, "yes"),
+    ],
+)
+def test_a_shell_call_is_described_by_the_text_its_tool_runs(
+    tool_name: str, tool_input: dict[str, object], expected: str
+) -> None:
+    """An argument the shell tool never runs must not stand in for what it runs in the permission log."""
+    assert SkillBoundaryProvider()._extract_critical_params(tool_name, tool_input) == expected
+
+
+def test_a_shell_call_without_command_text_is_described_by_its_whole_input() -> None:
+    provider = SkillBoundaryProvider()
+    tool_input: dict[str, object] = {"action": "kill", "session_id": "s1"}
+    assert provider._extract_critical_params("bash_process_tool", tool_input) == str(tool_input)
 
 
 def test_resolve_loaded_skills_swallows_context_failure() -> None:
