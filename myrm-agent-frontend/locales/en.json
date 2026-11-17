@@ -2076,9 +2076,7 @@
       "createdMessage": {
         "bash": "Snapshot taken before running a command",
         "file_write": "Snapshot taken before writing files",
-        "file_append": "Snapshot taken before appending to files",
         "file_delete": "Snapshot taken before deleting files",
-        "patch_file": "Snapshot taken before patching files",
         "unknown": "Workspace snapshot created to protect your code"
       }
     },

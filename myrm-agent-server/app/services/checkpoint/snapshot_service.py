@@ -45,9 +45,7 @@ _MAX_CACHED_TURNS = 512
 _TRIGGER_MAP: dict[str, SnapshotTrigger] = {
     "bash": SnapshotTrigger.EXECUTE_TERMINAL,
     "file_write": SnapshotTrigger.WRITE_FILE,
-    "file_append": SnapshotTrigger.WRITE_FILE,
     "file_delete": SnapshotTrigger.DELETE_FILE,
-    "patch_file": SnapshotTrigger.PATCH_FILE,
 }
 
 
