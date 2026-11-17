@@ -333,7 +333,6 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
                 {results.map((item) => (
                   <div
                     key={item.id}
-                    // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- clickable card with nested action buttons
                     role="button"
                     tabIndex={0}
                     onClick={() => handleResultClick(item.chat_id, String(item.id))}
