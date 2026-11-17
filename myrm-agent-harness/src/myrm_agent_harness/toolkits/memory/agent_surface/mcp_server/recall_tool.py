@@ -67,7 +67,7 @@ _RECALL_DESCRIPTION = (
     "- Use specific queries for better results\n"
     "- Filter by categories: knowledge, claim, event, preference, rule\n"
     "- Use profile_key for instant attribute lookup (e.g. 'name', 'language')\n"
-    "- Use since/until for time-scoped queries (e.g. '30m', '7d', '2w')"
+    "- Use since/until for time-scoped queries (e.g. '30m', '7d', '2w'; a month is '30d')"
 )
 
 
