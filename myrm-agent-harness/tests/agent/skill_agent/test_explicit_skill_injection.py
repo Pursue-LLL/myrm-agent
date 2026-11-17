@@ -7,6 +7,7 @@ Covers:
 - Graceful degradation (no backend, unknown skill, unreadable or empty SOP, a failing loader)
 - Unavailable skills (the signal carries a WARNING)
 - Bundles (``[use a,b]``): merged SOPs, a missing skill, a skill without a readable SOP, the token budget
+- The header names only the skills whose SOP was delivered (bundle and single form)
 
 How the SOP reaches the model (template variable, content blocks) is covered in
 test_explicit_skill_injection_delivery.py, the tag grammar in test_skill_reference.py and what run() does with a
@@ -300,7 +301,7 @@ class TestPreloadExplicitSkill:
         assert matched is not None
         assert matched.name == "found_skill"
         assert "# Found" in query
-        assert "missing_skill" not in query.split("---")[-1]
+        assert "missing_skill" not in query
         assert "preloaded" in query.lower()
 
     @pytest.mark.asyncio
@@ -355,6 +356,26 @@ class TestPreloadExplicitSkill:
         query, _, _preloaded = await agent._preload_explicit_skill("[use solo] go")
         assert "bundle" not in query.lower()
         assert '"solo" has been preloaded' in query
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("refs", "header"),
+        [
+            ("beta,alpha,gamma", "The following 2 skills have been preloaded as a bundle: alpha, gamma."),
+            ("beta,alpha", 'The skill "alpha" has been preloaded by the user.'),
+        ],
+        ids=["bundle-header", "single-header"],
+    )
+    async def test_the_header_names_only_the_skills_whose_sop_was_delivered(self, refs: str, header: str) -> None:
+        """The header tells the model which SOPs it already has, so a skill that delivered none is not named."""
+        skills = [make_skill_metadata(name=name, storage_skill_id=name) for name in ("alpha", "beta", "gamma")]
+        backend = StubSkillBackend(content_map={"alpha": "# Alpha\n\nDo A.", "gamma": "# Gamma\n\nDo G."})
+        agent = make_preload_agent(skills=skills, backend=backend)
+
+        query, _primary, _preloaded = await agent._preload_explicit_skill(f"[use {refs}] go")
+
+        assert header in query
+        assert "beta" not in query
 
     @pytest.mark.asyncio
     async def test_bundle_with_instruction_in_user_args(self) -> None:
