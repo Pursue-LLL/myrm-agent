@@ -1,6 +1,6 @@
 """[INPUT]
 - app.database.repositories.conversation_recall.sql / .types (POS: SQL contract with the snippet highlight markers + row types)
-- app.database.repositories.like_pattern (POS: the substring channel of chat search: LIKE patterns that match the typed text literally)
+- app.database.repositories.like_pattern (POS: the substring channel of chat search: the needle and LIKE pattern of a typed query)
 
 [OUTPUT]
 - SearchMixin

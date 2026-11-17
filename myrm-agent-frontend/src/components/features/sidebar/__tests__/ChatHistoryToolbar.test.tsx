@@ -160,6 +160,13 @@ describe('ChatHistoryToolbar search field', () => {
     expect(className).not.toMatch(/placeholder:text-muted-foreground\//);
   });
 
+  it('stops at the 200 characters the server takes as a keyword, so a pasted text cannot fail the list', () => {
+    openField();
+
+    // The literal is the server's `keyword` limit on the chat list; a longer one is answered with HTTP 422.
+    expect(screen.getByPlaceholderText('common.search')).toHaveAttribute('maxlength', '200');
+  });
+
   it('types at 16px on a phone so the keyboard does not zoom the page, and 12px elsewhere', () => {
     const desktop = openField();
     expect(screen.getByPlaceholderText('common.search').className).toContain('text-xs');

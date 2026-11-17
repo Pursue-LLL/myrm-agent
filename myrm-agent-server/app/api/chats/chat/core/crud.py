@@ -35,7 +35,7 @@ async def get_chats(
     source: str | None = Query(None, description="按来源渠道过滤 (web/telegram/feishu 等)"),
     project_id: str | None = Query(None, description="按项目过滤"),
     unassigned: bool = Query(False, description="仅显示未归属项目的会话"),
-    keyword: str | None = Query(None, description="按标题或首条消息模糊搜索"),
+    keyword: str | None = Query(None, max_length=200, description="按标题或首条消息模糊搜索"),
     tags: list[str] | None = Query(None, description="按多维度会话标签过滤（如 BugFix, Refactor 等）"),
     match_mode: str = Query("any", description="标签聚合模式 (any: 并集, all: 交集)"),
     db: AsyncSession = Depends(get_db),

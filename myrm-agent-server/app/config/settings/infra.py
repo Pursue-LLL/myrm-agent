@@ -67,7 +67,7 @@ class DatabaseSettings(BaseSettings):
     sqlite_busy_timeout_ms: int = (
         30000  # SQLITE_BUSY_TIMEOUT_MS (boosted to 30s to eliminate locked storms under concurrent writes)
     )
-    database_echo: bool = False  # DATABASE_ECHO
+    database_echo: bool = False  # DATABASE_ECHO (statement logging with bound parameters; when off, errors never list them)
     database_url: str = ""  # DATABASE_URL (optional AGE graph store; default SQLite graph)
     checkpointer_mode: str = ""  # CHECKPOINTER_MODE (memory|sqlite; empty = sqlite)
 

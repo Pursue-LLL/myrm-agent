@@ -3,7 +3,8 @@
 The sidebar, the search dialog, the ``@chat:`` picker and the model's conversation search all fall back to a substring
 scan when the trigram index has nothing (a query under three characters, or one the FTS expression flattens: ``C++``
 becomes ``C``). That scan reads the typed text: punctuation is literal, ``%`` and ``_`` are not wildcards, a backslash is
-a backslash, and a query with nothing searchable in it matches nothing (the sidebar then shows every chat).
+a backslash, and a query with nothing searchable in it matches nothing. The sidebar also reads chat titles, where a quote
+is ordinary text: it keeps the quotes that were typed and shows every chat only for a blank query.
 """
 
 from __future__ import annotations
@@ -149,9 +150,9 @@ async def test_a_query_with_nothing_searchable_matches_nothing(fts_db: AsyncSess
     assert await entry(fts_db, query) == set()
 
 
-@pytest.mark.parametrize("query", ['""', "   ", '" "'])
+@pytest.mark.parametrize("query", ["   ", "\u3000"])
 @pytest.mark.asyncio
-async def test_the_sidebar_filters_nothing_when_nothing_searchable_was_typed(fts_db: AsyncSession, query: str) -> None:
+async def test_the_sidebar_filters_nothing_when_the_query_is_blank(fts_db: AsyncSession, query: str) -> None:
     await _seed(fts_db, _saying("anything"))
 
     assert await _sidebar(fts_db, query) == {_TARGET, *(f"chat-filler-{number}" for number in range(len(_FILLERS)))}
@@ -166,6 +167,9 @@ async def test_the_sidebar_filters_nothing_when_nothing_searchable_was_typed(fts
         ("C:\\Users\\me", {"t-path"}),
         ("50%", {"t-percent"}),
         ("_ud", {"t-underscore"}),
+        ('"login" bug', {"t-quoted"}),
+        ("login bug", {"t-quoted-decoy"}),
+        ('""', {"t-quote-pair"}),
     ],
 )
 @pytest.mark.asyncio
@@ -178,6 +182,9 @@ async def test_the_sidebar_matches_titles_as_typed(fts_db: AsyncSession, query: 
         "t-percent-decoy": "Saved 5000 budget",
         "t-underscore": "build_udf plan",
         "t-underscore-decoy": "Build udf plan",
+        "t-quoted": 'Fix "login" bug',
+        "t-quoted-decoy": "Fix login bug",
+        "t-quote-pair": 'Edge "" case',
     }
     for chat_id, title in titles.items():
         await seed_chat_with_text(fts_db, chat_id, "nothing relevant", title=title)

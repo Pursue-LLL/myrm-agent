@@ -249,5 +249,5 @@ class MessagesMixin:
                 return []
             return await ChatMessageSearchRepository.get_matching_chat_ids(db, safe_query, raw_query=keyword)
         except Exception:
-            logger.debug("FTS sidebar search fallback to ilike-only for keyword=%r", keyword, exc_info=True)
+            logger.debug("FTS sidebar search fallback to ilike-only", exc_info=True)
             return []

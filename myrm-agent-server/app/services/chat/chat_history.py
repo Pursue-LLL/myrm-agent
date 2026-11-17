@@ -161,5 +161,5 @@ class _ChatHistoryMixin(_ChatServiceBase):
             ]
             return (messages, total)
         except Exception as e:
-            logger.warning(f"FTS5 search failed for query '{query}': {e}")
+            logger.warning("FTS5 message search failed: %s", e)
             return ([], 0)

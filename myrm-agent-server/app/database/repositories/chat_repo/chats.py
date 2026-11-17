@@ -1,6 +1,6 @@
 """[INPUT]
 - .common (POS: shared constants)
-- app.database.repositories.like_pattern (POS: the substring channel of chat search: LIKE patterns that match the typed text literally)
+- app.database.repositories.like_pattern (POS: the substring channel of chat search: the needle and LIKE pattern of a typed query)
 
 [OUTPUT]
 - ChatsMixin
@@ -53,7 +53,8 @@ class ChatsMixin:
             where_clause.append(Chat.project_id == project_id)
         elif unassigned:
             where_clause.append(Chat.project_id.is_(None))
-        if keyword and (pattern := like_contains_pattern(keyword)) is not None:
+        # Titles and first messages are plain text, so a typed quote is part of what to find; only message text drops it.
+        if keyword and (pattern := like_contains_pattern(keyword, keep_quotes=True)) is not None:
             ilike_cond = or_(
                 Chat.title.ilike(pattern, escape=LIKE_ESCAPE),
                 Chat.first_message.ilike(pattern, escape=LIKE_ESCAPE),

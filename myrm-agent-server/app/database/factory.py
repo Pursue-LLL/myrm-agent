@@ -227,6 +227,9 @@ def create_engine() -> AsyncEngine:
     engine = create_async_engine(
         url,
         echo=echo,
+        # ``str(error)`` of a failed statement lists its bound parameters, and chat search binds what a person typed, so
+        # they stay out of every log line that prints an error. ``DATABASE_ECHO`` is the opt-in for seeing them.
+        hide_parameters=not echo,
         future=True,
         connect_args={"check_same_thread": False},
         pool_size=pool_size,
