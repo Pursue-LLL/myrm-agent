@@ -274,10 +274,9 @@ class TestGetChatsPaginatedWithFTS:
         chat_ids = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "沙箱", raw_query="沙箱")
         assert "chat-pg-cjk-short" in chat_ids
 
-        # Also verify search_messages_fts returns with is_relaxed=True
+        # The message search dialog reaches the same message through the substring fallback.
         msgs, total = await ChatMessageSearchRepository.search_messages_fts(
             fts_session, "沙箱", limit=10, offset=0, since=None, until=None, raw_query="沙箱"
         )
         assert total > 0
         assert any(m["chat_id"] == "chat-pg-cjk-short" for m in msgs)
-        assert any(m.get("is_relaxed") is True for m in msgs)

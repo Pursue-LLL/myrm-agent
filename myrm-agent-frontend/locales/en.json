@@ -3813,9 +3813,7 @@
     "to": "To",
     "clearTimeFilter": "Clear",
     "citeToComposer": "Cite in composer",
-    "citeSameChat": "This result is from the current chat — nothing to cite",
-    "fuzzyMatchBadge": "Fuzzy match",
-    "fuzzyMatchBadgeTooltip": "No exact match found; automatically expanded with relaxed matching"
+    "citeSameChat": "This result is from the current chat — nothing to cite"
   },
   "images": {
     "search": "Search images",

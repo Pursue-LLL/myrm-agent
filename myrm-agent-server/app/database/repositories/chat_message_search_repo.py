@@ -46,7 +46,6 @@ class MessageFtsSearchRow(TypedDict):
     sent_at: datetime | str | None
     chat_title: str | None
     highlight_snippet: str | None
-    is_relaxed: bool
 
 
 class ChatMessageSearchRepository:
@@ -203,7 +202,6 @@ class ChatMessageSearchRepository:
                         "sent_at": row.sent_at,
                         "chat_title": row.chat_title,
                         "highlight_snippet": row.highlight_snippet,
-                        "is_relaxed": False,
                     }
                 )
             return messages, total
@@ -274,7 +272,6 @@ class ChatMessageSearchRepository:
                     "sent_at": row.sent_at,
                     "chat_title": row.chat_title,
                     "highlight_snippet": ChatMessageSearchRepository.substring_snippet(row.content, needle),
-                    "is_relaxed": True,
                 }
             )
         return fb_messages, fb_total
