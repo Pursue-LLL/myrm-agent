@@ -370,7 +370,7 @@ def _taught_time_bounds(tip: str) -> list[str]:
 
 
 class TestRelativeExamplesTaughtToTheModel:
-    """Every time bound a model is shown for since/until parses, and a relative one parses to the duration it names.
+    """Every since/until bound a model is shown parses, a relative one means what it says, and a month is written 30d.
 
     The bounds sit in three model-visible texts while the unit table lives in ``parse_time_bound``; nothing else
     ties the two together, so an edit to either side alone silently teaches the model a wrong or ignored window.
@@ -385,7 +385,6 @@ class TestRelativeExamplesTaughtToTheModel:
         }
         for surface, description in descriptions.items():
             taught = _taught_time_bounds(_time_bound_tip(description))
-            assert "30d" in taught, f"{surface} must teach a month as 30d"
             for word in taught:
                 bound = _parse_time_bound(word)
                 assert bound is not None, f"{surface}: {word} is unparseable"
@@ -397,3 +396,4 @@ class TestRelativeExamplesTaughtToTheModel:
                 assert age_seconds == pytest.approx(int(amount) * _EXAMPLE_UNIT_SECONDS[unit], abs=5), (
                     f"{surface}: {word} parses to {age_seconds:.0f} seconds"
                 )
+            assert "30d" in taught, f"{surface} must teach a month as 30d"
