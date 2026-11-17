@@ -17,6 +17,9 @@ database is already a WAL database.
 
 [OUTPUT]
 - harden_connection_sync / harden_connection_async: apply the profile, return the journal mode
+- connect_async: short-lived hardened connection as an async context manager
+- open_hardened_async: long-lived hardened connection, handed out only once its setup has finished
+- should_fallback_to_delete: the single decision for a WAL -> DELETE downgrade
 
 [POS]
 Core of the unified SQLite hardening factory. Depends on profile + integrity leaves.
@@ -26,8 +29,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -193,3 +196,31 @@ async def connect_async(
     async with aiosqlite.connect(str(db_path)) as conn:
         await harden_connection_async(conn, profile, db_path=Path(db_path), capabilities=capabilities)
         yield conn
+
+
+async def open_hardened_async(
+    db_path: str | Path,
+    profile: SQLiteProfile = DEFAULT,
+    *,
+    prepare: Callable[[aiosqlite.Connection], Awaitable[None]] | None = None,
+) -> aiosqlite.Connection:
+    """Open and harden a long-lived aiosqlite connection, run ``prepare`` on it, and return it ready to use.
+
+    A store that opens its connection lazily keeps the result, so the result must never be a half-built connection.
+    Any step that fails, and a caller that is cancelled in the middle, closes the connection before the error
+    propagates: the caller either gets a connection with its settings and tables or nothing at all. ``prepare`` is
+    where the store creates or migrates its schema.
+    """
+    import aiosqlite
+
+    conn = await aiosqlite.connect(str(db_path))
+    try:
+        await harden_connection_async(conn, profile, db_path=Path(db_path))
+        if prepare is not None:
+            await prepare(conn)
+    except BaseException:
+        # Cancellation is a BaseException; a failing close must not replace the error that ended the open.
+        with suppress(Exception):
+            await conn.close()
+        raise
+    return conn

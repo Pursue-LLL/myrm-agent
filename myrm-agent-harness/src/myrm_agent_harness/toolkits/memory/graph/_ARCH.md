@@ -11,7 +11,7 @@ Graph Store — async graph storage with SQLite CTE backend.
 | age_store.py | Core | Apache AGE Graph Store — enterprise-grade graph backend for SaaS deployments. | ✅ |
 | base.py | Core | Graph store abstraction layer。Defines a backend-agnostic graph storage interface, data models (GraphNode, GraphRelationship, GraphQueryResult, GraphStats), and abstract methods including list_nodes/list_relationships/get_stats for visualization | ✅ |
 | exceptions.py | Core | Graph store exceptions. | ✅ |
-| sqlite_store.py | Core | Lightweight graph store backed by aiosqlite。Uses recursive CTE for graph queries, WAL mode, list_nodes/list_relationships/get_stats for visualization | ✅ |
+| sqlite_store.py | Core | Lightweight graph store backed by aiosqlite。Uses recursive CTE for graph queries, WAL mode, list_nodes/list_relationships/get_stats for visualization. The connection is opened through `open_hardened_async` under the connection lock and kept only once it is hardened and its tables exist, so a failed or cancelled open leaves nothing behind and the next call opens again; `close()` takes the same lock, so a close that overlaps an open waits for it | ✅ |
 | sqlite_temporal.py | Core | SQLite bi-temporal schema, partial unique indexing (including the lineage lookups `source_memory_id`, `source_chat_id` and `latest_source_memory_id` that deleting memories and chats go through), point-in-time snapshot, and atomic supersession. | ✅ |
 | sqlite_traversal.py | Core | Recursive CTE traversal, causal chain, cycle detection, and cascade deletion. | ✅ |
 
