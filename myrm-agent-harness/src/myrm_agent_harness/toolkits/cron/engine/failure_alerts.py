@@ -1,7 +1,7 @@
 """Failure alerting for cron jobs: dual-layer (per-job + global) alert decision and delivery.
 
 [INPUT]
-- toolkits.cron.engine.helpers::resolve_failure_alert, should_send_failure_alert (POS: alert config resolution and throttling)
+- toolkits.cron.engine.helpers::resolve_failure_alert, should_send_failure_alert (POS: pure engine helpers: failure-alert resolution and the threshold-and-cooldown rule)
 - toolkits.cron.protocols::ResultDelivery (POS: Protocols for the cron toolkit.)
 - toolkits.cron.types::CronJob, JobResult, FailureAlertConfig, DeliveryConfig (POS: Cron job domain types.)
 
@@ -12,7 +12,8 @@
 Mixed into ``JobExecutor``. Called after the closing write has decided the job's fate, so the alert text
 describes the job's updated state: paused, retrying with backoff, or left for its next regular run when the
 failed run is not safe to repeat (``JobResult.retry_safe`` is False). Such a failure is alerted without
-waiting for ``FailureAlertConfig.after`` consecutive failures.
+waiting for ``FailureAlertConfig.after`` consecutive failures, and a failure that paused the job is alerted
+whatever the threshold and the cooldown say.
 """
 
 from __future__ import annotations
@@ -58,7 +59,11 @@ class FailureAlertMixin:
         alert_config = resolve_failure_alert(job, self._global_failure_alert)
         if not alert_config:
             return
-        if not should_send_failure_alert(job, alert_config, now, immediate=not retry_safe):
+        # A job the closing write just paused does not run again until the user acts, so the news is not held back
+        # by the failure threshold or by the cooldown of an earlier alert.
+        if job.status != JobStatus.PAUSED and not should_send_failure_alert(
+            job, alert_config, now, immediate=not retry_safe
+        ):
             return
 
         job.last_failure_alert_at = now

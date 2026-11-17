@@ -86,8 +86,15 @@ def _english(monkeypatch: pytest.MonkeyPatch) -> None:
             f"Scheduled task paused: {_JOB}",
             "It has run 3 times, which is its limit, so it was paused automatically.",
         ),
+        (
+            CronNotice(CronNoticeKind.JOB_PAUSED_BY_FAILURE, _JOB, chat_id="chat-1"),
+            "warning",
+            "cron_job_paused",
+            f"Scheduled task paused: {_JOB}",
+            "It hit a problem it could not recover from, so it was paused automatically. Check its run history, then resume it.",
+        ),
     ],
-    ids=["succeeded", "failed", "expired", "max-fires"],
+    ids=["succeeded", "failed", "expired", "max-fires", "paused-by-failure"],
 )
 async def test_each_notice_kind_reads_as_its_severity_title_and_message(
     bus: _RecordingBus, notice: CronNotice, level: str, event_kind: str, title: str, message: str
@@ -121,10 +128,10 @@ async def test_a_job_without_a_chat_publishes_an_empty_chat_id(bus: _RecordingBu
 
 
 @pytest.mark.parametrize(
-    ("locale", "title", "pause_title", "max_fires_message"),
+    ("locale", "title", "pause_title", "max_fires_message", "failure_message"),
     [
-        ("en", f"Reminder: {_JOB}", f"Scheduled task paused: {_JOB}", "It has run 3 times"),
-        ("zh-CN", f"提醒：{_JOB}", f"定时任务已暂停：{_JOB}", "已执行 3 次"),
+        ("en", f"Reminder: {_JOB}", f"Scheduled task paused: {_JOB}", "It has run 3 times", "could not recover from"),
+        ("zh-CN", f"提醒：{_JOB}", f"定时任务已暂停：{_JOB}", "已执行 3 次", "无法自行恢复"),
     ],
 )
 async def test_titles_and_messages_speak_the_users_language(
@@ -134,16 +141,20 @@ async def test_titles_and_messages_speak_the_users_language(
     title: str,
     pause_title: str,
     max_fires_message: str,
+    failure_message: str,
 ) -> None:
     _speak(monkeypatch, locale)
 
     await publish_cron_notice(CronNotice(CronNoticeKind.RUN_SUCCEEDED, _JOB, "x"))
     await publish_cron_notice(CronNotice(CronNoticeKind.JOB_MAX_FIRES_REACHED, _JOB, max_fires=3))
+    await publish_cron_notice(CronNotice(CronNoticeKind.JOB_PAUSED_BY_FAILURE, _JOB))
 
-    run, pause = (e.data for e in bus.notifications())
+    run, pause, failure_pause = (e.data for e in bus.notifications())
     assert run["title"] == title
     assert pause["title"] == pause_title
     assert max_fires_message in pause["message"]
+    assert failure_pause["title"] == pause_title
+    assert failure_message in failure_pause["message"]
 
 
 @pytest.mark.parametrize("locale", ["en", "zh-CN"])
@@ -190,12 +201,21 @@ async def _fire(job: CronJob, runner: _Runner) -> CronJob:
     return stored
 
 
-def _job(*, expires_at: datetime | None = None, max_fires: int | None = None, fire_count: int = 0) -> CronJob:
+_EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
+
+
+def _job(
+    *,
+    schedule: Schedule = _EVERY_HOUR,
+    expires_at: datetime | None = None,
+    max_fires: int | None = None,
+    fire_count: int = 0,
+) -> CronJob:
     return CronJob(
         id="job-1",
         name=_JOB,
         job_type=JobType.AGENT,
-        schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),
+        schedule=schedule,
         prompt="prompt",
         chat_id="chat-9",
         expires_at=expires_at,
@@ -243,6 +263,36 @@ async def test_a_job_the_scheduler_pauses_by_itself_tells_the_user(bus: _Recordi
     assert notification.data["title"] == f"Scheduled task paused: {_JOB}"
     assert message in notification.data["message"]
     assert notification.data["meta_data"]["level"] == "warning"
+
+
+@pytest.mark.parametrize(
+    ("schedule", "result"),
+    [
+        (
+            Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(UTC) + timedelta(hours=1)),
+            JobResult(success=False, error="pump is dry"),
+        ),
+        (
+            _EVERY_HOUR,
+            JobResult(success=False, error="RUNAWAY_CIRCUIT_BREAKER: pump repeated 5 times", circuit_broken=True),
+        ),
+    ],
+    ids=["one-shot-fails", "loop-guard-trips"],
+)
+async def test_a_job_a_failure_pauses_tells_the_user_after_the_failed_run(
+    bus: _RecordingBus, schedule: Schedule, result: JobResult
+) -> None:
+    runner = _Runner()
+    runner.result = result
+
+    stored = await _fire(_job(schedule=schedule), runner)
+
+    assert stored.status == JobStatus.PAUSED
+    failed, paused = (e.data for e in bus.notifications())
+    assert failed["title"] == f"Scheduled task failed: {_JOB}"
+    assert paused["title"] == f"Scheduled task paused: {_JOB}"
+    assert "paused automatically" in paused["message"]
+    assert paused["meta_data"]["level"] == "warning"
 
 
 async def test_a_run_a_crash_cut_short_tells_the_user_when_the_server_next_starts(bus: _RecordingBus) -> None:

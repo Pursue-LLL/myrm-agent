@@ -12,8 +12,8 @@ const stableT = (key: string) => {
   if (key === 'spendProtection.amount') {
     return 'Charge Amount';
   }
-  if (key === 'spendProtection.tamperProtected') {
-    return 'SHA-256 Tamper Protected';
+  if (key === 'spendProtection.actionBound') {
+    return 'Locked to this exact charge';
   }
   if (key === 'approve') {
     return 'Approve';
@@ -33,7 +33,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('PolymorphicApprovalCard Financial Spend Protection', () => {
-  it('renders financial spend banner with amount, currency and tamper protection badge', () => {
+  it('renders financial spend banner with amount, currency and the locked-to-this-charge badge', () => {
     const mockOnResolve = vi.fn().mockResolvedValue(undefined);
     const approval: ApprovalPayload = {
       approval_id: 'app_spend_1',
@@ -60,7 +60,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
     // Verify title, amount, and badge
     expect(screen.getByText('Financial Transaction Protection')).toBeDefined();
     expect(screen.getByText('35.50 USD')).toBeDefined();
-    expect(screen.getByText('SHA-256 Tamper Protected')).toBeDefined();
+    expect(screen.getByText('Locked to this exact charge')).toBeDefined();
 
     // Verify allowAlways button is hidden
     expect(screen.queryByText('allowAlways')).toBeNull();

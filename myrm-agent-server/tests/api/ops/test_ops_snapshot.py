@@ -7,11 +7,14 @@
 
 [OUTPUT]
 - Unit and integration tests for GET /api/v1/ops/snapshot
+- The governance failure count over real cron run rows (an error and a circuit break both count)
 """
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -19,9 +22,21 @@ from httpx import ASGITransport, AsyncClient
 
 from app.schemas.ops import OpsAggregatedSnapshot
 from app.services.ops.snapshot_service import OpsAggregatedSnapshotService
+from tests.support.cron_run_rows import FAILURES_IN_THE_LAST_DAY, seed_runs_with_two_recent_failures
 from tests.support.minimal_app import build_minimal_app
+from tests.support.policy_sqlite import policy_database
 
 app = build_minimal_app(preset="health")
+
+
+@pytest.mark.asyncio
+async def test_governance_counts_every_failed_cron_run_of_the_last_day(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An error and a circuit break are both failures; a skipped run, a success and an old failure are not."""
+    async with policy_database(tmp_path / "ops.db", monkeypatch):
+        await seed_runs_with_two_recent_failures()
+        governance = await OpsAggregatedSnapshotService._collect_governance_info()
+
+    assert governance.cron_failures_24h == FAILURES_IN_THE_LAST_DAY
 
 
 @pytest.mark.asyncio
@@ -121,7 +136,7 @@ async def test_collect_memory_info_counts_error_ledger_rows() -> None:
             return 2
 
     @asynccontextmanager
-    async def _fake_get_session():
+    async def _fake_get_session() -> AsyncIterator[_FakeSession]:
         yield _FakeSession()
 
     with patch(
@@ -140,7 +155,7 @@ async def test_collect_memory_info_counts_error_ledger_rows() -> None:
 @pytest.mark.asyncio
 async def test_collect_memory_info_probe_failure_is_critical() -> None:
     @asynccontextmanager
-    async def _broken_get_session():
+    async def _broken_get_session() -> AsyncIterator[None]:
         raise RuntimeError("db unavailable")
         yield  # pragma: no cover
 

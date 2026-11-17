@@ -9,15 +9,23 @@ All public functions are pure (no I/O besides log lines) and safe to call from a
 [OUTPUT]
 - resolve_stagger_ms: Compute the effective stagger delay for a job.
 - is_within_active_hours: Return True if *now* falls within the active window, or if no window is set.
+- is_past_misfire_grace: Return True if the job has missed its fire window beyond the grace period.
+- is_in_error_backoff: Return True if the job is still inside the backoff window of its last failure (startup recovery).
+- pre_execution_check: The skip reason of the guards a due job meets (expiry, fire limit, cooldown), or None; expiry and fire limit also pause the job.
 - next_eligible_run: The slot to book as a job's next run, with cooldown, 60 s floor and active window applied.
 - next_slot_or_retry: The slot to book for a recurring job, or a minute ahead when its schedule cannot be computed.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
 - run_status_of: The status a run's record and its job's last status carry.
+- resolve_failure_alert: Merge the per-job and the global failure-alert config; None when alerts are off.
+- should_send_failure_alert: Whether the failure threshold and the cooldown let an alert fire now.
+- classify_transient_error: The transient kind an error text shows, or None for a permanent or unrecognised error.
+- error_backoff_ms, BACKOFF_SCHEDULE_MS: The retry delay for a failure count, on a 30 s to 60 min schedule.
+- extract_telemetry: The model name and token usage in a run result's metadata.
 
 [POS]
-Pure engine helpers: stagger resolution, schedule-window and backoff checks, the next slot to book, the pre-execution
-guards with the notice an automatic pause raises, the status a run carries, failure-alert resolution and telemetry
-extraction.
+Pure engine helpers: stagger resolution, schedule-window and misfire checks, the next slot to book, the pre-execution
+guards with the notice an automatic pause raises, the status a run carries, failure-alert resolution, error
+classification with its backoff schedule, and telemetry extraction.
 """
 
 from __future__ import annotations

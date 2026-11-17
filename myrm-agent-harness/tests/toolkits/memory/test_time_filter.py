@@ -4,7 +4,7 @@ Covers:
 - Qdrant filter builder datetime-value and datetime-range detection
 - _user_filter since/until parameter
 - _parse_time_bound relative + ISO 8601 parsing
-- every time bound the model-visible descriptions teach parses, and a relative one to the duration it names
+- the model-visible descriptions teach a month as 30d; every bound they teach parses, a relative one to its duration
 - memory_search_tool since/until passthrough (corpus=memory and corpus=sessions)
 - MemoryManager.search since/until passthrough
 """
@@ -25,6 +25,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
     parse_time_bound as _parse_time_bound,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchPolicy
+from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.types import MemoryScope, MemorySearchResult, MemoryType, SemanticMemory
 from myrm_agent_harness.toolkits.vector.qdrant.filters import _is_datetime_range, _is_datetime_value
 
@@ -32,40 +33,40 @@ from myrm_agent_harness.toolkits.vector.qdrant.filters import _is_datetime_range
 class TestQdrantDatetimeRange:
     """Verify the filter builder's detection of datetime values and datetime ranges."""
 
-    def test_is_datetime_value_iso_string(self):
+    def test_is_datetime_value_iso_string(self) -> None:
         assert _is_datetime_value("2026-04-18T12:00:00") is True
 
-    def test_is_datetime_value_datetime_obj(self):
+    def test_is_datetime_value_datetime_obj(self) -> None:
         assert _is_datetime_value(datetime(2026, 4, 18, tzinfo=UTC)) is True
 
-    def test_is_datetime_value_integer(self):
+    def test_is_datetime_value_integer(self) -> None:
         assert _is_datetime_value(42) is False
 
-    def test_is_datetime_value_plain_string(self):
+    def test_is_datetime_value_plain_string(self) -> None:
         assert _is_datetime_value("hello") is False
 
-    def test_is_datetime_value_empty_string(self):
+    def test_is_datetime_value_empty_string(self) -> None:
         assert _is_datetime_value("") is False
 
-    def test_is_datetime_range_with_iso(self):
+    def test_is_datetime_range_with_iso(self) -> None:
         assert _is_datetime_range({"gte": "2026-01-01T00:00:00", "lte": "2026-12-31T23:59:59"}) is True
 
-    def test_is_datetime_range_with_numbers(self):
+    def test_is_datetime_range_with_numbers(self) -> None:
         assert _is_datetime_range({"gte": 0, "lte": 100}) is False
 
-    def test_is_datetime_range_mixed(self):
+    def test_is_datetime_range_mixed(self) -> None:
         assert _is_datetime_range({"gte": "2026-01-01T00:00:00", "lte": 100}) is True
 
 
 class TestUserFilter:
     """Verify _user_filter produces correct time-range entries."""
 
-    def test_no_time_filter(self):
+    def test_no_time_filter(self) -> None:
         f = _user_filter()
         assert "created_at" not in f
         assert f["archived"] == {"not": True}
 
-    def test_since_only(self):
+    def test_since_only(self) -> None:
         since = datetime(2026, 4, 1, tzinfo=UTC)
         f = _user_filter(since=since)
         assert "created_at" in f
@@ -75,7 +76,7 @@ class TestUserFilter:
         assert "lte" not in time_range
         assert time_range["gte"] == since.isoformat()
 
-    def test_until_only(self):
+    def test_until_only(self) -> None:
         until = datetime(2026, 4, 30, tzinfo=UTC)
         f = _user_filter(until=until)
         assert "created_at" in f
@@ -84,7 +85,7 @@ class TestUserFilter:
         assert "lte" in time_range
         assert "gte" not in time_range
 
-    def test_since_and_until(self):
+    def test_since_and_until(self) -> None:
         since = datetime(2026, 4, 1, tzinfo=UTC)
         until = datetime(2026, 4, 30, tzinfo=UTC)
         f = _user_filter(since=since, until=until)
@@ -93,18 +94,18 @@ class TestUserFilter:
         assert "gte" in time_range
         assert "lte" in time_range
 
-    def test_time_filter_with_namespaces(self):
+    def test_time_filter_with_namespaces(self) -> None:
         since = datetime(2026, 4, 1, tzinfo=UTC)
         f = _user_filter(namespaces=["ns1"], since=since)
         assert f["primary_namespace"] == ["ns1"]
         assert "created_at" in f
 
-    def test_time_filter_preserves_archived_exclusion(self):
+    def test_time_filter_preserves_archived_exclusion(self) -> None:
         since = datetime(2026, 4, 1, tzinfo=UTC)
         f = _user_filter(since=since)
         assert f["archived"] == {"not": True}
 
-    def test_time_filter_with_include_archived(self):
+    def test_time_filter_with_include_archived(self) -> None:
         since = datetime(2026, 4, 1, tzinfo=UTC)
         f = _user_filter(include_archived=True, since=since)
         assert "archived" not in f
@@ -114,28 +115,28 @@ class TestUserFilter:
 class TestParseTimeBound:
     """Verify _parse_time_bound handles relative and ISO 8601 inputs."""
 
-    def test_none_returns_none(self):
+    def test_none_returns_none(self) -> None:
         assert _parse_time_bound(None) is None
 
-    def test_empty_returns_none(self):
+    def test_empty_returns_none(self) -> None:
         assert _parse_time_bound("") is None
 
-    def test_whitespace_only_returns_none(self):
+    def test_whitespace_only_returns_none(self) -> None:
         assert _parse_time_bound("   ") is None
 
-    def test_relative_days(self):
+    def test_relative_days(self) -> None:
         result = _parse_time_bound("7d")
         assert result is not None
         delta = datetime.now(UTC) - result
         assert 6.9 < delta.total_seconds() / 86400 < 7.1
 
-    def test_relative_hours(self):
+    def test_relative_hours(self) -> None:
         result = _parse_time_bound("24h")
         assert result is not None
         delta = datetime.now(UTC) - result
         assert 23.9 < delta.total_seconds() / 3600 < 24.1
 
-    def test_relative_weeks(self):
+    def test_relative_weeks(self) -> None:
         result = _parse_time_bound("2w")
         assert result is not None
         delta = datetime.now(UTC) - result
@@ -147,20 +148,20 @@ class TestParseTimeBound:
         delta = datetime.now(UTC) - result
         assert 29.9 < delta.total_seconds() / 60 < 30.1
 
-    def test_relative_years(self):
+    def test_relative_years(self) -> None:
         result = _parse_time_bound("1y")
         assert result is not None
         delta = datetime.now(UTC) - result
         assert 364 < delta.total_seconds() / 86400 < 366
 
-    def test_iso_with_timezone(self):
+    def test_iso_with_timezone(self) -> None:
         result = _parse_time_bound("2026-04-01T00:00:00+00:00")
         assert result is not None
         assert result.year == 2026
         assert result.month == 4
         assert result.day == 1
 
-    def test_iso_naive_gets_utc(self):
+    def test_iso_naive_gets_utc(self) -> None:
         result = _parse_time_bound("2026-04-01T12:00:00")
         assert result is not None
         assert result.tzinfo == UTC
@@ -174,7 +175,7 @@ class TestParseTimeBound:
         ],
         ids=["east-of-utc", "west-of-utc", "date-rolls-back"],
     )
-    def test_iso_with_offset_is_converted_to_utc(self, value: str, expected_utc: datetime):
+    def test_iso_with_offset_is_converted_to_utc(self, value: str, expected_utc: datetime) -> None:
         result = _parse_time_bound(value)
         assert result is not None
         # The bound reaches SQL as its wall-clock digits, so the offset must be gone: `==` alone also holds for the
@@ -183,17 +184,17 @@ class TestParseTimeBound:
         assert result.replace(tzinfo=None) == expected_utc
 
     @pytest.mark.parametrize("value", ["9999-12-31T23:59:59-08:00", "0001-01-01T00:00:00+08:00"])
-    def test_iso_pushed_out_of_range_by_its_offset_is_unparseable(self, value: str):
+    def test_iso_pushed_out_of_range_by_its_offset_is_unparseable(self, value: str) -> None:
         assert _parse_time_bound(value) is None
 
-    def test_invalid_returns_none(self):
+    def test_invalid_returns_none(self) -> None:
         assert _parse_time_bound("not-a-date") is None
 
-    def test_case_insensitive(self):
+    def test_case_insensitive(self) -> None:
         result = _parse_time_bound("7D")
         assert result is not None
 
-    def test_with_spaces(self):
+    def test_with_spaces(self) -> None:
         result = _parse_time_bound("  7d  ")
         assert result is not None
 
@@ -202,7 +203,9 @@ class TestMemoryRecallTimePassing:
     """Verify memory_search_tool(corpus=memory) passes since/until through to MemoryManager.search."""
 
     @pytest.mark.asyncio
-    async def test_recall_passes_since_and_until(self, mock_vector_store, mock_embedding, memory_config):
+    async def test_recall_passes_since_and_until(
+        self, mock_vector_store: AsyncMock, mock_embedding: AsyncMock, memory_config: MemoryConfig
+    ) -> None:
         from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
@@ -230,7 +233,9 @@ class TestMemoryRecallTimePassing:
         assert call_kwargs.kwargs.get("until") is not None
 
     @pytest.mark.asyncio
-    async def test_recall_without_time_params(self, mock_vector_store, mock_embedding, memory_config):
+    async def test_recall_without_time_params(
+        self, mock_vector_store: AsyncMock, mock_embedding: AsyncMock, memory_config: MemoryConfig
+    ) -> None:
         from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
@@ -247,7 +252,9 @@ class TestMemoryRecallTimePassing:
         assert call_kwargs.kwargs.get("until") is None
 
     @pytest.mark.asyncio
-    async def test_recall_iso_since(self, mock_vector_store, mock_embedding, memory_config):
+    async def test_recall_iso_since(
+        self, mock_vector_store: AsyncMock, mock_embedding: AsyncMock, memory_config: MemoryConfig
+    ) -> None:
         from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
@@ -265,7 +272,9 @@ class TestMemoryRecallTimePassing:
         assert since_val.month == 4
 
     @pytest.mark.asyncio
-    async def test_recall_invalid_since_ignored(self, mock_vector_store, mock_embedding, memory_config):
+    async def test_recall_invalid_since_ignored(
+        self, mock_vector_store: AsyncMock, mock_embedding: AsyncMock, memory_config: MemoryConfig
+    ) -> None:
         from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
         from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 
@@ -285,8 +294,8 @@ class TestSessionsRecallTimePassing:
 
     @pytest.mark.asyncio
     async def test_sessions_search_passes_parsed_since_and_until(
-        self, mock_vector_store, mock_embedding, memory_config
-    ):
+        self, mock_vector_store: AsyncMock, mock_embedding: AsyncMock, memory_config: MemoryConfig
+    ) -> None:
         from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools import create_memory_tools
         from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import (
             MemorySearchBackends,
@@ -322,11 +331,11 @@ class TestParseTimeBoundRelativeRange:
         ["9999y", "99999y", "999999d", "999999w", "9999999999m", "9" * 4000 + "d", "9" * 5000 + "d"],
         ids=["years", "years-5-digits", "days", "weeks", "minutes", "4000-digits", "5000-digits"],
     )
-    def test_amount_beyond_the_datetime_range_is_unparseable(self, value: str):
+    def test_amount_beyond_the_datetime_range_is_unparseable(self, value: str) -> None:
         assert _parse_time_bound(value) is None
 
     @pytest.mark.parametrize("value", ["1000y", "9999d", "99999w", "999999999m", "0d"])
-    def test_large_amount_within_the_datetime_range_still_parses(self, value: str):
+    def test_large_amount_within_the_datetime_range_still_parses(self, value: str) -> None:
         assert _parse_time_bound(value) is not None
 
 
@@ -376,7 +385,7 @@ class TestRelativeExamplesTaughtToTheModel:
         }
         for surface, description in descriptions.items():
             taught = _taught_time_bounds(_time_bound_tip(description))
-            assert taught, f"{surface} teaches no time bound"
+            assert "30d" in taught, f"{surface} must teach a month as 30d"
             for word in taught:
                 bound = _parse_time_bound(word)
                 assert bound is not None, f"{surface}: {word} is unparseable"

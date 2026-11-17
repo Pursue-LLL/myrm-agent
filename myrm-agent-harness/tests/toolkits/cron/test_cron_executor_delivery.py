@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import asyncio
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -14,6 +15,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     DeliveryStatus,
     FailureAlertConfig,
     JobResult,
+    JobStatus,
 )
 from tests.support.cron_executor_mocks import make_executor, make_job
 
@@ -160,3 +162,44 @@ class TestMaybeSendFailureAlert:
         now = datetime.now(UTC)
         executor._maybe_send_failure_alert(job, 3, now)
         assert job.last_failure_alert_at == now
+
+    @pytest.mark.asyncio
+    async def test_an_active_job_below_the_threshold_is_not_alerted(self) -> None:
+        executor, _, delivery = make_executor(config=CronConfig(failure_alert=FailureAlertConfig(after=3)))
+        job = make_job(failure_alert=None, consecutive_failures=1)
+        executor._maybe_send_failure_alert(job, 1, datetime.now(UTC))
+        await asyncio.sleep(0)
+        assert job.last_failure_alert_at is None
+        delivery.deliver.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_a_job_the_failure_paused_is_alerted_below_the_threshold(self) -> None:
+        executor, _, delivery = make_executor(config=CronConfig(failure_alert=FailureAlertConfig(after=3)))
+        job = make_job(failure_alert=None, consecutive_failures=1, status=JobStatus.PAUSED, last_error="loop")
+        now = datetime.now(UTC)
+        executor._maybe_send_failure_alert(job, 1, now)
+        await asyncio.sleep(0)
+        assert job.last_failure_alert_at == now
+        delivery.deliver.assert_awaited_once()
+        assert "auto-paused" in delivery.deliver.call_args[0][1].output
+
+    @pytest.mark.asyncio
+    async def test_a_job_the_failure_paused_is_alerted_inside_the_cooldown_of_an_earlier_alert(self) -> None:
+        executor, _, delivery = make_executor(
+            config=CronConfig(failure_alert=FailureAlertConfig(after=1, cooldown_seconds=3600))
+        )
+        now = datetime.now(UTC)
+        earlier = now - timedelta(seconds=30)
+        active = make_job(failure_alert=None, consecutive_failures=2, last_failure_alert_at=earlier)
+        executor._maybe_send_failure_alert(active, 2, now)
+        await asyncio.sleep(0)
+        assert active.last_failure_alert_at == earlier
+        delivery.deliver.assert_not_awaited()
+
+        paused = make_job(
+            failure_alert=None, consecutive_failures=3, status=JobStatus.PAUSED, last_failure_alert_at=earlier
+        )
+        executor._maybe_send_failure_alert(paused, 3, now)
+        await asyncio.sleep(0)
+        assert paused.last_failure_alert_at == now
+        delivery.deliver.assert_awaited_once()

@@ -1,13 +1,14 @@
 """Stop-reason normalization for Unified Runs Hub.
 
 [INPUT]
-- app.api.runs.schemas::RunStatus (POS: unified run status enum)
+- app.api.runs.schemas::RunStatus, RunStopReason (POS: unified run status enum, stop reason response model)
 - app.core.agent.stop_reason (POS: stored shape of a stop reason)
 - Cron/Kanban/Shell metadata and error strings
 
 [OUTPUT]
 - extract_stop_reason_from_metadata helper
 - stop_reason_from_error / stop_reason_from_shell_task inference
+- to_run_stop_reason: the stored shape parsed into the response model
 
 [POS]
 Pure normalization layer shared by GET /runs aggregation fetchers.
@@ -15,8 +16,13 @@ Pure normalization layer shared by GET /runs aggregation fetchers.
 
 from __future__ import annotations
 
-from app.api.runs.schemas import RunStatus
+from app.api.runs.schemas import RunStatus, RunStopReason
 from app.core.agent.stop_reason import normalize_stop_reason, step_item_text
+
+
+def to_run_stop_reason(stored: dict[str, object] | None) -> RunStopReason | None:
+    """Parse a stop reason of the stored shape into the response model (``None`` stays ``None``)."""
+    return None if stored is None else RunStopReason.model_validate(stored)
 
 
 def extract_stop_reason_from_metadata(metadata: dict[str, object] | None) -> dict[str, object] | None:

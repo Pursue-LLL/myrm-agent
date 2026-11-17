@@ -3,7 +3,8 @@
 [INPUT]
 - core.security.redact::redact_sensitive_text (POS: 文本凭据脱敏，失败原因进入模型上下文前必须先脱敏)
 - toolkits.cron.engine.parser::describe_schedule (POS: 调度的可读描述)
-- toolkits.cron.types::CronJob, JobType, RunStatus, ScheduleKind (POS: cron 数据模型)
+- toolkits.cron.run_status_filter::FAILED_RUN_STATUSES (POS: 失败运行的唯一定义：error 与 circuit_break)
+- toolkits.cron.types::CronJob, JobType, ScheduleKind (POS: cron 数据模型)
 
 [OUTPUT]
 - format_job_line: the line the model sees for one job (state, schedule, next run, last run and its failure reason)
@@ -16,9 +17,9 @@ from __future__ import annotations
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.cron.engine.parser import describe_schedule
-from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, RunStatus, ScheduleKind
+from myrm_agent_harness.toolkits.cron.run_status_filter import FAILED_RUN_STATUSES
+from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, ScheduleKind
 
-_FAILED_RUN_STATUSES = frozenset({RunStatus.ERROR, RunStatus.CIRCUIT_BREAK})
 # The failure reason is redacted over a bounded prefix (a stored error can be a whole traceback) and shown shorter.
 _LAST_ERROR_SCAN_CHARS = 2000
 _LAST_ERROR_SHOW_CHARS = 120
@@ -43,7 +44,7 @@ def _last_run_tag(job: CronJob) -> str:
         return ""
     status = job.last_status.value if job.last_status else "unknown"
     tag = f" | last: {job.last_run_at.strftime('%m-%d %H:%M')} {status}"
-    if job.last_status in _FAILED_RUN_STATUSES and job.last_error:
+    if job.last_status in FAILED_RUN_STATUSES and job.last_error:
         reason = " ".join(redact_sensitive_text(job.last_error[:_LAST_ERROR_SCAN_CHARS]).split())
         if len(reason) > _LAST_ERROR_SHOW_CHARS:
             reason = reason[: _LAST_ERROR_SHOW_CHARS - 1] + "…"

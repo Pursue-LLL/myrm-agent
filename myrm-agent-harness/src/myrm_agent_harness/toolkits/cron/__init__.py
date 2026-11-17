@@ -24,6 +24,7 @@ Provides:
 - cron.manager::CronManager (POS: cron CRUD orchestration layer)
 - cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 - cron.protocols (POS: cron protocol definitions — store, runner, delivery, lock, trigger)
+- cron.run_status_filter::matching_run_statuses (POS: the stored statuses a run-history status filter selects)
 - cron.runners::ShellJobRunner (POS: built-in shell job runner)
 - cron.stores::InMemoryCronStore (POS: in-memory store for dev/test)
 - cron.situation (POS: Situation Report — pluggable context aggregator for heartbeat ticks)
@@ -36,6 +37,7 @@ Provides:
 - Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, etc.
 - Protocols: CronStore, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider, StreamListener
 - Notices: CronNotice, CronNoticeKind, CronNoticeCallback
+- Run history: matching_run_statuses (what a status filter selects: ``error`` includes circuit breaks)
 - Built-in implementations: ShellJobRunner, InMemoryCronStore, WebhookDelivery
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
@@ -84,6 +86,7 @@ from myrm_agent_harness.toolkits.cron.protocols import (
     StreamListener,
     TriggerProvider,
 )
+from myrm_agent_harness.toolkits.cron.run_status_filter import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.runners import (
     NotificationRunner,
     RouterJobRunner,
@@ -193,6 +196,7 @@ __all__ = [
     "generate_webhook_path",
     "generate_webhook_secret",
     "get_heartbeat_status",
+    "matching_run_statuses",
     "redact_connector_url",
     "resolve_cron_tool_description",
     "trigger_config_to_dict",

@@ -10,7 +10,7 @@ reload with the default owner) and the order of jobs (the SQL store orders by th
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -34,6 +34,9 @@ from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore
 from tests.support.policy_sqlite import policy_database
 
 _EPOCH = datetime(2030, 1, 1, tzinfo=UTC)
+
+# Fields set from a `**dict` are checked against every field type of the job; a variadic callable is not.
+_replace_job: Callable[..., CronJob] = replace
 
 # Names that tell a literal substring match from a SQL LIKE pattern (`%`, `_`) and from its escape characters.
 _NAMES = ("Daily Report", "weekly report", "Backup", "50% off", "a_b", "axb", "c/d", "e\\f")
@@ -212,8 +215,9 @@ async def test_advance_next_run_books_a_due_job_for_exactly_one_caller(store: Cr
 
     booked_job, untouched = await store.get_job("a"), await store.get_job("b")
     assert booked_job is not None and untouched is not None
+    untouched_slot = _utc(untouched.next_run_at)
     assert _utc(booked_job.next_run_at) == booked
-    assert _utc(untouched.next_run_at) is not None and _utc(untouched.next_run_at) < datetime.now(UTC)
+    assert untouched_slot is not None and untouched_slot < datetime.now(UTC)
 
 
 async def test_advance_next_run_refuses_what_is_not_a_due_active_job(store: CronStore) -> None:
@@ -277,7 +281,7 @@ async def test_save_job_keeps_the_instant_of_a_zoned_timestamp_on_insert_and_on_
         "expires_at": _from_now(24 * 60).astimezone(east),
         "last_failure_alert_at": _from_now(-10).astimezone(west),
     }
-    zoned = replace(_job("zoned"), **instants)
+    zoned = _replace_job(_job("zoned"), **instants)
 
     for saved in (zoned, replace(zoned, name="renamed")):
         await store.save_job(saved)
@@ -329,6 +333,22 @@ async def test_runs_list_newest_first_with_filters_pagination_and_counts(store: 
     assert await store.count_runs("job-a") == 3
     assert await store.count_runs(status="error") == 2
     assert await store.count_runs("job-a", status="error") == 1
+
+
+async def test_a_status_filter_on_error_selects_circuit_breaks_too(store: CronStore) -> None:
+    await _save(store, _job("job"))
+    for run in (
+        _run("ok", "job", minute=0),
+        _run("error", "job", minute=10, status=RunStatus.ERROR),
+        _run("breaker", "job", minute=20, status=RunStatus.CIRCUIT_BREAK),
+        _run("skipped", "job", minute=30, status=RunStatus.SKIPPED),
+    ):
+        await store.save_run(run)
+
+    assert [r.id for r in await store.list_runs(status="error")] == ["breaker", "error"]
+    assert await store.count_runs(status="error") == 2
+    assert [r.id for r in await store.list_runs(status="circuit_break")] == ["breaker"]
+    assert await store.count_runs(status="circuit_break") == 1
 
 
 async def test_purge_old_runs_removes_only_runs_finished_before_the_cutoff(store: CronStore) -> None:

@@ -53,6 +53,9 @@ _PRESENTATION: Final[dict[CronNoticeKind, _Presentation]] = {
     CronNoticeKind.JOB_MAX_FIRES_REACHED: _Presentation(
         "warning", _PAUSE_EVENT_KIND, "cron_notice_paused_title", "cron_notice_max_fires_message"
     ),
+    CronNoticeKind.JOB_PAUSED_BY_FAILURE: _Presentation(
+        "warning", _PAUSE_EVENT_KIND, "cron_notice_paused_title", "cron_notice_failure_message"
+    ),
 }
 
 
