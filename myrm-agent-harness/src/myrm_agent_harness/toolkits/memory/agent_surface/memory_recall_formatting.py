@@ -5,7 +5,7 @@
 - core.security.detection.content_boundary::sanitize (POS: Content boundary defense core)
 
 [OUTPUT]
-- parse_time_bound: Parse recall time filters into UTC datetimes.
+- parse_time_bound: Parse a recall time bound (ISO 8601, or a relative amount such as 30m, 24h, 7d, 2w, 1y) into a UTC datetime.
 - memory_age_label: Human-readable age label for memory timestamps.
 - is_stale: Staleness check for recalled factual memories.
 - channel_label: Human-readable channel provenance label.
@@ -33,12 +33,14 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 _STALENESS_THRESHOLD_HOURS = 24
+# A relative time bound is "<amount><unit>" counted back from now, e.g. "30m" or "7d". "m" is minutes, as in the kanban
+# and loop shorthands; there is no month unit, so a month is written "30d".
 _RELATIVE_TIME_RE = re.compile(r"^(\d+)\s*(d|h|w|m|y)$", re.IGNORECASE)
 _RELATIVE_UNITS: dict[str, int] = {
+    "m": 60,
     "h": 3600,
     "d": 86400,
     "w": 604800,
-    "m": 2592000,
     "y": 31536000,
 }
 
@@ -57,7 +59,11 @@ RECALL_DRIFT_DEFENSE_FOOTER = (
 
 
 def parse_time_bound(value: str | None) -> datetime | None:
-    """Parse a time-bound string into a UTC datetime; None when it is unparseable or out of range."""
+    """Parse a time-bound string into a UTC datetime; None when it is unparseable or out of range.
+
+    A bound is an ISO 8601 date or datetime, or an amount counted back from now: ``<n>m`` minutes, ``<n>h`` hours,
+    ``<n>d`` days, ``<n>w`` weeks, ``<n>y`` 365-day years.
+    """
     if not value:
         return None
     value = value.strip()
@@ -65,7 +71,7 @@ def parse_time_bound(value: str | None) -> datetime | None:
         match = _RELATIVE_TIME_RE.match(value)
         if match:
             amount = int(match.group(1))
-            unit_seconds = _RELATIVE_UNITS.get(match.group(2).lower(), 86400)
+            unit_seconds = _RELATIVE_UNITS[match.group(2).lower()]
             return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:

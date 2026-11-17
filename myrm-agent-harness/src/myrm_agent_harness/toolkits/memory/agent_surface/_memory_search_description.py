@@ -81,7 +81,7 @@ def build_memory_search_description_en(policy: MemorySearchPolicy) -> str:
         "- Filter domain for scoped partition: user, assistant, task",
         f"- Filter categories{' for the memory corpus' if has_choice else ''}: knowledge, claim, event, preference, rule",
         f"- Use profile_key for instant attribute lookup{' (memory corpus only)' if has_choice else ''}",
-        "- Use since/until for time-scoped queries (7d, 2w, 1m, 24h, 1y, or ISO 8601)",
+        "- Use since/until for time-scoped queries (30m, 24h, 7d, 2w, 1y, or ISO 8601)",
     ]
     if "sessions" in enabled:
         tips.append('- For recent chats without a query, use corpus=sessions with query="*"')
@@ -109,7 +109,7 @@ def build_memory_search_description_zh(policy: MemorySearchPolicy) -> str:
         "- domain 过滤认知域：user（用户画像/偏好）、assistant（助手身份/规范）、task（任务规约/避坑）",
         f"- {'memory corpus ' if has_choice else ''}过滤类别：knowledge、claim、event、preference、rule",
         f"- profile_key 可即时查属性{'（仅 memory corpus）' if has_choice else ''}",
-        "- since/until 时间范围：7d、2w、1m、24h、1y 或 ISO 8601",
+        "- since/until 时间范围：30m、24h、7d、2w、1y 或 ISO 8601",
     ]
     if "sessions" in enabled:
         tips.append('- 查最近聊天无 query：corpus=sessions，query="*"')

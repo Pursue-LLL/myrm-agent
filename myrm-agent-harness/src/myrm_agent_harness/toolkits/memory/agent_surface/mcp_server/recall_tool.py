@@ -67,7 +67,7 @@ _RECALL_DESCRIPTION = (
     "- Use specific queries for better results\n"
     "- Filter by categories: knowledge, claim, event, preference, rule\n"
     "- Use profile_key for instant attribute lookup (e.g. 'name', 'language')\n"
-    "- Use since/until for time-scoped queries (e.g. '7d', '2w', '1m')"
+    "- Use since/until for time-scoped queries (e.g. '30m', '7d', '2w')"
 )
 
 
@@ -158,7 +158,7 @@ def register_recall_tool(mcp: MCPServer, resolve: ManagerResolver) -> None:
             profile_key: Quick-access a profile attribute (e.g. "name").
                 When set, query is ignored and returns the attribute value directly.
             since: Only return memories created after this time.
-                Accepts relative shorthand (7d, 2w, 1m, 24h, 1y) or ISO 8601.
+                Accepts relative shorthand or ISO 8601.
             until: Only return memories created before this time.
                 Accepts relative shorthand or ISO 8601.
         """
