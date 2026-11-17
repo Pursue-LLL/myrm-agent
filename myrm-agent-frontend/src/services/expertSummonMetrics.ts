@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - @/lib/api::apiRequest (POS: 前端 API 接入层。统一请求基址、超时、错误归一化。)
+ * - @/lib/utils/firstChars::firstChars (POS: 按字符数截断文本且不劈开字符，与服务端计数口径一致)
  *
  * [OUTPUT]
  * - recordExpertSummon*: 专家召唤漏斗事件写入。
@@ -12,6 +13,7 @@
  */
 import { ApiError, apiRequest } from '@/lib/api';
 import { BACKEND_UNREACHABLE_CODE } from '@/lib/local-backend-dev';
+import { firstChars } from '@/lib/utils/firstChars';
 import type { ExpertTemplateKind } from '@/services/templateDiscovery';
 
 export type ExpertSummonMetricSurface = 'flow_pad_inline' | 'message_input_plus' | 'mobile_hub_chip';
@@ -92,11 +94,7 @@ function clampWhole(value: number | undefined, max: number): number {
 }
 
 function normalizeContextKey(contextKey?: string): string {
-  // The server counts characters, so cut by characters: an emoji at the limit must not be split in half.
-  const normalized = Array.from(contextKey?.trim() ?? '')
-    .slice(0, MAX_CONTEXT_KEY_LENGTH)
-    .join('');
-  return normalized || DEFAULT_CONTEXT_KEY;
+  return firstChars(contextKey?.trim() ?? '', MAX_CONTEXT_KEY_LENGTH) || DEFAULT_CONTEXT_KEY;
 }
 
 function totalPendingDroppedEvents(): number {

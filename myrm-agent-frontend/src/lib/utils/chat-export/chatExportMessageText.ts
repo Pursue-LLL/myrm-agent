@@ -1,10 +1,11 @@
 /**
- * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); citations/sourceName::sourceName, SectionLabeler (POS: what a source is called); store/chat/types::Message, Source (type-only), resolveSourceClickUrl.
+ * [INPUT] error-handling::redactSensitiveClientText (POS: client-side secret redaction, CWE-312); utils/firstChars::firstChars (POS: cut text to a character count without splitting a character); citations/sourceName::sourceName, SectionLabeler (POS: what a source is called); store/chat/types::Message, Source (type-only), resolveSourceClickUrl.
  * [OUTPUT] ReasoningLayout, MessageLabels; formatReasoning, formatSourcesFootnotes, formatMessageMarkdown, extractMessageTitle.
  * [POS] The text one copied or exported message is made of: its Markdown (reasoning, answer, sources) and the title its file is named after. Pure functions, so the single-message exports of every format and the copy button share one source. The wording of the labels is the caller's, so this module holds no language.
  */
 import { sourceName, type SectionLabeler } from '@/lib/citations/sourceName';
 import { redactSensitiveClientText } from '@/lib/utils/error-handling';
+import { firstChars } from '@/lib/utils/firstChars';
 import type { Message, Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';
 
@@ -84,14 +85,6 @@ export function formatMessageMarkdown(
  * after it goes too, so a first line of only `#` leaves no title at all.
  */
 const TITLE_BLOCK_MARKERS = /^(?:(?:#{1,6}|[-*+]|\d+[.)])(?:\s+|$)|>\s*)+/;
-
-/** The first `max` characters, an emoji or a rare han character counting as one, so the cut never leaves half of one. */
-function firstChars(text: string, max: number): string {
-  // `max` characters fit in `2 * max` UTF-16 units, so a long line is not spread into an array whole.
-  return Array.from(text.slice(0, max * 2))
-    .slice(0, max)
-    .join('');
-}
 
 /**
  * The file name is drawn from the text the file holds, so an export made with redaction on does not give the secret
