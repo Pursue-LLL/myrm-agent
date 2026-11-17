@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - Coverage for prepare_for_execution, saved-script detection and preparation, regex fallback, import rewrite,
-  client assembly from an endpoint, and read-only tool collection.
+  client assembly from an endpoint, read-only tool collection, and skill-function collection for star imports.
 
 [POS]
 Executor preparation tests. Keeps PTC detection and generated-client assembly covered
@@ -15,6 +15,8 @@ without spawning a sandbox or an IPC server.
 
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -115,7 +117,9 @@ def test_rewrite_bare_skill_import_adds_prefix() -> None:
     assert rewritten == "from skills.demo_skill import ping"
 
 
-def test_generate_client_forwards_the_endpoint_and_read_only_tools(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_generate_client_forwards_the_endpoint_read_only_tools_and_skill_functions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import myrm_agent_harness.agent.skills.mcp.client_templates as client_templates
 
     captured: dict[str, object] = {}
@@ -128,7 +132,7 @@ def test_generate_client_forwards_the_endpoint_and_read_only_tools(monkeypatch: 
     monkeypatch.setattr(client_templates, "generate_ipc_client_code", fake_generate)
     endpoint = IPCEndpoint(socket_path="/tmp/sock", tcp_port=4242, auth_token="token", trace_nonce="nonce")
 
-    code = SkillExecutor._generate_mcp_client_code(endpoint, frozenset({"demo.ping"}))
+    code = SkillExecutor._generate_mcp_client_code(endpoint, frozenset({"demo.ping"}), {"demo": ["ping"]})
 
     assert code == "CLIENT"
     assert captured == {
@@ -137,6 +141,7 @@ def test_generate_client_forwards_the_endpoint_and_read_only_tools(monkeypatch: 
         "trace_nonce": "nonce",
         "read_only_tools": frozenset({"demo.ping"}),
         "tcp_port": 4242,
+        "skill_functions": {"demo": ["ping"]},
     }
 
 
@@ -166,6 +171,38 @@ def test_collect_read_only_tools_reads_safety_metadata(monkeypatch: pytest.Monke
     )
 
     assert SkillExecutor._collect_read_only_tools("demo_skill") == frozenset({"demo_skill.ping"})
+
+
+def test_collect_skill_functions_for_builtin_and_missing_skills(monkeypatch: pytest.MonkeyPatch) -> None:
+    assert SkillExecutor._collect_skill_functions("__builtin__") == {}
+
+    monkeypatch.setattr("myrm_agent_harness.agent.skills.runtime.registry.skill_registry", SkillRegistry())
+    assert SkillExecutor._collect_skill_functions("missing_skill") == {}
+
+
+def test_collect_skill_functions_are_the_identifiers_the_model_is_shown(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = SkillRegistry()
+    registry.register(_mcp_skill("demo_skill", ["ping", "get-current-date", "1st"], []))
+    monkeypatch.setattr("myrm_agent_harness.agent.skills.runtime.registry.skill_registry", registry)
+
+    assert SkillExecutor._collect_skill_functions("demo_skill") == {"demo_skill": ["_1st", "get_current_date", "ping"]}
+
+
+def test_prepared_code_star_import_binds_the_registered_skills_functions(monkeypatch: pytest.MonkeyPatch) -> None:
+    registry = SkillRegistry()
+    registry.register(_mcp_skill("demo_skill", ["ping", "get-current-date"], []))
+    monkeypatch.setattr("myrm_agent_harness.agent.skills.runtime.registry.skill_registry", registry)
+    executor = SkillExecutor()
+    monkeypatch.setattr(executor, "get_skill_mcp_config", lambda name: [] if name == "demo_skill" else None)
+    command = "python3 - <<'PY'\nfrom skills.demo_skill import *\nprint(ping.__name__, get_current_date.__name__)\nPY"
+
+    context = executor.prepare_for_execution(command, _ENDPOINT)
+
+    result = subprocess.run(
+        [sys.executable, "-c", context.prepared_code], capture_output=True, text=True, check=False, timeout=60
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.split() == ["ping", "get_current_date"]
 
 
 @pytest.fixture

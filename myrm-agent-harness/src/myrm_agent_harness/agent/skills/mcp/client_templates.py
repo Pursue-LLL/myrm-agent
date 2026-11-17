@@ -12,6 +12,7 @@ Agent-in-Sandbox 模式下，代码通过 subprocess 执行，需要 IPC 回调�
 - 统一错误处理
 - 自动重试（连接错误时）
 - 总超时控制
+- 星号导入技能模块时，绑定宿主为该技能提供的全部函数（``skill_functions``）
 - 请求只带调用内容与 token：会话、工作区、只读状态属于服务端（``CallerScope``），
   脚本无法自称。
 
@@ -28,6 +29,7 @@ PTC 子进程注入的 IPC 客户端代码生成器。负责构造 ``tools.*`` /
 """
 
 import json
+from collections.abc import Mapping, Sequence
 
 MAX_RETRIES = 1
 RETRY_DELAY = 0.5
@@ -193,9 +195,13 @@ class _SkillModule(types.ModuleType):
         self._functions: dict[str, _SkillFunction] = {}
         self.__package__ = "skills"
         self.__path__: list[str] = []
+        # A star import of this skill binds exactly the functions the host serves for it.
+        self.__all__: list[str] = list(_SKILL_FUNCTIONS.get(name, ()))
 
     def __getattr__(self, name: str):
-        if name.startswith("_"):
+        # Dunder probes (``__wrapped__``, ``__file__``) must not mint proxies. A declared function whose
+        # identifier starts with ``_`` (a tool named ``1foo`` is rendered as ``_1foo``) is importable.
+        if name.startswith("_") and name not in self.__all__:
             raise AttributeError(name)
         if name not in self._functions:
             self._functions[name] = _SkillFunction(self._skill_name, name)
@@ -267,6 +273,7 @@ def generate_ipc_client_code(
     trace_nonce: str,
     read_only_tools: frozenset[str] | None = None,
     tcp_port: int = 0,
+    skill_functions: Mapping[str, Sequence[str]] | None = None,
 ) -> str:
     """生成 Unix Socket IPC 客户端代码。
 
@@ -279,12 +286,16 @@ def generate_ipc_client_code(
             调用允许在网络中断后重试；写操作重放会造成重复副作用。
         tcp_port: 服务端以 loopback TCP 监听时的端口（Windows 走这条路径）。为 0
             时客户端连接 Unix socket。
+        skill_functions: 技能名 → 宿主为它提供的函数标识符（模型在函数索引里看到、``from skills.<name>
+            import <func>`` 导入的名字）。星号导入该技能时绑定的正是这些；
+            不在表里的技能，星号导入不绑定任何名字。
     """
     base = _generate_base_code()
     module_system = _generate_module_system()
     tools_module_system = _generate_tools_module_system()
 
     read_only_literal = json.dumps(sorted(read_only_tools or ()))
+    functions_literal = json.dumps({skill: sorted(names) for skill, names in (skill_functions or {}).items()})
     tcp_port_literal = str(tcp_port) if tcp_port else "0"
 
     return f'''
@@ -294,6 +305,7 @@ import sys, types, json, asyncio, uuid, base64
 _SOCKET_PATH = {json.dumps(socket_path)}
 _TRACE_ID = uuid.uuid4().hex
 _READ_ONLY_TOOLS = frozenset({read_only_literal})
+_SKILL_FUNCTIONS = {functions_literal}
 _AUTH_TOKEN = {json.dumps(auth_token)}
 _TRACE_NONCE = {json.dumps(trace_nonce)}
 _TCP_PORT = {tcp_port_literal}
