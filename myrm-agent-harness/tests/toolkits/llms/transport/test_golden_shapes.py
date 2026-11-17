@@ -10,7 +10,7 @@
 
 [POS]
 Safety net for the base URLs a settings screen lets people save (bare host, trailing slash, gateway prefix, pasted
-operation URL): 23 chat providers x 12 shapes and every embedding, rerank and image entry x 7 shapes. A rule covers the
+operation URL): 22 chat providers x 12 shapes and every embedding, rerank and image entry x 7 shapes. A rule covers the
 cells it names; the new endpoint of a covered cell is pinned by the unit tests of the endpoint rules themselves.
 """
 

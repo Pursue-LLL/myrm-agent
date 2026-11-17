@@ -238,13 +238,6 @@ PROFILES: Final[dict[str, ProviderProfile]] = {
         ),
         _profile("cerebras", "https://api.cerebras.ai/v1", "CEREBRAS_API_KEY", base_env=("CEREBRAS_API_BASE",)),
         _profile("xiaomi_mimo", "https://api.xiaomimimo.com/v1", "XIAOMI_MIMO_API_KEY"),
-        _profile(
-            "yunshu",
-            "http://yunshu.koolearn.com/yunshu/openai/v1",
-            "YUNSHU_API_KEY",
-            cache_control="always",
-            headers=MappingProxyType({"User-Agent": "YunShu-AI-SDK/2.1"}),
-        ),
     )
 }
 

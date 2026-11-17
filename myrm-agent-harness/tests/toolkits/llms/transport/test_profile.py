@@ -164,7 +164,7 @@ class TestEndpointFromEnvironment:
         assert route.base_url == endpoint_of(PROFILES[provider], "https://env.example").root
         assert route.base_url != PROFILES[provider].base_url
 
-    @pytest.mark.parametrize("provider", ["mistral", "xiaomi_mimo", "yunshu", "bedrock"])
+    @pytest.mark.parametrize("provider", ["mistral", "xiaomi_mimo", "bedrock"])
     def test_a_provider_without_endpoint_variables_ignores_the_ones_of_others(
         self, monkeypatch: pytest.MonkeyPatch, provider: str
     ) -> None:
@@ -250,7 +250,6 @@ _KEY_ENV: dict[str, tuple[str, ...]] = {
     "cohere_chat": ("COHERE_API_KEY", "CO_API_KEY"),
     "cerebras": ("CEREBRAS_API_KEY",),
     "xiaomi_mimo": ("XIAOMI_MIMO_API_KEY",),
-    "yunshu": ("YUNSHU_API_KEY",),
 }
 _KEY_CASES = [(provider, name) for provider, names in _KEY_ENV.items() for name in names]
 

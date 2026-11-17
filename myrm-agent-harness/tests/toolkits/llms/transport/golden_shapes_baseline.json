@@ -762,42 +762,6 @@
  "chat/xiaomi_mimo|basic|v1slash": [
   "/v1/chat/completions"
  ],
- "chat/yunshu|basic|api": [
-  "/api/chat/completions"
- ],
- "chat/yunshu|basic|api_chat": [
-  "/api/chat/chat/completions"
- ],
- "chat/yunshu|basic|bare": [
-  "/chat/completions"
- ],
- "chat/yunshu|basic|full_chat": [
-  "/v1/chat/completions/chat/completions"
- ],
- "chat/yunshu|basic|full_chat_gw": [
-  "/gw/v1/chat/completions/chat/completions"
- ],
- "chat/yunshu|basic|full_messages": [
-  "/v1/messages/chat/completions"
- ],
- "chat/yunshu|basic|gw": [
-  "/gw/chat/completions"
- ],
- "chat/yunshu|basic|gw_v1": [
-  "/gw/v1/chat/completions"
- ],
- "chat/yunshu|basic|slash": [
-  "/chat/completions"
- ],
- "chat/yunshu|basic|v1": [
-  "/v1/chat/completions"
- ],
- "chat/yunshu|basic|v1beta": [
-  "/v1beta/chat/completions"
- ],
- "chat/yunshu|basic|v1slash": [
-  "/v1/chat/completions"
- ],
  "chat/zai|basic|api": [
   "/api/chat/completions"
  ],

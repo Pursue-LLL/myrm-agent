@@ -67,7 +67,6 @@ PROVIDERS: dict[str, tuple[str, dict[str, object]]] = {
     "bedrock": ("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", {}),
     "cerebras": ("cerebras/llama3.1-8b", {}),
     "xiaomi_mimo": ("xiaomi_mimo/mimo-v2-flash", {}),
-    "yunshu": ("yunshu/gpt-4o-mini", {}),
     "openai_like": ("openai/some-model", {}),  # gateways reached through an api_base only
     "gemini_like": ("gemini/gemini-2.5-pro", {}),
     "anthropic_like": ("anthropic/claude-sonnet-4-5", {}),

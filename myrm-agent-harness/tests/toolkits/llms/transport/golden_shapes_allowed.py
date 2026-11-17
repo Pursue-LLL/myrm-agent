@@ -43,7 +43,6 @@ _CHAT_PASTED_URL = (
     "chat/volcengine",
     "chat/xai",
     "chat/xiaomi_mimo",
-    "chat/yunshu",
     "chat/zai",
 )
 

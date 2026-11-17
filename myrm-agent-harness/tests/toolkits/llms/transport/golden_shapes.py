@@ -63,7 +63,6 @@ _CHAT_PROVIDERS = (
     "cohere_chat",
     "cerebras",
     "xiaomi_mimo",
-    "yunshu",
 )
 CHAT_SHAPES = (
     ("bare", ""),
