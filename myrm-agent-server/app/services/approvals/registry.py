@@ -15,7 +15,7 @@
 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。
 outbound_draft 的定案（WebUI/IM 按钮/`/draft`/批量/TTL）统一在此收口：状态提交后调用 finalize_outbound_draft。
 定案是读后写（resolve_approval、TTL 清理），事务起始先取 SQLite 写锁：并发的定案只有一方生效，另一方等待后读到已定案状态
-（resolve_approval 返回 None），不会重复发送，也不会以 "database is locked" 失败。
+（resolve_approval 返回 None），不会重复发送，也不会以 "database is locked" 失败；续跑时结算的浏览器接管审批同样逐条走 resolve_approval。
 """
 
 import asyncio
@@ -40,13 +40,13 @@ class ApprovalRegistry:
 
     @classmethod
     async def cleanup_expired_approvals(cls) -> int:
-        """Find pending approvals that have expired and reject them automatically.
+        """Settle pending approvals that have expired: TIMEOUT, or APPROVED for a held reply set to auto_send.
 
         Finalizes the stored state and re-syncs the pending count of the chats it touched.
         A suspended agent is resumed by the harness ApprovalTimeoutScheduler when its timer fires, not by this sweep.
 
         Returns:
-            The number of approvals that were auto-rejected.
+            The number of expired approvals settled.
         """
         async with get_session() as db:
             await acquire_write_lock(db)  # as in resolve_approval: a click racing the sweep decides the record only once
@@ -288,21 +288,24 @@ class ApprovalRegistry:
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
+    # Background growth drafts have no thread and live in the /skills/drafts inbox, so the pending count and the
+    # approvals list leave them out while list_pending_growth returns only them: one definition for all three.
+    _BACKGROUND_GROWTH = and_(
+        ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
+        or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
+    )
+
     @classmethod
     async def count_pending_for_chat(cls, chat_id: str) -> int:
         if not chat_id.strip():
             return 0
-        background_growth = and_(
-            ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
-            or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
-        )
         async with get_session() as db:
             stmt = (
                 select(func.count())
                 .select_from(ApprovalRecord)
                 .where(ApprovalRecord.status == "PENDING")
                 .where(ApprovalRecord.chat_id == chat_id)
-                .where(~background_growth)
+                .where(~cls._BACKGROUND_GROWTH)
             )
             result = await db.execute(stmt)
             return int(result.scalar_one())
@@ -321,15 +324,11 @@ class ApprovalRegistry:
 
     @classmethod
     async def list_pending(cls, limit: int = 50, offset: int = 0) -> list[ApprovalRecord]:
-        background_growth = and_(
-            ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
-            or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
-        )
         async with get_session() as db:
             stmt = (
                 select(ApprovalRecord)
                 .where(ApprovalRecord.status == "PENDING")
-                .where(~background_growth)
+                .where(~cls._BACKGROUND_GROWTH)
                 .order_by(ApprovalRecord.created_at.desc())
                 .offset(offset)
                 .limit(limit)
@@ -346,15 +345,11 @@ class ApprovalRegistry:
         /skills/drafts inbox. `persist_skill_draft_record` uses this to enforce
         deduplication and the pending-proposal cap on those same drafts.
         """
-        background_growth = and_(
-            ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
-            or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
-        )
         async with get_session() as db:
             stmt = (
                 select(ApprovalRecord)
                 .where(ApprovalRecord.status == "PENDING")
-                .where(background_growth)
+                .where(cls._BACKGROUND_GROWTH)
                 .order_by(ApprovalRecord.created_at.desc())
                 .offset(offset)
                 .limit(limit)
@@ -373,23 +368,21 @@ class ApprovalRegistry:
         if not chat_id.strip():
             return 0
         normalized = "approve" if decision == "approve" else "deny"
-        resolved_count = 0
         async with get_session() as db:
-            stmt = select(ApprovalRecord).where(
+            stmt = select(ApprovalRecord.id).where(
                 and_(
                     ApprovalRecord.chat_id == chat_id,
                     ApprovalRecord.status == "PENDING",
                     ApprovalRecord.action_type == "browser_takeover",
                 )
             )
-            result = await db.execute(stmt)
-            records = list(result.scalars().all())
-            for record in records:
-                record.status = "APPROVED" if normalized == "approve" else "REJECTED"
-                record.resolved_at = datetime.now(timezone.utc)
+            approval_ids = list((await db.execute(stmt)).scalars().all())
+        # Each one is decided by resolve_approval like any other approval: it takes the write lock first, so a
+        # concurrent writer cannot fail this request, and it refreshes the run digest's pending count.
+        resolved_count = 0
+        for approval_id in approval_ids:
+            if await cls.resolve_approval(approval_id, normalized) is not None:
                 resolved_count += 1
-            if resolved_count:
-                await db.commit()
         if resolved_count:
             logger.info(
                 "Resolved %s pending browser_takeover approval(s) for chat_id=%s decision=%s",

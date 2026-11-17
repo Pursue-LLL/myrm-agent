@@ -15,12 +15,13 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`list_pending_growth`（背景 growth 去重/上限 SSOT）、`find_pending_outbound_drafts`（按审批 ID 前缀查找待审核的被扣留回复，只返回 outbound_draft、最多 2 条，供 `/draft` 命令）、`resolve_approval` 与 `cleanup_expired_approvals` 事务起始先取 SQLite 写锁（并发定案只有一方生效，另一方读到已定案状态），并在 outbound_draft 状态提交后（会话释放之后）调用 `finalize_outbound_draft`（定案的唯一收口；TTL 清理对多条草稿并发收尾）；create/resolve 与 TTL 清理后 `_sync_copilot_pending` 刷新 RunDigest 待审批计数（清理对所涉聊天各刷新一次） | ✅ |
+| `registry.py` | 核心 | 拦截审批流注册、多端推送 (SSE + Channels)、`list_pending` 过滤后台 growth draft、`list_pending_growth`（背景 growth 去重/上限 SSOT）、`find_pending_outbound_drafts`（按审批 ID 前缀查找待审核的被扣留回复，只返回 outbound_draft、最多 2 条，供 `/draft` 命令）、`resolve_approval` 与 `cleanup_expired_approvals` 事务起始先取 SQLite 写锁（并发定案只有一方生效，另一方读到已定案状态），并在 outbound_draft 状态提交后（会话释放之后）调用 `finalize_outbound_draft`（定案的唯一收口；TTL 清理对多条草稿并发收尾）；create/resolve 与 TTL 清理后 `_sync_copilot_pending` 刷新 RunDigest 待审批计数（清理对所涉聊天各刷新一次）；`resolve_pending_browser_takeover_for_chat`（续跑时结算滞留的浏览器接管审批）逐条走 `resolve_approval`，与其他定案一样先取写锁、一样刷新计数；`count_pending_for_chat`（运行摘要、新回合的待审批闸门与卡住提醒共用的待审批计数）、`list_pending` 与 `list_pending_growth` 共用同一条后台成长判定 | ✅ |
 | `outbound_draft.py` | 核心 | 被扣留回复（`outbound_draft`）定案后的唯一收尾：`finalize_outbound_draft()`（发送或释放 + 关闭发送方占位消息 + 发送失败告知 owner；永不抛出，因为决定已落库）、`send_outbound_draft_payload()` / `discard_outbound_draft_payload()`（由整条回复快照重建与释放临时附件）、`draft_code()` / `DRAFT_CODE_MIN_CHARS`（被扣留回复在聊天里的短码：审核请求打印审批 ID 前 8 位，`/draft` 接受 6 位及以上） | ✅ |
-## `list_pending` / `list_pending_growth` 契约
+## `list_pending` / `list_pending_growth` / `count_pending_for_chat` 契约
 
 - **`list_pending` 包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。
 - **`list_pending` 排除**：`action_type ∈ growth/constants.py::GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
+- **`count_pending_for_chat`**：该聊天 PENDING 且不属于上述后台 growth 的数量，与 `list_pending` 用同一条判定，所以状态条上的数、新回合闸门与全局列表不会各算各的。
 - **`list_pending_growth`**：仅返回 PENDING 后台 growth drafts（与 `list_pending` 互补），供 `draft_notification.persist_skill_draft_record` 做去重抑制与 pending 上限检查；避免 `list_pending` 的过滤导致重复提案无限堆积。
 - **SSE**：后台 growth 创建时（`PENDING` 或非 `PENDING`）一律不广播 `APPROVAL_REQUIRED` / `SKILL_GROWTH_UPDATED`（由 `draft_notification` 统一发 `NEW_SKILL_DRAFT` / `SKILL_GROWTH_UPDATED`，避免双发）。
 
