@@ -143,7 +143,8 @@ Sandbox 部署由两个独立部分组成：
 **1. 构建运行时镜像**（`myrm-agent-server` + `myrm-agent-harness` 打包）：
 
 ```bash
-docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:latest .
+# 在 myrm-agent 仓库根目录执行（构建上下文）
+docker build -f myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:latest .
 # 生成 myrm/runtime:latest 镜像
 ```
 
