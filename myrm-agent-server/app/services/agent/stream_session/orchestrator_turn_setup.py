@@ -13,7 +13,7 @@
 - TurnParams: converted agent params plus routing attribution of one turn
 - build_turn_params: resume side effects (takeover decision, directory grant) then request → params conversion
 - search_service_unavailable_detail: why a search-bound turn cannot run, or None
-- prepare_goal_provider: the turn's goal provider, registered for the turn, with the request's goal budget applied
+- prepare_goal_provider: the turn's goal provider, registered for the turn, with the request's goal budget applied; a failing goal step gives the registration back
 - build_turn_extra_context: runtime context handed to the agent run, with the prewarm join and the turn's knowledge pack
 
 [POS]
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
     from app.ai_agents import GeneralAgentParams
     from app.services.agent.params import AgentRequest
+    from app.services.agent.params.models import GoalBudgetRequest
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +177,8 @@ def search_service_unavailable_detail(request: AgentRequest, params: GeneralAgen
 async def prepare_goal_provider(request: AgentRequest, text_content: str) -> GoalProvider | None:
     """Register the goal provider of the chat's turn; a request that carries a goal creates it or re-budgets the active one.
 
-    The turn's stream finalize gives the registration back by this provider.
+    The turn gives the registration back by this provider. When the goal steps fail, the registration goes back before
+    the error propagates: the caller holds no provider yet, and no teardown reaches a turn that never started.
     """
     if not request.chat_id:
         return None
@@ -187,43 +189,48 @@ async def prepare_goal_provider(request: AgentRequest, text_content: str) -> Goa
     await check_and_handle_branch_stash(request.chat_id)
     goal_provider = GoalRegistry.register(request.chat_id)
     if request.goal:
-        from typing import cast
-
-        from myrm_agent_harness.agent.goals.types import CheckpointMode, GoalBudget
-
-        budget = GoalBudget(
-            max_tokens=request.goal.max_tokens,
-            max_usd=request.goal.max_usd,
-            max_time_seconds=request.goal.max_time_seconds,
-            max_turns=request.goal.max_turns,
-            convergence_window=request.goal.convergence_window,
-            loop_on_pause=request.goal.loop_on_pause,
-            max_loop_restarts=request.goal.max_loop_restarts,
-        )
-        acceptance_criteria = request.goal.acceptance_criteria
-        ui_summary = request.goal.ui_summary
-        constraints = request.goal.constraints
-        protected_paths = request.goal.protected_paths
-        active_goal = await goal_provider.get_active_goal(request.chat_id)
-        if not active_goal:
-            checkpoint_mode_raw = getattr(request.goal, "checkpoint_mode", "none")
-            checkpoint_mode = checkpoint_mode_raw if checkpoint_mode_raw in ("none", "per_todo") else "none"
-            goal_objective = text_content.strip() or "User requested goal"
-            resolved_ui_summary = ui_summary.strip() if ui_summary else goal_objective[:120]
-
-            await goal_provider.create_goal(
-                session_id=request.chat_id,
-                objective=goal_objective,
-                budget=budget,
-                acceptance_criteria=acceptance_criteria,
-                constraints=constraints,
-                protected_paths=protected_paths,
-                ui_summary=resolved_ui_summary,
-                checkpoint_mode=cast(CheckpointMode, checkpoint_mode),
-            )
-        else:
-            await goal_provider.set_budget(active_goal.goal_id, budget)
+        try:
+            await _apply_request_goal(request.chat_id, request.goal, goal_provider, text_content)
+        except BaseException:
+            GoalRegistry.unregister(request.chat_id, goal_provider)
+            raise
     return goal_provider
+
+
+async def _apply_request_goal(chat_id: str, goal: GoalBudgetRequest, goal_provider: GoalProvider, text_content: str) -> None:
+    """Create the goal the request carries from the message, or re-budget the chat's active goal."""
+    from typing import cast
+
+    from myrm_agent_harness.agent.goals.types import CheckpointMode, GoalBudget
+
+    budget = GoalBudget(
+        max_tokens=goal.max_tokens,
+        max_usd=goal.max_usd,
+        max_time_seconds=goal.max_time_seconds,
+        max_turns=goal.max_turns,
+        convergence_window=goal.convergence_window,
+        loop_on_pause=goal.loop_on_pause,
+        max_loop_restarts=goal.max_loop_restarts,
+    )
+    active_goal = await goal_provider.get_active_goal(chat_id)
+    if active_goal:
+        await goal_provider.set_budget(active_goal.goal_id, budget)
+        return
+    checkpoint_mode_raw = getattr(goal, "checkpoint_mode", "none")
+    checkpoint_mode = checkpoint_mode_raw if checkpoint_mode_raw in ("none", "per_todo") else "none"
+    goal_objective = text_content.strip() or "User requested goal"
+    resolved_ui_summary = goal.ui_summary.strip() if goal.ui_summary else goal_objective[:120]
+
+    await goal_provider.create_goal(
+        session_id=chat_id,
+        objective=goal_objective,
+        budget=budget,
+        acceptance_criteria=goal.acceptance_criteria,
+        constraints=goal.constraints,
+        protected_paths=goal.protected_paths,
+        ui_summary=resolved_ui_summary,
+        checkpoint_mode=cast(CheckpointMode, checkpoint_mode),
+    )
 
 
 async def build_turn_extra_context(

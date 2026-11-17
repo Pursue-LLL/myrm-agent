@@ -98,7 +98,9 @@ async def test_a_tool_stuck_pause_ends_the_run_like_a_finished_turn() -> None:
 
     outcome = await _finalize(session)
 
-    outcome.end_run.assert_called_once_with(CHAT_ID, phase=RunDigestPhase.COMPLETED, progress_steps=[PAUSED_STEP])
+    outcome.end_run.assert_called_once_with(
+        CHAT_ID, phase=RunDigestPhase.COMPLETED, progress_steps=[PAUSED_STEP], run=session.digest_run
+    )
     assert ACTIVE_COLLECTORS.get(CHAT_ID) is None
 
 

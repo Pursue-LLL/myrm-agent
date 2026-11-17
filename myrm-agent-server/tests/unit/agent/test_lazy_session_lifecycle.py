@@ -120,6 +120,7 @@ async def test_finalize_discards_draft_when_cancelled_before_first_token():
     session.extra_context = {}
     session.migration_live_readiness_status = None
     session.goal_provider = None  # no dataclass default, so the spec-mock does not expose it
+    session.steering_token = None  # nor does it expose this one
     session.params = MagicMock(enable_skill_manage=False)
     # cancel_token has no dataclass default, so spec-mocks don't expose it;
     # production requires it (stream_session_types.py:30).
@@ -185,6 +186,7 @@ async def test_finalize_commits_draft_when_tool_step_present_without_text():
     session.extra_context = {}
     session.migration_live_readiness_status = None
     session.goal_provider = None  # no dataclass default, so the spec-mock does not expose it
+    session.steering_token = None  # nor does it expose this one
     session.cancel_token = MagicMock()
     session.cancel_token.is_cancelled = False
     session.params = MagicMock(enable_skill_manage=False)
@@ -251,6 +253,7 @@ async def test_finalize_commits_draft_when_assistant_content_present():
     session.extra_context = {}
     session.migration_live_readiness_status = None
     session.goal_provider = None  # no dataclass default, so the spec-mock does not expose it
+    session.steering_token = None  # nor does it expose this one
     # cancel_token has no dataclass default, so spec-mocks don't expose it;
     # production requires it (stream_session_types.py:30).
     session.cancel_token = MagicMock()

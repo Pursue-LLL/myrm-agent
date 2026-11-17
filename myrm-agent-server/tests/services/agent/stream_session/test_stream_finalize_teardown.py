@@ -120,11 +120,13 @@ async def test_the_crash_marker_is_cleared_only_after_the_answer_is_stored() -> 
 
 
 @pytest.mark.asyncio
-async def test_the_turn_gives_back_its_stop_handle_and_steering_registration() -> None:
-    teardown = await _end_turn(_make_session())
+async def test_the_turn_gives_back_its_stop_handle_and_the_steering_token_it_registered() -> None:
+    session = _make_session()
+
+    teardown = await _end_turn(session)
 
     teardown.cancellation.unregister.assert_called_once_with(MESSAGE_ID)
-    teardown.steering.unregister.assert_called_once_with(CHAT_ID)
+    teardown.steering.unregister.assert_called_once_with(CHAT_ID, session.steering_token)
 
 
 @pytest.mark.asyncio
@@ -166,5 +168,28 @@ async def test_a_turn_the_user_stopped_is_recorded_as_stopped() -> None:
 
     teardown = await _end_turn(session)
 
-    teardown.end_run.assert_called_once_with(CHAT_ID, phase=RunDigestPhase.CANCELLED, progress_steps=[])
+    teardown.end_run.assert_called_once_with(CHAT_ID, phase=RunDigestPhase.CANCELLED, progress_steps=[], run=session.digest_run)
     teardown.capability_failed.assert_awaited_once_with(session, "abort")
+
+
+@pytest.mark.asyncio
+async def test_a_turn_is_torn_down_once_finalize_has_run_to_its_end() -> None:
+    session = _make_session()
+    session.torn_down = False
+
+    await _end_turn(session)
+
+    assert session.torn_down is True
+
+
+@pytest.mark.asyncio
+async def test_a_turn_parked_for_an_answer_is_torn_down_but_keeps_its_collector_and_its_run() -> None:
+    session = _make_session()
+    session.torn_down = False
+    session.collector.has_pending_hitl_replay.return_value = True
+
+    teardown = await _end_turn(session)
+
+    assert session.torn_down is True
+    teardown.end_run.assert_not_called()
+    session.collector.cleanup.assert_not_called()

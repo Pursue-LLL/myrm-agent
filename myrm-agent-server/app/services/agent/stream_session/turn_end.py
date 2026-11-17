@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - schedule_compaction_drain: drain in the background when the turn left compaction debt behind
-- close_run_digest: end the run digest of the chat and announce the session outcome
+- close_run_digest: end the run digest of the chat and announce the session outcome, once per run
 - publish_session_lifecycle_webhook_event: publish session_completed / session_failed
 
 [POS]
@@ -20,8 +20,12 @@ turn that ends by timer is announced and drained like one that ends by request.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
+
+if TYPE_CHECKING:
+    from app.services.copilot.run_digest_store import RunSession
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +52,17 @@ def close_run_digest(
     agent_id: str | None,
     was_cancelled: bool,
     had_fatal_error: bool,
+    run: RunSession | None = None,
 ) -> None:
-    """End the run digest of the chat and announce the session outcome to the lifecycle webhooks."""
+    """End the run digest of the chat and announce the session outcome to the lifecycle webhooks.
+
+    A turn passes its own `run`: when that run is no longer the chat's live one (the turn already ended it, or the
+    chat's next turn replaced it) nothing is ended and nothing is announced, so a run is announced exactly once.
+    """
     from app.services.copilot.run_digest_store import RunDigestStore
 
-    RunDigestStore.end_run(chat_id, phase=phase, progress_steps=progress_steps)
+    if not RunDigestStore.end_run(chat_id, phase=phase, progress_steps=progress_steps, run=run):
+        return
     publish_session_lifecycle_webhook_event(
         chat_id=chat_id,
         phase=phase,

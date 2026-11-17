@@ -6,6 +6,7 @@
 - app.services.agent.stream_session.lazy_session_gate::PendingSessionDraft (POS: Stream-session persistence gate: no session row or sandbox directory exists until the first active generation event)
 - app.services.agent.streaming_support.stream_collector::StreamContentCollector (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata)
 - app.services.chat.compact_service::CompactResult (POS: Chat context compaction facade)
+- app.services.copilot.run_digest_store::RunSession (POS: handle of the run digest the turn began, by which the turn ends only its own run)
 - myrm_agent_harness.agent.streaming.stream_buffer::GlobalStreamRegistry (POS: Harness engine-layer SSE reconnect replay buffer)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationToken (POS: Cancellation token mechanism. Provides request-level cancellation state management with graceful async cancellation support.)
 - myrm_agent_harness.utils.runtime.steering::SteeringToken (POS: Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain)
@@ -35,6 +36,7 @@ from app.services.agent.params import AgentRequest
 from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 from app.services.chat.compact_service import CompactResult
+from app.services.copilot.run_digest_store import RunSession
 
 GRACE_PERIOD_SECONDS = 180.0
 ACTIVITY_STALE_SECONDS = 600.0
@@ -67,3 +69,8 @@ class AgentStreamSession:
     pre_reply_compact_result: CompactResult | None = field(default=None)
     pre_reply_compact_sse_sent: bool = field(default=False)
     pending_session_draft: PendingSessionDraft | None = field(default=None)
+    # The run digest the turn began, and the replay marker row it wrote: each lets the turn end only what is its own.
+    digest_run: RunSession | None = field(default=None)
+    turn_marker_id: str | None = field(default=None)
+    # Set once finalize has run to its end; the safety net of the turn body acts only while a turn is not torn down.
+    torn_down: bool = field(default=False)

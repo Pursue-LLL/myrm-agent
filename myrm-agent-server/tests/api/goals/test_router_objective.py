@@ -118,7 +118,7 @@ async def test_update_objective_with_steering(client: TestClient):
         assert "Steered Objective" in steering_msg
         assert "<untrusted_objective>" in steering_msg
     finally:
-        SteeringRegistry.unregister(session_id)
+        SteeringRegistry.unregister(session_id, mock_token)
 
 
 @pytest.mark.asyncio

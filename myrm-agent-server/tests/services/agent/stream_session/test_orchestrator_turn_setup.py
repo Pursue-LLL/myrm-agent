@@ -151,41 +151,36 @@ class TestSearchServiceUnavailableDetail:
 
 
 class TestPrepareGoalProvider:
-    @pytest.mark.asyncio
-    async def test_a_turn_without_a_chat_has_no_goal_provider(self) -> None:
-        assert await setup.prepare_goal_provider(_request(chat_id=None), "hello") is None
-
-    @pytest.mark.asyncio
-    async def test_a_chat_without_a_goal_gets_the_provider_registered_for_its_turn_untouched(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        from app.services.agent.goals import goal_branch_stash
-        from app.services.agent.goals.goal_registry import GoalRegistry
-
-        provider = MagicMock()
-        stash = AsyncMock()
-        monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", stash)
-        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
-
-        result = await setup.prepare_goal_provider(_request(), "hello")
-
-        assert result is provider
-        stash.assert_awaited_once_with(CHAT_ID)
-        provider.create_goal.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_a_goal_request_creates_the_goal_from_the_message_when_none_is_active(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    @pytest.fixture
+    def provider(self, monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+        """The provider `GoalRegistry.register` hands out: it holds no goal yet, and the branch-stash check is stubbed."""
         from app.services.agent.goals import goal_branch_stash
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         provider = MagicMock()
         provider.get_active_goal = AsyncMock(return_value=None)
         provider.create_goal = AsyncMock()
+        provider.set_budget = AsyncMock()
         monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", AsyncMock())
         monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
+        return provider
 
+    @pytest.mark.asyncio
+    async def test_a_turn_without_a_chat_has_no_goal_provider(self) -> None:
+        assert await setup.prepare_goal_provider(_request(chat_id=None), "hello") is None
+
+    @pytest.mark.asyncio
+    async def test_a_chat_without_a_goal_gets_the_provider_registered_for_its_turn_untouched(self, provider: MagicMock) -> None:
+        from app.services.agent.goals import goal_branch_stash
+
+        result = await setup.prepare_goal_provider(_request(), "hello")
+
+        assert result is provider
+        goal_branch_stash.check_and_handle_branch_stash.assert_awaited_once_with(CHAT_ID)
+        provider.create_goal.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_a_goal_request_creates_the_goal_from_the_message_when_none_is_active(self, provider: MagicMock) -> None:
         await setup.prepare_goal_provider(_request(goal=_goal(checkpoint_mode="per_todo")), "  ship the release  ")
 
         kwargs = provider.create_goal.await_args.kwargs
@@ -196,16 +191,8 @@ class TestPrepareGoalProvider:
         assert kwargs["budget"].max_turns == 7
 
     @pytest.mark.asyncio
-    async def test_a_goal_request_rebudgets_the_active_goal(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.agent.goals import goal_branch_stash
-        from app.services.agent.goals.goal_registry import GoalRegistry
-
-        provider = MagicMock()
-        provider.get_active_goal = AsyncMock(return_value=SimpleNamespace(goal_id="goal-1"))
-        provider.set_budget = AsyncMock()
-        provider.create_goal = AsyncMock()
-        monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", AsyncMock())
-        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
+    async def test_a_goal_request_rebudgets_the_active_goal(self, provider: MagicMock) -> None:
+        provider.get_active_goal.return_value = SimpleNamespace(goal_id="goal-1")
 
         await setup.prepare_goal_provider(_request(goal=_goal()), "ship the release")
 
@@ -213,21 +200,44 @@ class TestPrepareGoalProvider:
         assert provider.set_budget.await_args.args[0] == "goal-1"
 
     @pytest.mark.asyncio
-    async def test_an_unknown_checkpoint_mode_falls_back_to_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from app.services.agent.goals import goal_branch_stash
-        from app.services.agent.goals.goal_registry import GoalRegistry
-
-        provider = MagicMock()
-        provider.get_active_goal = AsyncMock(return_value=None)
-        provider.create_goal = AsyncMock()
-        monkeypatch.setattr(goal_branch_stash, "check_and_handle_branch_stash", AsyncMock())
-        monkeypatch.setattr(GoalRegistry, "register", MagicMock(return_value=provider))
-
+    async def test_an_unknown_checkpoint_mode_falls_back_to_none(self, provider: MagicMock) -> None:
         await setup.prepare_goal_provider(_request(goal=_goal(checkpoint_mode="everything")), "")
 
         kwargs = provider.create_goal.await_args.kwargs
         assert kwargs["checkpoint_mode"] == "none"
         assert kwargs["objective"] == "User requested goal"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failing_step", ["get_active_goal", "create_goal", "set_budget"])
+    async def test_a_goal_step_that_fails_gives_the_registration_back_and_raises(
+        self, provider: MagicMock, monkeypatch: pytest.MonkeyPatch, failing_step: str
+    ) -> None:
+        """The provider is registered before the goal steps run, and no teardown reaches a turn that never got it back."""
+        from app.services.agent.goals.goal_registry import GoalRegistry
+
+        if failing_step == "set_budget":
+            provider.get_active_goal.return_value = SimpleNamespace(goal_id="goal-1")
+        getattr(provider, failing_step).side_effect = RuntimeError("storage unavailable")
+        unregister = MagicMock()
+        monkeypatch.setattr(GoalRegistry, "unregister", unregister)
+
+        with pytest.raises(RuntimeError, match="storage unavailable"):
+            await setup.prepare_goal_provider(_request(goal=_goal()), "ship the release")
+
+        unregister.assert_called_once_with(CHAT_ID, provider)
+
+    @pytest.mark.asyncio
+    async def test_a_goal_request_that_succeeds_keeps_the_registration_for_the_turn(
+        self, provider: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from app.services.agent.goals.goal_registry import GoalRegistry
+
+        unregister = MagicMock()
+        monkeypatch.setattr(GoalRegistry, "unregister", unregister)
+
+        assert await setup.prepare_goal_provider(_request(goal=_goal()), "ship the release") is provider
+
+        unregister.assert_not_called()
 
 
 def _goal(**overrides: object) -> SimpleNamespace:

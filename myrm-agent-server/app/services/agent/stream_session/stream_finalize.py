@@ -7,15 +7,20 @@
 - app.services.agent.stream_session.turn_end (POS: compaction drain, run digest close and lifecycle event, shared with the end of a timer-resumed turn)
 - app.services.agent.stream_session.turn_capability_terminal (POS: records the completed or failed terminal state of a turn that carries capability telemetry)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
+- app.services.agent.steering::SteeringRegistry (POS: registry of the steering tokens of running turns; the turn gives back the token it registered)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: registry of the goal providers of running turns; the turn gives back the provider it registered)
 - myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: key under which a stored card remembers the pause it was announced for)
 
 [OUTPUT]
 - finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt and release the turn's session state
+- release_unfinished_turn: tear down a turn whose stream never reached finalize (safety net of the turn body)
+- release_turn_registrations: give back the Stop handle, steering token and goal provider a turn registered, each by the handle the turn holds
 - assistant_turn_payload: the content and extra data a collector's turn is stored with (shared with the persistence of a timer-resumed turn)
 
 [POS]
-Teardown half of the stream pipeline: runs once per turn after the chunk generator ends, however it ended.
+Teardown half of the stream pipeline: finalize runs once per turn after the chunk generator ends, however it ended; the
+exits that skip the generator (a Stop while the turn is queued behind its project, a failure in setup or in the pump)
+are torn down by release_unfinished_turn, called from the turn body's finally.
 """
 
 from __future__ import annotations
@@ -68,6 +73,9 @@ from app.services.agent.streaming_support.sse_helpers import (
 )
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.goals.protocols import GoalProvider
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
     from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
     from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
@@ -224,19 +232,44 @@ def _arm_pending_interrupt_timeout(session: AgentStreamSession, approval: Approv
         )
 
 
+def release_turn_registrations(
+    *,
+    chat_id: str | None,
+    message_id: str | None,
+    steering_token: SteeringToken | None,
+    goal_provider: GoalProvider | None,
+) -> None:
+    """Give back what a turn registered for itself: its Stop handle, its steering token and its goal provider.
+
+    The steering token and the goal provider go back by the handle the turn holds, so a turn that ends late leaves the
+    entries of the chat's next turn alone.
+    """
+    if message_id:
+        CancellationRegistry.unregister(message_id)
+    if not chat_id:
+        return
+    if steering_token is not None:
+        SteeringRegistry.unregister(chat_id, steering_token)
+    if goal_provider is not None:
+        from app.services.agent.goals.goal_registry import GoalRegistry
+
+        GoalRegistry.unregister(chat_id, goal_provider)
+
+
+def _release_session_registrations(session: AgentStreamSession) -> None:
+    release_turn_registrations(
+        chat_id=session.request.chat_id,
+        message_id=getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None),
+        steering_token=session.steering_token,
+        goal_provider=session.goal_provider,
+    )
+
+
 def _release_turn_state(session: AgentStreamSession) -> None:
-    """Flush the compaction telemetry and drop what the turn registered: Stop handle, steering and its goal provider."""
+    """Flush the compaction telemetry and give back what the turn registered."""
     enqueue_context_compaction_telemetry(session.request.chat_id)
     clear_context_task_metrics(session.request.chat_id)
-    target_msg_id = getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None)
-    if target_msg_id:
-        CancellationRegistry.unregister(target_msg_id)
-    if session.request.chat_id:
-        SteeringRegistry.unregister(session.request.chat_id)
-        if session.goal_provider is not None:
-            from app.services.agent.goals.goal_registry import GoalRegistry
-
-            GoalRegistry.unregister(session.request.chat_id, session.goal_provider)
+    _release_session_registrations(session)
 
 
 async def _record_turn_capability_terminal(session: AgentStreamSession) -> None:
@@ -265,6 +298,7 @@ def _close_run_digest(session: AgentStreamSession) -> None:
             agent_id=getattr(session.request, "agent_id", None),
             was_cancelled=session.cancel_token.is_cancelled,
             had_fatal_error=session.had_fatal_error,
+            run=session.digest_run,
         )
 
 
@@ -309,16 +343,54 @@ async def finalize_agent_stream_session(
     else:
         _close_run_digest(session)
         session.collector.cleanup()
+    session.torn_down = True
 
 
-async def _clear_interrupted_turn_marker(chat_id: str) -> None:
-    """Remove the write-ahead marker after a turn completes normally."""
+async def release_unfinished_turn(session: AgentStreamSession) -> None:
+    """Tear down a turn whose stream never reached finalize, so that it leaves nothing registered behind.
+
+    Finalize ends a turn that ran. A turn also leaves the turn body without it when a Stop lands while the turn waits
+    behind its project's lock (the pump swallows the cancel and returns), when setup or the pump fails, or when the
+    task is cancelled. This gives back the registrations and closes the run the way finalize does. A turn the user
+    stopped ends as cancelled and takes its replay marker with it; any other turn that ends here did not complete, and
+    its marker stays for the crash replay.
+    """
+    if session.torn_down:
+        return
+    chat_id = session.request.chat_id
+    _release_session_registrations(session)
+    session.collector.cleanup()
+    stopped = session.cancel_token.is_cancelled
+    if not stopped:
+        session.had_fatal_error = True
+    if session.digest_run is not None:
+        try:
+            _close_run_digest(session)
+        except Exception as exc:
+            logger.warning("Run digest of an unfinished turn was not closed: chat_id=%s, error=%s", chat_id, exc)
+    if stopped and chat_id and session.turn_marker_id is not None:
+        try:
+            await _clear_interrupted_turn_marker(chat_id, marker_id=session.turn_marker_id)
+        except Exception as exc:
+            logger.warning("Replay marker of a stopped turn was not cleared: chat_id=%s, error=%s", chat_id, exc)
+    session.torn_down = True
+
+
+async def _clear_interrupted_turn_marker(chat_id: str, *, marker_id: str | None = None) -> None:
+    """Remove the chat's write-ahead marker, or only the marker row `marker_id` when the caller wrote that one.
+
+    A turn that ends after the chat's next turn replaced the marker passes its own `marker_id`, so the next turn's
+    marker stays.
+    """
     from sqlalchemy import delete
 
     from app.database.models.chat import InterruptedTurnMarker
     from app.platform_utils import get_session_factory
 
+    statement = delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id)
+    if marker_id is not None:
+        statement = statement.where(InterruptedTurnMarker.id == marker_id)
     factory = get_session_factory()
     async with factory() as db:
-        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id))
+        await db.execute(statement)
         await db.commit()

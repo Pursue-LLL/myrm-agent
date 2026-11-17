@@ -884,7 +884,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_stream_exception_chunks_payload_fields.py` | 模块 | 结构化错误载荷的字段：繁忙、配置缺失、LLM 错误三种都沿用本回合的消息 id（回合没有 id 时生成新的）、恢复动作按会话语言生成（缺省用 en）、上下文里没有冷却时长就不带冷却字段、不带诊断（缺省或空对象）的 LLM 错误按会话语言（en/zh-CN 各不相同）得到完整诊断、自带的诊断原样发送且不再重诊断、诊断失败时不带 `diagnostic_result` 字段 |
 | `services/agent/stream_session/test_stream_chunks_unread_steering.py` | 模块 | `generate_cancellable_stream` 的收尾：回合自行结束（正常结束、抛错）后把令牌里没被模型读到的指令按接收顺序放进一条 `steering_unread` 事件，排在错误 chunk 之后、会话 finalize 之前；模型读完了、没有令牌则不发；被取消的回合只关令牌、不发事件；消费者关闭生成器时不发且 finalize 照常执行；辅助函数返回后令牌拒收后续指令 |
 | `services/agent/stream_session/test_turn_capability_terminal.py` | 模块 | 能力遥测终态锚点：载荷判定、异常归类到 `failure_reason`（服务商状态、断开的连接、措辞）、`send_completed/send_failed` 写入形状；一回合只落一次终态（已记录、无遥测都跳过，写入失败不置位以便重试） |
-| `services/agent/stream_session/test_stream_finalize_teardown.py` | 模块 | 回合结束时留下的东西：答案带首 token 耗时与兄弟分组落库、崩溃恢复标记只在答案落库之后清除、归还 Stop 句柄、引导注册与回合登记的 goal provider（没有 provider 就不归还；只归还本回合自己登记的那个，网关已归还会话后启动的下一回合的登记不受影响）、用户停止的回合记为已停止（run digest 为 CANCELLED、能力遥测为 abort） |
+| `services/agent/stream_session/test_stream_finalize_teardown.py` | 模块 | 回合结束时留下的东西：答案带首 token 耗时与兄弟分组落库、崩溃恢复标记只在答案落库之后清除、归还 Stop 句柄、引导注册与回合登记的 goal provider（没有 provider 就不归还；只归还本回合自己登记的那个，网关已归还会话后启动的下一回合的登记不受影响）、用户停止的回合记为已停止（run digest 为 CANCELLED、能力遥测为 abort）；转向令牌按回合持有的那个归还；finalize 跑到底后置 `torn_down`，HITL 停靠的回合同样置位但不关 run、不清收集器 |
+| `services/agent/stream_session/test_turn_registration_release.py` | 模块 | 回合从回合本体的任何出口离开都归还自己登记的东西（真实回合本体与真实注册表，落库、参数、pump 用桩）：排队等项目锁时被 Stop（pump 吞掉取消直接返回）后转向令牌、goal provider、收集器与 Stop 句柄全部归还，run digest 记 cancelled 且生命周期事件只发一次，标记按行 id 清除；第一个登记之后 setup 失败归还转向令牌与 goal provider；pump 失败记 error、保留标记供崩溃续跑；finalize 已跑到底的回合不被兜底再动（HITL 停靠的回合留着收集器与打开的 run）；迟到的收尾不动后一回合的转向令牌、goal provider、收集器与 run digest |
 | `services/agent/test_stream_exception_chunks_cancelled_kills_bg.py` | 模块 | 取消（`CancelledError`）分支结束会话的后台作业：按 chat id 调 `kill_session_jobs`，注册表失败时不向外抛 |
 | `services/agent/test_stream_finalize_persistence.py` | 模块 | `finalize_agent_stream_session` 收尾持久化单测（记忆预算与引用顺序、brief 状态载荷、无效预算载荷跳过、未应用原因、brief 缺失时仍发注入状态、预算钩子失败时保留注入状态） |
 | `services/memory/test_import_mem0.py` | 模块 | mem0 import adapter 单测（memories/results 双键识别、字段映射、tag 过滤、空/非法 drop、auto-detect、dry-run roundtrip） |
@@ -903,7 +904,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_cognitive_clock.py` | 模块 | 认知时钟调度：T2 维护流水线每一步按真实签名调用（签名约束桩 autospec，健康快照与 SQLite 备份的调用必须匹配真实签名）、T3 仅随 T2 放行的 tick 且满一周才运行、首次读取唤醒守卫前的 15 分钟空闲间隔不遮住用户活动让步、唤醒心跳随协调器启停 |
 | `lifecycle/test_wakeup_guard.py` | 模块 | 唤醒平滑守卫：两次读取之间的空闲间隔本身不算唤醒、墙钟与单调时钟漂移不论间隔多长都算唤醒、心跳运行期间的漏拍算唤醒、心跳启动时忘掉此前的时间、心跳停止期间的空闲间隔不算冻结 |
 | `lifecycle/test_cognitive_clock_schedule.py` | 模块 | 虚拟时钟下真实协调器循环 + 唤醒心跳 + 守卫的节拍：空闲不算唤醒、间隔中途宿主挂起不拖延下一轮 T2、轮前一分钟挂起则等宽限期后重试、整个场景里 T3 只运行一次 |
-| `lifecycle/conftest.py` | 辅助 | 每个用例前后把认知时钟的进程级单例（唤醒守卫、活动感知器、暂停信号）重置为全新状态，用例之间不经全局状态互相影响；夹具 `maintenance_schedules` 在录制替身上启动真实的数据库维护调度器，等到它被启动后交出全部注册（未启动就注册的调度器会让所有任务不运行，夹具会因此失败） |
+| `lifecycle/conftest.py` | 辅助 | 每个用例前后把认知时钟的进程级单例（唤醒守卫、活动感知器、暂停信号）重置为全新状态，用例之间不经全局状态互相影响；夹具 `maintenance_schedules` 在录制替身上启动真实的数据库维护调度器，等到它被启动后交出全部注册（未启动就注册的调度器会让所有任务不运行，夹具会因此失败）；夹具 `session_factory` 与 `test_chat` 给数据库用例真实 SQLite 会话工厂与一条真实聊天，用例结束时连同该聊天的续跑标记一并清除 |
+| `lifecycle/test_turn_marker_release.py` | 模块 | 被用户停止、流从未运行的回合带走自己的续跑标记，且只带走自己的（真实 SQLite）：写标记返回标记行 id；被停止回合的兜底按行 id 删除；失败回合保留标记供崩溃续跑；迟到的兜底不删后一回合已替换进来的标记 |
+| `lifecycle/test_interrupted_turn_marker_functions.py` | 模块 | 续跑标记的写、清与重放（真实 SQLite）：写标记为聊天建一条并替换旧的、记录用户消息落库时用的 id；`_clear_interrupted_turn_marker` 删除该聊天的标记；重放被中断回合时，被中断的那条用户消息不再作为历史重复出现 |
+| `lifecycle/test_interrupted_turn_marker_functions.py` | 模块 | 续跑标记的写、清与重放（真实 SQLite）：写标记为聊天建一条并替换旧的、记录用户消息落库时用的 id；`_clear_interrupted_turn_marker` 删除该聊天的标记；重放被中断回合时，被中断的那条用户消息不再作为历史重复出现 |
 | `support/recording_scheduler.py` | 辅助 | `RecordingScheduler`：`apscheduler.AsyncScheduler` 的替身，只记录注册（任务 id 对应任务函数与触发器）、不运行；`start_in_background` 置位 `started`，`created_at` 是被测代码使用它之前的时刻，供「首次触发时间」断言；数据库维护调度器的三份调度测试共用 |
 | `lifecycle/test_memory_guardian_sqlite_backup.py` | 模块 | 维护周期末尾的 SQLite 热备份：对真实数据库落盘并校验、非文件库安静跳过、页拷贝脱离事件循环、失败只记 WARNING 不使周期失败 |
 | `ai_agents/general_agent/test_human_tail_mount_order.py` | 模块 | factory 里 Human 尾部中间件晚于上下文压缩挂载，顺序固定为知识包、会话覆盖 deltas、两层上下文 |

@@ -3,7 +3,6 @@
 [INPUT]
 - app.services.agent.params (POS: request conversion)
 - app.services.agent.stream_session.orchestrator_turn_launch (POS: E1 accept phase, starts the background turn and answers the client)
-- app.services.agent.stream_session.orchestrator_turn_body (POS: write-ahead interrupted-turn marker written by the turn)
 - myrm_agent_harness.agent.middlewares.approval.scheduler::ApprovalTimeoutScheduler (POS: first-resolver arbitration between the approval timeout timer and a manual resume)
 - app.services.agent.streaming_support.stream_collector::release_parked_hitl, settle_tool_approvals_of (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry of each chat's parked run)
 
@@ -19,13 +18,8 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
 
 from fastapi import Request
-
-if TYPE_CHECKING:
-    from app.ai_agents import GeneralAgentParams
-
 from fastapi.responses import JSONResponse, StreamingResponse
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
 
@@ -263,15 +257,3 @@ async def run_agent_stream(
         )
     finally:
         session_reservation.release()
-
-
-async def _write_interrupted_turn_marker(
-    request: AgentRequest,
-    params: GeneralAgentParams,
-) -> None:
-    """Persist a write-ahead marker so a crash leaves a recoverable trace."""
-    from app.services.agent.stream_session.orchestrator_turn_body import (
-        write_interrupted_turn_marker,
-    )
-
-    await write_interrupted_turn_marker(request, params)

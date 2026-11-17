@@ -1,19 +1,25 @@
 """Lifecycle test support.
 
 The cognitive-clock singletons are process-global, so every test starts from fresh ones; ``maintenance_schedules`` boots
-the real maintenance scheduler on a recording double.
+the real maintenance scheduler on a recording double; ``session_factory`` and ``test_chat`` give a DB test a real chat
+row whose replay markers are removed with it.
 """
 
 from __future__ import annotations
 
 import asyncio
+import uuid
 from collections.abc import AsyncIterator, Iterator
 
 import pytest
 from myrm_agent_harness.runtime.cognitive_clock.signals import get_global_pause_signal
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.database.models.chat import Chat, InterruptedTurnMarker
 from app.lifecycle import schedulers
 from app.lifecycle.cognitive_clock import activity_sensor, wakeup_guard
+from app.platform_utils import get_session_factory
 from tests.support.recording_scheduler import RecordingScheduler
 
 
@@ -45,3 +51,21 @@ async def maintenance_schedules(monkeypatch: pytest.MonkeyPatch) -> AsyncIterato
         yield scheduler
     finally:
         await schedulers.stop_db_maintenance_scheduler()
+
+
+@pytest.fixture
+def session_factory() -> async_sessionmaker[AsyncSession]:
+    return get_session_factory()
+
+
+@pytest.fixture
+async def test_chat(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIterator[str]:
+    chat_id = f"test-turn-{uuid.uuid4().hex[:8]}"
+    async with session_factory() as db:
+        db.add(Chat(id=chat_id, title="Lifecycle DB Test"))
+        await db.commit()
+    yield chat_id
+    async with session_factory() as db:
+        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id))
+        await db.execute(delete(Chat).where(Chat.id == chat_id))
+        await db.commit()

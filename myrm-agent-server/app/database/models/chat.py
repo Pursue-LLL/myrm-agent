@@ -205,9 +205,9 @@ class ConversationFork(Base):
 class InterruptedTurnMarker(Base):
     """Write-ahead marker for crash auto-continue.
 
-    Written before agent stream starts, cleared on normal completion.
-    Surviving markers after a process crash indicate interrupted turns
-    that can be automatically resumed on next startup.
+    Written before the agent stream starts, and cleared when the turn's stream ends or the user stops the turn.
+    A surviving marker belongs to a turn that was cut off (a process crash, or a failure before its stream ran)
+    and is resumed automatically on the next startup.
     """
 
     __tablename__ = "interrupted_turn_markers"

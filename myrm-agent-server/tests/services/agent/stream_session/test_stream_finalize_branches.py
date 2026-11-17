@@ -125,7 +125,9 @@ class TestFinalizeBranchCoverage:
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         mock_drain.assert_called_once_with("chat-branch")
-        mock_end_run.assert_called_once_with("chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}])
+        mock_end_run.assert_called_once_with(
+            "chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}], run=session.digest_run
+        )
 
     @pytest.mark.asyncio
     async def test_turn_capability_completed_is_recorded(self) -> None:

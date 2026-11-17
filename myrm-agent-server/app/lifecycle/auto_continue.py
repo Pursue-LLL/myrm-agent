@@ -1,7 +1,7 @@
 """Crash auto-continue: resume interrupted normal turns after a restart.
 
 [INPUT]
-- app.database.models.chat::InterruptedTurnMarker (POS: 崩溃自动续跑的 write-ahead marker，流开始前写入、正常完成后清理)
+- app.database.models.chat::InterruptedTurnMarker (POS: 崩溃自动续跑的 write-ahead marker，流开始前写入、回合的流结束或被用户停止时清理)
 - app.services.agent.runtime_context::build_agent_runtime_context (POS: Business-layer helper，为每个 agent 入口注入统一的运行时上下文)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层，创建 Agent 并经 Gateway 执行，输出 message/message_end 事件)
 - app.services.agent.turn_lease::server_turn_lease (POS: 服务端自启回合的会话占用 + 取消令牌，使聊天「停止」与 E-Stop 能到达重放回合)

@@ -47,3 +47,38 @@ def test_end_run_publishes_sse() -> None:
     assert digest is not None
     assert digest.phase == RunDigestPhase.COMPLETED
     assert mock_bus.publish.called
+
+
+def test_end_run_by_handle_ends_the_run_once() -> None:
+    run = RunDigestStore.begin_run("chat-d")
+    assert run is not None
+
+    assert RunDigestStore.end_run("chat-d", phase=RunDigestPhase.CANCELLED, run=run) is True
+    assert RunDigestStore.end_run("chat-d", phase=RunDigestPhase.ERROR, run=run) is False
+
+    digest = RunDigestStore.get("chat-d")
+    assert digest is not None
+    assert digest.phase == RunDigestPhase.CANCELLED
+
+
+def test_end_run_by_handle_leaves_the_run_of_a_turn_that_started_after() -> None:
+    """A turn that ends late must not close the run the chat's next turn is showing."""
+    ended = RunDigestStore.begin_run("chat-e")
+    newer = RunDigestStore.begin_run("chat-e")
+
+    assert RunDigestStore.end_run("chat-e", phase=RunDigestPhase.CANCELLED, run=ended) is False
+
+    digest = RunDigestStore.get("chat-e")
+    assert digest is not None
+    assert digest.phase == RunDigestPhase.RUNNING
+    assert RunDigestStore.end_run("chat-e", phase=RunDigestPhase.COMPLETED, run=newer) is True
+
+
+def test_end_run_without_a_handle_ends_whichever_run_is_live() -> None:
+    RunDigestStore.begin_run("chat-f")
+
+    assert RunDigestStore.end_run("chat-f", phase=RunDigestPhase.COMPLETED) is True
+
+    digest = RunDigestStore.get("chat-f")
+    assert digest is not None
+    assert digest.phase == RunDigestPhase.COMPLETED
