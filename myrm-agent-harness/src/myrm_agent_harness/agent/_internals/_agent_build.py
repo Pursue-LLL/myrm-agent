@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - build_middlewares: Build the full middleware chain for a BaseAgent.
-- create_registry: Create a fresh ToolRegistry for one build cycle.
+- create_registry: Create a fresh ToolRegistry for one build cycle (refuses built-in meta tools under ``no_builtin_tools``).
 - build_tools: Build the resolved tool list via ToolRegistry.
 - emit_tools_snapshot: Return Turn1-bound tools for GUI availability view.
 
@@ -75,7 +75,7 @@ __all__ = ["build_middlewares", "build_tools", "create_registry", "emit_tools_sn
 
 def build_middlewares(
     registry: ToolRegistry,
-    user_middlewares: list[object],
+    user_middlewares: Sequence[object],
     engine_params: EngineParams | None = None,
 ) -> list[Any]:
     """Build the full middleware chain for a BaseAgent.
@@ -197,9 +197,15 @@ def build_middlewares(
     return middlewares
 
 
-def create_registry() -> ToolRegistry:
-    """Create a fresh ToolRegistry for one build cycle."""
-    return ToolRegistry()
+def create_registry(*, no_builtin_tools: bool = False) -> ToolRegistry:
+    """Create a fresh ToolRegistry for one build cycle.
+
+    With ``no_builtin_tools`` the registry refuses the built-in meta tools, so the host's own tools are the whole
+    action space of every graph the agent builds from it.
+    """
+    if no_builtin_tools:
+        logger.info("no_builtin_tools is enabled: built-in meta tools are excluded from action space")
+    return ToolRegistry(no_builtin_tools=no_builtin_tools)
 
 
 def _weave_dynamic_schemas(resolved_tools: list[BaseTool]) -> list[BaseTool]:
@@ -236,12 +242,12 @@ def _weave_dynamic_schemas(resolved_tools: list[BaseTool]) -> list[BaseTool]:
 async def build_tools(
     registry: ToolRegistry,
     user_tools: list[BaseTool],
-    cached_middlewares: list[object],
+    cached_middlewares: Sequence[object] | None,
 ) -> list[BaseTool]:
     """Build the resolved tool list via ToolRegistry.
 
     Registers user tools first, then collects any tools exposed by
-    middlewares (e.g. ``get_tools()``).
+    middlewares (e.g. ``get_tools()``); an agent without a built middleware chain exposes none.
     """
     from myrm_agent_harness.agent.tool_management import ToolBindMode
 
@@ -250,7 +256,7 @@ async def build_tools(
         source=ToolSource.USER,
     )
 
-    for mw in cached_middlewares:
+    for mw in cached_middlewares or ():
         get_tools = getattr(mw, "get_tools", None)
         if callable(get_tools):
             try:
@@ -279,8 +285,8 @@ async def build_tools(
 def emit_tools_snapshot(registry: ToolRegistry) -> list[dict[str, object]] | None:
     """Return Turn1-bound tools for GUI availability view.
 
-    Excludes RUNTIME_ONLY entries so the panel matches
-    ``registry.resolve()`` (what the model can call on the current turn).
+    Excludes RUNTIME_ONLY entries, so the panel matches ``registry.resolve()`` (what the model can call on the
+    current turn).
     """
     try:
         from myrm_agent_harness.agent.tool_management import ToolBindMode

@@ -28,9 +28,20 @@ async def seed_chat_with_text(
     *messages: str,
     title: str = "Release notes",
     summary: str | None = None,
+    is_incognito: bool = False,
+    source: str = "web",
 ) -> list[str]:
     """Insert a chat whose messages say exactly ``messages``, alternating user and assistant; returns their ids."""
-    db.add(Chat(id=chat_id, title=title, action_mode="agent", compacted_summary=summary))
+    db.add(
+        Chat(
+            id=chat_id,
+            title=title,
+            action_mode="agent",
+            compacted_summary=summary,
+            is_incognito=is_incognito,
+            source=source,
+        )
+    )
     message_ids = [f"{chat_id}-m{number}" for number in range(1, len(messages) + 1)]
     for number, (message_id, content) in enumerate(zip(message_ids, messages, strict=True), start=1):
         db.add(

@@ -4,14 +4,14 @@
 - agent.sub_agents.manager::SubagentManager, SubagentTask (POS: Subagent lifecycle manager. Manages spawn, cancel, steer (mid-course correction), state tracking, and trace_id propagation.)
 - agent.sub_agents.types::SubagentConfig, SubAgentResult (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
 - agent.streaming.types::AgentEventType (POS: Streaming event types and enums — re-export from core.events.)
-- utils.runtime.wakeup_registry::get_global_wakeup_handler (POS: Global registry for async wakeup events (Idle Wakeup).)
+- utils.runtime.wakeup_registry::get_global_wakeup_handler, wake_session_id (POS: Global registry for async wakeup events (Idle Wakeup).)
 - utils.runtime.progress_sink::get_tool_progress_sink (POS: Progress event push mechanism. Tools implicitly obtain a sink via ContextVar to push intermediate progress events to the Agent SSE stream.)
 
 [OUTPUT]
 - BaseAgentChildrenMixin: BaseAgent's child-agent surface — spawn, list, cancel, steer and wait on children, and the async-wakeup notification for a result nobody has received.
 
 [POS]
-Mixin: the child-agent management methods of BaseAgent; every call delegates to the agent's SubagentManager.
+Mixin: the child-agent management methods of BaseAgent; all of them delegate to the agent's SubagentManager except trigger_async_wakeup, which notifies the global wakeup handler and the active progress sink.
 """
 
 from __future__ import annotations
@@ -111,13 +111,11 @@ class BaseAgentChildrenMixin:
         )
         from myrm_agent_harness.utils.runtime.wakeup_registry import (
             get_global_wakeup_handler,
+            wake_session_id,
         )
 
-        session_id = None
-        agent_id = "unknown"
-        if self._last_context:
-            session_id = self._last_context.get("session_id")
-            agent_id = str(self._last_context.get("agent_id", "unknown"))
+        session_id = wake_session_id(self._last_context)
+        agent_id = str(self._last_context.get("agent_id", "unknown"))
 
         # 1. Notify global handler (for actual background wakeup)
         handler = get_global_wakeup_handler()

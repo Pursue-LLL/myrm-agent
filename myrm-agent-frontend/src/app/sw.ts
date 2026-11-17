@@ -1,49 +1,34 @@
-import { defaultCache } from '@serwist/next/worker';
-import type { PrecacheEntry } from '@serwist/precaching';
-import { installSerwist } from '@serwist/sw';
-import { ExpirationPlugin, NetworkFirst } from 'serwist';
-
 import { chatIdFromPushPath, resolvePushClientFocusAction, sanitizePushTargetUrl } from '../lib/web-push/pushTargetUrl';
 
-declare const self: ServiceWorkerGlobalScope & {
-  __SW_MANIFEST: (PrecacheEntry | string)[] | undefined;
-};
+declare const self: ServiceWorkerGlobalScope;
 
 /**
  * [INPUT]
- * - @serwist/next/worker, serwist runtime caching defaults
- * - lib/web-push/pushTargetUrl (sanitize + focus/navigate routing)
+ * - lib/web-push/pushTargetUrl (POS: Web Push click-through URL sanitization and client focus routing)
  * - Push payload JSON from WebPushDispatcher (`title`, `body`, `url`)
  *
  * [OUTPUT]
- * - Serwist precache + API NetworkFirst runtime cache
- * - Web Push notification display + notificationclick navigation
+ * - Web Push notification display + notificationclick focus / navigate / open
+ * - Immediate takeover of open tabs; every Cache Storage entry is dropped on activation
  *
  * [POS]
- * Service Worker runtime: static precache, API cache, and Web Push handlers.
+ * Web Push service worker, registered at `/sw.js` with the default scope. It has no fetch handler and
+ * keeps no caches: page loads and API calls always go to the network.
  */
 
-installSerwist({
-  precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
-  clientsClaim: true,
-  navigationPreload: true,
-  runtimeCaching: [
-    {
-      matcher: ({ url }) => url.pathname.startsWith('/api/v1/chats') || url.pathname.startsWith('/api/v1/agents'),
-      handler: new NetworkFirst({
-        cacheName: 'myrm-agent-api-cache',
-        plugins: [
-          new ExpirationPlugin({
-            maxEntries: 100,
-            maxAgeSeconds: 7 * 24 * 60 * 60,
-          }),
-        ],
-        networkTimeoutSeconds: 5,
-      }),
-    },
-    ...defaultCache,
-  ],
+self.addEventListener('install', (event: ExtendableEvent) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+/** This worker caches nothing, so whatever sits in Cache Storage under this origin is stale. */
+async function clearCacheStorage(): Promise<void> {
+  const names = await caches.keys();
+  await Promise.allSettled(names.map((name) => caches.delete(name)));
+}
+
+self.addEventListener('activate', (event: ExtendableEvent) => {
+  // Clearing is best effort: a storage error must not keep the worker from taking over.
+  event.waitUntil(Promise.all([clearCacheStorage().catch(() => undefined), self.clients.claim()]));
 });
 
 interface PushPayload {

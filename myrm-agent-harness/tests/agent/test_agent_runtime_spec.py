@@ -55,6 +55,33 @@ def test_every_spec_field_is_read_by_the_factory() -> None:
     assert not unread, f"AgentRuntimeSpec fields the factory never reads: {sorted(unread)}"
 
 
+def test_every_factory_parameter_is_read() -> None:
+    """A parameter the factory never reads is a silent no-op: the caller passes it and nothing changes."""
+    tree = ast.parse(inspect.getsource(create_skill_agent))
+    function = next(node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef))
+    declared = {arg.arg for arg in function.args.args + function.args.kwonlyargs}
+    read = {
+        node.id
+        for statement in function.body
+        for node in ast.walk(statement)
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load)
+    }
+
+    unread = declared - read
+
+    assert not unread, f"create_skill_agent parameters the factory never reads: {sorted(unread)}"
+
+
+@pytest.mark.asyncio
+async def test_the_model_resolver_reaches_the_agent() -> None:
+    resolver = object()
+    spec = AgentRuntimeSpec(agent_id="t", name="t", system_prompt=None)
+
+    agent = await create_skill_agent(spec=spec, llm=AsyncMock(), checkpointer=None, model_resolver=resolver)
+
+    assert agent.model_resolver is resolver
+
+
 @tool
 def domain_lookup_tool() -> str:
     """A domain tool the caller supplies."""

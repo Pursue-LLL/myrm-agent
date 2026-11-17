@@ -7,7 +7,7 @@
 - remove_retired_canvas_data_dir: delete <state root>/canvas if present
 
 [POS]
-Filesystem companion to ``DROP TABLE IF EXISTS canvas`` in migrations.py.
+Filesystem companion to ``DROP TABLE IF EXISTS canvas`` in ``MIGRATION_STATEMENTS`` (``app/database/migrations/``).
 Legacy installs may still have tldraw JSON under ``<state root>/canvas/{uuid}/``.
 """
 

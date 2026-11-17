@@ -88,8 +88,6 @@ def run_to_domain(r: CronRunModel) -> CronRunRecord:
         delivery_status=DeliveryStatus(r.delivery_status) if r.delivery_status else None,
         delivery_error=r.delivery_error,
         metadata=r.metadata_json,
-        integrity_hash=r.integrity_hash or "",
-        prev_hash=r.prev_hash or "",
     )
 
 

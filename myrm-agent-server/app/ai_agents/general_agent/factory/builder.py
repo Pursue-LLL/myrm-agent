@@ -200,7 +200,6 @@ async def build_general_agent(
     trusted_ids: list[str] | None = None
     resolved_env_map: dict[str, dict[str, str]] | None = None
     global_env: dict[str, str] | None = None
-    secret_store = None
 
     if _user_skill_cfg.trusted_skill_ids:
         trusted_ids = _user_skill_cfg.trusted_skill_ids
@@ -344,17 +343,6 @@ async def build_general_agent(
         mcp_surface_mode=mcp_surface_mode,
     )
 
-    library_skill_names: frozenset[str] = frozenset()
-    if skill_backend is not None:
-        try:
-            library_skills = await skill_backend.list_skills()
-            library_skill_names = frozenset(skill.name for skill in library_skills)
-        except Exception as e:
-            logger.warning(
-                "Failed to load skill library names for gap detection (non-blocking): %s",
-                e,
-            )
-
     # PTC dependency auto-injection: MCP/PTC skills require bash + file_read
     from app.services.agent.tool_mount import apply_ptc_meta_mount
 
@@ -392,7 +380,6 @@ async def build_general_agent(
         storage_backend=storage_backend,
         skill_backend=skill_backend,
         write_backend=None,
-        secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,
         enable_memory_auto_extraction=agent_wrapper.enable_memory and agent_wrapper.enable_memory_auto_extraction,
         extraction_llm=agent_wrapper._lite_llm,
@@ -431,7 +418,6 @@ async def build_general_agent(
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_planning=enable_planning,
         task_workspace_root=workspace_root,
-        library_skill_names=library_skill_names,
     )
 
     # 9.5 Register extensions (subagent tools, security, memory)
@@ -443,7 +429,7 @@ async def build_general_agent(
     ]
 
     if _should_enable_subagent_tools():
-        logger.warning("Subagent tools are enabled. Adding SubagentManagementExtension.")
+        logger.info("Subagent tools are enabled. Adding SubagentManagementExtension.")
         subagent_ext = SubagentManagementExtension(
             jit_subagents=agent_wrapper.jit_subagents,
             subagent_ids=agent_wrapper.subagent_ids or [],
@@ -452,7 +438,7 @@ async def build_general_agent(
         )
         extensions.insert(-1, subagent_ext)
     else:
-        logger.warning("Subagent tools are NOT enabled. Skipping SubagentManagementExtension.")
+        logger.info("Subagent tools are NOT enabled. Skipping SubagentManagementExtension.")
 
     for ext in extensions:
         agent.register_extension(ext)

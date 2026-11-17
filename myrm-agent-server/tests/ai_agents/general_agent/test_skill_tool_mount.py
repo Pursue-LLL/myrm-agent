@@ -63,7 +63,7 @@ def batch_committed(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
 @pytest.fixture
 def skill_manage_tool(skills_dir: Path, batch_committed: AsyncMock) -> BaseTool:
     tools: list[object] = []
-    _Host(enable_skill_manage=True)._setup_skill_manage_tool(tools, SkillCreationService(base_path=skills_dir), object())
+    _Host(enable_skill_manage=True)._setup_skill_manage_tool(tools, SkillCreationService(base_path=skills_dir), None)
     assert [getattr(tool, "name", None) for tool in tools] == ["skill_manage_tool"]
     return cast("BaseTool", tools[0])
 
@@ -152,7 +152,8 @@ async def test_mounted_skill_manage_tool_blocks_dangerous_content_before_storage
 @pytest.fixture
 def market_service() -> NonCallableMagicMock:
     """Autospec of the real facade: a call it does not accept fails the test instead of the first user."""
-    return create_autospec(SkillMarketService, instance=True)
+    service: NonCallableMagicMock = create_autospec(SkillMarketService, instance=True)
+    return service
 
 
 @pytest.fixture

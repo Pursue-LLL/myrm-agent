@@ -45,7 +45,6 @@ def _make_store() -> AsyncMock:
     store.earliest_next_run = AsyncMock(return_value=None)
     store.save_run = AsyncMock()
     store.save_job = AsyncMock(side_effect=lambda j: j)
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
     store.advance_next_run = AsyncMock(return_value=True)
     store.purge_old_runs = AsyncMock(return_value=0)
     store.delete_job = AsyncMock()

@@ -12,7 +12,7 @@ bun install
 bun run dev    # http://localhost:3000
 ```
 
-环境变量见 `.env.local`（`NEXT_PUBLIC_API_URL` 默认代理到 :8080）。
+环境变量见 `.env.local`（`API_HOST` / `API_PORT` 决定 `/api/v1/*` 与 `/webui/*` 代理到哪个后端，默认 `127.0.0.1:8080`）。
 
 ## 测试
 

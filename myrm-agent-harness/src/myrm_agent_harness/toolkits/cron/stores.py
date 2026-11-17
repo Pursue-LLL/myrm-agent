@@ -122,7 +122,8 @@ class InMemoryCronStore:
     async def save_job(self, job: CronJob) -> CronJob:
         async with self._lock:
             saved = deepcopy(job)
-            saved.updated_at = datetime.now(UTC)
+            if saved.id not in self._jobs:
+                saved.updated_at = datetime.now(UTC)
             self._jobs[saved.id] = saved
             return deepcopy(saved)
 
@@ -135,9 +136,11 @@ class InMemoryCronStore:
             job = self._jobs.get(job_id)
             if job is None or job.status != JobStatus.ACTIVE or job.next_run_at is None:
                 return False
-            if _as_utc(job.next_run_at) > datetime.now(UTC):
+            now = datetime.now(UTC)
+            if _as_utc(job.next_run_at) > now:
                 return False
             job.next_run_at = _as_utc(next_run_at)
+            job.updated_at = now
             return True
 
     # ------------------------------------------------------------------
@@ -202,14 +205,6 @@ class InMemoryCronStore:
             original = len(self._runs)
             self._runs = [r for r in self._runs if r.finished_at >= before]
             return original - len(self._runs)
-
-    async def get_latest_integrity_hash(self, job_id: str) -> str | None:
-        async with self._lock:
-            matching = [r for r in self._runs if r.job_id == job_id and r.integrity_hash]
-        if not matching:
-            return None
-        matching.sort(key=lambda r: r.started_at, reverse=True)
-        return matching[0].integrity_hash
 
     async def delete_job_cascade(self, job_id: str) -> bool:
         async with self._lock:

@@ -6,7 +6,7 @@
 ## 架构概述
 
 通用对话 Agent。提供通用 AI 对话能力，包含专用中间件（引用规则、工具选择）和业务工具集成。通过 `prompt_mode` 支持两种模式运行（full/search，由系统决定），其中 search 模式实现快速搜索功能，无需独立的 FastSearchAgent；Fast Turn1 为 web_search + web_fetch + UECD 只读 file_read + answer_tool（+ memory），browser 仅 profile `browser` 开关 opt-in。
-历史会话召回在 GeneralAgent、Custom 与 Ephemeral JIT 子 Agent 均通过 `memory_search_tool(corpus=sessions)` ACL 启用（用户设置 `memoryEnableConversationSearch`，默认关闭；无痕模式禁用 sessions corpus）。Harness 只消费 Protocol，不感知数据库或产品身份语义。
+历史会话召回在 GeneralAgent、Custom 与 Ephemeral JIT 子 Agent 均通过 `memory_search_tool(corpus=sessions)` ACL 启用（用户设置 `memoryEnableConversationSearch`，默认关闭；无痕模式禁用 sessions corpus，其它会话的 sessions 检索也读不到网页无痕会话）。Harness 只消费 Protocol，不感知数据库或产品身份语义。
 LLM 装配阶段尊重用户在 WebUI 选择的主模型；不支持工具调用或 provider 报错时，由 harness `stream_recovery` 在运行时切换至备用模型（需用户配置 fallback）。
 当前实现会优先消费渠道入口已经解析好的正式身份契约：
 - `memory_channel_id`

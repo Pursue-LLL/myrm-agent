@@ -49,10 +49,6 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
 )
 from myrm_agent_harness.toolkits.cron.engine.helpers import run_status_of
 from myrm_agent_harness.toolkits.cron.engine.incremental_monitoring import IncrementalMonitoringMixin
-from myrm_agent_harness.toolkits.cron.engine.integrity import (
-    GENESIS_HASH,
-    compute_integrity_hash,
-)
 from myrm_agent_harness.toolkits.cron.engine.run_closer import RunCloserMixin
 from myrm_agent_harness.toolkits.cron.engine.run_notices import RunNoticeMixin
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
@@ -225,8 +221,6 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
             run_metadata = run_metadata or {}
             run_metadata.setdefault("connector_failure", fail_detail.to_dict())
 
-        prev_hash = await self._store.get_latest_integrity_hash(job.id) or GENESIS_HASH
-
         run = CronRunRecord(
             id=secrets.token_urlsafe(12),
             job_id=job.id,
@@ -244,10 +238,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
             delivery_status=delivery_status,
             delivery_error=delivery_error,
             metadata=run_metadata,
-            prev_hash=prev_hash,
         )
-        integrity_hash = compute_integrity_hash(run, prev_hash)
-        run = dc_replace(run, integrity_hash=integrity_hash)
 
         await self._store.save_run(run)
         await self._notify_run_outcome(job, result, delivery_status)

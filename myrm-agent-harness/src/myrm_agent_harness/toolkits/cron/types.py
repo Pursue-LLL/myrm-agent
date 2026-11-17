@@ -338,9 +338,6 @@ class CronRunRecord:
 
     ``metadata`` carries structured data collected during execution
     (e.g. blockedActions, progressSteps, sources).
-
-    ``integrity_hash`` and ``prev_hash`` form a per-job Merkle chain
-    that detects tampering of historical run records.
     """
 
     id: str
@@ -359,8 +356,6 @@ class CronRunRecord:
     delivery_status: DeliveryStatus | None = None
     delivery_error: str | None = None
     metadata: dict[str, object] | None = None
-    integrity_hash: str = ""
-    prev_hash: str = ""
 
 
 @dataclass(frozen=True, slots=True)

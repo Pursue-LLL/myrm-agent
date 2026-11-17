@@ -45,7 +45,6 @@ def _run(
     run_id: str = "r1",
     job_id: str = "j1",
     started_at: datetime | None = None,
-    integrity_hash: str | None = None,
 ) -> CronRunRecord:
     t = started_at or _NOW
     return CronRunRecord(
@@ -55,7 +54,6 @@ def _run(
         finished_at=t + timedelta(seconds=1),
         duration_ms=1000,
         status=RunStatus.OK,
-        integrity_hash=integrity_hash,
     )
 
 
@@ -193,12 +191,6 @@ class TestRunRecords:
         deleted = await store.purge_old_runs(before=_NOW - timedelta(days=30))
         assert deleted == 1
         assert await store.count_runs() == 1
-
-    async def test_get_latest_integrity_hash(self, store: InMemoryCronStore) -> None:
-        await store.save_run(_run("r1", "j1", started_at=_NOW, integrity_hash="hash1"))
-        await store.save_run(_run("r2", "j1", started_at=_NOW + timedelta(minutes=1), integrity_hash="hash2"))
-        assert await store.get_latest_integrity_hash("j1") == "hash2"
-        assert await store.get_latest_integrity_hash("j999") is None
 
     async def test_delete_job_cascade(self, store: InMemoryCronStore) -> None:
         await store.save_job(_job("j1"))

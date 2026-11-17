@@ -4,12 +4,13 @@
 app.database.repositories.conversation_recall::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
 app.services.chat.conversation_recall_index_service::ConversationRecallIndexService (POS: Conversation Recall 索引生命周期服务)
 myrm_agent_harness.toolkits.memory.protocols.conversation_search::ConversationSearchProtocol (POS: conversation search protocol boundary)
-myrm_agent_harness.utils.db.fts5::sanitize_fts5_query, relevance_from_rank (POS: FTS5 query sanitizing and rank relevance)
+myrm_agent_harness.utils.db.fts5::sanitize_fts5_query (POS: FTS5 query sanitizing and rank relevance)
+app.services.chat.conversation_search_hits::fts_hit, recent_hit, rank_fts_hits (POS: 会话召回命中的构造与打分层)
 app.services.chat.conversation_search_snippet::redact_hit_windows (POS: 会话召回片段脱敏层)
 
 [OUTPUT]
 ConversationHistorySearchProvider: Server adapter implementing Harness conversation search protocol.
-ConversationSearchService: Business service for FTS5 conversation recall, index coverage reporting, cron source demotion, and expand_message_id windows.
+ConversationSearchService: Business service for FTS5 conversation recall, index coverage reporting and expand_message_id windows.
 
 [POS]
 会话历史召回服务。将 Server 的 Chat DB、FTS5 与预计算摘要组合为 agent 可用的只读工具能力。
@@ -18,13 +19,7 @@ ConversationSearchService: Business service for FTS5 conversation recall, index 
 from __future__ import annotations
 
 import logging
-import math
-from datetime import UTC, datetime
 
-from myrm_agent_harness.api import (
-    RankedList,
-    fuse_rrf_deterministic,
-)
 from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationIndexCoverage,
     ConversationSearchHit,
@@ -32,17 +27,16 @@ from myrm_agent_harness.toolkits.memory.conversation_search.types import (
     ConversationSearchResponse,
     ConversationSourceRef,
 )
-from myrm_agent_harness.utils.db.fts5 import relevance_from_rank, sanitize_fts5_query
+from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.repositories.conversation_recall import (
     ConversationRecallContext,
     ConversationRecallLookupRepository,
     ConversationRecallRepository,
-    ConversationRecallRow,
 )
 from app.database.repositories.uow import UnitOfWork
-from app.services.chat.chat_helpers import _sanitize_snippet, plain_snippet, strip_mark_tags
+from app.services.chat.chat_helpers import _sanitize_snippet, strip_reasoning_tags
 from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
@@ -50,15 +44,13 @@ from app.services.chat.conversation_recall_query import (
     ConversationRecallFtsQuery,
     build_conversation_recall_fts_queries,
 )
+from app.services.chat.conversation_search_hits import fts_hit, rank_fts_hits, recent_hit
 from app.services.chat.conversation_search_snippet import redact_hit_windows
 
 logger = logging.getLogger(__name__)
 
 FTS_CANDIDATE_MULTIPLIER = 5
 MAX_FTS_CANDIDATES = 48
-SAME_AGENT_BOOST = 0.06
-_DEMOTED_CHAT_SOURCES = frozenset({"cron"})
-_INTERACTIVE_CHAT_SOURCES = frozenset({"web", "feishu", "telegram", "wechat", "discord", "slack"})
 
 
 class ConversationHistorySearchProvider:
@@ -140,7 +132,7 @@ class ConversationSearchService:
             fts_queries=fts_queries,
             agent_id=agent_id,
         )
-        ranked_hits, recall_debug = _rank_fts_hits(fts_hits, request.limit)
+        ranked_hits, recall_debug = rank_fts_hits(fts_hits, request.limit)
         hits = [hit for hit in ranked_hits if hit.score >= request.min_score]
         hits = await redact_hit_windows(hits)
         rejected_reason = None if hits else "No sufficiently relevant previous conversations found."
@@ -182,7 +174,7 @@ class ConversationSearchService:
                 since=request.since,
                 until=request.until,
             )
-        hits = [_recent_hit(row, index, agent_id) for index, row in enumerate(rows)]
+        hits = [recent_hit(row, index, agent_id) for index, row in enumerate(rows)]
         return ConversationSearchResponse(mode="recent", hits=hits, query="", coverage=coverage)
 
     @staticmethod
@@ -232,7 +224,7 @@ class ConversationSearchService:
         hit = ConversationSearchHit(
             conversation_id=chat_id,
             title=title,
-            snippet=plain_snippet(expanded_snippet),
+            snippet=strip_reasoning_tags(expanded_snippet),
             summary=None,
             score=1.0,
             source="conversation_index",
@@ -295,7 +287,7 @@ class ConversationSearchService:
                 scored_candidates = [
                     (
                         row,
-                        _fts_hit(
+                        fts_hit(
                             row,
                             index,
                             len(rows),
@@ -345,148 +337,5 @@ async def _lineage_chat_ids(session: AsyncSession, request: ConversationSearchRe
     return [str(chat_id) for chat_id in lineage] if isinstance(lineage, list) else []
 
 
-def _fts_hit(
-    row: ConversationRecallRow,
-    index: int,
-    total: int,
-    agent_id: str | None,
-    *,
-    score_weight: float = 1.0,
-) -> ConversationSearchHit:
-    position_score = 1.0 - (index / max(total, 1)) * 0.35
-    recency_score = _recency_score(row.updated_at or row.last_message_at)
-    rank_score = relevance_from_rank(row.rank)
-    score = (
-        rank_score * 0.52
-        + position_score * 0.30
-        + recency_score * 0.12
-        + _same_agent_boost(row.agent_id, agent_id)
-        + _source_interaction_boost(row.source)
-    )
-    score = _clamp(score * score_weight)
-    return ConversationSearchHit(
-        conversation_id=row.chat_id,
-        title=row.title,
-        # The window FTS5 cut, minus its highlight tags. `redact_hit_windows` locates the stored text by it and
-        # replaces it, so it never reaches the model as it is.
-        snippet=strip_mark_tags(row.snippet),
-        summary=row.summary,
-        score=score,
-        source="conversation_index",
-        message_id=row.message_id,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-        metadata={"agent_id": row.agent_id or "", "source": row.source},
-        source_ref=_source_ref(row, score=score, lineage=None),
-    )
-
-
-def _recent_hit(row: ConversationRecallRow, index: int, agent_id: str | None) -> ConversationSearchHit:
-    score = 0.92 - min(index, 10) * 0.035 + _same_agent_boost(row.agent_id, agent_id)
-    score += _source_interaction_boost(row.source)
-    score = _clamp(score)
-    return ConversationSearchHit(
-        conversation_id=row.chat_id,
-        title=row.title,
-        snippet=plain_snippet(row.snippet),
-        summary=row.summary,
-        score=score,
-        source="recent",
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-        metadata={"agent_id": row.agent_id or "", "source": row.source},
-        source_ref=_source_ref(row, score=score, lineage=None),
-    )
-
-
-def _copy_source_ref_score(source_ref: ConversationSourceRef | None, score: float) -> ConversationSourceRef | None:
-    if source_ref is None:
-        return None
-    return source_ref.model_copy(update={"score": score})
-
-
-def _rank_fts_hits(
-    fts_hits: list[ConversationSearchHit],
-    limit: int,
-) -> tuple[list[ConversationSearchHit], dict[str, object]]:
-    """Re-score FTS hits by rank with deterministic RRF, normalized to [0, 1] for the ``min_score`` filter."""
-    fused_results, recall_debug = fuse_rrf_deterministic(
-        [RankedList(source="conversation_fts", items=fts_hits)],
-        key_func=lambda h: h.conversation_id,
-        top_k=limit,
-    )
-    ranked = [
-        f_hit.item.model_copy(
-            update={
-                "score": f_hit.score,
-                "source_ref": _copy_source_ref_score(f_hit.item.source_ref, f_hit.score),
-            }
-        )
-        for f_hit in fused_results
-    ]
-    debug_dict: dict[str, object] = {
-        "fused_count": recall_debug.fused_count,
-        "per_source": [
-            {
-                "source": s.source,
-                "count": s.count,
-                "latency_ms": s.latency_ms,
-            }
-            for s in recall_debug.per_source
-        ],
-    }
-    return ranked, debug_dict
-
-
-def _same_agent_boost(row_agent_id: str | None, current_agent_id: str | None) -> float:
-    if row_agent_id and current_agent_id and row_agent_id == current_agent_id:
-        return SAME_AGENT_BOOST
-    return 0.0
-
-
-def _source_interaction_boost(chat_source: str | None) -> float:
-    normalized = (chat_source or "").strip().lower()
-    if normalized in _DEMOTED_CHAT_SOURCES:
-        return -0.10
-    if normalized in _INTERACTIVE_CHAT_SOURCES:
-        return 0.06
-    return 0.0
-
-
-def _recency_score(value: datetime | None) -> float:
-    if value is None:
-        return 0.0
-    now = datetime.now(UTC)
-    timestamp = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
-    age_days = max((now - timestamp).total_seconds() / 86_400, 0.0)
-    return math.exp(-age_days / 30.0)
-
-
-def _clamp(value: float) -> float:
-    return max(0.0, min(1.0, value))
-
-
 def _count(value: object) -> int:
     return value if isinstance(value, int) else 0
-
-
-def _source_ref(
-    row: ConversationRecallRow,
-    *,
-    score: float,
-    lineage: str | None,
-) -> ConversationSourceRef:
-    return ConversationSourceRef(
-        conversation_id=row.chat_id,
-        message_id=row.message_id,
-        title=row.title,
-        snippet=_sanitize_snippet(row.snippet),
-        summary=row.summary,
-        score=score,
-        agent_id=row.agent_id,
-        surface=row.source,
-        fork_parent_id=row.fork_parent_id,
-        lineage=lineage,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-    )

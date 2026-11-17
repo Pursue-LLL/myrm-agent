@@ -8,7 +8,7 @@
  *
  * [POS]
  * Pure helpers for Web Push click-through URL sanitization and client focus routing.
- * Imported by src/app/sw.ts; bundled into public/sw.js by `serwist build`.
+ * Imported by src/app/sw.ts; bundled into public/sw.js by `bun run build:sw`.
  */
 
 /** Top-level App Router segments that must not be treated as chat deep links. */

@@ -4,11 +4,10 @@
 - app.database.repositories.conversation_recall::ConversationRecallRepository (POS: Conversation Recall 索引仓储)
 - app.database.repositories.uow::UnitOfWork (POS: 全局工作单元模式)
 - sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
-- app.services.chat.chat_helpers::strip_mark_tags (POS: removes the FTS highlight tags from a snippet)
 
 [OUTPUT]
 - ConversationRecallIndexService: Server business service for recall index lifecycle and management queries.
-- search_citable_chats: GUI @chat: picker search; hides web incognito chats, the same ones the prior_chat mention refuses.
+- search_citable_chats: GUI @chat: picker search over the chats recall search may return, the same ones the prior_chat mention accepts.
 
 [POS]
 Conversation Recall 索引生命周期服务。统一编排索引回填、重建、增量追加、排除/恢复、删除、健康检查和前端管理列表。
@@ -19,16 +18,13 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.chat import Chat
 from app.database.repositories.conversation_recall import (
     ConversationRecallDocumentRow,
     ConversationRecallRepository,
 )
 from app.database.repositories.uow import UnitOfWork
-from app.services.chat.chat_helpers import strip_mark_tags
 
 logger = logging.getLogger(__name__)
 
@@ -181,13 +177,10 @@ class ConversationRecallIndexService:
                 since=None,
                 until=None,
             )
-            visible_chat_ids = await _public_chat_ids(session, [row.chat_id for row in rows])
 
             items: list[dict[str, object]] = []
             for row in rows:
-                if row.chat_id not in visible_chat_ids:
-                    continue
-                snippet = strip_mark_tags(row.snippet or "").strip()
+                snippet = row.window.strip()
                 sent_at = row.last_message_at.isoformat() if row.last_message_at else None
                 title = row.title or "Untitled conversation"
                 items.append(
@@ -207,23 +200,3 @@ class ConversationRecallIndexService:
         total = len(items)
         page = items[safe_offset : safe_offset + safe_limit]
         return page, total
-
-
-async def _public_chat_ids(session: AsyncSession, chat_ids: list[str]) -> set[str]:
-    unique_ids = list(dict.fromkeys(chat_ids))
-    if not unique_ids:
-        return set()
-    from sqlalchemy import or_
-
-    rows = (
-        await session.execute(
-            select(Chat.id).where(
-                Chat.id.in_(unique_ids),
-                or_(
-                    Chat.is_incognito.is_(False),
-                    Chat.source.like("external:%"),
-                ),
-            )
-        )
-    ).scalars()
-    return {str(chat_id) for chat_id in rows}

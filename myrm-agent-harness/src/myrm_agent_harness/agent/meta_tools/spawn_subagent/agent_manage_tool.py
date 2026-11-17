@@ -2,7 +2,7 @@
 
 [INPUT]
 - agent.base_agent::BaseAgent (POS: Agent base class with list/cancel/steer/wait child APIs)
-- utils.runtime.wakeup_registry::report_results_read (POS: tells the wakeup handler which settled results the agent read itself)
+- utils.runtime.wakeup_registry::report_results_read, wake_session_id (POS: tells the wakeup handler which settled results the agent read itself, under the session key the wake turn was queued with)
 
 [OUTPUT]
 - create_subagent_control_tool: Unified LLM tool (action=list|cancel|steer|wait)
@@ -21,7 +21,7 @@ from langchain.tools import tool
 from pydantic import BaseModel, Field
 
 from myrm_agent_harness.agent.sub_agents.types import SubAgentStatus
-from myrm_agent_harness.utils.runtime.wakeup_registry import report_results_read
+from myrm_agent_harness.utils.runtime.wakeup_registry import report_results_read, wake_session_id
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
@@ -48,8 +48,7 @@ def _report_settled_results_read(parent_agent: BaseAgent, children: list[dict[st
         for child in children
         if child.get("status") in _FINAL_RESULT_STATUSES and isinstance(task_id := child.get("task_id"), str)
     ]
-    session_id = (getattr(parent_agent, "_last_context", None) or {}).get("session_id")
-    report_results_read(settled, session_id if isinstance(session_id, str) else None)
+    report_results_read(settled, wake_session_id(getattr(parent_agent, "_last_context", None)))
 
 
 def create_subagent_control_tool(parent_agent: BaseAgent) -> BaseTool:

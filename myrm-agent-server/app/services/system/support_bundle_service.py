@@ -176,7 +176,7 @@ class SupportBundleService:
         state_dir = Path(settings.database.state_dir)
         try:
             usage = shutil.disk_usage(state_dir if state_dir.exists() else state_dir.parent)
-            disk_info = {
+            disk_info: dict[str, int | str] = {
                 "total_bytes": usage.total,
                 "used_bytes": usage.used,
                 "free_bytes": usage.free,
@@ -223,7 +223,6 @@ class SupportBundleService:
                     "model": p.model,
                     "max_iterations": p.max_iterations,
                     "built_in": p.built_in,
-                    "no_builtin_tools": p.no_builtin_tools,
                     "created_at": p.created_at.isoformat() if p.created_at else None,
                     "tools_allowed": list(p.tools_allowed or []),
                     "skills_count": len(p.skills or []),

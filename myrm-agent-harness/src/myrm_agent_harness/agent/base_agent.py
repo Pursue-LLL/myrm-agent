@@ -10,7 +10,7 @@ Child-agent management (spawn, observe, cancel, steer, wake up) lives in ``_inte
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - utils.runtime.cancellation::CancellationToken (POS: request-level cancellation token for cooperative async cancellation)
 - utils.runtime.steering::SteeringToken (POS: steering token: injects a message while the agent runs to interrupt the current tool chain)
-- agent._internals.base_agent_children_mixin::BaseAgentChildrenMixin (POS: Mixin: the child-agent management methods of BaseAgent; every call delegates to the agent's SubagentManager.)
+- agent._internals.base_agent_children_mixin::BaseAgentChildrenMixin (POS: Mixin: the child-agent management methods of BaseAgent; all of them delegate to the agent's SubagentManager except trigger_async_wakeup, which notifies the global wakeup handler and the active progress sink.)
 - agent._internals.base_agent_modes_mixin::BaseAgentModesMixin (POS: Mixin: run_consensus on BaseAgent.)
 
 [OUTPUT]
@@ -45,6 +45,7 @@ from .types import AgentRunStatistics, AgentRuntimeConfig
 
 if TYPE_CHECKING:
     from langchain.agents.middleware import AgentMiddleware
+    from langchain.agents.middleware.types import AgentState, InputAgentState, OutputAgentState
     from langchain_core.messages import BaseMessage
     from langgraph.checkpoint.base import BaseCheckpointSaver
     from langgraph.graph.state import CompiledStateGraph
@@ -54,6 +55,8 @@ if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
     from myrm_agent_harness.utils.runtime.steering import SteeringToken
     from myrm_agent_harness.utils.token_economics.budget_guard import BudgetChecker
+
+    _AgentGraph = CompiledStateGraph[AgentState[object], None, InputAgentState, OutputAgentState[object]]
 
 logger = get_agent_logger(__name__)
 
@@ -80,7 +83,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
         fallback_llm: BaseChatModel | None = None,
         fallback_llms: list[BaseChatModel] | None = None,
         safety_fallback_llm: BaseChatModel | None = None,
-        checkpointer: BaseCheckpointSaver | None = None,
+        checkpointer: BaseCheckpointSaver[str] | None = None,
         event_log_backend: EventLogBackend | None = None,
         model_resolver: object | None = None,
     ) -> None:
@@ -100,7 +103,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
         self.checkpointer = checkpointer
         self.event_log_backend = event_log_backend
         self.model_resolver = model_resolver
-        self._agent = None
+        self._agent: _AgentGraph | None = None
         self._cached_tools: list[BaseTool] | None = None
         self._cached_system_prompt: str | None = None
         self._cached_middlewares: list[AgentMiddleware[Any, Any]] | None = None
@@ -190,8 +193,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
             _weave_dynamic_schemas,
         )
 
-        no_builtin = self.config.no_builtin_tools
-        self._cached_tools = _weave_dynamic_schemas(self._tool_registry.resolve(no_builtin_tools=no_builtin))
+        self._cached_tools = _weave_dynamic_schemas(self._tool_registry.resolve())
 
         if self._extensions:
             from myrm_agent_harness.agent.tool_management.tool_layers import (
@@ -215,7 +217,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
             model=self.llm,
             tools=self._cached_tools,
             system_prompt=self._cached_system_prompt,
-            middleware=cast(list["AgentMiddleware[Any, Any]"], self._cached_middlewares),
+            middleware=self._cached_middlewares,
             context_schema=self.context_schema,
             checkpointer=self.checkpointer,
         )
@@ -268,7 +270,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
         for tool in normalized:
             self._tool_registry.register(tool, source=ToolSource.USER)
 
-        def sort_key(t):
+        def sort_key(t: BaseTool) -> tuple[int, int, str]:
             return get_tool_registry_sort_key(t.name, get_tool_layer(t.name))
 
         if self._agent is None:
@@ -280,6 +282,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
                 self._cached_tools.sort(key=sort_key)
             return
 
+        assert self._cached_tools is not None  # the tool list is built before the agent graph
         self._cached_tools.extend(normalized)
         # Enforce cache tiering: sort tools by ToolLayer to protect prompt cache prefixes
         self._cached_tools.sort(key=sort_key)
@@ -314,10 +317,10 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
         """Create a fresh ToolRegistry for this build cycle."""
         from ._internals.agent_runtime import create_registry
 
-        return create_registry()
+        return create_registry(no_builtin_tools=self.config.no_builtin_tools)
 
     def _emit_tools_snapshot(self) -> list[dict[str, object]] | None:
-        """Serializable tools snapshot. Subclasses override ``get_tool_snapshot()``."""
+        """Serializable snapshot of the Turn1-bound tools the model can call, for the GUI availability view."""
         from ._internals.agent_runtime import emit_tools_snapshot
 
         return emit_tools_snapshot(self._tool_registry)
@@ -406,7 +409,7 @@ class BaseAgent(BaseAgentModesMixin, BaseAgentChildrenMixin):
             agent_state=self,
             query=query,
             chat_history=chat_history,
-            message_id=message_id,
+            message_id=message_id or "",  # ``run_agent_loop`` mints an id for an empty one
             context=context,
             cancel_token=cancel_token,
             steering_token=steering_token,

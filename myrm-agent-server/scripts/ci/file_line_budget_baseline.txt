@@ -70,7 +70,6 @@ app/core/utils/chat_utils.py
 app/core/utils/errors.py
 app/core/utils/git_worktree.py
 app/database/dto.py
-app/database/migrations.py
 app/database/models/memory.py
 app/database/repositories/agent_repo.py
 app/database/repositories/chat_repo.py
@@ -94,7 +93,6 @@ app/services/approvals/registry.py
 app/services/batch_directory/_helpers.py
 app/services/chat/chat_turn.py
 app/services/chat/conversation_fork_manager.py
-app/services/chat/conversation_search_service.py
 app/services/extension/bridge.py
 app/services/extension/cdp_relay/bridge.py
 app/services/hosting/crypto_packager.py

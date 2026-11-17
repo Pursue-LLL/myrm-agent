@@ -101,9 +101,10 @@ class CronStore(Protocol):
         ...
 
     async def save_job(self, job: CronJob) -> CronJob:
-        """Create or update a job (upsert semantics).
+        """Create or update a job (upsert semantics).  Returns the persisted job.
 
-        Returns the persisted job (may differ in ``updated_at`` etc.).
+        A new job gets ``updated_at`` stamped with the current time; an update stores the ``updated_at`` the job
+        carries, so moving the stamp is the caller's decision.
         """
         ...
 
@@ -118,6 +119,9 @@ class CronStore(Protocol):
         later than now, the comparison ``list_jobs(due_before=now)`` makes.  False means the job was paused,
         deleted, re-booked by an edit or is not due any more, and nothing was written.  The scheduler dispatches a
         run only when this returns True, so two workers can never both run one slot.  The value is stored as UTC.
+
+        A successful booking also stamps ``updated_at`` with the current time, which puts the replay anchor of startup
+        recovery past the booked slot.
         """
         ...
 
@@ -170,14 +174,6 @@ class CronStore(Protocol):
 
         Returns the number of deleted rows.  Called periodically by the
         scheduler to prevent unbounded growth of the run history table.
-        """
-        ...
-
-    async def get_latest_integrity_hash(self, job_id: str) -> str | None:
-        """Return the ``integrity_hash`` of the most recent run for a job.
-
-        Used by the executor to chain the next run's Merkle hash.
-        Returns None if the job has no prior runs (or no hashed runs).
         """
         ...
 

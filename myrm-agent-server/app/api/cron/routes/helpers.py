@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 from fastapi import HTTPException
 from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState
 from myrm_agent_harness.toolkits.cron import (
+    CronManagerPort,
     DeliveryConfig,
     FailureAlertConfig,
     Schedule,
@@ -47,10 +48,11 @@ from app.services.workspace.workspace_path_policy import (
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
-    from myrm_agent_harness.toolkits.cron.manager import CronManager
+
+    from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuardedCronManager
 
 
-def _get_manager() -> CronManager:
+def _get_manager() -> EntitlementGuardedCronManager:
     from app.core.cron.adapters.setup import get_cron_manager
 
     return get_cron_manager()
@@ -337,7 +339,6 @@ def _run_to_response(r: CronRunRecord, *, job_name: str | None = None) -> CronRu
         delivery_status=r.delivery_status,
         delivery_error=r.delivery_error,
         metadata=r.metadata,
-        integrity_hash=r.integrity_hash or None,
         job_name=job_name,
     )
 
@@ -349,7 +350,7 @@ def _get_scheduler() -> "CronScheduler":
 
 
 async def _run_test_delivery(
-    mgr: "CronManager",
+    mgr: CronManagerPort,
     job_id: str,
     body: DeliveryTestRequest | None,
 ) -> DeliveryTestResponse:

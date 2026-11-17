@@ -123,7 +123,6 @@ async def test_executor_parks_the_job_until_the_reset_instead_of_failing_it(
 
     monkeypatch.setattr(runner, "_run_once", _hits_limit)
     store = AsyncMock()
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
     store.get_job = AsyncMock(return_value=job)
     delivery = AsyncMock()
     before = datetime.now(UTC)

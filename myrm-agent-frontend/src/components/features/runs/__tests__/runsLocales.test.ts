@@ -24,10 +24,6 @@ const REQUIRED_RUNS_KEYS = [
   'executionStepsBadge',
   'executionTrace',
   'loadMore',
-  'timeJustNow',
-  'timeMinutesAgo',
-  'timeHoursAgo',
-  'timeDaysAgo',
   'executionSteps',
 ] as const;
 

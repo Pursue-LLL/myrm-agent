@@ -8,12 +8,13 @@ allowed to call is exactly what the flags asked for.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
+from myrm_agent_harness.api import AgentRuntimeSpec
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
 from app.ai_agents.general_agent import GeneralAgent
@@ -106,7 +107,7 @@ class BuilderHarness:
             "prompt_mode": "full",
             **params,
         }
-        wrapper = AgentFactory.create_general_agent(GeneralAgentParams(**fields))
+        wrapper = AgentFactory.create_general_agent(GeneralAgentParams.model_validate(fields))
         for method, (tool_name, is_async) in SETUP_METHODS.items():
             self.monkeypatch.setattr(wrapper, method, self._recorder(tool_name, is_async))
         return wrapper
@@ -121,15 +122,24 @@ class BuilderHarness:
 
         return record_async if is_async else record
 
-    async def build(self, wrapper: GeneralAgent, **kwargs: object) -> dict[str, object]:
+    async def build(self, wrapper: GeneralAgent, user_id: str | None = None) -> dict[str, object]:
         """Run the builder; returns the keyword arguments the harness constructor received."""
-        built = await build_general_agent(wrapper, CHAT_ID, **kwargs)
+        built = await build_general_agent(wrapper, CHAT_ID, user_id)
         assert built is self.agent
-        return self.create.await_args.kwargs
+        awaited = self.create.await_args
+        assert awaited is not None
+        return dict(awaited.kwargs)
 
     def mounted(self) -> list[str]:
         return [name for name, calls in self.calls.items() if calls]
 
 
-def allowed_tools(handed: dict[str, object]) -> list[str]:
-    return list(handed["spec"].allowed_tools)
+def spec_of(handed: Mapping[str, object]) -> AgentRuntimeSpec:
+    """The runtime spec the harness constructor received."""
+    spec = handed["spec"]
+    assert isinstance(spec, AgentRuntimeSpec)
+    return spec
+
+
+def allowed_tools(handed: Mapping[str, object]) -> list[str]:
+    return list(spec_of(handed).allowed_tools)

@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.services.compounding_playbook.status_service (POS: playbook status aggregation)
-- myrm_agent_harness.toolkits.cron.manager::CronManager (POS: cron job source)
+- myrm_agent_harness.toolkits.cron::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 
 [OUTPUT]
 - router: compounding playbook status REST routes
@@ -14,7 +14,7 @@ HTTP boundary exposing compounding playbook readiness for settings UI.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from myrm_agent_harness.toolkits.cron.manager import CronManager
+from myrm_agent_harness.toolkits.cron import CronManagerPort
 from myrm_agent_harness.toolkits.memory import MemoryManager
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/compounding-playbook", tags=["compounding-playbook"]
 async def get_compounding_playbook_status(
     agent_id: str | None = Query(None, max_length=128),
     memory_manager: MemoryManager = Depends(get_crud_memory_manager),
-    cron_manager: CronManager = Depends(get_cron_manager),
+    cron_manager: CronManagerPort = Depends(get_cron_manager),
     db: AsyncSession = Depends(get_db),
 ) -> CompoundingPlaybookStatusResponse:
     """Return lightweight MSC compounding checklist counts for Settings UI."""

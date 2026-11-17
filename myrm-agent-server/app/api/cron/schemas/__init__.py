@@ -16,14 +16,12 @@ from .delivery import (
     DeliveryTestResponse,
 )
 from .jobs import (
-    ChainBreakResponse,
     CronJobCreate,
     CronJobResponse,
     CronJobsListResponse,
     CronJobUpdate,
     CronRunResponse,
     CronRunsListResponse,
-    IntegrityVerifyResponse,
 )
 from .operations import (
     ConnectorHealthResponse,
@@ -86,8 +84,6 @@ __all__ = [
     "TriggerConfigResponse",
     "CronJobResponse",
     "CronRunResponse",
-    "ChainBreakResponse",
-    "IntegrityVerifyResponse",
     "CronJobsListResponse",
     "CronRunsListResponse",
     "UsageSummary",

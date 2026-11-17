@@ -1,8 +1,8 @@
 """Action implementations for the ``cron_manage`` tool.
 
 One coroutine per ``action`` value (add, list, update, remove, run, pause, resume,
-blueprints). Each takes the already-resolved tool arguments, calls ``CronManager`` and
-returns the text (or JSON) the model sees; failures come back as plain messages.
+blueprints). Each takes the already-resolved tool arguments, calls the job manager (``CronManagerPort``)
+and returns the text (or JSON) the model sees; failures come back as plain messages.
 
 [INPUT]
 - toolkits.cron.blueprint_job_spec::DEFAULT_JOB_TIMEOUT_SECONDS, BlueprintJobSpec (POS: blueprint 产出的完整 job 定义)
@@ -11,7 +11,7 @@ returns the text (or JSON) the model sees; failures come back as plain messages.
 - toolkits.cron.cron_agent_timezone::resolve_timezone (POS: cron_manage_tool 的时区契约)
 - toolkits.cron.engine.name_generator::generate_job_name (POS: 任务名生成)
 - toolkits.cron.job_listing::format_job_line (POS: list 动作的单行任务摘要)
-- toolkits.cron.manager::CronManager (POS: cron CRUD 编排层)
+- toolkits.cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 - toolkits.cron.types::CronJobPatch, DeliveryConfig, JobType, RunNowOutcome, Schedule, ScheduleKind, SessionTarget (POS: cron 数据模型)
 
 [OUTPUT]
@@ -21,7 +21,7 @@ returns the text (or JSON) the model sees; failures come back as plain messages.
 
 [POS]
 Action half of the ``cron_manage`` tool: validates what the model asked for, calls
-``CronManager`` and formats the result. ``cron_agent_tools.py`` only dispatches to it.
+the job manager (``CronManagerPort``) and formats the result. ``cron_agent_tools.py`` only dispatches to it.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.cron.manager import CronManager
+    from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
 
 BlueprintCatalogProvider = Callable[[], str]
 DeliveryResolver = Callable[[str], DeliveryConfig]
@@ -80,7 +80,7 @@ async def _do_blueprints(provider: BlueprintCatalogProvider | None) -> str:
 
 
 async def _do_add(
-    mgr: CronManager,
+    mgr: CronManagerPort,
     prompt: str,
     command: str,
     model: str,
@@ -244,7 +244,7 @@ async def _do_add(
     return job_result("add", job, tz or None)
 
 
-async def _do_list(mgr: CronManager, name_filter: str) -> str:
+async def _do_list(mgr: CronManagerPort, name_filter: str) -> str:
     jobs = await mgr.list_jobs(name_filter=name_filter.strip() or None)
     if not jobs:
         return "No scheduled tasks."
@@ -255,7 +255,7 @@ async def _do_list(mgr: CronManager, name_filter: str) -> str:
 
 
 async def _do_update(
-    mgr: CronManager,
+    mgr: CronManagerPort,
     job_id: str,
     prompt: str,
     command: str,
@@ -338,20 +338,20 @@ async def _do_update(
     return job_result("update", job, zone)
 
 
-async def _do_remove(mgr: CronManager, job_id: str) -> str:
+async def _do_remove(mgr: CronManagerPort, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
     deleted = await mgr.delete_job(job_id)
     return f"Task {job_id} deleted." if deleted else f"Task {job_id} not found."
 
 
-async def _do_run(mgr: CronManager, job_id: str) -> str:
+async def _do_run(mgr: CronManagerPort, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
     return _RUN_RESULTS[await mgr.run_now(job_id)].format(job_id)
 
 
-async def _do_pause(mgr: CronManager, job_id: str) -> str:
+async def _do_pause(mgr: CronManagerPort, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
     job = await mgr.pause_job(job_id)
@@ -363,7 +363,7 @@ async def _do_pause(mgr: CronManager, job_id: str) -> str:
     )
 
 
-async def _do_resume(mgr: CronManager, job_id: str) -> str:
+async def _do_resume(mgr: CronManagerPort, job_id: str) -> str:
     if not job_id:
         return "job_id required. Use action='list' to find IDs."
     try:

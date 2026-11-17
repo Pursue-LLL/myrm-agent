@@ -25,20 +25,6 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // 注意：Tauri 模式现在也使用 standalone，以支持动态路由和 API 路由
 const isTauriBuild = process.env.BUILD_MODE === 'tauri';
 
-// Serwist PWA (skipped for Tauri — desktop shell does not ship a web PWA)
-let withSerwist: (config: NextConfig) => NextConfig = (config) => config;
-if (!isTauriBuild) {
-  const withSerwistInit = require('@serwist/next').default as (
-    options: Parameters<typeof import('@serwist/next').default>[0],
-  ) => (config: NextConfig) => NextConfig;
-  withSerwist = withSerwistInit({
-    swSrc: 'src/app/sw.ts',
-    swDest: 'public/sw.js',
-    disable: process.env.NODE_ENV === 'development',
-    reloadOnOnline: false,
-  });
-}
-
 // Bundle Analyzer (optional, controlled by env var)
 const ANALYZE = process.env.ANALYZE === 'true';
 let withBundleAnalyzer: ((config: NextConfig) => NextConfig) | null = null;
@@ -274,9 +260,6 @@ const nextConfig: NextConfig = {
 
 // Apply config wrappers in order
 let finalConfig = withNextIntl(nextConfig);
-
-// Apply Serwist PWA wrapper
-finalConfig = withSerwist(finalConfig);
 
 if (SENTRY_ENABLED && withSentryConfig) {
   finalConfig = withSentryConfig(finalConfig, {

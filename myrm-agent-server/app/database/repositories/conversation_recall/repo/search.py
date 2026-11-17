@@ -1,5 +1,5 @@
 """[INPUT]
-- app.database.repositories.conversation_recall.sql / .types (POS: SQL + row types)
+- app.database.repositories.conversation_recall.sql / .types (POS: SQL contract with the snippet highlight markers + row types)
 
 [OUTPUT]
 - SearchMixin
@@ -11,12 +11,16 @@ ConversationRecallRepository mixin: FTS5 search with degraded/fault recovery, do
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.repositories.conversation_recall.sql import (
+    HIGHLIGHT_CLOSE,
+    HIGHLIGHT_OPEN,
     filter_sql,
 )
 from app.database.repositories.conversation_recall.types import (
@@ -54,7 +58,7 @@ class SearchMixin:
             until=until,
         )
         params.update({"query": safe_query, "limit": limit})
-        segment_rows = []
+        segment_rows: Sequence[RowMapping] = []
         try:
             segment_rows = (
                 (
@@ -66,7 +70,7 @@ class SearchMixin:
                             d.agent_id AS agent_id,
                             d.source AS source,
                             s.message_id AS message_id,
-                            snippet(conversation_recall_segments_fts, 0, '<mark>', '</mark>', '...', 56) AS snippet,
+                            snippet(conversation_recall_segments_fts, 0, '{HIGHLIGHT_OPEN}', '{HIGHLIGHT_CLOSE}', '...', 56) AS snippet,
                             d.summary AS summary,
                             s.sent_at AS last_message_at,
                             d.created_at AS created_at,
@@ -78,8 +82,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE conversation_recall_segments_fts MATCH :query
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY conversation_recall_segments_fts.rank ASC, s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit
                     """),
@@ -99,7 +102,7 @@ class SearchMixin:
             except Exception:
                 pass
 
-        document_rows = []
+        document_rows: Sequence[RowMapping] = []
         try:
             document_rows = (
                 (
@@ -111,7 +114,7 @@ class SearchMixin:
                             d.agent_id AS agent_id,
                             d.source AS source,
                             d.last_message_id AS message_id,
-                            snippet(conversation_recall_fts, -1, '<mark>', '</mark>', '...', 56) AS snippet,
+                            snippet(conversation_recall_fts, -1, '{HIGHLIGHT_OPEN}', '{HIGHLIGHT_CLOSE}', '...', 56) AS snippet,
                             d.summary AS summary,
                             d.last_message_at AS last_message_at,
                             d.created_at AS created_at,
@@ -122,8 +125,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.id = conversation_recall_fts.rowid
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE conversation_recall_fts MATCH :query
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY conversation_recall_fts.rank ASC, d.last_message_at DESC, d.updated_at DESC
                         LIMIT :limit
                     """),
@@ -149,9 +151,11 @@ class SearchMixin:
             return results
 
         # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits
-        fallback_rows = []
+        # The phrase quotes of the FTS query are not part of the stored text this scan reads.
+        needle = safe_query.replace('"', "")
+        fallback_rows: Sequence[RowMapping] = []
         try:
-            fallback_params = {**params, "kw_pattern": f"%{safe_query}%"}
+            fallback_params = {**params, "kw_pattern": f"%{needle}%"}
             fallback_rows = (
                 (
                     await db.execute(
@@ -173,8 +177,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE (s.segment_text LIKE :kw_pattern OR d.searchable_text LIKE :kw_pattern)
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit
                     """),
