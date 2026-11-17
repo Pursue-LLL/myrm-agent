@@ -9,7 +9,7 @@ File system strategy module.
 |------|------|-------------|-------|
 | __init__.py | Package | File system strategy module. | — |
 | base.py | Core | Provides FileSystemStrategy. | ✅ |
-| mcp_strategy.py | Core | Provides MCPFileSystemStrategy, main. | ✅ |
+| mcp_strategy.py | Core | Provides MCPFileSystemStrategy. | ✅ |
 | storage_strategy.py | Core | StorageBackendStrategy: read, write, list, existence and size over a StorageProvider. | ✅ |
 | strategy_factory.py | Core | Provides FileSystemStrategyFactory. | ✅ |
 

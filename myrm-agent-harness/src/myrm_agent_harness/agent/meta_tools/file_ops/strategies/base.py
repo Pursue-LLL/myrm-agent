@@ -61,7 +61,6 @@ class FileSystemStrategy(ABC):
             content: 文件内容
 
         Raises:
-            FileExistsError: 文件已存在（仅用于创建操作）
             PermissionError: 权限不足
         """
         pass

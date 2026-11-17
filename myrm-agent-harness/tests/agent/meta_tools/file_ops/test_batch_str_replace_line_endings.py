@@ -1,8 +1,7 @@
 """The batch str-replace engine matches on LF text and writes the file's own line endings back.
 
-A model sends its edits with ``\\n`` whatever the file uses. On CRLF content a multi-line ``old_str`` found no exact
-match, and the fuzzy strategies, which join the lines they match with ``\\n``, matched text the content did not hold:
-the edit reported success and changed nothing.
+A model sends its edits with ``\\n`` whatever the file uses. An edit that names text of the file applies to CRLF, LF
+and lone-CR content alike, exactly or through a fuzzy strategy, and every line keeps the ending it had.
 """
 
 from __future__ import annotations
