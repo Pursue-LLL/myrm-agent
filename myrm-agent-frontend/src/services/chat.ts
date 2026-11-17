@@ -206,7 +206,6 @@ export interface SearchResult {
   chat_title: string | null;
   snippet: string;
   source?: string;
-  is_relaxed?: boolean;
 }
 
 export interface SearchResponse {
