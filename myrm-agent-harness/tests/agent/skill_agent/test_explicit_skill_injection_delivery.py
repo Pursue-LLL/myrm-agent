@@ -1,13 +1,11 @@
-"""Tests for how the SOP of an explicitly requested skill reaches the model (preload and get_skill_document).
+"""Tests for how the SOP of an explicitly requested skill reaches the model through the preload.
 
 Covers:
 - ${SKILL_DIR} template variable replacement
 - Queries that arrive as content blocks (the user's words are the first block, attachments follow)
-- run() registering every skill a bundle preloaded
-- Frontmatter stripping and the title of the delivered document
 
-The tag grammar and the preload outcomes (success, degradation, bundles) are covered in
-test_explicit_skill_injection.py.
+The preload outcomes (success, degradation, bundles) are covered in test_explicit_skill_injection.py, the document
+the loader builds (frontmatter, title) in tests/agent/meta_tools/skill_select/test_skill_document_format.py.
 """
 
 from __future__ import annotations
@@ -115,73 +113,3 @@ class TestPreloadExplicitSkillInBlocks:
         expanded, primary, preloaded = await self._agent_with_skill()._preload_explicit_skill_in_blocks(blocks)
 
         assert (expanded, primary, preloaded) == (blocks, None, [])
-
-
-# ---------------------------------------------------------------------------
-# Integration: run() method behavior
-# ---------------------------------------------------------------------------
-
-
-class TestRunPreloadIntegration:
-    """Test that run() correctly calls preload and passes results downstream."""
-
-    @pytest.mark.asyncio
-    async def test_run_registers_all_bundle_preloaded_skills(self) -> None:
-        """Bundle preload must register every loaded skill for attenuation union."""
-        from myrm_agent_harness.agent.skill_agent.context import (
-            add_loaded_skill,
-            get_loaded_skills,
-            reset_loaded_skills,
-        )
-
-        s1 = make_skill_metadata(name="skill_a", storage_skill_id="skill_a")
-        s2 = make_skill_metadata(name="skill_b", storage_skill_id="skill_b")
-        backend = StubSkillBackend(
-            content_map={
-                "skill_a": "# Skill A\n\nDo A.",
-                "skill_b": "# Skill B\n\nDo B.",
-            }
-        )
-        agent = make_preload_agent(skills=[s1, s2], backend=backend)
-
-        _query, _active, preloaded_skills = await agent._preload_explicit_skill("[use skill_a,skill_b] run")
-
-        reset_loaded_skills()
-        for skill_meta in preloaded_skills:
-            if not any(s.name == skill_meta.name for s in get_loaded_skills()):
-                add_loaded_skill(skill_meta)
-
-        loaded_names = {skill.name for skill in get_loaded_skills()}
-        assert loaded_names == {"skill_a", "skill_b"}
-
-
-# ---------------------------------------------------------------------------
-# Frontmatter stripping in get_skill_document
-# ---------------------------------------------------------------------------
-
-
-class TestGetSkillDocumentFrontmatter:
-    """Test that frontmatter is properly stripped from SOP content."""
-
-    @pytest.mark.asyncio
-    async def test_strips_yaml_frontmatter(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.skills.select import get_skill_document
-
-        sop = "---\nname: test\ndescription: hello\n---\n# My Skill\n\nDo stuff."
-        skill = make_skill_metadata(name="fm_skill", storage_skill_id="fm_skill")
-        backend = StubSkillBackend(content_map={"fm_skill": sop})
-
-        result = await get_skill_document(skill, backend)
-        assert result.startswith("# My Skill")
-        assert "---" not in result.split("# My Skill")[0]
-
-    @pytest.mark.asyncio
-    async def test_adds_title_if_missing(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.skills.select import get_skill_document
-
-        sop = "Just some content without a heading."
-        skill = make_skill_metadata(name="notitle_skill", storage_skill_id="notitle_skill")
-        backend = StubSkillBackend(content_map={"notitle_skill": sop})
-
-        result = await get_skill_document(skill, backend)
-        assert result.startswith("# notitle_skill")

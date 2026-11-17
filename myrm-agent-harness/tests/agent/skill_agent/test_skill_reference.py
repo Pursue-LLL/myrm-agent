@@ -1,5 +1,6 @@
 """`[use <reference>]` finds the skill a user means, whatever name the backend lists it under.
 
+The tag only counts at the very start of the text and carries one or more comma-separated references.
 The slash palette sends the catalog name (``audit-probe``). A product backend may list the same skill
 under a runtime name (``audit_probe_skill``) with a storage id that is neither (``local::...``); the SOP
 preload and the skill hooks must still reach it, and must never guess between two skills.
@@ -17,8 +18,82 @@ from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.hooks import get_hook_executor, set_hook_executor
 from myrm_agent_harness.agent.hooks.types import CommandHookDefinition, HookEvent
 from myrm_agent_harness.agent.skill_agent import SkillAgent, wait_all_background_tasks
-from myrm_agent_harness.agent.skill_agent.skill_reference import resolve_skill_reference
+from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag, resolve_skill_reference
 from myrm_agent_harness.backends.skills.types import SkillMetadata
+from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
+
+
+class TestUseTagGrammar:
+    """Tests for parse_use_tag, the grammar of the leading [use skill_name] tag."""
+
+    def test_basic_match(self) -> None:
+        tag = parse_use_tag("[use daily_report_skill] generate today's report")
+        assert tag is not None
+        assert tag.references == ("daily_report_skill",)
+        assert tag.text == "generate today's report"
+
+    def test_literal_tag_is_kept_for_hosts_that_decorate_the_text(self) -> None:
+        tag = parse_use_tag("[use a, b]   do it")
+        assert tag is not None
+        assert tag.tag == "[use a, b]"
+        assert tag.text == "do it"
+
+    def test_no_args(self) -> None:
+        tag = parse_use_tag("[use deploy_skill]")
+        assert tag is not None
+        assert tag.references == ("deploy_skill",)
+        assert tag.text == ""
+
+    def test_with_args_trailing_space(self) -> None:
+        tag = parse_use_tag("[use deploy_skill] staging  ")
+        assert tag is not None
+        assert tag.references == ("deploy_skill",)
+        assert tag.text == "staging"
+
+    def test_hyphenated_skill_name(self) -> None:
+        tag = parse_use_tag("[use my-great-skill] do something")
+        assert tag is not None
+        assert tag.references == ("my-great-skill",)
+
+    def test_no_match_plain_text(self) -> None:
+        assert parse_use_tag("Just a normal message") is None
+
+    def test_no_match_middle_of_text(self) -> None:
+        assert parse_use_tag("Please [use test_skill] now") is None
+
+    def test_no_match_behind_a_prefix_the_host_added(self) -> None:
+        assert parse_use_tag("[Inbound channel message] channel=x\n---\n\n[use test_skill] now") is None
+
+    def test_multiline_args(self) -> None:
+        tag = parse_use_tag("[use test_skill] line1\nline2\nline3")
+        assert tag is not None
+        assert tag.text == "line1\nline2\nline3"
+
+    def test_empty_skill_name_no_match(self) -> None:
+        assert parse_use_tag("[use ] something") is None
+        assert parse_use_tag("[use ,] something") is None
+
+    def test_multi_skill_comma_separated(self) -> None:
+        tag = parse_use_tag("[use skill_a,skill_b,skill_c] do it")
+        assert tag is not None
+        assert tag.references == ("skill_a", "skill_b", "skill_c")
+        assert tag.text == "do it"
+
+    def test_multi_skill_with_spaces(self) -> None:
+        tag = parse_use_tag("[use skill_a, skill_b] args")
+        assert tag is not None
+        assert tag.references == ("skill_a", "skill_b")
+
+    def test_multi_skill_no_args(self) -> None:
+        tag = parse_use_tag("[use a,b]")
+        assert tag is not None
+        assert tag.references == ("a", "b")
+        assert tag.text == ""
+
+    def test_trailing_comma(self) -> None:
+        tag = parse_use_tag("[use a,b,] args")
+        assert tag is not None
+        assert tag.references == ("a", "b")
 
 
 def _meta(name: str, storage_skill_id: str | None = None) -> SkillMetadata:
@@ -132,7 +207,7 @@ async def test_hitl_resume_finds_the_runtime_named_skill_of_the_interrupted_turn
     streamed_hooks: list[list[str]],
 ) -> None:
     agent = _agent(_meta("audit_probe_skill", _STORAGE_ID))
-    history = [["human", "[use audit-probe] audit my shell"], ["assistant", "let me run it"]]
+    history: ChatHistoryReq = [["human", "[use audit-probe] audit my shell"], ["assistant", "let me run it"]]
 
     _ = [event async for event in agent.run(Command(resume={"decision": "approve"}), chat_history=history)]
     await wait_all_background_tasks()

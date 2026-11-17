@@ -1,14 +1,16 @@
-"""Tests for explicit skill injection (SkillAgent._preload_explicit_skill): the tag and the preload it triggers.
+"""Tests for the preload a ``[use skill]`` tag triggers (``SkillAgent._preload_explicit_skill``).
 
 Covers:
-- Pattern matching for [use skill_name]
-- SOP injection with strong signal
-- Auxiliary file listing
-- Graceful degradation (skill not found, empty SOP, backend errors)
-- Edge cases (multiline args, special characters)
+- SOP injection with the strong signal, the user's arguments and the auxiliary file listing
+- A SOP that quotes an error line is still injected
+- Usage stats written by the preload
+- Graceful degradation (no backend, unknown skill, unreadable or empty SOP, a failing loader)
+- Unavailable skills (the signal carries a WARNING)
+- Bundles (``[use a,b]``): merged SOPs, a missing skill, a skill without a readable SOP, the token budget
 
-How the SOP reaches the model (template variable, content blocks, run wiring, document formatting) is covered in
-test_explicit_skill_injection_delivery.py.
+How the SOP reaches the model (template variable, content blocks) is covered in
+test_explicit_skill_injection_delivery.py, the tag grammar in test_skill_reference.py and what run() does with a
+bundle in test_skill_run_usage.py.
 """
 
 from __future__ import annotations
@@ -17,90 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.skill_agent.skill_reference import parse_use_tag
 from tests.support.explicit_skill_stubs import StubSkillBackend, make_preload_agent, make_skill_metadata
-
-# ---------------------------------------------------------------------------
-# Pattern matching tests
-# ---------------------------------------------------------------------------
-
-
-class TestUseTagGrammar:
-    """Tests for parse_use_tag, the grammar of the leading [use skill_name] tag."""
-
-    def test_basic_match(self) -> None:
-        tag = parse_use_tag("[use daily_report_skill] generate today's report")
-        assert tag is not None
-        assert tag.references == ("daily_report_skill",)
-        assert tag.text == "generate today's report"
-
-    def test_literal_tag_is_kept_for_hosts_that_decorate_the_text(self) -> None:
-        tag = parse_use_tag("[use a, b]   do it")
-        assert tag is not None
-        assert tag.tag == "[use a, b]"
-        assert tag.text == "do it"
-
-    def test_no_args(self) -> None:
-        tag = parse_use_tag("[use deploy_skill]")
-        assert tag is not None
-        assert tag.references == ("deploy_skill",)
-        assert tag.text == ""
-
-    def test_with_args_trailing_space(self) -> None:
-        tag = parse_use_tag("[use deploy_skill] staging  ")
-        assert tag is not None
-        assert tag.references == ("deploy_skill",)
-        assert tag.text == "staging"
-
-    def test_hyphenated_skill_name(self) -> None:
-        tag = parse_use_tag("[use my-great-skill] do something")
-        assert tag is not None
-        assert tag.references == ("my-great-skill",)
-
-    def test_no_match_plain_text(self) -> None:
-        assert parse_use_tag("Just a normal message") is None
-
-    def test_no_match_middle_of_text(self) -> None:
-        assert parse_use_tag("Please [use test_skill] now") is None
-
-    def test_no_match_behind_a_prefix_the_host_added(self) -> None:
-        assert parse_use_tag("[Inbound channel message] channel=x\n---\n\n[use test_skill] now") is None
-
-    def test_multiline_args(self) -> None:
-        tag = parse_use_tag("[use test_skill] line1\nline2\nline3")
-        assert tag is not None
-        assert tag.text == "line1\nline2\nline3"
-
-    def test_empty_skill_name_no_match(self) -> None:
-        assert parse_use_tag("[use ] something") is None
-        assert parse_use_tag("[use ,] something") is None
-
-    def test_multi_skill_comma_separated(self) -> None:
-        tag = parse_use_tag("[use skill_a,skill_b,skill_c] do it")
-        assert tag is not None
-        assert tag.references == ("skill_a", "skill_b", "skill_c")
-        assert tag.text == "do it"
-
-    def test_multi_skill_with_spaces(self) -> None:
-        tag = parse_use_tag("[use skill_a, skill_b] args")
-        assert tag is not None
-        assert tag.references == ("skill_a", "skill_b")
-
-    def test_multi_skill_no_args(self) -> None:
-        tag = parse_use_tag("[use a,b]")
-        assert tag is not None
-        assert tag.references == ("a", "b")
-        assert tag.text == ""
-
-    def test_trailing_comma(self) -> None:
-        tag = parse_use_tag("[use a,b,] args")
-        assert tag is not None
-        assert tag.references == ("a", "b")
-
-
-# ---------------------------------------------------------------------------
-# Preload integration tests
-# ---------------------------------------------------------------------------
 
 
 class TestPreloadExplicitSkill:
@@ -385,6 +304,22 @@ class TestPreloadExplicitSkill:
         assert "preloaded" in query.lower()
 
     @pytest.mark.asyncio
+    async def test_bundle_skill_without_a_readable_sop_is_left_out(self) -> None:
+        """A skill the backend lists but cannot serve is neither injected nor returned as preloaded."""
+        readable = make_skill_metadata(name="readable_skill", storage_skill_id="readable_skill")
+        unreadable = make_skill_metadata(name="unreadable_skill", storage_skill_id="unreadable_skill")
+        backend = StubSkillBackend(content_map={"readable_skill": "# Readable\n\nContent."})
+        agent = make_preload_agent(skills=[readable, unreadable], backend=backend)
+
+        query, matched, preloaded = await agent._preload_explicit_skill("[use readable_skill,unreadable_skill] go")
+
+        assert matched is not None
+        assert matched.name == "readable_skill"
+        assert [skill.name for skill in preloaded] == ["readable_skill"]
+        assert "# Readable" in query
+        assert "unreadable_skill" not in query
+
+    @pytest.mark.asyncio
     async def test_bundle_all_skills_missing(self) -> None:
         """If all skills in bundle are missing, query passes through unchanged."""
         backend = StubSkillBackend()
@@ -396,7 +331,7 @@ class TestPreloadExplicitSkill:
 
     @pytest.mark.asyncio
     async def test_bundle_token_budget_enforcement(self) -> None:
-        """When combined SOPs exceed _TOKEN_BUDGET_MAX, later skills are skipped."""
+        """When combined SOPs exceed _TOKEN_BUDGET_MAX, later skills are neither injected nor returned as preloaded."""
         big_sop = "# Big Skill\n\n" + ("x" * 12000)
         small_sop = "# Small Skill\n\nTiny."
         s1 = make_skill_metadata(name="big", storage_skill_id="big")
@@ -404,10 +339,11 @@ class TestPreloadExplicitSkill:
         backend = StubSkillBackend(content_map={"big": big_sop, "small": small_sop})
         agent = make_preload_agent(skills=[s1, s2], backend=backend)
 
-        query, matched, _preloaded = await agent._preload_explicit_skill("[use big,small] test")
+        query, matched, preloaded = await agent._preload_explicit_skill("[use big,small] test")
         assert matched is not None
         assert "# Big Skill" in query
         assert "# Small Skill" not in query
+        assert [skill.name for skill in preloaded] == ["big"]
 
     @pytest.mark.asyncio
     async def test_single_skill_uses_single_header(self) -> None:

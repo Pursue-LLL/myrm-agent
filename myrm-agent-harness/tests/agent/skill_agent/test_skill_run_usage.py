@@ -2,7 +2,8 @@
 
 The LLM loop is replaced by a scripted stream; selection, attribution of tool outcomes and the run-end
 write all go through the real product chain (``[use skill]`` preload -> ``track_skill_execution`` ->
-``commit_skill_run_usage`` -> ``.stats.json``).
+``commit_skill_run_usage`` -> ``.stats.json``). A ``[use a,b]`` bundle puts every skill it delivers into the
+loaded set the model runs with; tool attenuation takes the lowest trust over that set.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import pytest
 from myrm_agent_harness.agent.base_agent import BaseAgent
 from myrm_agent_harness.agent.middlewares.tooling._skill_failure_tracking import track_skill_execution
 from myrm_agent_harness.agent.skill_agent import SkillAgent, wait_all_background_tasks
+from myrm_agent_harness.agent.skill_agent.context import get_loaded_skills
 from myrm_agent_harness.backends.skills.local import LocalSkillBackend
 from myrm_agent_harness.backends.skills.stats_collector import SkillStatsCollector
 from myrm_agent_harness.backends.skills.types import SkillUsageStats
@@ -33,9 +35,10 @@ class _SilentBus:
 @pytest.fixture
 def skills_root(tmp_path: Path) -> Path:
     root = tmp_path / "skills"
-    skill_dir = root / "alpha"
-    skill_dir.mkdir(parents=True)
-    (skill_dir / "SKILL.md").write_text("---\nname: alpha\ndescription: alpha probe\n---\n# alpha\n\nDo it.\n")
+    for name in ("alpha", "beta"):
+        skill_dir = root / name
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(f"---\nname: {name}\ndescription: {name} probe\n---\n# {name}\n\nDo it.\n")
     return root
 
 
@@ -105,6 +108,21 @@ async def test_run_without_tool_calls_is_an_unobserved_use(skills_root: Path, mo
 
     assert (stats.call_count, stats.observed_count) == (1, 0)
     assert [record.success for record in stats.usage_history] == [None]
+
+
+@pytest.mark.asyncio
+async def test_bundle_run_loads_every_delivered_skill_and_counts_one_use_each(
+    skills_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The loaded set is what tool attenuation takes the lowest trust over, so none of the bundle may be missing."""
+    loaded_during_run: list[str] = []
+    _script_run(monkeypatch, lambda: loaded_during_run.extend(skill.name for skill in get_loaded_skills()))
+
+    alpha = await _run(skills_root, "[use alpha,beta] go")
+    beta = SkillStatsCollector().get_stats(skills_root / "beta")
+
+    assert sorted(loaded_during_run) == ["alpha", "beta"]
+    assert (alpha.call_count, beta.call_count) == (1, 1)
 
 
 @pytest.mark.asyncio
