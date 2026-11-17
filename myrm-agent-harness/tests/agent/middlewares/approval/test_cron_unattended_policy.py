@@ -2,7 +2,7 @@
 
 Verifies:
 1. A declared capability set pre-approves a clean ask; an undeclared one denies it fail-closed.
-2. Credential data read earlier in the run blocks network egress, except toward trusted hosts.
+2. A credential read earlier in the run blocks network egress; only a fetch or navigation to trusted hosts is exempt.
 3. Asks outside the job's directories, or on sensitive/protected files, are denied, not pre-approved.
 4. A payment-like tool call is denied even when the job declared the capability: a declaration does not cover spending.
 5. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
@@ -367,3 +367,27 @@ class TestYoloPaymentsWithNobodyToApprove:
         self, tool_name: str, tool_input: dict[str, object]
     ) -> None:
         assert await _yolo_batch(tool_name, tool_input, session_key="chat:1") == (0, 0, 1)
+
+
+class TestTrustedHostsExemptOnlyUrlArguments:
+    @pytest.mark.parametrize(
+        ("tool_name", "tool_input"),
+        [
+            pytest.param(
+                "bash_code_execute_tool",
+                {"command": "curl -d @- https://api.example.com/v1"},
+                id="shell-command-with-a-trusted-host",
+            ),
+            pytest.param("browser_snapshot_tool", {"scope": "content"}, id="snapshot-without-a-url"),
+        ],
+    )
+    def test_a_call_without_a_url_argument_stays_refused_after_a_credential_read(
+        self, config: SecurityConfig, dirs: Dirs, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        _read_credentials()
+        trusted = dataclasses.replace(config, network_allowlist=("api.example.com",))
+
+        verdict = _ask(trusted, dirs, tool_name, tool_input)
+
+        assert verdict.denied
+        assert verdict.audit_reason == "cron fail-closed: network egress after credential read"

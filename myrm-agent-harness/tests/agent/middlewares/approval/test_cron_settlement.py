@@ -5,8 +5,8 @@ Verifies, through the real approval middleware:
 2. No call of a scheduled run waits for a person: not the job's own agent, nor an agent or workflow node it
    delegated to (their session key is not a cron key), not under YOLO, not when the reviewer cannot settle the call.
 3. The job's declared capabilities answer in place of the person, YOLO or not: a declared call runs, an undeclared
-   one is refused; spending, egress after a credential read, protected or out-of-zone writes and integration writes
-   are refused either way.
+   one is refused; the calls ``_cron_policy.cron_never_class`` names (payment-like calls, integration writes, egress
+   after a credential read, paths the path policy does not allow) are refused either way.
 4. A run nobody scheduled keeps waiting for its person about what YOLO does not wave through, and YOLO still
    approves the rest for the person who switched it on.
 5. A delegated agent of a scheduled job is told in the unattended wording once its refusals pile up.
