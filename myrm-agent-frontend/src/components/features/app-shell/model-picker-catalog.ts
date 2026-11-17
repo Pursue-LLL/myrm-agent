@@ -1,16 +1,12 @@
 /**
- * [INPUT] @/store/config/providerTypes::getRoutedModelName, isLocalOrTrustedSplitStackApiUrl (POS: 路由名与本地 / 受信任私网端点判定), @/services/llm-config (POS: 模型能力与压缩预检 DTO)
+ * [INPUT] @/store/config/providerTypes::getRoutedModelName (POS: 路由名), @/store/config/trustedSplitStackEndpoint::isLocalOrTrustedSplitStackApiUrl (POS: 本地 / 受信任私网端点判定), @/services/llm-config (POS: 模型能力与压缩预检 DTO)
  * [OUTPUT] collectLocalCapabilities / mergeFetchedCapabilities / applyLocalOwnedFallbacks: 模型能力与成本映射; groupModelsByProvider: 搜索过滤与 Provider 分组（含 $0 / free / local 查询）; buildPreflightPairs / buildPreflightSignature / mapPreflightResults: 压缩预检请求与结果映射
  * [POS] ModelPickerPopover 的纯数据逻辑与共享类型，无 React 依赖。
  */
 
 import type { ModelCapabilities, ModelSwitchPreflightResult } from '@/services/llm-config';
-import {
-  getRoutedModelName,
-  isLocalOrTrustedSplitStackApiUrl,
-  type CustomModelInfo,
-  type ProviderConfig,
-} from '@/store/config/providerTypes';
+import { getRoutedModelName, type CustomModelInfo, type ProviderConfig } from '@/store/config/providerTypes';
+import { isLocalOrTrustedSplitStackApiUrl } from '@/store/config/trustedSplitStackEndpoint';
 
 export interface PickerModelSelection {
   providerId: string;

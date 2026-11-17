@@ -3,6 +3,8 @@
  * ./providerCatalog::BUILT_IN_PROVIDERS, BUILT_IN_PROVIDER_INFO (POS: built-in provider catalog data)
  * ./providerRouting.generated::KNOWN_ROUTE_PREFIXES, PROVIDER_TO_ROUTE_PREFIX (POS: route segments generated from the
  * harness routing table)
+ * ./trustedSplitStackEndpoint::isLocalOrTrustedSplitStackApiUrl (POS: whether an endpoint is on the user's own machine
+ * or private network)
  *
  * [OUTPUT]
  * ProviderConfig, ApiKeyConfig, CredentialPoolStrategy: persisted shape of one provider row
@@ -11,8 +13,8 @@
  * ProviderCategory, getProviderCategory: api or local provider
  * getRoutedModelName, PROVIDER_TO_ROUTE_PREFIX: the `<route>/<model>` id the backend resolves
  * hasActiveApiKey, supportsProviderNoAuth, hasUsableProviderAuth, resolveProviderApiKeyForRequests,
- * isTrustedSplitStackHostname, isLocalOrTrustedSplitStackApiUrl, LOCAL_NO_AUTH_API_KEY_MARKER,
- * OAUTH_AUTH_API_KEY_MARKER: whether a provider can authenticate and which credential a request carries
+ * LOCAL_NO_AUTH_API_KEY_MARKER, OAUTH_AUTH_API_KEY_MARKER: whether a provider can authenticate and which credential a
+ * request carries
  * SingleModelSelection, CustomModelInfo, ModelSlot, RoutingConfig, DefaultModelConfig: model-selection shapes
  * getInitialProviders, getInitialDefaultModelConfig: first-run state
  *
@@ -26,6 +28,7 @@ import {
   KNOWN_ROUTE_PREFIXES as _GENERATED_ROUTE_PREFIXES,
   PROVIDER_TO_ROUTE_PREFIX,
 } from './providerRouting.generated';
+import { isLocalOrTrustedSplitStackApiUrl } from './trustedSplitStackEndpoint';
 
 export { PROVIDER_TO_ROUTE_PREFIX };
 
@@ -193,93 +196,6 @@ export interface ProviderConfig {
 
 export const LOCAL_NO_AUTH_API_KEY_MARKER = '__myrm_local_no_auth__';
 export const OAUTH_AUTH_API_KEY_MARKER = '__myrm_oauth_token__';
-
-function isLoopbackHostname(hostname: string): boolean {
-  const normalized = hostname
-    .toLowerCase()
-    .trim()
-    .replace(/^\[|\]$/g, '');
-  if (normalized === 'localhost') {
-    return true;
-  }
-  if (normalized === '127.0.0.1') {
-    return true;
-  }
-  if (normalized === '::1') {
-    return true;
-  }
-  if (normalized === '0.0.0.0') {
-    return true;
-  }
-  return false;
-}
-
-export function isTrustedSplitStackHostname(hostname: string): boolean {
-  const normalized = hostname
-    .toLowerCase()
-    .trim()
-    .replace(/^\[|\]$/g, '');
-  if (normalized === 'localhost' || normalized.endsWith('.local')) {
-    return true;
-  }
-  if (isLoopbackHostname(normalized)) {
-    return true;
-  }
-
-  const ipv4Parts = normalized.split('.');
-  if (ipv4Parts.length === 4) {
-    const p0 = Number(ipv4Parts[0]);
-    const p1 = Number(ipv4Parts[1]);
-    const p2 = Number(ipv4Parts[2]);
-    const p3 = Number(ipv4Parts[3]);
-
-    if ([p0, p1, p2, p3].every((p) => Number.isInteger(p) && p >= 0 && p <= 255)) {
-      // Explicitly reject link-local (169.254.0.0/16, cloud metadata)
-      if (p0 === 169 && p1 === 254) {
-        return false;
-      }
-      // Loopback
-      if (p0 === 127) {
-        return true;
-      }
-      // RFC1918 10.0.0.0/8
-      if (p0 === 10) {
-        return true;
-      }
-      // RFC1918 172.16.0.0/12
-      if (p0 === 172 && p1 >= 16 && p1 <= 31) {
-        return true;
-      }
-      // RFC1918 192.168.0.0/16
-      if (p0 === 192 && p1 === 168) {
-        return true;
-      }
-      // Tailscale CGNAT 100.64.0.0/10
-      if (p0 === 100 && p1 >= 64 && p1 <= 127) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-export const isLocalOrTrustedSplitStackApiUrl = (apiUrl?: string | null): boolean => {
-  if (!apiUrl) {
-    return false;
-  }
-  const trimmed = apiUrl.trim();
-  if (!trimmed) {
-    return false;
-  }
-  const candidate = trimmed.includes('://') ? trimmed : `http://${trimmed}`;
-  try {
-    const parsed = new URL(candidate);
-    return isTrustedSplitStackHostname(parsed.hostname);
-  } catch {
-    return false;
-  }
-};
 
 export const hasActiveApiKey = (provider: Pick<ProviderConfig, 'apiKeys'>): boolean => {
   return provider.apiKeys?.some((k) => k.isActive && k.key) ?? false;
