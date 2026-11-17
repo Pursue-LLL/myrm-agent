@@ -59,8 +59,7 @@ ENV_TO_PROVIDER_ID: dict[str, str] = {
 }
 ENV_TO_PROVIDER_ID.update(
     {
-        # Variable names other assistants use for a provider the transport names differently
-        # (documented in Hermes Agent's ``.env.example``).
+        # Variable names other assistants use for a provider the transport names differently.
         "GLM_API_KEY": "zai",
         "KIMI_API_KEY": "moonshot",
         "XIAOMI_API_KEY": "xiaomi_mimo",

@@ -1,4 +1,25 @@
-// 提供商类型定义
+/**
+ * [INPUT]
+ * ./providerCatalog::BUILT_IN_PROVIDERS, BUILT_IN_PROVIDER_INFO (POS: built-in provider catalog data)
+ * ./providerRouting.generated::KNOWN_ROUTE_PREFIXES, PROVIDER_TO_ROUTE_PREFIX (POS: route segments generated from the
+ * harness routing table)
+ *
+ * [OUTPUT]
+ * ProviderConfig, ApiKeyConfig, CredentialPoolStrategy: persisted shape of one provider row
+ * CUSTOM_PROVIDER_TYPES, CustomProviderType, CustomProviderTypeInfo, CUSTOM_PROVIDER_TYPE_INFO,
+ * resolveCustomProviderTypeInfo: the compatibility types a custom provider can declare
+ * ProviderCategory, getProviderCategory: api or local provider
+ * getRoutedModelName, PROVIDER_TO_ROUTE_PREFIX: the `<route>/<model>` id the backend resolves
+ * hasActiveApiKey, supportsProviderNoAuth, hasUsableProviderAuth, resolveProviderApiKeyForRequests,
+ * isTrustedSplitStackHostname, isLocalOrTrustedSplitStackApiUrl, LOCAL_NO_AUTH_API_KEY_MARKER,
+ * OAUTH_AUTH_API_KEY_MARKER: whether a provider can authenticate and which credential a request carries
+ * SingleModelSelection, CustomModelInfo, ModelSlot, RoutingConfig, DefaultModelConfig: model-selection shapes
+ * getInitialProviders, getInitialDefaultModelConfig: first-run state
+ *
+ * [POS]
+ * Domain model of the provider settings: what a provider row holds, when it counts as usable and how a model is
+ * named for the backend.
+ */
 
 import { BUILT_IN_PROVIDER_INFO, BUILT_IN_PROVIDERS } from './providerCatalog';
 import {

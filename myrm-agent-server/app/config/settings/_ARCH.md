@@ -17,4 +17,4 @@
 ## 依赖关系
 
 - 上游：`pydantic` / `pydantic-settings`、`app.config.deploy_mode`、`app.config.paths`
-- 下游：全仓 212 个模块通过 `from app.config.settings import settings / get_settings` 读取配置
+- 下游：全仓模块通过 `from app.config.settings import settings / get_settings` 读取配置

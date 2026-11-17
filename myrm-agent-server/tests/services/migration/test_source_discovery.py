@@ -1,8 +1,9 @@
 """Unit tests for competitor data auto-discovery service.
 
 Validates detection logic, confidence scoring, memory/skill counting,
-API key detection, and edge-case handling for the four supported sources
-(Hermes, Claude Code, OpenClaw, Codex).
+API key detection, and edge-case handling for the Hermes, Claude Code, OpenClaw and
+Codex probes, and that these four and Pi are discovered side by side. The Pi and PLUR
+probes have their own tests.
 """
 
 from __future__ import annotations

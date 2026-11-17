@@ -3,7 +3,7 @@
   "client_library": "litellm 1.97.0",
   "configuration": "production (LITELLM_LOCAL_MODEL_COST_MAP, drop_params, modify_params, custom providers registered; response cache off)",
   "matrix": "golden_shapes.py",
-  "pruned_cases": "image cases of the retired dall-e models were removed together with their code paths; no remaining case was re-recorded",
+  "pruned_cases": "none of the image cases of the retired dall-e models is in this baseline (their code paths are gone); every other case is as it was recorded",
   "recorded_at_commit": "dc1b5711db"
  },
  "chat/anthropic|basic|api": [

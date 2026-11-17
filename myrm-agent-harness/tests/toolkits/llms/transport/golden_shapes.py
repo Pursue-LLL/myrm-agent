@@ -13,10 +13,8 @@
 The other golden matrices save every custom base URL as ``<host>/v1``. A settings screen lets people save anything:
 a bare host, a trailing slash, a gateway prefix, the pasted URL of one operation. This matrix replays each of those
 and keeps only the path and query a request reached (the host only when it is not the probe's own), because that is
-all a mistyped base URL can move. The committed ``golden_shapes_baseline.json`` was recorded by running this module
-against the baseline client library (litellm 1.97.0, the version the server pinned) at commit dc1b5711db, where the chat
-factory was named ``create_litellm_model``; the recording harness aliased it to the name used here, so nothing in
-this module depends on either library.
+all a mistyped base URL can move. ``golden_shapes_baseline.json`` holds what the baseline client library did for the
+same matrix; its ``_meta`` names the library and version, the configuration and the commit it was recorded at.
 """
 
 from __future__ import annotations

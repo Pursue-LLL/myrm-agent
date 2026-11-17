@@ -1,4 +1,17 @@
-// 内置提供商目录：ID、默认接口地址与备选地址。纯数据，路由与鉴权逻辑见 providerTypes.ts
+/**
+ * [INPUT]
+ * (none)
+ *
+ * [OUTPUT]
+ * BUILT_IN_PROVIDERS, BuiltInProviderId: ids of the providers the settings offer out of the box
+ * ProviderInfo, AlternativeApiUrl: display name, default address, alternative addresses and console deep link
+ * BUILT_IN_PROVIDER_INFO: the ProviderInfo of every built-in provider
+ *
+ * [POS]
+ * Pure data catalog behind the provider list and the first-run provider rows. Routing and authentication rules live in
+ * providerTypes.ts; the server's .env importer table is checked against this file by
+ * test_importable_providers_catalog_parity.py.
+ */
 
 // 内置提供商 ID
 export const BUILT_IN_PROVIDERS = [
