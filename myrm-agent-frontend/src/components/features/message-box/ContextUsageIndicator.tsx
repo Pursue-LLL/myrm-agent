@@ -6,6 +6,7 @@
  * - store/useConfigStore::showContextUsage (POS: User configuration store.)
  * - services/statistics::getSessionAnalytics (POS: Statistics API client DTO layer.)
  * - services/chat::compactChat (POS: Chat service — manual context compaction.)
+ * - lib/constants/compact-focus-topic::COMPACT_FOCUS_TOPIC_MAX_LENGTH (POS: Longest focus topic the server accepts.)
  * - services/contextHealth::ContextHealth, HealthStatus (POS: Statistics context-health DTO layer.)
  * - services/fork-api::forkConversation (POS: Fork API client — dynamic import in MiniPanel.)
  *
@@ -29,6 +30,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
 import { getSessionAnalytics } from '@/services/statistics';
 import { compactChat, getContextPins, setContextPins } from '@/services/chat';
+import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import type { ContextHealth, HealthStatus } from '@/services/contextHealth';
 import type { ContextBudget } from '@/store/chat/types';
 import TurnGrowthSparkline from './TurnGrowthSparkline';
@@ -555,6 +557,7 @@ function MiniPanelContent({
           type="text"
           value={focusTopic}
           onChange={(event) => setFocusTopic(event.target.value)}
+          maxLength={COMPACT_FOCUS_TOPIC_MAX_LENGTH}
           placeholder={t('focusHintPlaceholder')}
           className="w-full text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-background"
         />

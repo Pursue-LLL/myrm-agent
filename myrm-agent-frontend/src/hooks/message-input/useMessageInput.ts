@@ -197,7 +197,8 @@ export const useMessageInput = () => {
       try {
         const result = await compactChat(chatId, focusTopic);
         if (result.compacted) {
-          const topicHint = focusTopic ? ` (${focusTopic})` : '';
+          // The server's echo, not the typed text: a long topic is cut before it is sent, and the toast names what was used.
+          const topicHint = result.focus_topic ? ` (${result.focus_topic})` : '';
           toast.success(
             t('compact.success', { count: result.message_count, tokens: result.tokens_saved }) + topicHint,
             {

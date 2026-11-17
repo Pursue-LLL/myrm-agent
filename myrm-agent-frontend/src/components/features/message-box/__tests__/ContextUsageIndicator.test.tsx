@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ContextUsageIndicator from '../ContextUsageIndicator';
+import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import type { ContextHealth } from '@/services/contextHealth';
 import type { ContextHealthStatus } from '@/store/chat/types';
 import type { ContextBudget } from '@/store/chat/types/contextMetrics';
@@ -502,6 +503,18 @@ describe('ContextUsageIndicator', () => {
       await waitFor(() => {
         expect(mockCompactChat).toHaveBeenCalledWith('test-chat-123', 'auth module');
       });
+    });
+
+    it('stops typing and pasting the focus topic at the characters the server accepts', async () => {
+      const user = userEvent.setup();
+      render(<ContextUsageIndicator />);
+
+      await user.click(screen.getByRole('status'));
+
+      expect(await screen.findByPlaceholderText('focusHintPlaceholder')).toHaveAttribute(
+        'maxlength',
+        String(COMPACT_FOCUS_TOPIC_MAX_LENGTH),
+      );
     });
 
     it('refreshes health data after successful compression', async () => {

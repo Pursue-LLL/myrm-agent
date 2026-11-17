@@ -1,5 +1,7 @@
 import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
+import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import type { ExportData } from '@/lib/utils/chat-export';
+import { firstChars } from '@/lib/utils/firstChars';
 import { Message, type ActionMode, type MentionReferenceType, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
 import { parseServerTimestamp } from '@/lib/utils/timeUtils';
@@ -984,7 +986,10 @@ export const getContextPins = async (chatId: string): Promise<{ files: string[] 
 };
 
 export const compactChat = async (chatId: string, focusTopic?: string): Promise<CompactResult> => {
-  const body = focusTopic ? JSON.stringify({ focus_topic: focusTopic }) : undefined;
+  // The server refuses a longer topic (HTTP 422); a topic typed after `/compact` has no box to stop it, so it is cut here.
+  const body = focusTopic
+    ? JSON.stringify({ focus_topic: firstChars(focusTopic, COMPACT_FOCUS_TOPIC_MAX_LENGTH) })
+    : undefined;
   return (await apiRequest(`/chats/${chatId}/compact`, {
     method: 'POST',
     ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
