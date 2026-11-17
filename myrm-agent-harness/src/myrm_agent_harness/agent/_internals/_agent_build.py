@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - build_middlewares: Build the full middleware chain for a BaseAgent.
-- create_registry: Create a fresh ToolRegistry for one build cycle, one that refuses the built-in meta tools under ``no_builtin_tools``.
+- create_registry: Create a fresh ToolRegistry for one build cycle (refuses built-in meta tools under ``no_builtin_tools``).
 - build_tools: Build the resolved tool list via ToolRegistry.
 - emit_tools_snapshot: Return Turn1-bound tools for GUI availability view.
 

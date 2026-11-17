@@ -2,7 +2,9 @@
 
 The registry an agent rebuilds its graph from (``add_tools``, a model failover) holds only the host's tools after
 any number of turns, also when the skill library is large enough to mount ``skill_search_tool`` on an agent that
-keeps the built-in tools. The tests run real turns over a scripted model and read what the model is bound with.
+keeps the built-in tools. Nothing the model is sent speaks of the skill tools it does not have, while the skills a
+turn bound are still on its receipt and a skill the user names is still preloaded. The tests run real turns over a
+scripted model and read what the model is bound with and sent.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from pydantic import Field
 from myrm_agent_harness.agent.skill_agent import SkillAgent, wait_all_background_tasks
 from myrm_agent_harness.agent.skills import SkillMetadata
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
+from myrm_agent_harness.backends.skills.local import LocalSkillBackend
 
 _CHAT_ID = "chat_no_builtin_tools"
 _LONG_DESCRIPTION = "Handles one narrow kind of work that needs its own detailed procedure and checks. " * 4
@@ -136,3 +139,56 @@ async def test_an_agent_that_keeps_the_built_in_tools_is_offered_them(tmp_path: 
 
     assert {"host_a_tool", "skill_select_tool", "skill_search_tool"} <= set(model.bound_tool_names[0])
     assert agent._tool_registry.has_tool("skill_search_tool")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("no_builtin_tools", "sent"), [(False, True), (True, False)], ids=["built-in-tools", "no-built-in-tools"]
+)
+async def test_the_model_is_sent_the_skill_catalog_and_the_tools_it_names_only_with_the_built_in_tools(
+    tmp_path: Path, no_builtin_tools: bool, sent: bool
+) -> None:
+    agent, model = _agent(no_builtin_tools=no_builtin_tools)
+
+    await _run_turn(agent, tmp_path)
+
+    (prompt, *_) = model.prompts
+    assert ("<bound_skills" in prompt) is sent
+    assert ("skill_select_tool" in prompt) is sent
+    assert ("skill_search_tool" in prompt) is sent
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("no_builtin_tools", [False, True], ids=["built-in-tools", "no-built-in-tools"])
+async def test_the_turn_receipt_lists_the_bound_skills_either_way(tmp_path: Path, no_builtin_tools: bool) -> None:
+    agent, _ = _agent(no_builtin_tools=no_builtin_tools)
+
+    events = await _run_turn(agent, tmp_path)
+
+    (message_end,) = (event for event in events if event["type"] == "message_end")
+    receipt = message_end["turn_loaded_skills"]
+    assert isinstance(receipt, list)
+    assert sorted(row["name"] for row in receipt) == sorted(skill.name for skill in _SKILLS)
+
+
+@pytest.mark.asyncio
+async def test_a_skill_the_user_names_is_still_preloaded_without_the_built_in_tools(tmp_path: Path) -> None:
+    skill_dir = tmp_path / "skills" / "alpha"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: alpha\ndescription: alpha probe\n---\n# alpha\nFollow the alpha procedure.\n", encoding="utf-8"
+    )
+    model = _RecordingModel(responses=["ok"])
+    agent = SkillAgent(
+        llm=model,
+        skill_backend=LocalSkillBackend(tmp_path / "skills"),
+        tools=[host_a_tool],
+        config=AgentRuntimeConfig(no_builtin_tools=True),
+    )
+
+    await _run_turn(agent, tmp_path, query="[use alpha] hello")
+
+    (prompt, *_) = model.prompts
+    assert 'The skill "alpha" has been preloaded by the user' in prompt
+    assert "Follow the alpha procedure." in prompt
+    assert "<bound_skills" not in prompt

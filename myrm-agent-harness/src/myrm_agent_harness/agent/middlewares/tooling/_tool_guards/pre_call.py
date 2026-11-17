@@ -2,6 +2,7 @@
 - .shared::PreCallResult / _emit_loop_guard_event (POS: 共用事件与阶段间状态)
 - agent.middlewares.tooling._circuit_breaker::check_circuit_breaker (POS: 硬熔断器)
 - agent.middlewares.tooling._tool_helpers (POS: 无状态助手)
+- agent.middlewares._session_context::get_active_resolved_tools (POS: 本次运行绑定的工具)
 - agent.security.guards.estop::check_estop (POS: 全局急停)
 - agent.security.guards.loop_guard::LoopAction (POS: 会话级循环检测)
 - agent.security.guards.tool_turn_budget_guard (POS: 每回合高成本工具预算)
@@ -50,6 +51,14 @@ from .shared import PreCallResult, _emit_loop_guard_event
 
 logger = get_agent_logger(__name__)
 
+_SKILL_SELECT_HINT = (
+    "\n\nHint: Do not confuse tools with skills. "
+    "Tools are for LLM to call directly. "
+    "Skills (ending with _skill) are operation manuals for certain workflows "
+    "and cannot be called directly by LLM. "
+    "You must first use skill_select_tool to select a skill, then learn from its documentation!"
+)
+
 
 async def run_pre_call_guards(
     request: ToolCallRequest,
@@ -66,6 +75,7 @@ async def run_pre_call_guards(
     )
     from myrm_agent_harness.agent.middlewares._session_context import (
         get_active_message_id,
+        get_active_resolved_tools,
     )
 
     active_message_id = get_active_message_id()
@@ -231,14 +241,10 @@ async def run_pre_call_guards(
         )
 
     if request.tool is None:
-        error_content = (
-            f"Error: '{tool_name}' is not a valid tool. Please retry.\n\n"
-            "Hint: Do not confuse tools with skills. "
-            "Tools are for LLM to call directly. "
-            "Skills (ending with _skill) are operation manuals for certain workflows "
-            "and cannot be called directly by LLM. "
-            "You must first use skill_select_tool to select a skill, then learn from its documentation!"
-        )
+        error_content = f"Error: '{tool_name}' is not a valid tool. Please retry."
+        # The hint sends the model to ``skill_select_tool``, so a run that cannot call it is not sent there.
+        if any(bound.name == "skill_select_tool" for bound in get_active_resolved_tools() or ()):
+            error_content += _SKILL_SELECT_HINT
         logger.warning("Invalid tool call: %s", tool_name)
         return make_error_msg(
             tool_name,

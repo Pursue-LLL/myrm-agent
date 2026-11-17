@@ -159,7 +159,10 @@ class AgentRuntimeSpec:
     # --- Capabilities ---
     allowed_tools: list[str] = field(default_factory=list)
     no_builtin_tools: bool = False
-    """When True, leaves out every built-in meta tool; tools the host passes in and middleware tools stay."""
+    """When True, leaves out every built-in meta tool and the skill catalog that sends the model to them.
+
+    Tools the host passes in and middleware tools stay; the turn receipt still lists the bound skills.
+    """
     tool_groups: list[str] = field(default_factory=list)
     skill_ids: list[str] = field(default_factory=list)
     skill_configs: dict[str, dict[str, object]] | None = None
