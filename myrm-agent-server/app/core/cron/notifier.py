@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.cron::CronNotice, CronNoticeKind (POS: one user-facing fact about a job)
+- myrm_agent_harness.toolkits.cron::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
 - app.channels.i18n.engine::channel_t (POS: wording in the user's language)
 - app.core.channel_bridge.locale_provider::resolve_user_locale (POS: the user's language preference)
 - app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: SSE / web push / IM fan-out)
@@ -10,9 +11,9 @@
 - publish_cron_notice: the scheduler's notice callback; publishes CRON_UPDATED and a localized SYSTEM_NOTIFICATION
 
 [POS]
-The one place that decides how a cron notice looks to the user: severity, title and message per notice kind.
-The engine reports facts only. Run outcomes keep the ``voice_background_task_done`` kind so a duplex voice
-session announces them in the chat the job is bound to.
+The one place that decides how a cron notice looks to the user: severity, title and message per notice kind, and
+the name the job goes by. The engine reports facts only. Run outcomes keep the ``voice_background_task_done`` kind
+so a duplex voice session announces them in the chat the job is bound to.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from myrm_agent_harness.toolkits.cron import CronNotice, CronNoticeKind
+from myrm_agent_harness.toolkits.cron import HEARTBEAT_JOB_NAME, CronNotice, CronNoticeKind
 
 from app.channels.i18n.engine import channel_t
 from app.core.channel_bridge.locale_provider import resolve_user_locale
@@ -40,7 +41,7 @@ class _Presentation:
     level: _Level
     event_kind: str
     title_key: str
-    # None: the engine's own text (a run's output or error snippet) is the message.
+    # None: the engine's snippet of the run (its output or error), led by the job's name, is the message.
     message_key: str | None = None
 
 
@@ -58,14 +59,23 @@ _PRESENTATION: Final[dict[CronNoticeKind, _Presentation]] = {
     ),
 }
 
+# A system job's stored name is reserved and the user never chose it, so the user is told the job by this catalog name.
+_SYSTEM_JOB_NAME_KEYS: Final = {HEARTBEAT_JOB_NAME: "cron_system_job_heartbeat"}
+
+
+def _display_name(locale: str, job_name: str) -> str:
+    key = _SYSTEM_JOB_NAME_KEYS.get(job_name)
+    return job_name if key is None else str(channel_t(locale, key))
+
 
 async def publish_cron_notice(notice: CronNotice) -> None:
     """Publish one notice: ``CRON_UPDATED`` refreshes cron views, ``SYSTEM_NOTIFICATION`` is what the user reads."""
     presentation = _PRESENTATION[notice.kind]
     locale = await resolve_user_locale()
-    title = str(channel_t(locale, presentation.title_key, job_name=notice.job_name))
+    job_name = _display_name(locale, notice.job_name)
+    title = str(channel_t(locale, presentation.title_key, job_name=job_name))
     message = (
-        notice.text
+        f"[{job_name}] {notice.text}"
         if presentation.message_key is None
         else str(channel_t(locale, presentation.message_key, max_fires=notice.max_fires))
     )

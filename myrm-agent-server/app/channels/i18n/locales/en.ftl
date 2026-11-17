@@ -190,7 +190,8 @@ cron_notice_expired_message =
 cron_notice_max_fires_message =
     It has run { $max_fires } times, which is its limit, so it was paused automatically.
 cron_notice_failure_message =
-    It hit a problem it could not recover from, so it was paused automatically. Check its run history, then resume it.
+    It hit a problem it could not recover from, so it was paused automatically. Open its Run History to see why, then resume it.
+cron_system_job_heartbeat = Agent Auto-Check
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }

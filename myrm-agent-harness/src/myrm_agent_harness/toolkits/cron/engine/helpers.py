@@ -227,8 +227,8 @@ def next_eligible_run(job: CronJob, after: datetime, *, last_run_at: datetime | 
 def next_slot_or_retry(job: CronJob, now: datetime) -> datetime:
     """The slot to book for a recurring job; one whose schedule cannot be computed is booked a minute ahead.
 
-    Booking must never fail for the schedule's sake: the job keeps a next run time, and the closing write of its
-    next run computes the slot again and counts the failure toward auto-pause.
+    Booking must never fail for the schedule's sake: the job keeps a next run time, and the closing write of that
+    run computes the slot again and pauses the job when it still cannot be computed.
     """
     try:
         slot = next_eligible_run(job, now)

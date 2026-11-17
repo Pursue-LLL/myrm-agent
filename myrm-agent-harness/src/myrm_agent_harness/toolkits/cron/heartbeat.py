@@ -27,9 +27,11 @@ Usage (framework-only, no business coupling)::
 - enable_heartbeat: Enable the heartbeat. Idempotent: creates or resumes the job.
 - disable_heartbeat: Disable (pause) the heartbeat. Returns False if no heartbeat exists.
 - get_heartbeat_status: Return the current heartbeat state.
+- is_system_job_name: Whether a job name is reserved for jobs the application creates itself (the heartbeat's is).
 
 [POS]
-Heartbeat — convenience layer over CronManager for periodic agent self-checks.
+Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which
+job names are reserved for the application's own jobs.
 """
 
 from __future__ import annotations
@@ -66,6 +68,11 @@ _DEFAULT_PROMPT = (
     "and report your findings.\n"
     "4. If nothing requires attention, respond with exactly `[SILENT]`."
 )
+
+
+def is_system_job_name(name: str) -> bool:
+    """Whether ``name`` is reserved for a job the application creates itself, as the heartbeat is."""
+    return name.startswith("__")
 
 
 class HeartbeatStatus(NamedTuple):

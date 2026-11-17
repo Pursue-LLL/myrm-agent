@@ -5,12 +5,12 @@
 - toolkits.cron.types::CronJob, CronNotice, CronNoticeKind, DeliveryStatus, JobResult (POS: Cron job domain types.)
 
 [OUTPUT]
-- RunNoticeMixin: `emit_notice`, `_notify_run_outcome` and `notify_interrupted`, mixed into the executor
+- RunNoticeMixin: `emit_notice`, `_notify_run_outcome`, `notify_paused` and `notify_interrupted`, mixed into the executor
 
 [POS]
 Mixed into ``JobExecutor``. The engine reports facts only (the kind of notice, the job's name, a snippet of the
-outcome); severity, wording and language belong to the application layer's callback. A callback that raises is
-logged and never fails a run or a scheduler tick.
+outcome); severity, wording, language and the name's presentation belong to the application layer's callback. A
+callback that raises is logged and never fails a run or a scheduler tick.
 """
 
 from __future__ import annotations
@@ -55,24 +55,33 @@ class RunNoticeMixin:
             CronNotice(
                 kind=CronNoticeKind.RUN_SUCCEEDED if result.success else CronNoticeKind.RUN_FAILED,
                 job_name=job.name,
-                text=f"[{job.name}] {outcome[:_OUTCOME_SNIPPET_CHARS]}",
+                text=outcome[:_OUTCOME_SNIPPET_CHARS],
                 chat_id=job.chat_id,
             )
         )
 
-    async def notify_interrupted(self, job: CronJob) -> None:
-        """Notice of a run a crash cut short: no run closes it, so no outcome would ever report it.
+    async def notify_paused(self, job: CronJob) -> None:
+        """Notice that the scheduler paused ``job`` by itself because of a failure it could not recover from.
 
-        A job that delivers nowhere stays quiet, as a run whose delivery was skipped does (``_try_deliver``).
+        The caller has judged that its own write made the pause: a job that was already paused is not news.
         """
-        if job.delivery.channel == "none":
-            return
+        await self.emit_notice(CronNotice(kind=CronNoticeKind.JOB_PAUSED_BY_FAILURE, job_name=job.name))
 
-        await self.emit_notice(
-            CronNotice(
-                kind=CronNoticeKind.RUN_FAILED,
-                job_name=job.name,
-                text=f"[{job.name}] {(job.last_error or '')[:_OUTCOME_SNIPPET_CHARS]}",
-                chat_id=job.chat_id,
+    async def notify_interrupted(self, job: CronJob, paused: bool) -> None:
+        """Notices of a run a crash cut short: no run closes it, so no outcome would ever report it.
+
+        The failed run stays quiet for a job that delivers nowhere, as a run whose delivery was skipped does
+        (``_try_deliver``). ``paused`` says the crash's counted failure paused the job: that is told whatever the
+        delivery, after the failed run, in the order a closing write tells them.
+        """
+        if job.delivery.channel != "none":
+            await self.emit_notice(
+                CronNotice(
+                    kind=CronNoticeKind.RUN_FAILED,
+                    job_name=job.name,
+                    text=(job.last_error or "")[:_OUTCOME_SNIPPET_CHARS],
+                    chat_id=job.chat_id,
+                )
             )
-        )
+        if paused:
+            await self.notify_paused(job)

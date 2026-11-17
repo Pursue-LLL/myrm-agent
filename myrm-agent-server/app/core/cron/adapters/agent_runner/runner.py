@@ -1,7 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.api.security::is_untrusted_ingress_active (POS: Security facade: process-wide Managed Approval Policy for external consumers.)
 - myrm_agent_harness.toolkits.cron.cron_agent_tools::enter_cron_execution_context / exit_cron_execution_context (POS: Agent tool for scheduled task management: the ``cron_manage`` tool declaration, the cron-execution guard and blueprint / CSV argument resolution.)
-- myrm_agent_harness.toolkits.cron.heartbeat::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks.)
+- myrm_agent_harness.toolkits.cron.heartbeat::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
 - myrm_agent_harness.toolkits.cron.situation::SituationReportBuilder (POS: Situation Report — pluggable context aggregator for heartbeat ticks.)
 - myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / ScheduleKind / SessionTarget (POS: Cron job domain types.)
 - app.core.agent.run_activity::track_background_agent_run (POS: Cron, kanban, IM channel and eval runs call the agent pipeline directly, so the gateway's active count never sees them, and a detached sub-agent keeps running after the turn that spawned it ended.)

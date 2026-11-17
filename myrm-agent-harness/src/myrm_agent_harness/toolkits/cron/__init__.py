@@ -34,7 +34,7 @@ Provides:
 [OUTPUT]
 - CronScheduler, CronManager: core scheduling components
 - CronManagerPort: the typing contract of the manager for tools, heartbeat and application wrappers
-- Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, etc.
+- Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, is_system_job_name, etc.
 - Protocols: CronStore, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider, StreamListener
 - Notices: CronNotice, CronNoticeKind, CronNoticeCallback
 - Run history: matching_run_statuses (what a status filter selects: ``error`` includes circuit breaks)
@@ -74,6 +74,7 @@ from myrm_agent_harness.toolkits.cron.heartbeat import (
     disable_heartbeat,
     enable_heartbeat,
     get_heartbeat_status,
+    is_system_job_name,
 )
 from myrm_agent_harness.toolkits.cron.manager import CronManager
 from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
@@ -196,6 +197,7 @@ __all__ = [
     "generate_webhook_path",
     "generate_webhook_secret",
     "get_heartbeat_status",
+    "is_system_job_name",
     "matching_run_statuses",
     "redact_connector_url",
     "resolve_cron_tool_description",

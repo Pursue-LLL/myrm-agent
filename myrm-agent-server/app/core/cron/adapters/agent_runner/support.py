@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.cron.heartbeat::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks.)
+- myrm_agent_harness.toolkits.cron.heartbeat::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
 - myrm_agent_harness.toolkits.cron.types::CronJob / JobResult / ScheduleKind (POS: Cron job domain types.)
 - app.core.agent.stop_reason::step_item_text (POS: The chat stream collector (services), the cron runner (core) and the Runs Hub (api) all store and read the same ``stopReason`` shape; this is the one definition they share.)
 
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 logger = logging.getLogger(__name__)
+
 
 def _heartbeat_follow_up_delivered(job_output: str | None) -> bool:
     """Return True when heartbeat output counts as a successful follow-up delivery ack."""

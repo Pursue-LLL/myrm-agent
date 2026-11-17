@@ -1,5 +1,6 @@
 """[INPUT]
 - pydantic::BaseModel (POS: schema base)
+- myrm_agent_harness.toolkits.cron::is_system_job_name (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
 
 [OUTPUT]
 - CronJobCreate, CronJobUpdate, CronJobResponse, CronRunResponse, CronJobsListResponse, CronRunsListResponse
@@ -13,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from myrm_agent_harness.toolkits.cron import JobStatus, JobType, RunStatus, SessionTarget
+from myrm_agent_harness.toolkits.cron import JobStatus, JobType, RunStatus, SessionTarget, is_system_job_name
 from pydantic import BaseModel, Field, field_validator
 
 from .delivery import DeliveryCreate, DeliveryResponse
@@ -90,7 +91,7 @@ class CronJobCreate(BaseModel):
         stripped = v.strip() if isinstance(v, str) else v
         if isinstance(stripped, str) and len(stripped) == 0:
             raise ValueError("Name must not be blank")
-        if isinstance(stripped, str) and stripped.startswith("__"):
+        if isinstance(stripped, str) and is_system_job_name(stripped):
             raise ValueError("Names starting with '__' are reserved for system use")
         return stripped
 

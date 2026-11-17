@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from myrm_agent_harness.toolkits.cron import CronConfig, CronNoticeCallback, CronScheduler
-from myrm_agent_harness.toolkits.cron.engine import run_closer
+from myrm_agent_harness.toolkits.cron.engine import run_closer, skipped_runs
 from myrm_agent_harness.toolkits.cron.engine.helpers import auto_pause_notice
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.cron.types import (
@@ -105,8 +105,8 @@ def stack() -> Stack:
 @pytest.mark.parametrize(
     ("result", "kind", "text"),
     [
-        (JobResult(success=True, output="all watered"), CronNoticeKind.RUN_SUCCEEDED, "[Water the plants] all watered"),
-        (JobResult(success=False, error="pump is dry"), CronNoticeKind.RUN_FAILED, "[Water the plants] pump is dry"),
+        (JobResult(success=True, output="all watered"), CronNoticeKind.RUN_SUCCEEDED, "all watered"),
+        (JobResult(success=False, error="pump is dry"), CronNoticeKind.RUN_FAILED, "pump is dry"),
     ],
     ids=["succeeded", "failed"],
 )
@@ -125,7 +125,7 @@ async def test_a_run_outcome_snippet_is_cut_to_100_characters(stack: Stack) -> N
 
     await stack.dispatch()
 
-    assert stack.notices[0].text == f"[Water the plants] {'x' * 100}"
+    assert stack.notices[0].text == "x" * 100
 
 
 async def test_a_run_whose_delivery_was_skipped_raises_no_notice(stack: Stack) -> None:
@@ -228,18 +228,46 @@ async def test_a_job_the_user_paused_during_the_run_raises_no_pause_notice(stack
     assert stack.notices == []
 
 
-async def test_a_schedule_that_cannot_be_computed_pauses_its_job_and_says_so(
+def _unparsable(*args: object, **kwargs: object) -> datetime:
+    raise ValueError("unparsable schedule")
+
+
+async def test_a_schedule_that_cannot_be_computed_pauses_its_job_at_once_and_says_so(
     stack: Stack, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    def unparsable(*args: object, **kwargs: object) -> datetime:
-        raise ValueError("unparsable schedule")
+    monkeypatch.setattr(run_closer, "next_eligible_run", _unparsable)
 
-    monkeypatch.setattr(run_closer, "next_eligible_run", unparsable)
+    stored = await stack.dispatch(replace(_job(), delivery=DELIVERS_NOWHERE))
 
-    stored = await stack.dispatch(replace(_job(), consecutive_failures=2, delivery=DELIVERS_NOWHERE))
+    assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stored.last_status == RunStatus.OK
+    assert stored.last_error == "Schedule error: unparsable schedule"
+    assert stack.notices == [PAUSED_BY_FAILURE]
+
+
+async def test_a_skipped_run_whose_schedule_cannot_be_computed_pauses_its_job_and_says_so(
+    stack: Stack, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(skipped_runs, "next_eligible_run", _unparsable)
+
+    stored = await stack.dispatch(replace(_job(), cooldown_seconds=3600, last_run_at=datetime.now(UTC)))
+
+    assert stack.runner.runs == 0
+    assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stored.last_error == "Schedule error: unparsable schedule"
+    assert stack.notices == [PAUSED_BY_FAILURE]
+
+
+async def test_a_skipped_run_of_a_job_the_user_paused_raises_no_pause_notice(
+    stack: Stack, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(skipped_runs, "next_eligible_run", _unparsable)
+    job = replace(_job(), status=JobStatus.PAUSED, cooldown_seconds=3600, last_run_at=datetime.now(UTC))
+
+    stored = await stack.dispatch(job)
 
     assert stored.status == JobStatus.PAUSED
-    assert stack.notices == [PAUSED_BY_FAILURE]
+    assert stack.notices == []
 
 
 async def test_a_one_time_circuit_break_is_paused_and_recorded_as_one_not_retried(stack: Stack) -> None:

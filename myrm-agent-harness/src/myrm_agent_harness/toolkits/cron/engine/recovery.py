@@ -6,7 +6,7 @@ in-flight marker of each run it was making: recovery turns those into interrupte
 what to do with the slots that came due while the process was down:
 
 - **Interrupted runs**: every marker left behind becomes an error run record and one counted failure, and the
-  application is told about each (``on_interrupted``).
+  application is told about each (``on_interrupted``), with whether that failure paused the job.
 - **Phase 1 — Missed-Slot**: replay cron slots that fired during downtime.
 - **Phase 2 — Grace Window**: execute due jobs still within misfire grace;
   skip and reschedule those past the grace period.
@@ -20,7 +20,7 @@ All recovery logic is encapsulated here; the scheduler calls ``run()`` at start 
 - toolkits.cron.protocols::CronStore (POS: Protocols for the cron toolkit.)
 
 [OUTPUT]
-- StartupRecovery: reports interrupted runs (`report_interrupted`, telling `on_interrupted` about each crashed one) and runs the startup recovery phases (`run`).
+- StartupRecovery: reports interrupted runs (`report_interrupted`, telling `on_interrupted` about each crashed one and whether it paused the job) and runs the startup recovery phases (`run`).
 
 [POS]
 Startup recovery strategy, and the one place that turns an in-flight marker into an interrupted-run record.
@@ -62,7 +62,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 AdmitFn = Callable[[CronJob], Awaitable[None]]
-InterruptedFn = Callable[[CronJob], Awaitable[None]]
+# The saved job of a crashed run, and whether that run's counted failure is what paused it.
+InterruptedFn = Callable[[CronJob, bool], Awaitable[None]]
 
 _CRASH_MESSAGE = "Interrupted: the server stopped before this run finished"
 _STOP_MESSAGE = "Interrupted: the application was stopping before this run finished"
@@ -73,7 +74,8 @@ class StartupRecovery:
 
     Receives ``store`` for persistence and ``admit_fn`` as the scheduler's admission (``CronScheduler._admit``):
     it books a recurring job's next slot and launches the run that is due. ``on_interrupted`` gets the saved job of
-    each run a crash cut short, once its record and failure count are stored (a graceful stop is not announced).
+    each run a crash cut short, once its record and failure count are stored, and whether that failure paused the
+    job (a graceful stop is not announced).
     """
 
     def __init__(
@@ -120,6 +122,8 @@ class StartupRecovery:
         job = await self._store.get_job(job_id)
         if job is None:
             return
+        # A job the user paused before the crash is already stopped: only a pause this failure makes is news.
+        was_paused = job.status == JobStatus.PAUSED
         message = _CRASH_MESSAGE if counted else _STOP_MESSAGE
         # A crash leaves no end time: stretching the unknown to the moment it was noticed would show hours of work.
         ended = started if counted else datetime.now(UTC)
@@ -152,14 +156,14 @@ class StartupRecovery:
             counted,
         )
         if counted:
-            await self._announce(job)
+            await self._announce(job, paused=job.status == JobStatus.PAUSED and not was_paused)
 
-    async def _announce(self, job: CronJob) -> None:
+    async def _announce(self, job: CronJob, *, paused: bool) -> None:
         """Tell the application a crash cut the job's run short; a failing callback costs the notice, not the report."""
         if self._on_interrupted is None:
             return
         try:
-            await self._on_interrupted(job)
+            await self._on_interrupted(job, paused)
         except Exception as exc:
             logger.warning("Job %s: the interrupted-run notice failed: %s", job.id, exc)
 

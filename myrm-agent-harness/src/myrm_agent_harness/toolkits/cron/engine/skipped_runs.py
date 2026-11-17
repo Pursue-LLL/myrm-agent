@@ -14,12 +14,13 @@
 Mixed into ``JobExecutor``. A skipped run advances the schedule without counting a
 failure; a deferred run re-arms the job at the instant the runner says a repeat can
 succeed; a dispatch guard's refusal (cooldown, active hours) is a skipped run that never
-began, so it leaves the last run time alone. None of them touches incremental monitors or
-delivery, and none spends ``max_fires``: the scheduler counts a fire when the run starts,
-and nothing executed. All write onto the stored job (``adopt_latest``): a job the user
-paused stays paused, and a deleted one is neither recorded nor brought back. A manual run
-that is skipped or deferred leaves only its run record: the schedule and the job's state
-are not its to change.
+began, so it leaves the last run time alone. A skipped run that finds the schedule
+impossible to compute pauses the job and says so, as a closing write does. None of them
+touches incremental monitors or delivery, and none spends ``max_fires``: the scheduler
+counts a fire when the run starts, and nothing executed. All write onto the stored job
+(``adopt_latest``): a job the user paused stays paused, and a deleted one is neither
+recorded nor brought back. A manual run that is skipped or deferred leaves only its run
+record: the schedule and the job's state are not its to change.
 """
 
 from __future__ import annotations
@@ -51,15 +52,17 @@ logger = logging.getLogger(__name__)
 class SkippedRunMixin:
     """Skipped / deferred run bookkeeping for ``JobExecutor``.
 
-    Accesses JobExecutor members via self: _store, _handle_schedule_compute_error. The run's trigger source is a
-    parameter of every entry point: runs of one executor overlap, so it cannot live on the instance.
+    Accesses JobExecutor members via self: _store, _pause_for_schedule_error, notify_paused. The run's trigger source
+    is a parameter of every entry point: runs of one executor overlap, so it cannot live on the instance.
     """
 
     _store: CronStore
 
     if TYPE_CHECKING:
 
-        def _handle_schedule_compute_error(self, job: CronJob, error: Exception, finished: datetime) -> None: ...
+        def _pause_for_schedule_error(self, job: CronJob, error: Exception) -> str: ...
+
+        async def notify_paused(self, job: CronJob) -> None: ...
 
     async def record_guard_skip(self, job: CronJob, *, reason: str, trigger_source: str) -> None:
         """A dispatch guard refused a due run: record it as SKIPPED and book the job's next slot."""
@@ -72,11 +75,14 @@ class SkippedRunMixin:
 
         Used by pre-flight probe skips, runner-level skips (e.g. heartbeat no-content) and dispatch-guard
         refusals.  ``attempted`` is False for a refusal: that run never began, so no fire is handed back and the
-        job's last run time, which anchors the cooldown, stays where it was.  Does not touch monitors.
+        job's last run time, which anchors the cooldown, stays where it was.  Does not touch monitors.  A schedule
+        that cannot be computed pauses the job and is reported, as it is when a run closes.
         """
         if not await adopt_latest(self._store, job):
             logger.info("Job %s was deleted during execution, skipping its skipped-run record", job.id)
             return
+        # A job the user paused was adopted as paused; only a pause this write makes is news.
+        was_paused = job.status == JobStatus.PAUSED
         if trigger_source == TriggerKind.MANUAL:
             await self._save_skipped_run(job, datetime.now(UTC), reason, trigger_source=trigger_source)
             return
@@ -89,7 +95,7 @@ class SkippedRunMixin:
             try:
                 job.next_run_at = next_eligible_run(job, now)
             except Exception as e:
-                self._handle_schedule_compute_error(job, e, now)
+                job.last_error = self._pause_for_schedule_error(job, e)
         elif job.schedule.kind == ScheduleKind.ONCE:
             if job.delete_after_run:
                 await self._store.delete_job(job.id)
@@ -102,6 +108,8 @@ class SkippedRunMixin:
         job.last_status = RunStatus.SKIPPED
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)
+        if job.status == JobStatus.PAUSED and not was_paused:
+            await self.notify_paused(job)
 
     async def _record_deferred(self, job: CronJob, result: JobResult, *, trigger_source: str) -> None:
         """Re-arm *job* at ``result.retry_at``: a SKIPPED run, no failure counted, schedule kept.

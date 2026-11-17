@@ -26,7 +26,7 @@ from app.core.cron.notifier import publish_cron_notice
 
 
 @pytest.mark.asyncio
-async def test_realtime_tool_catalog_includes_reminder_tools():
+async def test_realtime_tool_catalog_includes_reminder_tools() -> None:
     """Verify set_reminder, cancel_reminder, list_reminders are always declared in Realtime tools."""
     ctx = VoiceMemoryContext(enable_memory=True, enable_wiki=True, enable_conversation_search=True)
     tools = build_realtime_tools(enabled_builtin_tools=(), memory_context=ctx)
@@ -38,7 +38,7 @@ async def test_realtime_tool_catalog_includes_reminder_tools():
 
 
 @pytest.mark.asyncio
-async def test_gemini_live_includes_reminder_tools():
+async def test_gemini_live_includes_reminder_tools() -> None:
     """Verify Gemini Live tool declarations include reminder tools."""
     from app.api.voice.gemini_live import _build_gemini_tools
 
@@ -52,7 +52,7 @@ async def test_gemini_live_includes_reminder_tools():
 
 
 @pytest.mark.asyncio
-async def test_set_reminder_execution_relative_minutes():
+async def test_set_reminder_execution_relative_minutes() -> None:
     """Test set_reminder with relative minutes_later param."""
     set_reminder_handler = BACKGROUND_TOOL_HANDLERS["set_reminder"]
 
@@ -90,7 +90,7 @@ async def test_set_reminder_execution_relative_minutes():
 
 
 @pytest.mark.asyncio
-async def test_cancel_and_list_reminders():
+async def test_cancel_and_list_reminders() -> None:
     """cancel_reminder removes the job from a real manager; a mocked manager cannot catch swapped arguments."""
     cancel_handler = BACKGROUND_TOOL_HANDLERS["cancel_reminder"]
     list_handler = BACKGROUND_TOOL_HANDLERS["list_reminders"]
@@ -132,7 +132,7 @@ async def test_cancel_and_list_reminders():
 
 
 @pytest.mark.asyncio
-async def test_cron_run_notice_triggers_system_notification_with_voice_bg_done():
+async def test_cron_run_notice_triggers_system_notification_with_voice_bg_done() -> None:
     """A run notice publishes SYSTEM_NOTIFICATION with kind=voice_background_task_done."""
     from app.services.event.app_event_bus import AppEventType, get_event_bus
 
@@ -144,7 +144,7 @@ async def test_cron_run_notice_triggers_system_notification_with_voice_bg_done()
             CronNotice(
                 kind=CronNoticeKind.RUN_SUCCEEDED,
                 job_name="Voice Reminder: Drink Water",
-                text="[Voice Reminder: Drink Water] Drink water now",
+                text="Drink water now",
                 chat_id="chat-voice-777",
             )
         )

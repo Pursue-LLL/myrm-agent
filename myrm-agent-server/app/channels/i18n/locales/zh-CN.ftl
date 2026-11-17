@@ -190,7 +190,8 @@ cron_notice_expired_message =
 cron_notice_max_fires_message =
     已执行 { $max_fires } 次，达到执行次数上限，已自动暂停。
 cron_notice_failure_message =
-    遇到无法自行恢复的问题，已自动暂停。请查看运行历史，处理后再恢复。
+    遇到无法自行恢复的问题，已自动暂停。请在执行记录中查看原因，处理后再恢复。
+cron_system_job_heartbeat = Agent 自动巡检
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }

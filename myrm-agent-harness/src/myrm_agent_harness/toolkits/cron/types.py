@@ -422,9 +422,9 @@ class CronNoticeKind(StrEnum):
 class CronNotice:
     """One user-facing fact about a job: a run's outcome, or the scheduler pausing the job by itself.
 
-    ``text`` is the run outcome (``[job name] output-or-error snippet``) for the ``RUN_*`` kinds and
-    empty for the pauses. ``chat_id`` is the chat the job is bound to and is set on run outcomes only.
-    ``max_fires`` is the limit a ``JOB_MAX_FIRES_REACHED`` pause hit.
+    ``job_name`` is the job's stored name, which the application presents as it sees fit. ``text`` is the bare
+    output-or-error snippet of the run for the ``RUN_*`` kinds and empty for the pauses. ``chat_id`` is the chat
+    the job is bound to, set on run outcomes only. ``max_fires`` is the limit a ``JOB_MAX_FIRES_REACHED`` pause hit.
     """
 
     kind: CronNoticeKind
