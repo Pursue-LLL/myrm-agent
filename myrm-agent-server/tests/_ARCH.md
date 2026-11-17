@@ -340,6 +340,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/approvals/draft_testkit.py` | 辅助 | 被扣留回复测试的共享构建器：`held_reply()`（带附件、按钮与线程的整条回复）、`draft_payload()`（路由器存储的 payload 形态：正文在 `draft_content`，其余冻结在 `outbound`）；`test_outbound_draft.py`、`test_registry_lifecycle.py` 与 `channels/routing/test_draft_command.py` 共用 |
 | `services/approvals/test_outbound_draft.py` | 单元 | 被扣留回复定案后的收尾：按评审后的正文发出（含仅附件），无快照、快照不可解码或无内容则不发；批准后发不出去时告知 owner（错误 toast 与通知中心，按 owner 语言）且永不抛出；拒绝或超时不发送并释放临时附件；关闭发送方的“待审核”占位消息（无占位则不动，平台不可编辑则删除，平台挂起有时限，网关不可达不撤销决定） |
 | `services/approvals/test_registry_concurrency.py` | 集成 | 生产同构 SQLite（WAL + 延迟 BEGIN 升级写锁）上的并发定案：批准与拒绝同时、TTL 清理与点击同时，每条被扣留回复恰好定案并收尾一次，落败方读到已定案状态而不是 `database is locked` |
+| `services/approvals/test_registry_digest_sync.py` | 集成 | TTL 清理后运行摘要的待审批计数与已定案的审批一致：没有运行的聊天（多个聊天各自）回到空闲，在跑的会话回到 running，没有聊天的审批不发起同步 |
 | `core/notifications/test_approval_card.py` | 单元 | 审批通知卡片：草稿正文预览（截断/附件摘要/自动发送提示/剩余时间）不含内部标识与链接，仅 Telegram 带批准/拒绝按钮、其他渠道提示打开应用，按用户语言渲染 |
 | `channels/reliability/test_inbound_replay.py` | 集成 | 入站日志的重放保真：按生产路径（回合开始写日志条目 → SQLite → 网关启动恢复 → 路由闸门）走一遍，重放回来的消息与原消息逐字段相等（仅多出 `is_recovery` 标记）；交给真实的 `_handle_merged` 后，到达回合的消息仍带着附件、引用回复、群上下文、发送者与发送时间，日志条目被确认且不重复写；无聊天标识的消息仍无；控制面转发重放后仍带着它的身份；yolo 窗口不跨重启；本地文件已不存在的附件有 url 则保留 url、否则从附件里去掉并在正文里点名；无法解码的条目不拖垮其后的条目；另一种列结构的表在打开时重建，日志继续可用 |
 | `channels/reliability/test_inbound_replay_merging.py` | 集成 | 重放经过会话闸门的合并：同一聊天的两条重放合并成一个回合，回合带着两条日志条目，经真实闸门、`_handle_merged` 与 SQLite 日志走完后两个条目都被确认；重放与实时消息不合并，按到达顺序各占一个回合（两种先后顺序），实时消息不带条目 |

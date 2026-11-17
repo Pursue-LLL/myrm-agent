@@ -42,8 +42,8 @@ class ApprovalRegistry:
     async def cleanup_expired_approvals(cls) -> int:
         """Find pending approvals that have expired and reject them automatically.
 
-        Finalizes the stored state only: a suspended agent is resumed by the harness
-        ApprovalTimeoutScheduler when its timer fires, not by this sweep.
+        Finalizes the stored state and re-syncs the pending count of the chats it touched.
+        A suspended agent is resumed by the harness ApprovalTimeoutScheduler when its timer fires, not by this sweep.
 
         Returns:
             The number of approvals that were auto-rejected.
@@ -82,10 +82,14 @@ class ApprovalRegistry:
                 record.status = "TIMEOUT"
                 record.reason = (record.reason or "") + "\n\n[Auto-Rejected: TTL Expired]"
 
+            chat_ids = {record.chat_id for record in expired_records}
             await db.commit()
 
-        # Finalizing never raises; running the drafts together keeps one slow platform call from holding up the rest.
-        await asyncio.gather(*(finalize_outbound_draft(record) for record in expired_drafts))
+        # Neither step raises; running them together keeps one slow platform call from holding up the rest.
+        await asyncio.gather(
+            *(finalize_outbound_draft(record) for record in expired_drafts),
+            *(cls._sync_copilot_pending(chat_id) for chat_id in chat_ids),
+        )
 
         return len(expired_records)
 
