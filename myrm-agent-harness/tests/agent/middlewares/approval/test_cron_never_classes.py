@@ -1,9 +1,9 @@
 """What no job's declaration can approve stays refused, whoever else approved the call.
 
 A scheduled run has nobody to ask, so the job's declared capabilities, a standing approval of the user and the
-automatic reviewer answer in place of the person. Payment-like calls, integration writes, data leaving the session
-after a credential read and paths outside the run's zones are outside all three. Verifies, through the real approval
-middleware:
+automatic reviewer answer in place of the person. Payment-like calls, integration writes, writes to protected
+instruction files (through a file tool or a shell command), data leaving the session after a credential read and paths
+outside the run's zones are outside all three. Verifies, through the real approval middleware:
 1. Those calls are refused in every session of a run and whatever approved them, declared job or not.
 2. YOLO does not judge a scheduled run: every call gets the same outcome with it on or off.
 3. A standing approval still answers an ordinary ask, and a run somebody attends is untouched.

@@ -31,7 +31,7 @@ ALLOW, ASK, DENY = PermissionAction.ALLOW, PermissionAction.ASK, PermissionActio
 
 STDIN, SHELL = "shell_exec", "code_interpreter"
 STDIN_ACTIONS = ("write_stdin", "submit_stdin", "close_stdin", "kill")
-# The keys of the three-key reading the judges used to share: neither is a field of ``bash_process_tool``.
+# Argument names that look like a command but are no field of ``bash_process_tool``: text under them is never typed.
 SHADOW_KEYS = ("command", "code")
 
 

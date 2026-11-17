@@ -16,7 +16,7 @@
   with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
-- check_tool_path_policy(): strictest path-zone verdict over the host files a file tool names (engine and cron policy share it)
+- check_tool_path_policy(): strictest verdict over the host files a file tool names and the protected instruction files a shell command writes (engine and cron policy share it)
 - check_capability(): test (permission, target) against a CapabilitySet
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
@@ -229,15 +229,18 @@ def check_tool_path_policy(
     config: SecurityConfig,
     workspace_root: str | None,
 ) -> tuple[PermissionAction, str] | None:
-    """Strictest path-zone verdict (session grants included) over the host files a file tool names; ``None`` if it names none."""
+    """Strictest verdict over what a call touches that needs a person; ``None`` if it touches nothing of the kind.
+
+    A file tool is judged by the zones (session grants included) of the host files it names, a shell tool by
+    whether its command writes a protected instruction file.
+    """
+    from myrm_agent_harness.agent.security.checks import check_command_protected_write, check_path_policy
+
     paths = host_file_paths(tool_input) if permission in _PATH_CHECKED_PERMISSIONS else []
     if not paths:
-        return None
+        return check_command_protected_write(permission, tool_input)
 
-    from myrm_agent_harness.agent.security.checks import check_path_policy
-    from myrm_agent_harness.agent.security.session_access import (
-        merge_path_policy_with_session_access,
-    )
+    from myrm_agent_harness.agent.security.session_access import merge_path_policy_with_session_access
 
     policy = merge_path_policy_with_session_access(config.path_policy)
     verdicts = [
@@ -273,7 +276,7 @@ def evaluate_tool_call(
     2b. URL Scheme Check → non-http(s) → DENY
     2b2. Domain Blocklist → any URL of a network tool on the blocklist → DENY
     2c. Domain HITL → browser navigation to a domain not in the allowlist → ASK (when enabled)
-    3. Path Policy → forbidden/allowed/workspace check (file_read/file_write only)
+    3. Path Policy → forbidden/allowed/workspace check (file_read/file_write); a shell command's write to a protected instruction file → ASK
     4. Permission ruleset with target resolution → last-match-wins
     5. Risk classifier fallback → SAFE shell commands → ALLOW (shell_exec/code_interpreter)
     6. Fallback → ASK

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.toolkits.code_execution.security import shell_command_analyzer
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     CommandThreat,
     ThreatLevel,
@@ -20,7 +22,7 @@ from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer 
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[4]
-_SERVER_ROOT = _REPO_ROOT / "myrm-agent" / "myrm-agent-server"
+_SERVER_ROOT = _REPO_ROOT / "myrm-agent-server"
 
 
 def _google_workspace_integration_write_patterns() -> tuple[tuple[str, str], ...]:
@@ -35,8 +37,12 @@ def _google_workspace_integration_write_patterns() -> tuple[tuple[str, str], ...
 
 
 @pytest.fixture(scope="module", autouse=True)
-def _register_integration_write_patterns_for_tests() -> None:
-    register_integration_write_patterns(_google_workspace_integration_write_patterns())
+def _register_integration_write_patterns_for_tests() -> Iterator[None]:
+    """Register the Google patterns for this module only; the registry is process-global."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(shell_command_analyzer, "_EXTRA_INTEGRATION_WRITE_PATTERNS", [])
+        register_integration_write_patterns(_google_workspace_integration_write_patterns())
+        yield
 
 
 class TestAnalyzeCommandEmpty:

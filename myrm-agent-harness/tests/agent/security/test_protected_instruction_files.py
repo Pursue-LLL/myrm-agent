@@ -28,10 +28,12 @@ from myrm_agent_harness.agent.security.types import (
     PermissionAction,
     SecurityConfig,
 )
+from myrm_agent_harness.toolkits.code_execution.security.protected_instruction_command import (
+    protected_instruction_mutation_target,
+)
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     ThreatLevel,
     analyze_command,
-    is_protected_instruction_mutation_command,
 )
 
 
@@ -162,7 +164,7 @@ class TestShellCommandAnalyzerProtectedMutation:
         ],
     )
     def test_mutation_command_detected(self, cmd: str) -> None:
-        assert is_protected_instruction_mutation_command(cmd) is True
+        assert protected_instruction_mutation_target(cmd) is not None
         threats = analyze_command(cmd)
         escalate_threats = [t for t in threats if t.level == ThreatLevel.ESCALATE]
         assert any(t.category == "protected_instruction_mutation" for t in escalate_threats)
@@ -178,7 +180,7 @@ class TestShellCommandAnalyzerProtectedMutation:
         ],
     )
     def test_safe_command_not_detected_as_mutation(self, safe_cmd: str) -> None:
-        assert is_protected_instruction_mutation_command(safe_cmd) is False
+        assert protected_instruction_mutation_target(safe_cmd) is None
 
     @pytest.mark.parametrize(
         "cmd",
@@ -193,7 +195,7 @@ class TestShellCommandAnalyzerProtectedMutation:
     )
     def test_directory_scoped_rule_is_detected(self, cmd: str) -> None:
         """Rules that protect a whole directory cover the commands that empty it."""
-        assert is_protected_instruction_mutation_command(cmd) is True
+        assert protected_instruction_mutation_target(cmd) is not None
 
     @pytest.mark.parametrize(
         "safe_cmd",
@@ -205,7 +207,7 @@ class TestShellCommandAnalyzerProtectedMutation:
         ],
     )
     def test_neighbouring_paths_not_detected(self, safe_cmd: str) -> None:
-        assert is_protected_instruction_mutation_command(safe_cmd) is False
+        assert protected_instruction_mutation_target(safe_cmd) is None
 
 
 class TestBatchProcessorAllowlistAndExemptionGuards:

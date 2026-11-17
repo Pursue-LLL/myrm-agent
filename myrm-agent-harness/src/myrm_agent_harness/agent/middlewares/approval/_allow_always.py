@@ -4,6 +4,8 @@
 - agent.security.command_rules::command_text, launch_command (POS: the text a command-bearing tool runs, and the command a call starts)
 - agent.security.path_security::is_protected_instruction_file (POS: persona instruction files are never allow-always)
 - agent.security.tool_registry::resolve_permission_type (POS: the permission type a tool call asks for)
+- toolkits.code_execution.security.protected_instruction_command::protected_instruction_mutation_target (POS: whether a command writes a protected instruction file)
+- toolkits.code_execution.security.shell_command_analyzer::is_integration_mutation_command (POS: whether a command mutates an integration)
 - .helpers::add_to_allowlist_if_needed (POS: the allowlist write)
 
 [OUTPUT]
@@ -18,7 +20,6 @@ list that decides what may be remembered reads in one place.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from langchain_core.messages import ToolCall
 
@@ -45,7 +46,7 @@ def _command_of(tool_call: ToolCall | dict[str, object]) -> str:
 
 def should_block_allow_always(
     tool_call: ToolCall | dict[str, object],
-    extra_ctx: dict[str, Any] | None,
+    extra_ctx: dict[str, object] | None,
 ) -> bool:
     """Unified guard: returns True when allowAlways must be blocked."""
     from myrm_agent_harness.agent.middlewares._session_context import (
@@ -78,17 +79,19 @@ def should_block_allow_always(
     command = _command_of(tool_call)
     if not command:
         return False
+    from myrm_agent_harness.toolkits.code_execution.security.protected_instruction_command import (
+        protected_instruction_mutation_target,
+    )
     from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
         is_integration_mutation_command,
-        is_protected_instruction_mutation_command,
     )
 
-    return is_protected_instruction_mutation_command(command) or is_integration_mutation_command(command)
+    return protected_instruction_mutation_target(command) is not None or is_integration_mutation_command(command)
 
 
 async def try_add_to_allowlist(
     tool_call: ToolCall | dict[str, object],
-    extra_ctx: dict[str, Any] | None,
+    extra_ctx: dict[str, object] | None,
     allow_always: bool | dict[str, bool],
     permission_type: str,
     allowlist_tool_name: str,

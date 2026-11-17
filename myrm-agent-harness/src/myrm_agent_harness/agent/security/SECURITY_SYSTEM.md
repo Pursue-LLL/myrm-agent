@@ -206,7 +206,7 @@ class SSRFResult:
 
 ### 3.2.1 Shell Command Analyzer
 
-**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `persistent_env.py`（持久 shell 的代码注入变量）
+**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `persistent_env.py`（持久 shell 的代码注入变量）· `protected_instruction_command.py`（受保护指令文件的写形态）
 
 统一 Shell 命令安全分析模块，多层检测（带引号感知预处理）：
 
@@ -217,11 +217,16 @@ class SSRFResult:
 | Layer 2: 注入/危险命令 | BLOCK | 6 注入向量（`$()`, `` ` ``, `${}`, `;`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
 | Layer 2.5: SQL 语句守卫 | ESCALATE | 数据库客户端命令（`psql`/`mysql`/`sqlite3`/`sqlcmd`/`mongosh`）中的破坏性 SQL；作用于引号剥离前的原始命令，以捕获单引号内的 SQL（`sql_statement_guard.py`） |
 | Layer 3: 可疑模式 | ESCALATE | `curl \| sh`, `eval`, `base64 -d`, `kill`/`pkill`/`killall` 等 |
+| Layer 3c: 受保护指令文件改写 | ESCALATE | 重定向写入，或 `sed -i`、`tee`、`cp`、`mv`、`rm`、`truncate` 点名，或解释器（`python`/`node`/`ruby`/`perl`）以写方式打开 `AGENTS.md`、`CLAUDE.md`、`SOUL.md`、`.cursor/rules` 等受保护指令文件；作用于原始命令，证据是匹配到的名字（`protected_instruction_command.py`） |
 | Layer 4: 递归展开 | BLOCK / ESCALATE | 把载荷藏在单引号里的包装（`bash -c '...'`、`sh -c '...'`、`trap '...' SIGNAL`）取出后递归分析，深度有上限（`_MAX_RECURSIVE_DEPTH`）防 DoS |
 
 引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`find -exec {} \;` 的转义分号通过 `shell_command_rules.FIND_EXEC_TERMINATOR_RE` 精确豁免。
 
 BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`, `&&`, `||`, `>` 等合法 Shell 操作符。
+
+**改写受保护指令文件的 shell 命令**：文件工具写这些文件时给出的 ASK，理由固定为 `Protected instruction file write requires human approval: <文件名>`（`ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE`），allowlist 阶段、待审批标注、定时运行否决都认这条理由，所以 allowlist 条目、仓库声明的命令前缀、定时作业的能力声明都替用户放行不了。shell 命令走同一条 ASK，理由由 `checks.py` 的同一个构造函数给出：bash 工具与 `shell_exec` 一视同仁，命令没有宿主文件路径参数时，`engine.check_tool_path_policy` 返回 `check_command_protected_write`（引擎与定时运行共用）；`shell_exec` 经 `check_shell_threats` 时，BLOCK 仍先于它，同一行里的其他升级项（如 `eval`）不会盖过它。bash 工具里按 Python 源码运行的文本（`runs_as_python`）不是 shell 语法，不在此判定。判定只由 `protected_instruction_mutation_target(command)` 一个函数给出，分析器、引擎和 `should_block_allow_always` 共用：先看命令里有没有受保护名字，没有就不再往下；有则按 `split_command_spans` 逐条命令匹配写形态，所以 `rm -rf build && cat AGENTS.md` 不算改写。名字取自 `PROTECTED_INSTRUCTION_PATTERNS`，更长的文件名（`AGENTS.md.bak`）与文件工具一样算另一个文件；一行命令的判定时间随长度线性增长。
+
+**改写受保护指令文件的设计内残余**：词法判定不分一条命令读的文件与写的文件（`cp AGENTS.md /tmp/b.md` 按改写处理），也按命令文字读引号里的内容（`echo "a > AGENTS.md"`）；写形态之外的写法（`dd of=`、`install`、`ln`、`curl -o`、`perl -pi`、`git checkout --`、`>|`）认不出；bash 工具里按 Python 源码运行的文本不判；YOLO 开着时这类 ASK 与文件工具的一样被直接放行；定时 shell 作业（`cron_manage_tool` 的 `command`，由 `ShellJobRunner` 运行）运行前只过 `has_block_threat`，不过这条判定。
 
 **Python 源码不经 shell，不查 Layer 1.5**：`bash_code_execute_tool` 也直接接收 Python 源码，由 Python 包装脚本运行，不经过 shell；包装脚本内联的 PEP 578 审计钩子拒绝 `subprocess` / `os.system`，文本没有办法再交给 shell。对这类文本 `check_shell_threats`（`code_interpreter`）只做 Layer 1：`$'` / `$"` 在 Python 里是正则结尾锚点后面跟引号（`re.match(r'^v(\d+)$', s)`），不是 shell 引用。判定用 `code_detector.runs_as_python()`，与执行器同一套（去首尾空白、去一层 Markdown 围栏、`code_detector`）。后台启动（`run_in_background`）始终是 shell，所有无条件类别照旧；自动让出（命中 build/test 白名单）和后台共用的 shell 启动点 `BashExecutor.spawn_background` 再对最终文本按 shell 语义检查一次，所以引擎对 Python 文本的放宽不会让文本绕到 shell 那边。`shell_exec`（往运行中的进程键入）永远按 shell 看。
 
@@ -634,7 +639,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 - 渠道 `/yolo` 命令（Router 内存态，通过 `InboundMessage.metadata["yolo_state"]` 注入）
 - Agent 安全配置中显式启用（per-Agent YOLO）
 
-安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入命令、读过凭据文件后的外发请求、作业区之外的路径，哪怕 allowlist 或审核模型已放行也照样拒绝（各类识别的范围见「Cron 渠道安全配置」，另见「Cron 安全策略」）。
+安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入命令、读过凭据文件后的外发请求、作业区之外的路径（含 shell 命令改写受保护指令文件），哪怕 allowlist 或审核模型已放行也照样拒绝（各类识别的范围见「Cron 渠道安全配置」，另见「Cron 安全策略」）。
 
 ### 5.0.1 Managed Approval Policy (MAP) — 组织审批下限
 
@@ -799,7 +804,7 @@ class AllowlistEntry:
    全部通过 → 执行工具
 5. DENY → 记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
 6. ASK 的后续裁决，依次：
-     a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，四类调用除外（`cron_never_class`：付款类工具调用、读过凭据文件后的外发请求、越界路径、集成写入命令；识别范围见「Cron 渠道安全配置」）；未声明能力集 fail-closed 拒绝
+     a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，四类调用除外（`cron_never_class`：付款类工具调用、读过凭据文件后的外发请求、越界路径（含 shell 命令改写受保护指令文件）、集成写入命令；识别范围见「Cron 渠道安全配置」）；未声明能力集 fail-closed 拒绝
      b. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
      c. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 d）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
      d. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）；资金类调用另带动作摘要，批准时须原样回传，不符即拒绝（`DIGEST_MISMATCH_REJECT`），社交不可逆调用不带摘要，批准即放行
@@ -1179,7 +1184,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。四类的识别范围：付款类工具调用——工具名或参数命中资金类词表；集成写入命令——shell 与 code_interpreter 命令命中业务层注册的模式（注册表默认为空）；读过凭据文件后的外发请求——会话带 SECRET 污点后，`web_fetch`、浏览器的导航/快照/提取工具，以及 curl、wget、nc、ncat、socat、ssh、scp、rsync、ftp 后跟 http(s) 链接、或 curl、wget、nc、ncat、socat 带数据参数的 shell 命令（bash 工具的命令，以及写进运行中进程 stdin 的文字；`taint_tracker.py` 的 `TAINT_SINK_POLICIES` 与 `_BASH_EGRESS_RE`），但 `web_fetch` 与浏览器导航的每个网址（`url`、`urls`）都在域名白名单（`network_allowlist`，见 3.5 节「可信主机豁免」）内时不算外发，快照与提取工具不带网址、shell 命令与 stdin 文字不解析主机，均不享受豁免，多带一个 `url` 键也不例外；作业区之外的路径——路径分区检查不放行的文件调用（作业目录之外、敏感或受保护文件）。识别不到的形态（不带 http(s) 链接的 scp、rsync、ssh，nc 直连主机端口，经 code_interpreter 运行的脚本，未注册的集成写入）、读过网页内容这类非凭据污点之后的 shell 命令、读取与发送写在同一条 shell 命令里的单行命令（检查时会话还没有 SECRET 污点），以及凭据经 stdin 里的命令或 `grep_tool` 读出的会话（污点源不认这两条读取通道），仍由声明放行，是设计内残余。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。四类的识别范围：付款类工具调用——工具名或参数命中资金类词表；集成写入命令——shell 与 code_interpreter 命令命中业务层注册的模式（注册表默认为空）；读过凭据文件后的外发请求——会话带 SECRET 污点后，`web_fetch`、浏览器的导航/快照/提取工具，以及 curl、wget、nc、ncat、socat、ssh、scp、rsync、ftp 后跟 http(s) 链接、或 curl、wget、nc、ncat、socat 带数据参数的 shell 命令（bash 工具的命令，以及写进运行中进程 stdin 的文字；`taint_tracker.py` 的 `TAINT_SINK_POLICIES` 与 `_BASH_EGRESS_RE`），但 `web_fetch` 与浏览器导航的每个网址（`url`、`urls`）都在域名白名单（`network_allowlist`，见 3.5 节「可信主机豁免」）内时不算外发，快照与提取工具不带网址、shell 命令与 stdin 文字不解析主机，均不享受豁免，多带一个 `url` 键也不例外；作业区之外的路径——路径分区检查不放行的文件调用（作业目录之外、敏感或受保护文件），以及 shell 命令改写受保护指令文件（bash 工具的命令，以及写进运行中进程 stdin 的文字；写形态见 3.2.1 节）。识别不到的形态（不带 http(s) 链接的 scp、rsync、ssh，nc 直连主机端口，经 code_interpreter 运行的脚本，未注册的集成写入，写形态之外的改写写法）、读过网页内容这类非凭据污点之后的 shell 命令、读取与发送写在同一条 shell 命令里的单行命令（检查时会话还没有 SECRET 污点），以及凭据经 stdin 里的命令或 `grep_tool` 读出的会话（污点源不认这两条读取通道），仍由声明放行，是设计内残余。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
 
 ### 本地模式浏览器放宽
 

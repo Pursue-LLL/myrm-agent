@@ -10,12 +10,15 @@ All checks are pure functions — no side effects, no I/O, trivially testable.
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
 - toolkits.code_execution.code_detector::runs_as_python (POS: whether the bash tool runs a command as Python or as shell)
-- toolkits.code_execution.security.shell_command_analyzer::analyze_command, analyze_hidden_characters (POS: threat layers)
+- toolkits.code_execution.security.shell_command_analyzer::PROTECTED_WRITE_CATEGORY, ThreatLevel, analyze_command, analyze_hidden_characters (POS: threat layers)
+- toolkits.code_execution.security.protected_instruction_command::protected_instruction_mutation_target (POS: the shell-side reading of the protected instruction files)
 
 [OUTPUT]
 - check_path_policy: the verdict for one host path; an ASK reason is a CodedReason
 - check_navigate_scheme: the verdict for a navigation URL's scheme
 - check_shell_threats: the verdict for a shell command; an escalation reason is a CodedReason
+- check_command_protected_write: the ask for a shell command that writes a protected instruction file, the same ask
+  ``check_path_policy`` gives the file tools
 
 [POS]
 Layers 2 and 2.5 of the permission engine's deterministic evaluation: per-call checks the engine composes with its
@@ -111,15 +114,7 @@ def check_path_policy(
         return PermissionAction.DENY, f"Path outside allowed zones, and folder access cannot be granted: {raw_path}"
 
     if require_write and (is_protected_instruction_file(raw_path) or is_protected_instruction_file(normalized)):
-        name = os.path.basename(raw_path)
-        return (
-            PermissionAction.ASK,
-            CodedReason(
-                f"Protected instruction file write requires human approval: {name}",
-                ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE,
-                name,
-            ),
-        )
+        return PermissionAction.ASK, _protected_write_reason(os.path.basename(raw_path))
 
     if require_write and (is_executable_git_metadata_file(raw_path) or is_executable_git_metadata_file(normalized)):
         return (
@@ -163,6 +158,19 @@ def check_path_policy(
 def _sensitive_file_reason(raw_path: str) -> CodedReason:
     name = os.path.basename(raw_path)
     return CodedReason(f"Sensitive file: {name}", ApprovalReasonCode.SENSITIVE_FILE, name)
+
+
+def _protected_write_reason(name: str) -> CodedReason:
+    """The ask for a write to a protected instruction file, worded once for every tool that can make one.
+
+    The gates an allow-always entry must never lift (allowlist stage, pending annotation) recognise the decision by
+    this text.
+    """
+    return CodedReason(
+        f"Protected instruction file write requires human approval: {name}",
+        ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE,
+        name,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -231,22 +239,37 @@ _SHELL_EXEC_PERMISSION = "shell_exec"
 _UNCONDITIONAL_BLOCK_CATEGORIES = frozenset({"binary_injection", "obfuscation"})
 
 
+def _is_python_source(permission: str, command: str, tool_input: dict[str, object]) -> bool:
+    """Whether the bash tool runs *command* as Python source in its wrapper, which no shell reads.
+
+    There ``$'`` and ``$"`` are a regex end anchor beside a string quote (``re.match(r'^v\\d+$', s)``), not shell
+    quoting, and the wrapper's audit hook refuses the subprocess calls through which the text could reach a shell, so
+    only the language-independent hidden-character layer applies. A background spawn is always a shell.
+    """
+    from myrm_agent_harness.toolkits.code_execution.code_detector import runs_as_python
+
+    return permission != _SHELL_EXEC_PERMISSION and runs_as_python(
+        command, run_in_background=bool(tool_input.get("run_in_background"))
+    )
+
+
 def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple[PermissionAction | None, str]:
     """Analyze shell commands via shell_command_analyzer (Layer 2).
 
     Returns (action, reason) if a threat is detected, or (None, "") if clean.
-    BLOCK threats → DENY. ESCALATE threats → ASK.
+    BLOCK threats → DENY. ESCALATE threats → ASK; a write to a protected instruction file outranks the other
+    escalations of the same line, because its ask is the one the gates an allow-always entry must not lift recognise.
 
     ``shell_exec`` sees every category. A command-bearing permission that is not ``shell_exec``
     (``code_interpreter``, the bash tool) sees only the unconditional block categories, so an ordinary
     ``python -c`` or ``node -e`` keeps reaching the ruleset and the read-only classifier. Python source the bash
-    tool runs in its wrapper is judged for hidden characters only (see below).
+    tool runs in its wrapper is judged for hidden characters only.
     """
     if permission not in COMMAND_BEARING_PERMISSIONS:
         return None, ""
 
-    from myrm_agent_harness.toolkits.code_execution.code_detector import runs_as_python
     from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
+        PROTECTED_WRITE_CATEGORY,
         ThreatLevel,
         analyze_command,
         analyze_hidden_characters,
@@ -256,14 +279,7 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
     if not command:
         return None, ""
 
-    # The bash tool also takes Python source, which its wrapper runs without a shell. There ``$'`` and ``$"`` are
-    # a regex end anchor beside a string quote (``re.match(r'^v\d+$', s)``), not shell quoting, and the wrapper's
-    # audit hook refuses the subprocess calls through which the text could reach a shell, so only the
-    # language-independent hidden-character layer applies. A background spawn is always a shell and keeps every
-    # unconditional category.
-    if permission != _SHELL_EXEC_PERMISSION and runs_as_python(
-        command, run_in_background=bool(tool_input.get("run_in_background"))
-    ):
+    if _is_python_source(permission, command, tool_input):
         threats = analyze_hidden_characters(command)
     else:
         threats = tuple(
@@ -278,4 +294,29 @@ def check_shell_threats(permission: str, tool_input: dict[str, object]) -> tuple
     reason = f"Shell threat [{first.category}]: {first.detail}"
     if first.level == ThreatLevel.BLOCK:
         return PermissionAction.DENY, reason
+    protected = next((threat for threat in threats if threat.category == PROTECTED_WRITE_CATEGORY), None)
+    if protected is not None:
+        return PermissionAction.ASK, _protected_write_reason(protected.evidence)
     return PermissionAction.ASK, CodedReason(reason, ApprovalReasonCode.SHELL_THREAT, first.detail)
+
+
+def check_command_protected_write(
+    permission: str, tool_input: dict[str, object]
+) -> tuple[PermissionAction, str] | None:
+    """The ask for a shell command that writes a protected instruction file, or ``None`` when it writes none.
+
+    The file tools ask for such a write through ``check_path_policy``; this is the same ask for the commands that
+    reach the files through a shell. Python source the bash tool runs is not shell syntax and is not read here.
+    """
+    if permission not in COMMAND_BEARING_PERMISSIONS:
+        return None
+
+    from myrm_agent_harness.toolkits.code_execution.security.protected_instruction_command import (
+        protected_instruction_mutation_target,
+    )
+
+    command = command_text(permission, tool_input)
+    if not command or _is_python_source(permission, command, tool_input):
+        return None
+    name = protected_instruction_mutation_target(command)
+    return None if name is None else (PermissionAction.ASK, _protected_write_reason(name))

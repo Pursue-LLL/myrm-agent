@@ -52,6 +52,7 @@ DECLARED = ("net_fetch", "file_read", "file_write", "code_interpreter", "mcp_inv
 # The calls of ``Dirs.calls`` that no job declaration approves: refused whether the job declared or not.
 NEVER_CLASSES = (
     "write-protected-file",
+    "write-protected-file-by-shell",
     "write-outside-zone",
     "read-outside-zone",
     "egress-after-credential-read",
@@ -89,6 +90,7 @@ class Dirs:
             "write-note": Call(write, {"path": str(self.workspace / "notes" / "a.md"), "content": "x"}),
             "read-note": Call("file_read_tool", {"paths": [str(self.workspace / "notes" / "a.md")]}),
             "write-protected-file": Call(write, {"path": str(self.workspace / "AGENTS.md"), "content": "x"}),
+            "write-protected-file-by-shell": bash("sed -i 's/strict/lax/' AGENTS.md"),
             "write-outside-zone": Call(write, {"path": str(self.elsewhere / "a.md"), "content": "x"}),
             "read-outside-zone": Call("file_read_tool", {"paths": [str(self.elsewhere / "a.md")]}),
             "egress-after-credential-read": bash(_EXFIL, after_credential_read=True),

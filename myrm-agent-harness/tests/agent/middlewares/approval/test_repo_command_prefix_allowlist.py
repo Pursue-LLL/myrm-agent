@@ -24,13 +24,7 @@ from myrm_agent_harness.agent.security.approval_flow import DEFAULT_USER_ID, All
 from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
 from myrm_agent_harness.agent.security.guards.taint_tracker import TaintLabel, get_taint_tracker, reset_taint_tracker
 from myrm_agent_harness.agent.security.managed_approval_policy import ManagedApprovalPolicy
-from myrm_agent_harness.agent.security.types import (
-    DEFAULT_RULESET,
-    PermissionAction,
-    ReviewDecision,
-    ReviewResult,
-    SecurityConfig,
-)
+from myrm_agent_harness.agent.security.types import DEFAULT_RULESET, ReviewDecision, ReviewResult, SecurityConfig
 from myrm_agent_harness.agent.security.workspace_trust.context import (
     clear_workspace_trust_context,
     set_repo_command_prefixes,
@@ -43,7 +37,6 @@ from myrm_agent_harness.toolkits.code_execution.security import (
 )
 
 _ALLOWLIST_AUDIT = "myrm_agent_harness.agent.middlewares.approval.batch_processor.decide.allowlist.record_decision"
-_ENGINE = "myrm_agent_harness.agent.middlewares.approval.batch_processor.decide.policy.evaluate_tool_call"
 _REVIEWER = "myrm_agent_harness.agent.middlewares.approval._batch_review._security_reviewer"
 _PREFIX = "deploy-tool push"
 _DEPLOY = "deploy-tool push prod"
@@ -227,11 +220,9 @@ class TestTheGatesAnAllowlistCannotLiftAlsoHoldAgainstAPrefix:
 
     @pytest.mark.asyncio
     async def test_a_protected_instruction_write_stays_with_a_person(self) -> None:
-        declare(_PREFIX)
-        verdict = (PermissionAction.ASK, "Protected instruction file write requires human approval: AGENTS.md")
+        declare("sed -i")
 
-        with patch(_ENGINE, return_value=verdict):
-            (approved, _denied, pending), labels = await judge(bash_call(_DEPLOY))
+        (approved, _denied, pending), labels = await judge(bash_call("sed -i 's/strict/lax/' AGENTS.md"))
 
         assert (approved, len(pending)) == ([], 1)
         assert labels == ["PROTECTED_INSTRUCTION_ALLOWLIST_BLOCKED"]

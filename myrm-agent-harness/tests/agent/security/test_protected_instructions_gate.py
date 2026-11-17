@@ -16,10 +16,12 @@ from myrm_agent_harness.agent.security.types import (
     PathPolicy,
     PermissionAction,
 )
+from myrm_agent_harness.toolkits.code_execution.security.protected_instruction_command import (
+    protected_instruction_mutation_target,
+)
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     ThreatLevel,
     analyze_command,
-    is_protected_instruction_mutation_command,
 )
 
 
@@ -147,7 +149,7 @@ class TestShellMutationAnalysis:
         ],
     )
     def test_shell_mutation_detected(self, cmd: str) -> None:
-        assert is_protected_instruction_mutation_command(cmd) is True
+        assert protected_instruction_mutation_target(cmd) is not None
         threats = analyze_command(cmd)
         threat_cats = [t.category for t in threats]
         assert "protected_instruction_mutation" in threat_cats
@@ -155,9 +157,9 @@ class TestShellMutationAnalysis:
         assert threat.level == ThreatLevel.ESCALATE
 
     def test_benign_shell_read_not_flagged_as_mutation(self) -> None:
-        assert is_protected_instruction_mutation_command("cat AGENTS.md") is False
-        assert is_protected_instruction_mutation_command("head -n 20 SOUL.md") is False
-        assert is_protected_instruction_mutation_command("grep 'rule' .cursorrules") is False
+        assert protected_instruction_mutation_target("cat AGENTS.md") is None
+        assert protected_instruction_mutation_target("head -n 20 SOUL.md") is None
+        assert protected_instruction_mutation_target("grep 'rule' .cursorrules") is None
 
 
 class TestApprovalFlowPermanentExemptionGuard:
