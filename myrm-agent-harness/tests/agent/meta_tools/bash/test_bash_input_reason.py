@@ -22,21 +22,24 @@ def test_reason_accepts_valid_intent() -> None:
     "reason",
     [
         "1234567890",
+        "查询余票",
+        "列出函数",
+        "运行脚本",
+        "查询日期",
         "查询日期与车站编码",
-        "列出命名空间",
-        "查询日期与",
         "查skills包",
-        "파일 목록 확인",
+        "파일확인",
         "ファイル確認",
+        "파일 목록 확인",
     ],
 )
-def test_reason_floor_counts_wide_characters_as_two_columns(reason: str) -> None:
+def test_reason_floor_weighs_a_wide_character_as_two_and_a_half_letters(reason: str) -> None:
     assert BashInput(reason=reason, command="echo hi").reason == reason
 
 
-@pytest.mark.parametrize("reason", ["", "   ", "run", "ls -la", "123456789", "检查", "运行脚本", "查询日期"])
+@pytest.mark.parametrize("reason", ["", "   ", "run", "ls -la", "123456789", "检查", "查余票", "확인"])
 def test_reason_floor_rejects_a_short_intent_in_any_script(reason: str) -> None:
-    with pytest.raises(ValidationError, match="at least 10 characters wide"):
+    with pytest.raises(ValidationError, match="at least 10 characters long"):
         BashInput(reason=reason, command="echo hi")
 
 

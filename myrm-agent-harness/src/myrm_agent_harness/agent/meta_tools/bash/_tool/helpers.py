@@ -107,12 +107,15 @@ def get_os_hint(locale: str | None = None) -> str:
     return "\n".join(lines)
 
 
-MIN_REASON_WIDTH = 10
+MIN_REASON_WEIGHT = 10
+# The floor asks for a verb and its object: about ten letters in English ("run script"), four characters in Chinese, Japanese or
+# Korean ("查询余票"), so a wide character weighs two and a half letters.
+WIDE_CHAR_WEIGHT = 2.5
 
 
-def _display_width(text: str) -> int:
-    """Terminal columns the text takes: wide and fullwidth characters (Chinese, Japanese, Korean) are two columns each."""
-    return sum(2 if unicodedata.east_asian_width(char) in ("W", "F") else 1 for char in text)
+def _reason_weight(text: str) -> float:
+    """Letters the text is worth: wide and fullwidth characters (Chinese, Japanese, Korean) weigh `WIDE_CHAR_WEIGHT` each."""
+    return sum(WIDE_CHAR_WEIGHT if unicodedata.east_asian_width(char) in ("W", "F") else 1 for char in text)
 
 
 class BashInput(BaseModel):
@@ -130,13 +133,13 @@ class BashInput(BaseModel):
     @field_validator("reason", mode="before")
     @classmethod
     def _normalize_reason(cls, value: object) -> str:
-        # The floor is measured in columns, not characters: "查询日期与车站编码" says as much as a ten-letter English
-        # intent, and a rejected call costs a whole model round.
+        # A rejected call costs a whole model round, so the floor must not turn away an intent that already names an action and
+        # its object in any script.
         text = str(value or "").strip()
-        if _display_width(text) < MIN_REASON_WIDTH:
+        if _reason_weight(text) < MIN_REASON_WEIGHT:
             raise ValueError(
-                f"reason must be at least {MIN_REASON_WIDTH} characters wide (a Chinese, Japanese or Korean character counts "
-                "as two) explaining why this command runs"
+                f"reason must be at least {MIN_REASON_WEIGHT} characters long (four Chinese, Japanese or Korean characters "
+                "are enough) explaining why this command runs"
             )
         return text
 
