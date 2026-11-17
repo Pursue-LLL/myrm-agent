@@ -9,7 +9,6 @@ import logging
 import os
 import re
 import sqlite3
-from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -58,23 +57,6 @@ def _transaction_state(conn: Connection) -> _TransactionState | None:
     """The open transaction's state, or ``None`` when the engine doesn't run the policy."""
     state = conn.info.get(_TRANSACTION_STATE_KEY)
     return state if isinstance(state, _TransactionState) else None
-
-
-class _RollbackBeforeCloseConnection(sqlite3.Connection):
-    """A connection that ends its transaction before it closes.
-
-    ``sqlite3_close_v2`` keeps a connection that still has an unfinished statement as a zombie, with its open
-    transaction (a write transaction's WAL write lock included), until that statement's cursor is garbage-collected.
-    SQLAlchemy discards a connection by closing it whenever a task is cancelled inside a statement, and the frames
-    of the cancelled task keep that cursor alive for an unbounded time: every other writer waits out its busy
-    timeout meanwhile. Rolling back first releases the lock whether or not a statement is left.
-    """
-
-    def close(self) -> None:
-        # Rolling back a connection that is already closed raises, and closing it twice is harmless.
-        with suppress(sqlite3.Error):
-            self.rollback()
-        super().close()
 
 
 def get_sqlite_busy_timeout_ms() -> int:
@@ -233,7 +215,7 @@ def create_engine() -> AsyncEngine:
 
     配置 WAL 模式、busy_timeout、mmap 等性能优化 PRAGMA。
     """
-    from myrm_agent_harness.utils.db.sqlite import cleanup_orphan_wal
+    from myrm_agent_harness.utils.db.sqlite import RollbackBeforeCloseConnection, cleanup_orphan_wal
 
     url = get_database_url()
     echo = settings.database.database_echo
@@ -249,7 +231,7 @@ def create_engine() -> AsyncEngine:
         # they stay out of every log line that prints an error. ``DATABASE_ECHO`` is the opt-in for seeing them.
         hide_parameters=not echo,
         future=True,
-        connect_args={"check_same_thread": False, "factory": _RollbackBeforeCloseConnection},
+        connect_args={"check_same_thread": False, "factory": RollbackBeforeCloseConnection},
         pool_size=pool_size,
         max_overflow=settings.database.sqlite_pool_max_overflow,
     )
