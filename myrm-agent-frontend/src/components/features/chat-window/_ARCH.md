@@ -150,7 +150,7 @@
 | `ParentChatLink.tsx` | 组件 | 子会话返回父对话导航链接（集成在 ChatWindow）：读分叉信息失败静默（链接不出现）；「第 N 条消息」由 0 起的 `fork_point` 加 1 得出；切会话时丢弃迟到的答案与上一个会话的链接（`__tests__/ParentChatLink.test.tsx`） | ✅ |
 | `LivenessIndicator.tsx` | 组件 | 聊天输入区 Agent 状态指示灯（6px 圆点，idle 隐藏，非 idle 显示颜色 + i18n tooltip，圆点内含仅读屏可见的状态文字；消费 useLivenessState 五态；`__tests__/LivenessIndicator.test.tsx`） | ✅ |
 | `QuoteCard.tsx` | 组件 | 引用消息预览卡片（回复/转发上下文）；移除按钮的无障碍名称取自 `chat.removeQuote`（`__tests__/QuoteCard.test.tsx`） | ✅ |
-| `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器；列表为空时按三态给文案：服务端结果还在路上显示「搜索中」，裸 `@chat:` 提示输入标题或关键词，其余才是「无匹配」 | ✅ |
+| `ReferenceMentionPopover.tsx` | 组件 | `@` 引用文件/记忆/会话的 Popover 选择器；列表为空时按三态给文案：服务端结果还在路上显示「搜索中」，裸 `@chat:` 提示输入标题或关键词，其余才是「无匹配」；宽 380px，窄屏上限为视口宽度减 2rem | ✅ |
 | `ProjectBoundaryBadge.tsx` | 组件 | 输入框上方的项目隔离徽标：当前会话属于某个项目时显示沙箱边界与记忆隔离状态，悬浮提示给出工作区或沙箱路径；文案取自 `chat.projectBoundary`（`__tests__/ProjectBoundaryBadge.test.tsx`） | ✅ |
 | `ScopedArtifactChip.tsx` | 组件 | 输入框上方的限定目标芯片：显示被选中的工件、表格行或文档片段（名称、范围标签与截断预览），可一键清除；文案取自 `chat`（`__tests__/ScopedArtifactChip.test.tsx`） | ✅ |
 | `PreferenceRadarToggle.tsx` | 组件 | 聊天窗口的卫星浮钮：打开停靠的偏好雷达抽屉，每次打开都读取该会话服务端当前的五维权重与锁定态（服务端会在对话中持续拟合；抽屉关闭时不发请求），可微调（只发被改的维度）、套用预设、锁定、重置为中性；保存失败时重读服务端状态，用户在答案返回前又改过则丢弃过期答案；每个会话各一份状态（切会话不沿用上一个会话的雷达，迟到的答案不串会话）；空会话不挂载，有消息后出现；标题与无障碍标签取自 `chat.preferenceRadar`（`__tests__/PreferenceRadarToggle.test.tsx`） | ✅ |

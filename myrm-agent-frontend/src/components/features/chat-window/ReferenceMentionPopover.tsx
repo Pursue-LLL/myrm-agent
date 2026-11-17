@@ -129,7 +129,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
     <Popover open={open} modal={false}>
       {anchorRef && <PopoverAnchor virtualRef={anchorRef} />}
       <PopoverContent
-        className="w-[380px] p-0 shadow-xl border-border/50"
+        className="w-[380px] max-w-[calc(100vw-2rem)] p-0 shadow-xl border-border/50"
         side="top"
         align="start"
         sideOffset={8}
@@ -248,7 +248,6 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
                         isAgent && 'bg-primary/10 hover:bg-primary/20',
                       )}
                       onClick={() => onSelect(file)}
-                      onMouseEnter={() => {}}
                     >
                       {isAgent && file.avatar_url ? (
                         // oxlint-disable-next-line next/no-img-element -- the avatar is a user-supplied arbitrary address (remote or data URL), which next/image cannot optimize
