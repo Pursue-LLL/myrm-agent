@@ -179,8 +179,8 @@ async def test_ensure_chat_source_syncs_recall_document_source(
 
 
 @pytest.mark.asyncio
-async def test_picker_rows_carry_the_keys_the_client_declares(fts_db: AsyncSession) -> None:
-    """Each `@chat:` picker row has the keys of the client's ``SearchResult`` and no others: an extra key is a decision."""
+async def test_picker_rows_have_a_fixed_key_set(fts_db: AsyncSession) -> None:
+    """Each `@chat:` picker row has exactly these keys, so adding one is a decision that also reaches the client's ``SearchResult``."""
     from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
 
     await seed_chat_and_messages(fts_db)
