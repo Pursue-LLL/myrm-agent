@@ -13,6 +13,7 @@ Consumed by scheduler, manager, tools, and application adapters.
 - RunStatus: how a run ended — ok, error, skipped or circuit break
 - RunNowOutcome: what a manual-run request came to — started, or why it did not
 - TransientErrorKind: Classifies transient errors for smart retry decisions.
+- SYSTEM_JOB_NAME_PREFIX, is_system_job_name: which job names are reserved for jobs the application creates itself
 - CronNoticeKind: what a notice reports — a run's outcome or an automatic pause
 - CronNotice: one user-facing fact about a job, handed to the application layer's notice callback
 
@@ -89,6 +90,16 @@ class SessionTarget(StrEnum):
     ISOLATED = "isolated"
     MAIN = "main"
     DAILY = "daily"
+
+
+# A name with this prefix is reserved for a job the application creates itself, as the heartbeat's is: the manager
+# refuses it to every other caller, and a job listing leaves such jobs out unless it asks for them.
+SYSTEM_JOB_NAME_PREFIX = "__"
+
+
+def is_system_job_name(name: str) -> bool:
+    """Whether ``name`` is reserved for a job the application creates itself."""
+    return name.startswith(SYSTEM_JOB_NAME_PREFIX)
 
 
 # ---------------------------------------------------------------------------

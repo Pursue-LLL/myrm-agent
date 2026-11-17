@@ -81,6 +81,7 @@ class TestEnableHeartbeat:
         assert call_kwargs["timeout_seconds"] == _DEFAULT_TIMEOUT
         assert call_kwargs["deduplicate"] is True
         assert call_kwargs["session_target"] == SessionTarget.ISOLATED
+        assert call_kwargs["system"] is True
 
     @pytest.mark.asyncio
     async def test_create_with_custom_params(self):
@@ -242,12 +243,29 @@ class TestFindHeartbeat:
         assert status.job is hb_job
 
     @pytest.mark.asyncio
-    async def test_uses_correct_limit(self):
+    async def test_asks_for_the_heartbeat_by_name_among_the_system_jobs(self):
+        """No page limit (the oldest job sits past any page) and the listing must show system jobs."""
         mgr = _make_manager()
 
         await get_heartbeat_status(mgr)
 
-        mgr.list_jobs.assert_awaited_once_with(limit=200)
+        mgr.list_jobs.assert_awaited_once_with(name_filter=HEARTBEAT_JOB_NAME, include_system=True)
+
+    @pytest.mark.asyncio
+    async def test_a_job_whose_name_only_contains_the_heartbeat_name_is_not_it(self):
+        lookalike = CronJob(
+            id="other-2",
+            name=f"my {HEARTBEAT_JOB_NAME} notes",
+            job_type=JobType.AGENT,
+            schedule=Schedule(kind=ScheduleKind.CRON, expr="0 * * * *"),
+        )
+        mgr = _make_manager()
+        mgr.list_jobs = AsyncMock(return_value=[lookalike])
+
+        status = await get_heartbeat_status(mgr)
+
+        assert status.job is None
+        assert status.enabled is False
 
 
 # ---------------------------------------------------------------------------

@@ -311,14 +311,24 @@ class TestQueryMethods:
         result = await mgr.list_jobs(limit=10, offset=0)
         assert result == jobs
         mgr._store.list_jobs.assert_awaited_once_with(
-            name_filter=None, chat_id=None, project_id=None, limit=10, offset=0
+            name_filter=None, chat_id=None, project_id=None, include_system=False, limit=10, offset=0
         )
+
+    @pytest.mark.asyncio
+    async def test_list_jobs_hands_a_request_for_system_jobs_to_the_store(self) -> None:
+        mgr = _make_manager()
+        mgr._store.list_jobs = AsyncMock(return_value=[])
+        await mgr.list_jobs(include_system=True)
+        assert mgr._store.list_jobs.await_args.kwargs["include_system"] is True
 
     @pytest.mark.asyncio
     async def test_count_jobs(self) -> None:
         mgr = _make_manager()
         mgr._store.count_jobs = AsyncMock(return_value=5)
         assert await mgr.count_jobs() == 5
+        mgr._store.count_jobs.assert_awaited_once_with(
+            name_filter=None, chat_id=None, project_id=None, include_system=False
+        )
 
     @pytest.mark.asyncio
     async def test_get_job_found(self) -> None:

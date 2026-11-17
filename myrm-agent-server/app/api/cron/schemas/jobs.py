@@ -1,6 +1,6 @@
 """[INPUT]
 - pydantic::BaseModel (POS: schema base)
-- myrm_agent_harness.toolkits.cron::is_system_job_name (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
+- myrm_agent_harness.toolkits.cron.types::JobStatus, JobType, RunStatus, SessionTarget, is_system_job_name (POS: Cron job domain types.)
 
 [OUTPUT]
 - CronJobCreate, CronJobUpdate, CronJobResponse, CronRunResponse, CronJobsListResponse, CronRunsListResponse
@@ -14,7 +14,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from myrm_agent_harness.toolkits.cron import JobStatus, JobType, RunStatus, SessionTarget, is_system_job_name
+from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType, RunStatus, SessionTarget, is_system_job_name
 from pydantic import BaseModel, Field, field_validator
 
 from .delivery import DeliveryCreate, DeliveryResponse

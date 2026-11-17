@@ -21,6 +21,7 @@ from app.core.cron.adapters.entitlement_guarded_manager import EntitlementGuarde
 from app.platform_utils.sandbox.entitlements.entitlement_guard import EntitlementGuardError
 
 _SLOT_FN = "app.platform_utils.sandbox.entitlements.entitlement_guard.require_cron_slot"
+_CAPABILITY_FN = "app.platform_utils.sandbox.entitlements.entitlement_guard.require_cron_entitlement"
 
 _STOP_CRITERIA: tuple[dict[str, object], ...] = (
     {"type": "shell", "command": "./myrm restart"},
@@ -28,8 +29,9 @@ _STOP_CRITERIA: tuple[dict[str, object], ...] = (
 )
 # Arguments the lifecycle scan reads need real text; every other harness argument is an opaque marker.
 _SCANNED_TEXT: dict[str, object] = {"prompt": "p", "command": "c", "pre_condition_script": "s", "acceptance_criteria": ()}
-# Supplied by name in the test below, or rewritten by the wrapper (``tools_allowed`` is normalised).
-_NOT_MARKERS = {"self", "name", "job_type", "schedule", "tools_allowed"}
+# Supplied by name in the test below, rewritten by the wrapper (``tools_allowed`` is normalised) or a flag the wrapper
+# reads (``system`` picks the gate).
+_NOT_MARKERS = {"self", "name", "job_type", "schedule", "tools_allowed", "system"}
 _ORDINARY_CRITERIA: tuple[dict[str, object], ...] = (
     {"type": "shell", "command": "test -f /tmp/done"},
     {"type": "shell", "command": "curl -s http://example.com"},
@@ -68,9 +70,46 @@ async def test_create_job_enforces_slot_before_inner() -> None:
     with patch(_SLOT_FN) as mock_slot:
         await mgr.create_job(name="t", job_type=MagicMock(), schedule=MagicMock())
 
-    inner.count_jobs.assert_awaited_once_with()
+    inner.count_jobs.assert_awaited_once_with(include_system=False)
     mock_slot.assert_called_once_with(2)
     inner.create_job.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_a_system_job_takes_no_slot_and_needs_only_the_capability() -> None:
+    mgr, inner = _manager_around()
+
+    with patch(_SLOT_FN) as mock_slot, patch(_CAPABILITY_FN) as mock_capability:
+        await mgr.create_job(name="__heartbeat__", job_type=MagicMock(), schedule=MagicMock(), system=True)
+
+    mock_slot.assert_not_called()
+    mock_capability.assert_called_once_with()
+    inner.count_jobs.assert_not_called()
+    assert inner.create_job.await_args.kwargs["system"] is True
+
+
+@pytest.mark.asyncio
+async def test_a_system_job_is_refused_on_a_plan_without_cron() -> None:
+    mgr, inner = _manager_around()
+
+    with patch(_CAPABILITY_FN, side_effect=EntitlementGuardError("upgrade required")):
+        with pytest.raises(ValueError, match="upgrade required") as exc_info:
+            await mgr.create_job(name="__heartbeat__", job_type=MagicMock(), schedule=MagicMock(), system=True)
+
+    assert isinstance(exc_info.value.__cause__, EntitlementGuardError)
+    inner.create_job.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_a_user_job_never_takes_the_system_path() -> None:
+    mgr, inner = _manager_around()
+
+    with patch(_SLOT_FN) as mock_slot, patch(_CAPABILITY_FN) as mock_capability:
+        await mgr.create_job(name="t", job_type=MagicMock(), schedule=MagicMock())
+
+    mock_slot.assert_called_once_with(0)
+    mock_capability.assert_not_called()
+    assert inner.create_job.await_args.kwargs["system"] is False
 
 
 @pytest.mark.asyncio
@@ -115,10 +154,12 @@ async def test_duplicate_job_delegates_after_slot_check() -> None:
     inner.duplicate_job = AsyncMock(return_value=MagicMock(id="dup-1"))
     mgr = EntitlementGuardedCronManager(inner)
 
-    with patch(_SLOT_FN):
+    with patch(_SLOT_FN) as mock_slot:
         result = await mgr.duplicate_job("src-id")
 
     assert result is not None
+    inner.count_jobs.assert_awaited_once_with(include_system=False)
+    mock_slot.assert_called_once_with(1)
     inner.duplicate_job.assert_awaited_once_with("src-id")
 
 
@@ -183,6 +224,7 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
 
     assert await mgr.get_job("j1") is inner.get_job.return_value
     assert await mgr.list_jobs(name_filter="x", limit=5, offset=2) is inner.list_jobs.return_value
+    assert await mgr.list_jobs(include_system=True) is inner.list_jobs.return_value
     assert await mgr.pause_job("j1") is inner.pause_job.return_value
     assert await mgr.resume_job("j1") is inner.resume_job.return_value
     assert await mgr.delete_job("j1") is True
@@ -190,7 +232,10 @@ async def test_lookup_and_lifecycle_calls_delegate_with_their_arguments() -> Non
     assert await mgr.run_now("j1") is RunNowOutcome.ALREADY_RUNNING
 
     inner.get_job.assert_awaited_once_with("j1")
-    inner.list_jobs.assert_awaited_once_with(name_filter="x", chat_id=None, project_id=None, limit=5, offset=2)
+    assert [call.kwargs for call in inner.list_jobs.await_args_list] == [
+        {"name_filter": "x", "chat_id": None, "project_id": None, "include_system": False, "limit": 5, "offset": 2},
+        {"name_filter": None, "chat_id": None, "project_id": None, "include_system": True, "limit": None, "offset": 0},
+    ]
     inner.pause_job.assert_awaited_once_with("j1")
     inner.resume_job.assert_awaited_once_with("j1")
     inner.delete_job.assert_awaited_once_with("j1")
@@ -209,13 +254,13 @@ async def test_count_and_monitor_calls_delegate_with_their_arguments() -> None:
     inner.reset_monitor_baseline = AsyncMock(return_value=True)
     mgr = EntitlementGuardedCronManager(inner)
 
-    assert await mgr.count_jobs(name_filter="x", chat_id="c", project_id="p") == 3
+    assert await mgr.count_jobs(name_filter="x", chat_id="c", project_id="p", include_system=True) == 3
     assert await mgr.count_runs(job_id="j1", status="ok") == 7
     assert await mgr.get_monitor_state("j1") is inner.get_monitor_state.return_value
     assert await mgr.batch_get_monitor_states(["j1", "j2"]) is inner.batch_get_monitor_states.return_value
     assert await mgr.reset_monitor_baseline("j1") is True
 
-    inner.count_jobs.assert_awaited_once_with(name_filter="x", chat_id="c", project_id="p")
+    inner.count_jobs.assert_awaited_once_with(name_filter="x", chat_id="c", project_id="p", include_system=True)
     inner.count_runs.assert_awaited_once_with(job_id="j1", status="ok")
     inner.get_monitor_state.assert_awaited_once_with("j1")
     inner.batch_get_monitor_states.assert_awaited_once_with(["j1", "j2"])
@@ -249,8 +294,8 @@ async def test_create_job_forwards_every_harness_field() -> None:
     named = {"name": "t", "job_type": object(), "schedule": object()}
     values = {name: _SCANNED_TEXT.get(name, object()) for name in harness_params - _NOT_MARKERS}
     mgr, inner = _manager_around()
-    with patch(_SLOT_FN):
-        await mgr.create_job(*named.values(), tools_allowed=("web_search",), **values)  # type: ignore[arg-type]  # markers stand in for typed values
+    with patch(_SLOT_FN), patch(_CAPABILITY_FN):
+        await mgr.create_job(*named.values(), tools_allowed=("web_search",), system=True, **values)  # type: ignore[arg-type]  # markers stand in for typed values
 
     call = inner.create_job.await_args
     # Bound to the real signature, so the inner call reads the same whether it passes an argument by position or by name.
@@ -259,6 +304,7 @@ async def test_create_job_forwards_every_harness_field() -> None:
     assert not set(sent) - set(received), sorted(set(sent) - set(received))
     assert all(received[name] is value for name, value in sent.items())
     assert received["tools_allowed"] == ("web_search",)
+    assert received["system"] is True
 
 
 @pytest.mark.asyncio

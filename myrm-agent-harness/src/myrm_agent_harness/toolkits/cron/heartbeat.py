@@ -27,11 +27,9 @@ Usage (framework-only, no business coupling)::
 - enable_heartbeat: Enable the heartbeat. Idempotent: creates or resumes the job.
 - disable_heartbeat: Disable (pause) the heartbeat. Returns False if no heartbeat exists.
 - get_heartbeat_status: Return the current heartbeat state.
-- is_system_job_name: Whether a job name is reserved for jobs the application creates itself (the heartbeat's is).
 
 [POS]
-Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which
-job names are reserved for the application's own jobs.
+Heartbeat — convenience layer over CronManager for periodic agent self-checks.
 """
 
 from __future__ import annotations
@@ -70,19 +68,14 @@ _DEFAULT_PROMPT = (
 )
 
 
-def is_system_job_name(name: str) -> bool:
-    """Whether ``name`` is reserved for a job the application creates itself, as the heartbeat is."""
-    return name.startswith("__")
-
-
 class HeartbeatStatus(NamedTuple):
     enabled: bool
     job: CronJob | None
 
 
 async def _find_heartbeat(manager: CronManagerPort) -> CronJob | None:
-    """Find the heartbeat job by its conventional name."""
-    jobs = await manager.list_jobs(limit=200)
+    """Find the heartbeat job by its name; the filter is a substring match and the listing hides system jobs."""
+    jobs = await manager.list_jobs(name_filter=HEARTBEAT_JOB_NAME, include_system=True)
     return next((j for j in jobs if j.name == HEARTBEAT_JOB_NAME), None)
 
 
@@ -143,6 +136,7 @@ async def enable_heartbeat(
         session_target=SessionTarget.ISOLATED,
         timeout_seconds=_DEFAULT_TIMEOUT,
         deduplicate=True,
+        system=True,
     )
 
 

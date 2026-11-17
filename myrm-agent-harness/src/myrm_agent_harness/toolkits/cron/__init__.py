@@ -34,14 +34,14 @@ Provides:
 [OUTPUT]
 - CronScheduler, CronManager: core scheduling components
 - CronManagerPort: the typing contract of the manager for tools, heartbeat and application wrappers
-- Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, is_system_job_name, etc.
+- Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, etc.
 - Protocols: CronStore, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider, StreamListener
 - Notices: CronNotice, CronNoticeKind, CronNoticeCallback
 - Run history: matching_run_statuses (what a status filter selects: ``error`` includes circuit breaks)
 - Built-in implementations: ShellJobRunner, InMemoryCronStore, WebhookDelivery
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
-- Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, ScheduleKind, etc.
+- Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, ScheduleKind, SYSTEM_JOB_NAME_PREFIX, is_system_job_name, etc.
 - Blueprint contract: BlueprintJobSpec
 
 [POS]
@@ -74,7 +74,6 @@ from myrm_agent_harness.toolkits.cron.heartbeat import (
     disable_heartbeat,
     enable_heartbeat,
     get_heartbeat_status,
-    is_system_job_name,
 )
 from myrm_agent_harness.toolkits.cron.manager import CronManager
 from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
@@ -114,6 +113,7 @@ from myrm_agent_harness.toolkits.cron.triggers import (
     trigger_config_to_dict,
 )
 from myrm_agent_harness.toolkits.cron.types import (
+    SYSTEM_JOB_NAME_PREFIX,
     CronConfig,
     CronJob,
     CronJobPatch,
@@ -132,6 +132,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
     SessionTarget,
     TransientErrorKind,
+    is_system_job_name,
 )
 
 __all__ = [
@@ -140,6 +141,7 @@ __all__ = [
     "CRON_MANAGE_TOOL_DESCRIPTION_ZH",
     "DEFAULT_CRON_TOOL_DESCRIPTION_LOCALE",
     "HEARTBEAT_JOB_NAME",
+    "SYSTEM_JOB_NAME_PREFIX",
     "BlueprintJobSpec",
     "ConcurrencyLock",
     "ConnectorErrorCategory",

@@ -14,9 +14,9 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 | `connector_health.py` | 模块 | `GET /connectors/health` — 连接器健康聚合与降级状态查询端点 | ✅ |
 | `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance; the enable prompt passes the risk gate (`reject_if_risky`) before it is stored. | ✅ |
 | `helpers.py` | 模块 | Cron 响应映射；`workflow_template_display_name` 与 execution gate 同规则 enrich；`_check_allowed_roots` 把 `allowed_roots` 逐个过工作区路径闸门（`ensure_root_grantable`，拒绝时 400 + `ErrorDetail(field=allowed_roots, issue)`；根按用户输入原样保存，`~/Documents` 这类芯片仍能对上） | — |
-| `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤；create/PATCH 校验 `allowed_roots`（`_check_allowed_roots`）；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；create/PATCH 的 `prompt` 先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，原文不落库；PATCH 未带 `prompt` 时不重新过闸，`shell` 任务的 `command` 是被执行的命令，不过闸） | ✅ |
+| `jobs.py` | 模块 | Cron job CRUD REST endpoints. `GET /` 支持 `chat_id` 过滤，只列用户任务与其总数（心跳这类系统任务不在其中，只在设置页的心跳接口里出现）；create/PATCH 校验 `allowed_roots`（`_check_allowed_roots`）；create/update/PATCH 校验 DW 模板绑定（`workflow_templates/validation.py`）；webhook delivery secret 创建生成/更新保留；create/PATCH 的 `prompt` 先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，原文不落库；PATCH 未带 `prompt` 时不重新过闸，`shell` 任务的 `command` 是被执行的命令，不过闸） | ✅ |
 | `prerequisite.py` | 模块 | `POST /prerequisite-check` — 定时任务创建前手动成功验证门禁统计查询端点 | ✅ |
-| `runs.py` | 模块 | Cron run history REST endpoints. | ✅ |
+| `runs.py` | 模块 | Cron run history REST endpoints. 全局运行历史按任务 id 取任务名时带 `include_system=True`，心跳的运行才有名字（前端 `useJobDisplayName` 把保留存储名换成用户认识的标题）。 | ✅ |
 | `stats.py` | 模块 | Cron usage statistics REST endpoint. | ✅ |
 | `scheduler_health.py` | 模块 | Scheduler liveness endpoint (green/yellow/red). Delegates to harness CronScheduler.health(). | ✅ |
 | `triggers.py` | 模块 | Cron trigger dispatch REST endpoints | ✅ |

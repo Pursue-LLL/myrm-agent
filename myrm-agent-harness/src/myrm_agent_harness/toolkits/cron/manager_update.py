@@ -108,6 +108,7 @@ class CronUpdateMixin(CronValidationMixin):
         activating = patch.status == JobStatus.ACTIVE and job.status != JobStatus.ACTIVE
 
         if patch.name is not None:
+            self._validate_rename(job.name, patch.name)
             job.name = patch.name
         if patch.status is not None and not activating:
             job.status = patch.status

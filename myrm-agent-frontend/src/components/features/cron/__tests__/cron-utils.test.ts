@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CRON_OVERDUE_THRESHOLD_MS,
-  HEARTBEAT_JOB_NAME,
   computeStats,
   filterJobs,
   formatRelativeTime,
@@ -9,7 +8,6 @@ import {
   isCronOverdue,
   isFailedRunStatus,
   isFailingJob,
-  isSystemJob,
   parseTimeoutSeconds,
   runStatusLabelKey,
   skipReasonLabelKey,
@@ -266,19 +264,5 @@ describe('runStatusLabelKey', () => {
     ['circuit_break', 'runCircuitBreak'],
   ] satisfies Array<[RunStatus, string]>)('words the status %s with %s', (status, labelKey) => {
     expect(runStatusLabelKey(status)).toBe(labelKey);
-  });
-});
-
-describe('system jobs', () => {
-  it('count the heartbeat as one the user never named', () => {
-    expect(isSystemJob(makeJob({ name: HEARTBEAT_JOB_NAME }))).toBe(true);
-    expect(isSystemJob(makeJob({ name: 'Daily digest' }))).toBe(false);
-  });
-
-  it('stay out of the job list counts and filters', () => {
-    const heartbeat = makeJob({ id: 'hb', name: HEARTBEAT_JOB_NAME, last_status: 'error' });
-
-    expect(computeStats([heartbeat]).total).toBe(0);
-    expect(filterJobs([heartbeat], 'all', '')).toEqual([]);
   });
 });

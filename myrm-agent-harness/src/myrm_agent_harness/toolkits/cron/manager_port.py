@@ -6,6 +6,8 @@ holds a manager rather than inheriting from one, so it carries none of the manag
 
 A rejected mutation (invalid configuration, a refused gate) raises ``ValueError`` carrying the reason.
 Parameters written ``= ...`` have a default in the manager, which stays the only place that states it.
+``system`` marks a job the application creates itself, the one kind that may take a reserved name; a listing shows
+such jobs only when ``include_system`` asks for them.
 
 [INPUT]
 - infra.incremental.types::MonitorConfig (POS: Domain types for incremental monitoring.)
@@ -73,11 +75,18 @@ class CronManagerPort(Protocol):
         triggers: TriggerConfig | None = ...,
         context_from: tuple[str, ...] = ...,
         pre_condition_script: str | None = ...,
+        system: bool = ...,
     ) -> CronJob: ...
 
     async def update_job(self, job_id: str, patch: CronJobPatch) -> CronJob | None: ...
 
-    async def list_jobs(self, *, name_filter: str | None = ..., limit: int | None = ...) -> list[CronJob]: ...
+    async def list_jobs(
+        self,
+        *,
+        name_filter: str | None = ...,
+        include_system: bool = ...,
+        limit: int | None = ...,
+    ) -> list[CronJob]: ...
 
     async def get_job(self, job_id: str) -> CronJob | None: ...
 

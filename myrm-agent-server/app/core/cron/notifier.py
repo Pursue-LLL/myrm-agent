@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.cron::CronNotice, CronNoticeKind (POS: one user-facing fact about a job)
-- myrm_agent_harness.toolkits.cron::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
+- myrm_agent_harness.toolkits.cron::HEARTBEAT_JOB_NAME (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks.)
 - app.channels.i18n.engine::channel_t (POS: wording in the user's language)
 - app.core.channel_bridge.locale_provider::resolve_user_locale (POS: the user's language preference)
 - app.services.event.app_event_bus::AppEvent, AppEventType, get_event_bus (POS: SSE / web push / IM fan-out)

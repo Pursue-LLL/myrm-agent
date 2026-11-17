@@ -11,7 +11,6 @@ Registered in ``setup.py`` via ``build_situation_report_builder()``.
 - myrm_agent_harness.toolkits.cron.situation::SituationContext (POS: Situation Report — pluggable context aggregator for heartbeat ticks.)
 - myrm_agent_harness.toolkits.cron.situation::SituationReportBuilder (POS: Situation Report — pluggable context aggregator for heartbeat ticks.)
 - app.core.cron.adapters.setup::get_cron_store (POS: 组装入口，创建 CronScheduler + CronManager + CronStore 单例)
-- myrm_agent_harness.toolkits.cron.heartbeat::is_system_job_name (POS: Heartbeat — convenience layer over CronManager for periodic agent self-checks, and the one place that says which job names are reserved for the application's own jobs.)
 
 [OUTPUT]
 - PendingRemindersSection: Lists pending reminders and time-sensitive tasks.
@@ -29,7 +28,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from myrm_agent_harness.toolkits.cron.heartbeat import is_system_job_name
 from myrm_agent_harness.toolkits.cron.situation import (
     SituationContext,
     SituationReportBuilder,
@@ -46,7 +44,7 @@ class PendingRemindersSection:
         from app.core.cron.adapters.setup import get_cron_store
 
         store = get_cron_store()
-        jobs = await store.list_jobs(limit=50)
+        jobs = await store.list_jobs(include_system=False, limit=50)
 
         from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
 
@@ -54,8 +52,6 @@ class PendingRemindersSection:
         pending: list[str] = []
         for job in jobs:
             if job.status != JobStatus.ACTIVE:
-                continue
-            if is_system_job_name(job.name):
                 continue
             if job.schedule.kind == ScheduleKind.ONCE and job.next_run_at:
                 delta = job.next_run_at - now

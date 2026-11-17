@@ -1,13 +1,7 @@
 import type { CronJob, CronRun, JobStatus, RunStatus } from '@/services/cron';
 
-const SYSTEM_JOB_PREFIX = '__';
-
 /** The stored name of the heartbeat, the one system job the application creates itself: the user never chose it. */
 export const HEARTBEAT_JOB_NAME = '__heartbeat__';
-
-export function isSystemJob(job: CronJob): boolean {
-  return job.name.startsWith(SYSTEM_JOB_PREFIX);
-}
 
 export type StatusFilter = 'all' | 'active' | 'paused' | 'error';
 
@@ -261,11 +255,10 @@ export function isCronOverdue(job: CronJob, nowMs = Date.now()): boolean {
 }
 
 export function computeStats(jobs: CronJob[]) {
-  const userJobs = jobs.filter((j) => !isSystemJob(j));
   let active = 0;
   let paused = 0;
   let errored = 0;
-  for (const j of userJobs) {
+  for (const j of jobs) {
     if (j.status === 'active') {
       active++;
     } else if (j.status === 'paused') {
@@ -275,11 +268,11 @@ export function computeStats(jobs: CronJob[]) {
       errored++;
     }
   }
-  return { total: userJobs.length, active, paused, errored };
+  return { total: jobs.length, active, paused, errored };
 }
 
 export function filterJobs(jobs: CronJob[], filter: StatusFilter, query: string): CronJob[] {
-  let result = jobs.filter((j) => !isSystemJob(j));
+  let result = jobs;
   if (filter === 'active') {
     result = result.filter((j) => j.status === 'active');
   } else if (filter === 'paused') {
