@@ -1,4 +1,5 @@
 from collections.abc import Collection, Iterator
+from uuid import UUID
 
 import pytest
 
@@ -8,6 +9,7 @@ from myrm_agent_harness.utils.runtime.wakeup_registry import (
     get_global_wakeup_handler,
     report_results_read,
     set_global_wakeup_handler,
+    wake_session_id,
 )
 
 
@@ -102,3 +104,21 @@ def test_a_failing_handler_does_not_break_the_reader(caplog: pytest.LogCaptureFi
     report_results_read(["task-1"], "session-456")
 
     assert "failed to record read results" in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("context", "expected"),
+    [
+        ({"session_id": "abc"}, "abc"),
+        ({"session_id": 123}, "123"),
+        ({"session_id": UUID(int=1)}, "00000000-0000-0000-0000-000000000001"),
+        ({"session_id": None}, None),
+        ({}, None),
+        (None, None),
+    ],
+    ids=["str", "int", "uuid", "null-id", "no-id", "no-context"],
+)
+def test_the_wake_session_is_the_string_form_of_the_contexts_session_id(
+    context: dict[str, object] | None, expected: str | None
+) -> None:
+    assert wake_session_id(context) == expected

@@ -11,17 +11,19 @@ the Server layer when an asynchronous background subagent completes.
 - set_global_wakeup_handler: Register a global handler for async wakeup events.
 - get_global_wakeup_handler: Retrieve the registered global wakeup handler.
 - report_results_read: Tell the handler the parent agent read settled subagent results itself.
+- wake_session_id: The session key a wake turn is queued and stood down under, derived from the run context.
 
 [POS]
 Global registry for async wakeup events (Idle Wakeup).
 A wakeup exists to deliver a result the parent has not seen; when the parent reads it first, the handler is told so
-the wake turn it queued can stand down.
+the wake turn it queued can stand down. The wakeup and the read report both name the session through
+``wake_session_id``, so they agree on the key.
 """
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -65,6 +67,16 @@ def set_global_wakeup_handler(handler: AsyncWakeupHandler | None) -> None:
 def get_global_wakeup_handler() -> AsyncWakeupHandler | None:
     """Retrieve the registered global wakeup handler."""
     return _global_wakeup_handler
+
+
+def wake_session_id(context: Mapping[str, object] | None) -> str | None:
+    """The session key a wake turn is queued and stood down under: the context's ``session_id`` as ``str``.
+
+    A host may carry its session id as ``int`` or ``UUID`` while the handler keys by the string form, so the wakeup
+    that queues the wake turn and the read report that stands it down must both derive the key here.
+    """
+    raw = None if context is None else context.get("session_id")
+    return None if raw is None else str(raw)
 
 
 def report_results_read(task_ids: Collection[str], session_id: str | None) -> None:
