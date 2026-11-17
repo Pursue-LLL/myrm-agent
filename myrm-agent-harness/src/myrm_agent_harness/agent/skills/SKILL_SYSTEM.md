@@ -306,7 +306,7 @@ overflow_count= 候选 - 显示（预算挤掉的候选；外围技能不算）
 
 ### 4.4 缓存策略
 
-SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取，backend 读取抛错时返回带错误提示的文档；已加载内容的前缀字节不变，**无需修改**。
+SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取；backend 读取抛错时记一条 WARNING 并返回空串，`skill_select_tool` 回一条加载失败的条目、`[use]` 预载跳过该技能，两者都不把它记为已加载、也不记使用；已加载内容的前缀字节不变，**无需修改**。
 
 ---
 

@@ -10,7 +10,7 @@
 - utils.os_compat::get_process_group_kwargs, kill_spawned_group (POS: cross-platform process-group control)
 
 [OUTPUT]
-- get_skill_document: processed SOP + L1 footer for context injection
+- get_skill_document: processed SOP + L1 footer for context injection, or "" when no SOP can be delivered
 - get_skill_file: L2 auxiliary file reader
 - build_reload_summary_with_index: compact reload hint for already-loaded skills
 
@@ -98,7 +98,11 @@ async def get_skill_document(
     *,
     skill_instance: SkillInstance | None = None,
 ) -> str:
-    """Load a skill's SOP document content, ready for injection into context."""
+    """Load a skill's SOP document content, ready for injection into context.
+
+    Returns an empty string when no SOP can be delivered: the backend read failed (logged), it returned
+    no content, or the skill has no document source. The caller must not count such a skill as loaded.
+    """
     skill_doc = ""
     skill_path_info = ""
 
@@ -112,7 +116,8 @@ async def get_skill_document(
         try:
             skill_doc = await skill_backend.get_skill_content(skill_meta.storage_skill_id)
         except Exception:
-            return f"# {skill_meta.name}\n\nError: failed to load skill document"
+            logger.warning("Failed to read SOP for skill '%s'", skill_meta.name, exc_info=True)
+            return ""
 
         if skill_doc and skill_meta.storage_path:
             skill_path_info = skill_call_notice(skill_meta.name)

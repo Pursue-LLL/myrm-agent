@@ -90,7 +90,8 @@ class SkillBackend(Protocol):
             SKILL.md content (without YAML frontmatter)
 
         Raises:
-            SkillNotFoundError: If skill is not found
+            FileNotFoundError: If the skill or its SKILL.md cannot be read. A failure must raise and
+                never come back as error text: the returned string is delivered to the model as the SOP.
         """
         ...
 
