@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 
+from ..env_secrets import KEY_FROM_ENV
 from .source_migration_types import (
     SourceInstructionPlan,
     WorkspaceRuleWrite,
@@ -142,6 +143,13 @@ def extract_memory_payload(
 def has_api_keys(loaded: dict[str, object]) -> bool:
     env_keys = loaded.get("env_keys")
     return isinstance(env_keys, list) and len(env_keys) > 0
+
+
+def has_importable_keys(loaded: dict[str, object]) -> bool:
+    """Whether the payload names keys of the source's ``.env``, the one place the opt-in key import reads."""
+
+    env_keys = loaded.get("env_keys")
+    return isinstance(env_keys, list) and any(isinstance(item, dict) and item.get("source") == KEY_FROM_ENV for item in env_keys)
 
 
 def _text(payload: dict[str, object], key: str) -> str:

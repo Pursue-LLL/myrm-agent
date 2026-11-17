@@ -2,8 +2,10 @@
  * Migration assistant discovery client.
  *
  * [INPUT] lib/api::apiRequest (POS: authenticated HTTP client)
- * [OUTPUT] discoverMigrationSources, uploadMigrationZip, DiscoveryResponse, PASTED_MEMORY_COMPETITOR_ID
- * [POS] Frontend service for assistant data auto-discovery (local scan + cloud ZIP upload) and the pasted-memory lane id.
+ * [OUTPUT] discoverMigrationSources, uploadMigrationZip, importMigrationSecrets, DiscoveryResponse, SecretsImportResponse,
+ *   PASTED_MEMORY_COMPETITOR_ID
+ * [POS] Frontend service for assistant data auto-discovery (local scan + cloud ZIP upload), the opt-in provider-key
+ *   import and the pasted-memory lane id.
  */
 
 import { apiRequest } from '@/lib/api';
@@ -23,6 +25,8 @@ export interface ExternalSource {
   memory_count_estimate: number;
   skill_count: number;
   has_api_keys: boolean;
+  /** The opt-in key import can bring this source's keys: they sit in its `.env` and the deployment allows the import. */
+  can_import_secrets: boolean;
 }
 
 export interface MigrationSourceManifestItem {
@@ -175,10 +179,18 @@ export function invalidateDiscoveryCache(): void {
   discoveryCachedAt = 0;
 }
 
+/** Why a key variable was left alone: no provider takes it, or its provider has several endpoints to choose from. */
+export type SecretSkipReason = 'unsupported' | 'needs_endpoint';
+
+export interface SkippedSecret {
+  /** The variable name; never its value. */
+  name: string;
+  reason: SecretSkipReason;
+}
+
 export interface SecretsImportResponse {
   imported_keys: string[];
-  skipped_keys: string[];
-  message: string;
+  skipped_keys: SkippedSecret[];
 }
 
 export async function importMigrationSecrets(competitor: string, root: string): Promise<SecretsImportResponse> {

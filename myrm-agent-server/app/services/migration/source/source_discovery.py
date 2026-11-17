@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from app.services.migration.env_secrets import read_env_secrets
+from app.services.migration.env_secrets import read_env_keys
 
 ConfidenceLevel = Literal["low", "medium", "high"]
 
@@ -47,7 +47,10 @@ class ExternalSource:
     files: list[DiscoveredFile] = field(default_factory=list)
     memory_count_estimate: int = 0
     skill_count: int = 0
+    # The source holds provider keys somewhere (``.env`` or a credential store), entered by hand or imported.
     has_api_keys: bool = False
+    # Its ``.env`` holds keys the opt-in key import reads; a credential store never does.
+    has_importable_keys: bool = False
 
 
 @dataclass
@@ -116,7 +119,7 @@ def _count_md_bullets(path: Path) -> int:
 def _detect_api_keys_in_env(path: Path) -> bool:
     """Whether the ``.env`` holds a key the import would bring (the same list and grammar as the import)."""
 
-    return bool(read_env_secrets(path))
+    return bool(read_env_keys(path).importable)
 
 
 def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:

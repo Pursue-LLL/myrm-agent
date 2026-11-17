@@ -5,6 +5,8 @@ from __future__ import annotations
 from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
+    has_api_keys,
+    has_importable_keys,
 )
 
 
@@ -124,3 +126,18 @@ def test_cursor_rules_go_to_instruction_not_memory() -> None:
 
     assert len(plan.workspace_rules) == 1
     assert memory.get("cursor_rules") is None
+
+
+def test_only_the_names_taken_from_the_dotenv_are_keys_the_import_can_read() -> None:
+    from_env = {"env_keys": [{"name": "OPENAI_API_KEY", "source": "env"}]}
+    from_credential_store = {"env_keys": [{"name": "OPENAI_API_KEY", "source": "auth"}]}
+
+    assert has_importable_keys(from_env) is True
+    assert has_importable_keys(from_credential_store) is False
+    assert has_importable_keys({"env_keys": []}) is False
+    assert has_importable_keys({}) is False
+
+
+def test_a_name_from_any_store_is_a_key_the_source_holds() -> None:
+    assert has_api_keys({"env_keys": [{"name": "OPENAI_API_KEY", "source": "auth"}]}) is True
+    assert has_api_keys({"env_keys": []}) is False

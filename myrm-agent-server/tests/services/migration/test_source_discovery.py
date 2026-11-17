@@ -100,11 +100,27 @@ class TestHermesDiscovery:
         result = discover_external_sources(str(fake_home))
         src = result.sources[0]
         assert src.has_api_keys is True
+        assert src.has_importable_keys is True
 
     def test_hermes_no_api_keys(self, fake_home: Path) -> None:
         self._setup_hermes(fake_home)
         result = discover_external_sources(str(fake_home))
         assert result.sources[0].has_api_keys is False
+        assert result.sources[0].has_importable_keys is False
+
+    def test_hermes_credential_store_holds_keys_the_import_cannot_read(self, fake_home: Path) -> None:
+        root = self._setup_hermes(fake_home)
+        (root / "auth.json").write_text('{"credential_pool": {"openai": []}}')
+        src = discover_external_sources(str(fake_home)).sources[0]
+        assert src.has_api_keys is True
+        assert src.has_importable_keys is False
+
+    def test_hermes_dotenv_with_only_keys_the_import_leaves_alone_offers_no_import(self, fake_home: Path) -> None:
+        root = self._setup_hermes(fake_home)
+        (root / ".env").write_text("NVIDIA_API_KEY=nv-key\n")
+        src = discover_external_sources(str(fake_home)).sources[0]
+        assert src.has_api_keys is False
+        assert src.has_importable_keys is False
 
     def test_hermes_low_confidence_excluded(self, fake_home: Path) -> None:
         """An empty .hermes dir with no recognizable files is filtered out."""

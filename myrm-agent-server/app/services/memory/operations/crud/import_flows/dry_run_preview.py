@@ -63,6 +63,7 @@ def build_lane_rows(
         memory_status="pending",
         skill_count=loaded.pending_skills_total or len(loaded.pending_skills),
         has_api_keys=loaded.source_has_api_keys,
+        secrets_importable=loaded.secrets_importable,
         providers_ready=providers_configured,
         include_episodic=loaded.migration_opts.include_episodic,
     )

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 
 from fastapi import HTTPException
 
+from app.config.deploy_mode import is_local_mode
 from app.schemas.memory.archive import MemoryImportMigrationOptions
 from app.schemas.memory.import_sources import ImportRequestSource
 from app.services.migration.source.source_migration_types import (
@@ -40,6 +41,8 @@ class LoadedSource:
     resolved_source: ImportRequestSource
     competitor: str
     source_has_api_keys: bool
+    # The opt-in key import can bring this source's keys: they sit in its ``.env`` and the deployment allows the import.
+    secrets_importable: bool
     pending_skills: list[dict[str, object]]
     pending_skills_total: int
     coverage_items: list[dict[str, str]]
@@ -75,6 +78,7 @@ def load_competitor_source(
         build_instruction_plan,
         extract_memory_payload,
         has_api_keys,
+        has_importable_keys,
     )
 
     try:
@@ -112,6 +116,7 @@ def load_competitor_source(
         resolved_source=resolve_migration_source(competitor),
         competitor=competitor,
         source_has_api_keys=has_api_keys(loaded_payload),
+        secrets_importable=has_importable_keys(loaded_payload) and is_local_mode(),
         pending_skills=pending_skills,
         pending_skills_total=pending_skills_total,
         coverage_items=build_coverage_items(loaded_payload),

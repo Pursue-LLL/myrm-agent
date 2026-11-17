@@ -12,8 +12,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.api.migration.discovery import MigrationSourceManifestItemResponse
-from app.services.migration.source.source_discovery import DiscoveryResult
+from app.api.migration.discovery import MigrationSourceManifestItemResponse, _to_response
+from app.services.migration.source.source_discovery import DiscoveryResult, ExternalSource
+from app.services.migration.source.source_secrets_importer import SecretsImportResult, SkippedKey
 from tests.support.minimal_app import build_minimal_app
 
 app = build_minimal_app("memory", "migration_discovery")
@@ -154,6 +155,7 @@ class TestDiscoveryEndpointLocalMode:
         assert "memory_count_estimate" in src
         assert "skill_count" in src
         assert "has_api_keys" in src
+        assert "can_import_secrets" in src
         assert "source_manifest" in data
         assert isinstance(data["source_manifest"], list)
         assert data["source_manifest_authoritative"] is True
@@ -213,3 +215,64 @@ class TestDiscoveryEndpointSaaSMode:
         assert data["sources"] == []
         assert isinstance(data["source_manifest"], list)
         assert data["source_manifest_authoritative"] is True
+
+    def test_saas_mode_refuses_the_key_import(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/migration/secrets/import", json={"root": "/tmp/hermes", "competitor": "hermes"})
+
+        assert resp.status_code == 403
+
+
+class TestKeyImportOffer:
+    """A source offers the opt-in key import only for keys the import reads, and only where it can run."""
+
+    @pytest.mark.parametrize(
+        ("local_mode", "has_importable_keys", "offered"),
+        [(True, True, True), (True, False, False), (False, True, False)],
+    )
+    def test_can_import_secrets(self, local_mode: bool, has_importable_keys: bool, offered: bool) -> None:
+        source = ExternalSource(
+            competitor="hermes", root="/tmp/hermes", has_api_keys=True, has_importable_keys=has_importable_keys
+        )
+
+        with patch("app.api.migration.discovery.is_local_mode", return_value=local_mode):
+            response = _to_response(source)
+
+        assert response.has_api_keys is True
+        assert response.can_import_secrets is offered
+
+
+class TestSecretsImportEndpoint:
+    """POST /migration/secrets/import reports what it imported and what it left alone, by name."""
+
+    @pytest.fixture(autouse=True)
+    def _force_local_mode(self) -> None:
+        with patch("app.api.migration.discovery.is_local_mode", return_value=True):
+            yield  # type: ignore[misc]
+
+    def test_the_response_names_imported_keys_and_the_reason_for_each_key_left_alone(self, client: TestClient) -> None:
+        result = SecretsImportResult(
+            imported_keys=["OPENAI_API_KEY"],
+            skipped_keys=[SkippedKey("GLM_API_KEY", "needs_endpoint"), SkippedKey("TAVILY_API_KEY", "unsupported")],
+        )
+
+        with patch("app.api.migration.discovery.import_external_source_secrets", return_value=result):
+            resp = client.post("/api/v1/migration/secrets/import", json={"root": "/tmp/hermes", "competitor": "hermes"})
+
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "imported_keys": ["OPENAI_API_KEY"],
+            "skipped_keys": [
+                {"name": "GLM_API_KEY", "reason": "needs_endpoint"},
+                {"name": "TAVILY_API_KEY", "reason": "unsupported"},
+            ],
+        }
+
+    def test_an_import_that_cannot_run_is_a_client_error(self, client: TestClient) -> None:
+        with patch(
+            "app.api.migration.discovery.import_external_source_secrets",
+            side_effect=ValueError("Providers config is not an object"),
+        ):
+            resp = client.post("/api/v1/migration/secrets/import", json={"root": "/tmp/hermes", "competitor": "hermes"})
+
+        assert resp.status_code == 400
+        assert "Providers config is not an object" in resp.text

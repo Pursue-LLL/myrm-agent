@@ -97,6 +97,27 @@ def test_load_competitor_source_caps_the_pending_skill_list() -> None:
     assert loaded.competitor == "hermes"
 
 
+@pytest.mark.parametrize(
+    ("local_mode", "key_store", "importable"),
+    [
+        (True, "env", True),
+        (True, "auth", False),
+        (False, "env", False),
+    ],
+)
+def test_load_competitor_source_offers_the_key_import_only_for_dotenv_keys_in_local_mode(
+    monkeypatch: pytest.MonkeyPatch, local_mode: bool, key_store: str, importable: bool
+) -> None:
+    payload = {"_source": "hermes", "env_keys": [{"name": "OPENAI_API_KEY", "source": key_store}]}
+    monkeypatch.setattr("app.services.memory.operations.crud.import_flows.dry_run_source.is_local_mode", lambda: local_mode)
+
+    with patch("app.services.migration.source.source_payload_loader.load_source_payload", return_value=payload):
+        loaded = load_competitor_source({"root": "/tmp/hermes"}, None)
+
+    assert loaded.source_has_api_keys is True
+    assert loaded.secrets_importable is importable
+
+
 def test_build_side_channels_reads_openclaw_defaults_and_filters_sessions() -> None:
     loaded = LoadedSource(
         loaded_payload={
@@ -110,6 +131,7 @@ def test_build_side_channels_reads_openclaw_defaults_and_filters_sessions() -> N
         resolved_source="openclaw",
         competitor="openclaw",
         source_has_api_keys=False,
+        secrets_importable=False,
         pending_skills=[],
         pending_skills_total=0,
         coverage_items=[],
