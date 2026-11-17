@@ -30,6 +30,7 @@ const entry = {
   level: 'TRUSTED' as const,
   decided_at: '2026-09-27T00:00:00Z',
   manifest_hash: 'hash-1',
+  disclosed_command_prefixes: [],
 };
 
 function renderGate(onDecided = vi.fn()) {

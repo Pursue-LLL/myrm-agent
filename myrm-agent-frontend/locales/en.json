@@ -12448,7 +12448,7 @@
         "skills": "Local skills",
         "rules": "Workspace rules",
         "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Commands this folder wants to run without asking",
+        "repoCommands": "Commands this folder wants to run without asking, with any options after them",
         "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
         "cancel": "Cancel",
         "restrict": "Link without trusting",
@@ -12468,9 +12468,9 @@
       "restrictedTitle": "Restricted mode",
       "restrictedMessage": "{path} is not trusted. Its skills, rules and local tools are turned off.",
       "pendingTitle": "Commands waiting for your approval",
-      "pendingMessage": "{path} lists commands that would run without asking you each time. They stay off until you allow them.",
+      "pendingMessage": "{path} lists commands, with any options after them, that would run without asking you each time. They stay off until you allow them.",
       "pendingList": "Waiting for your approval",
-      "commandsOnTrust": "Trusting this folder also lets these commands run without asking",
+      "commandsOnTrust": "Trusting this folder also lets these commands, with any options after them, run without asking",
       "turnedOffTitle": "Turned off until you trust this folder",
       "itemSkills": "{count, plural, one {# local skill} other {# local skills}}",
       "itemRules": "{count, plural, one {# workspace rule} other {# workspace rules}}",
@@ -15383,8 +15383,9 @@
       },
       "trustedFolders": {
         "title": "Trusted Folders",
-        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
+        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder, and the commands it listed ask for approval again.",
         "totalEntries": "{count} folders",
+        "commands": "Commands that run without asking, with any options after them",
         "refresh": "Refresh",
         "loading": "Loading…",
         "empty": "No trusted folders yet",
@@ -15398,11 +15399,11 @@
         },
         "notice": {
           "title": "How folder trust works",
-          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+          "description": "Trust turns on a folder's local skills, rules, and MCP servers and lets the commands it listed run without asking. Every other command and file access still follows your security policy."
         },
         "revokeConfirm": {
           "title": "Revoke folder trust?",
-          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
+          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run, and the commands it listed will ask for approval again.",
           "cancel": "Cancel",
           "confirm": "Revoke trust"
         }

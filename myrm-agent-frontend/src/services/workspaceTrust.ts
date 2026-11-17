@@ -35,6 +35,8 @@ export interface WorkspaceTrustEntry {
   level: WorkspaceTrustLevel;
   decided_at: string;
   manifest_hash: string;
+  /** The command prefixes the user saw when trusting the folder; they run without asking while the trust holds. */
+  disclosed_command_prefixes: string[];
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {

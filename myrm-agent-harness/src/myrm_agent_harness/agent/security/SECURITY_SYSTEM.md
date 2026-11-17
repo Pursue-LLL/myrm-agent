@@ -471,7 +471,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 ### 前端 FolderGate
 
-`ProjectWorkspaceMount` 在 `updateProject` 绑定前调用 manifest → 用户选择 Trust / Restrict → decide → 再绑定路径。Settings → Security Policy → **Trusted Folders** 可列表查看与撤销。
+`ProjectWorkspaceMount` 在 `updateProject` 绑定前调用 manifest → 用户选择 Trust / Restrict → decide → 再绑定路径。Settings → Security Policy → **Trusted Folders** 可列表查看与撤销：已信任的文件夹只读列出用户信任时看过的命令前缀（`disclosed_command_prefixes`；前缀之后附带的参数同样免确认，复合命令不匹配），撤销后这些命令恢复为需要确认。信任弹窗、顶部通知条与该列表对前缀范围的文案一致。
 
 ### 与 Permission Engine 的边界
 

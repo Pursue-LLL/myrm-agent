@@ -16,7 +16,8 @@ Security Center 与 Agent 工具安全策略的 HTTP 层：供应链仪表盘、
 | `schemas.py` | 模块 | Profile API schema | — |
 | `allowlist.py` | 路由 | `/security/allowlist` 工具 allowlist 查询与删除；`command_pattern` / `expires_at` 字段与 harness 四层匹配及时效自动撤销对齐 | ✅ |
 | `allowlist_granularity.py` | 模块 | allowlist REST 粒度映射与 DB 空串归一化 | — |
-| `test_fixtures.py` | 测试 | local-only：allowlist pattern seed/clear、hitl-probe（`pending_interrupt_events`） | ✅ |
+| `test_fixtures.py` | 测试 | local-only：allowlist pattern seed/clear（种下的条目挂在引擎为 bash 工具解析出的权限类型下，匹配得上该工具的命令）、hitl-probe（`pending_interrupt_events`） | ✅ |
+| `workspace_trust.py` | 路由 | `/security/workspace-trust`：文件夹信任的预览清单（带 `manifest_hash`）、决定、列表与撤销；列表里每个已信任文件夹带用户信任时看过的命令前缀 `disclosed_command_prefixes`（受限、已撤销的条目为空） | ✅ |
 | `vault.py` | 路由 | `POST /security/vault/unlock`：本地主密钥派生 | ✅ |
 | `vault_credentials.py` | 路由 | `/security/vault-credentials` CRUD | ✅ |
 

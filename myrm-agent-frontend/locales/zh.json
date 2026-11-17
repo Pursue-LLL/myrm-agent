@@ -12448,7 +12448,7 @@
         "skills": "本地技能",
         "rules": "工作区规则",
         "hasMyrmConfig": "包含 .myrm 项目配置",
-        "repoCommands": "此文件夹希望免确认运行的命令",
+        "repoCommands": "此文件夹希望免确认运行的命令（含其后附带的任何参数）",
         "restrictedHint": "若选择「不信任并关联」，该文件夹内的本地技能、规则与 MCP 服务将保持禁用，可在设置中稍后改为信任。",
         "cancel": "取消",
         "restrict": "不信任并关联",
@@ -12468,9 +12468,9 @@
       "restrictedTitle": "受限模式",
       "restrictedMessage": "{path} 尚未受信任，其中的技能、规则和本地工具已被关闭。",
       "pendingTitle": "命令待你确认",
-      "pendingMessage": "{path} 列出了无需每次确认即可运行的命令，在你允许之前不会生效。",
+      "pendingMessage": "{path} 列出了无需每次确认即可运行的命令（含其后附带的任何参数），在你允许之前不会生效。",
       "pendingList": "等待你确认",
-      "commandsOnTrust": "信任此文件夹后，以下命令将无需确认直接运行",
+      "commandsOnTrust": "信任此文件夹后，以下命令（含其后附带的任何参数）将无需确认直接运行",
       "turnedOffTitle": "信任此文件夹之前保持关闭",
       "itemSkills": "{count} 个本地技能",
       "itemRules": "{count} 条工作区规则",
@@ -15383,8 +15383,9 @@
       },
       "trustedFolders": {
         "title": "受信任文件夹",
-        "description": "关联项目工作区时您明确信任的文件夹。撤销信任后，该文件夹内的本地技能、规则与 MCP 服务将被禁用。",
+        "description": "关联项目工作区时您明确信任的文件夹。撤销信任后，该文件夹内的本地技能、规则与 MCP 服务将被禁用，其列出的命令也将恢复为需要确认。",
         "totalEntries": "共 {count} 个文件夹",
+        "commands": "免确认运行的命令（含其后附带的任何参数）",
         "refresh": "刷新",
         "loading": "加载中…",
         "empty": "暂无受信任文件夹",
@@ -15398,11 +15399,11 @@
         },
         "notice": {
           "title": "文件夹信任说明",
-          "description": "信任仅作用于仓库本地旁路能力。终端与文件权限仍遵循您的安全策略。"
+          "description": "信任会启用文件夹内的本地技能、规则与 MCP 服务，并让它列出的命令免确认运行。其余终端命令与文件权限仍遵循您的安全策略。"
         },
         "revokeConfirm": {
           "title": "撤销文件夹信任？",
-          "description": "下次运行时将禁用 {path} 中的本地技能、规则与 MCP 服务。",
+          "description": "下次运行时将禁用 {path} 中的本地技能、规则与 MCP 服务，其列出的命令也将恢复为需要确认。",
           "cancel": "取消",
           "confirm": "撤销信任"
         }

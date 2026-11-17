@@ -3,6 +3,7 @@
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: 部署模式判定，限制 seed 端点仅 local/tauri)
 myrm_agent_harness.agent.security.approval_flow (POS: AllowlistEntry SSOT)
+myrm_agent_harness.agent.security.tool_registry::resolve_permission_type (POS: the permission an allowlist entry for a tool must carry)
 app.database.models::UserToolAllowlist (POS: allowlist 持久化)
 
 [OUTPUT]
@@ -20,6 +21,7 @@ from myrm_agent_harness.agent.security.approval_flow import (
     AllowlistEntry,
     get_allowlist,
 )
+from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
 from sqlalchemy import delete, select
 
 from app.config.deploy_mode import is_local_mode
@@ -28,9 +30,10 @@ from app.platform_utils import get_session_factory
 
 router = APIRouter()
 
-_PATTERN_PERMISSION = "shell_exec"
 _PATTERN_TOOL = "bash_code_execute_tool"
 _PATTERN_COMMAND = "npm install *"
+# An allowlist entry only matches a call under the permission the engine resolves for its tool.
+_PATTERN_PERMISSION = resolve_permission_type(_PATTERN_TOOL)
 
 
 async def _clear_allowlist_rows() -> None:
@@ -130,7 +133,6 @@ async def hitl_runtime_probe(
         build_channel_security_config,
     )
     from myrm_agent_harness.agent.security.engine import evaluate_tool_call
-    from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
     from myrm_agent_harness.agent.security.types import PermissionAction
 
     from app.core.channel_bridge.config_loader import load_user_configs
