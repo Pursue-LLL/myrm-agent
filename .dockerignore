@@ -1,0 +1,8 @@
+# Docker never reads .gitignore. The server images COPY whole directories from this context, so on a
+# developer checkout the git-ignored bytecode (it embeds the builder's home path), the host-built
+# WhatsApp bridge node_modules (the images ship no Node) and env files would be sent and copied in.
+# The frontend image has its own myrm-agent-frontend/Dockerfile.dockerignore.
+**/__pycache__
+**/node_modules
+**/.env
+**/.env.*
