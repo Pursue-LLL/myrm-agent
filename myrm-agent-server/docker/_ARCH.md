@@ -29,7 +29,7 @@ docker build -f myrm-agent-server/Dockerfile -t myrm-server .
 docker build -f myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
 ```
 
-上下文根的 `.dockerignore` 在传输前排除宿主上被 git 忽略的 `__pycache__`、`node_modules` 与 `.env*`（Docker 不读 `.gitignore`），两个 Dockerfile 共用；前端镜像用自己的 `myrm-agent-frontend/Dockerfile.dockerignore`。
+上下文根的 `.dockerignore` 在传输前按名称排除任意层级的 `__pycache__`、`node_modules`、`.env` 与 `.env.*`（含已跟踪的 `.env.example`；Docker 不读 `.gitignore`，规则不看 git 是否跟踪），两个 Dockerfile 共用；前端镜像用自己的 `myrm-agent-frontend/Dockerfile.dockerignore`。
 
 Runtime 阶段 `COPY shared /shared`，供 [providers.py](../app/services/agent/params/model_config/providers.py) 在 `/shared/config/provider_legacy_remap.json` 加载跨端 provider ID remap。
 
