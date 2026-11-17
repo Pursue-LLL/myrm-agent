@@ -49,7 +49,7 @@ contract:
       description: "Produce deterministic audit log and publication receipt"
       validation_method: "Verify task receipt contains account handle, post hash, and status"
       is_required: true
-  success_criteria: "A completely validated, brand-safe, compliance-verified X post or thread ready for immediate dispatch or scheduled execution with an immutable audit receipt."
+  success_criteria: "A completely validated, brand-safe, compliance-verified X post or thread ready for immediate dispatch or scheduled execution with an audit receipt."
   estimated_duration_seconds: 400
 ---
 
