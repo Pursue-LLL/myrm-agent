@@ -117,10 +117,6 @@ class ShadowExecutorMiddleware(CodeExecutorMiddleware):
         await self._assert_write_allowed(path)
         await self.inner.write_file_bytes_atomic(path, content)
 
-    async def append_file(self, path: str, content: str) -> None:
-        await self._assert_write_allowed(path)
-        await self.inner.append_file(path, content)
-
     async def delete_file(self, path: str) -> None:
         await self._assert_write_allowed(path)
         await self.inner.delete_file(path)

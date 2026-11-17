@@ -1,6 +1,6 @@
 """Tests for LocalFileOpsMixin destructive-action hook payloads.
 
-Ensures write/append/delete hooks carry the current chat session id so the
+Ensures write/delete hooks carry the current chat session id so the
 server-side SnapshotInterceptor can create workspace snapshots for file
 operations (not only bash). Without a bound chat context the session_id is
 None and the hook stays inert.
@@ -60,21 +60,6 @@ async def test_write_file_hook_payload_includes_session_id(tmp_path: Path) -> No
         assert kwargs["action_type"] == "file_write"
         assert kwargs["payload"]["session_id"] == "chat-abc"
         assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "hello"
-    finally:
-        reset_current_chat_id(token)
-
-
-@pytest.mark.asyncio
-async def test_append_file_hook_payload_includes_session_id(tmp_path: Path) -> None:
-    token = set_current_chat_id("chat-xyz")
-    try:
-        ops = _TestOps(tmp_path)
-        with _hook_patch() as hook:
-            await ops.append_file("log.txt", "line\n")
-
-        kwargs = hook.call_args.kwargs
-        assert kwargs["action_type"] == "file_append"
-        assert kwargs["payload"]["session_id"] == "chat-xyz"
     finally:
         reset_current_chat_id(token)
 

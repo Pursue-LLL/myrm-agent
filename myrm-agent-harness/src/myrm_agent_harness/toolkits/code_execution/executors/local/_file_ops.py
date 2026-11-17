@@ -234,20 +234,6 @@ class LocalFileOpsMixin:
 
         await async_atomic_write(safe, content)
 
-    async def append_file(self: _FileOpsHost, path: str, content: str) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-
-        await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,
-            action_type="file_append",
-            path=safe,
-            size=len(content),
-        )
-
-        with open(safe, "a", encoding="utf-8") as f:
-            f.write(content)
-
     async def delete_file(self: _FileOpsHost, path: str) -> None:
         safe = await self.resolve_path(path)
         self._guard_write(safe)

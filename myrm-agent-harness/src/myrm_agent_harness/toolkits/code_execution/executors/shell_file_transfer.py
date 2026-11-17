@@ -10,7 +10,7 @@ base64 on the command line, so each command stays far below the per-argument lim
 
 [OUTPUT]
 - read_bytes_via_shell: Read a whole file as exact bytes through chunked ``dd`` + ``od`` commands.
-- write_bytes_via_shell: Write or append bytes through chunked ``base64 -d`` commands.
+- write_bytes_via_shell: Write bytes through chunked ``base64 -d`` commands.
 
 [POS]
 Lossless file transfer primitives for ``CodeExecutor`` shell-based default file operations.
@@ -65,14 +65,12 @@ async def _read_chunk(exec_bash: ExecBash, safe_path: str, index: int, display_p
     return bytes.fromhex(result.stdout)
 
 
-async def write_bytes_via_shell(
-    exec_bash: ExecBash, safe_path: str, display_path: str, content: bytes, *, append: bool = False
-) -> None:
-    """Write (truncating) or append ``content``; parent directories are created for writes."""
+async def write_bytes_via_shell(exec_bash: ExecBash, safe_path: str, display_path: str, content: bytes) -> None:
+    """Write ``content`` to ``safe_path``, replacing any existing file; parent directories are created."""
     quoted = shlex.quote(safe_path)
     chunks = [content[start : start + CHUNK_BYTES] for start in range(0, len(content), CHUNK_BYTES)] or [b""]
     for index, chunk in enumerate(chunks):
-        truncating = index == 0 and not append
+        truncating = index == 0
         prefix = f"mkdir -p {shlex.quote(str(Path(safe_path).parent))} && " if truncating else ""
         redirect = ">" if truncating else ">>"
         result = await exec_bash(f"{prefix}printf %s '{b64encode(chunk).decode()}' | base64 -d {redirect} {quoted}")

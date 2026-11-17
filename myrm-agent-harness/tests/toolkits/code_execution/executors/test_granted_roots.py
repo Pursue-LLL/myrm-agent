@@ -102,11 +102,6 @@ class TestReadOnlyGrant:
             await executor.write_file(str(external / "new.txt"), "x")
         assert not (external / "new.txt").exists()
 
-    async def test_append_is_refused(self, executor: CodeExecutor, external: Path) -> None:
-        with pytest.raises(PermissionError, match="granted read-only"):
-            await executor.append_file(str(external / "note.txt"), "x")
-        assert (external / "note.txt").read_text() == "outside note"
-
     async def test_delete_is_refused(self, executor: CodeExecutor, external: Path) -> None:
         with pytest.raises(PermissionError, match="granted read-only"):
             await executor.delete_file(str(external / "note.txt"))

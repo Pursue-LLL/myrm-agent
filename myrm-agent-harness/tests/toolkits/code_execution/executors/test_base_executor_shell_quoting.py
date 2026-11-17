@@ -34,10 +34,7 @@ def executor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> CodeExecutor:
 async def test_file_ops_roundtrip_with_quote_in_name(executor: CodeExecutor, tmp_path: Path, name: str) -> None:
     await executor.write_file(name, "hello")
     assert await executor.read_file(name) == "hello"
-
-    await executor.append_file(name, " world")
-    assert await executor.read_file(name) == "hello world"
-    assert await executor.read_file_bytes(name) == b"hello world"
+    assert await executor.read_file_bytes(name) == b"hello"
 
     assert await executor.file_exists(name)
     assert await executor.is_file(name)
@@ -101,14 +98,11 @@ async def test_large_text_over_stdout_cap_is_not_truncated(executor: CodeExecuto
 
 
 @pytest.mark.asyncio
-async def test_write_truncates_and_append_extends_across_chunks(executor: CodeExecutor, tmp_path: Path) -> None:
+async def test_write_truncates_an_existing_multi_chunk_file(executor: CodeExecutor, tmp_path: Path) -> None:
     await executor.write_file("a.txt", "x" * (3 * CHUNK_BYTES))
     await executor.write_file("a.txt", "short")
-    assert (tmp_path / "a.txt").read_text() == "short"
 
-    tail = "y" * (2 * CHUNK_BYTES + 5)
-    await executor.append_file("a.txt", tail)
-    assert (tmp_path / "a.txt").read_text() == "short" + tail
+    assert (tmp_path / "a.txt").read_text() == "short"
 
 
 @pytest.mark.asyncio

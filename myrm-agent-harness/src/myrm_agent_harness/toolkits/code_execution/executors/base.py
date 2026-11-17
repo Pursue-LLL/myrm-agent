@@ -222,11 +222,6 @@ class CodeExecutor(ABC):
             await self._exec_bash(f"rm -f {shlex.quote(tmp_path)}")
             raise OSError(f"Atomic replace failed for '{path}': {result.error or result.stderr}")
 
-    async def append_file(self, path: str, content: str) -> None:
-        """Append text content to a file."""
-        safe = await self._resolve_for_write(path)
-        await write_bytes_via_shell(self._exec_bash, safe, path, content.encode(), append=True)
-
     async def delete_file(self, path: str) -> None:
         """Delete a file."""
         safe = await self._resolve_for_write(path)

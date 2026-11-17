@@ -74,9 +74,6 @@ class CodeExecutorMiddleware(CodeExecutor):
     async def write_file_bytes(self, path: str, content: bytes) -> None:
         await self.inner.write_file_bytes(path, content)
 
-    async def append_file(self, path: str, content: str) -> None:
-        await self.inner.append_file(path, content)
-
     async def delete_file(self, path: str) -> None:
         await self.inner.delete_file(path)
 
