@@ -1,10 +1,7 @@
 """Workspace context injection middleware.
 
-Injects workspace-level rule files (AGENTS.md, CLAUDE.md, SOUL.md,
-MEMORY.md, .cursorrules, .clinerules, .myrm.md, .hermes.md, HERMES.md,
-.windsurfrules, .myrm/rules/*.md, .cursor/rules/*.mdc,
-.claude/CLAUDE.md, .github/copilot-instructions.md) and a sandbox snapshot
-as a SystemMessage into every model request.
+Injects the workspace-level rule files that scanner.py discovers and a
+sandbox snapshot as a SystemMessage into every model request.
 
 Injection position: after user_instructions, before memory_context.
 This preserves the KV Cache prefix hierarchy:

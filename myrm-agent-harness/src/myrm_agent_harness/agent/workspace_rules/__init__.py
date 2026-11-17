@@ -3,12 +3,10 @@
 Provides two mechanisms for workspace rule file support:
 
 1. **Workspace context injection** (middleware.py): Reads the workspace root's rule files
-   (AGENTS.md, CLAUDE.md, SOUL.md, MEMORY.md, .cursorrules, .clinerules,
-   .myrm.md, .hermes.md, HERMES.md, .windsurfrules, .myrm/rules/*.md,
-   .cursor/rules/*.mdc, .claude/CLAUDE.md, .github/copilot-instructions.md)
-   on every model call and injects them, with a sandbox snapshot taken once per
-   chat thread, as a SystemMessage. Position: after user_instructions, before
-   memory_context — optimized for KV Cache prefix stability.
+   (the set scanner.py discovers) on every model call and injects them, with a
+   sandbox snapshot taken once per chat thread, as a SystemMessage. Position:
+   after user_instructions, before memory_context — optimized for KV Cache
+   prefix stability.
 
 2. **Progressive discovery** (tracker.py): Monitors tool call arguments for
    file/directory paths. When a new directory is accessed, checks for rule
