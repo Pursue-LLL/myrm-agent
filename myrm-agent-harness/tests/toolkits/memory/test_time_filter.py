@@ -4,7 +4,7 @@ Covers:
 - Qdrant filter builder datetime-value and datetime-range detection
 - _user_filter since/until parameter
 - _parse_time_bound relative + ISO 8601 parsing
-- the relative examples in the model-visible descriptions parse to the duration they name
+- every time bound the model-visible descriptions teach parses, and a relative one to the duration it names
 - memory_search_tool since/until passthrough (corpus=memory and corpus=sessions)
 - MemoryManager.search since/until passthrough
 """
@@ -141,7 +141,7 @@ class TestParseTimeBound:
         delta = datetime.now(UTC) - result
         assert 13.9 < delta.total_seconds() / 86400 < 14.1
 
-    def test_relative_minutes(self):
+    def test_relative_minutes(self) -> None:
         result = _parse_time_bound("30m")
         assert result is not None
         delta = datetime.now(UTC) - result
@@ -332,7 +332,10 @@ class TestParseTimeBoundRelativeRange:
 
 # What a model reads from a relative example: ``30m`` is thirty minutes, and a month is written ``30d``.
 _EXAMPLE_UNIT_SECONDS = {"m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}
-_RELATIVE_EXAMPLE = re.compile(r"\b(\d+)([mhdwy])\b")
+_RELATIVE_EXAMPLE = re.compile(r"(\d+)([mhdwy])")
+# Whitespace and the punctuation between the words of a tip, in English and Chinese; an ASCII colon is left alone
+# because an ISO 8601 datetime is one word.
+_TIP_WORD_SEPARATORS = re.compile(r"""[\s,、，;；：()（）'"]+""")
 
 
 async def _mcp_recall_description() -> str:
@@ -348,27 +351,40 @@ def _time_bound_tip(description: str) -> str:
     return tips[0]
 
 
-class TestRelativeExamplesTaughtToTheModel:
-    """Each relative example a model is shown for since/until parses to the duration it names.
+def _taught_time_bounds(tip: str) -> list[str]:
+    """The words of a tip that carry a digit: each is a time bound the model is shown.
 
-    The examples sit in three model-visible texts while the unit table lives in ``parse_time_bound``; nothing else
-    ties the two together, so an edit to either side alone silently teaches the model a wrong window.
+    "ISO 8601" names a format rather than a bound, so it is not one of them.
+    """
+    words = _TIP_WORD_SEPARATORS.split(tip.replace("ISO 8601", " "))
+    return [word for word in words if any(char.isdigit() for char in word)]
+
+
+class TestRelativeExamplesTaughtToTheModel:
+    """Every time bound a model is shown for since/until parses, and a relative one parses to the duration it names.
+
+    The bounds sit in three model-visible texts while the unit table lives in ``parse_time_bound``; nothing else
+    ties the two together, so an edit to either side alone silently teaches the model a wrong or ignored window.
     """
 
     @pytest.mark.asyncio
-    async def test_examples_parse_to_the_duration_they_name(self):
+    async def test_examples_parse_to_the_duration_they_name(self) -> None:
         descriptions = {
             "memory_search_tool en": build_memory_search_tool_description(MemorySearchPolicy(), locale="en"),
             "memory_search_tool zh": build_memory_search_tool_description(MemorySearchPolicy(), locale="zh"),
             "memory_recall": await _mcp_recall_description(),
         }
         for surface, description in descriptions.items():
-            examples = _RELATIVE_EXAMPLE.findall(_time_bound_tip(description))
-            assert examples, f"{surface} teaches no relative example"
-            for amount, unit in examples:
-                bound = _parse_time_bound(f"{amount}{unit}")
-                assert bound is not None, f"{surface}: {amount}{unit} is unparseable"
+            taught = _taught_time_bounds(_time_bound_tip(description))
+            assert taught, f"{surface} teaches no time bound"
+            for word in taught:
+                bound = _parse_time_bound(word)
+                assert bound is not None, f"{surface}: {word} is unparseable"
+                relative = _RELATIVE_EXAMPLE.fullmatch(word)
+                if relative is None:
+                    continue
+                amount, unit = relative.groups()
                 age_seconds = (datetime.now(UTC) - bound).total_seconds()
                 assert age_seconds == pytest.approx(int(amount) * _EXAMPLE_UNIT_SECONDS[unit], abs=5), (
-                    f"{surface}: {amount}{unit} parses to {age_seconds:.0f} seconds"
+                    f"{surface}: {word} parses to {age_seconds:.0f} seconds"
                 )
