@@ -5,7 +5,6 @@
  * [OUTPUT]
  * - useHistorySearch: 侧栏会话搜索框的开合、输入回显与防抖提交。
  * - HistorySearch: useHistorySearch 的返回值类型，交给搜索工具栏渲染。
- * - HISTORY_SEARCH_MAX_LENGTH: 搜索框能容纳的最大长度，等于服务端对关键词的上限。
  *
  * [POS]
  * 输入先回显在本地，停顿 `SEARCH_DEBOUNCE_MS` 后才把关键词交给调用方去筛选历史（避免每个按键一次请求）；
@@ -15,13 +14,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-/**
- * The server refuses a longer keyword (HTTP 422), so the search box stops typing and pasting here instead of letting
- * the list fail on it. The browser counts UTF-16 units and the server counts characters, so the box never lets through
- * more than the server accepts.
- */
-export const HISTORY_SEARCH_MAX_LENGTH = 200;
 
 export function useHistorySearch(appliedKeyword: string, applyKeyword: (keyword: string) => void) {
   const [showSearch, setShowSearch] = useState(false);

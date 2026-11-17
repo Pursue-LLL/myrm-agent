@@ -159,7 +159,7 @@
 | `__tests__/memoryCommandCenterFormat.test.ts`       | 命令中心文案格式化：枚举翻译与回显、操作类型与实时流描述分支、枚举守卫测试   | ✅    |
 | `__tests__/MemoryCard.ttl.test.tsx`                 | procedural 卡片 TTL 显示：未锁定显示过期天数、用户锁定（is_user_locked）隐藏 | ✅    |
 | `__tests__/PendingMemoryList.test.tsx`              | 待审批记忆列表批量操作测试                                                   | ✅    |
-| `__tests__/SharedContextPanel.test.tsx`             | 共享上下文面板测试                                                           | ✅    |
+| `__tests__/SharedContextPanel.test.tsx`             | 共享上下文面板测试（含历史搜索框限长 200）                                   | ✅    |
 | `__tests__/SharedContextTargetBinding.test.tsx`     | 共享上下文目标绑定测试                                                       | ✅    |
 | `__tests__/memoryLiveStream.test.ts`                | 记忆实时流测试                                                               | ✅    |
 | `__tests__/replayTimeline.test.ts`                  | 记忆回放时间线测试                                                           | ✅    |

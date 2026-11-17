@@ -6,6 +6,7 @@ import { Search, X, Loader2, MessageSquare, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
 import { searchChatHistory, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
@@ -240,6 +241,7 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
             <input
               ref={inputRef}
               type="text"
+              maxLength={HISTORY_SEARCH_MAX_LENGTH}
               data-search-input
               value={query}
               onChange={handleChange}

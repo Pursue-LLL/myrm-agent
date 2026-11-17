@@ -17,6 +17,7 @@
 import { memo } from 'react';
 import { useTranslations } from 'next-intl';
 
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Button } from '@/components/primitives/button';
 import {
@@ -423,6 +424,7 @@ const SharedContextPanel = memo(() => {
               <p className="text-sm text-muted-foreground">{t('history.description')}</p>
               <div className="mt-3 grid gap-2 md:grid-cols-[1fr_150px_auto]">
                 <input
+                  maxLength={HISTORY_SEARCH_MAX_LENGTH}
                   value={panel.historyQuery}
                   onChange={(event) => panel.setHistoryQuery(event.target.value)}
                   placeholder={t('history.searchPlaceholder')}
