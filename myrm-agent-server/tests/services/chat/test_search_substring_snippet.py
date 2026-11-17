@@ -1,7 +1,9 @@
-"""A hit found by the substring scan reads like one found by the trigram index: a centred window with the match marked.
+"""A hit found by the substring scan is previewed like one found by the trigram index: a window of the same width, centred
+on the match, with the match marked and ``...`` where the text goes on.
 
-The scan stands in for the index when the query is under three characters, so the search dialog shows the same preview
-whichever channel found the message.
+The scan stands in for the index when the query is under three characters. Against the real index the window is pinned
+only for a lone match at the start, middle or end of a text padded with plain characters; elsewhere FTS5 may start its
+window at a different character (see ``substring_snippet``).
 """
 
 from __future__ import annotations
@@ -83,7 +85,7 @@ def test_a_match_longer_than_the_window_is_shown_whole() -> None:
     assert ChatMessageSearchRepository.substring_snippet(f"{_BEFORE}{needle}{_AFTER}", needle) == f"...<mark>{needle}</mark>..."
 
 
-def test_a_text_the_pattern_cannot_place_shows_its_head_unmarked() -> None:
+def test_a_needle_the_text_does_not_hold_previews_the_head_unmarked() -> None:
     content = "abcdef" * 20
 
     assert ChatMessageSearchRepository.substring_snippet(content, "zzz") == f"{content[:_WINDOW]}..."
@@ -92,7 +94,7 @@ def test_a_text_the_pattern_cannot_place_shows_its_head_unmarked() -> None:
 @pytest.mark.parametrize("needle", ["部署流", "部署流程", "部署流程图片"])
 @pytest.mark.parametrize("position", ["start", "middle", "end"])
 @pytest.mark.asyncio
-async def test_the_substring_window_is_the_window_the_trigram_index_cuts(
+async def test_a_lone_match_at_the_start_middle_or_end_is_cut_like_the_trigram_window(
     fts_db: AsyncSession, needle: str, position: str
 ) -> None:
     content = {"start": f"{needle}{_AFTER}", "middle": f"{_BEFORE}{needle}{_AFTER}", "end": f"{_BEFORE}{needle}"}[position]
