@@ -13,14 +13,14 @@
 [POS]
 The failures a settings screen, a gateway or a provider outage really produce: an error status with its body, an error
 event inside a 200 stream, a stream cut off on the way, an empty one, a reply whose body holds no sentence so that
-only its status says what happened, and a reply whose cause is named only in a kind or code field. What the agent does next (repeat, switch key, compact, give up) is decided by five
-facts: the failover reason, the error kind, whether the context window or the request size is exhausted, whether the
-quota is spent and how long the provider asked to wait. What the user is told is the error card (its type, without a
-context and with a custom local endpoint). Those are what is compared. The committed
-``golden_failures_baseline.json`` was recorded by serving each case from a loopback HTTP server to the litellm chat
-adapter (litellm 1.97.0, the version the server's uv.lock pinned then) and reducing the exception it raised
-with the classifiers and the diagnostics of that library's own packages; ``_meta`` states at which main, and how the
-harness lock's litellm 1.106.0 reads the same corpus.
+only its status says what happened, and a reply whose cause is named only in a kind or code field. What the agent does
+next (repeat, switch key, compact, give up) is decided by five facts: the failover reason, the error kind, whether the
+context window or the request size is exhausted, whether the quota is spent and how long the provider asked to wait.
+What the user is told is the error card (its type, without a context and with a custom local endpoint). Those are what
+is compared. The committed ``golden_failures_baseline.json`` was recorded by serving each case from a loopback HTTP
+server to the litellm chat adapter (litellm 1.97.0) and reducing the exception it raised with the classifiers and the
+diagnostics of that library's own packages; ``_meta`` states at which main, and how the harness lock's litellm 1.106.0
+reads the same corpus.
 """
 
 from __future__ import annotations

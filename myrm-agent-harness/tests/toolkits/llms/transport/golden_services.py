@@ -13,8 +13,8 @@
 [POS]
 Library-agnostic capture of the four service paths, through the same public classes the product calls. The committed
 ``golden_services_baseline.json`` was recorded by running this module against the baseline client library (litellm
-1.97.0) at commit b218e6f1d7; the golden test replays the matrix on the transport and diffs requests and results.
-Nothing here imports the client library, so the same module runs against either stack.
+1.97.0); its ``_meta`` names the commit each case was recorded at. The golden test replays the matrix on the transport
+and diffs requests and results. Nothing here imports the client library, so the same module runs against either stack.
 """
 
 from __future__ import annotations

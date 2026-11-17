@@ -11,9 +11,9 @@
 - install_recorder: the recorder to pass to ``capture_all``
 
 [POS]
-Library-agnostic request capture. The committed baseline ``golden_baseline.json`` was recorded the same way at
-commit b6959e7d7e, when the factory called the multi-provider litellm client library (litellm 1.97.0) with
-the production configuration applied; the golden test replays the matrix on the current transport and diffs the two.
+Library-agnostic request capture. ``golden_baseline.json`` holds the requests the baseline client library (litellm
+1.97.0, production configuration applied) put on the wire for the same matrix; its ``_meta`` names the commit it was
+recorded at. The golden test replays the matrix on the current transport and diffs the two.
 Only the final request on the wire is observed, so the comparison does not depend on any library internals.
 """
 
