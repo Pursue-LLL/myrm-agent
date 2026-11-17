@@ -335,7 +335,7 @@ class TaintLabel(StrEnum):
 3. **Reasoning-Blind Transcript Classifier**：如果启用了 `auto_mode_enabled`，在污点冲突提升为 ASK 之前（以及所有其他 engine 返回 ASK 的场景），会调用 Transcript Classifier（优先使用用户配置的轻量级 `auto_review_model`）。Classifier 采用 Reasoning-Blind 设计——只看用户消息（`intent_context`）和最近工具调用序列（`recent_tool_calls`，只含工具名+参数，不含 assistant 文本和工具输出），以防止 agent 通过自我合理化绕过审查。Classifier 同时接收当前会话的 Taint 标签（由 `middleware` 从 `TaintTracker.labels` 提取）和 Trust Context（用户配置的 `network_allowlist` 作为 `trusted_domains` 传递，帮助区分内部可信域名与外部不可信目标），其 Prompt 内置 Taint Context Rules 和 Trust Context Rules。Taint Context 使 Classifier 能理解 `EXTERNAL_NETWORK`（不可信网络数据）和 `SECRET`（凭据/密钥）的安全含义，在存在 taint 的会话中做出更谨慎的判断；Trust Context 使 Classifier 知道用户显式信任的域名（如公司内部 API），避免将 shell 命令中针对可信域名的网络操作误判为数据外泄（Trust Context 不覆盖 BLOCK RULES）。Classifier 根据四大阻止规则类别（销毁/外泄、降低安全态势、跨信任边界、绕过审查）和用户授权意图进行分步判断。如果符合用户预期则静默 ALLOW；如果违反阻止规则或超出用户授权范围则 DENY；如果无法判断（UNCERTAIN），则回退到 ASK 弹窗，**并将 Classifier 的疑虑分析（Reason）注入到弹窗提示中**，辅助用户决策（所有场景均已覆盖）。审查结果通过 Structured Output (Pydantic) 强制约束，确保解析鲁棒性。所有分类决策（ALLOW/DENY/UNCERTAIN）均通过 `record_decision` 记录到安全审计链。
 4. 每次 Agent run 开始时 `reset_taint_tracker()` 重置
 
-**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，若调用的每个网址（`url` 与 `urls`）的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，仍按汇处理。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
+**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，若调用带有 `url` 或 `urls` 参数，且其中每个网址的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，或调用没有这两个参数，仍按汇处理。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
 
 **保守策略与智能放行**：由于 LLM 是黑盒，无法确定它是否"忘记"了污点数据，因此一旦标记，污点在整个会话期间持续存在。传统做法是冲突时一律提升到用户审批（导致警报疲劳）。引入 Smart Intent Guard 后，系统能在保证安全的前提下，通过理解用户意图实现智能放行。
 
