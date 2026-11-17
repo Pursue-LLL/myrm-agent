@@ -127,7 +127,7 @@ interrupt({
 - **Subagent**：`is_subagent=True` 且无 `subagent_task_id`
 - **Shadow Agent**：`is_shadow_agent=True`（后台 idle 任务经 `restricted_shadow_context()` 设置）
 
-Shadow Agent 场景由 `agent/background_worker/shadow_context.py` 提供执行层舱壁：封死 Python/Bash 执行，写操作仅限技能边车路径。
+Shadow Agent 场景由 `agent/background_worker/shadow_context.py` 提供执行层舱壁：封死 Python/Bash 执行与后台进程，写操作仅限技能边车路径。
 
 ---
 

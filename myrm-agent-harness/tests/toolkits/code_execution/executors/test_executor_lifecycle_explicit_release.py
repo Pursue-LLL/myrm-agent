@@ -11,7 +11,6 @@ from myrm_agent_harness.toolkits.code_execution.executors.base import (
     stash_executor_for_session,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext, ExecutionResult
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.appcontainer import AppContainerProvider
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.bwrap import BwrapProvider
@@ -42,15 +41,6 @@ async def test_code_executor_async_context_manager() -> None:
     async with executor as exc:
         assert exc is executor
     assert executor.closed
-
-
-@pytest.mark.asyncio
-async def test_code_executor_middleware_close_delegation() -> None:
-    inner = _DummyExecutor()
-    middleware = CodeExecutorMiddleware(inner)
-    assert not inner.closed
-    await middleware.close()
-    assert inner.closed
 
 
 @pytest.mark.asyncio

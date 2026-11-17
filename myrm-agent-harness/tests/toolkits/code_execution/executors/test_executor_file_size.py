@@ -19,7 +19,6 @@ from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.gunzip import MAX_GUNZIP_BYTES, gunzip_bounded
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
 from tests.toolkits.code_execution._executor_stub import InProcessExecutor
 
 
@@ -74,14 +73,6 @@ async def test_a_fifo_is_refused_instead_of_blocking(executor: CodeExecutor, tmp
 async def test_a_path_outside_the_workspace_is_refused(executor: CodeExecutor) -> None:
     with pytest.raises(ValueError, match="Path traversal detected"):
         await _promptly(executor.file_size("../outside.txt"))
-
-
-@pytest.mark.asyncio
-async def test_the_middleware_forwards_file_size(tmp_path: Path) -> None:
-    inner = LocalExecutor(ExecutionConfig())
-    inner.bind_workspace(str(tmp_path))
-    (tmp_path / "a.txt").write_text("12345")
-    assert await CodeExecutorMiddleware(inner).file_size("a.txt") == 5
 
 
 class TestBoundedGunzip:

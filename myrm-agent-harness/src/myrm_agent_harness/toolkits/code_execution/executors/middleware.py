@@ -5,17 +5,18 @@ Multiple middlewares can be composed into a policy chain.
 
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Abstract executor the middleware wraps and delegates to)
-- toolkits.code_execution.executors.models::ExecutionContext, ExecutionMetrics, ExecutionResult (POS: Executor value objects)
+- toolkits.code_execution.executors.models::AsyncProcessProtocol, ExecutionContext, ExecutionMetrics, ExecutionResult (POS: Executor value objects)
 
 [OUTPUT]
 - CodeExecutorMiddleware: Executor that forwards every operation to an inner executor; subclasses override the operations they police.
 
 [POS]
-Decorator layer over CodeExecutor. Every new CodeExecutor operation must be forwarded here, otherwise a wrapped executor silently falls back to the shell-based default.
+Decorator layer over CodeExecutor. Every CodeExecutor operation is forwarded here, otherwise a wrapped executor silently falls back to the base-class default: shell commands for file operations, no background processes.
 """
 
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
+    AsyncProcessProtocol,
     ExecutionContext,
     ExecutionMetrics,
     ExecutionResult,
@@ -56,6 +57,9 @@ class CodeExecutorMiddleware(CodeExecutor):
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         return await self.inner.execute_bash(context)
 
+    async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:
+        return await self.inner.spawn_background_process(context)
+
     async def read_file(self, path: str) -> str:
         return await self.inner.read_file(path)
 
@@ -67,6 +71,12 @@ class CodeExecutorMiddleware(CodeExecutor):
 
     async def write_file_bytes(self, path: str, content: bytes) -> None:
         await self.inner.write_file_bytes(path, content)
+
+    async def write_file_atomic(self, path: str, content: str) -> None:
+        await self.inner.write_file_atomic(path, content)
+
+    async def write_file_bytes_atomic(self, path: str, content: bytes) -> None:
+        await self.inner.write_file_bytes_atomic(path, content)
 
     async def delete_file(self, path: str) -> None:
         await self.inner.delete_file(path)

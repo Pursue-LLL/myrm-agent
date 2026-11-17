@@ -1,7 +1,7 @@
 """Shadow Agent bulkhead isolation for background / review workloads.
 
 Enforces execution-layer isolation via ContextVar-scoped executor wrapping:
-- Blocks Python and Bash execution (no shell escape hatch).
+- Blocks Python, Bash and background-process execution (no shell escape hatch).
 - Restricts file mutations to skill/memory sidecar paths.
 - Marks the async context as a shadow agent so approval middleware auto-denies.
 
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
+    from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,9 @@ class ShadowExecutorMiddleware(CodeExecutorMiddleware):
 
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         raise PermissionError("Bash execution is blocked in shadow context.")
+
+    async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:
+        raise PermissionError("Background processes are blocked in shadow context.")
 
     async def write_file(self, path: str, content: str) -> None:
         await self._assert_write_allowed(path)
