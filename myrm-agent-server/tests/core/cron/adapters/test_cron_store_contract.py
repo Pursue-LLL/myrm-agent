@@ -25,6 +25,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronRunRecord,
     JobStatus,
     JobType,
+    PauseReason,
     RunStatus,
     Schedule,
     ScheduleKind,
@@ -320,6 +321,17 @@ async def test_save_job_upserts_by_id_and_delete_job_reports_whether_a_row_went(
     assert await store.delete_job("one") is True
     assert await store.delete_job("one") is False
     assert await store.get_job("one") is None
+
+
+async def test_a_pause_reason_is_kept_by_a_save_and_dropped_by_the_next_one(store: CronStore) -> None:
+    paused = replace(_job("one", status=JobStatus.PAUSED), paused_reason=PauseReason.CIRCUIT_BREAK)
+    await store.save_job(paused)
+    kept = await store.get_job("one")
+    assert kept is not None and kept.paused_reason == PauseReason.CIRCUIT_BREAK
+
+    await store.save_job(replace(paused, status=JobStatus.ACTIVE, paused_reason=None))
+    dropped = await store.get_job("one")
+    assert dropped is not None and dropped.paused_reason is None
 
 
 async def test_save_job_stamps_updated_at_on_insert_and_keeps_the_given_value_on_update(store: CronStore) -> None:

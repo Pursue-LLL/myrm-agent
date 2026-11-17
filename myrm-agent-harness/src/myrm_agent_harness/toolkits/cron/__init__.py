@@ -41,7 +41,7 @@ Provides:
 - Built-in implementations: ShellJobRunner, InMemoryCronStore, WebhookDelivery
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
-- Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, ScheduleKind, SYSTEM_JOB_NAME_PREFIX, is_system_job_name, etc.
+- Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, PauseReason, ScheduleKind, SYSTEM_JOB_NAME_PREFIX, is_system_job_name, etc.
 - Blueprint contract: BlueprintJobSpec
 
 [POS]
@@ -126,6 +126,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobResult,
     JobStatus,
     JobType,
+    PauseReason,
     RunNowOutcome,
     RunStatus,
     Schedule,
@@ -169,6 +170,7 @@ __all__ = [
     "JobStatus",
     "JobType",
     "NotificationRunner",
+    "PauseReason",
     "PollTrigger",
     "ResultDelivery",
     "RouterJobRunner",

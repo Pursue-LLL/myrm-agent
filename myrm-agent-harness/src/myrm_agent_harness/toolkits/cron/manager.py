@@ -244,6 +244,7 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
             last_error=None,
             consecutive_failures=0,
             last_failure_alert_at=None,
+            paused_reason=None,
             created_at=now,
             updated_at=now,
         )

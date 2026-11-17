@@ -1,11 +1,12 @@
-"""A one-shot's time must lie ahead, and a re-enabled job gets a fresh slot and a fresh failure budget.
+"""A one-shot's time must lie ahead, and a re-enabled job gets a fresh slot and a fresh failure record.
 
 The manager owns the rules: a one-time schedule whose instant has passed is rejected on create and on update, and a
 job that is not enabled becomes enabled again only through one path. ``resume_job`` and an ``update_job`` that carries
-``status=ACTIVE`` share it, so both check the job as the patch leaves it, reset the failure count and book the next
-slot; an enabled job comes back from a resume untouched. An enabled job whose schedule, cooldown or active window
-changes books its slot again. These scenarios drive the real manager, the in-memory store and the ``cron_manage``
-tool; nothing is mocked, and the scheduler is never started.
+``status=ACTIVE`` share it, so both check the job as the patch leaves it, reset the failure count, the last error and
+the reason the scheduler paused the job, and book the next slot; an enabled job comes back from a resume untouched.
+Any other status a person sets replaces the scheduler's pause and its reason. An enabled job whose schedule, cooldown
+or active window changes books its slot again. These scenarios drive the real manager, the in-memory store and the
+``cron_manage`` tool; nothing is mocked, and the scheduler is never started.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronJobPatch,
     JobStatus,
+    PauseReason,
     Schedule,
     ScheduleKind,
 )
@@ -122,11 +124,18 @@ BOTH_ENTRIES = pytest.mark.parametrize("activate", [_resume, _patch_to_active], 
 
 class TestActivation:
     @BOTH_ENTRIES
-    async def test_an_auto_paused_job_gets_a_slot_and_a_fresh_failure_budget(
+    async def test_an_auto_paused_job_gets_a_slot_and_starts_its_failure_story_over(
         self, stack: ManagerStack, activate: Activate
     ) -> None:
         job = await stack.create("flaky", EVERY_HOUR)
-        await stack.rewrite(job.id, status=JobStatus.PAUSED, next_run_at=None, consecutive_failures=3)
+        await stack.rewrite(
+            job.id,
+            status=JobStatus.PAUSED,
+            next_run_at=None,
+            consecutive_failures=3,
+            last_error="boom",
+            paused_reason=PauseReason.RUN_FAILURES,
+        )
 
         before = datetime.now(UTC)
         resumed = await activate(stack, job.id)
@@ -135,6 +144,7 @@ class TestActivation:
         assert resumed is not None
         assert resumed.status == JobStatus.ACTIVE
         assert resumed.consecutive_failures == 0
+        assert (resumed.last_error, resumed.paused_reason) == (None, None)
         assert resumed.next_run_at is not None
         assert before + HOUR <= resumed.next_run_at <= after + HOUR
         assert await stack.stored(job.id) == resumed
@@ -203,14 +213,42 @@ class TestActivation:
 
     async def test_enabling_a_paused_heartbeat_books_its_next_run(self, stack: ManagerStack) -> None:
         first = await enable_heartbeat(stack.manager)
-        await stack.rewrite(first.id, status=JobStatus.PAUSED, next_run_at=None, consecutive_failures=3)
+        await stack.rewrite(
+            first.id,
+            status=JobStatus.PAUSED,
+            next_run_at=None,
+            consecutive_failures=3,
+            paused_reason=PauseReason.CIRCUIT_BREAK,
+        )
 
         again = await enable_heartbeat(stack.manager)
 
         assert again.id == first.id
         assert again.status == JobStatus.ACTIVE
         assert again.consecutive_failures == 0
+        assert again.paused_reason is None
         assert again.next_run_at is not None
+
+    @pytest.mark.parametrize("status", [JobStatus.PAUSED, JobStatus.COMPLETED], ids=["paused", "completed"])
+    async def test_a_status_a_person_sets_replaces_the_pause_the_scheduler_gave(
+        self, stack: ManagerStack, status: JobStatus
+    ) -> None:
+        job = await stack.create("flaky", EVERY_HOUR)
+        await stack.rewrite(job.id, status=JobStatus.PAUSED, next_run_at=None, paused_reason=PauseReason.SCHEDULE_ERROR)
+
+        patched = await stack.manager.update_job(job.id, CronJobPatch(status=status))
+
+        assert patched is not None
+        assert (patched.status, patched.paused_reason) == (status, None)
+
+    async def test_a_patch_that_leaves_the_status_alone_keeps_the_pause_reason(self, stack: ManagerStack) -> None:
+        job = await stack.create("flaky", EVERY_HOUR)
+        await stack.rewrite(job.id, status=JobStatus.PAUSED, next_run_at=None, paused_reason=PauseReason.CIRCUIT_BREAK)
+
+        patched = await stack.manager.update_job(job.id, CronJobPatch(name="renamed"))
+
+        assert patched is not None
+        assert (patched.status, patched.paused_reason) == (JobStatus.PAUSED, PauseReason.CIRCUIT_BREAK)
 
 
 class TestEnabledJobBooksAgainWhenASlotInputChanges:

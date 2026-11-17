@@ -3,7 +3,8 @@
 [INPUT] The jobs and actions routers over a real CronManager and an in-memory store (the scheduler is never started).
 [OUTPUT] Create and update answer 400 for a one-shot whose time has passed; resume answers 409 for a job that cannot
 run and leaves an enabled job as it is; a PATCH that sets ``status`` to ``active`` is a resume (400 where it cannot
-run): both book the next slot and clear the failure count. A manual run answers 202 once started, 409 while the job is
+run): both book the next slot and clear the failure count, the last error and the reason the scheduler paused the job
+for, while a PATCH that pauses by hand replaces that reason. A manual run answers 202 once started, 409 while the job is
 already running and 404 for a job that is missing or not active, and the refusals leave the job as it is.
 [POS] tests/api/cron/test_cron_api_run_and_resume.py
 """
@@ -21,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.cron import CronConfig, CronManager, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
-from myrm_agent_harness.toolkits.cron.types import JobStatus, RunNowOutcome, Schedule, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import JobStatus, PauseReason, RunNowOutcome, Schedule, ScheduleKind
 
 from app.api.cron.routes import actions_router, helpers, jobs_router
 
@@ -168,6 +169,23 @@ class TestResume:
         assert (body["status"], body["consecutive_failures"]) == ("active", 0)
         assert started + _HOUR <= _instant(body["next_run_at"]) <= finished + _HOUR
 
+    def test_drops_the_reason_the_scheduler_paused_for_and_the_error_it_left(self, api: Api) -> None:
+        job_id = api.create(_EVERY_HOUR)
+        api.rewrite(
+            job_id,
+            status=JobStatus.PAUSED,
+            next_run_at=None,
+            consecutive_failures=3,
+            last_error="pump is dry",
+            paused_reason=PauseReason.RUN_FAILURES,
+        )
+        paused = api.client.get(f"/cron/{job_id}").json()
+        assert (paused["paused_reason"], paused["last_error"]) == ("run_failures", "pump is dry")
+
+        body = api.client.post(f"/cron/{job_id}/resume").json()
+
+        assert (body["status"], body["paused_reason"], body["last_error"]) == ("active", None, None)
+
 
 class TestStatusPatch:
     def test_setting_active_is_a_resume_that_books_a_slot_and_clears_the_failures(self, api: Api) -> None:
@@ -182,6 +200,14 @@ class TestStatusPatch:
         body = response.json()
         assert (body["status"], body["consecutive_failures"]) == ("active", 0)
         assert started + _HOUR <= _instant(body["next_run_at"]) <= finished + _HOUR
+
+    def test_setting_paused_by_hand_replaces_the_reason_the_scheduler_gave(self, api: Api) -> None:
+        job_id = api.create(_EVERY_HOUR)
+        api.rewrite(job_id, status=JobStatus.PAUSED, next_run_at=None, paused_reason=PauseReason.CIRCUIT_BREAK)
+
+        body = api.client.patch(f"/cron/{job_id}", json={"status": "paused"}).json()
+
+        assert (body["status"], body["paused_reason"]) == ("paused", None)
 
     def test_setting_active_on_a_job_that_cannot_run_is_a_400_and_stays_paused(self, api: Api) -> None:
         job_id = api.create(_EVERY_HOUR)

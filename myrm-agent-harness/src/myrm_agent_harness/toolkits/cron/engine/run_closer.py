@@ -1,10 +1,10 @@
 """Closing write of a run: the job's new state once the run has ended.
 
 [INPUT]
-- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run, run_status_of (POS: pure engine helpers: error classification, backoff, the next slot to book and the status a run carries)
+- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run, pause_job, run_status_of (POS: pure engine helpers: error classification, backoff, the next slot to book, the one way a failure pauses a job and the status a run carries)
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
-- toolkits.cron.types::CronJob, JobResult, JobStatus, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob, JobResult, JobStatus, PauseReason, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
 - RunCloserMixin: `_update_after_run` and its recurring and one-time branches, `_pause_for_schedule_error` (also used by the skipped-run bookkeeping), and `_record_trial_outcome` for a manual run, mixed into the executor
@@ -13,7 +13,8 @@
 Mixed into ``JobExecutor``. After a run is recorded, adopts the stored job and applies what the run decided: auto-pause
 on a circuit break or on too many failures, the next slot or the backoff retry, completion of a one-time job (deleted
 only when its run succeeded and its delivery did not fail), and the pause of a job whose schedule cannot be computed.
-A job this write moves from active to paused is reported once as a ``CronNotice``, whichever branch paused it. Because
+Every one of those pauses names its reason on the job (``paused_reason``). A job this write moves from active to
+paused is reported once as a ``CronNotice``, whichever branch paused it. Because
 it writes onto the stored job, a pause, an edit or a delete made while the run was in flight is neither undone nor
 resurrected. A manual run decides nothing about the schedule or the job's state: it only becomes the job's latest
 run.
@@ -29,10 +30,11 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     classify_transient_error,
     error_backoff_ms,
     next_eligible_run,
+    pause_job,
     run_status_of,
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.types import DeliveryStatus, JobStatus, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import DeliveryStatus, JobStatus, PauseReason, ScheduleKind
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
@@ -90,16 +92,14 @@ class RunCloserMixin:
         """A recurring job's new state: paused, booked at its next regular slot, or booked for a backoff retry."""
         schedule_error: str | None = None
         if result.circuit_broken:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
+            pause_job(job, PauseReason.CIRCUIT_BREAK)
             logger.warning(
                 "Job %s auto-paused due to circuit break: %s",
                 job.id,
                 result.error,
             )
         elif not result.success and new_failures > job.max_retries:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
+            pause_job(job, PauseReason.RUN_FAILURES)
             logger.warning(
                 "Job %s auto-paused: %d consecutive failures (max_retries=%d)",
                 job.id,
@@ -183,7 +183,7 @@ class RunCloserMixin:
                 job.max_retries,
             )
         else:
-            job.status = JobStatus.PAUSED
+            pause_job(job, PauseReason.CIRCUIT_BREAK if result.circuit_broken else PauseReason.RUN_FAILURES)
             job.consecutive_failures = new_failures
             job.last_error = result.error
             self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
@@ -202,7 +202,6 @@ class RunCloserMixin:
         would only run the agent again every minute until someone notices. The caller saves the job, and the
         pause is reported once it is saved.
         """
-        job.status = JobStatus.PAUSED
-        job.next_run_at = None
+        pause_job(job, PauseReason.SCHEDULE_ERROR)
         logger.warning("Job %s auto-paused: its schedule cannot be computed: %s", job.id, error)
         return f"Schedule error: {error}"

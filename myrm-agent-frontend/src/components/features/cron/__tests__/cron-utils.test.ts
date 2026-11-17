@@ -9,12 +9,13 @@ import {
   isFailedRunStatus,
   isFailingJob,
   parseTimeoutSeconds,
+  pauseReasonLabelKey,
   runStatusLabelKey,
   skipReasonLabelKey,
   statusBorderColor,
   triggerSourceLabelKey,
 } from '../cron-utils';
-import type { CronJob, RunStatus } from '@/services/cron.types';
+import type { CronJob, PauseReason, RunStatus } from '@/services/cron.types';
 
 function makeJob(overrides: Partial<CronJob>): CronJob {
   return {
@@ -264,5 +265,15 @@ describe('runStatusLabelKey', () => {
     ['circuit_break', 'runCircuitBreak'],
   ] satisfies Array<[RunStatus, string]>)('words the status %s with %s', (status, labelKey) => {
     expect(runStatusLabelKey(status)).toBe(labelKey);
+  });
+});
+
+describe('pauseReasonLabelKey', () => {
+  it.each([
+    ['circuit_break', 'circuitBreakBanner'],
+    ['run_failures', 'pausedRunFailures'],
+    ['schedule_error', 'pausedScheduleError'],
+  ] satisfies Array<[PauseReason, string]>)('words the pause reason %s with %s', (reason, labelKey) => {
+    expect(pauseReasonLabelKey(reason)).toBe(labelKey);
   });
 });

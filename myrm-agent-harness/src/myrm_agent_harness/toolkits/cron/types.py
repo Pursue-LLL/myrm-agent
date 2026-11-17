@@ -11,10 +11,11 @@ Consumed by scheduler, manager, tools, and application adapters.
 - JobType: what a job runs — an agent prompt, a shell command, a router or a reminder
 - JobStatus: whether a job is active, paused or completed
 - RunStatus: how a run ended — ok, error, skipped or circuit break
+- PauseReason: why the scheduler paused a job by itself after a failure — a circuit break, repeated run failures or a schedule that cannot be computed
 - RunNowOutcome: what a manual-run request came to — started, or why it did not
 - TransientErrorKind: Classifies transient errors for smart retry decisions.
 - SYSTEM_JOB_NAME_PREFIX, is_system_job_name: which job names are reserved for jobs the application creates itself
-- CronNoticeKind: what a notice reports — a run's outcome or an automatic pause
+- CronNoticeKind: what a notice reports — a run's outcome, a run a crash cut short or an automatic pause
 - CronNotice: one user-facing fact about a job, handed to the application layer's notice callback
 
 [POS]
@@ -57,6 +58,14 @@ class RunStatus(StrEnum):
     ERROR = "error"
     SKIPPED = "skipped"
     CIRCUIT_BREAK = "circuit_break"
+
+
+class PauseReason(StrEnum):
+    """Why the scheduler paused a job by itself after a failure; a job a person paused has none."""
+
+    CIRCUIT_BREAK = "circuit_break"
+    RUN_FAILURES = "run_failures"
+    SCHEDULE_ERROR = "schedule_error"
 
 
 class RunNowOutcome(StrEnum):
@@ -260,6 +269,8 @@ class CronJob:
     last_error: str | None = None
     consecutive_failures: int = 0
     last_failure_alert_at: datetime | None = None
+    # Set while the scheduler's own pause holds; resuming, or pausing by hand, clears it.
+    paused_reason: PauseReason | None = None
 
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
@@ -424,6 +435,7 @@ class CronNoticeKind(StrEnum):
 
     RUN_SUCCEEDED = "run_succeeded"
     RUN_FAILED = "run_failed"
+    RUN_INTERRUPTED = "run_interrupted"
     JOB_EXPIRED = "job_expired"
     JOB_MAX_FIRES_REACHED = "job_max_fires_reached"
     JOB_PAUSED_BY_FAILURE = "job_paused_by_failure"
@@ -431,11 +443,12 @@ class CronNoticeKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class CronNotice:
-    """One user-facing fact about a job: a run's outcome, or the scheduler pausing the job by itself.
+    """One user-facing fact about a job: a run's outcome, a run a crash cut short, or the scheduler pausing the job.
 
     ``job_name`` is the job's stored name, which the application presents as it sees fit. ``text`` is the bare
-    output-or-error snippet of the run for the ``RUN_*`` kinds and empty for the pauses. ``chat_id`` is the chat
-    the job is bound to, set on run outcomes only. ``max_fires`` is the limit a ``JOB_MAX_FIRES_REACHED`` pause hit.
+    output-or-error snippet of the run for ``RUN_SUCCEEDED`` and ``RUN_FAILED`` and empty for every other kind.
+    ``chat_id`` is the chat the job is bound to, set on run outcomes (an interrupted run included) only.
+    ``max_fires`` is the limit a ``JOB_MAX_FIRES_REACHED`` pause hit.
     """
 
     kind: CronNoticeKind

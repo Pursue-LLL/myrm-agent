@@ -4,7 +4,7 @@ All public functions are pure (no I/O besides log lines) and safe to call from a
 
 [INPUT]
 - toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
-- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig, RunStatus, Schedule, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig, JobStatus, PauseReason, RunStatus, Schedule, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
 - resolve_stagger_ms: Compute the effective stagger delay for a job.
@@ -15,6 +15,7 @@ All public functions are pure (no I/O besides log lines) and safe to call from a
 - next_eligible_run: The slot to book as a job's next run, with cooldown, 60 s floor and active window applied.
 - next_slot_or_retry: The slot to book for a recurring job, or a minute ahead when its schedule cannot be computed.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
+- pause_job: Pause a job the scheduler gave up on after a failure: no slot stays booked and the reason is kept.
 - run_status_of: The status a run's record and its job's last status carry.
 - resolve_failure_alert: Merge the per-job and the global failure-alert config; None when alerts are off.
 - should_send_failure_alert: Whether the failure threshold and the cooldown let an alert fire now.
@@ -24,8 +25,8 @@ All public functions are pure (no I/O besides log lines) and safe to call from a
 
 [POS]
 Pure engine helpers: stagger resolution, schedule-window and misfire checks, the next slot to book, the pre-execution
-guards with the notice an automatic pause raises, the status a run carries, failure-alert resolution, error
-classification with its backoff schedule, and telemetry extraction.
+guards with the notice an automatic pause raises, the one way a failure pauses a job, the status a run carries,
+failure-alert resolution, error classification with its backoff schedule, and telemetry extraction.
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronNotice,
     CronNoticeKind,
     FailureAlertConfig,
+    JobStatus,
     RunStatus,
     ScheduleKind,
 )
@@ -50,6 +52,7 @@ if TYPE_CHECKING:
         CronJob,
         FailureAlertConfig,
         JobResult,
+        PauseReason,
         Schedule,
         TransientErrorKind,
     )
@@ -175,8 +178,6 @@ def pre_execution_check(job: CronJob, now: datetime) -> str | None:
     Checks (in order): expiry -> max_fires -> cooldown.
     Side-effect: sets ``job.status = PAUSED`` for expiry / max_fires.
     """
-    from myrm_agent_harness.toolkits.cron.types import JobStatus
-
     if job.expires_at and now >= _ensure_utc(job.expires_at):
         job.status = JobStatus.PAUSED
         return "expired"
@@ -245,6 +246,19 @@ def auto_pause_notice(job: CronJob, skip_reason: str) -> CronNotice | None:
     if skip_reason == "max_fires_reached":
         return CronNotice(kind=CronNoticeKind.JOB_MAX_FIRES_REACHED, job_name=job.name, max_fires=job.max_fires)
     return None
+
+
+def pause_job(job: CronJob, reason: PauseReason) -> None:
+    """Pause a job the scheduler gave up on after a failure; the caller saves it and tells the user.
+
+    No slot stays booked, so nothing runs the job again until it is resumed, and ``reason`` stays on it for
+    whoever looks at the job afterwards. A job that is already paused keeps the reason it has, none when a person
+    paused it: the scheduler did not stop that job.
+    """
+    if job.status != JobStatus.PAUSED:
+        job.paused_reason = reason
+    job.status = JobStatus.PAUSED
+    job.next_run_at = None
 
 
 def run_status_of(result: JobResult) -> RunStatus:

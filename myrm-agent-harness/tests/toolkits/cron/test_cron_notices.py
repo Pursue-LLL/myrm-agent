@@ -26,6 +26,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobResult,
     JobStatus,
     JobType,
+    PauseReason,
     RunStatus,
     Schedule,
     ScheduleKind,
@@ -171,18 +172,27 @@ async def test_the_pause_notice_follows_the_failed_run_that_caused_it(stack: Sta
     assert stack.notices[1] == PAUSED_BY_FAILURE
 
 
+async def test_a_circuit_break_is_announced_by_the_pause_it_causes_alone(stack: Stack) -> None:
+    stack.runner.result = BREAKER
+
+    stored = await stack.dispatch(replace(_job(), chat_id="chat-7"))
+
+    assert stored.status == JobStatus.PAUSED
+    assert stack.notices == [PAUSED_BY_FAILURE]
+
+
 @pytest.mark.parametrize(
-    ("schedule", "consecutive_failures", "result"),
+    ("schedule", "consecutive_failures", "result", "reason"),
     [
-        (EVERY_HOUR, 2, FAILED),
-        (EVERY_HOUR, 0, BREAKER),
-        (ONCE, 0, FAILED),
-        (ONCE, 0, BREAKER),
+        (EVERY_HOUR, 2, FAILED, PauseReason.RUN_FAILURES),
+        (EVERY_HOUR, 0, BREAKER, PauseReason.CIRCUIT_BREAK),
+        (ONCE, 0, FAILED, PauseReason.RUN_FAILURES),
+        (ONCE, 0, BREAKER, PauseReason.CIRCUIT_BREAK),
     ],
     ids=["third consecutive failure", "circuit break", "one-time failure", "one-time circuit break"],
 )
-async def test_a_run_that_pauses_its_job_says_so_even_when_the_job_delivers_nowhere(
-    stack: Stack, schedule: Schedule, consecutive_failures: int, result: JobResult
+async def test_a_run_that_pauses_its_job_names_why_and_says_so_even_when_the_job_delivers_nowhere(
+    stack: Stack, schedule: Schedule, consecutive_failures: int, result: JobResult, reason: PauseReason
 ) -> None:
     stack.runner.result = result
     job = replace(_job(), schedule=schedule, consecutive_failures=consecutive_failures, delivery=DELIVERS_NOWHERE)
@@ -190,6 +200,7 @@ async def test_a_run_that_pauses_its_job_says_so_even_when_the_job_delivers_nowh
     stored = await stack.dispatch(job)
 
     assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stored.paused_reason == reason
     assert stack.notices == [PAUSED_BY_FAILURE]
 
 
@@ -224,7 +235,7 @@ async def test_a_job_the_user_paused_during_the_run_raises_no_pause_notice(stack
 
     stored = await stack.dispatch(replace(_job(), consecutive_failures=2, delivery=DELIVERS_NOWHERE))
 
-    assert stored.status == JobStatus.PAUSED
+    assert (stored.status, stored.paused_reason) == (JobStatus.PAUSED, None)
     assert stack.notices == []
 
 
@@ -240,6 +251,7 @@ async def test_a_schedule_that_cannot_be_computed_pauses_its_job_at_once_and_say
     stored = await stack.dispatch(replace(_job(), delivery=DELIVERS_NOWHERE))
 
     assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stored.paused_reason == PauseReason.SCHEDULE_ERROR
     assert stored.last_status == RunStatus.OK
     assert stored.last_error == "Schedule error: unparsable schedule"
     assert stack.notices == [PAUSED_BY_FAILURE]
@@ -254,6 +266,7 @@ async def test_a_skipped_run_whose_schedule_cannot_be_computed_pauses_its_job_an
 
     assert stack.runner.runs == 0
     assert stored.status == JobStatus.PAUSED and stored.next_run_at is None
+    assert stored.paused_reason == PauseReason.SCHEDULE_ERROR
     assert stored.last_error == "Schedule error: unparsable schedule"
     assert stack.notices == [PAUSED_BY_FAILURE]
 

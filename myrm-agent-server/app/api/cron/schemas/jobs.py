@@ -1,6 +1,6 @@
 """[INPUT]
 - pydantic::BaseModel (POS: schema base)
-- myrm_agent_harness.toolkits.cron.types::JobStatus, JobType, RunStatus, SessionTarget, is_system_job_name (POS: Cron job domain types.)
+- myrm_agent_harness.toolkits.cron.types::JobStatus, JobType, PauseReason, RunStatus, SessionTarget, is_system_job_name (POS: Cron job domain types.)
 
 [OUTPUT]
 - CronJobCreate, CronJobUpdate, CronJobResponse, CronRunResponse, CronJobsListResponse, CronRunsListResponse
@@ -14,7 +14,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType, RunStatus, SessionTarget, is_system_job_name
+from myrm_agent_harness.toolkits.cron.types import (
+    JobStatus,
+    JobType,
+    PauseReason,
+    RunStatus,
+    SessionTarget,
+    is_system_job_name,
+)
 from pydantic import BaseModel, Field, field_validator
 
 from .delivery import DeliveryCreate, DeliveryResponse
@@ -197,6 +204,7 @@ class CronJobResponse(BaseModel):
     last_error: str | None = None
     consecutive_failures: int
     last_failure_alert_at: datetime | None = None
+    paused_reason: PauseReason | None = None
 
     created_at: datetime
     updated_at: datetime

@@ -1,9 +1,10 @@
 """What the application hears of a run a crash cut short.
 
 A start turns every marker the previous process left into an interrupted-run record and one counted failure, then
-tells the application: the failed run goes to the chat the job is bound to, and when that failure is the one that
-paused the job, the pause follows it. Every test drives the real scheduler, executor and recovery over the in-memory
-store; only the runner and the lock are stand-ins.
+tells the application: the interrupted run goes to the chat the job is bound to as a notice of its own that carries no
+error text, and when that failure is the one that paused the job, the pause follows it and names its reason on the
+job. Every test drives the real scheduler, executor and recovery over the in-memory store; only the runner and the
+lock are stand-ins.
 """
 
 from __future__ import annotations
@@ -16,9 +17,17 @@ import pytest
 
 from myrm_agent_harness.toolkits.cron.engine import scheduler as scheduler_module
 from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
-from myrm_agent_harness.toolkits.cron.types import CronJob, CronNotice, CronNoticeKind, DeliveryConfig, JobStatus
+from myrm_agent_harness.toolkits.cron.types import (
+    CronJob,
+    CronNotice,
+    CronNoticeKind,
+    DeliveryConfig,
+    JobStatus,
+    PauseReason,
+)
 from tests.support.cron_inflight_stack import CRASHED, STOPPING, InflightStack, make_inflight_stack
 
+INTERRUPTED = CronNotice(kind=CronNoticeKind.RUN_INTERRUPTED, job_name="job job-1", chat_id="chat-7")
 PAUSED = CronNotice(kind=CronNoticeKind.JOB_PAUSED_BY_FAILURE, job_name="job job-1")
 
 
@@ -34,16 +43,17 @@ def _no_timers(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(scheduler_module, name, 3600.0)
 
 
-async def test_a_start_announces_a_crashed_run_as_a_failed_one(stack: InflightStack) -> None:
+async def test_a_start_announces_a_crashed_run_as_an_interrupted_one_without_the_error_text(
+    stack: InflightStack,
+) -> None:
     job = await stack.add(due=timedelta(hours=-1), chat_id="chat-7")
     await stack.store.mark_running(job.id)
 
     await stack.scheduler.start()
     await stack.scheduler.stop()
 
-    assert stack.notices == [
-        CronNotice(kind=CronNoticeKind.RUN_FAILED, job_name="job job-1", text=CRASHED, chat_id="chat-7")
-    ]
+    assert stack.notices == [INTERRUPTED]
+    assert await stack.interrupted() == [("recovery", CRASHED)]
 
 
 async def test_the_application_hears_of_it_once_the_record_and_the_failure_are_stored(stack: InflightStack) -> None:
@@ -77,20 +87,30 @@ async def test_the_application_is_told_whether_the_crash_paused_the_job(
     await StartupRecovery(stack.store, AsyncMock(), on_interrupted).report_interrupted(counted=True)
 
     assert told == [paused]
+    assert (await stack.stored()).paused_reason == (PauseReason.RUN_FAILURES if paused else None)
 
 
-async def test_a_crash_that_pauses_the_job_is_announced_after_its_failed_run(stack: InflightStack) -> None:
+async def test_a_crash_that_pauses_the_job_is_announced_after_its_interrupted_run(stack: InflightStack) -> None:
     job = await stack.add(due=timedelta(hours=-1), chat_id="chat-7", consecutive_failures=2, max_retries=2)
     await stack.store.mark_running(job.id)
 
     await stack.scheduler.start()
     await stack.scheduler.stop()
 
-    assert (await stack.stored()).status == JobStatus.PAUSED
-    assert stack.notices == [
-        CronNotice(kind=CronNoticeKind.RUN_FAILED, job_name="job job-1", text=CRASHED, chat_id="chat-7"),
-        PAUSED,
-    ]
+    stored = await stack.stored()
+    assert (stored.status, stored.paused_reason) == (JobStatus.PAUSED, PauseReason.RUN_FAILURES)
+    assert stack.notices == [INTERRUPTED, PAUSED]
+
+
+async def test_a_crash_within_the_failure_budget_leaves_no_pause_reason(stack: InflightStack) -> None:
+    job = await stack.add(due=timedelta(hours=-1), consecutive_failures=1, max_retries=2)
+    await stack.store.mark_running(job.id)
+
+    await stack.scheduler.start()
+    await stack.scheduler.stop()
+
+    stored = await stack.stored()
+    assert (stored.consecutive_failures, stored.paused_reason) == (2, None)
 
 
 async def test_a_crash_that_pauses_a_job_delivering_nowhere_still_announces_the_pause(stack: InflightStack) -> None:

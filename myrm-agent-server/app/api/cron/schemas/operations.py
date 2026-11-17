@@ -1,5 +1,6 @@
 """[INPUT]
 - pydantic::BaseModel (POS: schema base)
+- myrm_agent_harness.toolkits.cron.types::PauseReason (POS: Cron job domain types.)
 
 [OUTPUT]
 - HeartbeatEnableRequest, HeartbeatStatusResponse, PrerequisiteCheckRequest, PrerequisiteCheckResponse, ConnectorHealthResponse, ConnectorsHealthListResponse
@@ -12,6 +13,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from myrm_agent_harness.toolkits.cron.types import PauseReason
 from pydantic import BaseModel, Field
 
 
@@ -48,6 +50,7 @@ class HeartbeatStatusResponse(BaseModel):
     last_status: str | None = None
     next_run_at: datetime | None = None
     fire_count: int = 0
+    paused_reason: PauseReason | None = None
 
 
 class PrerequisiteCheckRequest(BaseModel):

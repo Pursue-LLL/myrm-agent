@@ -24,6 +24,7 @@ import useCronStore from '@/store/useCronStore';
 import type { CronJob } from '@/services/cron';
 import { computeRunStats, formatDuration, STATUS_BADGE_STYLE, STATUS_DOT_COLOR } from './cron-utils';
 import CronRunItem from './CronRunItem';
+import CronJobProblemBanner from './CronJobProblemBanner';
 import { CronJobAuditPanel } from './CronJobAuditPanel';
 import { AcceptanceCriteriaEditor } from './CronAcceptanceCriteriaEditor';
 import { needsSettingsAuditGate } from '@/lib/cron/cronCreateAuditGate';
@@ -217,11 +218,7 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
       {job.job_type === 'agent' && <CapabilityEditor job={job} onUpdated={handleEditorUpdated} />}
       {job.job_type === 'agent' && <AllowedRootsEditor job={job} onUpdated={handleEditorUpdated} />}
 
-      {job.last_error && (
-        <div className="rounded-full border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text">
-          {t('lastError')}: {job.last_error}
-        </div>
-      )}
+      <CronJobProblemBanner job={job} />
 
       {runsLoading && runs.length === 0 ? (
         <HistorySkeleton />

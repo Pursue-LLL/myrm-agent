@@ -16,6 +16,7 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     extract_telemetry,
     is_past_misfire_grace,
     next_slot_or_retry,
+    pause_job,
     pre_execution_check,
     resolve_failure_alert,
     resolve_stagger_ms,
@@ -28,6 +29,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobResult,
     JobStatus,
     JobType,
+    PauseReason,
     Schedule,
     ScheduleKind,
 )
@@ -103,6 +105,29 @@ class TestPreExecutionCheck:
 
     def test_runnable(self) -> None:
         assert pre_execution_check(_job(), _NOW) is None
+
+
+class TestPauseJob:
+    def test_an_active_job_is_paused_unbooked_and_carries_the_reason(self) -> None:
+        job = _job(next_run_at=_NOW + timedelta(hours=1))
+
+        pause_job(job, PauseReason.CIRCUIT_BREAK)
+
+        assert (job.status, job.next_run_at, job.paused_reason) == (JobStatus.PAUSED, None, PauseReason.CIRCUIT_BREAK)
+
+    def test_a_job_a_person_paused_stays_without_a_reason(self) -> None:
+        job = _job(status=JobStatus.PAUSED, next_run_at=_NOW + timedelta(hours=1))
+
+        pause_job(job, PauseReason.RUN_FAILURES)
+
+        assert (job.status, job.next_run_at, job.paused_reason) == (JobStatus.PAUSED, None, None)
+
+    def test_a_job_the_scheduler_already_paused_keeps_its_first_reason(self) -> None:
+        job = _job(status=JobStatus.PAUSED, paused_reason=PauseReason.SCHEDULE_ERROR)
+
+        pause_job(job, PauseReason.RUN_FAILURES)
+
+        assert job.paused_reason == PauseReason.SCHEDULE_ERROR
 
 
 class TestIsPastMisfireGrace:

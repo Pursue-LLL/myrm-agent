@@ -14,9 +14,9 @@ what to do with the slots that came due while the process was down:
 All recovery logic is encapsulated here; the scheduler calls ``run()`` at start and ``report_interrupted`` at stop.
 
 [INPUT]
-- toolkits.cron.engine.helpers::_ensure_utc, is_in_error_backoff, is_past_misfire_grace, next_slot_or_retry (POS: pure engine helpers: UTC normalisation, backoff, grace and the next slot to book)
+- toolkits.cron.engine.helpers::_ensure_utc, is_in_error_backoff, is_past_misfire_grace, next_slot_or_retry, pause_job (POS: pure engine helpers: UTC normalisation, backoff, grace, the next slot to book and the one way a failure pauses a job)
 - toolkits.cron.engine.parser::compute_prev_run (POS: Cron expression parsing and next-run calculation.)
-- toolkits.cron.types::CronJob, CronRunRecord, DeliveryStatus, JobStatus, RunStatus, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob, CronRunRecord, DeliveryStatus, JobStatus, PauseReason, RunStatus, ScheduleKind (POS: Cron job domain types.)
 - toolkits.cron.protocols::CronStore (POS: Protocols for the cron toolkit.)
 
 [OUTPUT]
@@ -36,6 +36,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     _ensure_utc,
+    pause_job,
 )
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     is_in_error_backoff as _is_in_error_backoff,
@@ -52,6 +53,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronRunRecord,
     DeliveryStatus,
     JobStatus,
+    PauseReason,
     RunStatus,
     ScheduleKind,
 )
@@ -145,8 +147,7 @@ class StartupRecovery:
         if counted:
             job.consecutive_failures += 1
             if job.consecutive_failures > job.max_retries:
-                job.status = JobStatus.PAUSED
-                job.next_run_at = None
+                pause_job(job, PauseReason.RUN_FAILURES)
         await self._store.save_job(job)
         # A crash is a fault worth a warning; a stop the application asked for is routine.
         logger.log(

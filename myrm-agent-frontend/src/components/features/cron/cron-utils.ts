@@ -1,4 +1,4 @@
-import type { CronJob, CronRun, JobStatus, RunStatus } from '@/services/cron';
+import type { CronJob, CronRun, JobStatus, PauseReason, RunStatus } from '@/services/cron';
 
 /** The stored name of the heartbeat, the one system job the application creates itself: the user never chose it. */
 export const HEARTBEAT_JOB_NAME = '__heartbeat__';
@@ -206,6 +206,19 @@ const RUN_STATUS_LABEL_KEYS: Record<RunStatus, RunStatusLabelKey> = {
 
 export function runStatusLabelKey(status: RunStatus): RunStatusLabelKey {
   return RUN_STATUS_LABEL_KEYS[status];
+}
+
+export type PauseReasonLabelKey = 'circuitBreakBanner' | 'pausedRunFailures' | 'pausedScheduleError';
+
+/** The sentence for why the scheduler paused a job by itself; a loop-guard break reads as the run's own banner does. */
+const PAUSE_REASON_LABEL_KEYS: Record<PauseReason, PauseReasonLabelKey> = {
+  circuit_break: 'circuitBreakBanner',
+  run_failures: 'pausedRunFailures',
+  schedule_error: 'pausedScheduleError',
+};
+
+export function pauseReasonLabelKey(reason: PauseReason): PauseReasonLabelKey {
+  return PAUSE_REASON_LABEL_KEYS[reason];
 }
 
 export function statusBorderColor(job: CronJob): string {

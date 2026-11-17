@@ -54,6 +54,7 @@ def _job_to_response(job: CronJob, enabled: bool) -> HeartbeatStatusResponse:
         last_status=job.last_status.value if job.last_status else None,
         next_run_at=job.next_run_at,
         fire_count=job.fire_count,
+        paused_reason=job.paused_reason,
     )
 
 

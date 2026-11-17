@@ -133,6 +133,20 @@ class TestATrialLeavesTheScheduleAlone:
         assert stored.last_status == RunStatus.ERROR and stored.last_error == "boom"
         assert [r.status for r in await lab.stack.records(job.id)] == [RunStatus.ERROR]
 
+    async def test_a_trial_the_loop_guard_cut_off_is_announced_as_a_failed_run_because_nothing_pauses_the_task(
+        self, lab: Lab
+    ) -> None:
+        job = await lab.create()
+        lab.runner.results.append(
+            JobResult(success=False, error="RUNAWAY_CIRCUIT_BREAKER: pump repeated 5 times", circuit_broken=True)
+        )
+
+        await lab.run_to_the_end(job)
+
+        stored = await lab.stack.stored(job.id)
+        assert (stored.status, stored.paused_reason) == (JobStatus.ACTIVE, None)
+        assert [notice.kind for notice in lab.notices] == [CronNoticeKind.RUN_FAILED]
+
     @pytest.mark.parametrize(
         "result",
         [

@@ -241,9 +241,10 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
         )
 
         await self._store.save_run(run)
-        await self._notify_run_outcome(job, result, delivery_status)
+        manual = trigger_source == TriggerKind.MANUAL
+        await self._notify_run_outcome(job, result, delivery_status, manual=manual)
 
-        if trigger_source == TriggerKind.MANUAL:
+        if manual:
             await self._record_trial_outcome(job, result, finished)
             return
         new_failures = 0 if result.success else job.consecutive_failures + 1

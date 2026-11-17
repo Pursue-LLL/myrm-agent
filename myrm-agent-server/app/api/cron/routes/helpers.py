@@ -151,6 +151,7 @@ def _to_response(
         last_error=job.last_error,
         consecutive_failures=job.consecutive_failures,
         last_failure_alert_at=job.last_failure_alert_at,
+        paused_reason=job.paused_reason,
         created_at=job.created_at,
         updated_at=job.updated_at,
     )

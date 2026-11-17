@@ -7256,6 +7256,8 @@
     "runSkipped": "Skipped",
     "runCircuitBreak": "Circuit Break",
     "circuitBreakBanner": "Runaway loop detected: execution halted and retries blocked to protect compute budget",
+    "pausedRunFailures": "It kept failing, so it was paused automatically.",
+    "pausedScheduleError": "Its schedule is invalid, so it was paused automatically.",
     "skippedUsageLimit": "Usage limit reached. Runs again once it resets.",
     "skippedBudgetBlocked": "Daily budget limit reached. This run was skipped.",
     "skippedCreditExhausted": "Work Units exhausted. This run was skipped.",

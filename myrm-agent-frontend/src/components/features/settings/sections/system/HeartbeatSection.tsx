@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Toggle from '@/components/features/settings/common/Toggle';
 import SettingsSection from '../SettingsSection';
 import HeartbeatLastRun from './HeartbeatLastRun';
+import HeartbeatPausedReason from './HeartbeatPausedReason';
 import {
   buildCronExpr,
   DAY_PRESETS,
@@ -242,6 +243,7 @@ const HeartbeatSection = memo(() => {
         <div className="space-y-0.5">
           <Label className="text-sm font-medium">{t('toggleLabel')}</Label>
           <p className="text-xs text-muted-foreground">{t('toggleDesc')}</p>
+          {status?.paused_reason && <HeartbeatPausedReason reason={status.paused_reason} />}
         </div>
         <Toggle checked={status?.enabled ?? false} isLoading={toggling} onChange={handleToggle} />
       </div>

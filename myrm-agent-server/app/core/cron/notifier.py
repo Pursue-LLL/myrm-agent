@@ -12,8 +12,8 @@
 
 [POS]
 The one place that decides how a cron notice looks to the user: severity, title and message per notice kind, and
-the name the job goes by. The engine reports facts only. Run outcomes keep the ``voice_background_task_done`` kind
-so a duplex voice session announces them in the chat the job is bound to.
+the name the job goes by. The engine reports facts only. Run outcomes, a run a crash cut short included, keep the
+``voice_background_task_done`` kind so a duplex voice session announces them in the chat the job is bound to.
 """
 
 from __future__ import annotations
@@ -48,6 +48,9 @@ class _Presentation:
 _PRESENTATION: Final[dict[CronNoticeKind, _Presentation]] = {
     CronNoticeKind.RUN_SUCCEEDED: _Presentation("success", _RUN_EVENT_KIND, "cron_notice_title"),
     CronNoticeKind.RUN_FAILED: _Presentation("error", _RUN_EVENT_KIND, "cron_notice_failed_title"),
+    CronNoticeKind.RUN_INTERRUPTED: _Presentation(
+        "warning", _RUN_EVENT_KIND, "cron_notice_interrupted_title", "cron_notice_interrupted_message"
+    ),
     CronNoticeKind.JOB_EXPIRED: _Presentation(
         "warning", _PAUSE_EVENT_KIND, "cron_notice_paused_title", "cron_notice_expired_message"
     ),

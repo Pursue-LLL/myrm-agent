@@ -34,6 +34,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     DeliveryStatus,
     JobStatus,
     JobType,
+    PauseReason,
     RunStatus,
     SessionTarget,
 )
@@ -215,6 +216,7 @@ def job_to_domain(m: CronJobModel) -> CronJob:
         last_error=m.last_error,
         consecutive_failures=m.consecutive_failures,
         last_failure_alert_at=m.last_failure_alert_at,
+        paused_reason=PauseReason(m.paused_reason) if m.paused_reason else None,
         created_at=m.created_at,
         updated_at=m.updated_at,
     )
@@ -269,6 +271,7 @@ def job_to_model(job: CronJob) -> CronJobModel:
         last_error=job.last_error,
         consecutive_failures=job.consecutive_failures,
         last_failure_alert_at=_as_utc_or_none(job.last_failure_alert_at),
+        paused_reason=job.paused_reason,
     )
 
 
@@ -319,6 +322,7 @@ def apply_job_to_model(m: CronJobModel, job: CronJob) -> None:
     m.last_error = job.last_error
     m.consecutive_failures = job.consecutive_failures
     m.last_failure_alert_at = _as_utc_or_none(job.last_failure_alert_at)
+    m.paused_reason = job.paused_reason
     m.updated_at = as_utc(job.updated_at)
 
 

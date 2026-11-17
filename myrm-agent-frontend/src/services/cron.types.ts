@@ -1,5 +1,7 @@
 export type JobStatus = 'active' | 'paused' | 'completed';
 export type RunStatus = 'ok' | 'error' | 'skipped' | 'circuit_break';
+/** Why the scheduler paused a job by itself after a failure; a job the user paused has none. */
+export type PauseReason = 'circuit_break' | 'run_failures' | 'schedule_error';
 export type SessionTarget = 'isolated' | 'main' | 'daily';
 
 export interface CronSchedule {
@@ -123,6 +125,7 @@ export interface CronJob {
   last_error?: string;
   consecutive_failures: number;
   last_failure_alert_at?: string | null;
+  paused_reason?: PauseReason | null;
   created_at: string;
   updated_at: string;
 }

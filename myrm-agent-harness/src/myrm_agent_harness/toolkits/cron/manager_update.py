@@ -13,8 +13,9 @@
 [POS]
 Update half of the cron CRUD manager, mixed into ``CronManager``. Applies a ``CronJobPatch`` to the stored job
 once the content rules pass; a status patch to active on a job that is not enabled is a resume (preconditions,
-failure count reset, next slot booked), and an enabled job whose schedule, cooldown or active window changes gets its
-slot booked again (a one-shot's slot moves only with its schedule). Resets an enabled monitor's baseline when its
+failure count, last error and pause reason reset, next slot booked), any other status patch is a person's own
+decision and drops the scheduler's pause reason, and an enabled job whose schedule, cooldown or active window changes
+gets its slot booked again (a one-shot's slot moves only with its schedule). Resets an enabled monitor's baseline when its
 command, prompt or monitor type changes, persists the job and notifies the scheduler.
 """
 
@@ -60,12 +61,15 @@ class CronUpdateMixin(CronValidationMixin):
         """Re-enable a job: the one path a resume and a status patch to active share.
 
         The preconditions are checked on the job as the patch leaves it, so an edit that removes the obstacle (a new
-        time, a later expiry) and the activation can arrive together. The failure count restarts and the next slot is
-        booked from now, because a paused job holds no valid slot.
+        time, a later expiry) and the activation can arrive together. The failure story restarts (count, last error
+        and the reason the scheduler paused the job) and the next slot is booked from now, because a paused job holds
+        no valid slot.
         """
         self._validate_resume_preconditions(job, now)
         job.status = JobStatus.ACTIVE
         job.consecutive_failures = 0
+        job.last_error = None
+        job.paused_reason = None
         job.next_run_at = self._book_slot(job, now)
 
     async def _reset_baseline_on_change(self, job_id: str, reset_reason: ResetReason) -> None:
@@ -112,6 +116,7 @@ class CronUpdateMixin(CronValidationMixin):
             job.name = patch.name
         if patch.status is not None and not activating:
             job.status = patch.status
+            job.paused_reason = None
         if patch.schedule is not None:
             self._validate_schedule(patch.schedule)
             job.schedule = patch.schedule
