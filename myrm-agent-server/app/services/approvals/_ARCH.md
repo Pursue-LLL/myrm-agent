@@ -20,7 +20,7 @@ Growth drafts（`skill_draft` / `skill_patch` / `semantic_memory`）统一存储
 ## `list_pending` / `list_pending_growth` / `count_pending_for_chat` 契约
 
 - **`list_pending` 包含**：工具 HITL、`thread_id` 非空的 inline `skill_draft` 等需全局 Drawer recovery 的项。
-- **`list_pending` 排除**：`action_type ∈ growth/constants.py::GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。
+- **`list_pending` 排除**：`action_type ∈ growth/constants.py::GROWTH_ACTION_TYPES` 且 `thread_id` 为空（Agent Draft Inbox / `/skills/drafts`）。这条判定的 Python 形式是 `growth/constants.py::is_background_growth_approval`（创建审批时据此分流 SSE），SQL 形式是 `ApprovalRegistry._BACKGROUND_GROWTH`（下面三个查询共用），改规则时两处一起改。
 - **`count_pending_for_chat`**：该聊天 PENDING 且不属于上述后台 growth 的数量，与 `list_pending` 用同一条判定，所以状态条上的数、新回合闸门与全局列表不会各算各的。
 - **`list_pending_growth`**：仅返回 PENDING 后台 growth drafts（与 `list_pending` 互补），供 `draft_notification.persist_skill_draft_record` 做去重抑制与 pending 上限检查；避免 `list_pending` 的过滤导致重复提案无限堆积。
 - **SSE**：后台 growth 创建时（`PENDING` 或非 `PENDING`）一律不广播 `APPROVAL_REQUIRED` / `SKILL_GROWTH_UPDATED`（由 `draft_notification` 统一发 `NEW_SKILL_DRAFT` / `SKILL_GROWTH_UPDATED`，避免双发）。

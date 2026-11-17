@@ -4,7 +4,7 @@
 - app.services.event.app_event_bus::AppEvent (POS: 服务器级 SSE 总线)
 - app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 - app.services.approvals.outbound_draft::finalize_outbound_draft (POS: 被扣留回复定案后的发送/释放/收尾)
-- app.services.skills.growth.constants::is_background_growth_approval (POS: growth draft 分流 SSOT)
+- app.services.skills.growth.constants::GROWTH_ACTION_TYPES, is_background_growth_approval (POS: growth draft 分流 SSOT)
 
 [OUTPUT]
 - ApprovalRegistry: 统一的拦截审批注册与唤醒中枢
@@ -288,8 +288,8 @@ class ApprovalRegistry:
             result = await db.execute(stmt)
             return list(result.scalars().all())
 
-    # Background growth drafts have no thread and live in the /skills/drafts inbox, so the pending count and the
-    # approvals list leave them out while list_pending_growth returns only them: one definition for all three.
+    # SQL form of is_background_growth_approval (keep the two in step). Background growth drafts live in the /skills/drafts
+    # inbox, so the pending count and the approvals list leave them out while list_pending_growth returns only them.
     _BACKGROUND_GROWTH = and_(
         ApprovalRecord.action_type.in_(GROWTH_ACTION_TYPES),
         or_(ApprovalRecord.thread_id.is_(None), ApprovalRecord.thread_id == ""),
