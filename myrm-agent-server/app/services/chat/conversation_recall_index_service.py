@@ -153,7 +153,8 @@ class ConversationRecallIndexService:
         """Search indexed conversations for GUI @chat: citation (recall SSOT)."""
         from myrm_agent_harness.utils.db.fts5 import sanitize_fts5_query
 
-        safe_query = sanitize_fts5_query(query.strip())
+        raw_query = query.strip()
+        safe_query = sanitize_fts5_query(raw_query)
         if not safe_query:
             return [], 0
 
@@ -168,6 +169,7 @@ class ConversationRecallIndexService:
             rows = await ConversationRecallRepository.search(
                 session,
                 safe_query=safe_query,
+                raw_query=raw_query,
                 limit=candidate_limit,
                 current_chat_id=exclude_chat_id,
                 agent_id=None,

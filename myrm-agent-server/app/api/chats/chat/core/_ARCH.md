@@ -7,7 +7,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 子域出口 | 组合并导出 `router`：crud → recall → pins → session | — |
-| `crud.py` | 核心 | `GET /`（分页/来源/项目过滤）、`GET/POST/DELETE /{chat_id}`、`POST /batch-delete`、`GET /{chat_id}` | — |
+| `crud.py` | 核心 | `GET /`（分页/来源/项目过滤；`keyword` 至多 200 个字符，与消息搜索对话框、`@chat:` 选择器同上限，超出返回 422）、`GET/POST/DELETE /{chat_id}`、`POST /batch-delete`、`GET /{chat_id}` | — |
 | `recall.py` | 核心 | `GET /recall/search`（@chat SSOT）、`GET /recall/entries`、`PATCH /{chat_id}/recall-exclusion` | — |
 | `pins.py` | 核心 | `/{chat_id}/pin`、`/{chat_id}/unpin`、`PUT /pin-reorder`（`MAX_PINNED_CHATS`） | — |
 | `session.py` | 核心 | `/{chat_id}/workspace`、`/fission`、`/active-moa-preset`、`/session-skills`、`/delivery-contracts`、`/tags` | — |

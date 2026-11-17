@@ -17,6 +17,7 @@ mocks back, without wiring a scheduler.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
@@ -38,6 +39,11 @@ def make_schedule(kind: ScheduleKind = ScheduleKind.CRON) -> Schedule:
     return Schedule(kind=kind, expr="0 * * * *")
 
 
+# Tests override any job field by name, so the constructor is called through a variadic callable: a
+# `**dict[str, object]` expansion is checked against every field type and rejected.
+_new_job: Callable[..., CronJob] = CronJob
+
+
 def make_job(**overrides: object) -> CronJob:
     defaults: dict[str, object] = {
         "id": "job-1",
@@ -49,7 +55,7 @@ def make_job(**overrides: object) -> CronJob:
         "delivery": DeliveryConfig(channel="chat"),
     }
     defaults.update(overrides)
-    return CronJob(**defaults)
+    return _new_job(**defaults)
 
 
 def make_executor(

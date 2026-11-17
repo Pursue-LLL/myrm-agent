@@ -144,7 +144,9 @@ class _ChatHistoryMixin(_ChatServiceBase):
             return ([], 0)
         try:
             async with UnitOfWork() as uow:
-                raw_messages, total = await _ChatServiceBase._cr(uow).search_messages_fts(safe_query, limit, offset, since, until)
+                raw_messages, total = await _ChatServiceBase._cr(uow).search_messages_fts(
+                    safe_query, limit, offset, since, until, raw_query=query
+                )
             messages: list[dict[str, object]] = [
                 {
                     "id": msg["id"],
@@ -159,5 +161,5 @@ class _ChatHistoryMixin(_ChatServiceBase):
             ]
             return (messages, total)
         except Exception as e:
-            logger.warning(f"FTS5 search failed for query '{query}': {e}")
+            logger.warning("FTS5 message search failed: %s", e)
             return ([], 0)

@@ -2,23 +2,40 @@
 
 [INPUT]
 app.database.models::Message (POS: 会话与消息域模型。管理聊天会话、消息记录和对话分支)
+app.database.repositories.like_pattern::typed_needle, like_contains_pattern (POS: 聊天检索的子串通道：键入查询的 needle 与 LIKE 模式)
 sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
-ChatMessageSearchRepository: FTS5 search over active chat messages, and chat-id-level FTS matching for sidebar search.
+ChatMessageSearchRepository: FTS5 search over active chat messages, chat-id-level FTS matching for sidebar search,
+    and the preview window of a message the substring fallback found.
 MessageFtsSearchRow: Typed result row for message search.
 
 [POS]
-聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略。
+聊天消息全文检索仓储。封装消息级 FTS5 查询，并复用 Conversation Recall 的排除策略；FTS 无命中时按键入文本（raw_query）做子串回退，
+回退命中的预览与 FTS 同形：以匹配为中心的窗口，匹配处高亮。
 """
 
 from __future__ import annotations
 
+import logging
+import re
 from datetime import datetime
 from typing import TypedDict
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.repositories.like_pattern import LIKE_ESCAPE_CLAUSE, like_contains_pattern, typed_needle
+
+logger = logging.getLogger(__name__)
+
+# FTS5 ``snippet()`` counts trigram tokens, and N overlapping trigrams span N + 2 characters. The substring fallback cuts the
+# same window with the same markers, so a message previews the same whichever channel found it.
+_MARK_OPEN = "<mark>"
+_MARK_CLOSE = "</mark>"
+_ELLIPSIS = "..."
+_SNIPPET_TOKENS = 40
+_SNIPPET_CHARS = _SNIPPET_TOKENS + 2
 
 
 class MessageFtsSearchRow(TypedDict):
@@ -33,11 +50,35 @@ class MessageFtsSearchRow(TypedDict):
 
 
 class ChatMessageSearchRepository:
-    """Read-only FTS5 search for chat messages."""
+    """Read-only chat message search: FTS5, with a substring scan when the trigram index has nothing."""
 
     @staticmethod
-    async def get_matching_chat_ids(db: AsyncSession, safe_query: str, *, limit: int = 200) -> list[str]:
-        """Return distinct chat IDs whose messages match *safe_query* via FTS5 with short-query fallback."""
+    def substring_snippet(content: str, needle: str) -> str:
+        """The preview of ``content`` for a message the substring fallback found: the window FTS5 ``snippet()`` would cut.
+
+        The window is centred on the first ``needle`` (pinned to the start or the end of the text when the match is near
+        it) with every ``needle`` in it marked, and ``...`` shows where the text goes on. ``LIKE`` and ``re`` fold case
+        a little differently, so a text the fallback matched but ``re`` cannot place previews its head, unmarked.
+        """
+        pattern = re.compile(re.escape(needle), re.IGNORECASE)
+        match = pattern.search(content)
+        if match is None:
+            start, end = 0, min(len(content), _SNIPPET_CHARS)
+        else:
+            span = match.end() - match.start()
+            width = max(_SNIPPET_CHARS, span)
+            start = min(max(0, match.start() - (width - span) // 2), max(0, len(content) - width))
+            end = min(len(content), start + width)
+        window = pattern.sub(lambda hit: f"{_MARK_OPEN}{hit.group()}{_MARK_CLOSE}", content[start:end])
+        return f"{_ELLIPSIS if start > 0 else ''}{window}{_ELLIPSIS if end < len(content) else ''}"
+
+    @staticmethod
+    async def get_matching_chat_ids(db: AsyncSession, safe_query: str, *, raw_query: str, limit: int = 200) -> list[str]:
+        """Distinct chat ids whose messages match ``safe_query`` via FTS5, else contain the text typed in ``raw_query``.
+
+        The substring fallback answers what the trigram index cannot (a query under three characters, or one the FTS
+        expression flattens), so it reads the typed text and not the FTS expression.
+        """
         if not safe_query:
             return []
 
@@ -60,23 +101,26 @@ class ChatMessageSearchRepository:
             chat_ids = [row[0] for row in result.fetchall()]
             if chat_ids:
                 return chat_ids
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("FTS5 chat-id match failed; falling back to the substring scan: %s", exc)
 
         # 2. Short-word / CJK fallback when trigram FTS yields 0 hits (e.g. query < 3 characters)
+        pattern = like_contains_pattern(raw_query)
+        if pattern is None:
+            return []
         fallback_sql = text(
-            """
+            f"""
             SELECT DISTINCT m.chat_id
             FROM messages m
             JOIN chats c ON c.id = m.chat_id
-            WHERE m.content LIKE :pattern
+            WHERE m.content LIKE :pattern {LIKE_ESCAPE_CLAUSE}
               AND m.is_active = 1
               AND c.is_incognito = 0
               AND c.deleted_at IS NULL
             LIMIT :limit
             """
         )
-        fallback_result = await db.execute(fallback_sql, {"pattern": f"%{safe_query}%", "limit": limit})
+        fallback_result = await db.execute(fallback_sql, {"pattern": pattern, "limit": limit})
         return [row[0] for row in fallback_result.fetchall()]
 
     @staticmethod
@@ -87,6 +131,8 @@ class ChatMessageSearchRepository:
         offset: int,
         since: datetime | None,
         until: datetime | None,
+        *,
+        raw_query: str,
     ) -> tuple[list[MessageFtsSearchRow], int]:
         time_clause = ""
         params: dict[str, object] = {"query": safe_query}
@@ -106,7 +152,7 @@ class ChatMessageSearchRepository:
                 m.content,
                 m.sent_at,
                 c.title as chat_title,
-                snippet(messages_fts, 0, '<mark>', '</mark>', '...', 40) as highlight_snippet
+                snippet(messages_fts, 0, '{_MARK_OPEN}', '{_MARK_CLOSE}', '{_ELLIPSIS}', {_SNIPPET_TOKENS}) as highlight_snippet
             FROM messages_fts fts
             JOIN messages m ON m.rowid = fts.rowid
             JOIN chats c ON c.id = m.chat_id
@@ -157,9 +203,13 @@ class ChatMessageSearchRepository:
                 )
             return messages, total
 
-        # Two-tier fallback for short CJK or English keywords (< 3 chars)
+        # The trigram index has nothing: a query under three characters, or one the FTS expression flattened.
+        needle = typed_needle(raw_query)
+        if needle is None:
+            return [], 0
         fb_time_clause = ""
-        fb_params: dict[str, object] = {"pattern": f"%{safe_query}%"}
+        # The needle is already trimmed and unquoted, so its pattern always exists.
+        fb_params: dict[str, object] = {"pattern": like_contains_pattern(needle)}
         if since is not None:
             fb_time_clause += " AND m.sent_at >= :since"
             fb_params["since"] = since
@@ -173,7 +223,7 @@ class ChatMessageSearchRepository:
             FROM messages m
             JOIN chats c ON c.id = m.chat_id
             LEFT JOIN conversation_recall_documents d ON d.chat_id = m.chat_id
-            WHERE m.content LIKE :pattern
+            WHERE m.content LIKE :pattern {LIKE_ESCAPE_CLAUSE}
               AND m.is_active = 1
               AND c.is_incognito = 0
               AND COALESCE(d.is_excluded, 0) = 0
@@ -197,7 +247,7 @@ class ChatMessageSearchRepository:
             FROM messages m
             JOIN chats c ON c.id = m.chat_id
             LEFT JOIN conversation_recall_documents d ON d.chat_id = m.chat_id
-            WHERE m.content LIKE :pattern
+            WHERE m.content LIKE :pattern {LIKE_ESCAPE_CLAUSE}
               AND m.is_active = 1
               AND c.is_incognito = 0
               AND COALESCE(d.is_excluded, 0) = 0
@@ -210,7 +260,6 @@ class ChatMessageSearchRepository:
         fb_rows = fb_result.fetchall()
         fb_messages: list[MessageFtsSearchRow] = []
         for row in fb_rows:
-            snippet = row.content[:80] + ("..." if len(row.content) > 80 else "")
             fb_messages.append(
                 {
                     "id": row.id,
@@ -219,7 +268,7 @@ class ChatMessageSearchRepository:
                     "content": row.content,
                     "sent_at": row.sent_at,
                     "chat_title": row.chat_title,
-                    "highlight_snippet": snippet,
+                    "highlight_snippet": ChatMessageSearchRepository.substring_snippet(row.content, needle),
                     "is_relaxed": True,
                 }
             )

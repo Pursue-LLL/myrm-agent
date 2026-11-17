@@ -82,6 +82,8 @@ class _ChatRepositoryPort(Protocol):
         offset: int,
         since: datetime | None,
         until: datetime | None,
+        *,
+        raw_query: str,
     ) -> tuple[list[MessageFtsSearchRow], int]: ...
 
     async def get_last_user_message(self, chat_id: str) -> MessageDTO | None: ...

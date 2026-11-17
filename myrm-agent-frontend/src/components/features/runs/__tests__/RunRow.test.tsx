@@ -48,8 +48,23 @@ function makeRun(overrides: Partial<UnifiedRun> = {}): UnifiedRun {
 }
 
 function renderRow(run: UnifiedRun) {
-  render(<RunRow run={run} t={t} />);
+  return render(<RunRow run={run} t={t} />);
 }
+
+function makeStopReason(overrides: Partial<NonNullable<UnifiedRun['stop_reason']>>): UnifiedRun['stop_reason'] {
+  return { code: 'error', category: 'error', message: 'boom', detail: null, ...overrides };
+}
+
+// The mocked translator echoes keys, so each status word shows up as the key it is read from.
+const STATUS_WORDS: Array<[UnifiedRun['status'], string]> = [
+  ['running', 'filterRunning'],
+  ['ok', 'filterOk'],
+  ['error', 'filterError'],
+  ['skipped', 'runSkipped'],
+  ['cancelled', 'stopReasonCancelled'],
+  ['timed_out', 'stopReasonTimedOut'],
+  ['circuit_break', 'runCircuitBreak'],
+];
 
 function header(title: string | RegExp) {
   return screen.getByRole('button', { name: title });
@@ -118,6 +133,59 @@ describe('RunRow', () => {
     renderRow(makeRun({ started_at: new Date(Date.now() - 5 * 60_000).toISOString() }));
 
     expect(screen.getByText('5 minutes ago')).toBeInTheDocument();
+  });
+
+  it('reads a start ahead of this device clock as now, never as a future time', () => {
+    renderRow(makeRun({ started_at: new Date(Date.now() + 3_000).toISOString() }));
+
+    expect(screen.getByText('now')).toBeInTheDocument();
+    expect(screen.queryByText(/^in \d/)).not.toBeInTheDocument();
+  });
+
+  it.each(STATUS_WORDS)('renders status %s with an icon and a screen-reader status word', (status, word) => {
+    const { container } = renderRow(makeRun({ status, source: 'background', duration_ms: null }));
+
+    expect(container.querySelectorAll('svg')).toHaveLength(1);
+    expect(screen.getByText(word)).toHaveClass('sr-only');
+  });
+
+  it('shows the error text once when the stop reason only repeats it', async () => {
+    renderRow(makeRun({ status: 'error', error: 'boom', stop_reason: makeStopReason({ message: ' boom ' }) }));
+
+    await userEvent.click(header(/Daily AI digest/));
+
+    expect(screen.getAllByText('boom')).toHaveLength(1);
+    expect(screen.getByText('stopReasonError')).toBeInTheDocument();
+  });
+
+  it('keeps a stop reason message that adds to the error text', async () => {
+    renderRow(
+      makeRun({
+        status: 'error',
+        error: 'boom',
+        stop_reason: makeStopReason({ message: 'Iteration limit reached (3 iterations)' }),
+      }),
+    );
+
+    await userEvent.click(header(/Daily AI digest/));
+
+    expect(screen.getByText('boom')).toBeInTheDocument();
+    expect(screen.getByText('Iteration limit reached (3 iterations)')).toBeInTheDocument();
+  });
+
+  it('shows the stop reason message once when the run recorded no error text', async () => {
+    renderRow(
+      makeRun({
+        status: 'cancelled',
+        error: null,
+        stop_reason: makeStopReason({ code: 'user_cancelled', category: 'cancelled', message: 'Stopped by user' }),
+      }),
+    );
+    expect(screen.getByText('Stopped by user')).toBeInTheDocument();
+
+    await userEvent.click(header(/Daily AI digest/));
+
+    expect(screen.getAllByText('Stopped by user')).toHaveLength(1);
   });
 
   it('labels a progress step only by what the run recorded for it', async () => {

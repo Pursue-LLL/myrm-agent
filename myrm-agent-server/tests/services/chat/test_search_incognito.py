@@ -8,7 +8,7 @@ from app.database.repositories.chat_message_search_repo import ChatMessageSearch
 
 
 @pytest.mark.asyncio
-async def test_search_messages_fts_excludes_incognito(db_session: AsyncSession):
+async def test_search_messages_fts_excludes_incognito(db_session: AsyncSession) -> None:
     """Test that FTS search strictly excludes messages from incognito chats."""
 
     # 1. Create a normal chat
@@ -66,6 +66,7 @@ async def test_search_messages_fts_excludes_incognito(db_session: AsyncSession):
         offset=0,
         since=None,
         until=None,
+        raw_query="secret_keyword",
     )
 
     # 5. Verify only the normal message is returned

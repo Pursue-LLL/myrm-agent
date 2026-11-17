@@ -1,15 +1,10 @@
-"""Tests for Agent Commerce spend governance, action digest, and receipts."""
+"""Tests for Agent Commerce spend governance and the action digest."""
 
 from __future__ import annotations
 
-import time
-
 from myrm_agent_harness.core.security.spend_governance import (
-    DEFAULT_SPEND_SALT,
     SpendPolicy,
-    SpendReceipt,
     compute_action_digest,
-    compute_entry_hash,
     is_financial_or_spend_tool,
     parse_spend_amount,
     verify_action_digest,
@@ -87,56 +82,6 @@ def test_spend_policy_caps() -> None:
     assert "exceeds session cap" in reason2
 
 
-def test_spend_receipt_cryptographic_chain() -> None:
-    prev_hash = "0" * 64
-    ts = time.time()
-    tool_name = "checkout_pay"
-    digest = compute_action_digest(tool_name, {"amount": 20})
-    idempotency_key = "idemp_abc_123"
-
-    entry_hash = compute_entry_hash(
-        prev_hash=prev_hash,
-        timestamp=ts,
-        tool_name=tool_name,
-        amount=20.0,
-        currency="USD",
-        action_digest=digest,
-        idempotency_key=idempotency_key,
-        secret_salt=DEFAULT_SPEND_SALT,
-    )
-
-    receipt = SpendReceipt(
-        entry_id="rec_001",
-        session_id="sess_abc",
-        prev_hash=prev_hash,
-        entry_hash=entry_hash,
-        tool_name=tool_name,
-        amount=20.0,
-        currency="USD",
-        action_digest=digest,
-        idempotency_key=idempotency_key,
-        timestamp=ts,
-    )
-
-    # Valid receipt
-    assert receipt.verify_integrity() is True
-
-    # Tampered receipt amount
-    tampered_receipt = SpendReceipt(
-        entry_id="rec_001",
-        session_id="sess_abc",
-        prev_hash=prev_hash,
-        entry_hash=entry_hash,
-        tool_name=tool_name,
-        amount=2000.0,  # Tampered!
-        currency="USD",
-        action_digest=digest,
-        idempotency_key=idempotency_key,
-        timestamp=ts,
-    )
-    assert tampered_receipt.verify_integrity() is False
-
-
 def test_is_irreversible_social_action() -> None:
     from myrm_agent_harness.core.security.spend_governance import (
         is_irreversible_social_action,
@@ -157,11 +102,12 @@ def test_is_irreversible_social_action() -> None:
     assert is_irreversible_social_action("terminal", {"cmd": "twine upload dist/*"}) is True
     assert is_irreversible_social_action("shell_exec", {"command": "docker push myregistry.com/myimg:latest"}) is True
     assert is_irreversible_social_action("shell_exec", {"command": "podman push quay.io/myorg/app:v1"}) is True
-    assert is_irreversible_social_action("shell_exec", {"command": "gh release create v1.0.0 --notes 'release'"}) is True
+    assert (
+        is_irreversible_social_action("shell_exec", {"command": "gh release create v1.0.0 --notes 'release'"}) is True
+    )
     assert is_irreversible_social_action("shell_exec", {"command": "gh pr merge 42 --squash"}) is True
     assert is_irreversible_social_action("shell_exec", {"command": "gh pr view 42"}) is False
     assert is_irreversible_social_action("shell_exec", {"command": "docker build -t myimg ."}) is False
     assert is_irreversible_social_action("shell_exec", {"command": "git status"}) is False
     assert is_irreversible_social_action("shell_exec", {"command": "git commit -m 'fix'"}) is False
     assert is_irreversible_social_action("read_file", {"path": "a.txt"}) is False
-

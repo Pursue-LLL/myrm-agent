@@ -264,12 +264,15 @@ class ConversationSearchService:
                 return [], False, []
             hits: list[ConversationSearchHit] = []
             seen_chat_ids: set[str] = set()
-            for planned in fts_queries:
+            for tier, planned in enumerate(fts_queries):
                 if hits and len(hits) >= request.limit:
                     break
                 rows = await ConversationRecallRepository.search(
                     session,
                     safe_query=planned.query,
+                    # The typed query is scanned as a substring once, with the first tier: later tiers only relax the FTS
+                    # expression, and a blank query skips the scan.
+                    raw_query=request.query if tier == 0 else "",
                     limit=candidate_limit,
                     current_chat_id=request.current_conversation_id,
                     agent_id=context.agent_id,

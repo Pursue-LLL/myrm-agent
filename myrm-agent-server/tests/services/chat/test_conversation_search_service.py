@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchRequest,
+    ConversationSearchResponse,
 )
 from pydantic import ValidationError
 from sqlalchemy import text
@@ -21,7 +22,7 @@ from tests.services.chat.search_support import assert_snippet_split, seed_chat_a
 
 class TestConversationSearchService:
     @pytest.mark.asyncio
-    async def test_search_returns_conversation_summary_and_snippet(self, fts_db: AsyncSession):
+    async def test_search_returns_conversation_summary_and_snippet(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET compacted_summary = :summary, agent_id = :agent_id WHERE id = :chat_id"),
@@ -46,7 +47,7 @@ class TestConversationSearchService:
         assert_snippet_split(response.hits[0], "docker")
 
     @pytest.mark.asyncio
-    async def test_search_returns_matching_segment_message_id(self, fts_db: AsyncSession):
+    async def test_search_returns_matching_segment_message_id(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -60,7 +61,7 @@ class TestConversationSearchService:
         assert_snippet_split(response.hits[0], "kubernetes")
 
     @pytest.mark.asyncio
-    async def test_empty_query_returns_recent_conversations(self, fts_db: AsyncSession):
+    async def test_empty_query_returns_recent_conversations(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -72,7 +73,7 @@ class TestConversationSearchService:
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
 
     @pytest.mark.asyncio
-    async def test_current_conversation_is_excluded(self, fts_db: AsyncSession):
+    async def test_current_conversation_is_excluded(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -83,7 +84,7 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_current_agent_scope_is_hard_filter(self, fts_db: AsyncSession):
+    async def test_current_agent_scope_is_hard_filter(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET agent_id = 'agent-a' WHERE id = :chat_id"),
@@ -100,7 +101,7 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_current_agent_scope_filters_null_agent(self, fts_db: AsyncSession):
+    async def test_current_agent_scope_filters_null_agent(self, fts_db: AsyncSession) -> None:
         null_agent_chat_id = await seed_chat_and_messages(fts_db)
         other_chat_id = "chat-agent-b"
         fts_db.add(
@@ -132,12 +133,12 @@ class TestConversationSearchService:
 
         assert [hit.conversation_id for hit in response.hits] == [null_agent_chat_id]
 
-    def test_all_scope_is_rejected_by_contract(self):
+    def test_all_scope_is_rejected_by_contract(self) -> None:
         with pytest.raises(ValidationError):
-            ConversationSearchRequest(query="docker", limit=3, scope="all")
+            ConversationSearchRequest.model_validate({"query": "docker", "limit": 3, "scope": "all"})
 
     @pytest.mark.asyncio
-    async def test_search_can_match_precomputed_summary_only(self, fts_db: AsyncSession):
+    async def test_search_can_match_precomputed_summary_only(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET compacted_summary = :summary WHERE id = :chat_id"),
@@ -159,7 +160,7 @@ class TestConversationSearchService:
         assert_snippet_split(response.hits[0], "bluegreenphoenix")
 
     @pytest.mark.asyncio
-    async def test_search_uses_or_fallback_for_broad_natural_language_query(self, fts_db: AsyncSession):
+    async def test_search_uses_or_fallback_for_broad_natural_language_query(self, fts_db: AsyncSession) -> None:
         chat_id = "chat-bluegreen"
         fts_db.add(Chat(id=chat_id, title="Bluegreen release notes", action_mode="agent"))
         fts_db.add(
@@ -185,7 +186,7 @@ class TestConversationSearchService:
         assert "Bluegreen" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_lineage_ancestors_restricts_recall_to_parent_chain(self, fts_db: AsyncSession):
+    async def test_lineage_ancestors_restricts_recall_to_parent_chain(self, fts_db: AsyncSession) -> None:
         parent_id = "chat-parent"
         current_id = "chat-current"
         unrelated_id = "chat-unrelated"
@@ -240,7 +241,7 @@ class TestConversationSearchService:
         assert [hit.conversation_id for hit in response.hits] == [parent_id]
 
     @pytest.mark.asyncio
-    async def test_excluded_conversation_is_not_recalled(self, fts_db: AsyncSession):
+    async def test_excluded_conversation_is_not_recalled(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await ConversationRecallRepository.set_excluded(fts_db, chat_id, True)
         await fts_db.commit()
@@ -253,7 +254,7 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_excluded_conversation_can_be_listed_and_restored(self, fts_db: AsyncSession):
+    async def test_excluded_conversation_can_be_listed_and_restored(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         assert await ConversationRecallIndexService.set_chat_excluded(chat_id, True) is True
 
@@ -267,7 +268,7 @@ class TestConversationSearchService:
         assert excluded_rows == []
 
     @pytest.mark.asyncio
-    async def test_expand_message_window_returns_segments(self, fts_db: AsyncSession):
+    async def test_expand_message_window_returns_segments(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -296,10 +297,11 @@ class TestConversationSearchService:
             default_scope="same_source",
         )
 
-        with patch.object(ConversationSearchService, "search", AsyncMock(return_value="mock_resp")) as mock_search:
+        canned = ConversationSearchResponse(mode="search", hits=[], query="test")
+        with patch.object(ConversationSearchService, "search", AsyncMock(return_value=canned)) as mock_search:
             req = ConversationSearchRequest(query="test", limit=5)
             res = await provider.search(req)
-            assert res == "mock_resp"
+            assert res is canned
             mock_search.assert_called_once()
             passed_req = mock_search.call_args[0][0]
             assert passed_req.scope == "same_source"

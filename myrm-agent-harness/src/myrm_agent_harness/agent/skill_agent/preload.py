@@ -147,8 +147,8 @@ class SkillAgentPreloadMixin:
                 logger.warning("Failed to preload SOP for skill '%s' — skipped", skill_meta.name, exc_info=True)
                 continue
 
-            if not sop_doc or "\nError: " in sop_doc:
-                logger.info("Empty or errored SOP for skill '%s' — skipped", skill_meta.name)
+            if not sop_doc:
+                logger.info("No SOP delivered for skill '%s' — skipped", skill_meta.name)
                 continue
 
             section_parts = [f"--- Skill: {skill_meta.name} ---", sop_doc]

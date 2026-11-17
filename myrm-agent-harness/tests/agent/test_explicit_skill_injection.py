@@ -404,15 +404,15 @@ class TestPreloadExplicitSkill:
         assert "prod" in query
 
     @pytest.mark.asyncio
-    async def test_sop_with_error_string_fallback(self) -> None:
-        """SOP containing an error marker should trigger fallback."""
-        skill = _make_skill(name="err_skill", storage_skill_id="err_skill")
-        backend = _StubSkillBackend(content_map={"err_skill": "# err_skill\n\nError: failed to load skill content"})
-        agent = _make_agent(skills=[skill], backend=backend)
+    async def test_sop_with_an_error_line_is_still_injected(self) -> None:
+        """A real SOP may quote an error message; only a SOP that cannot be delivered falls back."""
+        skill = _make_skill(name="debug_skill", storage_skill_id="debug_skill")
+        sop = "# Debug\n\nWhen the build fails you see:\nError: module not found\nThen check the lockfile."
+        agent = _make_agent(skills=[skill], backend=_StubSkillBackend(content_map={"debug_skill": sop}))
 
-        query, matched, _preloaded = await agent._preload_explicit_skill("[use err_skill] test")
-        assert matched is None
-        assert query == "[use err_skill] test"
+        query, matched, _preloaded = await agent._preload_explicit_skill("[use debug_skill] test")
+        assert matched is not None
+        assert "Error: module not found" in query
 
     # -- Multi-skill bundle tests --
 

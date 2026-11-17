@@ -2,7 +2,8 @@
 
 A query such as ``don't``, ``e.g.`` or ``hello world.`` is searched as typed: the search dialog and the ``@chat:`` picker
 both find the chat that says it, and the picker answers from the index without rebuilding it. A query too short to have a
-trigram (``a.``) is read by the LIKE fallback, which matches the stored text and not the FTS phrase quotes around it.
+trigram (``a.``) is read by the LIKE fallback on the typed text; ``test_search_typed_text.py`` pins that fallback in every
+search entry.
 """
 
 from __future__ import annotations
@@ -14,7 +15,6 @@ import pytest
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.repositories.conversation_recall import ConversationRecallRepository
 from app.services.chat.chat_service import ChatService
 from app.services.chat.conversation_recall_index_service import ConversationRecallIndexService
 from tests.services.chat.search_support import seed_chat_with_text
@@ -77,24 +77,3 @@ async def test_the_chat_picker_finds_it_without_rebuilding_an_index(
     assert {str(item["chat_id"]) for item in items} == {_CHAT}
     assert rebuild_statements == []
     assert _warnings(caplog) == []
-
-
-@pytest.mark.parametrize("phrase", _SHORT)
-@pytest.mark.asyncio
-async def test_the_like_fallback_matches_the_text_not_the_phrase_quotes(fts_db: AsyncSession, phrase: str) -> None:
-    await _seed(fts_db, phrase)
-
-    rows = await ConversationRecallRepository.search(
-        fts_db,
-        safe_query=f'"{phrase}"',
-        limit=10,
-        current_chat_id=None,
-        agent_id=None,
-        current_source=None,
-        scope="all",
-        lineage_chat_ids=[],
-        since=None,
-        until=None,
-    )
-
-    assert {row.chat_id for row in rows} == {_CHAT}

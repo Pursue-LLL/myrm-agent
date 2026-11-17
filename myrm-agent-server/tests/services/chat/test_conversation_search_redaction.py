@@ -251,6 +251,7 @@ async def test_a_search_row_carries_the_match_as_display_markup_and_as_plain_tex
     [row] = await ConversationRecallRepository.search(
         fts_db,
         safe_query="kestrelmark",
+        raw_query="kestrelmark",
         limit=3,
         current_chat_id=None,
         agent_id=None,

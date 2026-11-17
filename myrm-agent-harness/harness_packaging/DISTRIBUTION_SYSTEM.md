@@ -74,15 +74,15 @@ Editable install ships all `.py` source. `runtime.install_guard.probe.get_distri
 
 | File | Audience | Harness source |
 |------|----------|----------------|
-| `myrm-agent/myrm-agent-server/docker/Dockerfile.official` | Cloud runtime image (non-root) | wheel built in-image (`uv build --wheel`) from `myrm-agent-harness/`, installed over the `uv.lock` environment |
-| `myrm-agent/myrm-agent-server/Dockerfile` | OSS public image | wheel built in-image (`uv build --wheel`) from `myrm-agent-harness/`, everything else from `uv.lock` |
+| `myrm-agent-server/docker/Dockerfile.official` | Cloud runtime image (non-root) | wheel built in-image (`uv build --wheel`) from `myrm-agent-harness/`, installed over the `uv.lock` environment |
+| `myrm-agent-server/Dockerfile` | OSS public image | wheel built in-image (`uv build --wheel`) from `myrm-agent-harness/`, everything else from `uv.lock` |
 
 ```bash
 # OSS public image (myrm-agent repo root context)
-docker build -f myrm-agent/myrm-agent-server/Dockerfile -t myrm-server .
+docker build -f myrm-agent-server/Dockerfile -t myrm-server .
 
-# Official image (build context: the directory that contains the myrm-agent tree)
-docker build -f myrm-agent/myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
+# Official image (same context)
+docker build -f myrm-agent-server/docker/Dockerfile.official -t myrm/runtime:local .
 ```
 
 ## PyPI Publish

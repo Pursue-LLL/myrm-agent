@@ -52,7 +52,7 @@ contract:
       description: Confirm local receipt entry is written with timestamp, tweet copy, and status
       validation_method: Execute the skill SOP verification procedure and confirm the expected outcome before declaring the task complete
       is_required: true
-  success_criteria: '100% human-approved post published or scheduled cleanly on X; Zero truncated copy or broken media attachments; Immutable audit receipt generated in workspace'
+  success_criteria: '100% human-approved post published or scheduled cleanly on X; Zero truncated copy or broken media attachments; Audit receipt generated in workspace'
 ---
 
 # X (Twitter) Publish & Schedule Closure Skill

@@ -2,9 +2,11 @@
 
 The registry an agent rebuilds its graph from (``add_tools``, a model failover) holds only the host's tools after
 any number of turns, also when the skill library is large enough to mount ``skill_search_tool`` on an agent that
-keeps the built-in tools. Nothing the model is sent speaks of the skill tools it does not have, while the skills a
-turn bound are still on its receipt and a skill the user names is still preloaded. The tests run real turns over a
-scripted model and read what the model is bound with and sent.
+keeps the built-in tools. A plain turn sends the model neither the skill catalog nor a word about the skill tools it
+does not have, while the skills a turn bound are still on its receipt and a skill the user names is still preloaded.
+The switch decides this, not the names of the tools the model is bound with: a host tool that shares the name of a
+built-in skill tool does not bring the catalog back. The tests run real turns over a scripted model and read what
+the model is bound with and sent.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from langchain_core.callbacks import AsyncCallbackManagerForLLMRun
 from langchain_core.language_models import FakeListChatModel
 from langchain_core.messages import BaseMessage
 from langchain_core.outputs import ChatGenerationChunk
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 from pydantic import Field
 
 from myrm_agent_harness.agent.skill_agent import SkillAgent, wait_all_background_tasks
@@ -48,6 +50,12 @@ def host_b_tool(query: str) -> str:
     return "b"
 
 
+@tool("skill_select_tool")
+def host_skill_select_tool(query: str) -> str:
+    """The host's own tool; it happens to share the name of the built-in skill tool."""
+    return "host"
+
+
 class _RecordingModel(FakeListChatModel):
     """Scripted model that records the tools each call is bound with and the prompt each call is sent."""
 
@@ -74,14 +82,14 @@ class _RecordingModel(FakeListChatModel):
         return list(dict.fromkeys(self.bound_tool_names))
 
 
-def _agent(*, no_builtin_tools: bool) -> tuple[SkillAgent, _RecordingModel]:
+def _agent(*, no_builtin_tools: bool, tools: Sequence[BaseTool] = (host_a_tool,)) -> tuple[SkillAgent, _RecordingModel]:
     backend = AsyncMock()
     backend.list_skills = AsyncMock(return_value=_SKILLS)
     model = _RecordingModel(responses=["ok"])
     agent = SkillAgent(
         llm=model,
         skill_backend=backend,
-        tools=[host_a_tool],
+        tools=list(tools),
         config=AgentRuntimeConfig(no_builtin_tools=no_builtin_tools),
     )
     return agent, model
@@ -156,6 +164,17 @@ async def test_the_model_is_sent_the_skill_catalog_and_the_tools_it_names_only_w
     assert ("<bound_skills" in prompt) is sent
     assert ("skill_select_tool" in prompt) is sent
     assert ("skill_search_tool" in prompt) is sent
+
+
+@pytest.mark.asyncio
+async def test_a_host_tool_named_like_a_skill_tool_does_not_bring_the_catalog_back(tmp_path: Path) -> None:
+    agent, model = _agent(no_builtin_tools=True, tools=[host_skill_select_tool])
+
+    await _run_turn(agent, tmp_path)
+
+    (prompt, *_) = model.prompts
+    assert "<bound_skills" not in prompt
+    assert model.offered() == [("skill_select_tool",)]
 
 
 @pytest.mark.asyncio

@@ -217,7 +217,7 @@ Level 0: 发现（Discovery）
 
 Level 1: 摘要（Summary）
   → render_bound_skills_catalog() 生成安全 XML 摘要（runtime/skill_catalog_delivery.py，条目由 registry.get_metadata_summary() 渲染）
-  → 写入会话首条 HumanMessage 作为基线，绑定列表变化时以 <bound_skills_update> 前置到新的 HumanMessage；不进 SystemMessage
+  → 写入会话首条 HumanMessage 作为基线，绑定列表变化时以 <bound_skills_update> 前置到新的 HumanMessage；不进 SystemMessage；`no_builtin_tools` 的智能体例外：目录指向内置的 `skill_select_tool`、`skill_search_tool`，它没有这两个工具，所以既无目录也无 `skill_search` 索引（宿主传入同名工具也不会让它们回来），回合回执仍列出绑定的技能（见 `agent/_internals/_ARCH.md`）
   → Token 消耗：完整条目共用 L1_CATALOG_MAX_TOKENS（2,000）预算，每条含描述与契约摘要
     （129 个对模型可见的预置技能实测：均值约 195、最小 47、最大 343）；预算外的技能只占一个名字（均值约 7），
     名字行另有 L1_HIDDEN_NAMES_MAX_TOKENS（1,500）上限
@@ -306,7 +306,7 @@ overflow_count= 候选 - 显示（预算挤掉的候选；外围技能不算）
 
 ### 4.4 缓存策略
 
-SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取，backend 读取抛错时返回带错误提示的文档；已加载内容的前缀字节不变，**无需修改**。
+SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取；backend 读取抛错时记一条 WARNING 并返回空串，`skill_select_tool` 回一条加载失败的条目、`[use]` 预载跳过该技能，两者都不把它记为已加载、也不记使用；已加载内容的前缀字节不变，**无需修改**。
 
 ---
 

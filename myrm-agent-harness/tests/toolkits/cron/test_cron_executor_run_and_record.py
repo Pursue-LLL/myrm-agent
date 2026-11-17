@@ -65,7 +65,7 @@ class TestRunAndRecord:
         executor, _store, delivery = make_executor()
         from myrm_agent_harness.infra.incremental.types import MonitorConfig
 
-        mc = MonitorConfig(enabled=True, monitor_type="text_diff")
+        mc = MonitorConfig(enabled=True, monitor_type="hash")
         job = make_job(monitor_config=mc)
         result = JobResult(success=True, output="same content", exit_code=0)
 
@@ -273,9 +273,9 @@ class TestRunnerDeferral:
     """``JobResult.retry_at``: the run cannot succeed before that instant."""
 
     @staticmethod
-    def _deferred(reason: str = "usage-limit", **overrides: object) -> tuple[JobResult, datetime]:
+    def _deferred(reason: str = "usage-limit", *, skipped: bool = False) -> tuple[JobResult, datetime]:
         retry_at = datetime.now(UTC) + timedelta(hours=3)
-        return JobResult(success=False, error="limit", skip_reason=reason, retry_at=retry_at, **overrides), retry_at
+        return JobResult(success=False, error="limit", skip_reason=reason, retry_at=retry_at, skipped=skipped), retry_at
 
     @pytest.mark.asyncio
     async def test_rearms_job_without_counting_a_failure(self) -> None:

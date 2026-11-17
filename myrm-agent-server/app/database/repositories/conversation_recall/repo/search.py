@@ -1,11 +1,13 @@
 """[INPUT]
 - app.database.repositories.conversation_recall.sql / .types (POS: SQL contract with the snippet highlight markers + row types)
+- app.database.repositories.like_pattern (POS: the substring channel of chat search: the needle and LIKE pattern of a typed query)
 
 [OUTPUT]
 - SearchMixin
 
 [POS]
-ConversationRecallRepository mixin: FTS5 search with degraded/fault recovery, document listing and row de-duplication.
+ConversationRecallRepository mixin: FTS5 search with degraded/fault recovery and a substring fallback on the typed query,
+document listing and row de-duplication.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from app.database.repositories.conversation_recall.types import (
     recall_document_row,
     recall_row,
 )
+from app.database.repositories.like_pattern import LIKE_ESCAPE_CLAUSE, like_contains_pattern
 
 logger = logging.getLogger("app.database.repositories.conversation_recall.repo")
 
@@ -39,6 +42,7 @@ class SearchMixin:
         db: AsyncSession,
         *,
         safe_query: str,
+        raw_query: str,
         limit: int,
         current_chat_id: str | None,
         agent_id: str | None,
@@ -150,12 +154,14 @@ class SearchMixin:
         if results:
             return results
 
-        # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits
-        # The phrase quotes of the FTS query are not part of the stored text this scan reads.
-        needle = safe_query.replace('"', "")
+        # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits.
+        # It reads the typed text: the FTS expression has flattened its punctuation and quoted its phrases.
+        pattern = like_contains_pattern(raw_query)
+        if pattern is None:
+            return []
         fallback_rows: Sequence[RowMapping] = []
         try:
-            fallback_params = {**params, "kw_pattern": f"%{needle}%"}
+            fallback_params = {**params, "kw_pattern": pattern}
             fallback_rows = (
                 (
                     await db.execute(
@@ -176,7 +182,8 @@ class SearchMixin:
                         FROM conversation_recall_segments s
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
-                        WHERE (s.segment_text LIKE :kw_pattern OR d.searchable_text LIKE :kw_pattern)
+                        WHERE (s.segment_text LIKE :kw_pattern {LIKE_ESCAPE_CLAUSE}
+                               OR d.searchable_text LIKE :kw_pattern {LIKE_ESCAPE_CLAUSE})
                           AND {filters}
                         ORDER BY s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit

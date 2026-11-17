@@ -8,12 +8,12 @@ Covers:
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import datetime, timezone
 
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.database.migrations import ensure_raw_sql_schema
 from app.database.models import Base, Chat, Message
@@ -22,14 +22,14 @@ from app.database.repositories.chat_repo import ChatRepository
 
 
 @pytest_asyncio.fixture
-async def fts_session():
+async def fts_session() -> AsyncIterator[AsyncSession]:
     engine = create_async_engine("sqlite+aiosqlite:///file:testdb_sidebar_fts?mode=memory&cache=shared&uri=true")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await ensure_raw_sql_schema(engine)
 
-    TestSession = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with TestSession() as session:
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    async with session_factory() as session:
         yield session
 
     await engine.dispose()
@@ -82,11 +82,11 @@ class TestGetMatchingChatIds:
             "普通标题",
             [("msg-a1", "user", "WAL并发写入优化方案")],
         )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL")
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL", raw_query="WAL")
         assert "chat-fts-1" in result
 
     async def test_empty_query_returns_empty(self, fts_session: AsyncSession) -> None:
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "")
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "", raw_query="")
         assert result == []
 
     async def test_no_match_returns_empty(self, fts_session: AsyncSession) -> None:
@@ -96,7 +96,9 @@ class TestGetMatchingChatIds:
             "标题",
             [("msg-b1", "user", "hello world")],
         )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "nonexistent_xyz")
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(
+            fts_session, "nonexistent_xyz", raw_query="nonexistent_xyz"
+        )
         assert result == []
 
     async def test_excludes_incognito_chats(self, fts_session: AsyncSession) -> None:
@@ -107,7 +109,7 @@ class TestGetMatchingChatIds:
             [("msg-c1", "user", "secret WAL data")],
             is_incognito=True,
         )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL")
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL", raw_query="WAL")
         assert "chat-fts-incog" not in result
 
     async def test_excludes_deleted_chats(self, fts_session: AsyncSession) -> None:
@@ -118,7 +120,7 @@ class TestGetMatchingChatIds:
             [("msg-d1", "user", "deleted WAL content")],
             deleted=True,
         )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL")
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL", raw_query="WAL")
         assert "chat-fts-del" not in result
 
     async def test_respects_limit(self, fts_session: AsyncSession) -> None:
@@ -129,7 +131,7 @@ class TestGetMatchingChatIds:
                 f"标题{i}",
                 [(f"msg-lim-{i}", "user", "common keyword data")],
             )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "common", limit=3)
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "common", raw_query="common", limit=3)
         assert len(result) <= 3
 
     async def test_returns_distinct_chat_ids(self, fts_session: AsyncSession) -> None:
@@ -142,7 +144,7 @@ class TestGetMatchingChatIds:
                 ("msg-m2", "assistant", "WAL is great for concurrency"),
             ],
         )
-        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL")
+        result = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "WAL", raw_query="WAL")
         assert result.count("chat-fts-multi") == 1
 
 
@@ -269,12 +271,12 @@ class TestGetChatsPaginatedWithFTS:
         )
         # In trigram FTS, '沙箱' is < 3 chars so messages_fts yields 0.
         # Fallback automatically recalls it.
-        chat_ids = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "沙箱")
+        chat_ids = await ChatMessageSearchRepository.get_matching_chat_ids(fts_session, "沙箱", raw_query="沙箱")
         assert "chat-pg-cjk-short" in chat_ids
 
         # Also verify search_messages_fts returns with is_relaxed=True
         msgs, total = await ChatMessageSearchRepository.search_messages_fts(
-            fts_session, "沙箱", limit=10, offset=0, since=None, until=None
+            fts_session, "沙箱", limit=10, offset=0, since=None, until=None, raw_query="沙箱"
         )
         assert total > 0
         assert any(m["chat_id"] == "chat-pg-cjk-short" for m in msgs)
