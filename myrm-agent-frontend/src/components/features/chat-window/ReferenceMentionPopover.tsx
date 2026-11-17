@@ -10,9 +10,10 @@
  *
  * [POS]
  * Structured @ reference suggestion view. Shows workspace, stored-file and special reference candidates for MessageInput.
+ * A list with nothing in it says why: still searching, what to type after a bare `@chat:`, or that nothing matched.
  */
 import * as React from 'react';
-import { FileText, Folder, FileCode, FileJson, Image, Lightbulb, MessagesSquare } from 'lucide-react';
+import { FileText, Folder, FileCode, FileJson, Image, Lightbulb, Loader2, MessagesSquare } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/primitives/popover';
 import { useTranslations } from 'next-intl';
@@ -26,6 +27,8 @@ interface ReferenceMentionPopoverProps {
   results: ReferenceSuggestion[];
   selectedIndex: number;
   query: string;
+  /** A server search is still open, so an empty list is not the final answer. */
+  searching: boolean;
   onSelect: (reference: ReferenceSuggestion) => void;
   /** Ref of the anchor element (the composer input); `current` is read when the popover positions, never during render. */
   anchorRef?: React.RefObject<HTMLElement | null>;
@@ -92,6 +95,7 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   results,
   selectedIndex,
   query,
+  searching,
   onSelect,
   anchorRef,
 }) => {
@@ -113,6 +117,13 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   }
 
   const isChatMode = query.startsWith('chat:');
+  const emptyText = searching
+    ? t('searching')
+    : query === 'chat:'
+      ? t('priorChatHint')
+      : isChatMode
+        ? t('priorChatEmpty')
+        : t('noResults');
 
   return (
     <Popover open={open} modal={false}>
@@ -168,8 +179,15 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
           <div ref={listRef} className="max-h-[300px] overflow-y-auto py-1">
             {results.length === 0 ? (
               <div className="py-6 text-center">
-                <Folder className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
-                <p className="text-sm text-muted-foreground">{isChatMode ? t('priorChatEmpty') : t('noResults')}</p>
+                {searching ? (
+                  // Same footprint as the folder icon, so the block does not jump when the answer comes in empty.
+                  <span className="mx-auto mb-2 flex h-10 w-10 items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/50" />
+                  </span>
+                ) : (
+                  <Folder className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
+                )}
+                <p className="text-sm text-muted-foreground">{emptyText}</p>
               </div>
             ) : (
               results.map((file, index) => {

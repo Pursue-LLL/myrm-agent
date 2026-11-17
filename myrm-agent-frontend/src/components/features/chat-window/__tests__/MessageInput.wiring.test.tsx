@@ -102,5 +102,12 @@ describe('MessageInput wiring', () => {
 
       expect(mention().selectReference).toHaveBeenCalledExactlyOnceWith(reference, hookOf().setInputMessage);
     });
+
+    it('tells the popover whether the mention hook is still searching', () => {
+      mention().isSearching = true;
+      renderInput();
+
+      expect(stubProps('ReferenceMentionPopover').searching).toBe(true);
+    });
   });
 });

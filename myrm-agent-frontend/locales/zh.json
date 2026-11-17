@@ -2737,6 +2737,8 @@
       "title": "工作区引用",
       "noResults": "未找到匹配引用",
       "priorChatEmpty": "未找到匹配的历史会话",
+      "priorChatHint": "输入标题或关键词，查找历史会话",
+      "searching": "搜索中...",
       "priorChatsCategory": "历史会话",
       "navigate": "导航",
       "select": "选择",

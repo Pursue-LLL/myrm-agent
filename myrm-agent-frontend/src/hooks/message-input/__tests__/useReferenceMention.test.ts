@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 
 const searchCitableChatsMock = vi.hoisted(() => vi.fn());
@@ -242,5 +242,151 @@ describe('useReferenceMention EmptyChat @Agent bug recovery', () => {
         viaText: true,
       }),
     );
+  });
+});
+
+describe('useReferenceMention while it is still searching', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    searchCitableChatsMock.mockReset();
+    suggestReferencesMock.mockReset();
+    chatStoreRef.state.chatId = 'composer-chat';
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** A request that stays open until the test settles it. */
+  function pending<T>() {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: Error) => void;
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  }
+
+  const elapse = (ms: number) =>
+    act(async () => {
+      await vi.advanceTimersByTimeAsync(ms);
+    });
+
+  const settle = (action: () => void) =>
+    act(async () => {
+      action();
+    });
+
+  it('searches from the keystroke until the prior conversations arrive, so no match is claimed in between', async () => {
+    const request = pending<{ items: never[] }>();
+    searchCitableChatsMock.mockReturnValue(request.promise);
+    const { result } = renderHook(() => useReferenceMention('@chat:Alpha', '@chat:Alpha'.length));
+
+    expect(result.current.isSearching).toBe(true);
+    await elapse(DEBOUNCE_MS);
+    expect(searchCitableChatsMock).toHaveBeenCalledTimes(1);
+    expect(result.current.isSearching).toBe(true);
+
+    await settle(() => request.resolve({ items: [] }));
+    expect(result.current.isSearching).toBe(false);
+  });
+
+  it('does not search after a bare @chat:, which never reaches the server', async () => {
+    const { result } = renderHook(() => useReferenceMention('@chat:', '@chat:'.length));
+
+    expect(result.current.isOpen).toBe(true);
+    expect(result.current.isSearching).toBe(false);
+    await elapse(DEBOUNCE_MS * 2);
+    expect(searchCitableChatsMock).not.toHaveBeenCalled();
+    expect(result.current.isSearching).toBe(false);
+  });
+
+  it('stops searching when the prior conversation search fails', async () => {
+    const request = pending<{ items: never[] }>();
+    searchCitableChatsMock.mockReturnValue(request.promise);
+    const { result } = renderHook(() => useReferenceMention('@chat:Alpha', '@chat:Alpha'.length));
+    await elapse(DEBOUNCE_MS);
+
+    await settle(() => request.reject(new Error('offline')));
+
+    expect(result.current.isSearching).toBe(false);
+    expect(result.current.results).toEqual([]);
+  });
+
+  it.each(['@src', '@folder:docs', '@wiki:notes'])(
+    'searches the workspace from the keystroke on %s until the answer arrives',
+    async (message) => {
+      const request = pending<{ results: never[] }>();
+      suggestReferencesMock.mockReturnValue(request.promise);
+      const { result } = renderHook(() => useReferenceMention(message, message.length));
+
+      expect(result.current.isSearching).toBe(true);
+      await elapse(DEBOUNCE_MS);
+      expect(suggestReferencesMock).toHaveBeenCalledTimes(1);
+      expect(result.current.isSearching).toBe(true);
+
+      await settle(() => request.resolve({ results: [] }));
+      expect(result.current.isSearching).toBe(false);
+    },
+  );
+
+  it('does not search on EmptyChat, where there is no workspace to ask', async () => {
+    chatStoreRef.state.chatId = undefined;
+    const { result } = renderHook(() => useReferenceMention('@folder:docs', '@folder:docs'.length));
+
+    expect(result.current.isSearching).toBe(false);
+    await elapse(DEBOUNCE_MS * 2);
+    expect(suggestReferencesMock).not.toHaveBeenCalled();
+    expect(result.current.isSearching).toBe(false);
+  });
+
+  it('stops searching when the workspace search fails', async () => {
+    const request = pending<{ results: never[] }>();
+    suggestReferencesMock.mockReturnValue(request.promise);
+    const { result } = renderHook(() => useReferenceMention('@src', '@src'.length));
+    await elapse(DEBOUNCE_MS);
+
+    await settle(() => request.reject(new Error('offline')));
+
+    expect(result.current.isSearching).toBe(false);
+  });
+
+  it('stops searching when the mention is gone or dismissed', () => {
+    suggestReferencesMock.mockReturnValue(pending<{ results: never[] }>().promise);
+    const { result, rerender } = renderHook(
+      ({ message }: { message: string }) => useReferenceMention(message, message.length),
+      { initialProps: { message: '@src' } },
+    );
+    expect(result.current.isSearching).toBe(true);
+
+    rerender({ message: 'plain text' });
+    expect(result.current.isOpen).toBe(false);
+    expect(result.current.isSearching).toBe(false);
+
+    rerender({ message: '@src' });
+    expect(result.current.isSearching).toBe(true);
+    act(() => result.current.dismiss());
+    expect(result.current.isSearching).toBe(false);
+  });
+
+  it('ignores the answer to an earlier keystroke and keeps searching until the latest one arrives', async () => {
+    const first = pending<{ items: never[] }>();
+    const second = pending<{ items: never[] }>();
+    searchCitableChatsMock.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const { result, rerender } = renderHook(
+      ({ message }: { message: string }) => useReferenceMention(message, message.length),
+      { initialProps: { message: '@chat:Al' } },
+    );
+    await elapse(DEBOUNCE_MS);
+    rerender({ message: '@chat:Alp' });
+    await elapse(DEBOUNCE_MS);
+    expect(searchCitableChatsMock).toHaveBeenCalledTimes(2);
+
+    await settle(() => first.resolve({ items: [] }));
+    expect(result.current.isSearching).toBe(true);
+
+    await settle(() => second.resolve({ items: [] }));
+    expect(result.current.isSearching).toBe(false);
   });
 });

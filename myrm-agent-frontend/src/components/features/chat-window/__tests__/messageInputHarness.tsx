@@ -37,6 +37,7 @@ export interface MentionState {
   results: never[];
   selectedIndex: number;
   query: string;
+  isSearching: boolean;
   selectReference: Mock;
   handleKeyDown: Mock;
 }
@@ -343,6 +344,7 @@ function resetHarness(): void {
     results: [],
     selectedIndex: 0,
     query: '',
+    isSearching: false,
     selectReference: vi.fn(),
     handleKeyDown: vi.fn(() => false),
   } satisfies MentionState;

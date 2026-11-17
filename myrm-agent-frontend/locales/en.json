@@ -2737,6 +2737,8 @@
       "title": "Workspace References",
       "noResults": "No matching references found",
       "priorChatEmpty": "No matching prior conversations",
+      "priorChatHint": "Type a title or keyword to find a prior conversation",
+      "searching": "Searching...",
       "priorChatsCategory": "Prior conversations",
       "navigate": "Navigate",
       "select": "Select",

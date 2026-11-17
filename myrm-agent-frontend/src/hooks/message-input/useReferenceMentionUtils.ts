@@ -30,6 +30,8 @@ export interface ReferenceMentionState {
   selectedIndex: number;
   query: string;
   mentionStart: number;
+  /** A server search for this mention is waiting out the debounce or on its way; an empty list is not final yet. */
+  isSearching: boolean;
 }
 
 export const DEBOUNCE_MS = 180;

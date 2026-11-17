@@ -11,7 +11,7 @@
  * - @/store/useAgentStore (POS: Digital employee registry prefetch)
  *
  * [OUTPUT]
- * - useReferenceMention: hook providing reference mention state, keyboard nav and selection.
+ * - useReferenceMention: hook providing reference mention state (incl. whether a server search is still open), keyboard nav and selection.
  *
  * [POS]
  * Chat input @ reference autocomplete. Guarantees immediate, responsive digital employee
@@ -46,6 +46,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     selectedIndex: 0,
     query: '',
     mentionStart: -1,
+    isSearching: false,
   });
   const chatId = useChatStore((s) => s.chatId);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -58,7 +59,9 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
   useEffect(() => {
     const mention = extractMentionQuery(inputMessage, cursorPosition);
     if (!mention) {
-      setState((prev) => (prev.isOpen ? { ...prev, isOpen: false, results: [], selectedIndex: 0 } : prev));
+      setState((prev) =>
+        prev.isOpen ? { ...prev, isOpen: false, results: [], selectedIndex: 0, isSearching: false } : prev,
+      );
       return;
     }
 
@@ -76,6 +79,12 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     const specialResults = folderMode || wikiMode || chatMode ? [] : staticSpecialMatches(mention.query);
     const initialAgentResults = folderMode || wikiMode || chatMode ? [] : buildAgentSuggestions(query, locale);
 
+    // The server answers an empty or over-long query with HTTP 422, and a paste after `@chat:` has no space to end
+    // the mention early.
+    const citableQuery = chatMode ? firstChars(query, HISTORY_SEARCH_MAX_LENGTH) : '';
+    // Only a mention that is followed by a server request has an empty list that is not final yet.
+    const willSearch = chatMode ? citableQuery !== '' : Boolean(chatId);
+
     // Synchronously open menu with instant local agents and special commands (eliminates EmptyChat lag)
     setState((prev) => ({
       ...prev,
@@ -83,6 +92,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       query: mention.query,
       mentionStart: mention.start,
       selectedIndex: 0,
+      isSearching: willSearch,
       results: folderMode || wikiMode || chatMode ? specialResults : [...initialAgentResults, ...specialResults],
     }));
 
@@ -93,9 +103,6 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     requestSeqRef.current = requestSeq;
 
     if (chatMode) {
-      // The server answers an empty or over-long query with HTTP 422, and a paste after `@chat:` has no space to end
-      // the mention early.
-      const citableQuery = firstChars(query, HISTORY_SEARCH_MAX_LENGTH);
       if (!citableQuery) {
         return;
       }
@@ -119,12 +126,13 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
             ...prev,
             results: chatResults,
             selectedIndex: 0,
+            isSearching: false,
           }));
         } catch {
           if (requestSeqRef.current !== requestSeq) {
             return;
           }
-          setState((prev) => ({ ...prev, results: [], selectedIndex: 0 }));
+          setState((prev) => ({ ...prev, results: [], selectedIndex: 0, isSearching: false }));
         }
       }, DEBOUNCE_MS);
       return () => {
@@ -166,6 +174,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
           results:
             folderMode || wikiMode ? serverResults : [...currentAgentResults, ...specialResults, ...serverResults],
           selectedIndex: 0,
+          isSearching: false,
         }));
       } catch {
         if (requestSeqRef.current !== requestSeq) {
@@ -175,6 +184,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
           ...prev,
           results: folderMode || wikiMode ? [] : [...currentAgentResults, ...specialResults],
           selectedIndex: 0,
+          isSearching: false,
         }));
       }
     }, DEBOUNCE_MS);
@@ -187,7 +197,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
   }, [chatId, cursorPosition, inputMessage, locale]);
 
   const dismiss = useCallback(() => {
-    setState((prev) => ({ ...prev, isOpen: false, results: [], selectedIndex: 0 }));
+    setState((prev) => ({ ...prev, isOpen: false, results: [], selectedIndex: 0, isSearching: false }));
   }, []);
 
   const selectReference = useCallback(
@@ -252,6 +262,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     results: state.results,
     selectedIndex: state.selectedIndex,
     query: state.query,
+    isSearching: state.isSearching,
     selectReference,
     dismiss,
     handleKeyDown,

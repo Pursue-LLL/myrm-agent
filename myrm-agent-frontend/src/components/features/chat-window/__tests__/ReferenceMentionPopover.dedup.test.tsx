@@ -83,6 +83,7 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
         results={sampleSuggestions}
         selectedIndex={0}
         query=""
+        searching={false}
         onSelect={vi.fn()}
       />,
     );
@@ -91,7 +92,14 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
 
   it('renders without [In context] badge when files have not been injected yet', () => {
     render(
-      <ReferenceMentionPopover open={true} results={sampleSuggestions} selectedIndex={0} query="" onSelect={vi.fn()} />,
+      <ReferenceMentionPopover
+        open={true}
+        results={sampleSuggestions}
+        selectedIndex={0}
+        query=""
+        searching={false}
+        onSelect={vi.fn()}
+      />,
     );
 
     expect(screen.getAllByText('src/main.ts').length).toBeGreaterThan(0);
@@ -104,7 +112,14 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
     inSessionMentionDeduplicator.markInjected(mockChatId, ['src/main.ts'], 1);
 
     render(
-      <ReferenceMentionPopover open={true} results={sampleSuggestions} selectedIndex={0} query="" onSelect={vi.fn()} />,
+      <ReferenceMentionPopover
+        open={true}
+        results={sampleSuggestions}
+        selectedIndex={0}
+        query=""
+        searching={false}
+        onSelect={vi.fn()}
+      />,
     );
 
     const dedupBadges = screen.getAllByTestId('mention-already-in-context');
@@ -121,6 +136,7 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
         results={sampleSuggestions}
         selectedIndex={0}
         query=""
+        searching={false}
         onSelect={handleSelect}
       />,
     );
@@ -139,7 +155,16 @@ describe('ReferenceMentionPopover deduplication and in-session indicators', () =
       basename: `ref-${index}`,
       relative_path: `ref-${index}`,
     }));
-    render(<ReferenceMentionPopover open={true} results={external} selectedIndex={0} query="" onSelect={vi.fn()} />);
+    render(
+      <ReferenceMentionPopover
+        open={true}
+        results={external}
+        selectedIndex={0}
+        query=""
+        searching={false}
+        onSelect={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText('Codex')).toBeInTheDocument();
     expect(screen.getByText('externalSource')).toBeInTheDocument();
