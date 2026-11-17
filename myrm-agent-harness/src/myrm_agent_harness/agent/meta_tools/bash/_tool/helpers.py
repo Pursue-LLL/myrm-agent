@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -106,6 +107,14 @@ def get_os_hint(locale: str | None = None) -> str:
     return "\n".join(lines)
 
 
+MIN_REASON_WIDTH = 10
+
+
+def _display_width(text: str) -> int:
+    """Terminal columns the text takes: wide and fullwidth characters (Chinese, Japanese, Korean) are two columns each."""
+    return sum(2 if unicodedata.east_asian_width(char) in ("W", "F") else 1 for char in text)
+
+
 class BashInput(BaseModel):
     """Input schema for the bash code execution tool."""
 
@@ -121,9 +130,14 @@ class BashInput(BaseModel):
     @field_validator("reason", mode="before")
     @classmethod
     def _normalize_reason(cls, value: object) -> str:
+        # The floor is measured in columns, not characters: "查询日期与车站编码" says as much as a ten-letter English
+        # intent, and a rejected call costs a whole model round.
         text = str(value or "").strip()
-        if len(text) < 10:
-            raise ValueError("reason must be at least 10 characters explaining why this command runs")
+        if _display_width(text) < MIN_REASON_WIDTH:
+            raise ValueError(
+                f"reason must be at least {MIN_REASON_WIDTH} characters wide (a Chinese, Japanese or Korean character counts "
+                "as two) explaining why this command runs"
+            )
         return text
 
     timeout: int | None = Field(
