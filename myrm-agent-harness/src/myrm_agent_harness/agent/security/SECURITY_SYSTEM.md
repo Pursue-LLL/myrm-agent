@@ -440,7 +440,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 | 级别 | 旁路行为 |
 |------|----------|
-| `TRUSTED` | 启用 workspace skills、rules 注入、工作区内 MCP spawn、编辑后的 prettier 与 `mix format`；`.myrm/config.toml` 声明的 repo command prefix 可参与 allowlist 自动放行 |
+| `TRUSTED` | 启用 workspace skills、rules 注入、工作区内 MCP spawn、编辑后的 prettier 与 `mix format`；`.myrm/config.toml` 声明且用户在信任弹窗里看过的 repo command prefix 可参与 allowlist 自动放行 |
 | `RESTRICTED` / `REVOKED` / 未知 | 禁用上述旁路；MCP spawn 抛出 `WorkspaceTrustBlockedError`；repo prefix 匹配不参与自动 ALLOW |
 | 默认 | 未 bind 或未在 registry 决策 → **RESTRICTED**（`provider.resolve_workspace_trust_level`） |
 
@@ -451,7 +451,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 3. **Rules**：`workspace_rules/middleware.py` — RESTRICTED 时跳过 rules 注入。放行之后规则文件仍是仓库作者可控的输入：`workspace_rules/rule_read_guard.py` 让一次扫描（含信任前的 FolderGate 披露）只读真实路径落在边界之内的文件（边界是 git 根，没有 git 根时是工作区根；指向边界外的符号链接只得到占位文本，不读内容），单文件最多读 256,000 字符，一次扫描最多 512 个文件、2,000,000 字符；规则文件名经 `core/security/detection/display_name.py` 压成单行纯文本后才进入系统消息与工具结果。
 4. **信任前披露读取**：`workspace_trust/manifest.py` 在用户决定之前读取工作区内的 `mcp.json`（四个位置）与 `.myrm/config.toml`，大小与种类同样由仓库决定，所以同样经 `read_text_bounded`，上限 1,048,576 字符：超限的 MCP 配置按一个 server 计，超限的 `config.toml` 记 warning 并视为未声明前缀；披露对任何扫描失败降级为零计数，不阻塞弹窗。
 5. **MCP spawn**：`toolkits/mcp/transport.py` — `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
-6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor/` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
+6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor/decide/allowlist.py` — 仅 TRUSTED，且只对 bash 工具启动的**单条非复合命令**（`;` / `&&` / 重定向 / 命令替换等经 `is_compound_shell_command` 拦截）按整词前缀匹配；敲进运行中进程的文本不是启动，不参与。命中与 allowlist 条目走同一条链：批量双保险、资金、不可逆社交、受保护指令文件四道门不可越过，组织策略 `ignoreAllowlistForModels` 对该模型生效时一并忽略；放行之后污点检查、auto-mode 复核与定时运行的 never-class 否决照常生效。审计标签 `REPO_PREFIX_AUTO_APPROVE`。
 7. **编辑后的格式化**：`agent/meta_tools/file_ops/observers/format_observer.py` — prettier（执行 `prettier.config.js` 与配置里声明的本地插件）与 `mix format`（执行 `.formatter.exs`）只在 TRUSTED 工作区运行；RESTRICTED、REVOKED、未决策或没有执行器时静默跳过，不报错也不在回执里加说明。工作区里的这些文件可由智能体自己的沙箱不经审批写入，写入后的格式化若照跑，就等于在宿主机上执行它们。级别由执行器的工作区根经 `resolve_workspace_trust_level` 在进程级登记表里查，不读运行期的 `ContextVar`（LangGraph 在另一个任务里执行工具体时读不到它，已信任的文件夹会被当成受限）；ruff、black、gofmt、rustfmt 等只读声明式配置的格式化器不受影响。已信任的工作区里这条路径仍然存在：智能体自己写下可执行配置、再靠格式化触发它；没有廉价的判据把它与工程自带的配置区分开（会被执行的文件名单不可穷举），所以这里不处理。
 
 ### 持久化与 API（server）
@@ -470,7 +470,7 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 ### 与 Permission Engine 的边界
 
-Workspace Trust **不替代** Capability Fence / Permission Engine / Path Policy。它仅 gate **仓库本地旁路**（skills、rules、repo-local MCP、repo-declared command prefix shortcut）。Shell、文件读写、网络等仍走 Layer 1–4 常规链。
+Workspace Trust **不替代** Capability Fence / Permission Engine / Path Policy。它仅 gate **仓库本地旁路**（skills、rules、repo-local MCP、repo-declared command prefix shortcut）。Shell、文件读写、网络等仍走 Layer 1–4 常规链；前缀捷径只把引擎给出的 ASK 升为 ALLOW，DENY 与后续各道检查不受影响。
 
 ### 刻意不在 Phase 1 的范围
 
@@ -791,8 +791,8 @@ class AllowlistEntry:
    - tool_name 用于 mcp_invoke 的 per-tool target resolution（如 mcp__gmail__send_email）
    - PTC 调用先过路径策略
    - ASK 且为只读 MCP / PTC 工具（is_read_only && !is_open_world && !is_destructive）→ ALLOW
-3. ASK → Allowlist：可信工作区声明的 shell 命令前缀，或用户 allowlist 命中 → ALLOW
-   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件不可由 allowlist 放行；组织策略（MAP）可让该模型忽略 allowlist
+3. ASK → Allowlist：用户 allowlist 条目命中，或可信工作区声明的命令前缀命中（仅 bash 工具启动的单条非复合命令）→ ALLOW
+   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件不可由两类命中放行；组织策略（MAP）可让该模型忽略 allowlist（前缀命中一并忽略）
 4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；资金类工具（审计 `FINANCIAL_GATE_ESCALATED`）；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破（定时运行除外）；
    污点冲突（auto-mode 下先交 LLM 审核：ALLOW 放行 / DENY 拒绝 / UNCERTAIN 回到 ASK）
    auto-mode 下，invoke_external_agent 与非平凡 shell 在放行前还要过一次 LLM 审核（拒绝或存疑时不放行）
