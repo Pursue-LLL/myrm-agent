@@ -1,8 +1,9 @@
 """The startup recovery chain against a real database: real schema, real migrations, real salvage.
 
 ``test_startup_recovery.py`` pins each branch with stand-ins; these two runs show what a user's file goes through. A page
-of the migration state table, which every start reads, is damaged: the file is salvaged and the next start finishes
-without replaying the migrations. A migration that fails on a healthy file leaves it byte for byte as it was.
+of the migration state table, which every start reads, is damaged: the file is salvaged with its rows (including those
+of a table whose name ends like an FTS4 shadow table) and the next start finishes without replaying the migrations. A
+migration that fails on a healthy file leaves it byte for byte as it was.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from app.server.status import system_status
 pytestmark = pytest.mark.integration
 
 _STATE_TABLE = "_schema_migrations"
+_RECALL_TEXT = "the quarterly budget review"
 
 
 @pytest.fixture
@@ -50,7 +52,25 @@ def _damage_root_page(db_file: Path, table: str) -> None:
         handle.write(b"\xff\x00\xde\xad" * 25)
 
 
-async def test_a_database_with_a_damaged_state_table_page_is_salvaged_and_starts_again(database: Path) -> None:
+def _seed_recall_segment(db_file: Path) -> None:
+    """A row in ``conversation_recall_segments``: its name ends like an FTS4 shadow table, yet it holds real rows."""
+    with sqlite3.connect(db_file) as conn:
+        conn.execute(
+            "INSERT INTO conversation_recall_segments (chat_id, message_id, role, segment_text) "
+            "VALUES ('chat-1', 'message-1', 'user', ?)",
+            (_RECALL_TEXT,),
+        )
+
+
+def _recall_segment_texts(db_file: Path) -> list[str]:
+    with sqlite3.connect(db_file) as conn:
+        return [text for (text,) in conn.execute("SELECT segment_text FROM conversation_recall_segments")]
+
+
+async def test_a_database_with_a_damaged_state_table_page_is_salvaged_with_its_rows_and_starts_again(
+    database: Path,
+) -> None:
+    _seed_recall_segment(database)
     _damage_root_page(database, _STATE_TABLE)
     assert database_is_damaged(str(database))
 
@@ -62,6 +82,7 @@ async def test_a_database_with_a_damaged_state_table_page_is_salvaged_and_starts
     assert not database_is_damaged(str(database))
     assert (database.parent / "data.db.corrupted").exists()
     assert await migrations.has_pending_migrations(get_database_engine()) is False
+    assert _recall_segment_texts(database) == [_RECALL_TEXT]
 
 
 async def test_a_failing_migration_on_a_healthy_database_surfaces_and_leaves_the_file_alone(
