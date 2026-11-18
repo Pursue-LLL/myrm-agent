@@ -3,13 +3,15 @@
 Confirm edits three config rows: ``providers`` (model slots), ``mcpServers`` (migrated servers) and ``personalSettings``
 (global instructions). Every test runs the real config service over a real in-memory database, so a call the service
 refuses (no ``device_id``), a value the runtime cannot parse (the wrong ``mcpServers`` shape) and a row a writer must
-not touch (one sealed under a key that is gone) fail here the way they fail for a user.
+not touch (one sealed under a key that is gone) fail here the way they fail for a user. The opt-in key import writes
+``providers`` as well and is held to the same rules.
 """
 
 from __future__ import annotations
 
 import copy
 import os
+from pathlib import Path
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -36,10 +38,13 @@ from app.services.migration.source.source_model_migrator import (
     migrate_hermes_auxiliary_models,
     migrate_openclaw_default_model,
 )
+from app.services.migration.source.source_secrets_importer import import_external_source_secrets
 from tests.support.skill_credential_store import CredentialStore
 
 MIGRATOR = "app.services.migration.source.source_model_migrator"
+IMPORTER = "app.services.migration.source.source_secrets_importer"
 DEVICE = "competitor-migration"
+IMPORTED_KEY = "PLACEHOLDER_IMPORTED_KEY"
 
 HERMES_AUXILIARY = {"auxiliary": {"vision": {"provider": "openrouter", "model": "google/gemini-2.5-flash"}}}
 OPENCLAW_DEFAULTS = {"agents": {"defaults": {"model": "anthropic/claude-opus-4-6"}}}
@@ -135,6 +140,44 @@ async def test_providers_sealed_under_a_lost_key_are_left_as_they_are(
     assert (await migrate_hermes_auxiliary_models(copy.deepcopy(HERMES_AUXILIARY))).migrated_slots == {}
 
     # Writing over the empty value of a row that cannot be opened would destroy ciphertext the user can still restore.
+    assert await _row(credentials, "providers") == before
+
+
+# --- the opt-in key import (providers) ---------------------------------------------------------------------------
+
+
+def _dotenv_root(root: Path) -> Path:
+    (root / ".env").write_text(f"OPENAI_API_KEY={IMPORTED_KEY}\n", encoding="utf-8")
+    return root
+
+
+@pytest.mark.asyncio
+async def test_an_imported_key_lands_in_a_new_provider_row(
+    credentials: CredentialStore, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(f"{IMPORTER}.is_local_mode", lambda: True)
+
+    result = await import_external_source_secrets(_dotenv_root(tmp_path))
+
+    assert result.imported_keys == ["OPENAI_API_KEY"]
+    [row] = _entries((await _stored("providers"))["providers"])
+    assert row["id"] == "openai"
+    assert [entry["key"] for entry in _entries(row["apiKeys"])] == [IMPORTED_KEY]
+    assert await _writers(credentials, "providers") == {DEVICE}
+
+
+@pytest.mark.asyncio
+async def test_the_key_import_leaves_providers_sealed_under_a_lost_key_alone(
+    credentials: CredentialStore, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    await credentials.store_providers([OPENAI_ROW], default_model=False)
+    before = await _row(credentials, "providers")
+    _lose_the_key(monkeypatch)
+    monkeypatch.setattr(f"{IMPORTER}.is_local_mode", lambda: True)
+
+    with pytest.raises(ValueError, match="cannot be decrypted"):
+        await import_external_source_secrets(_dotenv_root(tmp_path))
+
     assert await _row(credentials, "providers") == before
 
 
