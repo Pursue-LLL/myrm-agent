@@ -9,7 +9,8 @@
  * - useInputFileUpload: 暴露粘贴/拖拽上传处理函数、乐观入队状态与延迟处理流水线。
  *
  * [POS]
- * 聊天输入文件上传 Hook。负责粘贴/拖拽文件上传、Office 剪贴板文本优先智能识别、SHA-256 去重和非阻塞延迟处理流水线。
+ * 聊天输入文件上传 Hook。负责粘贴/拖拽文件上传、Office 剪贴板文本优先智能识别、SHA-256 去重和非阻塞延迟处理流水线；
+ * 服务端只收下部分文件时，把返回项对回各个附件，没被收下的标为失败而不是一直显示上传中。
  */
 
 import { useCallback } from 'react';
@@ -23,6 +24,7 @@ import { hasConfiguredVisionCapability, hasVisionFallbackForVideo } from '@/stor
 import { showVisionNotConfiguredToast } from '@/store/config/visionConfigGap';
 import { resetUploadController, getUploadSignal } from '@/services/uploadController';
 import { admitAndCompressFiles } from '@/lib/utils/imageAdmission';
+import type { UploadFileResponse } from '@/services/file';
 import type { ActionMode, File as ChatFile } from '@/store/chat/types';
 
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -30,6 +32,24 @@ const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 const RAG_DOC_THRESHOLD = 100 * 1024;
 const RAG_DOC_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'ipynb']);
+
+type StoredFile = UploadFileResponse['files'][number];
+
+/**
+ * 把服务端返回的文件逐项对回本次上传的文件（返回值与 `names` 等长，没被收下的为 undefined）。
+ * 服务端会静默跳过不接受的文件，其余按上传顺序返回：数量一致即全部收下，按位置对应，不依赖名字逐字相同；
+ * 数量不一致时按名字认领，同名文件按先后顺序各取一个，避免错位后把别的文件的 ID 挂到这一项上。
+ */
+function matchStoredFiles(names: string[], stored: StoredFile[]): Array<StoredFile | undefined> {
+  if (stored.length === names.length) {
+    return stored;
+  }
+  const unclaimed = new Map<string, StoredFile[]>();
+  for (const entry of stored) {
+    unclaimed.set(entry.fileName, [...(unclaimed.get(entry.fileName) ?? []), entry]);
+  }
+  return names.map((name) => unclaimed.get(name)?.shift());
+}
 
 interface UseInputFileUploadParams {
   actionMode: ActionMode;
@@ -146,18 +166,21 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
           throw new Error('Upload returned empty file list');
         }
 
-        // 4. 成功：将 uploading 乐观项就地升级为 ready 并赋值服务端元数据
+        // 4. 成功：将 uploading 乐观项就地升级为 ready 并赋值服务端元数据；服务端没收下的转为 error，不让它们停在上传中
+        const storedFiles = matchStoredFiles(
+          dedupedItems.map(({ file }) => file.name),
+          uploadResults.files,
+        );
         const uploadedMap = new Map<string, { fileId: string; fileUrl: string; hash: string }>();
-        for (let i = 0; i < dedupedItems.length; i++) {
-          const rawFile = uploadResults.files[i];
-          if (rawFile) {
-            uploadedMap.set(dedupedItems[i].tempId, {
-              fileId: rawFile.fileId,
-              fileUrl: rawFile.fileUrl,
-              hash: dedupedItems[i].hash,
-            });
+        const rejectedTempIds = new Set<string>();
+        dedupedItems.forEach(({ tempId, hash }, i) => {
+          const stored = storedFiles[i];
+          if (stored) {
+            uploadedMap.set(tempId, { fileId: stored.fileId, fileUrl: stored.fileUrl, hash });
+          } else {
+            rejectedTempIds.add(tempId);
           }
-        }
+        });
 
         updateFilesHelper((prev) =>
           prev.map((f) => {
@@ -177,15 +200,23 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
                 uploadPercent: 100,
               };
             }
-            return f;
+            return f.tempId && rejectedTempIds.has(f.tempId) ? { ...f, status: 'error' as const } : f;
           }),
         );
 
-        toast.success(tFiles('uploadSuccess'), {
-          description: tFiles('uploadedCount', { count: uploadResults.uploaded_count }),
-        });
+        if (rejectedTempIds.size > 0) {
+          toast.error(tFiles('uploadPartialFailed'));
+        }
+        if (uploadedMap.size > 0) {
+          toast.success(tFiles('uploadSuccess'), {
+            description: tFiles('uploadedCount', { count: uploadedMap.size }),
+          });
+        }
 
-        for (const { file } of dedupedItems) {
+        for (const { file, tempId } of dedupedItems) {
+          if (!uploadedMap.has(tempId)) {
+            continue;
+          }
           const ext = getFileExtension(file.name);
           if (RAG_DOC_EXTENSIONS.has(ext) && file.size > RAG_DOC_THRESHOLD) {
             const sizeMB = `${(file.size / 1024 / 1024).toFixed(1)}MB`;

@@ -7,7 +7,7 @@
  * - next-intl::useTranslations (POS: 卡片文案)
  *
  * [OUTPUT]
- * - SearchResultCard: Cmd+K 的一条搜索结果：点击打开会话并定位到命中消息，旁边的按钮把该会话引用进输入框。
+ * - SearchResultCard: Cmd+K 的一条搜索结果：点击打开会话并定位到命中消息，旁边的按钮把该会话引用进输入框；命中消息的发言方按当前语言标为「你 / 助手」。
  *
  * [POS]
  * search-dialog 的结果项子组件。卡片本身不可交互：标题是原生按钮，其 ::after 铺满整张卡片（点卡片任意处等于点它）；
@@ -43,6 +43,7 @@ function formatDate(dateStr: string) {
 export function SearchResultCard({ item, onOpen, onCite }: SearchResultCardProps) {
   const t = useTranslations();
   const snippetId = useId();
+  const isUserMessage = item.role === 'user';
 
   return (
     <div className="relative w-full p-3 rounded-lg hover:bg-muted/50 focus-within:bg-muted/50 transition-colors flex flex-col gap-1.5">
@@ -76,10 +77,10 @@ export function SearchResultCard({ item, onOpen, onCite }: SearchResultCardProps
         <span
           className={cn(
             'inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-2 uppercase',
-            item.role === 'user' ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground',
+            isUserMessage ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground',
           )}
         >
-          {item.role}
+          {isUserMessage ? t('search.roleUser') : t('search.roleAssistant')}
         </span>
         <span
           dangerouslySetInnerHTML={{

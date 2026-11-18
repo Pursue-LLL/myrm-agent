@@ -5,6 +5,7 @@ import type { File as ChatFile } from '@/store/chat/types';
 
 const mockValidateMessageQuota = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
+const toastWarningMock = vi.hoisted(() => vi.fn());
 const storeRef = vi.hoisted(() => ({
   state: {} as { files: ChatFile[]; actionMode: string; pendingExplicitSkillActivation: unknown },
 }));
@@ -12,7 +13,7 @@ const storeRef = vi.hoisted(() => ({
 vi.mock('@/hooks/billing/useQuotaGuard', () => ({
   useQuotaGuard: () => ({ validateMessageQuota: mockValidateMessageQuota }),
 }));
-vi.mock('@/lib/utils/toast', () => ({ toast: { error: toastErrorMock } }));
+vi.mock('@/lib/utils/toast', () => ({ toast: { error: toastErrorMock, warning: toastWarningMock } }));
 vi.mock('@/store/useChatStore', () => ({ default: { getState: () => storeRef.state } }));
 
 const UPLOAD_LIMIT_MS = 30_000;
@@ -33,6 +34,7 @@ describe('useSubmitGate', () => {
     mockValidateMessageQuota.mockReset();
     mockValidateMessageQuota.mockResolvedValue({ allowed: true });
     toastErrorMock.mockReset();
+    toastWarningMock.mockReset();
   });
 
   afterEach(() => {
@@ -105,14 +107,36 @@ describe('useSubmitGate', () => {
       expect(mockValidateMessageQuota).not.toHaveBeenCalled();
     });
 
-    it('stops waiting after thirty seconds and leaves the rest to the quota guard', async () => {
+    it('holds the message back and says so when an upload is still running after thirty seconds', async () => {
       const { result } = renderGate('look at this', staged('uploading'));
       const gate = result.current();
 
       await vi.advanceTimersByTimeAsync(UPLOAD_LIMIT_MS + 100);
 
-      await expect(gate).resolves.toBe(true);
-      expect(mockValidateMessageQuota).toHaveBeenCalledTimes(1);
+      await expect(gate).resolves.toBe(false);
+      expect(toastWarningMock).toHaveBeenCalledWith('uploadPending');
+      expect(toastErrorMock).not.toHaveBeenCalled();
+      expect(mockValidateMessageQuota).not.toHaveBeenCalled();
     });
+
+    it('reports a failed upload rather than a pending one when both are present at the deadline', async () => {
+      const { result } = renderGate('look at this', staged('uploading', 'error'));
+      const gate = result.current();
+
+      await vi.advanceTimersByTimeAsync(UPLOAD_LIMIT_MS + 100);
+
+      await expect(gate).resolves.toBe(false);
+      expect(toastErrorMock).toHaveBeenCalledWith('uploadFailed');
+      expect(toastWarningMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it('holds the message back when an attachment already failed to upload, even with nothing left uploading', async () => {
+    const { result } = renderGate('look at this', staged('ready', 'error'));
+
+    await expect(result.current()).resolves.toBe(false);
+
+    expect(toastErrorMock).toHaveBeenCalledWith('uploadFailed');
+    expect(mockValidateMessageQuota).not.toHaveBeenCalled();
   });
 });

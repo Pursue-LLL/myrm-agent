@@ -1935,6 +1935,7 @@
       "activeSummary": "{count} active context items"
     },
     "uploadFailed": "Upload failed",
+    "uploadPending": "Attachments are still uploading. Send again once they finish.",
     "skillActivation": {
       "remove": "Remove selected skills"
     },
@@ -3818,7 +3819,9 @@
     "to": "To",
     "clearTimeFilter": "Clear",
     "citeToComposer": "Cite in composer",
-    "citeSameChat": "This result is from the current chat — nothing to cite"
+    "citeSameChat": "This result is from the current chat — nothing to cite",
+    "roleUser": "You",
+    "roleAssistant": "Assistant"
   },
   "images": {
     "search": "Search images",

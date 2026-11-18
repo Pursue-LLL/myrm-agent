@@ -1935,6 +1935,7 @@
       "activeSummary": "{count} 项生效上下文"
     },
     "uploadFailed": "上传失败",
+    "uploadPending": "附件还在上传，等上传完成后再发送",
     "skillActivation": {
       "remove": "移除已选技能"
     },
@@ -3818,7 +3819,9 @@
     "to": "截止",
     "clearTimeFilter": "清除",
     "citeToComposer": "引用到输入框",
-    "citeSameChat": "该结果来自当前会话，无需引用"
+    "citeSameChat": "该结果来自当前会话，无需引用",
+    "roleUser": "你",
+    "roleAssistant": "助手"
   },
   "images": {
     "search": "搜索图片",
