@@ -4,7 +4,7 @@
 
 策略选择：
 - /mcp/ 路径 → MCPFileSystemStrategy（读取技能文档）
-- 普通路径 → StorageBackendStrategy（通过 Executor 适配器访问文件）
+- 普通路径 → StorageBackendStrategy（显式传入的 storage_backend 优先，否则经 Executor 适配器访问文件）
 
 [INPUT]
 - backends.skills.types::SkillMetadata (POS: skill metadata: frontmatter fields plus load-time computed state)
@@ -45,7 +45,8 @@ class FileSystemStrategyFactory:
     ) -> FileSystemStrategy:
         """根据路径自动选择策略
 
-        优先使用 executor，回退到 storage_backend。
+        普通路径的存储来源按优先级取：显式传入的 storage_backend；否则 executor（显式传入的优先，
+        缺省取当前异步上下文绑定的）经 ExecutorStorageAdapter 适配；两者都没有则抛 ValueError。
         """
         if path.startswith("/mcp/"):
             return MCPFileSystemStrategy(skills)
