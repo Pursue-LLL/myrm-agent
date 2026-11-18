@@ -47,7 +47,7 @@ vi.mock('@/components/features/settings/mcp/MCPScanAckDialog', () => ({
 
 vi.mock('@/lib/deploy-mode', () => ({
   isSandbox: () => mockIsSandbox(),
-  getDocsUrl: (path: string = '/') => `https://docs.example.com${path === '/' ? '' : path}`,
+  getDocsUrl: (path: string, locale: string) => `https://docs.example.com${locale === 'zh' ? '/zh' : ''}${path}`,
 }));
 
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
@@ -112,29 +112,31 @@ describe('IntegrationConnectDialog', () => {
     Object.defineProperty(window, 'location', { value: originalLocation, writable: true });
   });
 
-  it('blocks local-only entries in sandbox without probe url', async () => {
-    const entry = makeCatalogEntry();
-    const onClose = vi.fn();
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue(null); // noopener windows always return null
-    render(<IntegrationConnectDialog entry={entry} locale="en" onClose={onClose} onConnected={vi.fn()} />);
+  it.each([
+    ['en', 'https://docs.example.com/getting-started/local-deployment'],
+    ['zh', 'https://docs.example.com/zh/getting-started/local-deployment'],
+  ] as const)(
+    'blocks local-only entries in sandbox without probe url and opens the %s guide',
+    async (locale, guideUrl) => {
+      const entry = makeCatalogEntry();
+      const onClose = vi.fn();
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(null); // noopener windows always return null
+      render(<IntegrationConnectDialog entry={entry} locale={locale} onClose={onClose} onConnected={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'connect' }));
+      fireEvent.click(screen.getByRole('button', { name: 'connect' }));
 
-    await waitFor(() => {
-      expect(screen.getByText('probeCloudLoopbackBlocked')).toBeInTheDocument();
-    });
-    expect(mockApiRequest).not.toHaveBeenCalled();
-    expect(mockSetMCPConfigs).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByText('probeCloudLoopbackBlocked')).toBeInTheDocument();
+      });
+      expect(mockApiRequest).not.toHaveBeenCalled();
+      expect(mockSetMCPConfigs).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(openSpy).toHaveBeenCalledWith(
-      'https://docs.example.com/getting-started/local-deployment',
-      '_blank',
-      'noopener,noreferrer',
-    );
-    expect(locationAssign).not.toHaveBeenCalled();
-  });
+      fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+      expect(openSpy).toHaveBeenCalledWith(guideUrl, '_blank', 'noopener,noreferrer');
+      expect(locationAssign).not.toHaveBeenCalled();
+    },
+  );
 
   it('blocks connect when probe response carries shouldBlockConnect=true', async () => {
     const entry = makeCatalogEntry({

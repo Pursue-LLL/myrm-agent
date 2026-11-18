@@ -101,6 +101,6 @@ describe('remote gateway config', () => {
 
 describe('getDocsUrl', () => {
   it('returns an absolute documentation origin', () => {
-    expect(getDocsUrl()).toMatch(/^https?:\/\//);
+    expect(getDocsUrl('/getting-started/introduction', 'en')).toMatch(/^https?:\/\//);
   });
 });

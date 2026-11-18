@@ -14,7 +14,7 @@
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   IconGlobe,
   IconBook,
@@ -123,6 +123,7 @@ const FALLBACK_VERSION = '0.1.0';
 
 const AboutSection = memo(() => {
   const t = useTranslations('settings.about');
+  const locale = useLocale();
   const [version, setVersion] = useState(FALLBACK_VERSION);
   const [engineVersion, setEngineVersion] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -364,7 +365,7 @@ const AboutSection = memo(() => {
             icon={IconBook}
             title={t('links.documentation.title')}
             description={t('links.documentation.description')}
-            href={getDocsUrl()}
+            href={getDocsUrl('/getting-started/introduction', locale)}
           />
           <LinkCard
             icon={Users}

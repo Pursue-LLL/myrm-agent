@@ -40,7 +40,7 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
   const [e2eePublicKeyB64, setE2eePublicKeyB64] = useState<string | null>(null);
   const localeIsZh = locale.startsWith('zh');
   const passwordProtectionEnabled = isTauriRuntime() ? requirePassword : (serverRequirePassword ?? requirePassword);
-  const docsTunnelUrl = getDocsUrl('/guides/tunnel');
+  const docsTunnelUrl = getDocsUrl('/guides/tunnel', locale);
   const mobileHubQrSrc = mobileHubUrl ? `/webui/qrcode.png?url=${encodeURIComponent(mobileHubUrl)}` : '';
 
   useEffect(() => {

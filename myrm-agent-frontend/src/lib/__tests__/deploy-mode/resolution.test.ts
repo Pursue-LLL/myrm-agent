@@ -84,11 +84,18 @@ describe('deploy-mode base url resolution', () => {
 
   it('resolves docs url from env with default fallback', () => {
     process.env.NEXT_PUBLIC_DOCS_URL = 'https://docs.example.com/';
-    expect(getDocsUrl()).toBe('https://docs.example.com');
-    expect(getDocsUrl('/getting-started')).toBe('https://docs.example.com/getting-started');
+    expect(getDocsUrl('/getting-started', 'en')).toBe('https://docs.example.com/getting-started');
 
     delete process.env.NEXT_PUBLIC_DOCS_URL;
-    expect(getDocsUrl()).toBe(OFFICIAL_DOCS_URL);
+    expect(getDocsUrl('/getting-started', 'en')).toBe(`${OFFICIAL_DOCS_URL}/getting-started`);
+  });
+
+  it('points Chinese interface users at the Chinese pages and everyone else at the English ones', () => {
+    process.env.NEXT_PUBLIC_DOCS_URL = 'https://docs.example.com/';
+    expect(getDocsUrl('/guides/tunnel', 'zh')).toBe('https://docs.example.com/zh/guides/tunnel');
+    expect(getDocsUrl('/guides/tunnel', 'en')).toBe('https://docs.example.com/guides/tunnel');
+    expect(getDocsUrl('/guides/tunnel', 'fr')).toBe('https://docs.example.com/guides/tunnel');
+    expect(getDocsUrl('guides/tunnel', 'zh')).toBe('https://docs.example.com/zh/guides/tunnel');
   });
 
   it('uses Next proxy for tauri runtime on loopback dev host', () => {

@@ -213,7 +213,7 @@
 ## 连通性 UX
 
 - **LAN 优先**：内网 URL 默认展示。
-- **Public Ingress**：本地模式始终展示公网入口卡（`PublicIngressCard`）的公网地址输入；用户自选穿透工具后粘贴（文档 `getDocsUrl('/guides/tunnel')`）。
+- **Public Ingress**：本地模式始终展示公网入口卡（`PublicIngressCard`）的公网地址输入；用户自选穿透工具后粘贴（文档 `getDocsUrl('/guides/tunnel', locale)`，中文界面指向 `/zh` 译文）。
 - **Mobile Hub**：tunnel 运行后签发 Hub deep link QR；手机打开 `/mobile` 列表，点会话 mint scoped control token 进入 StatusBoard。
 - **条件引导**：`ingress-requirement` 的 `required` 控制引导文案（必须 vs 可选），不影响 Ingress 输入区可见性。
 - 判定逻辑：Server `ingress_requirement.py` + 前端 `useIngressRequirement` 单 API。
@@ -225,7 +225,7 @@
 - `@/services/system`
 - `@/services/statistics`
 - `@/services/budget`
-- `@/lib/deploy-mode::getDocsUrl`
+- `@/lib/deploy-mode::getDocsUrl(path, locale)`（AboutSection 文档卡片、PublicIngressCard 隧道指南）
 - `@/lib/constants/brand::OFFICIAL_SITE_URL` / `OFFICIAL_DOWNLOAD_URL`（AboutSection 官网卡片、TrustBadgeCard 与 RecoveryGuideCard 的官网与下载深链）
 - `@/lib/deploy-mode::getRemoteGatewayConfig` / `setRemoteGatewayConfig` / `isTauriRuntime`（ServerConnectionCard）
 - `@/lib/remote-follow-switch::switchRemoteFollow`（ServerConnectionCard / local-backend-unavailable-banner：连接切换后端生命周期编排入口）

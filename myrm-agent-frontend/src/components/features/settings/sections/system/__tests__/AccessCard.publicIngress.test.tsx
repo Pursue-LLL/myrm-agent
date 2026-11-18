@@ -38,10 +38,14 @@ describe('AccessCard public ingress', () => {
   beforeEach(resetDoubles);
 
   describe('card', () => {
-    it('links the tunnel guide in a new tab', () => {
+    it.each([
+      ['en', 'https://docs.example.com/guides/tunnel'],
+      ['zh', 'https://docs.example.com/zh/guides/tunnel'],
+    ])('links the tunnel guide of the %s docs in a new tab', (locale, href) => {
+      doubles.locale = locale;
       renderCard();
       const link = screen.getByText('access.ingress.docsLink');
-      expect(link).toHaveAttribute('href', 'https://docs.example.com/guides/tunnel');
+      expect(link).toHaveAttribute('href', href);
       expect(link).toHaveAttribute('target', '_blank');
       expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });

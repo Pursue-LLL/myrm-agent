@@ -55,7 +55,7 @@ const stableT = Object.assign((key: string) => key, { has: () => true });
 
 export const nextIntlMock = { useTranslations: () => stableT, useLocale: () => doubles.locale };
 export const deployModeOverrides = {
-  getDocsUrl: (path = '/') => `https://docs.example.com${path}`,
+  getDocsUrl: (path: string, locale: string) => `https://docs.example.com${locale === 'zh' ? '/zh' : ''}${path}`,
   isLocalMode: () => doubles.isLocalMode(),
   isTauriRuntime: () => doubles.isTauriRuntime(),
 };
