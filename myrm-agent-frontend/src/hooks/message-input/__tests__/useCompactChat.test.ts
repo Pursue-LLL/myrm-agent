@@ -11,7 +11,7 @@ const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock('@/services/chat', () => ({ compactChat: mockCompactChat }));
+vi.mock('@/services/contextCompaction', () => ({ compactChat: mockCompactChat }));
 vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
 
 const loadMessages = vi.fn(async () => undefined);

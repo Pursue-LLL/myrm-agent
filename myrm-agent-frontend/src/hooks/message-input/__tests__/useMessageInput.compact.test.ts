@@ -5,7 +5,7 @@ const chatStoreRef = vi.hoisted(() => ({ state: {} as Record<string, unknown> })
 const mockCompactChat = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/chat', () => ({ compactChat: mockCompactChat }));
+vi.mock('@/services/contextCompaction', () => ({ compactChat: mockCompactChat }));
 
 vi.mock('@/lib/utils/toast', () => ({
   toast: {

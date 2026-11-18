@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { apiRequest } from '@/lib/api';
 import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
-import { compactChat } from '@/services/chat';
+import { compactChat } from '@/services/contextCompaction';
 
 vi.mock('@/lib/api', () => ({
   API_BASE_URL: '',

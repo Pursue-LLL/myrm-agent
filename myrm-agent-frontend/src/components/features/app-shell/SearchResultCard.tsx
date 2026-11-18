@@ -2,7 +2,7 @@
 
 /**
  * [INPUT]
- * - @/services/chat::SearchResult (POS: 历史消息搜索命中项契约)
+ * - @/services/chatHistorySearch::SearchResult (POS: 历史消息搜索命中项契约)
  * - @/lib/utils/classnameUtils::cn (POS: className 合并)
  * - next-intl::useTranslations (POS: 卡片文案)
  *
@@ -18,7 +18,7 @@ import { useId } from 'react';
 import { Calendar, MessageSquare } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils/classnameUtils';
-import type { SearchResult } from '@/services/chat';
+import type { SearchResult } from '@/services/chatHistorySearch';
 
 interface SearchResultCardProps {
   item: SearchResult;

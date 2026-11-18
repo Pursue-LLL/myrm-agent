@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * - store/useChatStore::refreshCompactionState (POS: Chat state management store.)
- * - services/chat::compactChat (POS: Chat service — manual context compaction.)
+ * - services/contextCompaction::compactChat (POS: Context compaction service.)
  * - lib/constants/compact-focus-topic::COMPACT_FOCUS_TOPIC_MAX_LENGTH (POS: Longest focus topic the server accepts.)
  * - ./contextUsageFormat::formatTokens (POS: Compact K / M token count.)
  *
@@ -19,7 +19,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
-import { compactChat } from '@/services/chat';
+import { compactChat } from '@/services/contextCompaction';
 import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import { formatTokens } from './contextUsageFormat';
 

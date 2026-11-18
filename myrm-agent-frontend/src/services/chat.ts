@@ -1,7 +1,5 @@
 import { API_BASE_URL, apiRequest, fetchWithTimeout } from '@/lib/api';
-import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import type { ExportData } from '@/lib/utils/chat-export';
-import { firstChars } from '@/lib/utils/firstChars';
 import { Message, type ActionMode, type MentionReferenceType, type ModelSelection } from '@/store/chat/types';
 import { requestManager } from '@/lib/utils/requestManager';
 import { parseServerTimestamp } from '@/lib/utils/timeUtils';
@@ -195,55 +193,6 @@ export const updateChatTags = async (chatId: string, tags: string[]): Promise<{ 
     method: 'PATCH',
     body: JSON.stringify({ tags }),
   });
-};
-
-export interface SearchResult {
-  id: string;
-  chat_id: string;
-  role: string;
-  content: string;
-  sent_at: string;
-  chat_title: string | null;
-  snippet: string;
-  source?: string;
-}
-
-export interface SearchResponse {
-  items: SearchResult[];
-  total: number;
-}
-
-export const searchChatHistory = async (
-  query: string,
-  limit: number = 20,
-  offset: number = 0,
-  since?: string,
-  until?: string,
-): Promise<SearchResponse> => {
-  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
-  if (since) {
-    params.set('since', since);
-  }
-  if (until) {
-    params.set('until', until);
-  }
-  const data = (await apiRequest(`/chats/search?${params}`)) as SearchResponse;
-  return { items: data.items || [], total: data.total || 0 };
-};
-
-/** Recall-index SSOT search for @chat: composer citation (matches server inject path). */
-export const searchCitableChats = async (
-  query: string,
-  limit: number = 20,
-  offset: number = 0,
-  excludeChatId?: string,
-): Promise<SearchResponse> => {
-  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
-  if (excludeChatId) {
-    params.set('exclude_chat_id', excludeChatId);
-  }
-  const data = (await apiRequest(`/chats/recall/search?${params}`)) as SearchResponse;
-  return { items: data.items || [], total: data.total || 0 };
 };
 
 /**
@@ -968,31 +917,11 @@ export const generateChatTitle = async (messages: Message[], abortController?: A
   }
 };
 
-export interface CompactResult {
-  compacted: boolean;
-  message_count: number;
-  tokens_saved: number;
-  reason: string | null;
-  focus_topic?: string;
-  backup_path?: string | null;
-}
-
 export const getContextPins = async (chatId: string): Promise<{ files: string[] }> => {
   const response = (await apiRequest(`/chats/${chatId}/context/pins`, { silent: true })) as {
     files: string[];
   };
   return { files: response.files ?? [] };
-};
-
-export const compactChat = async (chatId: string, focusTopic?: string): Promise<CompactResult> => {
-  // The server refuses a longer topic (HTTP 422); a topic typed after `/compact` has no box to stop it, so it is cut here.
-  const body = focusTopic
-    ? JSON.stringify({ focus_topic: firstChars(focusTopic, COMPACT_FOCUS_TOPIC_MAX_LENGTH) })
-    : undefined;
-  return (await apiRequest(`/chats/${chatId}/compact`, {
-    method: 'POST',
-    ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
-  })) as CompactResult;
 };
 
 export interface ContextBranchRecord {

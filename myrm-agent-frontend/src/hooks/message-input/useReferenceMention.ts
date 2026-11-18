@@ -3,7 +3,7 @@
  *
  * [INPUT]
  * - @/services/chat::suggestReferences (POS: Server-side safe reference suggestions)
- * - @/services/chat::searchCitableChats (POS: Prior conversation citable search)
+ * - @/services/chatHistorySearch::searchCitableChats (POS: Prior conversation citable search)
  * - ./useReferenceMentionUtils (POS: Mention planning, reference formatting and suggestion builders)
  * - @/store/useChatStore (POS: Global chat state, selection and input update)
  * - @/store/useAgentStore (POS: Digital employee registry prefetch)
@@ -18,7 +18,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { suggestReferences, searchCitableChats, type ReferenceSuggestion } from '@/services/chat';
+import { suggestReferences, type ReferenceSuggestion } from '@/services/chat';
+import { searchCitableChats } from '@/services/chatHistorySearch';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import {

@@ -19,7 +19,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => translate,
 }));
 
-vi.mock('@/services/chat', () => ({
+vi.mock('@/services/contextCompaction', () => ({
   compactChat: mockCompactChat,
 }));
 

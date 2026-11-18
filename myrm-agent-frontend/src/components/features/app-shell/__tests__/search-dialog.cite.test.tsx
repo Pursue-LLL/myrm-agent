@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SearchDialog } from '../search-dialog';
 import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
-import type { SearchResult } from '@/services/chat';
+import type { SearchResult } from '@/services/chatHistorySearch';
 
 const mockPush = vi.hoisted(() => vi.fn());
 const mockSearchChatHistory = vi.hoisted(() => vi.fn());
@@ -47,7 +47,7 @@ vi.mock('sonner', () => ({
   toast: mockSonnerToast,
 }));
 
-vi.mock('@/services/chat', () => ({
+vi.mock('@/services/chatHistorySearch', () => ({
   searchChatHistory: (...args: unknown[]) => mockSearchChatHistory(...args),
 }));
 

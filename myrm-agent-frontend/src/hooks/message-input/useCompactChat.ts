@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/services/chat::compactChat (POS: 聊天服务，手动压缩上下文)
+ * - @/services/contextCompaction::compactChat (POS: 上下文压缩的前端服务)
  * - @/lib/utils/toast::toast (POS: 统一 toast)
  *
  * [OUTPUT]
@@ -12,7 +12,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { compactChat } from '@/services/chat';
+import { compactChat } from '@/services/contextCompaction';
 import { toast } from '@/lib/utils/toast';
 
 const DONT_REMIND_STORAGE_KEY = 'dontRemindCompact';

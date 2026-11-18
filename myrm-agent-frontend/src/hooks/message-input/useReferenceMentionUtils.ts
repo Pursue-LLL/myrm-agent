@@ -1,6 +1,7 @@
 /**
  * [INPUT]
- * - @/services/chat::{ReferenceSuggestion, ReferenceSuggestionSource, SearchResult} (POS: 引用项契约)
+ * - @/services/chat::{ReferenceSuggestion, ReferenceSuggestionSource} (POS: 引用项契约)
+ * - @/services/chatHistorySearch::SearchResult (POS: 历史消息检索命中项契约)
  * - @/store/chat/types::MentionReference (POS: Store 引用契约)
  * - @/store/useAgentStore (POS: 获取本地已加载数字员工列表)
  * - @/components/agent/builtin-agent-i18n::getBuiltinAgentName (POS: 数字员工多语言名称)
@@ -21,7 +22,8 @@
  * useReferenceMention 的无状态纯逻辑与工具集，保证 EmptyChat 下首屏秒级 @Agent 唤起与三端同构。
  */
 
-import type { ReferenceSuggestion, ReferenceSuggestionSource, SearchResult } from '@/services/chat';
+import type { ReferenceSuggestion, ReferenceSuggestionSource } from '@/services/chat';
+import type { SearchResult } from '@/services/chatHistorySearch';
 import type { MentionReference } from '@/store/chat/types';
 import useAgentStore from '@/store/useAgentStore';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';

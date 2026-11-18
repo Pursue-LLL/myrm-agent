@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
-import { searchChatHistory, type SearchResult } from '@/services/chat';
+import { searchChatHistory, type SearchResult } from '@/services/chatHistorySearch';
 import useChatStore from '@/store/useChatStore';
 import { SearchResultCard } from './SearchResultCard';
 

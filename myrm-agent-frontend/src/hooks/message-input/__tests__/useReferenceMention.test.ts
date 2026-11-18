@@ -5,8 +5,11 @@ const searchCitableChatsMock = vi.hoisted(() => vi.fn());
 const suggestReferencesMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/services/chat', () => ({
-  searchCitableChats: (...args: unknown[]) => searchCitableChatsMock(...args),
   suggestReferences: (...args: unknown[]) => suggestReferencesMock(...args),
+}));
+
+vi.mock('@/services/chatHistorySearch', () => ({
+  searchCitableChats: (...args: unknown[]) => searchCitableChatsMock(...args),
 }));
 
 vi.mock('next-intl', () => ({

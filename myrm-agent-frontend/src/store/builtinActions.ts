@@ -1,5 +1,6 @@
 import type { ActionResult, SlashAction } from '@/types/command';
-import { compactChat, focusFlushChat } from '@/services/chat';
+import { focusFlushChat } from '@/services/chat';
+import { compactChat } from '@/services/contextCompaction';
 import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
 
