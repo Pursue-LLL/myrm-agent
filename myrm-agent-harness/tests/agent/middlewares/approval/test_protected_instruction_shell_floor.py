@@ -343,8 +343,11 @@ class TestAScheduledRunRefusesTheWrite:
 class TestTheAllowAlwaysGuardReadsTheSameCommandLine:
     @pytest.mark.parametrize(("command", "_name"), _WRITES)
     def test_it_refuses_to_remember_a_write(self, command: str, _name: str) -> None:
-        bash = {"name": "bash_code_execute_tool", "args": {"command": command}}
-        stdin = {"name": "bash_process_tool", "args": {"action": "submit_stdin", "pid": 7, "data": command}}
+        bash: dict[str, object] = {"name": "bash_code_execute_tool", "args": {"command": command}}
+        stdin: dict[str, object] = {
+            "name": "bash_process_tool",
+            "args": {"action": "submit_stdin", "pid": 7, "data": command},
+        }
 
         assert should_block_allow_always(bash, None)
         assert should_block_allow_always(stdin, None)
