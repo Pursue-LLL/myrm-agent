@@ -30,7 +30,7 @@ def seed_via_http(api_base: str = DEFAULT_API_BASE) -> dict[str, object]:
 async def seed_direct() -> None:
     server_root = _AGENT_ROOT / "myrm-agent-server"
     sys.path.insert(0, str(server_root))
-    from app.api.skills.drafts import seed_mock_drafts_for_e2e
+    from app.api.skills.test_fixtures import seed_mock_drafts_for_e2e
     from app.database.connection import init_database
 
     await init_database()

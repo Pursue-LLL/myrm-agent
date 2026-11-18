@@ -16,7 +16,6 @@ app/api/health/router.py
 app/api/integrations/llms.py
 app/api/kanban/schemas.py
 app/api/memory/operations/shared_context/shared_contexts.py
-app/api/skills/drafts.py
 app/api/skills/migrations.py
 app/api/skills/permissions.py
 app/api/statistics/context_health/context_health.py

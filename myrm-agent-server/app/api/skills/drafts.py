@@ -15,7 +15,9 @@ front-end refresh events through the single-source publish helpers.
 - app.api.skills.draft_record::SkillDraftRecord (POS: 技能草稿记录视图)
 
 [OUTPUT]
-- GET /drafts: 草稿分页列表 + 未审核计数
+- GET /drafts: 草稿分页列表（可按状态过滤，附总数）
+- GET /drafts/unreviewed/count: 待审草稿数量（角标）
+- GET /drafts/{draft_id}: 单个草稿详情
 - POST /drafts/{draft_id}/approve: 审批通过 → 技能落地（已归档的同名技能一并恢复）+ 前端事件
 - POST /drafts/{draft_id}/reject: 审批拒绝 → 账本负向事件 + 前端事件
 
@@ -50,10 +52,6 @@ from app.services.skills.growth.constants import GROWTH_ACTION_TYPES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-_TEST_MOCK_DRAFT_NAMES: tuple[str, str] = (
-    "test-frontend-approve",
-    "test-frontend-reject",
-)
 
 
 class SkillDraftResponse(BaseModel):
@@ -213,77 +211,6 @@ async def get_unreviewed_draft_count() -> dict[str, object]:
         )
         count = sum(1 for record in result.scalars().all() if _approval_growth_status(record) == "PENDING_REVIEW")
     return {"unreviewed_count": count}
-
-
-def _namespace_mock_names(namespace: str) -> tuple[str, str]:
-    if not namespace.strip():
-        return _TEST_MOCK_DRAFT_NAMES
-    suffix = namespace.strip()[:16]
-    return (
-        f"test-frontend-approve-{suffix}",
-        f"test-frontend-reject-{suffix}",
-    )
-
-
-async def seed_mock_drafts_for_e2e(agent_id: str = "default", namespace: str = "") -> dict[str, object]:
-    """Create two predictable mock drafts for Instinct Inbox UI E2E tests.
-
-    ``namespace`` isolates parallel Chrome E2E runs: mock names are suffixed and
-    cleanup only touches drafts owned by the same namespace, so concurrent
-    sessions never deny each other's seeds (SSOT: SHARED+NAMESPACE_WRITE).
-    """
-    approve_name, reject_name = _namespace_mock_names(namespace)
-    names = (approve_name, reject_name)
-    drafts, _ = await get_skill_drafts(status="PENDING_REVIEW", limit=500)
-    for draft in drafts:
-        if draft.name in names:
-            await ApprovalRegistry.resolve_approval(draft.id, "deny")
-
-    created_ids: list[str] = []
-    mock_specs = (
-        (
-            approve_name,
-            f"This is a test skill for UI Approve button ({approve_name}).",
-            f'```markdown\n---\nname: {approve_name}\ndescription: "approve test"\n---\n\n# Rules\nApprove rules\n```',
-            "Test draft approve UI",
-        ),
-        (
-            reject_name,
-            f"This is a test skill for UI Reject button ({reject_name}).",
-            f'```markdown\n---\nname: {reject_name}\ndescription: "reject test"\n---\n\n# Rules\nReject rules\n```',
-            "Test draft reject UI",
-        ),
-    )
-    chat_id = f"test_chat_{namespace.strip()[:16]}" if namespace.strip() else "test_chat_123"
-    for skill_name, description, content, reason in mock_specs:
-        record = await ApprovalRegistry.create_approval(
-            agent_id=agent_id,
-            chat_id=chat_id,
-            action_type="skill_draft",
-            payload={
-                "skill_name": skill_name,
-                "description": description,
-                "content": content,
-                "score": 0.95,
-            },
-            reason=reason,
-        )
-        created_ids.append(record.id)
-
-    return {"created_ids": created_ids, "skill_names": list(names)}
-
-
-@router.post("/drafts/test/seed-mock", include_in_schema=False)
-async def seed_test_mock_drafts(
-    agent_id: str = "default",
-    namespace: str = "",
-) -> dict[str, object]:
-    """Local dev/test only: reset and seed Instinct Inbox E2E mock drafts."""
-    from app.config.deploy_mode import is_local_mode
-
-    if not is_local_mode():
-        raise HTTPException(status_code=404, detail="Not found")
-    return await seed_mock_drafts_for_e2e(agent_id=agent_id, namespace=namespace)
 
 
 @router.get("/drafts/{draft_id}", response_model=SkillDraftResponse)

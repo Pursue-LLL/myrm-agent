@@ -4,6 +4,8 @@
 - app.services.skills.growth.lifecycle::process_skill_review_result (POS: Skill growth lifecycle orchestration)
 - app.core.skills.providers.local::compute_local_skill_id (POS: 本地技能扫描服务)
 - app.core.skills.models::LOCAL_SKILLS_DIR (POS: Skill system data models)
+- app.api.skills.drafts::get_skill_drafts (POS: 技能草稿 HTTP API：草稿列表、审批通过/拒绝、状态流转与前端刷新事件发布)
+- app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
 
 [OUTPUT]
 - ensure_prebuilt_catalog: local/test route to seed prebuilt skills for Chrome E2E
@@ -13,6 +15,9 @@
   Chrome E2E: a skill whose directory name and SKILL.md name the test chooses, a review result fed through the
   production growth lifecycle in place of the reviewer model's output, and removal of the directories the
   test created
+- seed_test_mock_drafts / seed_mock_drafts_for_e2e: local/test route (and the helper behind it) that resets and
+  seeds two predictable pending drafts for the Instinct Inbox Chrome E2E; a ``namespace`` keeps parallel runs from
+  denying each other's seeds
 
 [POS]
 Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth
@@ -33,6 +38,7 @@ from myrm_agent_harness.agent.skills.market.sanitizer import SKILL_MD_FILE
 from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
 from pydantic import BaseModel, Field
 
+from app.api.skills.drafts import get_skill_drafts
 from app.config.deploy_mode import is_local_mode
 from app.core.skills import prebuilt_sync
 from app.core.skills.models import LOCAL_SKILLS_DIR
@@ -41,6 +47,7 @@ from app.core.skills.providers.local import compute_local_skill_id
 from app.core.skills.replace.finalize import finalize_market_replace_success
 from app.core.skills.replace.service import create_replace_snapshot
 from app.core.skills.store.service import skills_service
+from app.services.approvals.registry import ApprovalRegistry
 
 router = APIRouter()
 
@@ -299,3 +306,78 @@ async def cleanup_growth_skills(body: CleanupGrowthSkillsRequest) -> dict[str, l
         raise HTTPException(status_code=404, detail="Not found")
 
     return {"removed": await asyncio.to_thread(_remove_growth_skills, body.dir_names)}
+
+
+_TEST_MOCK_DRAFT_NAMES: tuple[str, str] = (
+    "test-frontend-approve",
+    "test-frontend-reject",
+)
+
+
+def _namespace_mock_names(namespace: str) -> tuple[str, str]:
+    if not namespace.strip():
+        return _TEST_MOCK_DRAFT_NAMES
+    suffix = namespace.strip()[:16]
+    return (
+        f"test-frontend-approve-{suffix}",
+        f"test-frontend-reject-{suffix}",
+    )
+
+
+async def seed_mock_drafts_for_e2e(agent_id: str = "default", namespace: str = "") -> dict[str, object]:
+    """Create two predictable mock drafts for Instinct Inbox UI E2E tests.
+
+    ``namespace`` isolates parallel Chrome E2E runs: mock names are suffixed and
+    cleanup only touches drafts owned by the same namespace, so concurrent
+    sessions never deny each other's seeds (SSOT: SHARED+NAMESPACE_WRITE).
+    """
+    approve_name, reject_name = _namespace_mock_names(namespace)
+    names = (approve_name, reject_name)
+    drafts, _ = await get_skill_drafts(status="PENDING_REVIEW", limit=500)
+    for draft in drafts:
+        if draft.name in names:
+            await ApprovalRegistry.resolve_approval(draft.id, "deny")
+
+    created_ids: list[str] = []
+    mock_specs = (
+        (
+            approve_name,
+            f"This is a test skill for UI Approve button ({approve_name}).",
+            f'```markdown\n---\nname: {approve_name}\ndescription: "approve test"\n---\n\n# Rules\nApprove rules\n```',
+            "Test draft approve UI",
+        ),
+        (
+            reject_name,
+            f"This is a test skill for UI Reject button ({reject_name}).",
+            f'```markdown\n---\nname: {reject_name}\ndescription: "reject test"\n---\n\n# Rules\nReject rules\n```',
+            "Test draft reject UI",
+        ),
+    )
+    chat_id = f"test_chat_{namespace.strip()[:16]}" if namespace.strip() else "test_chat_123"
+    for skill_name, description, content, reason in mock_specs:
+        record = await ApprovalRegistry.create_approval(
+            agent_id=agent_id,
+            chat_id=chat_id,
+            action_type="skill_draft",
+            payload={
+                "skill_name": skill_name,
+                "description": description,
+                "content": content,
+                "score": 0.95,
+            },
+            reason=reason,
+        )
+        created_ids.append(record.id)
+
+    return {"created_ids": created_ids, "skill_names": list(names)}
+
+
+@router.post("/drafts/test/seed-mock", include_in_schema=False)
+async def seed_test_mock_drafts(
+    agent_id: str = "default",
+    namespace: str = "",
+) -> dict[str, object]:
+    """Local dev/test only: reset and seed Instinct Inbox E2E mock drafts."""
+    if not is_local_mode():
+        raise HTTPException(status_code=404, detail="Not found")
+    return await seed_mock_drafts_for_e2e(agent_id=agent_id, namespace=namespace)
