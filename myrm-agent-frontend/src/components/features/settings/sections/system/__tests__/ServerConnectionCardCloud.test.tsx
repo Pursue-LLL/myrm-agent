@@ -57,7 +57,7 @@ function stubBackends(options: { runningSessions: number | 'hang' }) {
 function renderCloudCard() {
   render(<ServerConnectionCard />);
   fireEvent.click(screen.getByLabelText('modeLocal'));
-  fireEvent.change(screen.getByPlaceholderText('https://app.myrmagent.com'), { target: { value: CP } });
+  fireEvent.change(screen.getByPlaceholderText('https://cp.example.com'), { target: { value: CP } });
 }
 
 describe('ServerConnectionCard cloud connection', () => {

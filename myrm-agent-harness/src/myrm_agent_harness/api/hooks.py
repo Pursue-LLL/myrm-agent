@@ -8,13 +8,15 @@
 - myrm_agent_harness.core.security.guards.privacy_tracker (POS: ContextVar privacy policy access)
 - myrm_agent_harness.utils.runtime.background_job_finish_registry (POS: bash job finish hook registry)
 - myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher (POS: LLM API key renewal hook registry)
+- myrm_agent_harness.toolkits.llms.core.attribution (POS: app-attribution identity registry and header sets for OpenRouter and Vercel AI Gateway)
 - myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager (POS: shared Python environment lifecycle)
 
 [OUTPUT]
 - Session, skill-agent context, task intent, memory telemetry (budget/injection)
   and injection contract, memory-extraction, bash-registry, background-job-finish,
   privacy-context (policy/pseudonym-store/pseudonymizer) hook callables, the LLM API key
-  renewal registration (``set_api_key_refresher``), the shared Python environment reset
+  renewal registration (``set_api_key_refresher``), the app-attribution identity registration
+  (``ClientAttribution`` / ``set_client_attribution`` / ``vercel_headers``), the shared Python environment reset
   (``discard_shared_venv``), and the goal
   provider-window wait vocabulary (``GOAL_WAIT_*`` / ``pause_goal_after_missed_wake`` /
   ``ProviderWindowHint`` / ``PROVIDER_WINDOW_HOLD_MAX_S`` / ``deferral_wait_s``) for server integration.
@@ -117,6 +119,11 @@ from myrm_agent_harness.toolkits.code_execution.sandbox.mount_security_gate impo
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.api_key_refresher import (
     set_api_key_refresher,
 )
+from myrm_agent_harness.toolkits.llms.core.attribution import (
+    ClientAttribution,
+    set_client_attribution,
+    vercel_headers,
+)
 from myrm_agent_harness.toolkits.llms.errors.provider_window import (
     HOLD_MAX_S as PROVIDER_WINDOW_HOLD_MAX_S,
 )
@@ -195,6 +202,7 @@ __all__ = [
     "BackgroundJobFinishResult",
     "BackgroundJobRecord",
     "BackgroundProcessInfo",
+    "ClientAttribution",
     "MountMode",
     "MountSpec",
     "MountValidationResult",
@@ -234,6 +242,7 @@ __all__ = [
     "restore_memory_pseudonymizer",
     "set_api_key_refresher",
     "set_approval_user_id",
+    "set_client_attribution",
     "set_global_background_job_finish_handler",
     "set_permission_invalidation_callback",
     "set_privacy_policy",
@@ -243,4 +252,5 @@ __all__ = [
     "set_workspace_root",
     "validate_and_sanitize_mounts",
     "validate_mount_spec",
+    "vercel_headers",
 ]

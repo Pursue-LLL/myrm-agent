@@ -1,7 +1,8 @@
 """IMAP conversation helpers of EmailChannel: the RFC 2971 client ID, the reading of a server's reply and its UIDVALIDITY.
 
 [INPUT]
-- Standard library ``imaplib`` connection and reply values (no project modules)
+- Standard library ``imaplib`` connection and reply values
+- app.core.brand::NOREPLY_EMAIL (POS: the system sender address announced as the client's support email)
 
 [OUTPUT]
 - send_imap_id: announce the client to a server that requires it after LOGIN
@@ -21,6 +22,8 @@ import imaplib
 from collections.abc import Sequence
 from typing import TypeVar
 
+from app.core.brand import NOREPLY_EMAIL
+
 _ReplyData = TypeVar("_ReplyData", bound=Sequence[object])
 
 
@@ -29,7 +32,7 @@ def send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
     try:
         conn.xatom(
             "ID",
-            '("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "noreply@myrm.sh")',
+            f'("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "{NOREPLY_EMAIL}")',
         )
     except Exception:
         pass

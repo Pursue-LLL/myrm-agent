@@ -77,7 +77,7 @@ def _send_imap_id(conn: imaplib.IMAP4_SSL) -> None:
     try:
         conn.xatom(
             "ID",
-            '("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "noreply@myrm.sh")',
+            '("name" "myrm-agent" "version" "1" "vendor" "myrm" "support-email" "noreply@myrmagent.ai")',
         )
     except Exception:
         pass

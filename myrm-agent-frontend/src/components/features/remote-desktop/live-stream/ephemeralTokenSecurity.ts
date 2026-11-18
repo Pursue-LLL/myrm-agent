@@ -4,7 +4,7 @@ import {
 } from './remoteDesktopTypes';
 
 const DEFAULT_SECRET_SALT = 'myrm-ephemeral-sandbox-token-salt-2026';
-const DEFAULT_BASE_URL = 'https://myrm.ai/share/live-sandbox';
+const DEFAULT_BASE_URL = 'https://share.example/live-sandbox';
 
 export function computeSha256Digest(input: string): string {
   // 简易确定性安全哈希计算，用于生成与校验时效令牌签名

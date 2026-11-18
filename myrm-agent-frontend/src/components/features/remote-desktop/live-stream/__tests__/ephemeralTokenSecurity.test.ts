@@ -31,7 +31,7 @@ describe('ephemeralTokenSecurity pure cryptographic logic', () => {
       'sandbox-cloud-vm-99',
       options,
       'test-secret-salt',
-      'https://myrm.ai/share/live'
+      'https://share.example/live'
     );
 
     expect(ticket.ticketId.startsWith('tkt-')).toBe(true);
@@ -39,7 +39,7 @@ describe('ephemeralTokenSecurity pure cryptographic logic', () => {
     expect(ticket.allowTakeover).toBe(true);
     expect(ticket.oneTimeOnly).toBe(false);
     expect(ticket.signature).toBeTruthy();
-    expect(ticket.url).toContain('https://myrm.ai/share/live?t=');
+    expect(ticket.url).toContain('https://share.example/live?t=');
     expect(ticket.url).toContain('&sb=sandbox-cloud-vm-99');
     expect(ticket.url).toContain('&tk=1');
     expect(ticket.url).toContain('&oto=0');
@@ -68,7 +68,7 @@ describe('ephemeralTokenSecurity pure cryptographic logic', () => {
       sandboxId: 'sb-001',
       expiresAt: 1700000000000,
       signature: 'any-sig',
-      url: 'https://myrm.ai/share',
+      url: 'https://share.example/live',
       allowTakeover: false,
       oneTimeOnly: false,
     };

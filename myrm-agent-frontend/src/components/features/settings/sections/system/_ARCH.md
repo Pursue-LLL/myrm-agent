@@ -225,6 +225,7 @@
 - `@/services/statistics`
 - `@/services/budget`
 - `@/lib/deploy-mode::getDocsUrl`
+- `@/lib/constants/brand::OFFICIAL_SITE_URL` / `OFFICIAL_DOWNLOAD_URL`（AboutSection 官网卡片、TrustBadgeCard 与 RecoveryGuideCard 的官网与下载深链）
 - `@/lib/deploy-mode::getRemoteGatewayConfig` / `setRemoteGatewayConfig` / `isTauriRuntime`（ServerConnectionCard）
 - `@/lib/remote-follow-switch::switchRemoteFollow`（ServerConnectionCard / local-backend-unavailable-banner：连接切换后端生命周期编排入口）
 - `@/services/agentFleet::getActiveSessions`（useActiveSessionsGuard 切断连接前活跃会话查询）

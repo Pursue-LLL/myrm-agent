@@ -24,7 +24,7 @@ def test_tool_gateway_config_from_env_disabled():
     with patch.dict(os.environ, clear=True):
         config = ToolGatewayConfig.from_env(use_gateway=False)
         assert config.use_gateway is False
-        assert config.gateway_url == "https://api.myrm.ai/v1/gateway"
+        assert config.gateway_url is None
         assert config.auth_token is None
 
 
@@ -56,13 +56,12 @@ def test_tool_gateway_config_from_env_enabled_missing_token():
 
 
 def test_tool_gateway_config_from_env_enabled_missing_url():
-    with patch.dict(
-        os.environ,
-        {"MYRM_GATEWAY_TOKEN": "test-token"},
-        clear=True,
+    with (
+        patch.dict(
+            os.environ,
+            {"MYRM_GATEWAY_TOKEN": "test-token"},
+            clear=True,
+        ),
+        pytest.raises(ValueError, match="MYRM_GATEWAY_URL is required"),
     ):
-        # Should use default URL
-        config = ToolGatewayConfig.from_env(use_gateway=True)
-        assert config.use_gateway is True
-        assert config.gateway_url == "https://api.myrm.ai/v1/gateway"
-        assert config.auth_token == "test-token"
+        ToolGatewayConfig.from_env(use_gateway=True)

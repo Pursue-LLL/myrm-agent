@@ -11,6 +11,7 @@ import {
   setRuntimeTauriBackendPort,
 } from '@/lib/deploy-mode';
 import { getWsUrl } from '@/lib/api';
+import { OFFICIAL_DOCS_URL } from '@/lib/constants/brand';
 
 const ENV_KEYS = ['NEXT_PUBLIC_DEPLOY_MODE', 'NEXT_PUBLIC_API_BASE_URL', 'NEXT_PUBLIC_BACKEND_BASE_URL'] as const;
 type EnvKey = (typeof ENV_KEYS)[number];
@@ -87,7 +88,7 @@ describe('deploy-mode base url resolution', () => {
     expect(getDocsUrl('/getting-started')).toBe('https://docs.example.com/getting-started');
 
     delete process.env.NEXT_PUBLIC_DOCS_URL;
-    expect(getDocsUrl()).toBe('https://docs.myrm.ai');
+    expect(getDocsUrl()).toBe(OFFICIAL_DOCS_URL);
   });
 
   it('uses Next proxy for tauri runtime on loopback dev host', () => {

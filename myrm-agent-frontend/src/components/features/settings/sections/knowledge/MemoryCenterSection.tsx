@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/primitive
 import dynamic from 'next/dynamic';
 import { Brain, Database, Cloud, ArrowRightLeft, MessageCircle, Users } from 'lucide-react';
 import { defaultSubTabResolver, useSettingsSubTabUrl } from '@/hooks/settings/useSettingsSubTabUrl';
+import { OFFICIAL_DOWNLOAD_URL } from '@/lib/constants/brand';
 import { isLocalMode } from '@/lib/deploy-mode';
 import MemorySection from './MemorySection';
 import MemoryBackupSection from './MemoryBackupSection';
@@ -35,8 +36,6 @@ const MemoryCenterSection = memo(() => {
   const showMigration = isLocalMode();
   const wantsMigrationTab = searchParams.get('sub') === 'migration';
   const migrationUnavailable = wantsMigrationTab && !showMigration;
-  const marketingSiteUrl = process.env.NEXT_PUBLIC_MARKETING_SITE_URL ?? 'https://myrm.ai';
-  const desktopDownloadHref = `${marketingSiteUrl.replace(/\/+$/, '')}/download`;
 
   const [activeTab, setActiveTab] = useState<string>('explorer');
   const [pendingReviewRefresh, setPendingReviewRefresh] = useState(0);
@@ -97,7 +96,7 @@ const MemoryCenterSection = memo(() => {
             {t('memoryCenter.migrationUnavailable.description')}
           </p>
           <Button asChild className="rounded-lg bg-primary text-primary-foreground hover:opacity-90">
-            <a href={desktopDownloadHref} target="_blank" rel="noopener noreferrer">
+            <a href={OFFICIAL_DOWNLOAD_URL} target="_blank" rel="noopener noreferrer">
               {t('memoryCenter.migrationUnavailable.downloadCta')}
             </a>
           </Button>

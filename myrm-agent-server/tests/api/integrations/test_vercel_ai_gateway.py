@@ -10,11 +10,13 @@ import pytest
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 from starlette.testclient import TestClient
 
+from app.core.brand import CLIENT_ATTRIBUTION
 from app.services.migration.source.source_model_migrator import (
     _PROVIDER_ROUTE_PREFIX,
     _resolve_route_model_id,
 )
 from tests.support.minimal_app import build_minimal_app
+from tests.support.server_client_attribution import server_client_attribution
 
 app = build_minimal_app(preset="integrations")
 
@@ -65,8 +67,9 @@ def test_discover_models_injects_attribution_headers_for_vercel_gateway(client: 
         payload = response.json()["data"]
         assert payload["success"] is True
         assert "anthropic/claude-3-5-sonnet" in payload["models"]
-        assert captured_headers.get("HTTP-Referer") == "https://myrm.ai"
-        assert captured_headers.get("X-Title") == "Myrm Agent"
+        assert captured_headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+        assert captured_headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
+        assert captured_headers.get("User-Agent") == CLIENT_ATTRIBUTION.vercel_user_agent
         assert captured_headers.get("Authorization") == "Bearer vca_test_secret"
 
 
@@ -110,14 +113,15 @@ def test_discover_models_does_not_inject_attribution_headers_for_other_endpoints
 
 
 def test_create_chat_model_auto_injects_attribution_headers() -> None:
-    llm = create_chat_model(
-        model="openai/anthropic/claude-3-5-sonnet",
-        base_url="https://ai-gateway.vercel.sh/v1",
-        api_key="vca_test_key",
-    )
+    with server_client_attribution():
+        llm = create_chat_model(
+            model="openai/anthropic/claude-3-5-sonnet",
+            base_url="https://ai-gateway.vercel.sh/v1",
+            api_key="vca_test_key",
+        )
     extra_headers = llm.model_kwargs.get("extra_headers", {})
-    assert extra_headers.get("HTTP-Referer") == "https://myrm.ai"
-    assert extra_headers.get("X-Title") == "Myrm Agent"
+    assert extra_headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+    assert extra_headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
 
 
 def test_hermes_auxiliary_migration_maps_ai_gateway_aliases() -> None:

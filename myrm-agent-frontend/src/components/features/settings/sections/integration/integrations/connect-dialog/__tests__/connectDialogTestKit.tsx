@@ -70,7 +70,7 @@ export const mcpConfigUtilsMock = { formatMcpGateBlockedMessage: () => 'blocked'
 export const scanAckDialogMock = { MCPScanAckDialog: ScanAckDialogStub };
 export const deployModeMock = {
   isSandbox: () => mockIsSandbox(),
-  getDocsUrl: (path: string = '/') => `https://docs.myrm.ai${path === '/' ? '' : path}`,
+  getDocsUrl: (path: string = '/') => `https://docs.example.com${path === '/' ? '' : path}`,
 };
 
 export function resetConnectDialogMocks() {

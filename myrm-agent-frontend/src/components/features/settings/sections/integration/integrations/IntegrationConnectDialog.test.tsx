@@ -47,7 +47,7 @@ vi.mock('@/components/features/settings/mcp/MCPScanAckDialog', () => ({
 
 vi.mock('@/lib/deploy-mode', () => ({
   isSandbox: () => mockIsSandbox(),
-  getDocsUrl: (path: string = '/') => `https://docs.myrm.ai${path === '/' ? '' : path}`,
+  getDocsUrl: (path: string = '/') => `https://docs.example.com${path === '/' ? '' : path}`,
 }));
 
 import { IntegrationConnectDialog } from './IntegrationConnectDialog';
@@ -129,7 +129,7 @@ describe('IntegrationConnectDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(
-      'https://docs.myrm.ai/getting-started/local-deployment',
+      'https://docs.example.com/getting-started/local-deployment',
       '_blank',
       'noopener,noreferrer',
     );
@@ -328,7 +328,7 @@ describe('IntegrationConnectDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'probeRecommendedActionSwitchMode' }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(openSpy).toHaveBeenCalledWith(
-      'https://docs.myrm.ai/getting-started/local-deployment',
+      'https://docs.example.com/getting-started/local-deployment',
       '_blank',
       'noopener,noreferrer',
     );

@@ -122,7 +122,7 @@ const ServerConnectionCloudSection = memo((props: ServerConnectionCloudSectionPr
           setCpBaseInput(e.target.value);
           setProviders(null);
         }}
-        placeholder="https://app.myrmagent.com"
+        placeholder="https://cp.example.com"
         className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
       />
       <div className="flex flex-wrap gap-2">

@@ -2,7 +2,9 @@
 - myrm_agent_harness.core.security.http.secure_fetch::secure_request (POS: SSRF-guarded HTTP fetch)
 - myrm_agent_harness.toolkits.llms.transport::endpoint_of (POS: the one grammar for a pasted endpoint address)
 - myrm_agent_harness.infra.tls_compat::create_httpx_client (POS: TLS-compatible httpx client)
+- myrm_agent_harness.api.hooks::vercel_headers (POS: the header set Vercel AI Gateway documents for app attribution)
 - app.config.deploy_mode::is_local_mode (POS: local/desktop deploy mode)
+- app.core.brand::CLIENT_ATTRIBUTION (POS: the application identity announced to model gateways)
 
 [OUTPUT]
 - discover_models: probe an OpenAI-compatible endpoint and return its model IDs
@@ -25,6 +27,7 @@ from urllib.parse import urlparse, urlunparse
 
 import httpx
 from fastapi.responses import JSONResponse
+from myrm_agent_harness.api.hooks import vercel_headers
 from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import secure_request
 from myrm_agent_harness.infra.tls_compat import create_httpx_client
@@ -32,6 +35,7 @@ from myrm_agent_harness.toolkits.llms.transport import Endpoint, ProviderProfile
 from pydantic import BaseModel, Field
 
 from app.config.deploy_mode import is_local_mode
+from app.core.brand import CLIENT_ATTRIBUTION
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 
@@ -201,9 +205,7 @@ async def discover_models(request: ModelDiscoveryRequest) -> JSONResponse:
     if not use_no_auth_local:
         headers["Authorization"] = f"Bearer {api_key}"
     if parsed.hostname and "ai-gateway.vercel.sh" in parsed.hostname.lower():
-        headers["HTTP-Referer"] = "https://myrm.ai"
-        headers["X-Title"] = "Myrm Agent"
-        headers["User-Agent"] = "Myrm/1.0 (Vercel-AI-Gateway-Client)"
+        headers.update(vercel_headers(CLIENT_ATTRIBUTION))
 
     candidates = _build_models_candidates(normalized_api_url)
     last_error: str | None = None

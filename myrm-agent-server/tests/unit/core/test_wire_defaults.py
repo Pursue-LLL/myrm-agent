@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import httpx
+from myrm_agent_harness.api.hooks import vercel_headers
+from myrm_agent_harness.toolkits.llms.core.attribution import openrouter_headers
+
+from app.core.brand import CLIENT_ATTRIBUTION
 from app.core.types import ModelConfig
 from app.core.wire.defaults import apply_wire_defaults
 from app.core.wire.enrich import enrich_model_config
@@ -16,9 +21,7 @@ def test_apply_wire_defaults_vercel_provider_id() -> None:
     )
     headers = result.get("extra_headers")
     assert isinstance(headers, dict)
-    assert headers["HTTP-Referer"] == "https://myrm.ai"
-    assert headers["X-Title"] == "Myrm Agent"
-    assert headers["User-Agent"] == "Myrm/1.0 (Vercel-AI-Gateway-Client)"
+    assert headers == vercel_headers(CLIENT_ATTRIBUTION)
     assert result["custom_llm_provider"] == "openai"
 
 
@@ -31,8 +34,8 @@ def test_apply_wire_defaults_vercel_base_url() -> None:
     )
     headers = result.get("extra_headers")
     assert isinstance(headers, dict)
-    assert headers["HTTP-Referer"] == "https://myrm.ai"
-    assert headers["X-Title"] == "Myrm Agent"
+    assert headers["HTTP-Referer"] == CLIENT_ATTRIBUTION.site_url
+    assert headers["X-Title"] == CLIENT_ATTRIBUTION.app_name
     assert result["custom_llm_provider"] == "openai"
 
 
@@ -51,7 +54,7 @@ def test_apply_wire_defaults_preserves_explicit_user_headers() -> None:
     assert isinstance(headers, dict)
     assert headers["HTTP-Referer"] == "https://custom.app"
     assert headers["X-Custom-Header"] == "foobar"
-    assert headers["X-Title"] == "Myrm Agent"
+    assert headers["X-Title"] == CLIENT_ATTRIBUTION.app_name
     assert result["custom_llm_provider"] == "custom_openai"
 
 
@@ -75,8 +78,16 @@ def test_enrich_model_config_vercel_ai_gateway() -> None:
     )
     enriched = enrich_model_config(cfg, provider_id="vercel_ai_gateway")
     assert enriched.wire_protocol == "chat_completions"
+    assert enriched.model_kwargs is not None
     headers = enriched.model_kwargs.get("extra_headers")
     assert isinstance(headers, dict)
-    assert headers["HTTP-Referer"] == "https://myrm.ai"
-    assert headers["X-Title"] == "Myrm Agent"
+    assert headers["HTTP-Referer"] == CLIENT_ATTRIBUTION.site_url
+    assert headers["X-Title"] == CLIENT_ATTRIBUTION.app_name
     assert enriched.model_kwargs.get("custom_llm_provider") == "openai"
+
+
+def test_the_servers_identity_builds_a_request_for_each_gateway() -> None:
+    """httpx refuses a header value it cannot encode while building the request, so each set must construct one."""
+    for headers in (vercel_headers(CLIENT_ATTRIBUTION), openrouter_headers(CLIENT_ATTRIBUTION)):
+        request = httpx.Request("POST", "https://gateway.example/v1/chat/completions", headers=headers)
+        assert request.headers["HTTP-Referer"] == CLIENT_ATTRIBUTION.site_url

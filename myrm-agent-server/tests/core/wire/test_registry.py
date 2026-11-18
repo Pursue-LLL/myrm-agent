@@ -1,5 +1,6 @@
 """Server wire registry unit tests."""
 
+from app.core.brand import CLIENT_ATTRIBUTION
 from app.core.types import ModelConfig
 from app.core.wire.enrich import enrich_model_config
 from app.core.wire.registry import normalize_model_name_for_wire, resolve_wire_protocol
@@ -73,6 +74,6 @@ def test_enrich_applies_vercel_ai_gateway_defaults() -> None:
     assert cfg.model_kwargs.get("custom_llm_provider") == "openai"
     headers = cfg.model_kwargs.get("extra_headers")
     assert isinstance(headers, dict)
-    assert headers.get("HTTP-Referer") == "https://myrm.ai"
-    assert headers.get("X-Title") == "Myrm Agent"
-    assert "Vercel-AI-Gateway-Client" in headers.get("User-Agent", "")
+    assert headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+    assert headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
+    assert headers.get("User-Agent") == CLIENT_ATTRIBUTION.vercel_user_agent

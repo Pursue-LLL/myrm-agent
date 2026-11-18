@@ -38,22 +38,22 @@ describe('Universal Intent Protocol (UIP) Schema Parser', () => {
     });
 
     it('should parse web-based intent correctly', () => {
-      const result = parseIntentUrl('https://app.myrmagent.com/intent/chat/67890');
+      const result = parseIntentUrl('https://app.example.com/intent/chat/67890');
       expect(result).toEqual({ scheme: 'https', action: 'chat', id: '67890' });
     });
 
     it('should parse web-based agent intent correctly', () => {
-      const result = parseIntentUrl('https://app.myrmagent.com/intent/agent/office-doc');
+      const result = parseIntentUrl('https://app.example.com/intent/agent/office-doc');
       expect(result).toEqual({ scheme: 'https', action: 'agent', id: 'office-doc' });
     });
 
     it('should parse web-based ask intent correctly', () => {
-      const result = parseIntentUrl('https://app.myrmagent.com/intent/ask?text=help%20me');
+      const result = parseIntentUrl('https://app.example.com/intent/ask?text=help%20me');
       expect(result).toEqual({ scheme: 'https', action: 'ask', text: 'help me' });
     });
 
     it('should parse web-based oauth callback correctly', () => {
-      const result = parseIntentUrl('https://app.myrmagent.com/intent/oauth/callback?exchange=ex-2&state=st-2');
+      const result = parseIntentUrl('https://app.example.com/intent/oauth/callback?exchange=ex-2&state=st-2');
       expect(result).toEqual({
         scheme: 'https',
         action: 'oauth',
@@ -111,7 +111,7 @@ describe('Universal Intent Protocol (UIP) Schema Parser', () => {
     });
 
     it('should throw on web path without intent prefix', () => {
-      expect(() => parseIntentUrl('https://app.myrmagent.com/chat/123')).toThrow();
+      expect(() => parseIntentUrl('https://app.example.com/chat/123')).toThrow();
     });
 
     it('should safely resolve path traversal without filesystem access', () => {

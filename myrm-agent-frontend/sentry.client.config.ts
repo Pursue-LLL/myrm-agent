@@ -56,7 +56,7 @@ if (SENTRY_ENABLED) {
       ],
       tracePropagationTargets: [
         "localhost",
-        /^https:\/\/[^/]+\.myrm\.ai/,
+        /^https:\/\/[^/]+\.myrmagent\.ai/,
         /^\/api\//,
       ],
 

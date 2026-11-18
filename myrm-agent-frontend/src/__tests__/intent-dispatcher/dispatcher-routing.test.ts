@@ -43,7 +43,7 @@ describe('dispatcher navigation intents', () => {
   });
 
   it('opens an agent from a web deep link the same way', async () => {
-    expect(await dispatcher.dispatch('https://app.myrmagent.com/intent/agent/builtin-general')).toBe(true);
+    expect(await dispatcher.dispatch('https://app.example.com/intent/agent/builtin-general')).toBe(true);
     expect(pushed).toEqual(['/settings/agents?agentId=builtin-general']);
   });
 

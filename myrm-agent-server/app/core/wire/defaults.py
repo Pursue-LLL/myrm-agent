@@ -1,7 +1,8 @@
 """Default model kwargs for wire-specific model families.
 
 [INPUT]
-- none (imports no other project module)
+- myrm_agent_harness.api.hooks::vercel_headers (POS: the header set Vercel AI Gateway documents for app attribution)
+- app.core.brand::CLIENT_ATTRIBUTION (POS: the application identity announced to model gateways)
 
 [OUTPUT]
 - apply_wire_defaults: merges wire-aware defaults into model_kwargs without overwriting explicit user values
@@ -15,6 +16,10 @@ from __future__ import annotations
 
 import re
 from typing import Any
+
+from myrm_agent_harness.api.hooks import vercel_headers
+
+from app.core.brand import CLIENT_ATTRIBUTION
 
 _MUSE_SPARK_PATTERN = re.compile(r"^muse-spark", re.IGNORECASE)
 
@@ -44,9 +49,8 @@ def apply_wire_defaults(
     if provider_id == "vercel_ai_gateway" or (base_url and "ai-gateway.vercel.sh" in base_url):
         raw_headers = merged.get("extra_headers")
         extra_headers = dict(raw_headers) if isinstance(raw_headers, dict) else {}
-        extra_headers.setdefault("HTTP-Referer", "https://myrm.ai")
-        extra_headers.setdefault("X-Title", "Myrm Agent")
-        extra_headers.setdefault("User-Agent", "Myrm/1.0 (Vercel-AI-Gateway-Client)")
+        for name, value in vercel_headers(CLIENT_ATTRIBUTION).items():
+            extra_headers.setdefault(name, value)
         merged["extra_headers"] = extra_headers
         merged.setdefault("custom_llm_provider", "openai")
 

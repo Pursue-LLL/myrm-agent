@@ -5,7 +5,7 @@
 
 ## 2. 模块拓扑与职责划分
 - **`remoteDesktopTypes.ts`**：强类型契约定义连接状态 `StreamConnectionState`、控制模式 `ControlMode`、流媒体质量遥测指标 `StreamQualityMetrics`（FPS、延迟 RTT、码率、分辨率）、桌面动作日志 `DesktopActionTelemetry` 与时效凭据 `EphemeralShareTicket`；
-- **`ephemeralTokenSecurity.ts`**：时效安全签名纯函数引擎，处理凭证生成 `generateEphemeralShareTicket`、确定性签名校验 `verifyEphemeralShareTicket` 与剩余时间格式化 `formatTimeRemaining`；
+- **`ephemeralTokenSecurity.ts`**：时效安全签名纯函数引擎，处理凭证生成 `generateEphemeralShareTicket`、确定性签名校验 `verifyEphemeralShareTicket` 与剩余时间格式化 `formatTimeRemaining`；分享链接的默认基地址是保留域名 `share.example`（尚无对应的分享页，不指向任何真实站点），调用方传入真实基地址才会拼出可打开的链接；
 - **`useRemoteDesktopStore.ts`**：Zustand 集中式状态总线，管理 WebRTC 流推拉状态、双向控制权接管状态机、时效签名生成与事件派发，支持 `myrm:remote-desktop-takeover-changed` 与 `myrm:ephemeral-share-created` 全局事件；
 - **`LiveDesktopCanvasViewport.tsx`**：内嵌沙箱远程桌面实时视窗组件，自适应推流帧率（静止 1fps，操作 30fps）、呈现 Agent 虚拟鼠标坐标与近期动作滚动条；
 - **`HumanTakeoverControlOverlay.tsx`**：双向人工接管浮动控制条，在需要人工输入验证码或高危操作时发出警报，支持一键锁定控制权与无损交还 Agent；

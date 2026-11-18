@@ -4,12 +4,12 @@ import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { IconAlertCircle, IconWrench } from '@/components/features/icons/PremiumIcons';
+import { OFFICIAL_DOWNLOAD_URL } from '@/lib/constants/brand';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { tauriBackend } from '@/lib/tauri';
 import { toast } from '@/lib/utils/toast';
 
 const FAILURE_EVENTS = ['backend-start-failed', 'frontend-start-failed'] as const;
-const OFFICIAL_DOWNLOAD_URL = 'https://myrmagent.ai/download';
 
 const RecoveryGuideCard = memo(() => {
   const t = useTranslations('settings.system.recoveryGuide');

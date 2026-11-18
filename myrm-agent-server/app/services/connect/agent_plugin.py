@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.infra.ingress / settings — resolved by ConnectService before building
+- app.core.brand::OFFICIAL_SITE_URL (POS: the official site, named as the bundle's author and homepage)
 
 [OUTPUT]
 - build_agent_plugin_bundle: renders plugin.json / mcp.json / SKILL.md into a
@@ -26,6 +27,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+
+from app.core.brand import OFFICIAL_SITE_URL
 
 # Connector state id used for the Agent Plugins token. It is intentionally not a
 # member of PROFILES (per-tool config snippets) because a bundle is client-agnostic.
@@ -61,8 +64,8 @@ def _build_plugin_json() -> str:
             "context before answering and store durable facts as you work, backed "
             "by Myrm's memory engine."
         ),
-        "author": {"name": "Myrm", "url": "https://myrmagent.ai"},
-        "homepage": "https://myrmagent.ai",
+        "author": {"name": "Myrm", "url": OFFICIAL_SITE_URL},
+        "homepage": OFFICIAL_SITE_URL,
         "license": "MIT",
         "keywords": ["memory", "long-term-memory", "recall", "store", "mcp", "agent-memory"],
         "extensions": {
@@ -109,9 +112,7 @@ _FILE_STRUCTURE_HINT = (
 #: Default tool-list line of SKILL.md. Referenced by both the template and the
 #: conditional wiki renderer; the rendering test asserts the line is present
 #: in the template so the conditional replace can never silently miss.
-_SKILL_TOOLS_LINE = (
-    "The server exposes four tools — `memory_recall`, `memory_store`, `memory_list`, `memory_manage`."
-)
+_SKILL_TOOLS_LINE = "The server exposes four tools — `memory_recall`, `memory_store`, `memory_list`, `memory_manage`."
 
 #: SKILL.md handed to the consuming agent. Written for best-model comprehension
 #: with low-token redundancy; every capability mentioned matches the real MCP

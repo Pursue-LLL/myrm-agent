@@ -27,7 +27,7 @@ function renderSection(busy = false) {
       busy={busy}
     />,
   );
-  fireEvent.change(screen.getByPlaceholderText('https://app.myrmagent.com'), { target: { value: CP } });
+  fireEvent.change(screen.getByPlaceholderText('https://cp.example.com'), { target: { value: CP } });
 }
 
 async function openProviderList() {

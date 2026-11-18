@@ -52,7 +52,7 @@ class ToolGatewayConfig(BaseModel):
         Raises:
             ValueError: If use_gateway is True but gateway_url or auth_token is missing.
         """
-        gateway_url = os.getenv("MYRM_GATEWAY_URL", "https://api.myrm.ai/v1/gateway")
+        gateway_url = os.getenv("MYRM_GATEWAY_URL")
         auth_token = os.getenv("MYRM_GATEWAY_TOKEN")
 
         if use_gateway:

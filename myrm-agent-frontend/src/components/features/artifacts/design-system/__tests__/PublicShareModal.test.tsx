@@ -35,7 +35,7 @@ describe('PublicShareModal', () => {
       fireEvent.click(generateBtn);
     });
 
-    expect(screen.getByText(/https:\/\/share\.myrm\.io\/s\//)).toBeInTheDocument();
+    expect(screen.getByText(/https:\/\/share\.example\/s\//)).toBeInTheDocument();
     expect(screen.getByText('已生成的分享短链 (1)')).toBeInTheDocument();
   });
 

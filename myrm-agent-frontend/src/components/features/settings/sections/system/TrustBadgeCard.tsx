@@ -3,13 +3,12 @@
 import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCheck, IconAlertCircle, IconShield } from '@/components/features/icons/PremiumIcons';
+import { OFFICIAL_DOWNLOAD_URL, OFFICIAL_SITE_URL } from '@/lib/constants/brand';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 
 type SafetyState = 'safe' | 'placeholder_dev' | 'placeholder_prod' | 'invalid' | 'unknown';
 
-const OFFICIAL_SITE_URL = 'https://myrmagent.ai';
-const OFFICIAL_DOWNLOAD_URL = 'https://myrmagent.ai/download';
 const OFFICIAL_RELEASES_URL = 'https://github.com/Pursue-LLL/myrm-agent/releases';
 
 async function queryUpdaterSafety(): Promise<SafetyState> {

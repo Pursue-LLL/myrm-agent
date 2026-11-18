@@ -38,7 +38,7 @@ SAMPLE_VCARD = (
     "ORG:Myrm AI\r\n"
     "TITLE:CTO\r\n"
     "ADR;TYPE=WORK:;;100 Main St;Beijing;;100000;China\r\n"
-    "URL:https://myrm.ai\r\n"
+    "URL:https://example.com\r\n"
     "BDAY:1990-05-15\r\n"
     "NOTE:VIP customer\r\n"
     "END:VCARD\r\n"
@@ -68,7 +68,7 @@ class TestContactPipelineE2E:
         assert card["org"] == "Myrm AI"
         assert card["title"] == "CTO"
         assert "Beijing" in card["address"]
-        assert card["url"] == "https://myrm.ai"
+        assert card["url"] == "https://example.com"
         assert card["birthday"] == "1990-05-15"
 
         query = build_channel_inbound_query(enriched)
@@ -80,7 +80,7 @@ class TestContactPipelineE2E:
         assert "Myrm AI" in query
         assert "CTO" in query
         assert "Beijing" in query
-        assert "https://myrm.ai" in query
+        assert "https://example.com" in query
         assert "1990-05-15" in query
         assert "VIP customer" in query
 

@@ -4,6 +4,7 @@
 - app.core.web_push.vapid_keys::load_vapid_keys
 - app.database.models::WebPushSubscription
 - app.database.connection::get_session
+- app.core.brand::NOREPLY_EMAIL (POS: the VAPID contact address)
 
 [OUTPUT]
 - WebPushService: subscribe/unsubscribe/broadcast
@@ -24,6 +25,8 @@ from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import delete, select, update
+
+from app.core.brand import NOREPLY_EMAIL
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +116,7 @@ class WebPushService:
             result = await session.execute(delete(WebPushSubscription).where(WebPushSubscription.endpoint_hash == endpoint_hash))
             await session.commit()
 
-        deleted = result.rowcount > 0
+        deleted = bool(getattr(result, "rowcount", 0) > 0)
         if deleted:
             logger.info("Web Push subscription removed: %s", endpoint_hash)
         return deleted
@@ -176,7 +179,7 @@ class WebPushService:
         }
 
         vapid_claims = {
-            "sub": "mailto:noreply@myrm.ai",
+            "sub": f"mailto:{NOREPLY_EMAIL}",
         }
 
         from pywebpush import WebPushException, webpush

@@ -4,6 +4,7 @@
 - HTTP(S) page URLs from WebUI embed link preview requests
 - myrm_agent_harness.core.security.http.secure_fetch::secure_get (POS: DNS-pinned GET with per-hop redirect validation and a streamed, size-capped body)
 - myrm_agent_harness.utils.lru_cache::LRUCache (POS: LRU cache with TTL)
+- app.core.brand::OFFICIAL_SITE_URL (POS: the official site, named in the crawler's User-Agent)
 
 [OUTPUT]
 - fetch_og_metadata: parsed Open Graph title/description/image fields for JSON API responses
@@ -32,6 +33,8 @@ import httpx
 from myrm_agent_harness.core.security.http.secure_fetch import secure_get
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
+from app.core.brand import OFFICIAL_SITE_URL
+
 logger = logging.getLogger(__name__)
 
 _MAX_BODY_BYTES = 64 * 1024
@@ -40,7 +43,7 @@ _DEADLINE_SECONDS = 10.0
 _MAX_REDIRECTS = 3
 _CACHE_MAX_ENTRIES = 256
 _CACHE_TTL_SECONDS = 3600  # the lifetime the endpoint's ``Cache-Control`` gives the browser
-_USER_AGENT = "MyrmagentBot/1.0 (+https://myrmagent.com)"
+_USER_AGENT = f"MyrmagentBot/1.0 (+{OFFICIAL_SITE_URL})"
 
 _OG_RE = re.compile(
     r"<meta\s+(?:[^>]*?\s)?"

@@ -97,6 +97,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `server/test_lifespan_channel_image_sweep.py` | 单元 | 服务启动把渠道图片缓存的过期清扫交给维护守护进程：恰好提交一次、且在守护进程工作线程启动之后；提交被拒（队列满）只记警告、不拖垮启动（读启动函数源码，删掉提交、挪到启动之前或去掉保护即红） |
 | `server/test_lifespan_background.py` | 单元 | 后台任务分两步启动：孤儿目标恢复在 socket 绑定后启动；预热（含预置技能对账，它是预热里第一个启动的任务）在就绪路由首次报告数据库就绪后的稳定期启动，无人查询就绪时由兜底延迟启动，反复的就绪轮询不会把启动往后推；关闭时取消尚未触发的启动、之后的就绪通知不再启动任何任务；任务失败记 ERROR 且不影响其余、预热任务全部结束后才结束启动期 GC 暂停 |
 | `server/test_lifespan_prebuilt_skills.py` | 单元 | 预置技能同步在 lifespan 里的两个步骤：启动步骤只在本地模式请求沿用上次的完整同步、沙箱模式不请求，并照旧把结果发布给更新面板与技能启用状态；预热步骤只在对账确有变更时才发布；阶段 1b 确实调用启动步骤（读 `_phase_1b_parallel` 源码，去掉调用即红） |
+| `server/test_lifespan_client_attribution.py` | 单元 | 服务启动在阶段 1a 函数体的顶层语句里把应用身份交给 harness（`set_client_attribution(CLIENT_ATTRIBUTION)`）：放进 `try` 或条件分支里，失败或跳过都不会有任何动静（读启动函数源码的语法树，调用挪进任何嵌套块即红） |
 | `server/test_exceptions_trace_id.py` | 单元 | 全局异常处理器的 id 契约：未捕获异常与服务端故障（`MyrmError` 5xxxx）的信封 id 等于 `X-Trace-Id` 头，入站合法 id 被沿用；4xx 与未知路由只返回 message（头照带）；校验失败的 details 携带同一 id |
 | `api/system/test_telemetry_posture.py` | 单元 | `/telemetry-posture` 原样返回导出管线的实测态势：端点不含凭据、实测字段齐全且无写死标志、总开关显示 `disabled`、失败管线透传、读取失败返回 `error` |
 | `core/infra/health/test_trace_security_diagnostic.py` | 单元 | 追踪导出安全巡检：仅本地模式下按解析出的主机名识别远端端点，已启用导出与未启用的结论，凭据在详情中脱敏 |
@@ -922,6 +923,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `lifecycle/test_turn_marker_release.py` | 模块 | 回合结束时带走自己的续跑标记，且只带走自己的（真实 SQLite）：写标记返回标记行 id；被用户停止、流从未运行的回合由兜底按行 id 删除，流跑完的回合由收尾按行 id 删除；失败回合保留标记供崩溃续跑；迟到的兜底与迟到的收尾都不删后一回合已替换进来的标记；没写标记的回合（续跑）不清聊天里现有的标记 |
 | `lifecycle/test_interrupted_turn_marker_functions.py` | 模块 | 续跑标记的写、清与重放（真实 SQLite）：写标记为聊天建一条并替换旧的、记录用户消息落库时用的 id；`_clear_interrupted_turn_marker` 删除给定行 id 的那一行标记；重放被中断回合时，被中断的那条用户消息不再作为历史重复出现 |
 | `support/recording_scheduler.py` | 辅助 | `RecordingScheduler`：`apscheduler.AsyncScheduler` 的替身，只记录注册（任务 id 对应任务函数与触发器）、不运行；`start_in_background` 置位 `started`，`created_at` 是被测代码使用它之前的时刻，供「首次触发时间」断言；数据库维护调度器的三份调度测试共用 |
+| `support/server_client_attribution.py` | 辅助 | `server_client_attribution()`：上下文管理器，进入时登记服务端的应用身份、退出时清除；直接调用 `create_chat_model` 的测试不经过启动，只在断言请求头的那几次调用外包上它，用真实凭据发请求的调用保持不登记，测试不会向真实网关报出本产品 |
 | `lifecycle/test_memory_guardian_sqlite_backup.py` | 模块 | 维护周期末尾的 SQLite 热备份：对真实数据库落盘并校验、非文件库安静跳过、页拷贝脱离事件循环、失败只记 WARNING 不使周期失败 |
 | `ai_agents/general_agent/test_human_tail_mount_order.py` | 模块 | factory 里 Human 尾部中间件晚于上下文压缩挂载，顺序固定为知识包、会话覆盖 deltas、两层上下文 |
 | `ai_agents/general_agent/test_instructions_and_memory_block_order.py` | 模块 | factory 里用户指令中间件先于记忆上下文中间件挂载（读 factory 的挂载列表）；真实 `create_agent` 图上两轮对话，每次模型调用里用户指令与记忆块各恰好一次、顺序为身份提示词、用户指令、记忆块 |

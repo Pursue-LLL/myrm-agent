@@ -23,7 +23,7 @@ def _init_git_repo(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     for args in (
         ["git", "init"],
-        ["git", "config", "user.email", "tester@myrm.ai"],
+        ["git", "config", "user.email", "tester@example.com"],
         ["git", "config", "user.name", "Tester"],
     ):
         subprocess.run(args, cwd=str(path), check=True, capture_output=True)

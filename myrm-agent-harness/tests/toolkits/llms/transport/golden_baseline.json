@@ -4,6 +4,7 @@
   "configuration": "production (drop_params, modify_params; response cache off)",
   "extended": "the `defaults` and `sampling` scenarios, the model-variant providers (anthropic_opus45, anthropic_sonnet46, anthropic_opus47, anthropic_haiku45, gemini3, gemini31, gemini25pro, gemini25flashlite, gemini3flash, openai_gpt51, openai_gpt52), the `history_*` and `tools_json_output` edge scenarios and the `reasoning_*` effort scenarios, the Bedrock model families (bedrock_claude35, bedrock_claude37, bedrock_claude45, bedrock_haiku45, bedrock_opus45, bedrock_sonnet46, bedrock_opus47, bedrock_nova, bedrock_nova2, bedrock_gptoss, bedrock_llama33, bedrock_llama3, bedrock_mistral, bedrock_deepseek, bedrock_arn) and the Bedrock scenarios (`tools_required`, `tools_named`, `reasoning_required`, `json_schema`, `tools_json_output`, `extra_body`, `cache_control`) were recorded at the same commit and with the same library, with LITELLM_LOCAL_MODEL_COST_MAP=True as the production server sets it",
   "matrix": "golden_capture.py",
+  "normalized": "The OpenRouter scenarios' app-attribution headers (HTTP-Referer, X-Title) are removed from the requests: the harness sends them only for an identity a host registers, and the matrix registers none.",
   "recorded_at_commit": "b6959e7d7e"
  },
  "anthropic_haiku45|default_base|basic": {
@@ -61973,9 +61974,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62023,9 +62022,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62056,9 +62053,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62091,9 +62086,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62120,9 +62113,7 @@
      "model": "anthropic/claude-sonnet-4.5",
      "model_kwargs": {
       "extra_headers": {
-       "HTTP-Referer": "https://myrm.ai",
-       "X-Test": "1",
-       "X-Title": "Myrm Agent"
+       "X-Test": "1"
       }
      },
      "stream": false,
@@ -62133,9 +62124,7 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-test": "1",
-     "x-title": "Myrm Agent"
+     "x-test": "1"
     },
     "method": "POST",
     "query": "",
@@ -62178,9 +62167,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62229,9 +62216,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62266,9 +62251,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62348,9 +62331,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62381,9 +62362,7 @@
      "temperature": 0.2
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62414,9 +62393,7 @@
      "temperature": 0.2
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62495,9 +62472,7 @@
      ]
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62524,10 +62499,6 @@
      ],
      "model": "anthropic/claude-sonnet-4.5",
      "model_kwargs": {
-      "extra_headers": {
-       "HTTP-Referer": "https://myrm.ai",
-       "X-Title": "Myrm Agent"
-      },
       "frequency_penalty": 0.1,
       "seed": 7,
       "stop": [
@@ -62547,9 +62518,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62584,9 +62553,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62663,9 +62630,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62719,9 +62684,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62753,9 +62716,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62803,9 +62764,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62836,9 +62795,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62871,9 +62828,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -62900,9 +62855,7 @@
      "model": "anthropic/claude-sonnet-4.5",
      "model_kwargs": {
       "extra_headers": {
-       "HTTP-Referer": "https://myrm.ai",
-       "X-Test": "1",
-       "X-Title": "Myrm Agent"
+       "X-Test": "1"
       }
      },
      "stream": false,
@@ -62913,9 +62866,7 @@
     },
     "headers": {
      "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-test": "1",
-     "x-title": "Myrm Agent"
+     "x-test": "1"
     },
     "method": "POST",
     "query": "",
@@ -62958,9 +62909,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63009,9 +62958,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63046,9 +62993,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63128,9 +63073,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63161,9 +63104,7 @@
      "temperature": 0.2
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63194,9 +63135,7 @@
      "temperature": 0.2
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63275,9 +63214,7 @@
      ]
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63304,10 +63241,6 @@
      ],
      "model": "anthropic/claude-sonnet-4.5",
      "model_kwargs": {
-      "extra_headers": {
-       "HTTP-Referer": "https://myrm.ai",
-       "X-Title": "Myrm Agent"
-      },
       "frequency_penalty": 0.1,
       "seed": 7,
       "stop": [
@@ -63327,9 +63260,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63364,9 +63295,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63443,9 +63372,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",
@@ -63499,9 +63426,7 @@
      }
     },
     "headers": {
-     "authorization": "<redacted:Bearer>",
-     "http-referer": "https://myrm.ai",
-     "x-title": "Myrm Agent"
+     "authorization": "<redacted:Bearer>"
     },
     "method": "POST",
     "query": "",

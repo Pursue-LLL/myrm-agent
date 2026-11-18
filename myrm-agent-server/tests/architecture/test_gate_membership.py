@@ -61,16 +61,18 @@ def _workflow_commands() -> list[str]:
     return commands
 
 
-# The two `_extra` names and the nested name are not real files; they pin that a longer name, or the same name in a
+# The three `_extra` names and the nested name are not real files; they pin that a longer name, or the same name in a
 # subdirectory, is not taken for a file another workflow runs.
 @pytest.mark.architecture
 @pytest.mark.parametrize(
     ("file_name", "joins_gate"),
     [
         ("test_gate_workflow_triggers.py", True),
+        ("test_brand_domain_gate_extra.py", True),
         ("test_no_credential_literals_extra.py", True),
         ("test_no_private_references_extra.py", True),
         ("desktop/test_desktop_nested.py", True),
+        ("test_brand_domain_gate.py", False),
         ("test_desktop_release_gates.py", False),
         ("test_no_credential_literals.py", False),
         ("test_no_private_references.py", False),

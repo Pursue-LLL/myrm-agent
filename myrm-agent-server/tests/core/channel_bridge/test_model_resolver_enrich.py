@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from myrm_agent_harness.toolkits.llms.catalog import known_models, register_model, store
 
+from app.core.brand import CLIENT_ATTRIBUTION
 from app.core.channel_bridge.model_resolver import (
     _build_platform_headers,
     _fallback_model_from_providers,
@@ -259,8 +260,8 @@ class TestVercelAIGatewayResolution:
         assert cfg.model_kwargs is not None
         headers = cfg.model_kwargs.get("extra_headers")
         assert isinstance(headers, dict)
-        assert headers.get("HTTP-Referer") == "https://myrm.ai"
-        assert headers.get("X-Title") == "Myrm Agent"
+        assert headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+        assert headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
 
     def test_fallback_model_from_providers_for_vercel_gateway(self) -> None:
         providers_dict: dict[str, object] = {
@@ -277,8 +278,8 @@ class TestVercelAIGatewayResolution:
         assert cfg.model_kwargs is not None
         headers = cfg.model_kwargs.get("extra_headers")
         assert isinstance(headers, dict)
-        assert headers.get("HTTP-Referer") == "https://myrm.ai"
-        assert headers.get("X-Title") == "Myrm Agent"
+        assert headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+        assert headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
 
 
 class TestProviderOAuthResolution:

@@ -63,6 +63,7 @@ description: Demo skill for api.skills smoke test.
                 "restore_memory_pseudonymizer",
                 "set_api_key_refresher",
                 "set_approval_user_id",
+                "set_client_attribution",
                 "set_global_background_job_finish_handler",
                 "set_permission_invalidation_callback",
                 "set_privacy_policy",
@@ -72,6 +73,9 @@ description: Demo skill for api.skills smoke test.
                 "set_workspace_root",
                 "validate_and_sanitize_mounts",
                 "validate_mount_spec",
+                # App attribution: the identity a host registers and the Vercel header set built from it.
+                "ClientAttribution",
+                "vercel_headers",
                 # Provider-window wait vocabulary for goal holds and host-side deferral.
                 "GOAL_WAIT_KIND_KEY",
                 "GOAL_WAIT_KIND_USAGE_LIMIT",

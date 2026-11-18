@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - process.env.NEXT_PUBLIC_DEPLOY_MODE / NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_BACKEND_BASE_URL (POS: 前端运行时配置)
+ * - constants/brand::OFFICIAL_DOCS_URL (POS: 官方文档站根地址，`getDocsUrl` 未配置 `NEXT_PUBLIC_DOCS_URL` 时的默认基地址)
  *
  * [OUTPUT]
  * - isTauriRuntime: Tauri 运行时判定。
@@ -56,6 +57,7 @@ import {
   resolveProfileApiBase,
   setActiveRemoteProfileId,
 } from './remote-profiles';
+import { OFFICIAL_DOCS_URL } from './constants/brand';
 
 export type DeployMode = 'tauri' | 'local' | 'sandbox';
 
@@ -435,7 +437,7 @@ export function getNotificationStreamUrl(): string {
 
 /** Documentation site base URL (Mintlify). */
 export function getDocsUrl(path: string = '/'): string {
-  const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, 'https://docs.myrm.ai');
+  const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, OFFICIAL_DOCS_URL);
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${base}${normalizedPath === '/' ? '' : normalizedPath}`;
 }

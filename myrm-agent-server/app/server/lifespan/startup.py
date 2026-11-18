@@ -1,6 +1,7 @@
 """[INPUT]
 - .state (POS: shared startup state)
 - .prebuilt_skills::init_prebuilt_skills (POS: the prebuilt skill sync of the parallel phase)
+- app.core.brand::CLIENT_ATTRIBUTION (POS: the application identity announced to OpenRouter and Vercel AI Gateway)
 
 [OUTPUT]
 - phase helpers and the sequential/parallel startup phases
@@ -174,6 +175,15 @@ async def _phase_1a_sequential() -> None:
 
     register_chat_compression_streak_store()
     logger.info("[Startup] Compression streak store registered (Chat DB)")
+
+    # The identity is a static constant, so a failure here is a code error and must stop startup rather than be
+    # swallowed. Models are cached on first use, hence this runs before any request can build one.
+    from myrm_agent_harness.api.hooks import set_client_attribution
+
+    from app.core.brand import CLIENT_ATTRIBUTION
+
+    set_client_attribution(CLIENT_ATTRIBUTION)
+    logger.info("[Startup] Client attribution registered")
 
     try:
         from app.platform_utils.sandbox.saas_providers_seed import (

@@ -4,6 +4,7 @@
  * [INPUT]
  * @/components/features/settings/sections/system/StackUpdatePanel (POS: Central update status surface)
  * @/lib/deploy-mode (POS: Runtime detection and docs url helper)
+ * @/lib/constants/brand (POS: Official site address behind the website card)
  *
  * [OUTPUT]
  * AboutSection: Renders application overview, version metadata, diagnostics, and stack update panel.
@@ -29,6 +30,7 @@ import { Users, CheckCircle2 } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
+import { OFFICIAL_SITE_URL } from '@/lib/constants/brand';
 import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
 import { Button } from '@/components/primitives/button';
 
@@ -350,7 +352,7 @@ const AboutSection = memo(() => {
             icon={IconGlobe}
             title={t('links.website.title')}
             description={t('links.website.description')}
-            href="https://myrmagent.com"
+            href={OFFICIAL_SITE_URL}
           />
           <LinkCard
             icon={IconGlobe}
