@@ -150,6 +150,15 @@ def test_persistent_quota_depleted_distinction() -> None:
     assert is_quota_or_rate_limit_error(exc_transient) is True
 
 
+def test_payment_required_status_kept_in_the_wrapper_context_is_persistent_quota_depletion() -> None:
+    """The chain sees ``WebSearcher``'s wrapper, whose status lives in the context and whose text names no quota word."""
+    wrapped = SearchAPIError(
+        "Search request failed: SearchHTTPError: exa_ai search failed: HTTP 402",
+        context=ErrorContext(query="weather", status_code=402, response_body='{"tag": "NO_MORE_CREDITS"}'),
+    )
+    assert is_persistent_quota_depleted_error(wrapped) is True
+
+
 def test_provider_quota_tracker_workflow() -> None:
     tracker = ProviderQuotaTracker()
 
