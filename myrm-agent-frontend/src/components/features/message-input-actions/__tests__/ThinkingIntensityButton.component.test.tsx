@@ -1,78 +1,26 @@
 /**
- * The thinking-intensity control as a user meets it: when it shows up, what the trigger says, how a level or a
- * custom value is chosen and saved per model, and that a browser which refuses storage does not break it.
+ * The thinking-intensity control as a user meets it: when it shows up, what the trigger says, and how a level or a
+ * custom value is chosen and saved for the model. Restoring those choices later is in
+ * ThinkingIntensityButton.memory.test.tsx.
  */
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getInitialDefaultModelConfig, type CustomModelInfo } from '@/store/config/providerTypes';
-import useProviderStore from '@/store/useProviderStore';
-import ThinkingIntensityButton, {
-  getThinkingEffort,
-  setGlobalCustomValue,
-  setGlobalIntensity,
-} from '../ThinkingIntensityButton';
+import { getThinkingEffort, setGlobalIntensity } from '../ThinkingIntensityButton';
+import {
+  PLAIN_MODEL,
+  REASONING_MODEL,
+  configureModel,
+  openCustomField,
+  openPopover,
+  renderButton,
+  resetThinkingIntensityKit,
+} from './thinkingIntensityKit';
 
 vi.mock('next-intl', async () => (await import('@/test-utils/realIntl')).createRealIntlMock(() => 'en'));
 
-/** Recognised as a reasoning model by name alone. */
-const REASONING_MODEL = 'o3-mini';
-const PLAIN_MODEL = 'gpt-4o';
-
-function configureModel(model: string | null, supportsReasoning?: boolean) {
-  const info: CustomModelInfo = {
-    source: 'user',
-    lastUpdated: '2026-01-01T00:00:00Z',
-    supports_reasoning: supportsReasoning,
-  };
-  useProviderStore.setState({
-    providers: [],
-    customModelInfo: model && supportsReasoning !== undefined ? { [`acme/${model}`]: info } : {},
-    defaultModelConfig: {
-      ...getInitialDefaultModelConfig(),
-      baseModel: { primary: model ? { providerId: 'acme', model } : null, fallback: null },
-    },
-  });
-}
-
-function renderButton() {
-  return render(<ThinkingIntensityButton actionMode="agent" agentConfig={null} />);
-}
-
-async function openPopover(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /^Thinking Intensity/ }));
-  return screen.findByRole('dialog');
-}
-
-async function openCustomField(user: ReturnType<typeof userEvent.setup>) {
-  const dialog = await openPopover(user);
-  await user.click(within(dialog).getByRole('button', { name: 'Custom' }));
-  return screen.getByRole('textbox', { name: 'Custom' });
-}
-
-/** Storage the browser refuses to hand out: every access throws. */
-function blockStorage() {
-  const refuse = () => {
-    throw new DOMException('blocked', 'SecurityError');
-  };
-  vi.stubGlobal('localStorage', { getItem: refuse, setItem: refuse, removeItem: refuse });
-}
-
 describe('ThinkingIntensityButton', () => {
-  beforeEach(() => {
-    // The tooltip arrow measures itself.
-    vi.stubGlobal(
-      'ResizeObserver',
-      class {
-        observe() {}
-        unobserve() {}
-        disconnect() {}
-      },
-    );
-    localStorage.clear();
-    setGlobalIntensity('auto');
-    configureModel(REASONING_MODEL);
-  });
+  beforeEach(resetThinkingIntensityKit);
 
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -313,106 +261,6 @@ describe('ThinkingIntensityButton', () => {
 
       await user.click(within(dialog).getByRole('button', { name: '8k' }));
       expect(screen.getByRole('textbox', { name: 'Custom' })).toHaveValue('8k');
-    });
-  });
-
-  describe('per-model memory', () => {
-    it('restores the level saved for the model on mount', () => {
-      localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'xhigh');
-      renderButton();
-
-      expect(getThinkingEffort()).toBe('xhigh');
-      expect(screen.getByRole('button', { name: 'Thinking Intensity: X-High' })).toBeInTheDocument();
-    });
-
-    it('restores a saved custom value, which wins over a saved level', () => {
-      localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'low');
-      localStorage.setItem(`thinkingIntensityCustom_${REASONING_MODEL}`, '24k');
-      renderButton();
-
-      expect(getThinkingEffort()).toBe('24k');
-    });
-
-    it('ignores a saved level it does not know', () => {
-      localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'turbo');
-      renderButton();
-
-      expect(getThinkingEffort()).toBeUndefined();
-    });
-
-    it('restores a saved off, which differs from having chosen nothing', () => {
-      localStorage.setItem(`thinkingIntensity_${REASONING_MODEL}`, 'off');
-      renderButton();
-
-      expect(getThinkingEffort()).toBe('off');
-    });
-
-    it('swaps in the saved choice of each model, and goes back to auto for a model with none', () => {
-      localStorage.setItem('thinkingIntensity_o3-mini', 'high');
-      localStorage.setItem('thinkingIntensity_o4-mini', 'low');
-      renderButton();
-      expect(getThinkingEffort()).toBe('high');
-
-      act(() => configureModel('o4-mini'));
-      expect(getThinkingEffort()).toBe('low');
-
-      act(() => configureModel('claude-sonnet-4'));
-      expect(getThinkingEffort()).toBeUndefined();
-
-      act(() => configureModel('o3-mini'));
-      expect(getThinkingEffort()).toBe('high');
-    });
-
-    it('keeps the current choice when the model list refreshes without changing the model', () => {
-      renderButton();
-      act(() => setGlobalIntensity('medium'));
-
-      act(() => useProviderStore.setState({ providers: [] }));
-
-      expect(getThinkingEffort()).toBe('medium');
-    });
-  });
-
-  // A refused write is kept by the page, so each of these uses a model name no other test touches.
-  describe('when the browser refuses storage access', () => {
-    it('mounts and applies a level', async () => {
-      blockStorage();
-      configureModel('blocked-level-model', true);
-      const user = userEvent.setup();
-      renderButton();
-      const dialog = await openPopover(user);
-
-      await user.click(within(dialog).getByRole('button', { name: 'High' }));
-
-      expect(getThinkingEffort()).toBe('high');
-      expect(screen.getByRole('button', { name: 'Thinking Intensity: High' })).toBeInTheDocument();
-    });
-
-    it('applies a custom value', async () => {
-      blockStorage();
-      configureModel('blocked-custom-model', true);
-      const user = userEvent.setup();
-      renderButton();
-      const field = await openCustomField(user);
-
-      await user.type(field, '16k{Enter}');
-
-      expect(getThinkingEffort()).toBe('16k');
-    });
-
-    it('still remembers the choice made for each model for the rest of the page', async () => {
-      blockStorage();
-      configureModel('blocked-first-model', true);
-      const user = userEvent.setup();
-      renderButton();
-      const dialog = await openPopover(user);
-      await user.click(within(dialog).getByRole('button', { name: 'Max' }));
-
-      act(() => configureModel('blocked-second-model', true));
-      expect(getThinkingEffort()).toBeUndefined();
-
-      act(() => configureModel('blocked-first-model', true));
-      expect(getThinkingEffort()).toBe('max');
     });
   });
 });

@@ -6,6 +6,7 @@ scanning (using tmp_path fixtures), verifying both local and SaaS mode behavior.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,7 +22,7 @@ app = build_minimal_app("memory", "migration_discovery")
 
 
 @pytest.fixture()
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
     with patch(
         "app.core.security.auth.identity.is_loopback_ip",
         return_value=True,
@@ -33,9 +34,9 @@ class TestDiscoveryEndpointLocalMode:
     """Discovery API in local/Tauri mode scans real filesystem."""
 
     @pytest.fixture(autouse=True)
-    def _force_local_mode(self) -> None:
+    def _force_local_mode(self) -> Iterator[None]:
         with patch("app.api.migration.discovery.is_local_mode", return_value=True):
-            yield  # type: ignore[misc]
+            yield
 
     def test_discover_no_competitors(self, client: TestClient, tmp_path: Path) -> None:
         with patch(
@@ -203,9 +204,9 @@ class TestDiscoveryEndpointSaaSMode:
     """Discovery API in SaaS mode returns empty with available=false."""
 
     @pytest.fixture(autouse=True)
-    def _force_saas_mode(self) -> None:
+    def _force_saas_mode(self) -> Iterator[None]:
         with patch("app.api.migration.discovery.is_local_mode", return_value=False):
-            yield  # type: ignore[misc]
+            yield
 
     def test_saas_mode_returns_unavailable(self, client: TestClient) -> None:
         resp = client.get("/api/v1/migration/discover")
@@ -245,9 +246,9 @@ class TestSecretsImportEndpoint:
     """POST /migration/secrets/import reports what it imported and what it left alone, by name."""
 
     @pytest.fixture(autouse=True)
-    def _force_local_mode(self) -> None:
+    def _force_local_mode(self) -> Iterator[None]:
         with patch("app.api.migration.discovery.is_local_mode", return_value=True):
-            yield  # type: ignore[misc]
+            yield
 
     def test_the_response_names_imported_keys_and_the_reason_for_each_key_left_alone(self, client: TestClient) -> None:
         result = SecretsImportResult(

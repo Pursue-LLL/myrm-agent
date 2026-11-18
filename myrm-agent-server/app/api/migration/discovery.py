@@ -7,7 +7,7 @@ HTTP GET request to scan for competitor data installations.
 JSON discovery response; opt-in POST `/secrets/import` for competitor .env keys.
 
 [POS]
-Local/Tauri-only migration API (Hermes, OpenClaw, Claude Code, Codex discover;
+Local/Tauri-only migration API (Hermes, OpenClaw, Claude Code, Codex, Pi, PLUR discover;
 secrets import opt-in). SaaS returns empty discovery.
 """
 
