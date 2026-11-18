@@ -345,7 +345,7 @@ def test_write_evicted_content_sync_oserror(tmp_path, monkeypatch: pytest.Monkey
     c_tok = chat_id_var.set("chat_oserror")
     try:
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.context_management.infra.evicted.content.Path.write_text",
+            "myrm_agent_harness.agent.context_management.infra.evicted.content.Path.write_bytes",
             lambda *_a, **_k: (_ for _ in ()).throw(OSError("disk full")),
         )
         result = write_evicted_content_sync("payload", "output")
