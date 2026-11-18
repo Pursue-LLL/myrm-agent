@@ -15,7 +15,7 @@
 | `source_manifest.py` | SSOT | 迁移来源清单（display name / import map / discover mode / deep-link capability）与 authoritative 判定 | ✅ |
 | `source_probes.py` | 核心 | 6 源本地 filesystem probe（hermes/claude/openclaw/codex/pi/plur；claude 含 `projects/*/memory` 自动记忆与 `autoMemoryDirectory`，codex 含 `memories/MEMORY.md`） | ✅ |
 | `source_payload_loader.py` | 核心 | 公共 API：load_source_payload / build_coverage_items / extract_pending_skills；上传临时目录策略（前缀常量、TTL 清扫、归档包含性校验） | ✅ |
-| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/chatgpt/gbrain）+ re-export 三个来源车道（`_loaders_claude.py` / `_loaders_openclaw.py` / `_loaders_pi.py`） | ✅ |
+| `source_payload_loaders_impl.py` | 核心 | 基础 loaders（hermes/codex/chatgpt/gbrain）+ re-export 三个来源车道（`_loaders_claude.py` / `_loaders_openclaw.py` / `_loaders_pi.py`）；Hermes 的 `auth.json` 只贡献 provider 名（`KEY_FROM_AUTH`），key 值与登录态不进 payload（payload 会交给预览会话与记忆适配器） | ✅ |
 | `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路（build_instruction_plan / extract_memory_payload）；`has_api_keys` / `has_importable_keys` 按 key 名的来源标记判断 payload 里有没有 key、有没有 opt-in 导入能带走的 key | ✅ |
 | `source_migration_types.py` | 核心 | 四车道迁移 DTO（MigrationLanePreview / SourceInstructionPlan / MigrationWizardOptions 等）；凭证车道有 key 且 provider 就绪时，能 opt-in 导入则提示可选导入，否则提示到 provider 设置手动填写 | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key（仅本机/Tauri）：key 的读取与变量清单来自上一级 `env_secrets.py`（迁移预览、payload 的 key 名与导入共用），本模块只负责写入 provider 配置；用户已有的 provider 行（id 或 routingProfile 匹配）直接填 key，没有行时只为单凭 key 即可用的 provider 新建（含 Vercel AI Gateway），多端点 provider 不新建而记为 `needs_endpoint`，没有对应 provider 的 key 变量记为 `unsupported`；结果只含变量名，不含值 | ✅ |

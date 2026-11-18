@@ -5570,8 +5570,7 @@
           "agent_config_manual": "Agent config",
           "no_importable_data": "Importable data",
           "cron_lane": "Scheduled tasks (cron)",
-          "kanban_not_migrated": "Kanban boards",
-          "credential_pool_migration": "Credential pool migration"
+          "kanban_not_migrated": "Kanban boards"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "mcpServersTitle": "MCP Servers Detected",

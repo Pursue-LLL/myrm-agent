@@ -157,40 +157,6 @@ describe('migration wizard preview copy', () => {
     expect(missing).toEqual([]);
   });
 
-  it('localizes the credential pool coverage row', () => {
-    const withCredentialPool: MemoryImportDryRunResponse = {
-      ...dryRun,
-      coverage_items: [{ key: 'credential_pool', status: 'ready', label: 'credential_pool_migration' }],
-    };
-
-    render(
-      <PreviewStep
-        source={{
-          competitor: 'hermes',
-          root: '/home/user/.hermes',
-          confidence: 'high',
-          files: [],
-          memory_count_estimate: 2,
-          skill_count: 0,
-          has_api_keys: true,
-          can_import_secrets: false,
-        }}
-        dryRun={withCredentialPool}
-        importing={false}
-        importSecrets={false}
-        onImportSecretsChange={vi.fn()}
-        importSessions
-        onImportSessionsChange={vi.fn()}
-        onConfirm={vi.fn()}
-        onBack={vi.fn()}
-        t={t}
-      />,
-    );
-
-    expect(screen.getByText('Credential pool migration')).toBeInTheDocument();
-    expect(screen.queryByText('credential_pool_migration')).toBeNull();
-  });
-
   it('does not expose the review id and formats the expiry with the app locale', () => {
     render(
       <PreviewStep

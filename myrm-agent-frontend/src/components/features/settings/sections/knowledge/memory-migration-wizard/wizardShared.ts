@@ -26,7 +26,6 @@ export const COVERAGE_LABEL_KEYS = [
   'no_importable_data',
   'cron_lane',
   'kanban_not_migrated',
-  'credential_pool_migration',
 ] as const;
 
 /** Cron skip reasons with dedicated copy; unknown reasons fall back to the generic line. */

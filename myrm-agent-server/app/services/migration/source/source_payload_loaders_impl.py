@@ -95,10 +95,10 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if auth_path:
         auth_data = read_json(auth_path)
         if isinstance(auth_data, dict):
-            result["hermes_auth"] = auth_data
+            # The credential store is never imported, so only the provider names leave this block:
+            # the payload feeds the review session and the memory adapter, and key values must not.
             pool_data = auth_data.get("credential_pool") or auth_data.get("credential_pools")
             if isinstance(pool_data, dict):
-                result["credential_pool"] = pool_data
                 raw_env_keys = result.get("env_keys")
                 existing_env_keys: list[dict[str, str]] = (
                     [item for item in raw_env_keys if isinstance(item, dict)] if isinstance(raw_env_keys, list) else []
@@ -111,9 +111,6 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                         existing_env_keys.append({"name": key_name, "source": KEY_FROM_AUTH})
                         existing_names.add(key_name)
                 result["env_keys"] = existing_env_keys
-            strategies = auth_data.get("credential_pool_strategies") or auth_data.get("pool_strategies")
-            if isinstance(strategies, dict):
-                result["credential_pool_strategies"] = strategies
 
     from myrm_agent_harness.runtime.context.transcripts import HermesTranscriptParser
 
