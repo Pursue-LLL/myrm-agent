@@ -11,9 +11,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-    reset_spawn_lifecycle_for_tests,
-)
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
 )
@@ -54,12 +51,10 @@ async def _stop_running_jobs() -> None:
 async def _clear_registry() -> AsyncIterator[None]:
     registry = get_background_registry()
     registry._entries.clear()
-    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     yield
     await _stop_running_jobs()
     registry._entries.clear()
-    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 
 

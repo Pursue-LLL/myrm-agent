@@ -2,13 +2,14 @@
 
 [INPUT]
 - agent.context_management.infra.evicted::evicted_rel_path (POS: where an evicted file lives; names the log of a listed job)
+- agent.meta_tools.bash._background.poll::report_result_read (POS: tells the wakeup handler the model now holds a finished job's result)
 - agent.meta_tools.bash._background.registry::BackgroundProcessRegistry / get_background_registry (POS: registry singleton; ``get_partial_line`` is the unfinished last line of a running job)
 - agent.meta_tools.bash._background.termination::GROUP_VISIBLE (POS: whether the platform can list a job's process group)
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo / OutputTail / build_input_wait_hint (POS: shared dataclasses & typing.)
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
-- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, ``log_file`` when lines are missing and the job has a log), ``list`` names each job's ``log_file``; ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
+- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, ``log_file`` when lines are missing and the job has a log), ``list`` names each job's ``log_file``; ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero); an ``output`` or ``wait`` that returns a job's own exit reports the result read, ``list`` and a running job's ``output`` never do
 - kill_report: the text a kill returns to the model, stating what the stop actually achieved
 
 [POS]
@@ -18,6 +19,7 @@ Session-scoped handlers behind the ``bash_process_tool`` facade, which owns the 
 from __future__ import annotations
 
 from myrm_agent_harness.agent.context_management.infra.evicted import evicted_rel_path
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import report_result_read
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessRegistry,
     get_background_registry,
@@ -100,6 +102,8 @@ async def handle_output(session_id: str, pid: int, max_lines: int) -> dict[str, 
         content["leftover_processes"] = info.leftover_processes
     if info.status == "running":
         content.update(_running_fields(registry, info))
+    else:
+        report_result_read(info)
 
     return {
         "content": content,
@@ -131,10 +135,12 @@ async def handle_wait(session_id: str, pid: int, timeout_seconds: int) -> dict[s
             content.update(_running_fields(registry, live))
     else:
         content.update(_stream_fields(registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)))
-        # The job may have finished during the wait, so what it left running is read now, not from the first snapshot.
+        # The job may have finished during the wait, so its state is read now, not from the first snapshot.
         finished = registry.get(pid)
-        if finished is not None and finished.leftover_processes:
-            content["leftover_processes"] = finished.leftover_processes
+        if finished is not None:
+            if finished.leftover_processes:
+                content["leftover_processes"] = finished.leftover_processes
+            report_result_read(finished)
     return {
         "content": content,
         "metadata": {

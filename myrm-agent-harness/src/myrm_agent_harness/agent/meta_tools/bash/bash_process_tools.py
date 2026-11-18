@@ -11,7 +11,7 @@ via ``bash_code_execute_tool(run_in_background=True)``.
 
 [OUTPUT]
 - create_bash_process_tool: Unified process management tool factory
-- BASH_PROCESS_TOOL_NAME: Stable tool id for spawn lifecycle tracking
+- BASH_PROCESS_TOOL_NAME: the tool's registered name (the loop guard keys its poll-tool set on it)
 
 [POS]
 PTC-adjacent surface tool — bash-tool-package only; no business coupling. Jobs are scoped to the session,

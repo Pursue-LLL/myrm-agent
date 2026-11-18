@@ -51,17 +51,15 @@ def _make_entry(
     )
 
 
-async def _run_consume(entry: BackgroundRegistryEntry) -> tuple[list[int], list[str | None]]:
+async def _run_consume(entry: BackgroundRegistryEntry) -> list[int]:
     reaped: list[int] = []
-    cleared: list[str | None] = []
 
     await consume_background_entry(
         entry,
         snapshot=lambda e: e.info,
         schedule_reap=lambda pid: reaped.append(pid),
-        clear_session_if_idle=lambda sid: cleared.append(sid),
     )
-    return reaped, cleared
+    return reaped
 
 
 @pytest.mark.asyncio
@@ -72,13 +70,12 @@ async def test_consume_background_entry_captures_stdout_and_exits() -> None:
     task = asyncio.create_task(_run_consume(entry))
     await asyncio.sleep(0.05)
     proc.finish(exit_code=0)
-    reaped, cleared = await task
+    reaped = await task
 
     assert entry.info.status == "exited"
     assert entry.info.exit_code == 0
     assert list(entry.stdout_buffer) == ["hello"]
     assert reaped == [4242]
-    assert cleared == ["sess-consume"]
 
 
 @pytest.mark.asyncio
@@ -272,7 +269,6 @@ async def test_consume_background_entry_cancelled_returns_without_crash() -> Non
             entry,
             snapshot=lambda e: e.info,
             schedule_reap=lambda pid: reaped.append(pid),
-            clear_session_if_idle=lambda _sid: None,
         )
     )
     await asyncio.sleep(0.02)

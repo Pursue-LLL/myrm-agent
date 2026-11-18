@@ -12,17 +12,10 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     get_background_registry,
 )
-from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-    get_session_spawn_tool_names,
-    reset_spawn_lifecycle_for_tests,
-)
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
 )
-from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
-    BASH_PROCESS_TOOL_NAME,
-    create_bash_process_tool,
-)
+from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import create_bash_process_tool
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
 from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import (
@@ -72,10 +65,8 @@ def _stop_sandbox_patches() -> None:
 def _clear_background_registry() -> None:
     registry = get_background_registry()
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_spawn_lifecycle_for_tests()
     yield
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_spawn_lifecycle_for_tests()
 
 
 @pytest.mark.integration
@@ -136,7 +127,6 @@ async def test_background_spawn_automount_list_output_kill(tmp_path: Path, trail
 
     assert spawn_result["metadata"]["background"] is True
     pid = int(spawn_result["metadata"]["pid"])
-    assert BASH_PROCESS_TOOL_NAME in get_session_spawn_tool_names(session_id)
 
     list_result = await process_tool.ainvoke({"action": "list"}, config=config)
     processes = list_result["content"]["processes"]  # type: ignore[index]

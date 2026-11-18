@@ -58,14 +58,10 @@ async def test_progress_throttle_and_terminal_penetration() -> None:
     def _snapshot(e: BackgroundRegistryEntry) -> BackgroundProcessInfo:
         return e.info
 
-    def _clear_idle(_sess: str | None) -> None:
-        pass
-
     await consume_background_entry(
         entry,
         snapshot=_snapshot,
         schedule_reap=_schedule_reap,
-        clear_session_if_idle=_clear_idle,
     )
 
     # 1. High frequency burst must be throttled (significantly fewer than 50 events)
@@ -115,7 +111,6 @@ async def test_trailing_progress_flush_on_non_100_percent_exit() -> None:
         entry,
         snapshot=lambda e: e.info,
         schedule_reap=lambda _p: None,
-        clear_session_if_idle=lambda _s: None,
     )
 
     # The 98% tail progress must be delivered via trailing flush despite <100ms gap

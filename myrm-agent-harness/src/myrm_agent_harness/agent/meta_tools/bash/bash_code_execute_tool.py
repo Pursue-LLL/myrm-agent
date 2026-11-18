@@ -7,6 +7,7 @@
 - ._tool.helpers (POS: BashInput, OS hint, context tracking, skill storage path resolution)
 - ._tool.formatting (POS: Output formatting and truncation)
 - ._tool.background_listeners (POS: Background ptc_notify listeners)
+- ._background.poll::report_result_read (POS: tells the wakeup handler the model now holds a finished job's result)
 - ._tool.multimodal (POS: Vision ContentBlock return path)
 - ._tool.exit_semantics (POS: Exit-code semantic interpretation)
 - .._context_recovery::ensure_executor, restore_context_vars (POS: Executor ContextVar recovery)
@@ -37,6 +38,7 @@ from myrm_agent_harness.agent.meta_tools._context_recovery import (
     ensure_executor,
     restore_context_vars,
 )
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import report_result_read
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     get_background_registry,
 )
@@ -224,14 +226,6 @@ def create_bash_code_execute_tool(
                     finish_listener=finish_listener,
                     progress_listener=progress_listener,
                 )
-                from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-                    activate_session_spawn_tool,
-                )
-                from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
-                    BASH_PROCESS_TOOL_NAME,
-                )
-
-                activate_session_spawn_tool(session_id, BASH_PROCESS_TOOL_NAME)
                 from myrm_agent_harness.utils.event_utils import dispatch_custom_event
 
                 await dispatch_custom_event(
@@ -255,6 +249,8 @@ def create_bash_code_execute_tool(
                         yield_seconds=yield_seconds,
                     )
                     if final_info is not None:
+                        # A job that ended inside the window returns its exit and output tail through this call.
+                        report_result_read(final_info)
                         return build_auto_yield_return(
                             info=final_info,
                             yield_seconds=yield_seconds,

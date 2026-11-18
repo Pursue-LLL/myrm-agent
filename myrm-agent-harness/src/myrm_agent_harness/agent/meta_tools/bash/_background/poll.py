@@ -1,15 +1,17 @@
-"""Read-side views of background bash jobs: entry snapshots, the unfinished last line and exit waiting.
+"""Read-side views of background bash jobs: entry snapshots, the unfinished last line, exit waiting and read reports.
 
 [INPUT]
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo (POS: job snapshot)
 - agent.meta_tools.bash._background.termination::refresh_leftovers (POS: live members of a finished job's group)
 - agent.security.redact::redact_sensitive_text (POS: facade of the redaction domain)
+- utils.runtime.wakeup_registry::report_results_read (POS: tells the host's wakeup handler the agent read a settled result itself, so the wake turn queued for it stands down)
 - utils.text_utils::strip_ansi (POS: strips terminal escape sequences from text)
 
 [OUTPUT]
 - snapshot_entry: detached ``BackgroundProcessInfo`` copy of a live registry entry (cheap: ``wait`` and the auto-yield window take one every 0.1 s and 0.25 s)
 - unfinished_line: the text a running job printed after its last newline, cleaned and redacted; computed where it is read, never in a snapshot
 - wait_for_exit: block until a job leaves ``running`` or the cap passes
+- report_result_read: tell the wakeup handler the model now holds a job's result, so the wake turn its finish queues stands down
 
 [POS]
 Read-side helpers for ``bash_process_tool`` / auto-yield / the GUI activity panel.
@@ -28,6 +30,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     compute_waiting_for_input,
 )
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.utils.runtime.wakeup_registry import report_results_read
 from myrm_agent_harness.utils.text_utils import strip_ansi
 
 if TYPE_CHECKING:
@@ -128,4 +131,15 @@ async def wait_for_exit(
     }
 
 
-__all__ = ["snapshot_entry", "unfinished_line", "wait_for_exit"]
+def report_result_read(info: BackgroundProcessInfo) -> None:
+    """Tell the wakeup handler the model now holds this job's exit and output tail, so its finish need not wake a turn.
+
+    Only a job that ran to its own exit is settled by the host (a killed one never is), under the key the finish
+    handler uses: the job id, else the pid. The host's settlement can arrive after this report, since the registry
+    marks the exit before the finish listener reaches the host; the host keeps the mark until it does.
+    """
+    if info.status == "exited":
+        report_results_read([str(info.job_id or info.pid)], info.session_id)
+
+
+__all__ = ["report_result_read", "snapshot_entry", "unfinished_line", "wait_for_exit"]

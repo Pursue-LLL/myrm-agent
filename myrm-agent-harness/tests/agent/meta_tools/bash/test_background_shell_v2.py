@@ -38,16 +38,11 @@ def _clear_registry() -> None:
     from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
         get_background_registry,
     )
-    from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-        reset_spawn_lifecycle_for_tests,
-    )
 
     registry = get_background_registry()
     registry._entries.clear()
-    reset_spawn_lifecycle_for_tests()
     yield
     registry._entries.clear()
-    reset_spawn_lifecycle_for_tests()
 
 
 @pytest.mark.asyncio

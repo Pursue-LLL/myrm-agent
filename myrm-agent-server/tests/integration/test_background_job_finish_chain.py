@@ -11,14 +11,8 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-    reset_spawn_lifecycle_for_tests,
-)
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
     create_bash_code_execute_tool,
-)
-from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
-    BASH_PROCESS_TOOL_NAME,
 )
 from myrm_agent_harness.api.hooks import (
     get_background_registry,
@@ -121,11 +115,9 @@ def _stop_sandbox_patches() -> None:
 def _clear_registry() -> None:
     registry = get_background_registry()
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
     yield
     registry._entries.clear()  # type: ignore[attr-defined]
-    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 
 
@@ -313,12 +305,8 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> None:
-    """Stream-cancel path: kill_session_jobs kills all jobs and clears spawn markers."""
-    from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-        get_session_spawn_tool_names,
-    )
-
+async def test_kill_session_jobs_kills_the_jobs_and_skips_chat(tmp_path: Path) -> None:
+    """Stream-cancel path: kill_session_jobs kills all jobs and writes no finish message."""
     chat_id = f"bg-cancel-{uuid.uuid4().hex[:12]}"
     await _create_chat(chat_id)
 
@@ -353,7 +341,7 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
             ),
         ),
     ):
-        await bash_tool.ainvoke(
+        spawn_result = await bash_tool.ainvoke(
             {
                 "command": long_cmd,
                 "reason": "integration session cancel",
@@ -362,11 +350,11 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
             config=config,
         )
 
-    assert BASH_PROCESS_TOOL_NAME in get_session_spawn_tool_names(chat_id)
-
+    pid = int(spawn_result["metadata"]["pid"])
     killed = await get_background_registry().kill_session_jobs(chat_id, grace_seconds=0.05)
     assert killed >= 1
     await asyncio.sleep(0.2)
 
-    assert get_session_spawn_tool_names(chat_id) == frozenset()
+    job = get_background_registry().get(pid)
+    assert job is not None and job.status == "killed"
     assert await _finish_messages(chat_id) == []

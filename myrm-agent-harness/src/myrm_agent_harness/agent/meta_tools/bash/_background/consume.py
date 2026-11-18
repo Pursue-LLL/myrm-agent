@@ -139,7 +139,6 @@ async def consume_background_entry(
     *,
     snapshot: Callable[[BackgroundRegistryEntry], BackgroundProcessInfo],
     schedule_reap: Callable[[int], None],
-    clear_session_if_idle: Callable[[str | None], None],
 ) -> None:
     """Read stdout/stderr until the child exits; persist state and notify listeners."""
     from myrm_agent_harness.agent.meta_tools.bash._background.progress import (
@@ -272,7 +271,6 @@ async def consume_background_entry(
                     entry.info.pid,
                     exc,
                 )
-        clear_session_if_idle(entry.info.session_id)
         schedule_reap(entry.info.pid)
 
 

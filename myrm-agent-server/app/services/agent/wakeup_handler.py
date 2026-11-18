@@ -7,7 +7,7 @@
 
 [OUTPUT]
 - ServerWakeupHandler.on_async_wakeup: settle a finished background subagent into its chat
-- ServerWakeupHandler.on_results_read: record that the agent read settled subagent results in a tool call of its own
+- ServerWakeupHandler.on_results_read: record that the agent read settled results (subagents' or background jobs') in a tool call of its own
 
 [POS]
 Business orchestration hook for Harness `ASYNC_WAKEUP`; runs per isolated server instance without Control Plane scheduling.
@@ -53,7 +53,7 @@ class ServerWakeupHandler:
         task.add_done_callback(_tasks.discard)
 
     def on_results_read(self, task_ids: Collection[str], session_id: str | None) -> None:
-        """Called by Harness when the agent's own tool call returned the results of these settled subagents.
+        """Called by Harness when the agent's own tool call returned the results of these settled subagents or background jobs.
 
         The wake turn queued to deliver them stands down once it holds nothing the agent has not seen.
         """

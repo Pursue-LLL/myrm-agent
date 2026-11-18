@@ -286,7 +286,6 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
             entry,
             snapshot=snapshot_entry,
             schedule_reap=self._schedule_reap,
-            clear_session_if_idle=self._maybe_clear_session_spawn_tools,
         )
 
 
