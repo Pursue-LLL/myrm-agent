@@ -1,12 +1,17 @@
+import os
+import shutil
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
+from sqlalchemy.exc import DatabaseError as SQLAlchemyDatabaseError
 
-from app.database.operations.recovery import rescue_database
+from app.database.operations import recovery as recovery_module
+from app.database.operations.recovery import database_is_damaged, reports_corruption, rescue_database
 from app.server.status import system_status
 
 
@@ -104,6 +109,153 @@ def test_rescue_database_detailed_flow(tmp_path: Path):
     assert "chat_history" in result.table_stats
     assert Path(db_file).exists()
     assert (tmp_path / "corrupt_flow.db.corrupted").exists()
+
+
+@pytest.fixture
+def populated_db(tmp_path: Path) -> Path:
+    """A multi-page database, so a truncation or a damaged page lands inside real content."""
+    db_file = tmp_path / "populated.db"
+    conn = sqlite3.connect(str(db_file))
+    conn.execute("PRAGMA page_size = 4096;")
+    conn.execute("CREATE TABLE chat_history (id INTEGER PRIMARY KEY, content TEXT);")
+    for i in range(1, 501):
+        conn.execute("INSERT INTO chat_history VALUES (?, ?);", (i, f"message_{i}" * 10))
+    conn.commit()
+    conn.close()
+    return db_file
+
+
+def test_database_is_damaged_is_false_for_an_intact_file(populated_db: Path):
+    assert database_is_damaged(str(populated_db)) is False
+
+
+def test_database_is_damaged_is_false_for_a_missing_or_empty_file(tmp_path: Path):
+    empty = tmp_path / "empty.db"
+    empty.touch()
+
+    assert database_is_damaged(str(tmp_path / "absent.db")) is False
+    assert database_is_damaged(str(empty)) is False
+
+
+def test_database_is_damaged_detects_garbage_where_the_header_belongs(tmp_path: Path):
+    junk = tmp_path / "junk.db"
+    junk.write_bytes(b"not a database" * 100)
+
+    assert database_is_damaged(str(junk)) is True
+
+
+def test_database_is_damaged_detects_a_truncated_file(populated_db: Path):
+    populated_db.write_bytes(populated_db.read_bytes()[: populated_db.stat().st_size // 2])
+
+    assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_detects_a_corrupted_page(populated_db: Path):
+    content = bytearray(populated_db.read_bytes())
+    content[8192 + 100 : 8192 + 200] = b"\xff\x00\xde\xad" * 25
+    populated_db.write_bytes(content)
+
+    assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_detects_a_damaged_schema_page(populated_db: Path):
+    """Page 1 holds the schema: SQLite itself refuses to read the file, with no page-level report to inspect."""
+    content = bytearray(populated_db.read_bytes())
+    content[100:300] = b"\xff\x00\xde\xad" * 50
+    populated_db.write_bytes(content)
+
+    assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_reads_a_path_with_spaces_and_url_characters(populated_db: Path, tmp_path: Path):
+    """The desktop database lives under 'Application Support': the probe's URI must carry spaces, '#' and '%'."""
+    folder = tmp_path / "Application Support" / "my data #1 100%"
+    folder.mkdir(parents=True)
+    moved = folder / "data.db"
+    shutil.copy2(populated_db, moved)
+    assert database_is_damaged(str(moved)) is False
+
+    content = bytearray(moved.read_bytes())
+    content[8192 + 100 : 8192 + 200] = b"\xff\x00\xde\xad" * 25
+    moved.write_bytes(content)
+
+    assert database_is_damaged(str(moved)) is True
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="needs a POSIX user that file permissions bind")
+def test_database_is_damaged_is_false_for_a_file_that_cannot_be_read(populated_db: Path):
+    """A permission error says nothing about the pages: the file must not be reported damaged, and so not rewritten."""
+    populated_db.chmod(0)
+    try:
+        assert database_is_damaged(str(populated_db)) is False
+    finally:
+        populated_db.chmod(0o600)
+
+
+def test_database_is_damaged_is_false_while_another_connection_holds_the_lock(
+    populated_db: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """A lock says nothing about the pages: the file must not be reported damaged, and so must not be rewritten."""
+    monkeypatch.setattr(recovery_module, "_PROBE_LOCK_TIMEOUT_SECONDS", 0.05)
+    holder = sqlite3.connect(str(populated_db), isolation_level=None)
+    holder.execute("BEGIN EXCLUSIVE")
+    try:
+        assert database_is_damaged(str(populated_db)) is False
+    finally:
+        holder.close()
+
+
+def _error_sqlite_raises(db_file: Path, statement: str) -> sqlite3.DatabaseError:
+    with closing(sqlite3.connect(str(db_file))) as conn, pytest.raises(sqlite3.DatabaseError) as raised:
+        conn.execute(statement).fetchall()
+    return raised.value
+
+
+@pytest.fixture
+def corruption_error(tmp_path: Path) -> sqlite3.DatabaseError:
+    """What SQLite raises when it opens a file that is not a database."""
+    junk = tmp_path / "junk.db"
+    junk.write_bytes(b"not a database" * 100)
+    error = _error_sqlite_raises(junk, "PRAGMA user_version")
+    assert error.sqlite_errorcode == sqlite3.SQLITE_NOTADB
+    return error
+
+
+def test_reports_corruption_recognises_the_error_sqlite_raises_on_a_damaged_file(corruption_error: sqlite3.DatabaseError):
+    assert reports_corruption(corruption_error) is True
+
+
+def test_reports_corruption_recognises_the_extended_result_codes_of_corruption():
+    reported = sqlite3.DatabaseError("database disk image is malformed")
+    reported.sqlite_errorcode = sqlite3.SQLITE_CORRUPT_INDEX
+
+    assert reported.sqlite_errorcode != sqlite3.SQLITE_CORRUPT
+    assert reports_corruption(reported) is True
+
+
+def test_reports_corruption_finds_it_behind_sqlalchemy_and_exception_causes(corruption_error: sqlite3.DatabaseError):
+    wrapped = SQLAlchemyDatabaseError("SELECT 1", None, corruption_error)
+    chained = RuntimeError("Database table init failed")
+    chained.__cause__ = corruption_error
+
+    assert reports_corruption(wrapped) is True
+    assert reports_corruption(chained) is True
+
+
+def test_reports_corruption_is_false_for_failures_that_say_nothing_about_the_pages(populated_db: Path):
+    no_such_table = _error_sqlite_raises(populated_db, "ALTER TABLE procedural_rules ADD COLUMN source TEXT")
+
+    assert no_such_table.sqlite_errorcode == sqlite3.SQLITE_ERROR
+    assert reports_corruption(no_such_table) is False
+    assert reports_corruption(SQLAlchemyDatabaseError("SELECT 1", None, no_such_table)) is False
+    assert reports_corruption(RuntimeError("Database migration failed at version 0")) is False
+
+
+def test_reports_corruption_terminates_on_a_cycle_of_causes():
+    first, second = RuntimeError("first"), RuntimeError("second")
+    first.__cause__, second.__cause__ = second, first
+
+    assert reports_corruption(first) is False
 
 
 @pytest.mark.asyncio
