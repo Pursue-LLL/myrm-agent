@@ -1,4 +1,4 @@
-"""Gap-fill tests for five-source external source migration (routing + lanes)."""
+"""Gap-fill tests for external source migration (routing + lanes)."""
 
 from __future__ import annotations
 
