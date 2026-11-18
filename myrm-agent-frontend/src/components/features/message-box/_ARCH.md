@@ -99,6 +99,9 @@
 | `ReasoningProcessAccordion.tsx` | 组件 | 推理思维链流式展示折叠追踪卡片：呼吸态动画、秒级耗时、token 数（优先 `message.usage.reasoning_tokens`，缺失回落估算并标 `≈`）、一键复制、停止思考（请求 10s 上限，超时 abort 后按钮自动恢复）、`inline/collapsed/off` 三档；文案与 aria 全量 i18n；图标按钮 40px 触控区 | ✅ |
 | `__tests__/useContextHealthPanel.test.ts` | 测试 | 面板关闭且未压缩时不读；打开即读且同一次渲染就是加载中；每次打开重读并保留上次结果；读取失败无结果；无会话不读；换会话不向新会话展示旧会话结果（含任何一次渲染）、关着面板换会话丢弃旧结果、旧会话迟到的答复被忽略；读取中关闭面板丢弃该次读取；压缩后的读取绕过缓存（面板开 / 关均读）、会话切换后归零不再读 | ✅ |
 | `__tests__/ContextUsageIndicator.compaction.test.tsx` | 测试 | 真实 store + 真实分析服务缓存（只替换 HTTP 层）+ 真实文案：面板打开后压缩一次，面板显示压缩后的数字（不是缓存里压缩前的），且这次压缩只读一次 | ✅ |
+| `__tests__/ContextUsageIndicator.test.tsx` | 测试 | 用量环的显示条件（配置开关、无用量、没有带预算的助手消息）、策略状态点颜色与缺省时隐藏、用量 ≥75% / ≥90% 的描边警示色、Token 分类明细与健康区间徽标 | ✅ |
+| `__tests__/ContextUsageIndicator.panel.test.tsx` | 测试 | 打开面板后读取当前会话的策略健康（不强制刷新）并展示压缩 / 缓存 / 裁剪信息与「恢复受阻」警示；全部未激活与读取失败的兜底；查看详情跳转；用量 ≥75% 才出现分叉入口 | ✅ |
+| `__tests__/contextUsageIndicatorKit.tsx` | 测试 | 用量环组件测试的共享底座：文案、分析服务、会话 store、配置 store 的替身，三份策略健康样本，默认状态复位与渲染入口 | ✅ |
 | `__tests__/useContextWatermarkMetrics.test.ts` | 测试 | 水位推导、4 档色阶边界与逐轮 delta 正负增量单测 | ✅ |
 | `__tests__/useShowSystemMessages.test.ts` | 测试 | 默认关闭、首帧即读到已开启的开关、随变更事件开关、写入后以约定的键存储且所有已挂载的读取方同步更新、卸载后不再跟随 | ✅ |
 | `__tests__/MessageBox.developerSwitch.test.tsx` | 测试 | 设置页的真实开关与聊天里的真实 system 行共用同一个存储键和通知事件：拨动开关即显示 / 隐藏已渲染的 system 行，开关留在开启状态时重新渲染仍显示 | ✅ |

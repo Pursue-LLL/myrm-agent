@@ -68,7 +68,12 @@ describe('ContextUsageIndicator after a compaction', () => {
           createdAt: new Date(),
           role: 'assistant',
           content: 'Hello',
-          contextBudget: { current_tokens: 60000, max_context_tokens: 128000, usage_percent: 47, health_status: 'healthy' },
+          contextBudget: {
+            current_tokens: 60000,
+            max_context_tokens: 128000,
+            usage_percent: 47,
+            health_status: 'healthy',
+          },
         },
       ],
     });
