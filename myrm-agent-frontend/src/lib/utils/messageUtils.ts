@@ -5,7 +5,7 @@
  * - stripDatetimeTag: 剥离时间戳标签
  * - stripUiActionPayload: 剥离 Agent 用 ui_action JSON 块
  * - stripUserMessageDisplayText: 用户消息展示用清理（含 explicit skill wire 前缀）
- * - parseExplicitSkillActivation: 解析 `[use s1,s2]` wire 前缀
+ * - parseExplicitSkillActivation: 解析 `[use s1,s2]` wire 前缀（列表上界与字符集同 harness 文法，超界按普通文本）
  * - buildExplicitSkillWireMessage: 由 pending activation + 用户文本构建 wire
  * - formatSkillChipLabel: Skill chip 展示名
  * - stripMarkdown: 剥离 markdown 语法为纯文本
@@ -27,8 +27,16 @@ export const stripUiActionPayload = (text: string): string => {
   return text.replace(/\n?<ui_action_data>[\s\S]*?<\/ui_action_data>\s*$/g, '').trim();
 };
 
-/** Matches harness `_preload_explicit_skill()` and channel `skill_command_handler` wire prefix. */
-const EXPLICIT_SKILL_ACTIVATION_PATTERN = /^\[use\s+([\w,\s-]+)\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?([\s\S]*)$/;
+/**
+ * The `[use s1,s2]` wire prefix (written by the composer and by the IM skill commands), read with the harness
+ * grammar's bound and character classes (`parse_use_tag`) so the chips drawn are exactly the skills the agent
+ * preloads: the list opens on a non-space character, is at most 1,024 characters (a longer one is ordinary text to
+ * the agent) and holds Unicode letters and digits, `_`, `,`, `-` and whitespace. The whitespace after `[use` and the
+ * list never compete for the same characters, so a flood of spaces without a closing bracket is scanned in linear
+ * time. `[instruction: ...]` is the composer's own segment.
+ */
+const EXPLICIT_SKILL_ACTIVATION_PATTERN =
+  /^\[use\s+([\p{L}\p{N}_,-][\p{L}\p{N}_,\s-]{0,1023})\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?([\s\S]*)$/u;
 
 export interface ExplicitSkillActivation {
   skillNames: string[];

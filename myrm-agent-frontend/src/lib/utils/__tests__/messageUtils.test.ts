@@ -9,6 +9,9 @@ import {
   getBrowserTimezone,
 } from '../messageUtils';
 
+/** The harness grammar's `MAX_REFERENCE_LIST_CHARS`: the web parse and the agent must agree on what is a tag. */
+const MAX_REFERENCE_LIST_CHARS = 1_024;
+
 describe('stripDatetimeTag', () => {
   it('removes current_datetime tags', () => {
     const input = '<current_datetime>2026-05-27T14:00:00Z</current_datetime>Hello world';
@@ -51,6 +54,11 @@ describe('stripUserMessageDisplayText', () => {
     const input = '[use write_report_skill,send_feishu_skill] [instruction: be concise] 生成本周报告';
     expect(stripUserMessageDisplayText(input)).toBe('生成本周报告');
   });
+
+  it('keeps a prefix whose list is over the limit as ordinary text, as the agent reads it', () => {
+    const input = `[use ${'a'.repeat(MAX_REFERENCE_LIST_CHARS + 1)}] generate today report`;
+    expect(stripUserMessageDisplayText(input)).toBe(input);
+  });
 });
 
 describe('parseExplicitSkillActivation', () => {
@@ -68,6 +76,30 @@ describe('parseExplicitSkillActivation', () => {
       instruction: 'json',
       userText: 'run',
     });
+  });
+
+  it('reads a list at the limit as a tag and one character more as ordinary text', () => {
+    const atLimit = 'a'.repeat(MAX_REFERENCE_LIST_CHARS);
+    expect(parseExplicitSkillActivation(`[use ${atLimit}] go`)?.skillNames).toEqual([atLimit]);
+    expect(parseExplicitSkillActivation(`[use ${atLimit}a] go`)).toBeNull();
+  });
+
+  it('accepts non-ASCII skill names like the agent does', () => {
+    expect(parseExplicitSkillActivation('[use 日报,周报] [instruction: 简短] 写本周总结')).toEqual({
+      skillNames: ['日报', '周报'],
+      instruction: '简短',
+      userText: '写本周总结',
+    });
+  });
+
+  it('rejects a flood of whitespace after the keyword in linear time', () => {
+    const flood = `[use${' '.repeat(64_000)}`;
+    // CPU time, not wall-clock: a busy machine stretches the latter without the pattern doing more work. A linear scan
+    // takes well under 1 ms; whitespace and list quantifiers that overlap take hundreds of ms (bounded) to seconds.
+    const before = process.cpuUsage();
+    expect(parseExplicitSkillActivation(flood)).toBeNull();
+    const { user, system } = process.cpuUsage(before);
+    expect((user + system) / 1000).toBeLessThan(50);
   });
 });
 

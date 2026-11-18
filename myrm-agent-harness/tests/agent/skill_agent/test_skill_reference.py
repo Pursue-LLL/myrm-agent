@@ -127,9 +127,10 @@ class TestUseTagGrammar:
     )
     def test_a_long_run_of_whitespace_after_the_keyword_is_rejected_in_linear_time(self, text: str) -> None:
         """Overlapping whitespace quantifiers cost seconds here, and bounding the list alone does not cure it."""
-        started = time.perf_counter()
+        # CPU time, not wall-clock: a busy machine stretches the latter without the parser doing more work.
+        started = time.process_time()
         assert parse_use_tag(text) is None
-        assert time.perf_counter() - started < 0.25
+        assert time.process_time() - started < 0.25
 
 
 def _meta(name: str, storage_skill_id: str | None = None) -> SkillMetadata:

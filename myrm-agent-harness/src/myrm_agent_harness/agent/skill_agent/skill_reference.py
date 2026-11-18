@@ -14,7 +14,9 @@
 SSOT of the explicit-invocation wire format shared by the agent and by hosts that decorate user text.
 The tag only counts at the very start of the text, so a host that prefixes anything (a delivery banner,
 a timestamp) must put it behind the tag (``UseTag.tag``, ``UseTag.text``) or the invocation goes unnoticed.
-A tag names a handful of skills: a reference list longer than ``MAX_REFERENCE_LIST_CHARS`` is ordinary text.
+A reference list longer than ``MAX_REFERENCE_LIST_CHARS`` (a few dozen typical skill names) is ordinary text, however
+the tag was built. A host that parses the tag itself (a UI that renders it as chips) must apply the same bound and the
+same character classes, or it shows an invocation the agent never receives.
 
 People, models and stored sessions name a skill in slightly different spellings: a user types the catalog
 name (``my-skill``), a model may append the ``_skill`` suffix, a stored session may hold the runtime spelling
@@ -36,8 +38,8 @@ if TYPE_CHECKING:
 MAX_REFERENCE_LIST_CHARS = 1_024
 """The longest reference list a tag may carry (15 names of the longest length a skill may have; far more in practice).
 
-A longer list is ordinary text: every host that decorates the message re-emits the tag in front of it, so a list
-nobody types by hand would otherwise travel in full wherever the tag goes.
+A longer list is ordinary text: every host that decorates the message re-emits the tag in front of it, so an
+unbounded list would otherwise travel in full wherever the tag goes.
 """
 
 # The list opens on a non-space character so the whitespace after ``[use`` and the whitespace inside the list never
