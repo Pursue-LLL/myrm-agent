@@ -128,11 +128,13 @@ export const ReferenceMentionPopover: React.FC<ReferenceMentionPopoverProps> = (
   return (
     <Popover open={open} modal={false}>
       {anchorRef && <PopoverAnchor virtualRef={anchorRef} />}
+      {/* collisionPadding mirrors the 1rem in max-w, so a popover pushed back into view keeps its margin on both sides. */}
       <PopoverContent
         className="w-[380px] max-w-[calc(100vw-2rem)] p-0 shadow-xl border-border/50"
         side="top"
         align="start"
         sideOffset={8}
+        collisionPadding={16}
         onOpenAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
       >
