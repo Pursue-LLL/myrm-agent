@@ -108,6 +108,17 @@ class TestUseTagGrammar:
         assert tag.references == ("a", "b")
         assert tag.tag == "[use \n\t  a ,b ]"
 
+    def test_the_keyword_is_lower_case(self) -> None:
+        assert parse_use_tag("[USE a] go") is None
+
+    def test_whitespace_must_follow_the_keyword(self) -> None:
+        assert parse_use_tag("[user] hello") is None
+
+    def test_non_ascii_names_are_references(self) -> None:
+        tag = parse_use_tag("[use 日报,周报] go")
+        assert tag is not None
+        assert tag.references == ("日报", "周报")
+
     @pytest.mark.parametrize(
         ("reference_list", "is_tag"),
         [
