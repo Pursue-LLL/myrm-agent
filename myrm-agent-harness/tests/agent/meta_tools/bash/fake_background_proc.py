@@ -25,6 +25,11 @@ class FakeOutputPipe:
         self._open = hold_open
         self._wakeup = asyncio.Event()
 
+    @property
+    def backlog(self) -> int:
+        """Chunks queued and not yet read."""
+        return len(self._chunks)
+
     def feed(self, data: bytes) -> None:
         self._chunks.append(data)
         self._wakeup.set()

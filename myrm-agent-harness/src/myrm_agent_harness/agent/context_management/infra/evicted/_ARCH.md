@@ -9,7 +9,7 @@ UECD (Unified Evicted Content Delivery) subpackage: persist oversized tool outpu
 |------|------|-------------|-------|
 | `__init__.py` | Facade | Re-exports public UECD API for harness/server callers | — |
 | `markers.py` | Core | Disk cap marker template + regex probe SSOT (writer/reader coupling point) | ✅ |
-| `content.py` | Core | 2MB cap, `{source}_{hex8}.{ext}` naming, persist/footer (the footer can name the saved-file line ranges of the sections a caller left out), SSE `EvictedRefPayload` | ✅ |
+| `content.py` | Core | 2MB cap, `{source}_{hex8}.{ext}` naming, persist/footer (the footer can name the saved-file line ranges of the sections a caller left out), SSE `EvictedRefPayload`; `evicted_rel_path` / `resolve_evicted_target` are the one place that knows the `.context/{chat}/evicted/` layout, shared with writers that stream into a file (the background job log) | ✅ |
 | `reader.py` | Core | Streaming line-range + meta readers for GUI/API pagination | ✅ |
 | `persister.py` | Core | FilterProcessor backup persist delegate | ✅ |
 

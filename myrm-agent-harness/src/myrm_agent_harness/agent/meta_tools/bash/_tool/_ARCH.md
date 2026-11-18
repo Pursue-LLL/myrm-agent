@@ -15,7 +15,7 @@ bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退�
 | `helpers.py` | Core | BashInput schema（reason 必填）、OS hint、上下文恢复/访问追踪。 | ✅ |
 | `multimodal.py` | Core | Vision ContentBlock 内联返回（生成图片）。 | ✅ |
 | `background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 | ✅ |
-| `process_handlers.py` | Core | `bash_process_tool` 各 action（list/output/wait/kill/stdin）在会话后台任务上的处理器；`output` 与已结束任务的 `wait` 带同一组输出字段（两路输出、`dropped`、完整日志引用）；`output` 与仍在运行的任务的 `wait` 带空闲标记及其说明，作业打印过未换行的文字时再带 `partial_line`（未结束的最后一行，通常是提示）；已结束的任务若留下仍在运行的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）；`kill_report` 如实说明停止的效果（任务进程组内是否发现还有进程在运行；平台无法列出进程组时只说发出了什么信号）。门面 `bash_process_tool` 负责 schema、能力校验与分发。 | ✅ |
+| `process_handlers.py` | Core | `bash_process_tool` 各 action（list/output/wait/kill/stdin）在会话后台任务上的处理器；`output` 与已结束任务的 `wait` 带同一组输出字段（两路输出、`dropped`，行被丢弃且任务有日志时再带 `log_file`，日志的工作区相对路径）；`list` 为每个有日志的任务带 `log_file`；`output` 与仍在运行的任务的 `wait` 带空闲标记及其说明，作业打印过未换行的文字时再带 `partial_line`（未结束的最后一行，通常是提示）；已结束的任务若留下仍在运行的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）；`kill_report` 如实说明停止的效果（任务进程组内是否发现还有进程在运行；平台无法列出进程组时只说发出了什么信号）。门面 `bash_process_tool` 负责 schema、能力校验与分发。 | ✅ |
 
 ## Key Dependencies
 

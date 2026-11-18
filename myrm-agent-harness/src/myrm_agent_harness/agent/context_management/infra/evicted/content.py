@@ -5,15 +5,15 @@ with `{source}_{hex8}.{ext}` basenames so the product evicted-file API and drawe
 work consistently across bash, web_fetch, MCP, and FilterProcessor backup paths.
 
 [INPUT]
-- core.context_vars::workspace_root_var, chat_id_var
-- infra.atomic_write::async_atomic_write
-- evicted.markers::format_storage_cap_marker
+- core.context_vars::workspace_root_var, chat_id_var (POS: foundation ContextVar registry: the run's workspace root and chat id)
+- infra.atomic_write::async_atomic_write (POS: atomic file write with crash-consistency guarantee)
+- evicted.markers::format_storage_cap_marker (POS: single source for the on-disk truncation marker text and its parsing)
 
 [OUTPUT]
 - cap_content_for_storage, build_evicted_basename, build_delivery_footer
 - persist_evicted_content, write_evicted_content_sync, emit_evicted_ref
 - EvictedRefPayload, EvictedPersistResult, EVICTED_BASENAME_PATTERN
-- normalize_delivery_chat_id
+- normalize_delivery_chat_id, evicted_rel_path, resolve_evicted_target (where an evicted file lives: the one place that knows the `.context/{chat}/evicted/` layout)
 
 [POS]
 SSOT for sandbox evicted content delivery (agent context_management infra/evicted).
@@ -205,17 +205,35 @@ def normalize_delivery_chat_id(raw: str) -> str:
     return chat_id
 
 
-def _resolve_persist_target(source: str, ext: str) -> tuple[str, str, Path] | None:
+def evicted_rel_path(chat_id: str, basename: str) -> str:
+    """Workspace-relative location of an evicted file: `.context/{chat}/evicted/{basename}` (`chat_` prefix dropped)."""
+    return str(Path(".context") / normalize_delivery_chat_id(chat_id) / "evicted" / basename)
+
+
+def resolve_evicted_target(
+    source: str,
+    ext: str = "txt",
+    *,
+    chat_id: str | None = None,
+) -> tuple[str, str, Path] | None:
+    """Where a new evicted file goes: `(basename, rel_path, abs_path)`, or `None` without a workspace root or chat.
+
+    `chat_id` defaults to the chat of the running turn; a writer that outlives the turn passes the chat it serves.
+    """
     workspace_root = workspace_root_var.get().strip()
-    chat_id = normalize_delivery_chat_id(chat_id_var.get())
-    if not workspace_root or not chat_id:
-        logger.warning("[EvictedContent] Missing workspace_root or chat_id, skip persist")
+    raw_chat_id = chat_id_var.get() if chat_id is None else chat_id
+    if not workspace_root or not normalize_delivery_chat_id(raw_chat_id):
         return None
     basename = build_evicted_basename(source, ext=ext)
-    rel_dir = Path(".context") / chat_id / "evicted"
-    rel_path = str(rel_dir / basename)
-    abs_path = Path(workspace_root) / rel_path
-    return basename, rel_path, abs_path
+    rel_path = evicted_rel_path(raw_chat_id, basename)
+    return basename, rel_path, Path(workspace_root) / rel_path
+
+
+def _resolve_persist_target(source: str, ext: str) -> tuple[str, str, Path] | None:
+    target = resolve_evicted_target(source, ext)
+    if target is None:
+        logger.warning("[EvictedContent] Missing workspace_root or chat_id, skip persist")
+    return target
 
 
 def write_evicted_content_sync(

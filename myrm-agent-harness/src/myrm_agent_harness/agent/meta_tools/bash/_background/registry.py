@@ -22,8 +22,12 @@ dragging in the singleton's ``atexit`` hook. Stopping, reaping and the
 
 [INPUT]
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: AsyncProcessProtocol — wait/terminate/kill handle.)
+- agent.context_management.infra.evicted::evicted_rel_path (POS: the one place that knows the ``.context/{chat}/evicted/`` layout; names a job's log by its workspace-relative path)
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo / BackgroundQuotaError / FinishListener / OutputTail / ProgressListener (POS: shared dataclasses & typing.)
+- agent.meta_tools.bash._background.consume::BackgroundRegistryEntry / consume_background_entry (POS: I/O consumer for BackgroundProcessRegistry — keeps registry orchestration separate from pipe reading)
 - agent.meta_tools.bash._background.lifecycle::RegistryLifecycleMixin (POS: kill / reap / shutdown half of the registry.)
+- agent.meta_tools.bash._background.output_spill::BackgroundOutputSpillWriter (POS: full-output half of the output chain: the job's log, every line as printed, at the foreground evicted-file location)
+- agent.meta_tools.bash._background.output_window::cap_window / redact_window (POS: egress half of the output chain: the window of one stream a read shows, capped to a size budget, then masked)
 - agent.meta_tools.bash._background.poll::snapshot_entry / unfinished_line / wait_for_exit (POS: read-side views of jobs.)
 - agent.meta_tools.bash._background.termination::leader_identity / own_identity (POS: group-level stop primitives; record a job leader's, and this server's, pid with its start stamp.)
 
@@ -31,6 +35,8 @@ dragging in the singleton's ``atexit`` hook. Stopping, reaping and the
 - BackgroundProcessRegistry: Process-wide singleton with per-session buckets,
   SIGTERM→SIGKILL grace escalation, 32 Ki-character line truncation, 300 s reap of
   exited entries, ``last_progress`` snapshot on ``BackgroundProcessInfo``,
+  ``get_output`` (the one place the rings are read: each stream's window is capped, masked as a whole,
+  then cut to the lines asked for; ``log_file`` names the job's log when lines are missing),
   ``get_partial_line`` (the unfinished last line of a running job, computed per read)
   and ``kill_session_jobs`` for cooperative cleanup when an agent session
   is cancelled. A finished job whose children keep running stays listed with
@@ -51,11 +57,14 @@ from collections import deque
 from threading import Lock
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.context_management.infra.evicted import evicted_rel_path
 from myrm_agent_harness.agent.meta_tools.bash._background.consume import (
     BackgroundRegistryEntry,
     consume_background_entry,
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.lifecycle import RegistryLifecycleMixin
+from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import BackgroundOutputSpillWriter
+from myrm_agent_harness.agent.meta_tools.bash._background.output_window import cap_window, redact_window
 from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry, unfinished_line, wait_for_exit
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import leader_identity, own_identity
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
@@ -69,9 +78,6 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import (
-        BackgroundOutputSpillWriter,
-    )
     from myrm_agent_harness.toolkits.code_execution.executors.models import (
         AsyncProcessProtocol,
     )
@@ -127,15 +133,11 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
             BackgroundJobStore,
             get_background_job_store,
         )
-        from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import (
-            BackgroundOutputSpillWriter,
-        )
 
         job_id = BackgroundJobStore.new_job_id()
         started_at = time.time()
-        spill_writer: BackgroundOutputSpillWriter | None = None
-        if session_id:
-            spill_writer = BackgroundOutputSpillWriter(session_id=session_id, job_id=job_id)
+        # Resolved here, in the turn that starts the job: the workspace and the chat are known only there.
+        spill_writer = BackgroundOutputSpillWriter.for_session(session_id=session_id, job_id=job_id)
 
         from myrm_agent_harness.agent.security.redact import redact_command_line
 
@@ -217,25 +219,32 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
             )
 
     def get_output(self, pid: int, *, max_lines: int = 100) -> OutputTail:
-        """Return the newest ``max_lines`` lines of each stream from the ring tail.
+        """Return the newest ``max_lines`` lines of each stream, with secrets masked: the one place the rings are read.
 
-        ``dropped`` is ``True`` once a stream produced more lines than its ring holds: the oldest lines
-        are gone from this view, so the caller knows the tail it got is not the whole output.
+        The rings hold the text as the program printed it. Each stream's window is capped first (``cap_window``),
+        then masked as a whole (``redact_window``), and only then cut to ``max_lines``: a key block whose opening line
+        lies outside the lines asked for is still seen whole.
+
+        ``dropped`` is ``True`` once the oldest lines are missing from the view, because a ring turned over or the
+        window was cut; ``log_file`` then names the log that holds them, when the job has one.
         """
         with self._lock:
             entry = self._entries.get(pid)
             if entry is None:
                 return {"stdout": [], "stderr": [], "dropped": False}
+            stdout, stderr = list(entry.stdout_buffer), list(entry.stderr_buffer)
             dropped = entry.output_dropped
-            payload: OutputTail = {
-                "stdout": list(entry.stdout_buffer)[-max_lines:],
-                "stderr": list(entry.stderr_buffer)[-max_lines:],
-                "dropped": dropped,
-            }
-            if dropped and entry.spill_writer is not None:
-                spill_ref = entry.spill_writer.vault_log_ref
-                if spill_ref:
-                    payload["spill_log_ref"] = spill_ref
+            session_id, log_ref = entry.info.session_id, entry.info.vault_log_ref
+        stdout, cut_stdout = cap_window(stdout)
+        stderr, cut_stderr = cap_window(stderr)
+        dropped = dropped or cut_stdout or cut_stderr
+        payload: OutputTail = {
+            "stdout": redact_window(stdout)[-max_lines:],
+            "stderr": redact_window(stderr)[-max_lines:],
+            "dropped": dropped,
+        }
+        if dropped and session_id and log_ref:
+            payload["log_file"] = evicted_rel_path(session_id, log_ref)
         return payload
 
     async def wait_for_process(

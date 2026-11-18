@@ -2,14 +2,16 @@
 
 [INPUT]
 - agent.meta_tools.bash._background.line_assembler::LineAssembler (POS: byte chunks to whole lines plus the unfinished last line)
+- agent.meta_tools.bash._background.output_spill::BackgroundOutputSpillWriter (POS: full-output half of the output chain: the job's log, every line as printed, at the foreground evicted-file location)
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo (POS: job snapshot)
 - agent.meta_tools.bash._background.termination::GroupMember / leader_id_reassigned / snapshot_group_members (POS: identity of the processes a job's group still holds, and whether the leader's pid still belongs to the job)
+- agent.security.redact::redact_sensitive_text (POS: facade of the redaction domain; masks a progress message)
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: async process handle)
 
 [OUTPUT]
-- BackgroundRegistryEntry: Live registry row with ring buffers, the unfinished last line of each stream, spill writer, the leader's recorded identity and the processes the job left running
+- BackgroundRegistryEntry: Live registry row with ring buffers, the unfinished last line of each stream, log writer, the leader's recorded identity and the processes the job left running
 - UnfinishedTail: What a stream printed after its last newline, with the time it last changed
-- consume_background_entry: Read pipes in blocks until exit (whole lines go through redaction, spill, ring and progress parsing; the unfinished line stays visible), record what the job left running, persist terminal state, invoke finish hook
+- consume_background_entry: Read pipes in blocks until exit (whole lines go to the log and the ring as printed and through progress parsing; the unfinished line stays visible), record what the job left running, persist terminal state, close the log, invoke finish hook
 
 [POS]
 I/O consumer for BackgroundProcessRegistry — keeps registry orchestration separate from pipe reading.
@@ -37,6 +39,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     FinishListener,
     ProgressListener,
 )
+from myrm_agent_harness.agent.security.redact import redact_sensitive_text
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import (
@@ -171,13 +174,10 @@ async def consume_background_entry(
             )
 
     async def _record_line(line: str, stream_name: StreamName) -> None:
-        """A complete line goes through redaction, the spill log, the ring and the progress parser."""
-        from myrm_agent_harness.agent.security.redact import redact_sensitive_text
-
-        text = redact_sensitive_text(line)
+        """A complete line goes to the log and the ring as the program printed it; a read masks the secrets in it."""
         spill = entry.spill_writer
         if spill is not None:
-            spill.append_line(stream_name, text)
+            spill.append_line(stream_name, line)
             if spill.vault_log_ref and entry.info.vault_log_ref != spill.vault_log_ref:
                 entry.info.vault_log_ref = spill.vault_log_ref
                 from myrm_agent_harness.agent.meta_tools.bash._background.store_sync import (
@@ -185,8 +185,12 @@ async def consume_background_entry(
                 )
 
                 persist_vault_log_ref(entry.info)
-        entry.append_line(stream_name, text)
-        progress = try_parse_progress_line(text)
+        entry.append_line(stream_name, line)
+        progress = try_parse_progress_line(line)
+        if progress is not None:
+            # A progress message is shown outside the output reads, so it comes from the masked line: a message cut from
+            # the raw line could keep the start of a secret.
+            progress = try_parse_progress_line(redact_sensitive_text(line))
         if progress is not None:
             await _emit_progress(progress)
 
@@ -243,6 +247,10 @@ async def consume_background_entry(
         # would wait on it forever.
         if isinstance(sys.exc_info()[1], GeneratorExit):
             raise
+        # The log is complete before anything is told the job is over; whatever the log does, the job still settles.
+        if entry.spill_writer is not None:
+            with suppress(Exception):
+                entry.spill_writer.close()
         # Trailing flush: deliver un-emitted tail progress trapped by the 10Hz throttle before finish.
         tail_progress = entry.info.last_progress
         tail_updated_at = tail_progress.get("updated_at") if tail_progress is not None else None

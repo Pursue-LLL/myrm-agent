@@ -8,6 +8,7 @@ from typing import cast
 from unittest.mock import patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessRegistry,
@@ -42,15 +43,15 @@ def _clear_registry() -> None:
     )
 
     registry = get_background_registry()
-    registry._entries.clear()  # type: ignore[attr-defined]
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     yield
-    registry._entries.clear()  # type: ignore[attr-defined]
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
 
 
 @pytest.mark.asyncio
-async def test_registry_redacts_sensitive_output_at_write_time() -> None:
+async def test_registry_masks_secrets_when_the_output_is_read() -> None:
     registry = BackgroundProcessRegistry()
     secret_line = b"Authorization: Bearer sk-live-abcdefghijklmnopqrstuvwxyz\n"
     proc = FakeProc(pid=9001, stdout=[secret_line], stderr=[])
@@ -61,6 +62,9 @@ async def test_registry_redacts_sensitive_output_at_write_time() -> None:
     streams = registry.get_output(9001, max_lines=10)
     joined = " ".join(str(line) for line in streams["stdout"])
     assert "sk-live-abcdefghijklmnopqrstuvwxyz" not in joined
+    # The ring keeps what the program printed; the read is the only place it is masked.
+    ring = registry._entries[9001].stdout_buffer
+    assert any("sk-live-abcdefghijklmnopqrstuvwxyz" in line for line in ring)
 
 
 @pytest.mark.asyncio
@@ -86,7 +90,7 @@ async def test_registry_wait_respects_cap_and_still_running() -> None:
 @pytest.mark.asyncio
 async def test_count_running_scoped_by_session() -> None:
     registry = BackgroundProcessRegistry()
-    registry._entries.clear()  # type: ignore[attr-defined]
+    registry._entries.clear()
 
     await registry.register(
         cast(AsyncProcessProtocol, FakeProc(pid=1, stdout=[], stderr=[])),
@@ -139,7 +143,7 @@ async def test_bash_process_wait_action_on_finished_job() -> None:
     await asyncio.sleep(0.15)
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-wait"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-wait"}}}
     result = await tool.ainvoke({"action": "wait", "pid": 9010, "timeout_seconds": 5}, config=config)
     assert result["metadata"]["still_running"] is False
     assert result["content"]["exit_code"] == 0
@@ -153,7 +157,7 @@ def test_hooks_count_running_background_shell_jobs() -> None:
         "myrm_agent_harness.api.hooks.get_background_registry",
         return_value=registry,
     ):
-        registry._entries.clear()  # type: ignore[attr-defined]
+        registry._entries.clear()
         assert count_running_background_shell_jobs() == 0
 
 
@@ -266,7 +270,7 @@ async def test_bash_process_list_action() -> None:
     await registry.register(cast(AsyncProcessProtocol, proc), command="sleep 1", session_id="chat-list")
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-list"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-list"}}}
     result = await tool.ainvoke({"action": "list"}, config=config)
     assert result["content"]["count"] == 1
     assert result["content"]["processes"][0]["pid"] == 9030
@@ -280,7 +284,7 @@ async def test_bash_process_output_success() -> None:
     await asyncio.sleep(0.05)
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-out"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-out"}}}
     result = await tool.ainvoke({"action": "output", "pid": 9031}, config=config)
     assert result["content"]["stdout"]
 
@@ -292,7 +296,7 @@ async def test_bash_process_output_wrong_session() -> None:
     await registry.register(cast(AsyncProcessProtocol, proc), command="sleep", session_id="owner")
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "other"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "other"}}}
     result = await tool.ainvoke({"action": "output", "pid": 9032}, config=config)
     assert result["metadata"]["found"] is False
 
@@ -308,7 +312,7 @@ async def test_bash_process_wait_still_running_message() -> None:
     )
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-wait-run"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-wait-run"}}}
     result = await tool.ainvoke({"action": "wait", "pid": 9033, "timeout_seconds": 1}, config=config)
     assert result["metadata"]["still_running"] is True
     assert "still running" in str(result["content"]["message"]).lower()
@@ -321,7 +325,7 @@ async def test_bash_process_kill_success() -> None:
     await registry.register(cast(AsyncProcessProtocol, proc), command="sleep 999", session_id="chat-kill")
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-kill"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-kill"}}}
     with patch(
         "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
     ) as mock_kill:
@@ -337,7 +341,7 @@ async def test_bash_process_kill_wrong_session() -> None:
     await registry.register(cast(AsyncProcessProtocol, proc), command="sleep", session_id="owner-kill")
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "other-kill"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "other-kill"}}}
     result = await tool.ainvoke({"action": "kill", "pid": 9035}, config=config)
     assert result["metadata"]["found"] is False
 
@@ -345,7 +349,7 @@ async def test_bash_process_kill_wrong_session() -> None:
 @pytest.mark.asyncio
 async def test_bash_process_missing_pid_errors() -> None:
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-missing-pid"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-missing-pid"}}}
     result = await tool.ainvoke({"action": "output"}, config=config)
     assert result["metadata"]["error"] == "missing_pid"
 
@@ -357,7 +361,7 @@ async def test_bash_process_wait_wrong_session() -> None:
     await registry.register(cast(AsyncProcessProtocol, proc), command="sleep", session_id="owner-wait")
 
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "other-wait"}}}
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "other-wait"}}}
     result = await tool.ainvoke({"action": "wait", "pid": 9038, "timeout_seconds": 1}, config=config)
     assert result["metadata"]["found"] is False
 
@@ -365,9 +369,9 @@ async def test_bash_process_wait_wrong_session() -> None:
 @pytest.mark.asyncio
 async def test_bash_process_unknown_action_fallback() -> None:
     tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-unknown-action"}}}
-    result = await tool.coroutine(  # type: ignore[attr-defined]
-        action="bogus",  # type: ignore[arg-type]
+    config: RunnableConfig = {"configurable": {"context": {"session_id": "chat-unknown-action"}}}
+    result = await tool.coroutine(
+        action="bogus",
         pid=None,
         max_lines=100,
         timeout_seconds=30,

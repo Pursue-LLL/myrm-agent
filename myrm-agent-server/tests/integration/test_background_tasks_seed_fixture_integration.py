@@ -102,18 +102,23 @@ async def test_seed_shell_fixture_completed_with_vault_exposes_vault_log_ref() -
 
         chat_id = str(seed["chat_id"])
         vault_ref = str(listed["vault_log_ref"])
-        evicted_resp = await client.get(
-            "/api/v1/files/evicted",
-            params={
-                "chat_id": chat_id,
-                "filename": vault_ref,
-                "offset": 0,
-                "limit": 10,
-            },
-        )
-        assert evicted_resp.status_code == 200, evicted_resp.text
-        evicted_body = evicted_resp.json()
-        assert "MYRM_E2E_VAULT_LINE_0" in str(evicted_body.get("content", ""))
+
+        async def read_log(offset: int, limit: int) -> dict[str, object]:
+            response = await client.get(
+                "/api/v1/files/evicted",
+                params={"chat_id": chat_id, "filename": vault_ref, "offset": offset, "limit": limit},
+            )
+            assert response.status_code == 200, response.text
+            return response.json()
+
+        # The job printed 85 lines; the log the registry wrote holds all of them, from the first.
+        first_page = await read_log(0, 10)
+        assert str(first_page["content"]).splitlines()[0] == "MYRM_E2E_VAULT_LINE_0"
+        assert first_page["total_lines"] == 85
+        assert first_page["storage_truncated"] is False
+
+        last_page = await read_log(80, 10)
+        assert str(last_page["content"]).splitlines() == [f"MYRM_E2E_VAULT_LINE_{i}" for i in range(80, 85)]
 
 
 @pytest.mark.integration

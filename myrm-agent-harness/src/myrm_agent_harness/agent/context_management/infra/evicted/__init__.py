@@ -21,12 +21,15 @@ from myrm_agent_harness.agent.context_management.infra.evicted.content import (
     build_evicted_ref_payload,
     cap_content_for_storage,
     emit_evicted_ref,
+    evicted_rel_path,
     normalize_delivery_chat_id,
     persist_evicted_content,
+    resolve_evicted_target,
     sanitize_evicted_source,
     write_evicted_content_sync,
 )
 from myrm_agent_harness.agent.context_management.infra.evicted.markers import (
+    format_storage_cap_marker,
     probe_storage_cap_from_tail,
 )
 from myrm_agent_harness.agent.context_management.infra.evicted.persister import (
@@ -54,12 +57,15 @@ __all__ = [
     "cap_content_for_storage",
     "count_lines_in_text",
     "emit_evicted_ref",
+    "evicted_rel_path",
+    "format_storage_cap_marker",
     "normalize_delivery_chat_id",
     "persist_evicted_content",
     "persist_large_tool_output",
     "probe_storage_cap_from_tail",
     "read_evicted_file_meta",
     "read_evicted_line_range",
+    "resolve_evicted_target",
     "sanitize_evicted_source",
     "write_evicted_content_sync",
 ]

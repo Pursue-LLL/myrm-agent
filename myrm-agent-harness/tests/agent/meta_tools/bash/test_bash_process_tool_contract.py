@@ -5,17 +5,16 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import cast
 from unittest.mock import MagicMock, patch
 
 import pytest
 from langchain_core.messages import ToolMessage
+from langchain_core.runnables import RunnableConfig
 from pydantic import ValidationError
 
 import myrm_agent_harness.agent.meta_tools.bash._background.registry as registry_module
-from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import BackgroundOutputSpillWriter
 from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessRegistry,
@@ -37,34 +36,11 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncPro
 from tests.agent.meta_tools.bash.fake_background_proc import FakeOutputPipe, FakeProc, wait_until
 
 _SESSION = "contract-session"
-_CONFIG = {"configurable": {"context": {"session_id": _SESSION}}}
+_CONFIG: RunnableConfig = {"configurable": {"context": {"session_id": _SESSION}}}
 _EXECUTOR = "myrm_agent_harness.agent.middlewares.tooling.tool_executor"
-_SPILL_FILE = "output_contract.txt"
 
-
-@pytest.fixture(autouse=True)
-async def jobs() -> AsyncIterator[list[FakeProc]]:
-    """The fake jobs a test started; each one is finished at teardown so no reader task outlives its test."""
-    registry = get_background_registry()
-    registry._entries.clear()  # type: ignore[attr-defined]
-    started: list[FakeProc] = []
-    yield started
-    for proc in started:
-        proc.finish(0)
-    await asyncio.sleep(0.05)
-    registry._entries.clear()  # type: ignore[attr-defined]
-
-
-@pytest.fixture
-def spill_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
-    """Send a job's spill log to a temporary file; a job past 79 lines has no workspace to write into otherwise."""
-
-    def _paths(self: BackgroundOutputSpillWriter) -> None:
-        self._filename = _SPILL_FILE  # type: ignore[attr-defined]
-        self._abs_path = tmp_path / _SPILL_FILE  # type: ignore[attr-defined]
-
-    monkeypatch.setattr(BackgroundOutputSpillWriter, "_ensure_paths", _paths)
-    return _SPILL_FILE
+# Every test starts from an empty registry and leaves no reader task behind.
+pytestmark = pytest.mark.usefixtures("jobs")
 
 
 async def _start_job(jobs: list[FakeProc], pid: int, *, lines: int = 0) -> FakeProc:
@@ -86,7 +62,7 @@ async def _start_prompting_job(jobs: list[FakeProc], pid: int, *, prompt: bytes 
 
 
 def _schema() -> dict[str, dict[str, dict[str, object]]]:
-    return create_bash_process_tool().args_schema.model_json_schema()  # type: ignore[union-attr, return-value]
+    return create_bash_process_tool().args_schema.model_json_schema()  # type: ignore[union-attr]
 
 
 def test_schema_has_no_incremental_polling_or_filter_fields() -> None:
@@ -202,7 +178,7 @@ async def test_cancelling_a_wait_returns_at_once_and_leaves_the_job_running(jobs
 
 
 @pytest.mark.asyncio
-async def test_a_finished_wait_carries_what_output_carries(jobs: list[FakeProc], spill_log: str) -> None:
+async def test_a_finished_wait_carries_what_output_carries(jobs: list[FakeProc], workspace: Path) -> None:
     lines = OUTPUT_RING_LINES + 20
     proc = await _start_job(jobs, 71004, lines=lines)
     proc.finish(0)
@@ -214,7 +190,8 @@ async def test_a_finished_wait_carries_what_output_carries(jobs: list[FakeProc],
     for result in (waited, output):
         content = result["content"]
         assert content["dropped"] is True
-        assert content["spill_log_ref"] == spill_log
+        assert content["log_file"].startswith(f".context/{_SESSION}/evicted/output_")
+        assert (workspace / content["log_file"]).is_file()
         assert content["stdout"][-1] == f"line-{lines}"
     assert waited["content"]["stdout"] == output["content"]["stdout"]
 
@@ -230,7 +207,7 @@ async def test_a_finished_wait_of_a_short_job_is_not_dropped(jobs: list[FakeProc
 
     assert result["content"]["stdout"] == ["line-1", "line-2", "line-3"]
     assert result["content"]["dropped"] is False
-    assert "spill_log_ref" not in result["content"]
+    assert "log_file" not in result["content"]
 
 
 @pytest.mark.performance
@@ -315,8 +292,8 @@ async def test_the_idle_note_is_fixed_text_and_the_job_s_words_appear_once_in_th
 ) -> None:
     await _start_prompting_job(jobs, 71023)
     registry = get_background_registry()
-    with registry._lock:  # type: ignore[attr-defined]
-        registry._entries[71023].info.last_output_at = time.time() - INPUT_WAIT_IDLE_SECONDS - 2.0  # type: ignore[attr-defined]
+    with registry._lock:
+        registry._entries[71023].info.last_output_at = time.time() - INPUT_WAIT_IDLE_SECONDS - 2.0
 
     result = await create_bash_process_tool().ainvoke({"action": "output", "pid": 71023}, config=_CONFIG)
 
@@ -344,8 +321,8 @@ async def test_polling_a_job_redacts_nothing_and_a_read_redacts_its_unfinished_l
     with patch(f"{poll}.redact_sensitive_text", _counting):
         for _ in range(20):
             registry.get(71024)
-        with registry._lock:  # type: ignore[attr-defined]
-            snapshot_entry(registry._entries[71024])  # type: ignore[attr-defined]
+        with registry._lock:
+            snapshot_entry(registry._entries[71024])
         assert calls == []
 
         assert registry.get_partial_line(71024) == "Continue? [y/N]"

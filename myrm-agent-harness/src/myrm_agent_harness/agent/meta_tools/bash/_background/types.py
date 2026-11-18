@@ -16,7 +16,7 @@ so that:
 [OUTPUT]
 - BackgroundProcessInfo: Snapshot dataclass exposed to UI/LLM.
 - BackgroundQuotaError: Per-session concurrency cap breach.
-- OutputTail: What a job's output read returns: the newest lines of each stream and whether older ones fell off.
+- OutputTail: What a job's output read returns: the newest lines of each stream, whether older ones are missing, and the path of the log that holds them.
 - FinishListener / ProgressListener: Async callback type aliases used by
   the bash tool to bridge registry lifecycle events into ``ptc_notify`` UI
   updates.
@@ -98,10 +98,10 @@ class OutputTail(TypedDict):
 
     stdout: list[str]
     stderr: list[str]
-    # True once a stream produced more lines than its ring holds: the oldest lines are missing from this view.
+    # True once the oldest lines are missing from this view: a stream's ring turned over or its window was cut.
     dropped: bool
-    # Where the full output was written; present only when ``dropped`` and the job has a log.
-    spill_log_ref: NotRequired[str]
+    # Workspace-relative path of the log that holds them; present only when ``dropped`` and the job has a log.
+    log_file: NotRequired[str]
 
 
 @dataclass
@@ -159,8 +159,6 @@ class BackgroundProcessInfo:
             payload["error_category"] = self.error_category
         if self.last_progress is not None:
             payload["last_progress"] = self.last_progress
-        if self.vault_log_ref is not None:
-            payload["vault_log_ref"] = self.vault_log_ref
         if self.leftover_processes:
             payload["leftover_processes"] = self.leftover_processes
         if self.status == "running":

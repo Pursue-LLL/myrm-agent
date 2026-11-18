@@ -1,13 +1,14 @@
 """Action handlers of ``bash_process_tool``: list, output, wait, kill and stdin on a session's background jobs.
 
 [INPUT]
+- agent.context_management.infra.evicted::evicted_rel_path (POS: where an evicted file lives; names the log of a listed job)
 - agent.meta_tools.bash._background.registry::BackgroundProcessRegistry / get_background_registry (POS: registry singleton; ``get_partial_line`` is the unfinished last line of a running job)
 - agent.meta_tools.bash._background.termination::GROUP_VISIBLE (POS: whether the platform can list a job's process group)
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo / OutputTail / build_input_wait_hint (POS: shared dataclasses & typing.)
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
-- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, the full log's reference); ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
+- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, ``log_file`` when lines are missing and the job has a log), ``list`` names each job's ``log_file``; ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
 - kill_report: the text a kill returns to the model, stating what the stop actually achieved
 
 [POS]
@@ -16,6 +17,7 @@ Session-scoped handlers behind the ``bash_process_tool`` facade, which owns the 
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.context_management.infra.evicted import evicted_rel_path
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessRegistry,
     get_background_registry,
@@ -34,15 +36,15 @@ _NONE_FOUND = "no process it started was found still running (programs that deta
 
 
 def _stream_fields(streams: OutputTail) -> dict[str, object]:
-    """What a read of a job's output adds to a result: both streams, whether older lines fell off, the full log."""
+    """What a read of a job's output adds to a result: both streams, whether older lines are missing, the log with them."""
     fields: dict[str, object] = {
         "stdout": streams["stdout"],
         "stderr": streams["stderr"],
         "dropped": streams["dropped"],
     }
-    spill_log_ref = streams.get("spill_log_ref")
-    if spill_log_ref:
-        fields["spill_log_ref"] = spill_log_ref
+    log_file = streams.get("log_file")
+    if log_file:
+        fields["log_file"] = log_file
     return fields
 
 
@@ -58,12 +60,20 @@ def _running_fields(registry: BackgroundProcessRegistry, info: BackgroundProcess
     return fields
 
 
+def _listed(info: BackgroundProcessInfo) -> dict[str, object]:
+    """One job as ``list`` shows it: its state, and the log of its output once it has one."""
+    row = info.to_dict()
+    if info.session_id and info.vault_log_ref:
+        row["log_file"] = evicted_rel_path(info.session_id, info.vault_log_ref)
+    return row
+
+
 async def handle_list(session_id: str) -> dict[str, object]:
     registry = get_background_registry()
     items = registry.list_processes(session_id=session_id)
     return {
         "content": {
-            "processes": [i.to_dict() for i in items],
+            "processes": [_listed(i) for i in items],
             "count": len(items),
         },
         "metadata": {"session_id": session_id, "action": "list"},
