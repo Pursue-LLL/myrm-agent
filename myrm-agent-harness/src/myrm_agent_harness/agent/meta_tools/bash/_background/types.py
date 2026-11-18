@@ -23,6 +23,8 @@ so that:
 - OUTPUT_RING_LINES / WAIT_MAX_SECONDS / INPUT_WAIT_IDLE_SECONDS: the limits ``bash_process_tool`` reports
   to the model (how many lines of a stream a job keeps, the longest one ``wait`` blocks, how long a silent
   job with open stdin waits before it is flagged).
+- compute_waiting_for_input / build_input_wait_hint: whether a silent job with open stdin is flagged, and the
+  note sent with the flag (the job may be waiting for input or just quiet; how to answer it or ignore it).
 
 [POS]
 PTC-adjacent runtime helper. Pure data types and the limits shared by the registry and the tool's schema and
@@ -66,14 +68,15 @@ def compute_waiting_for_input(
 
 
 def build_input_wait_hint(info: BackgroundProcessInfo) -> str:
-    """Human-readable nudge when a running job may be blocked on stdin (output poll)."""
+    """The note sent with ``waiting_for_input``: a silent job with open stdin is waiting for input or just quiet."""
     if not info.waiting_for_input:
         return ""
     anchor = info.last_output_at if info.last_output_at > 0 else info.started_at
     idle_sec = max(0, int(time.time() - anchor))
     return (
-        f"No new output for {idle_sec}s; this job may be waiting for stdin. "
-        "Use write_stdin, submit_stdin, close_stdin, or the Activity panel Send input."
+        f"No new output for {idle_sec} s and stdin is open: the job may be waiting for input, or just quiet. "
+        "If waiting, answer with submit_stdin (text + Enter; write_stdin sends raw text, close_stdin sends EOF) "
+        "or the Activity panel Send input; if quiet, ignore this hint."
     )
 
 

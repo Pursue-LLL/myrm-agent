@@ -5,7 +5,7 @@ via ``bash_code_execute_tool(run_in_background=True)``.
 
 [INPUT]
 - agent.meta_tools.bash._tool.process_handlers::handle_list / handle_output / handle_wait / handle_kill / handle_stdin (POS: session-scoped action handlers)
-- agent.meta_tools.bash._background.types::OUTPUT_RING_LINES / WAIT_MAX_SECONDS (POS: the limits the schema and the descriptions state)
+- agent.meta_tools.bash._background.types::OUTPUT_RING_LINES / WAIT_MAX_SECONDS / INPUT_WAIT_IDLE_SECONDS (POS: the limits the schema and the descriptions state)
 - core.security.ocap::check_capability_access (POS: the active capability handle; acting on a job needs EXECUTE)
 - runtime context (POS: session_id from RunnableConfig)
 
@@ -27,7 +27,11 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
-from myrm_agent_harness.agent.meta_tools.bash._background.types import OUTPUT_RING_LINES, WAIT_MAX_SECONDS
+from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    INPUT_WAIT_IDLE_SECONDS,
+    OUTPUT_RING_LINES,
+    WAIT_MAX_SECONDS,
+)
 from myrm_agent_harness.agent.meta_tools.bash._tool.process_handlers import (
     OUTPUT_DEFAULT_LINES,
     handle_kill,
@@ -45,6 +49,7 @@ if TYPE_CHECKING:
 BASH_PROCESS_TOOL_NAME = "bash_process_tool"
 
 _WAIT_DEFAULT_SECONDS = 30
+_IDLE_SECONDS = int(INPUT_WAIT_IDLE_SECONDS)
 
 _BASH_PROCESS_ACTIONS = Literal[
     "list",
@@ -62,11 +67,7 @@ _BASH_PROCESS_ACTIONS = Literal[
 _OBSERVING_ACTIONS = frozenset({"list", "output", "wait"})
 
 _MISSING_SESSION_PAYLOAD: dict[str, object] = {
-    "content": (
-        "Background process tools require a bound session_id. "
-        "This protects multi-tenant isolation: a missing session_id would "
-        "otherwise surface processes from other chats."
-    ),
+    "content": "Background process tools are unavailable: no session_id is bound to this call.",
     "metadata": {"error": "missing_session_id"},
 }
 
@@ -85,11 +86,9 @@ class _BashProcessInput(BaseModel):
     action: _BASH_PROCESS_ACTIONS = Field(
         description=(
             "list: all background jobs in this session (includes last_progress when available); "
-            "output: tail stdout/stderr for pid; if waiting_for_input=true read input_wait_hint "
-            "and use submit_stdin (do not blind-poll); "
-            f"wait: block until pid exits or timeout_seconds (max {WAIT_MAX_SECONDS}); if still_running with "
-            "waiting_for_input=true use submit_stdin; "
-            "kill: stop pid (SIGTERM unless force=true); "
+            "output: tail stdout/stderr for pid; "
+            f"wait: block until pid exits or timeout_seconds (max {WAIT_MAX_SECONDS}); "
+            "kill: stop pid (SIGTERM, then SIGKILL; force=true: SIGKILL at once); "
             "write_stdin: send raw bytes to pid stdin (no newline); "
             "submit_stdin: send data plus Enter (for y/n prompts); "
             "close_stdin: send EOF to close stdin."
@@ -99,8 +98,8 @@ class _BashProcessInput(BaseModel):
         default=None,
         description=(
             "Required for output, wait, kill, and stdin actions. "
-            "MUST be the integer pid returned by list/output as the 'pid' field — "
-            "do not pass a string like '97e6d410' (that is a job id, not a pid)."
+            "MUST be the integer pid (from the start message, list or output), not the job_id: "
+            "do not pass a string like '97e6d410'."
         ),
         ge=1,
     )
@@ -129,20 +128,27 @@ class _BashProcessInput(BaseModel):
 
 
 _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
-    "Manage background bash processes started with bash_code_execute_tool(run_in_background=true). "
-    "When output or wait returns waiting_for_input=true, read input_wait_hint and answer with "
-    "submit_stdin (do not blind-poll). "
-    "Actions: list (session jobs + last_progress), output (tail of stdout/stderr), "
-    f"wait (block until exit or timeout_seconds, max {WAIT_MAX_SECONDS}), kill (SIGTERM or force SIGKILL), "
-    "write_stdin (raw stdin), submit_stdin (stdin + Enter), close_stdin (EOF)."
+    "Manage background bash processes started with bash_code_execute_tool(run_in_background=true) "
+    "or auto-detached by it after yield_after_seconds. "
+    "Actions: list (session jobs + last_progress), output (tail of stdout/stderr, returns immediately), "
+    f"wait (block until exit or timeout_seconds, max {WAIT_MAX_SECONDS}), "
+    "kill (SIGTERM, then SIGKILL if it does not exit; force=true sends SIGKILL at once), "
+    "write_stdin (raw stdin), submit_stdin (stdin + Enter), close_stdin (EOF). "
+    f"waiting_for_input=true only means no output for {_IDLE_SECONDS} s while stdin is open: "
+    "the job may be waiting for input or just quiet. "
+    "If the command is expected to prompt or its latest output asks a question, "
+    "answer with submit_stdin; otherwise ignore the flag."
 )
 
 _BASH_PROCESS_TOOL_DESCRIPTION_ZH = (
-    "管理通过 bash_code_execute_tool(run_in_background=true) 启动的后台进程。"
-    "当 output 或 wait 返回 waiting_for_input=true 时，根据 input_wait_hint 使用 submit_stdin 响应（切勿盲目轮询）。"
-    "操作：list（会话任务与 last_progress），output（查看 stdout/stderr 末尾），"
-    f"wait（阻塞等待结束或达到 timeout_seconds，最大 {WAIT_MAX_SECONDS}s），kill（默认 SIGTERM，force 时发送 SIGKILL），"
-    "write_stdin（原始 stdin），submit_stdin（stdin+换行），close_stdin（EOF）。"
+    "管理通过 bash_code_execute_tool(run_in_background=true) 启动、"
+    "或在 yield_after_seconds 后被它自动转入后台的后台进程。"
+    "操作：list（会话任务与 last_progress），output（stdout/stderr 末尾，立即返回），"
+    f"wait（阻塞等待结束或达到 timeout_seconds，最大 {WAIT_MAX_SECONDS} 秒），"
+    "kill（先发 SIGTERM，不退出则升级为 SIGKILL；force=true 直接发 SIGKILL），"
+    "write_stdin（原始 stdin），submit_stdin（stdin+回车），close_stdin（EOF）。"
+    f"waiting_for_input=true 只表示 stdin 仍开着且已 {_IDLE_SECONDS} 秒无输出：任务要么在等输入，要么只是安静。"
+    "命令本应提问、或最新输出是个问句时，用 submit_stdin 应答；否则忽略该标记。"
 )
 
 

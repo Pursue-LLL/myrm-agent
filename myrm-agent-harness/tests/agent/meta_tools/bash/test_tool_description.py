@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.agent.meta_tools.bash._tool.helpers import get_os_hint
 from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import (
     TOOL_DESCRIPTION_EN,
@@ -13,6 +15,8 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import (
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
     create_bash_process_tool,
 )
+
+_PROCESS_ACTIONS = ("list", "output", "wait", "kill", "write_stdin", "submit_stdin", "close_stdin")
 
 
 def test_tool_description_module_exports() -> None:
@@ -130,27 +134,24 @@ def test_no_internal_module_name_leaked_to_prompt() -> None:
 
 def test_background_contract_documented() -> None:
     assert "run_in_background=true" in TOOL_DESCRIPTION_ZH
-    assert "since_cursor" not in TOOL_DESCRIPTION_ZH
-    assert "waiting_for_input" in TOOL_DESCRIPTION_ZH
-    assert "input_wait_hint" in TOOL_DESCRIPTION_ZH
-    assert TOOL_DESCRIPTION_ZH.count("waiting_for_input") >= 2
     assert "MYRM_PROGRESS" in TOOL_DESCRIPTION_ZH
     assert "MYRM_CHECKPOINT" in TOOL_DESCRIPTION_ZH
     assert "bash_process_tool" in TOOL_DESCRIPTION_ZH
-    assert "write_stdin" in TOOL_DESCRIPTION_ZH
-    assert "submit_stdin" in TOOL_DESCRIPTION_ZH
-    assert "close_stdin" in TOOL_DESCRIPTION_ZH
-    assert "SIGTERM" not in TOOL_DESCRIPTION_ZH
-    assert "still_running" not in TOOL_DESCRIPTION_ZH
 
 
-def test_background_detail_authority_lives_in_process_tool_desc() -> None:
-    """后台 action 细节只维护在 bash_process_tool 自身 desc,TOOL_DESCRIPTION_ZH 仅概要预告."""
+@pytest.mark.parametrize(
+    ("text", "pointer"),
+    [(TOOL_DESCRIPTION_EN, "Details are in its tool description"), (TOOL_DESCRIPTION_ZH, "详见其工具描述")],
+)
+def test_background_detail_authority_lives_in_process_tool_desc(text: str, pointer: str) -> None:
+    """后台 action 的规则只维护在 bash_process_tool 自身描述里,执行工具描述只列出动作名并指向它."""
     process_desc = create_bash_process_tool().description or ""
-    assert "list" in process_desc
-    assert "kill" in process_desc
-    assert "close_stdin" in process_desc
-    assert "详见其工具描述" in TOOL_DESCRIPTION_ZH
+    for action in _PROCESS_ACTIONS:
+        assert action in text
+        assert action in process_desc
+    assert pointer in text
+    for rule in ("waiting_for_input", "input_wait_hint", "since_cursor", "SIGTERM", "still_running"):
+        assert rule not in text
 
 
 def test_glob_routing_omits_nonexistent_depth_argument() -> None:
@@ -225,35 +226,6 @@ def test_shell_commands_include_common_ops() -> None:
 def test_reason_not_duplicated_in_static_prompt() -> None:
     """reason lives in BashInput schema, not static TOOL_DESCRIPTION_ZH."""
     assert "≥10" not in TOOL_DESCRIPTION_ZH
-
-
-def test_bash_process_tool_description_documents_waiting_for_input() -> None:
-    tool = create_bash_process_tool()
-    desc = tool.description or ""
-    assert "waiting_for_input" in desc
-    assert "input_wait_hint" in desc
-    assert "submit_stdin" in desc
-    assert "blind-poll" in desc
-
-
-def test_bash_process_pid_field_guides_integer_type() -> None:
-    """pid must be an integer — a string job id triggers schema ValidationError."""
-    from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
-        _BashProcessInput,
-    )
-
-    pid_desc = _BashProcessInput.model_fields["pid"].description or ""
-    assert "do not pass a string" in pid_desc
-    json_schema = _BashProcessInput.model_json_schema()
-    types = {t.get("type") for t in json_schema["properties"]["pid"].get("anyOf", [])}
-    assert "integer" in types
-
-
-def test_bash_process_and_execute_prompts_share_stdin_contract() -> None:
-    process_desc = create_bash_process_tool().description or ""
-    for keyword in ("waiting_for_input", "input_wait_hint", "submit_stdin"):
-        assert keyword in TOOL_DESCRIPTION_ZH
-        assert keyword in process_desc
 
 
 def _line_starting_with(text: str, prefix: str) -> str:

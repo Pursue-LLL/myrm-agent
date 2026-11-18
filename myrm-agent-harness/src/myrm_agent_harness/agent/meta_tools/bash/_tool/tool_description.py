@@ -130,8 +130,6 @@ asyncio.run(main())
 
 配套工具 `bash_process_tool` 提供 7 个 action:list(会话内全部任务,含 `last_progress`) / output / wait / kill / write_stdin / submit_stdin / close_stdin — 参数与规则详见其工具描述。
 
-**关键**:output/wait 返回 `waiting_for_input=true` 时,读 `input_wait_hint` 并用 `submit_stdin` 应答,勿盲轮询;`waiting_for_input=false` 时正常拉输出/等待即可。
-
 ### 零 token 进度上报
 
 后台脚本若 `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'`(或 `{"current": 3, "total": 10}`),自动显示进度条,无需 LLM 参与。检查点用 `MYRM_CHECKPOINT {"message": "..."}`。
@@ -211,8 +209,7 @@ Prefer `/workspace/...` (default working directory) in commands and Python code.
 ## Background Tasks (Optional)
 For dev servers, watchers, or long jobs, pass `run_in_background=true` to return `{pid, status}` immediately without blocking. Max 5 concurrent jobs per session. For long test/build commands, pass `yield_after_seconds=N` (default 10s, 0 to disable) to transition to background if still running.
 **Note**: Do NOT append `&` at the end of the command when `run_in_background=true` (the tool handles backgrounding automatically).
-Use `bash_process_tool` to manage background jobs: `list` (includes `last_progress`), `output`, `wait`, `kill`, `write_stdin`, `submit_stdin`, `close_stdin`.
-When output/wait returns `waiting_for_input=true`, check `input_wait_hint` and respond using `submit_stdin` (do not poll blindly); when `waiting_for_input=false`, continue polling output or waiting normally.
+Use `bash_process_tool` to manage background jobs: `list` (includes `last_progress`), `output`, `wait`, `kill`, `write_stdin`, `submit_stdin`, `close_stdin`. Details are in its tool description.
 
 ### Progress Reporting
 Background scripts can emit `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'` (or `{"current": 3, "total": 10}`) to automatically update UI progress bars without LLM turns. Use `MYRM_CHECKPOINT {"message": "..."}` for checkpoints.

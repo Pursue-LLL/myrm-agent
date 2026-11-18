@@ -8,7 +8,7 @@ bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退�
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | `__init__.py` | Package | 域包入口，不导出符号；调用方按模块路径导入。 | — |
-| `tool_description.py` | Internal | 静态缓存稳定的工具描述 `TOOL_DESCRIPTION_EN` / `TOOL_DESCRIPTION_ZH`，`resolve_bash_code_execute_tool_description` 按 locale 取其一（能力与交互式程序的出路/独立与未知返回的批量观察规则/每次调用留给下一次的状态/后台任务/eviction 读取提示）。 | ✅ |
+| `tool_description.py` | Internal | 静态缓存稳定的工具描述 `TOOL_DESCRIPTION_EN` / `TOOL_DESCRIPTION_ZH`，`resolve_bash_code_execute_tool_description` 按 locale 取其一（能力与交互式程序的出路/独立与未知返回的批量观察规则/每次调用留给下一次的状态/后台任务入口与进度标记、动作名并指向 `bash_process_tool` 的描述/eviction 读取提示）。 | ✅ |
 | `formatting.py` | Core | 输出压缩编排、截断、脱敏、wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS` 做硬截断。`read_exit_code()` 是 `format_result` 的读回端：只认工具自己追加在输出块末尾的 `[exit_code: N]`（其后至多跟一行 `[Auto-Hint]`），输出里同形的文字不算；没有该行的完成输出为 0，后台未结束、报错文本与非 bash 结果为 None。 | ✅ |
 | `exit_semantics.py` | Core | Exit-code 语义解释（grep=1、git diff、信号）。 | ✅ |
 | `terminal_hints.py` | Core | 输出模式故障自愈诊断与伪成功（Masked Success）防护。 | ✅ |
