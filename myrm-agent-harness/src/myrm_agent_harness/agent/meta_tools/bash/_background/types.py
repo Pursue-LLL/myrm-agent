@@ -20,8 +20,9 @@ so that:
 - FinishListener / ProgressListener: Async callback type aliases used by
   the bash tool to bridge registry lifecycle events into ``ptc_notify`` UI
   updates.
-- OUTPUT_RING_LINES / INPUT_WAIT_IDLE_SECONDS: the limits ``bash_process_tool`` reports to the model
-  (how many lines of a stream a job keeps, how long a silent job with open stdin waits before it is flagged).
+- OUTPUT_RING_LINES / WAIT_MAX_SECONDS / INPUT_WAIT_IDLE_SECONDS: the limits ``bash_process_tool`` reports
+  to the model (how many lines of a stream a job keeps, the longest one ``wait`` blocks, how long a silent
+  job with open stdin waits before it is flagged).
 
 [POS]
 PTC-adjacent runtime helper. Pure data types and the limits shared by the registry and the tool's schema and
@@ -37,6 +38,11 @@ from typing import NotRequired, TypedDict
 
 # Lines of each stream a job keeps for ``output`` (the newest ones); older lines fall off the ring.
 OUTPUT_RING_LINES = 200
+
+# The longest one ``wait`` blocks. It stays under the 120 s deadline the tool executor gives ``bash*`` tools
+# (``get_tool_timeout``): a call that reaches the deadline is cut off and retried, so a limit at or above it
+# would never return its own ``still_running`` result.
+WAIT_MAX_SECONDS = 100
 
 # Idle time after last stdout/stderr before a running job is flagged as likely waiting for stdin.
 INPUT_WAIT_IDLE_SECONDS = 15.0
@@ -164,6 +170,7 @@ ProgressListener = Callable[[BackgroundProcessInfo, dict[str, object]], Awaitabl
 __all__ = [
     "INPUT_WAIT_IDLE_SECONDS",
     "OUTPUT_RING_LINES",
+    "WAIT_MAX_SECONDS",
     "BackgroundProcessInfo",
     "BackgroundQuotaError",
     "FinishListener",

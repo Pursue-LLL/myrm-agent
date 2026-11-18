@@ -59,6 +59,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_e
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import leader_identity, own_identity
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     OUTPUT_RING_LINES,
+    WAIT_MAX_SECONDS,
     BackgroundProcessInfo,
     BackgroundQuotaError,
     FinishListener,
@@ -78,7 +79,6 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_PER_SESSION_LIMIT = 5  # Soft cap; raise via env if a power-user complains.
 _DEFAULT_REAP_DELAY_SECONDS = 300.0  # Exited entries are purged from the registry after this idle window.
-_WAIT_MAX_SECONDS = 30.0
 
 
 class BackgroundProcessRegistry(RegistryLifecycleMixin):
@@ -231,8 +231,8 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
         *,
         timeout_seconds: float,
     ) -> dict[str, object]:
-        """Wait until a background job exits or ``timeout_seconds`` (capped at 30 s) elapses."""
-        return await wait_for_exit(self.get, pid, timeout_seconds=timeout_seconds, max_seconds=_WAIT_MAX_SECONDS)
+        """Wait until a background job exits or ``timeout_seconds`` (capped at ``WAIT_MAX_SECONDS``) elapses."""
+        return await wait_for_exit(self.get, pid, timeout_seconds=timeout_seconds, max_seconds=WAIT_MAX_SECONDS)
 
     async def write_stdin(
         self,

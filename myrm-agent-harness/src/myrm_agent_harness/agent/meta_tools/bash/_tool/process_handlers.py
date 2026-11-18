@@ -3,11 +3,11 @@
 [INPUT]
 - agent.meta_tools.bash._background.registry::get_background_registry (POS: registry singleton)
 - agent.meta_tools.bash._background.termination::GROUP_VISIBLE (POS: whether the platform can list a job's process group)
-- agent.meta_tools.bash._background.types::build_input_wait_hint (POS: shared dataclasses & typing.)
+- agent.meta_tools.bash._background.types::OutputTail / build_input_wait_hint (POS: shared dataclasses & typing.)
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
-- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
+- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, the full log's reference); ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
 - kill_report: the text a kill returns to the model, stating what the stop actually achieved
 
 [POS]
@@ -21,6 +21,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import GROUP_VISIBLE
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    OutputTail,
     build_input_wait_hint,
 )
 
@@ -28,6 +29,19 @@ OUTPUT_DEFAULT_LINES = 100
 
 # A process that started its own session is out of the job's reach, so a stop cannot vouch for it.
 _NONE_FOUND = "no process it started was found still running (programs that detached themselves are not tracked)"
+
+
+def _stream_fields(streams: OutputTail) -> dict[str, object]:
+    """What a read of a job's output adds to a result: both streams, whether older lines fell off, the full log."""
+    fields: dict[str, object] = {
+        "stdout": streams["stdout"],
+        "stderr": streams["stderr"],
+        "dropped": streams["dropped"],
+    }
+    spill_log_ref = streams.get("spill_log_ref")
+    if spill_log_ref:
+        fields["spill_log_ref"] = spill_log_ref
+    return fields
 
 
 async def handle_list(session_id: str) -> dict[str, object]:
@@ -51,19 +65,13 @@ async def handle_output(session_id: str, pid: int, max_lines: int) -> dict[str, 
             "metadata": {"pid": pid, "found": False, "action": "output"},
         }
 
-    streams = registry.get_output(pid, max_lines=max_lines)
     content: dict[str, object] = {
         "pid": pid,
         "status": info.status,
         "exit_code": info.exit_code,
         "error_category": info.error_category,
-        "stdout": streams["stdout"],
-        "stderr": streams["stderr"],
-        "dropped": streams["dropped"],
     }
-    spill_log_ref = streams.get("spill_log_ref")
-    if spill_log_ref:
-        content["spill_log_ref"] = spill_log_ref
+    content.update(_stream_fields(registry.get_output(pid, max_lines=max_lines)))
     if info.leftover_processes:
         content["leftover_processes"] = info.leftover_processes
     if info.status == "running":
@@ -106,9 +114,7 @@ async def handle_wait(session_id: str, pid: int, timeout_seconds: int) -> dict[s
             if hint:
                 content["input_wait_hint"] = hint
     else:
-        streams = registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)
-        content["stdout"] = streams["stdout"]
-        content["stderr"] = streams["stderr"]
+        content.update(_stream_fields(registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)))
         # The job may have finished during the wait, so what it left running is read now, not from the first snapshot.
         finished = registry.get(pid)
         if finished is not None and finished.leftover_processes:

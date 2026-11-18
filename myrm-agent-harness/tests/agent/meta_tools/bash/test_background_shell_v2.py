@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import cast
 from unittest.mock import patch
 
@@ -72,12 +73,14 @@ async def test_registry_wait_respects_cap_and_still_running() -> None:
     assert result["still_running"] is True
     assert result["status"] == "running"
 
+    started = time.monotonic()
     with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.registry._WAIT_MAX_SECONDS",
+        "myrm_agent_harness.agent.meta_tools.bash._background.registry.WAIT_MAX_SECONDS",
         0.3,
     ):
         capped = await registry.wait_for_process(9002, timeout_seconds=999)
     assert capped["still_running"] is True
+    assert time.monotonic() - started < 3.0
 
 
 @pytest.mark.asyncio

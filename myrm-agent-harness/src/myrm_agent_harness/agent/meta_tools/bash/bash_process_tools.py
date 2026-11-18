@@ -5,6 +5,7 @@ via ``bash_code_execute_tool(run_in_background=True)``.
 
 [INPUT]
 - agent.meta_tools.bash._tool.process_handlers::handle_list / handle_output / handle_wait / handle_kill / handle_stdin (POS: session-scoped action handlers)
+- agent.meta_tools.bash._background.types::OUTPUT_RING_LINES / WAIT_MAX_SECONDS (POS: the limits the schema and the descriptions state)
 - core.security.ocap::check_capability_access (POS: the active capability handle; acting on a job needs EXECUTE)
 - runtime context (POS: session_id from RunnableConfig)
 
@@ -26,6 +27,7 @@ from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
+from myrm_agent_harness.agent.meta_tools.bash._background.types import OUTPUT_RING_LINES, WAIT_MAX_SECONDS
 from myrm_agent_harness.agent.meta_tools.bash._tool.process_handlers import (
     OUTPUT_DEFAULT_LINES,
     handle_kill,
@@ -42,9 +44,7 @@ if TYPE_CHECKING:
 
 BASH_PROCESS_TOOL_NAME = "bash_process_tool"
 
-_OUTPUT_MAX_LINES = 500
 _WAIT_DEFAULT_SECONDS = 30
-_WAIT_MAX_SECONDS = 120
 
 _BASH_PROCESS_ACTIONS = Literal[
     "list",
@@ -87,7 +87,7 @@ class _BashProcessInput(BaseModel):
             "list: all background jobs in this session (includes last_progress when available); "
             "output: tail stdout/stderr for pid; if waiting_for_input=true read input_wait_hint "
             "and use submit_stdin (do not blind-poll); "
-            "wait: block until pid exits or timeout_seconds (max 120); if still_running with "
+            f"wait: block until pid exits or timeout_seconds (max {WAIT_MAX_SECONDS}); if still_running with "
             "waiting_for_input=true use submit_stdin; "
             "kill: stop pid (SIGTERM unless force=true); "
             "write_stdin: send raw bytes to pid stdin (no newline); "
@@ -106,15 +106,15 @@ class _BashProcessInput(BaseModel):
     )
     max_lines: int = Field(
         default=OUTPUT_DEFAULT_LINES,
-        description=f"For output: tail size per stream (1-{_OUTPUT_MAX_LINES}).",
+        description=f"For output: tail size per stream (1-{OUTPUT_RING_LINES}).",
         ge=1,
-        le=_OUTPUT_MAX_LINES,
+        le=OUTPUT_RING_LINES,
     )
     timeout_seconds: int = Field(
         default=_WAIT_DEFAULT_SECONDS,
-        description=f"For wait: seconds to block (1-{_WAIT_MAX_SECONDS}). Returns still_running on timeout.",
+        description=f"For wait: seconds to block (1-{WAIT_MAX_SECONDS}). Returns still_running on timeout.",
         ge=1,
-        le=_WAIT_MAX_SECONDS,
+        le=WAIT_MAX_SECONDS,
     )
     force: bool = Field(
         default=False,
@@ -133,7 +133,7 @@ _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
     "When output or wait returns waiting_for_input=true, read input_wait_hint and answer with "
     "submit_stdin (do not blind-poll). "
     "Actions: list (session jobs + last_progress), output (tail of stdout/stderr), "
-    "wait (block until exit or timeout_seconds, max 120), kill (SIGTERM or force SIGKILL), "
+    f"wait (block until exit or timeout_seconds, max {WAIT_MAX_SECONDS}), kill (SIGTERM or force SIGKILL), "
     "write_stdin (raw stdin), submit_stdin (stdin + Enter), close_stdin (EOF)."
 )
 
@@ -141,7 +141,7 @@ _BASH_PROCESS_TOOL_DESCRIPTION_ZH = (
     "管理通过 bash_code_execute_tool(run_in_background=true) 启动的后台进程。"
     "当 output 或 wait 返回 waiting_for_input=true 时，根据 input_wait_hint 使用 submit_stdin 响应（切勿盲目轮询）。"
     "操作：list（会话任务与 last_progress），output（查看 stdout/stderr 末尾），"
-    "wait（阻塞等待结束或达到 timeout_seconds，最大 120s），kill（默认 SIGTERM，force 时发送 SIGKILL），"
+    f"wait（阻塞等待结束或达到 timeout_seconds，最大 {WAIT_MAX_SECONDS}s），kill（默认 SIGTERM，force 时发送 SIGKILL），"
     "write_stdin（原始 stdin），submit_stdin（stdin+换行），close_stdin（EOF）。"
 )
 
