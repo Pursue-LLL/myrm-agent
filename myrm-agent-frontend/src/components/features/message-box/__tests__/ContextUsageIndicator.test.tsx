@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import ContextUsageIndicator from '../ContextUsageIndicator';
-import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import type { ContextHealth } from '@/services/contextHealth';
 import type { ContextHealthStatus } from '@/store/chat/types';
 import type { ContextBudget } from '@/store/chat/types/contextMetrics';
@@ -15,10 +14,8 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
   return key;
 });
 const mockGetSessionAnalytics = vi.hoisted(() => vi.fn());
-const mockCompactChat = vi.hoisted(() => vi.fn());
 const mockGetContextPins = vi.hoisted(() => vi.fn());
 const mockSetContextPins = vi.hoisted(() => vi.fn());
-const mockRefreshCompactionState = vi.hoisted(() => vi.fn());
 
 vi.mock('next-intl', () => ({
   useTranslations: () => translate,
@@ -29,7 +26,6 @@ vi.mock('@/services/statistics', () => ({
 }));
 
 vi.mock('@/services/chat', () => ({
-  compactChat: mockCompactChat,
   getContextPins: mockGetContextPins,
   setContextPins: mockSetContextPins,
 }));
@@ -87,10 +83,7 @@ vi.mock('@/store/useChatStore', () => ({
       return mockChatState;
     },
     {
-      getState: () => ({
-        ...mockChatState,
-        refreshCompactionState: mockRefreshCompactionState,
-      }),
+      getState: () => mockChatState,
     },
   ),
 }));
@@ -222,7 +215,6 @@ describe('ContextUsageIndicator', () => {
     mockGetSessionAnalytics.mockResolvedValue({ context_health: mockHealthy });
     mockGetContextPins.mockResolvedValue({ files: [] });
     mockSetContextPins.mockResolvedValue({ files: [] });
-    mockRefreshCompactionState.mockResolvedValue(undefined);
   });
 
   describe('rendering conditions', () => {
@@ -403,208 +395,6 @@ describe('ContextUsageIndicator', () => {
 
       await user.click(screen.getByText('viewDetails'));
       expect(mockChatState.setActiveSessionAnalyticsId).toHaveBeenCalledWith('test-chat-123');
-    });
-  });
-
-  describe('manual compression', () => {
-    it('shows compress button disabled when usage < 30%', async () => {
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        expect(screen.getByText('compressContext')).toBeInTheDocument();
-      });
-
-      const btn = screen.getByText('compressContext').closest('button');
-      expect(btn).toBeDisabled();
-    });
-
-    it('shows compress button enabled when usage >= 30%', async () => {
-      mockChatState.messages = [
-        {
-          role: 'assistant' as const,
-          contextBudget: {
-            current_tokens: 50000,
-            max_context_tokens: 128000,
-            usage_percent: 39,
-            health_status: 'healthy' as const,
-          },
-        },
-      ];
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        const btn = screen.getByText('compressContext').closest('button');
-        expect(btn).not.toBeDisabled();
-      });
-    });
-
-    it('calls compactChat and shows success message on compress', async () => {
-      mockChatState.messages = [
-        {
-          role: 'assistant' as const,
-          contextBudget: {
-            current_tokens: 50000,
-            max_context_tokens: 128000,
-            usage_percent: 39,
-            health_status: 'healthy' as const,
-          },
-        },
-      ];
-      mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 15200 });
-
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        expect(screen.getByText('compressContext')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: 'compressContext' }));
-
-      await waitFor(() => {
-        expect(mockCompactChat).toHaveBeenCalledWith('test-chat-123', undefined);
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/compressSuccess/)).toBeInTheDocument();
-      });
-    });
-
-    it('passes focus topic to compactChat when focus hint is filled', async () => {
-      mockChatState.messages = [
-        {
-          role: 'assistant' as const,
-          contextBudget: {
-            current_tokens: 50000,
-            max_context_tokens: 128000,
-            usage_percent: 39,
-            health_status: 'healthy' as const,
-          },
-        },
-      ];
-      mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 12000 });
-
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        expect(screen.getByPlaceholderText('focusHintPlaceholder')).toBeInTheDocument();
-      });
-
-      await user.type(screen.getByPlaceholderText('focusHintPlaceholder'), 'auth module');
-      await user.click(screen.getByRole('button', { name: 'compressContext' }));
-
-      await waitFor(() => {
-        expect(mockCompactChat).toHaveBeenCalledWith('test-chat-123', 'auth module');
-      });
-    });
-
-    it('stops typing and pasting the focus topic at the characters the server accepts', async () => {
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-
-      expect(await screen.findByPlaceholderText('focusHintPlaceholder')).toHaveAttribute(
-        'maxlength',
-        String(COMPACT_FOCUS_TOPIC_MAX_LENGTH),
-      );
-    });
-
-    it('refreshes health data after successful compression', async () => {
-      mockChatState.messages = [
-        {
-          role: 'assistant' as const,
-          contextBudget: {
-            current_tokens: 50000,
-            max_context_tokens: 128000,
-            usage_percent: 39,
-            health_status: 'healthy' as const,
-          },
-        },
-      ];
-      mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 10000 });
-
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        expect(mockGetSessionAnalytics).toHaveBeenCalledTimes(1);
-      });
-
-      mockGetSessionAnalytics.mockClear();
-      await user.click(screen.getByText('compressContext'));
-
-      await waitFor(() => {
-        expect(mockGetSessionAnalytics).toHaveBeenCalledWith('test-chat-123');
-      });
-    });
-
-    it('does not refresh health when compression reports not needed', async () => {
-      mockChatState.messages = [
-        {
-          role: 'assistant' as const,
-          contextBudget: {
-            current_tokens: 50000,
-            max_context_tokens: 128000,
-            usage_percent: 39,
-            health_status: 'healthy' as const,
-          },
-        },
-      ];
-      mockCompactChat.mockResolvedValue({ compacted: false, tokens_saved: 0 });
-
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        expect(mockGetSessionAnalytics).toHaveBeenCalledTimes(1);
-      });
-
-      mockGetSessionAnalytics.mockClear();
-      await user.click(screen.getByText('compressContext'));
-
-      await waitFor(() => {
-        expect(screen.getByText(/compressNotNeeded/)).toBeInTheDocument();
-      });
-      expect(mockGetSessionAnalytics).not.toHaveBeenCalled();
-    });
-
-    it('shows error message when compression fails', async () => {
-      mockChatState.messages = [
-        {
-          role: 'assistant' as const,
-          contextBudget: {
-            current_tokens: 50000,
-            max_context_tokens: 128000,
-            usage_percent: 39,
-            health_status: 'healthy' as const,
-          },
-        },
-      ];
-      mockCompactChat.mockRejectedValue(new Error('Server error'));
-
-      const user = userEvent.setup();
-      render(<ContextUsageIndicator />);
-
-      await user.click(screen.getByRole('status'));
-      await waitFor(() => {
-        expect(screen.getByText('compressContext')).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByText('compressContext'));
-
-      await waitFor(() => {
-        expect(screen.getByText('Server error')).toBeInTheDocument();
-      });
     });
   });
 
