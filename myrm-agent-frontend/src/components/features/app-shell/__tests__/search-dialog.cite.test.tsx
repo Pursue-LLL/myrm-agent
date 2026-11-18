@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SearchDialog } from '../search-dialog';
@@ -188,28 +189,61 @@ describe('SearchDialog telling its host that a result was taken', () => {
   });
 
   it('does the same when the result is opened from the keyboard', async () => {
+    const user = userEvent.setup();
     await searchFor(otherChatItem);
 
-    fireEvent.keyDown(screen.getByRole('button', { name: /Other chat/ }), { key: 'Enter' });
+    screen.getByRole('button', { name: /Other chat/ }).focus();
+    await user.keyboard('{Enter}');
 
     expect(mockPush).toHaveBeenCalledExactlyOnceWith('/other-chat-id?highlight=43');
     expect(mockOnPick).toHaveBeenCalledTimes(1);
   });
 
   it.each([
-    { name: 'Enter', key: 'Enter' },
+    { name: 'Enter', key: '{Enter}' },
     { name: 'Space', key: ' ' },
-  ])('leaves $name on the cite button to the button instead of opening the chat', async ({ key }) => {
+  ])('cites the result when $name is pressed on its cite button, without opening the chat', async ({ key }) => {
+    const user = userEvent.setup();
     await searchFor(otherChatItem);
 
-    // A keydown the card prevents is also one the browser no longer turns into the button's click.
-    const leftToTheButton = fireEvent.keyDown(screen.getAllByRole('button', { name: 'search.citeToComposer' })[0], {
-      key,
-    });
+    screen.getAllByRole('button', { name: 'search.citeToComposer' })[0].focus();
+    await user.keyboard(key);
 
-    expect(leftToTheButton).toBe(true);
+    expect(mockAddMentionReference).toHaveBeenCalledTimes(1);
     expect(mockPush).not.toHaveBeenCalled();
-    expect(mockOnPick).not.toHaveBeenCalled();
+    expect(mockOnPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the cite buttons outside the button that opens the chat, so neither is a control inside a control', async () => {
+    await searchFor(otherChatItem);
+
+    const opener = screen.getByRole('button', { name: /Other chat/ });
+    for (const cite of screen.getAllByRole('button', { name: 'search.citeToComposer' })) {
+      expect(opener).not.toContainElement(cite);
+    }
+    expect(document.querySelector('[role="button"]')).toBeNull();
+  });
+
+  it('describes each opener by its snippet, so two hits in one chat are not announced alike', async () => {
+    mockSearchChatHistory.mockResolvedValue({
+      items: [
+        { ...otherChatItem, id: '43', snippet: 'the first match' },
+        { ...otherChatItem, id: '44', snippet: 'the second match' },
+      ],
+      total: 2,
+    });
+    render(
+      <SearchDialog open onOpenChange={mockOnOpenChange}>
+        <div />
+      </SearchDialog>,
+    );
+    fireEvent.change(await screen.findByPlaceholderText('search.placeholder'), { target: { value: 'hello' } });
+
+    const openers = await screen.findAllByRole('button', { name: /Other chat/ });
+
+    expect(openers).toHaveLength(2);
+    expect(openers[0]).toHaveAccessibleDescription(/the first match/);
+    expect(openers[1]).toHaveAccessibleDescription(/the second match/);
   });
 
   it('tells the host after a result of another chat is cited into the composer', async () => {

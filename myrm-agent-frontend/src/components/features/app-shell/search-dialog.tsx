@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, X, Loader2, MessageSquare, Calendar } from 'lucide-react';
+import { Search, X, Loader2, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
 import { searchChatHistory, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
+import { SearchResultCard } from './SearchResultCard';
 
 type TimePreset = 'today' | 'week' | 'month' | 'quarter' | null;
 
@@ -179,9 +180,7 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
   }, []);
 
   const handleCiteToComposer = useCallback(
-    (item: SearchResult, event: React.MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
+    (item: SearchResult) => {
       const title = item.chat_title?.trim() || t('chat.newChat');
       const composerChatId = useChatStore.getState().chatId;
       if (composerChatId && composerChatId === item.chat_id) {
@@ -211,15 +210,6 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
     },
     [onOpenChange],
   );
-
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch {
-      return '';
-    }
-  };
 
   const dialogContent =
     open && mounted ? (
@@ -331,69 +321,12 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
             ) : (
               <div className="space-y-0.5">
                 {results.map((item) => (
-                  <div
+                  <SearchResultCard
                     key={item.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => handleResultClick(item.chat_id, String(item.id))}
-                    onKeyDown={(event) => {
-                      // Enter and Space on the cite button inside the card are that button's, not the card's.
-                      if (event.target !== event.currentTarget) {
-                        return;
-                      }
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault();
-                        handleResultClick(item.chat_id, String(item.id));
-                      }
-                    }}
-                    className="w-full text-left p-3 rounded-lg hover:bg-muted/50 transition-colors flex flex-col gap-1.5 cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 text-sm font-medium text-foreground truncate min-w-0">
-                        <MessageSquare className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="truncate">{item.chat_title || t('chat.newChat')}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <button
-                          type="button"
-                          data-cite-to-composer
-                          onClick={(event) => handleCiteToComposer(item, event)}
-                          className="hidden sm:inline-flex px-2 py-0.5 text-[11px] font-medium rounded-md border border-border/60 bg-background/80 text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
-                        >
-                          {t('search.citeToComposer')}
-                        </button>
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Calendar className="w-3 h-3" />
-                          <span>{formatDate(item.sent_at)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-muted-foreground line-clamp-2 pl-5">
-                      <span
-                        className={cn(
-                          'inline-block px-1.5 py-0.5 rounded text-[10px] font-medium mr-2 uppercase',
-                          item.role === 'user'
-                            ? 'bg-primary/10 text-primary'
-                            : 'bg-secondary text-secondary-foreground',
-                        )}
-                      >
-                        {item.role}
-                      </span>
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: item.snippet,
-                        }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      data-cite-to-composer
-                      onClick={(event) => handleCiteToComposer(item, event)}
-                      className="sm:hidden self-start ml-5 px-2 py-0.5 text-[11px] font-medium rounded-md border border-border/60 bg-background/80 text-muted-foreground"
-                    >
-                      {t('search.citeToComposer')}
-                    </button>
-                  </div>
+                    item={item}
+                    onOpen={() => handleResultClick(item.chat_id, String(item.id))}
+                    onCite={() => handleCiteToComposer(item)}
+                  />
                 ))}
               </div>
             )}
