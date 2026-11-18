@@ -35,6 +35,9 @@ Dedicated to BrowserContext creation and configuration, including:
     one, no proxy applies and the context's policy keeps private networks closed: the context's proxy is the guard's
     loopback SOCKS5 proxy, so every connection of the page goes only to addresses the SSRF policy admitted. The first
     such context first proves that the browser honors it
+12. Ignoring certificate errors by default (``ignore_https_errors=True`` in every context kind of a launched browser): a
+    page whose certificate the browser would refuse still loads, so only a context whose owner passes
+    ``ignore_https_errors=False`` through ``extra_kwargs`` verifies certificates
 """
 
 from __future__ import annotations

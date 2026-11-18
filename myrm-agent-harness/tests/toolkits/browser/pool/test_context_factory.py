@@ -2,8 +2,10 @@
 
 Validates that Accept-Language headers are correctly derived from locale
 settings, that module-level constants are never mutated (shallow copy safety),
-that a context refuses downloads unless its owner asks for them, and that a
-context in the user's own browser (through the extension) asks for no override.
+that a context refuses downloads unless its owner asks for them, that a context
+of a launched browser ignores certificate errors unless its owner asks to verify
+them, and that a context in the user's own browser (through the extension) asks
+for no override.
 """
 
 from __future__ import annotations
@@ -34,6 +36,21 @@ class TestDownloadDefault:
         options = ContextFactory()._build_context_options(ContextType.AGENT.value, None, {"accept_downloads": True})
 
         assert options["accept_downloads"] is True
+
+
+class TestCertificateDefault:
+    """Every context of a launched browser loads a page whose certificate the browser would refuse, unless asked not to."""
+
+    @pytest.mark.parametrize("context_type", [context_type.value for context_type in ContextType])
+    def test_a_context_ignores_certificate_errors_by_default(self, context_type: str) -> None:
+        options = ContextFactory()._build_context_options(context_type, None, None)
+
+        assert options["ignore_https_errors"] is True
+
+    def test_the_owner_of_a_context_can_ask_to_verify_certificates(self) -> None:
+        options = ContextFactory()._build_context_options(ContextType.CRAWL.value, None, {"ignore_https_errors": False})
+
+        assert options["ignore_https_errors"] is False
 
 
 class TestExtensionAttachedContext:
