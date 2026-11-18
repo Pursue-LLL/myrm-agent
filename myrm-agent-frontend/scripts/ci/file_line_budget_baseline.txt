@@ -67,7 +67,6 @@ src/components/features/settings/sections/integration/integrations/IntegrationCo
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx
 src/components/features/settings/sections/knowledge/wiki/useWikiConceptsList.ts
-src/components/features/settings/sections/system/AccessCard.tsx
 src/components/features/settings/sections/system/BudgetPolicySection.tsx
 src/components/features/settings/sections/system/DataFlowDisclosurePanel.tsx
 src/components/features/settings/sections/system/ExecutionTraceTimeline.tsx

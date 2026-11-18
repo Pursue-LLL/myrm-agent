@@ -52,4 +52,4 @@
 
 ## 用户入口
 
-Settings → System → AccessCard：开启 tunnel → Hub QR / 分享链接。
+Settings → System → AccessCard 内的公网入口卡（`PublicIngressCard`）：开启 tunnel → Hub QR / 分享链接。
