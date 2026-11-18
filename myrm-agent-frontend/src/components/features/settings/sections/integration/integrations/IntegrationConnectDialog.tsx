@@ -192,7 +192,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         return;
       }
       await handleConnect({ skipProbe: true });
-    }, [handleConnect, onClose, probeRecommendedMode, runProbe]);
+    }, [handleConnect, locale, onClose, probeRecommendedMode, runProbe]);
 
     return (
       <>
