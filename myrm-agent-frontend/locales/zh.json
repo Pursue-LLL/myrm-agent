@@ -341,6 +341,7 @@
   "userMenu": {
     "openMenu": "打开菜单",
     "settings": "设置",
+    "documentation": "文档",
     "personalization": "个性化",
     "subscription": "订阅管理",
     "logout": "退出登录",

@@ -5,8 +5,8 @@
  * - ../NavBar (POS: 左侧导航栏，头像按钮打开账号菜单)
  *
  * [OUTPUT]
- * Vitest: 访客与登录用户的账号菜单、订阅入口随部署模式出现、头像加载失败的降级与换图后的重试、
- * 导航栏更新时头像元素保持不变、移动端点击菜单项先收起侧栏、仅开发构建提供的测试登录。
+ * Vitest: 访客与登录用户的账号菜单、订阅入口随部署模式出现、文档入口按界面语言在新标签页打开介绍页、
+ * 头像加载失败的降级与换图后的重试、导航栏更新时头像元素保持不变、移动端点击菜单项先收起侧栏、仅开发构建提供的测试登录。
  *
  * [POS]
  * 订阅、路由与部署模式由 navBarKit 提供替身；登录 store、文案与登录重定向路径是真实的。
@@ -15,6 +15,7 @@ import { fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { kit, renderNavBar, resetNavBarKit, setAccount, signedIn } from './navBarKit';
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
+import { OFFICIAL_DOCS_URL } from '@/lib/constants/brand';
 import { expectDefined } from '@/test-utils/expectDefined';
 
 const openAccountMenu = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
@@ -26,6 +27,21 @@ const menuLink = (href: string) => {
   expectDefined(link, `menu link ${href}`);
   return link;
 };
+
+const DOCS_ENTRY_CASES = [
+  ['en', 'Documentation', `${OFFICIAL_DOCS_URL}/getting-started/introduction`],
+  ['zh', '文档', `${OFFICIAL_DOCS_URL}/zh/getting-started/introduction`],
+] as const;
+
+/** 文档在新标签页打开，所以跟随它不该收起移动端侧栏。 */
+function expectDocsEntry(href: string, label: string, onCloseMobileSidebar: () => void) {
+  const link = menuLink(href);
+  expect(link).toHaveTextContent(label);
+  expect(link).toHaveAttribute('target', '_blank');
+  expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  fireEvent.click(link);
+  expect(onCloseMobileSidebar).not.toHaveBeenCalled();
+}
 
 describe('NavBar account menu', () => {
   beforeEach(resetNavBarKit);
@@ -81,6 +97,18 @@ describe('NavBar account menu', () => {
       expect(menuLink('/settings')).toHaveTextContent('Settings');
       expect(menu().queryByRole('link', { name: /Upgrade/ })).toBeNull();
     });
+
+    it.each(DOCS_ENTRY_CASES)(
+      'opens the documentation in a new tab when the interface is %s',
+      (locale, label, href) => {
+        kit.locale = locale;
+        const { onCloseMobileSidebar } = renderNavBar({ isMobile: true });
+
+        openAccountMenu(locale === 'zh' ? '访客' : 'Guest');
+
+        expectDocsEntry(href, label, onCloseMobileSidebar);
+      },
+    );
 
     it('promotes the upgrade on a hosted deployment, and closes the mobile sidebar when it is followed', () => {
       kit.deploy.local = false;
@@ -185,6 +213,18 @@ describe('NavBar account menu', () => {
       expect(menuLink('/pricing')).toHaveTextContent(label);
       expect(menuLink('/subscription')).toHaveTextContent('Subscription');
     });
+
+    it.each(DOCS_ENTRY_CASES)(
+      'opens the documentation in a new tab when the interface is %s',
+      (locale, label, href) => {
+        kit.locale = locale;
+        const { onCloseMobileSidebar } = renderNavBar({ isMobile: true });
+
+        openAccountMenu('Ada Lovelace');
+
+        expectDocsEntry(href, label, onCloseMobileSidebar);
+      },
+    );
 
     it('closes the mobile sidebar when any menu link is followed', () => {
       kit.deploy.local = false;

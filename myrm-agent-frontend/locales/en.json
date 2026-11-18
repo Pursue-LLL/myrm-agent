@@ -341,6 +341,7 @@
   "userMenu": {
     "openMenu": "Open Menu",
     "settings": "Settings",
+    "documentation": "Documentation",
     "personalization": "Personalization",
     "subscription": "Subscription",
     "logout": "Log Out",
