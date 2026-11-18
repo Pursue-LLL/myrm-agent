@@ -34,7 +34,7 @@ describe('CronJobProblemBanner', () => {
   });
 
   it.each<[PauseReason, string, string]>([
-    ['run_failures', 'It kept failing, so it was paused automatically.', '多次执行失败，已自动暂停。'],
+    ['run_failures', 'The latest run failed, so it was paused automatically.', '最近一次执行失败，已自动暂停。'],
     ['schedule_error', 'Its schedule is invalid, so it was paused automatically.', '执行计划无效，已自动暂停。'],
   ])('says why a job was paused for %s, in both languages, above the error it left', (reason, english, chinese) => {
     const job: BannerJob = { paused_reason: reason, last_error: 'pump is dry' };
@@ -53,7 +53,7 @@ describe('CronJobProblemBanner', () => {
   it.each<[MockLocale, string]>([
     ['en', 'Runaway loop detected: execution halted and retries blocked to protect compute budget'],
     ['zh', '智能识别到死循环，已主动熔断并阻止重试以保护算力消耗'],
-  ])('words a loop-guard pause in %s without the guard\'s own error text', (locale, sentence) => {
+  ])("words a loop-guard pause in %s without the guard's own error text", (locale, sentence) => {
     intl.locale = locale;
 
     render(<CronJobProblemBanner job={{ paused_reason: 'circuit_break', last_error: LOOP_GUARD_ERROR }} />);

@@ -7256,7 +7256,7 @@
     "runSkipped": "已跳过",
     "runCircuitBreak": "死循环熔断",
     "circuitBreakBanner": "智能识别到死循环，已主动熔断并阻止重试以保护算力消耗",
-    "pausedRunFailures": "多次执行失败，已自动暂停。",
+    "pausedRunFailures": "最近一次执行失败，已自动暂停。",
     "pausedScheduleError": "执行计划无效，已自动暂停。",
     "skippedUsageLimit": "额度已用尽，恢复后将自动重新运行。",
     "skippedBudgetBlocked": "已达每日预算上限，本次运行已跳过。",

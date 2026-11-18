@@ -270,7 +270,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             )}
             {run.delivery_error && (
               <div className="space-y-1">
-                <p className="text-[10px] text-destructive-text">
+                <p className="text-[10px] text-destructive-text break-words">
                   {t('deliveryError')}: {run.delivery_error}
                 </p>
                 {run.metadata?.connector_failure && (

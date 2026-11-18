@@ -34,7 +34,7 @@ export default function CronJobProblemBanner({ job }: CronJobProblemBannerProps)
     <div className="space-y-1 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text">
       {reason && <p className="font-medium">{t(pauseReasonLabelKey(reason))}</p>}
       {showLastError && (
-        <p>
+        <p className="break-words">
           {t('lastError')}: {lastError}
         </p>
       )}

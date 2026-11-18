@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪文本文件出现私有开发壳的规划目录、名称、维护者速查文档名、维护者本机的同级项目目录与规划条目编号、禁止跟踪文本文件让读者经用户 CLI 执行开发者子命令、禁止跟踪符号链接、禁止测试目录提交完整厂商格式凭据、定时任务 REST 的请求与响应字段漏转（路由没读的请求字段、响应映射没填的响应字段）、定时任务代码里已删符号的残留、蓝图填充响应的服务端与前端字段不一致、带语言形参的工具工厂在生产调用点漏传会话语言、同一段提示词的中文版少了英文版点名的标识符、首轮静态 system 提示的体积超出基线上限。
+Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock` editable harness pin、禁止跟踪文本文件出现私有开发壳的规划目录、名称、维护者速查文档名、维护者本机的同级项目目录与规划条目编号、禁止跟踪文本文件让读者经用户 CLI 执行开发者子命令、禁止跟踪符号链接、禁止测试目录提交完整厂商格式凭据、定时任务 REST 的请求与响应字段漏转（路由没读的请求字段、响应映射没填的响应字段）、定时任务代码里已删符号的残留、蓝图填充响应的服务端与前端字段不一致、定时任务的取值集合（暂停原因、运行状态、任务状态、会话目标、任务类型、监控类型）与前端类型的成员不一致、带语言形参的工具工厂在生产调用点漏传会话语言、同一段提示词的中文版少了英文版点名的标识符、首轮静态 system 提示的体积超出基线上限。
 
 ## 文件清单
 
@@ -50,6 +50,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_cron_route_field_parity.py` | 定时任务 REST 的字段对齐：创建 schema 的每个字段都被 `create_job` 路由读取（唯一的登记例外 `override_prerequisite`：界面会发、服务端从不执行；该字段一旦被路由读取，登记即过期并失败），更新 schema 的每个字段都被 `update_job` 路由读取，`CronJobResponse` 的每个字段都由 `_to_response` 填写（路由漏转一个字段，设置会被接收、校验后丢弃）；自带校准用例证明读取器看得出被删掉的那一行 |
 | `test_cron_removed_symbols.py` | 定时任务服务端已删符号零残留：`active_streams` / `active_polls` / `claim_due` / `list_orphaned_active` 不得再出现在 `app/core/cron`、`app/api/cron` 的模块与 `_ARCH.md` 里（整词匹配，较长的名字不误报；含检测器正反例自证） |
 | `test_blueprint_fill_response_parity.py` | 蓝图填充响应的字段对齐：服务端 `BlueprintFillResponse` 的字段 == 前端 `cron.types.ts` 里 `BlueprintFillResponse` 接口的顶层字段（服务端多返回的字段前端读不到，蓝图的值被丢掉；前端多声明的字段读出来永远是 undefined，任务悄悄回落默认值）；前端源码不在检出里时跳过 |
+| `test_cron_enum_parity.py` | 定时任务的取值集合对齐：harness cron 工具包的 `JobStatus`、`RunStatus`、`PauseReason`、`SessionTarget`、`JobType` 的取值与 `MonitorType`（`infra.incremental`）的字面量 == 前端 `services/cron.types.ts` 里同名联合类型的成员（工具包新增取值而前端漏了成员，按该类型取键的页面名不出这个状态；前端留着工具包不再发的取值则是死成员，都会失败；联合类型被删或改名同样失败）；前端源码不在检出里时跳过 |
 | `test_preference_radar_parity.py` | 偏好雷达的字段对齐：服务端 `PreferenceRadarStateResponse` 的字段 == 前端 `myrm-agent-frontend/src/services/memory/preferences.ts` 里 `RadarDimensionValues` 加 `PreferenceRadarStateResponse` 的字段，`UpdatePreferenceRadarRequest` 的字段 == `RadarDimensionValues` 加 `PreferenceRadarTuneRequest` 的字段（请求体写错字段名会被服务端 422 拒绝；状态字段对不上，抽屉读到 undefined 而显示错误的权重）；前端源码不在检出里时跳过 |
 | `test_channel_catalog_i18n_boundary.py` | server 渠道 JSON catalog 边界：键集 ⊆ 白名单、全语种同构、禁止 fork harness 诊断目录（SSOT） |
 | `test_app_has_no_test_env_reads.py` | `app/**` 禁止读测试开关（`MYRM_E2E_*` / `MYRM_TEST_*` / `E2E_*`，豁免 pytest 自设的 `PYTEST_CURRENT_TEST`），也禁止读业务凭据类 env（`EMBEDDING_*` / `RERANKER_*` / `BASIC_*` / `LITE_*` / `TAVILY_*`）：前者让测试脚手架能改变生产语义，后者让「WebUI 配置」与「进程 env」两套来源并存（会让 FAQ 拦截在生产永远返回 None）。业务能力差异用 `DeploymentCapabilities` 语义位表达，凭据一律经 WebUI 配置注入 |

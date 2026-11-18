@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import cast
+from typing import cast, get_args
 
 from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState, MonitorType, ResetReason
 from myrm_agent_harness.toolkits.cron.serialization import (
@@ -42,7 +42,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
 
 logger = logging.getLogger(__name__)
-_VALID_MONITOR_TYPES = {"set", "hash"}
+_VALID_MONITOR_TYPES: frozenset[str] = frozenset(get_args(MonitorType))
 
 
 def as_utc(moment: datetime) -> datetime:
