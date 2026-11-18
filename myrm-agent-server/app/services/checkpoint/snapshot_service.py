@@ -5,7 +5,7 @@ myrm_agent_harness.agent.file_snapshot::create_file_snapshot_store (POS: Factory
 myrm_agent_harness.agent.file_snapshot::FileSnapshotProtocol (POS: Protocol for snapshot operations.)
 myrm_agent_harness.agent.file_snapshot.types::SnapshotTrigger (POS: Snapshot trigger enum.)
 myrm_agent_harness.api::PrivacyFailClosedLadder (POS: 3-level privacy ladder.)
-myrm_agent_harness.toolkits.code_execution.interceptor::ExecutionInterceptor (POS: Protocol for intercepting code execution actions.)
+myrm_agent_harness.toolkits.code_execution.interceptor::ExecutionInterceptor, DestructiveActionPayload (POS: Protocol for intercepting code execution actions, and the details each one carries.)
 app.services.checkpoint.task_airbag_service::get_task_airbag_service (POS: Airbag that external effects are attributed to.)
 
 [OUTPUT]
@@ -32,7 +32,7 @@ from myrm_agent_harness.api import (
     PrivacyFailClosedViolationError,
     PrivacyScope,
 )
-from myrm_agent_harness.toolkits.code_execution.interceptor import ExecutionInterceptor
+from myrm_agent_harness.toolkits.code_execution.interceptor import DestructiveActionPayload, ExecutionInterceptor
 
 from app.services.checkpoint.task_airbag_service import get_task_airbag_service
 
@@ -93,15 +93,15 @@ class SnapshotInterceptor(ExecutionInterceptor):
             self._store = await create_file_snapshot_store()
         return self._store
 
-    async def before_destructive_action(self, workspace_path: str, action_type: str, payload: dict) -> None:
+    async def before_destructive_action(self, workspace_path: str, action_type: str, payload: DestructiveActionPayload) -> None:
         """Called by Harness before a destructive action is executed."""
         session_id = payload.get("session_id")
         if not session_id:
             return
 
-        external_effects = [str(effect) for effect in payload.get("external_effects") or ()]
+        external_effects = payload.get("external_effects", [])
         if external_effects:
-            get_task_airbag_service().record_session_external_effects(str(session_id), external_effects)
+            get_task_airbag_service().record_session_external_effects(session_id, external_effects)
         if not payload.get("destructive", True):
             return
 
@@ -110,7 +110,7 @@ class SnapshotInterceptor(ExecutionInterceptor):
         )
 
         turn_id = get_bound_message_id() or "unknown_turn"
-        chat_id = str(session_id)
+        chat_id = session_id
         agent_id = self._current_agent_id()
 
         cache_key = (workspace_path, turn_id)
@@ -123,14 +123,9 @@ class SnapshotInterceptor(ExecutionInterceptor):
             metadata["external_effects"] = external_effects
 
         # Fail-closed privacy ladder evaluation before snapshotting
-        target_file = str(payload.get("path") or workspace_path)
-        content_preview = payload.get("content")
+        target_file = payload.get("path") or workspace_path
         scope = PrivacyScope(workspace_root=workspace_path)
-        verdict = PrivacyFailClosedLadder.evaluate(
-            target_path=target_file,
-            content=str(content_preview) if content_preview is not None else None,
-            scope=scope,
-        )
+        verdict = PrivacyFailClosedLadder.evaluate(target_path=target_file, scope=scope)
         if not verdict.is_allowed:
             logger.warning(
                 "[SnapshotInterceptor] Privacy ladder blocked snapshot on %s (level=%s, type=%s): %s",

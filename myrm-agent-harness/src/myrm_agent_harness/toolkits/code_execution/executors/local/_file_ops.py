@@ -6,11 +6,13 @@ core.security.path::is_sensitive_file, is_protected_instruction_file, is_evidenc
 core.security.path.pattern::first_matching_pattern (POS: Path pattern matching — single source of truth for glob-style path protection)
 core.context_vars::protected_paths_var (POS: Foundation ContextVar registry)
 toolkits.code_execution.executors.granted_roots::refuse_write_into_readonly_grant (POS: read-only directory grants refuse writes)
+toolkits.code_execution.interceptor::trigger_destructive_action_hook (POS: timeout-guarded call of the host's execution interceptor)
 
 [OUTPUT]
 LocalFileOpsMixin: Mixin providing pathlib-based file I/O with a write guard that
 refuses credential paths, persona instruction files, read-only evidence, the
-active Goal's protected paths and directories granted read-only.
+active Goal's protected paths and directories granted read-only. An allowed
+mutation (every write variant and delete) is reported to the interceptor before it happens.
 
 [POS]
 Native file operations for local executor. Provides zero-subprocess-overhead
@@ -51,31 +53,6 @@ def _current_session_id() -> str | None:
         return None
 
 
-async def _trigger_snapshot_hook(
-    *,
-    workspace_path: str,
-    action_type: str,
-    path: str,
-    size: int | None = None,
-) -> None:
-    """Fire the destructive-action snapshot hook for a native file mutation.
-
-    The hook is a no-op outside an agent turn (session_id is None) and never
-    blocks the mutation (interceptor enforces its own timeout).
-    """
-    payload: dict[str, object] = {
-        "path": path,
-        "session_id": _current_session_id(),
-    }
-    if size is not None:
-        payload["size"] = size
-    await trigger_destructive_action_hook(
-        workspace_path=workspace_path,
-        action_type=action_type,
-        payload=payload,
-    )
-
-
 class _FileOpsHost(Protocol):
     """What the file operations need from the executor they are mixed into.
 
@@ -91,6 +68,23 @@ class _FileOpsHost(Protocol):
     def _log_context_file_access(self, resolved_path: str, success: bool = True) -> None: ...
 
     def _guard_write(self, resolved_path: str) -> None: ...
+
+
+async def _prepare_mutation(host: _FileOpsHost, path: str, action_type: str) -> str:
+    """Resolve the target of a file mutation, refuse it when a protection rule forbids it, and report it.
+
+    The snapshot hook fires only for an allowed mutation, so a refused write is never snapshotted. It is a no-op
+    outside an agent turn (no chat id is bound) and never blocks the mutation: the interceptor call enforces its
+    own timeout.
+    """
+    safe = await host.resolve_path(path)
+    host._guard_write(safe)
+    await trigger_destructive_action_hook(
+        workspace_path=host.workspace_path,
+        action_type=action_type,
+        payload={"path": safe, "session_id": _current_session_id()},
+    )
+    return safe
 
 
 class LocalFileOpsMixin:
@@ -175,17 +169,7 @@ class LocalFileOpsMixin:
         return p.read_bytes()
 
     async def write_file(self: _FileOpsHost, path: str, content: str) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-
-        # Trigger auto-snapshot hook
-        await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,
-            action_type="file_write",
-            path=safe,
-            size=len(content),
-        )
-
+        safe = await _prepare_mutation(self, path, "file_write")
         p = Path(safe)
         p.parent.mkdir(parents=True, exist_ok=True)
         # Bytes, not ``write_text``: text mode writes ``\n`` as ``\r\n`` on Windows, which would turn a CRLF text into
@@ -193,56 +177,21 @@ class LocalFileOpsMixin:
         p.write_bytes(content.encode("utf-8"))
 
     async def write_file_bytes(self: _FileOpsHost, path: str, content: bytes) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-
-        await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,
-            action_type="file_write",
-            path=safe,
-            size=len(content),
-        )
-
+        safe = await _prepare_mutation(self, path, "file_write")
         p = Path(safe)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(content)
 
     async def write_file_atomic(self: _FileOpsHost, path: str, content: str) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-
-        await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,
-            action_type="file_write",
-            path=safe,
-            size=len(content),
-        )
-
+        safe = await _prepare_mutation(self, path, "file_write")
         await async_atomic_write(safe, content)
 
     async def write_file_bytes_atomic(self: _FileOpsHost, path: str, content: bytes) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-
-        await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,
-            action_type="file_write",
-            path=safe,
-            size=len(content),
-        )
-
+        safe = await _prepare_mutation(self, path, "file_write")
         await async_atomic_write(safe, content)
 
     async def delete_file(self: _FileOpsHost, path: str) -> None:
-        safe = await self.resolve_path(path)
-        self._guard_write(safe)
-
-        await _trigger_snapshot_hook(
-            workspace_path=self.workspace_path,
-            action_type="file_delete",
-            path=safe,
-        )
-
+        safe = await _prepare_mutation(self, path, "file_delete")
         Path(safe).unlink(missing_ok=True)
 
     async def file_exists(self: _FileOpsHost, path: str) -> bool:

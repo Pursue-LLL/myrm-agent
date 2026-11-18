@@ -205,8 +205,8 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 
 提供在「文件回滚无法完全撤销」的操作执行前的 Hook 机制：文件改写（写入、删除、`rm`、`sed -i`），以及触达工作区之外的 Shell 命令（数据库、容器/云、网络写入、`git push`/包发布）。
 
-- **协议**：`ExecutionInterceptor.before_destructive_action(workspace_path, action_type, payload)`；`bash` 的 payload 携带 `destructive`（命令改写文件）与 `external_effects`（`security/external_effect_detector.py` 判定的外部影响类别，无则为空），由拦截器各自决定处置。
-- **触发点**：`LocalExecutor.execute_bash`（命令改写文件或有外部影响时）和 `LocalFileOpsMixin.write_file` / `delete_file`。
+- **协议**：`ExecutionInterceptor.before_destructive_action(workspace_path, action_type, payload)`，`payload` 是 `DestructiveActionPayload`（`TypedDict`）：文件操作携带 `path` 与 `session_id`；`bash` 另带 `command`、`destructive`（命令改写文件）与 `external_effects`（`security/external_effect_detector.py` 判定的外部影响类别，无则为空），由拦截器各自决定处置。
+- **触发点**：`LocalExecutor.execute_bash`（命令改写文件或有外部影响时）和 `LocalFileOpsMixin` 的每个改写操作（四种写入变体与 `delete_file`，统一经 `_prepare_mutation`：先过写保护，通过后才上报，所以被拒绝的写入不会产生快照）。
 - **安全保证**：拦截器调用被包裹在严格的 `asyncio.wait_for` 超时和 `try...except` 块中，**绝不阻塞**核心代码执行。
 - **业务集成**：`myrm-agent-server` 通过此 Hook 实现基于 Git 的底层文件系统自动快照（Auto-snapshot）。
 

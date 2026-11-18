@@ -12,6 +12,8 @@ from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.api import PrivacyFailClosedViolationError
+from myrm_agent_harness.toolkits.code_execution.interceptor import DestructiveActionPayload
 
 from app.services.checkpoint.snapshot_service import SnapshotInterceptor, _workspace_locks
 
@@ -29,7 +31,7 @@ def interceptor() -> SnapshotInterceptor:
     return SnapshotInterceptor()
 
 
-def _make_payload(session_id: str = "sess-1") -> dict[str, object]:
+def _make_payload(session_id: str = "sess-1") -> DestructiveActionPayload:
     return {"session_id": session_id, "command": "rm -rf /tmp/test"}
 
 
@@ -347,7 +349,7 @@ async def test_snapshotted_turns_cache_is_bounded(interceptor: SnapshotIntercept
 # ---------------------------------------------------------------------------
 
 
-def _effect_payload(*, destructive: bool, effects: list[str], session_id: str = "sess-1") -> dict[str, object]:
+def _effect_payload(*, destructive: bool, effects: list[str], session_id: str = "sess-1") -> DestructiveActionPayload:
     return {"session_id": session_id, "command": "cmd", "destructive": destructive, "external_effects": effects}
 
 
@@ -407,3 +409,27 @@ async def test_payload_without_effects_never_touches_the_airbag(interceptor: Sna
     airbag.record_session_external_effects.assert_not_called()
     mock_snapshot.assert_awaited_once()
     assert "external_effects" not in mock_snapshot.call_args.args[-1]
+
+
+# ---------------------------------------------------------------------------
+# 13. Privacy ladder checks the target the payload names
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_target_outside_the_workspace_is_not_snapshotted(interceptor: SnapshotInterceptor) -> None:
+    payload: DestructiveActionPayload = {"session_id": "sess-1", "path": "/elsewhere/file.txt"}
+    with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot:
+        with pytest.raises(PrivacyFailClosedViolationError):
+            await interceptor.before_destructive_action("/tmp/ws", "file_write", payload)
+
+    mock_snapshot.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_target_inside_the_workspace_is_snapshotted(interceptor: SnapshotInterceptor) -> None:
+    payload: DestructiveActionPayload = {"session_id": "sess-1", "path": "/tmp/ws/src/file.txt"}
+    with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot:
+        await interceptor.before_destructive_action("/tmp/ws", "file_write", payload)
+
+    mock_snapshot.assert_awaited_once()

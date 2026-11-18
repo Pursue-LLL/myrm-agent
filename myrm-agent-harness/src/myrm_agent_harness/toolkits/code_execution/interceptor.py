@@ -5,6 +5,7 @@
 - .security.shell_command_analyzer::is_destructive_command (POS: file-mutating shell command check)
 
 [OUTPUT]
+- DestructiveActionPayload: what an interceptor is told about an action
 - ExecutionInterceptor: protocol a host implements to react before an action a file rollback cannot fully undo
 - set_execution_interceptor / get_execution_interceptor: process-wide interceptor slot
 - trigger_destructive_action_hook: timeout-guarded interceptor call
@@ -16,7 +17,7 @@ Seam between the code-execution toolkit and a host that wants to snapshot or aud
 
 import asyncio
 import logging
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 from myrm_agent_harness.toolkits.code_execution.security.external_effect_detector import detect_external_effects
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import is_destructive_command
@@ -24,10 +25,27 @@ from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer 
 logger = logging.getLogger(__name__)
 
 
+class DestructiveActionPayload(TypedDict, total=False):
+    """What an interceptor is told about an action.
+
+    Native file operations carry ``path`` and ``session_id`` (None outside an agent turn). ``bash`` also carries
+    ``command``, ``destructive`` (the command mutates files) and ``external_effects`` (effect categories from
+    ``detect_external_effects``; empty when none).
+    """
+
+    path: str
+    session_id: str | None
+    command: str
+    destructive: bool
+    external_effects: list[str]
+
+
 class ExecutionInterceptor(Protocol):
     """Protocol for intercepting code execution actions."""
 
-    async def before_destructive_action(self, workspace_path: str, action_type: str, payload: dict) -> None:
+    async def before_destructive_action(
+        self, workspace_path: str, action_type: str, payload: DestructiveActionPayload
+    ) -> None:
         """Called before an action that a file rollback cannot fully undo.
 
         That is a file mutation (write, delete, ``rm``, ``sed -i``) or a shell command with
@@ -35,11 +53,8 @@ class ExecutionInterceptor(Protocol):
 
         Args:
             workspace_path: The root path of the workspace.
-            action_type: The type of action ('bash', 'file_write', 'file_delete', etc.).
-            payload: Additional details about the action. Native file operations carry
-                ``path``/``session_id``. ``bash`` also carries ``command``, ``destructive``
-                (the command mutates files) and ``external_effects`` (effect categories from
-                ``detect_external_effects``; empty when none).
+            action_type: The type of action ('bash', 'file_write', 'file_delete').
+            payload: The details of the action.
         """
         ...
 
@@ -58,7 +73,9 @@ def get_execution_interceptor() -> ExecutionInterceptor | None:
     return _interceptor
 
 
-async def trigger_destructive_action_hook(workspace_path: str, action_type: str, payload: dict) -> None:
+async def trigger_destructive_action_hook(
+    workspace_path: str, action_type: str, payload: DestructiveActionPayload
+) -> None:
     """Safely trigger the interceptor with a timeout, ensuring it never blocks execution."""
     interceptor = get_execution_interceptor()
     if not interceptor:
