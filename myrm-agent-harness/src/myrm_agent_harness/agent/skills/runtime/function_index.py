@@ -80,8 +80,9 @@ def _rules(entry_sentence: str, docs_sentence: str | None) -> tuple[str, ...]:
 
 FUNCTION_INDEX_RULES: tuple[str, ...] = _rules(
     "An entry with <functions> lists every function of that skill and can be used without selecting it.",
-    " Docs: `/mcp/<name>/<function_name>.md` — read it with `file_read_tool` for the arguments and return shape of "
-    "the one or two functions you will call; select the skill instead when you need every signature at once.",
+    " Docs: `/mcp/<name>/<function_name>.md` (arguments and return shape) — read it with `file_read_tool` only when a "
+    "function's arguments are not obvious from its name, not before every call; select the skill instead when you "
+    "need every signature at once.",
 )
 DOCUMENTED_INDEX_RULES: tuple[str, ...] = _rules(
     "An entry with <functions> lists every function of that skill with its signature, description and parameter "

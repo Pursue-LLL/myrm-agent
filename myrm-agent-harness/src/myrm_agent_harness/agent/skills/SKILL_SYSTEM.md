@@ -261,7 +261,7 @@ Level 3: 资源（Resources）
 - 预算外的技能不再只是一个数字：目录末尾的 `<hidden_skill_names>` 一行按字母序列出它们的名字（上限 `L1_HIDDEN_NAMES_MAX_TOKENS = 1,500`，超出时以 `and N more not listed` 收尾）。名字在目录里，模型直接 select；只知能力、不知名字才 search。
 - 走 PTC 的 MCP 技能（服务器没有自带 instructions）在自己的条目里多一个 `<functions>` 块，列出它的全部函数；目录里另有一个 `<function_index_rules>` 块，写明这类条目无需先 select，并给出调用约定（与 L2 正文共用 `agent/skills/runtime/ptc_calling.py` 的文本）。函数覆盖请求时，模型直接在 `bash_code_execute_tool` 里 `from skills.<name> import <函数>`，省掉一轮 `skill_select_tool`；需要全部签名时仍可 select。块有两种形态：
   - **带文档**：服务器的全部文档（每个函数的签名、描述、参数描述，描述分别截到 400 / 240 字符）不超过 `L1_DOCUMENTED_INDEX_MAX_TOKENS = 2,400` 时，整块列出。模型不必 select，也不必再读 `/mcp/<name>/<函数>.md`，这相当于直连工具 schema 给模型的信息（约为同一批工具 JSON schema 的 60–70% token）。
-  - **只列名字**：文档放不下时按名字列出，预算 `L1_FUNCTION_INDEX_MAX_TOKENS = 1,200`；模型按需读 `/mcp/<name>/<函数>.md`。
+  - **只列名字**：文档放不下时按名字列出，预算 `L1_FUNCTION_INDEX_MAX_TOKENS = 1,200`；只有参数从函数名看不出来时才读 `/mcp/<name>/<函数>.md`（规则里写明，不是每次调用前都读：那样每个任务多一个轮次）。
   
   两个预算都与条目预算分开计，不会挤掉其他技能的条目；一个块要么整块列出要么不列（名字也放不下时该服务器保持先 select）。带文档的块里是服务器自己控制的描述文字，模型在 select 之前就会读到，所以它先过一遍和 L2 正文相同的加载期安全扫描：出现高危发现时该服务器退回只列名字。服务器自带 instructions 时保持先 select，因为 instructions 只在 L2 正文里。
 

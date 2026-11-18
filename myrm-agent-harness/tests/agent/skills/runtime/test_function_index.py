@@ -302,6 +302,12 @@ class TestRules:
         assert "select the skill instead when you need every signature at once" in rules
         assert "/mcp/<name>/<function_name>.md" in rules
 
+    def test_the_name_rules_send_the_model_to_a_function_document_only_when_the_name_is_not_enough(self) -> None:
+        rules = "\n".join(FUNCTION_INDEX_RULES)
+
+        assert "only when a function's arguments are not obvious from its name" in rules
+        assert "not before every call" in rules
+
     def test_the_documented_rules_state_the_override_and_leave_out_the_doc_files(self) -> None:
         rules = "\n".join(DOCUMENTED_INDEX_RULES)
 
