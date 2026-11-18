@@ -18,11 +18,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from langchain_core.runnables import RunnableConfig
+from myrm_agent_harness.agent.meta_tools.bash._background.job_store import reset_background_job_store_for_tests
 from myrm_agent_harness.agent.meta_tools.bash.bash_code_execute_tool import create_bash_code_execute_tool
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import create_bash_process_tool
 from myrm_agent_harness.api.hooks import get_background_registry, set_global_background_job_finish_handler
-from myrm_agent_harness.toolkits.code_execution.executors.base import set_executor
-from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import bind_workspace_storage_root
+from myrm_agent_harness.toolkits.code_execution.executors.base import reset_executor, set_executor
+from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind import (
+    bind_workspace_storage_root,
+    release_workspace_storage_bind_token,
+)
 from myrm_agent_harness.utils.runtime.wakeup_registry import set_global_wakeup_handler
 
 from app.services.agent.adaptive_wakeup import get_adaptive_wakeup_service, wake_turn_scheduler
@@ -40,9 +44,14 @@ _STEP_TIMEOUT_SECONDS = 15.0
 
 @pytest.fixture(autouse=True)
 def _chain() -> Iterator[None]:
-    """The registry is empty, the host's two hooks are the real ones, and the tools run outside a LangGraph run."""
+    """The registry is empty, the host's two hooks are the real ones, and the tools run outside a LangGraph run.
+
+    The durable job store is a process-wide singleton that binds itself to the workspace root of the first job; it is
+    cleared around each test so no later test of the session sees a job of this file.
+    """
     registry = get_background_registry()
     registry._entries.clear()  # type: ignore[attr-defined]
+    reset_background_job_store_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     set_global_wakeup_handler(ServerWakeupHandler())
     patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", AsyncMock()).start()
@@ -52,6 +61,7 @@ def _chain() -> Iterator[None]:
     ).start()
     yield
     registry._entries.clear()  # type: ignore[attr-defined]
+    reset_background_job_store_for_tests()
     set_global_background_job_finish_handler(None)
     set_global_wakeup_handler(None)
     unittest.mock.patch.stopall()
@@ -84,8 +94,6 @@ class _Agent:
     """The model's side of one chat: the real bash tools, bound to the chat's session and a temporary workspace."""
 
     def __init__(self, chat_id: str, workspace: Path) -> None:
-        set_executor(_make_local_executor(workspace))
-        bind_workspace_storage_root(workspace)
         self.config: RunnableConfig = {
             "configurable": {
                 "context": {
@@ -114,8 +122,13 @@ class _Agent:
 
 
 @pytest.fixture
-def agent(chat_id: str, tmp_path: Path) -> _Agent:
-    return _Agent(chat_id, tmp_path)
+def agent(chat_id: str, tmp_path: Path) -> Iterator[_Agent]:
+    """The agent of one test: its executor and workspace root are bound to the test and released with it."""
+    executor_token = set_executor(_make_local_executor(tmp_path))
+    root_token = bind_workspace_storage_root(tmp_path)
+    yield _Agent(chat_id, tmp_path)
+    release_workspace_storage_bind_token(root_token)
+    reset_executor(executor_token)
 
 
 async def _until(predicate: Callable[[], bool], what: str) -> None:
