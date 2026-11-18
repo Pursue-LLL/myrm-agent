@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException
+from myrm_agent_harness.backends.profiles.types import AgentProfile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.memory.archive import (
@@ -17,7 +18,6 @@ from app.schemas.memory.archive import (
 from app.services.memory.operations.crud.import_flows.side_effects import (
     _apply_model_migration,
     _resolve_post_import_moa_overlay_configured,
-    _write_migrated_mcp_configs,
     recheck_import_readiness,
 )
 from tests.services.memory.import_flows.support import session_context
@@ -56,34 +56,17 @@ async def test_recheck_keeps_the_verdict_when_persistence_fails() -> None:
 
 
 @pytest.mark.asyncio
-async def test_mcp_config_writer_skips_existing_and_unnamed_servers() -> None:
-    from app.services.config.service import config_service
-
-    record = SimpleNamespace(value=[{"name": "fs"}])
-    set_mock = AsyncMock()
-
-    with (
-        patch.object(config_service, "get", AsyncMock(return_value=record)),
-        patch.object(config_service, "set", set_mock),
-    ):
-        inserted = await _write_migrated_mcp_configs(
-            [{"name": "fs"}, {"name": " "}, {"name": "db", "command": "run"}],
-        )
-
-    assert inserted == 1
-    written = set_mock.await_args.args[1]
-    assert written[0] == {"name": "fs"}
-    assert written[-1] == {"name": "db", "command": "run", "enabled": False}
-
-
-@pytest.mark.asyncio
 async def test_moa_overlay_resolution_prefers_the_migrated_agent_then_the_source_payload() -> None:
-    agent = SimpleNamespace(
-        engine_params={
-            "moa_overlay": {
-                "reference_model_selections": [{"providerId": "openai", "model": "gpt-5.2"}],
+    # The repository keeps ``engine_params`` in the profile's ``metadata``; the profile has no such attribute.
+    agent = AgentProfile(
+        id="agent-1",
+        metadata={
+            "engine_params": {
+                "moa_overlay": {
+                    "reference_model_selections": [{"providerId": "openai", "model": "gpt-5.2"}],
+                }
             }
-        }
+        },
     )
     with patch(
         "app.services.agent.agent_service.AgentService.get_agent_by_id",
@@ -99,6 +82,17 @@ async def test_moa_overlay_resolution_prefers_the_migrated_agent_then_the_source
         is False
     )
     assert await _resolve_post_import_moa_overlay_configured(None, {"hermes_moa": {}}) is True
+
+
+@pytest.mark.asyncio
+async def test_an_agent_without_moa_refs_leaves_the_verdict_to_the_source_payload() -> None:
+    with patch(
+        "app.services.agent.agent_service.AgentService.get_agent_by_id",
+        AsyncMock(return_value=AgentProfile(id="agent-1")),
+    ):
+        declared = {"hermes_moa": {"reference_models": [{"provider": "openai", "model": "gpt-5.2"}]}}
+        assert await _resolve_post_import_moa_overlay_configured("agent-1", declared) is False
+        assert await _resolve_post_import_moa_overlay_configured("agent-1", {}) is True
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,8 @@
 
 [INPUT]
 app.services.migration.env_secrets (POS: which variables count as keys, and how a .env is read);
-app.services.config.service (POS: 配置核心业务逻辑); myrm_agent_harness BUILTIN_PROVIDER_ROUTE_SEGMENT
+app.services.config.service (POS: 配置核心业务逻辑); myrm_agent_harness BUILTIN_PROVIDER_ROUTE_SEGMENT;
+app.services.migration.source.source_migration_types::MIGRATION_CONFIG_DEVICE_ID (POS: the writer the config audit log names)
 
 [OUTPUT]
 import_external_source_secrets(): merge detected .env keys into providers config, creating the provider rows a key alone
@@ -31,6 +32,7 @@ from app.services.migration.env_secrets import (
     MULTI_ENDPOINT_PROVIDERS,
     read_env_keys,
 )
+from app.services.migration.source.source_migration_types import MIGRATION_CONFIG_DEVICE_ID
 
 # Why a key variable was left alone: no provider in Myrm takes it (``unsupported``), or its provider offers several
 # endpoints and the user has no row for it yet, so the key's endpoint is theirs to choose (``needs_endpoint``).
@@ -154,7 +156,7 @@ async def import_external_source_secrets(root: Path) -> SecretsImportResult:
         await config_service.set(
             "providers",
             config_value,
-            device_id="competitor-migration",
+            device_id=MIGRATION_CONFIG_DEVICE_ID,
             expected_version=config_version,
         )
 

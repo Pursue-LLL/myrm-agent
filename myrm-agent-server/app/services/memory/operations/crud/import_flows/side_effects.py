@@ -6,7 +6,8 @@ app.services.memory.imports.import_sessions::MemoryImportSessionService (POS: шо
 [OUTPUT]
 recheck_import_readiness: recompute a batch's readiness from live provider state.
 _write_migrated_mcp_configs / _resolve_post_import_moa_overlay_configured /
-_apply_model_migration: side effects the confirm flow triggers.
+_apply_model_migration: side effects the confirm flow triggers. The MCP write keeps the
+``{"mcpConfigs": [...]}`` value the runtime reads and leaves a row sealed under a lost key alone.
 
 [POS]
 Follow-up half of the confirm phase: everything that happens after the reviewed
@@ -68,29 +69,42 @@ async def recheck_import_readiness(
 
 
 async def _write_migrated_mcp_configs(mcp_configs: list[dict[str, object]]) -> int:
-    """Append migrated MCP configs to mcpServers and return newly inserted count."""
+    """Append migrated MCP configs to ``mcpServers`` (disabled, skipping names already there); return the inserted count.
+
+    The runtime and the WebUI read the list from ``{"mcpConfigs": [...]}``, so it is read from and written back into
+    that value, and the user's own entries and any other key of it are kept as they are.
+    """
 
     from app.services.config.service import config_service
+    from app.services.migration.source.source_migration_types import MIGRATION_CONFIG_DEVICE_ID
 
     record = await config_service.get("mcpServers")
-    existing: list[dict[str, object]] = []
-    if record is not None and isinstance(record.value, list):
-        existing = list(record.value)
+    if record is not None and record.unreadable:
+        # A row sealed under a key that is gone reads as empty; writing over it would destroy ciphertext the user can
+        # still restore.
+        logger.warning("MCP migration skipped: the stored mcpServers cannot be decrypted with the current key")
+        return 0
 
-    existing_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
+    stored: dict[str, object] = record.value if record is not None else {}
+    stored_configs = stored.get("mcpConfigs")
+    existing = list(stored_configs) if isinstance(stored_configs, list) else []
+    taken_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
 
-    inserted_count = 0
+    added: list[dict[str, object]] = []
     for cfg in mcp_configs:
         name = str(cfg.get("name", "")).strip()
-        if not name or name in existing_names:
+        if not name or name in taken_names:
             continue
-        entry = {**cfg, "enabled": False}
-        existing.append(entry)
-        existing_names.add(name)
-        inserted_count += 1
+        added.append({**cfg, "enabled": False})
+        taken_names.add(name)
 
-    await config_service.set("mcpServers", existing)
-    return inserted_count
+    if added:
+        await config_service.set(
+            "mcpServers",
+            {**stored, "mcpConfigs": [*existing, *added]},
+            device_id=MIGRATION_CONFIG_DEVICE_ID,
+        )
+    return len(added)
 
 
 def _agent_has_moa_overlay_refs(engine_params: dict[str, object] | None) -> bool:
@@ -136,9 +150,9 @@ async def _resolve_post_import_moa_overlay_configured(
         from app.services.agent.agent_service import AgentService
 
         agent = await AgentService.get_agent_by_id(target_agent_id)
-        if agent is not None and _agent_has_moa_overlay_refs(
-            agent.engine_params if isinstance(agent.engine_params, dict) else None
-        ):
+        # A stored profile carries its engine params in ``metadata``; the profile itself has no such attribute.
+        engine_params = agent.metadata.get("engine_params") if agent is not None else None
+        if _agent_has_moa_overlay_refs(engine_params if isinstance(engine_params, dict) else None):
             return True
 
     if isinstance(model_migration_data, dict) and _hermes_source_has_moa(model_migration_data.get("hermes_moa")):

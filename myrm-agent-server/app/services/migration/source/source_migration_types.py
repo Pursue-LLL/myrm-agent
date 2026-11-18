@@ -5,6 +5,7 @@ Loaded external source payloads from source_payload_loader.
 
 [OUTPUT]
 SourceInstructionPlan, MigrationWizardOptions, lane preview DTOs.
+MIGRATION_CONFIG_DEVICE_ID: the writer the config audit log names for every settings row a migration lane changes.
 
 [POS]
 Typed contracts for the four-lane migration orchestrator (instruction / memory / skill / credential).
@@ -13,6 +14,8 @@ Typed contracts for the four-lane migration orchestrator (instruction / memory /
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+
+MIGRATION_CONFIG_DEVICE_ID = "competitor-migration"
 
 
 @dataclass(frozen=True)

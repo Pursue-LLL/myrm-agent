@@ -9,17 +9,13 @@ from __future__ import annotations
 
 import copy
 import json
-from types import SimpleNamespace
 from typing import cast
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.models.memory import MemoryImportDryRunModel
-from app.schemas.memory.archive import MemoryImportDryRunRequest
-from app.services.memory.operations.crud.import_flows.dry_run import dry_run_import_memories
+from app.services.config.service import config_service
 from app.services.memory.operations.crud.import_flows.dry_run_source import (
     LoadedSource,
     SideChannels,
@@ -31,7 +27,8 @@ from app.services.migration.source.source_migration_types import (
     MigrationWizardOptions,
     SourceInstructionPlan,
 )
-from tests.services.memory.import_flows.support import session_context
+from tests.services.memory.import_flows.support import persisted_review_session, stored_columns_text
+from tests.support.skill_credential_store import credential_store
 
 CREDENTIAL = "PLACEHOLDER_MODEL_LANE_CREDENTIAL"
 MIGRATOR = "app.services.migration.source.source_model_migrator"
@@ -91,36 +88,15 @@ def _side_channels(loaded: LoadedSource) -> SideChannels:
         return build_side_channels(loaded)
 
 
-class _ConfigStore:
-    """In-memory ``config_service`` that records every write so two replays can be compared."""
+async def _replay(monkeypatch: pytest.MonkeyPatch, model_data: dict[str, object]) -> dict[str, object]:
+    """Run the confirm-side model migration on a fresh install and return the providers config it stored."""
 
-    def __init__(self) -> None:
-        self.values: dict[str, dict[str, object]] = {}
-        self.writes: list[tuple[str, dict[str, object]]] = []
-
-    async def get(self, config_key: str) -> SimpleNamespace | None:
-        value = self.values.get(config_key)
-        return SimpleNamespace(value=copy.deepcopy(value)) if value is not None else None
-
-    async def set(
-        self,
-        config_key: str,
-        value: dict[str, object],
-        device_id: str | None = None,
-        expected_version: str | None = None,
-    ) -> None:
-        self.values[config_key] = copy.deepcopy(value)
-        self.writes.append((config_key, copy.deepcopy(value)))
-
-
-async def _replay(monkeypatch: pytest.MonkeyPatch, model_data: dict[str, object]) -> _ConfigStore:
-    """Run the confirm-side model migration against an empty settings store."""
-
-    store = _ConfigStore()
-    monkeypatch.setattr(f"{MIGRATOR}.config_service", store)
-    monkeypatch.setattr(f"{MIGRATOR}.is_local_mode", lambda: True)
-    await _apply_model_migration(copy.deepcopy(model_data))
-    return store
+    async with credential_store(monkeypatch):
+        monkeypatch.setattr(f"{MIGRATOR}.is_local_mode", lambda: True)
+        await _apply_model_migration(copy.deepcopy(model_data))
+        record = await config_service.get("providers")
+    assert record is not None
+    return record.value
 
 
 def test_the_hermes_lane_keeps_the_provider_model_pairs_confirm_replays() -> None:
@@ -170,14 +146,14 @@ def test_a_source_without_a_replayable_model_leaves_the_lane_out(loaded_payload:
 
 @pytest.mark.asyncio
 async def test_replaying_the_reduced_lane_migrates_what_the_raw_blocks_would(monkeypatch: pytest.MonkeyPatch) -> None:
-    raw = {"hermes_auxiliary": _hermes_auxiliary(), "openclaw_agents_defaults": _openclaw_defaults()}
+    raw: dict[str, object] = {"hermes_auxiliary": _hermes_auxiliary(), "openclaw_agents_defaults": _openclaw_defaults()}
     channels = _side_channels(_loaded({"hermes_config": _hermes_config(), "openclaw_config": _openclaw_config()}))
 
-    reduced_store = await _replay(monkeypatch, channels.model_migration_payload)
-    raw_store = await _replay(monkeypatch, raw)
+    reduced = await _replay(monkeypatch, channels.model_migration_payload)
+    from_raw = await _replay(monkeypatch, raw)
 
-    assert reduced_store.writes == raw_store.writes
-    default_models = cast("dict[str, object]", reduced_store.values["providers"]["defaultModelConfig"])
+    assert reduced == from_raw
+    default_models = cast("dict[str, object]", reduced["defaultModelConfig"])
     assert default_models["visionFallbackModel"] == {"model": "google/gemini-2.5-flash"}
     assert default_models["baseModel"] == {"primary": {"providerId": "anthropic", "model": "claude-opus-4-6"}}
 
@@ -198,33 +174,11 @@ async def test_the_persisted_review_session_holds_no_model_lane_credential(
     config: dict[str, object],
     memory: dict[str, object],
 ) -> None:
-    loaded_payload = {"_source": competitor, config_key: config, **memory}
+    row = await persisted_review_session(db_session, competitor, {config_key: config, **memory})
 
-    with (
-        patch(
-            "app.services.migration.source.source_payload_loader.load_source_payload",
-            return_value=loaded_payload,
-        ),
-        patch(
-            "app.services.memory.operations.crud.import_flows.dry_run.get_session",
-            session_context(db_session),
-        ),
-        patch(
-            "app.services.memory.operations.crud.import_flows.dry_run.external_source_providers_configured",
-            AsyncMock(return_value=False),
-        ),
-    ):
-        response = await dry_run_import_memories(
-            MemoryImportDryRunRequest(payload={"competitor": competitor, "root": f"/tmp/{competitor}"}),
-        )
-
-    row = (
-        await db_session.execute(select(MemoryImportDryRunModel).where(MemoryImportDryRunModel.id == response.dry_run_id))
-    ).scalar_one()
-    columns = [row.normalized_data_json, row.summary_json, row.warnings_json, row.metadata_json]
-    assert CREDENTIAL not in json.dumps(columns, default=str)
+    assert CREDENTIAL not in stored_columns_text(row)
 
     model_migration = (row.metadata_json or {})["model_migration"]
     assert isinstance(model_migration, dict)
     replayed = await _replay(monkeypatch, model_migration)
-    assert replayed.values["providers"]["defaultModelConfig"]
+    assert replayed["defaultModelConfig"]

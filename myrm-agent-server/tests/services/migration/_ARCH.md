@@ -17,12 +17,14 @@
 | `test_source_discovery.py` | 核心 | Hermes / Claude Code / OpenClaw / Codex / Pi 的 filesystem discover（confidence、多源共存、edge cases；`has_importable_keys` 只认 `.env` 里能导入的 key，auth.json 与只含不支持变量的 `.env` 不算） |
 | `test_source_manifest.py` | 核心 | 迁移来源 manifest SSOT（ids、import map、local-scan 封闭集、payload 结构） |
 | `test_source_payload_loader.py` | 核心 | load_source_payload / build_coverage_items；Hermes 的 key 名按来源标记（`.env` 为 env，凭证池为 auth） |
-| `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分；`has_api_keys` / `has_importable_keys` 的判断 |
+| `test_source_payload_split.py` | 核心 | instruction vs memory 车道拆分；`has_api_keys` / `has_importable_keys` 的判断；Claude / Codex / Pi / Cursor 设置文件进入全局补充时不带凭证（任何片段都不留；`env` / `headers` 只留变量名；含凭证的字符串整体替换），不含凭证的设置仍可读，没有设置文件时不加设置块 |
 | `test_migration_source_coverage.py` | 核心 | import source 映射、auto 路由回归、manifest 封闭集合 |
 | `test_migration_e2e.py` | 核心 | discover → dry-run 端到端（hermes/openclaw） |
 | `test_loaders_openclaw_extended.py` | 辅助 | OpenClaw 多 workspace / sessions loader 分支 |
 | `test_loader_utils.py` | 辅助 | `_loader_utils` 共享函数 |
-| `test_source_model_migrator.py` | 辅助 | Hermes auxiliary + OpenClaw default model；routing 仅 migrated_slots 非空时启用；`extract_openclaw_default_model_config` 只留 model / models，缺失或畸形的 agents 块返回空 |
+| `test_source_model_migrator.py` | 辅助 | 模型迁移的纯函数部分：路由 id 拆成 provider + model；`extract_hermes_auxiliary_config` / `extract_openclaw_default_model_config` 只留迁移读取的字段，缺失或畸形的 agents 块返回空 |
+| `test_source_model_migrator_writes.py` | 辅助 | Hermes auxiliary + OpenClaw default model 的写入逻辑（配置服务替身与真实签名一致，漏传 `device_id` 会直接失败）；routing 仅 migrated_slots 非空时启用 |
+| `test_migration_config_writes.py` | 核心 | confirm 改的三个配置行（providers / mcpServers / personalSettings）在真实配置服务 + 内存库上的行为：写入者记入审计；MCP 并入运行时读取的 `{"mcpConfigs": [...]}`、默认 disabled、用户已有项与其他键保留、全部已存在时不写；因密钥丢失解不开的行不被覆盖；全局指令合并与回滚；写入后下一次 `load_user_configs()` 读到新值 |
 | `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入：已有行（id 或 routingProfile 匹配）直接填 key 并带 expected_version、单凭 key 即可用的 provider 才新建行、多端点 provider 记为 needs_endpoint 且不写入、没有对应 provider 的变量按名列出，结果不含值，仅本机/Tauri 可用 |
 | `test_env_secrets.py` | 辅助 | 迁移预览、payload key 名与导入三处读同一份 `.env` 时对「什么算 key」的结论一致（export 前缀、带注释的引号值、别名、空值、`${…}` 引用、缺文件）；没有对应 provider 的 key 变量名按文件顺序列出；payload 的 key 名带来源标记；`MULTI_ENDPOINT_PROVIDERS` 是 `IMPORTABLE_PROVIDERS` 的子集 |
 | `test_import_archive_dry_run.py` | 辅助 | import archive dry-run 编排 |

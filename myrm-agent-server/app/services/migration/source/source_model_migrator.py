@@ -2,6 +2,7 @@
 
 [INPUT]
 hermes_config dict (``auxiliary`` section); openclaw_config dict (``agents.defaults``)
+app.services.config.service::config_service (POS: the providers row the migrated slots are merged into)
 
 [OUTPUT]
 extract_hermes_auxiliary_config() / extract_openclaw_default_model_config(): the config fields the
@@ -11,7 +12,8 @@ migrate_openclaw_default_model(): OpenClaw default model → Myrm defaultModelCo
 
 [POS]
 Server business layer — wizard-payload-driven model migration, called from
-confirm_import_memories. Only active in local/Tauri deployments.
+confirm_import_memories. Only active in local/Tauri deployments. Writes are recorded under
+``MIGRATION_CONFIG_DEVICE_ID``, and a providers row sealed under a key that is gone is never written over.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from typing import Any
 
 from app.config.deploy_mode import is_local_mode
 from app.services.config.service import config_service
+from app.services.migration.source.source_migration_types import MIGRATION_CONFIG_DEVICE_ID
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +117,21 @@ def _resolve_route_model_id(provider: str, model: str) -> str:
     return f"{prefix}/{model}"
 
 
+async def _load_providers_value() -> dict[str, Any] | None:
+    """The stored providers config a migration merges into: empty on a fresh install, ``None`` when it cannot be read.
+
+    A row sealed under a key that is gone reads as empty, and writing a migration over that empty value would destroy
+    ciphertext the user can still restore.
+    """
+    record = await config_service.get("providers")
+    if record is None:
+        return {}
+    if record.unreadable:
+        logger.warning("Model migration skipped: the stored providers cannot be decrypted with the current key")
+        return None
+    return record.value
+
+
 async def migrate_hermes_auxiliary_models(
     hermes_config: dict[str, Any],
 ) -> AuxiliaryMigrationResult:
@@ -131,13 +149,11 @@ async def migrate_hermes_auxiliary_models(
 
     result = AuxiliaryMigrationResult(total_tasks_detected=len(tasks))
 
-    providers_record = await config_service.get("providers")
-    providers_value: dict[str, Any] = (
-        providers_record.value if providers_record and isinstance(providers_record.value, dict) else {}
-    )
-    current_model_config: dict[str, Any] = (
-        providers_value.get("defaultModelConfig") if isinstance(providers_value.get("defaultModelConfig"), dict) else {}
-    )
+    providers_value = await _load_providers_value()
+    if providers_value is None:
+        return result
+    stored_model_config = providers_value.get("defaultModelConfig")
+    current_model_config: dict[str, Any] = stored_model_config if isinstance(stored_model_config, dict) else {}
 
     slot_candidates: dict[str, str] = {}
 
@@ -169,10 +185,10 @@ async def migrate_hermes_auxiliary_models(
             )
 
         providers_value["defaultModelConfig"] = updates
-        await config_service.set(config_key="providers", value=providers_value)
+        await config_service.set(config_key="providers", value=providers_value, device_id=MIGRATION_CONFIG_DEVICE_ID)
 
     if result.migrated_slots:
-        await _enable_economy_routing_if_unset(None)
+        await _enable_economy_routing_if_unset()
 
     return result
 
@@ -202,14 +218,11 @@ def _routing_slot_has_primary(routing_slot: object) -> bool:
     return isinstance(primary, dict) and bool(primary.get("model"))
 
 
-async def _enable_economy_routing_if_unset(providers_value: dict[str, Any] | None) -> None:
+async def _enable_economy_routing_if_unset() -> None:
     """Enable Smart Routing defaults for Hermes migrants when not already configured."""
-    providers_record = await config_service.get("providers")
-    providers_value = (
-        providers_value
-        if isinstance(providers_value, dict)
-        else (providers_record.value if providers_record and isinstance(providers_record.value, dict) else {})
-    )
+    providers_value = await _load_providers_value()
+    if providers_value is None:
+        return
     model_config = providers_value.get("defaultModelConfig")
     if not isinstance(model_config, dict):
         model_config = {}
@@ -217,12 +230,12 @@ async def _enable_economy_routing_if_unset(providers_value: dict[str, Any] | Non
     if isinstance(routing_config, dict) and routing_config.get("enabled"):
         return
 
-    empty_slot = {"primary": None, "fallback": None}
+    empty_slot: dict[str, Any] = {"primary": None, "fallback": None}
     existing_routing = routing_config if isinstance(routing_config, dict) else {}
-    light_slot = existing_routing.get("lightModel") if isinstance(existing_routing.get("lightModel"), dict) else empty_slot
-    reasoning_slot = (
-        existing_routing.get("reasoningModel") if isinstance(existing_routing.get("reasoningModel"), dict) else empty_slot
-    )
+    stored_light = existing_routing.get("lightModel")
+    light_slot: dict[str, Any] = stored_light if isinstance(stored_light, dict) else empty_slot
+    stored_reasoning = existing_routing.get("reasoningModel")
+    reasoning_slot: dict[str, Any] = stored_reasoning if isinstance(stored_reasoning, dict) else empty_slot
 
     light_primary = _slot_primary_selection(model_config, "liteModel")
     if light_primary and not _routing_slot_has_primary(light_slot):
@@ -238,7 +251,7 @@ async def _enable_economy_routing_if_unset(providers_value: dict[str, Any] | Non
         "reasoningModel": reasoning_slot or empty_slot,
     }
     providers_value["defaultModelConfig"] = model_config
-    await config_service.set(config_key="providers", value=providers_value)
+    await config_service.set(config_key="providers", value=providers_value, device_id=MIGRATION_CONFIG_DEVICE_ID)
     logger.info("Hermes economy pack: enabled Smart Routing defaults")
 
 
@@ -290,10 +303,9 @@ async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str
                 model_str = api_id
                 break
 
-    providers_record = await config_service.get("providers")
-    providers_value: dict[str, Any] = (
-        providers_record.value if providers_record and isinstance(providers_record.value, dict) else {}
-    )
+    providers_value = await _load_providers_value()
+    if providers_value is None:
+        return None
     existing_cfg = providers_value.get("defaultModelConfig")
     if isinstance(existing_cfg, dict):
         base_model = existing_cfg.get("baseModel")
@@ -313,6 +325,6 @@ async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str
         "primary": {"providerId": provider_id, "model": model_id},
     }
     providers_value["defaultModelConfig"] = default_model_cfg
-    await config_service.set(config_key="providers", value=providers_value)
+    await config_service.set(config_key="providers", value=providers_value, device_id=MIGRATION_CONFIG_DEVICE_ID)
     logger.info("OpenClaw default model migrated: %s", model_str)
     return model_str
