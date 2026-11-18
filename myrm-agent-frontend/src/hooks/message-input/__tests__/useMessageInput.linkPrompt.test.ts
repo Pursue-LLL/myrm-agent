@@ -72,7 +72,6 @@ describe('useMessageInput link prompt', () => {
       setInputMessage,
       pendingArchiveRestoreActions: [],
       setPendingArchiveRestoreActions: vi.fn(),
-      loadMessages: vi.fn(),
       loading: false,
       messages: [],
       agentConfig: null,
