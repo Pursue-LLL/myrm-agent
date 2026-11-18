@@ -943,6 +943,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/skills/test_prebuilt_sync_state.py` | 单元 | 种子指纹随同步读到的一切输入变化（SKILL.md、附属文件的增删改与移动、种子的增删改名），不随同步跳过的东西变化（隐藏文件、下划线前缀的文件与目录、没有 SKILL.md 的目录、种子目录旁的散文件）；各字段带长度前缀，同一串字节换个切法也得到不同指纹；种子与附属文件的遍历规则与同步一致 |
 | `api/skills/test_skill_reveal_api.py` | 模块 | `POST /skills/{id}/reveal`：打开真实技能目录、非本地模式拒绝、未知技能/无本地存储/目录缺失的错误映射 |
 | `services/agent/test_converter_agent_prompt_delivery.py` | 模块 | 真实转换器按 Web 请求形状（含 `agent_config`）交付智能体人设：保存的人设追加在客户端全局指令之后且只出现一次；会话级 `agent_config.system_prompt` 整体替换、空串清空、已保存的智能体不存在时仍生效；无 `agent_config` 的请求照用保存的人设 |
+| `services/agent/test_converter_web_search_mount.py` | 模块 | 真实转换器按 Web 请求形状决定联网搜索是否挂载，不看服务商是否应答：转换与数据源阶段从不等待就绪探针（探针被换成一碰就失败的桩）；有搜索配置时，fast 回合与档案含 `web_search` 的 agent 回合挂载，档案不含 `web_search` 的 agent 回合不挂载；没有搜索配置时哪里都不挂载（模式 × 档案 × 是否有配置共 8 格） |
 | `services/agent/test_shared_context_name_resolution.py` | 模块 | 共享上下文显示名经真实 `SharedContextService` 与数据库往返抵达 agent params 与 wiki lane（会话导入出错会被兜底静默吞掉，故不 mock） |
 | `services/skills/test_evolution_review_apply.py` | 模块 | 演化评审落盘：FIX/DERIVED/CAPTURED 写入进化内容并以对应类型记录谱系；已退役的进化类型、加载器会跳过的内容、提案创建后被改动或删除的技能文件（换行符差异、重复 apply、无基线哈希的提案不算过期）在技能文件被改动之前即被拒绝；fork 被拒绝时提案保持原样、成功后 payload 取得 fork 身份；apply 后进化存储里保存的是实际写入的文本（新建、既有与 fork 的带作用域技能各一例） |
 | `services/skills/test_skill_file_differs.py` | 模块 | `skill_file_differs`：SKILL.md 与给定文本的比较不计换行写法；没有路径、文件缺失、路径是目录时不算不同 |

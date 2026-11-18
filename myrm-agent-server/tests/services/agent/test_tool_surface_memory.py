@@ -21,7 +21,6 @@ def _sources_with_search() -> ConfigSources:
     """Sources whose search service is already resolved, so surface resolution reloads no configuration."""
     return ConfigSources(
         search_cfg=SearchServiceConfig(search_service="tavily", api_key="test-key"),
-        search_available=True,
         search_is_user_configured=True,
         embedding_cfg=None,
         reranker_cfg=None,

@@ -8,10 +8,10 @@
 |------|------|------|-------|
 | `__init__.py` | 子域出口 | 聚合导出六个阶段的入口与结果类型 | — |
 | `model_plan.py` | 核心 | 模型槽位（主 / fallback / lite / safety / vision / video）解析、能力与上下文窗口补全、有序列 fallback 链装配 | ✅ |
-| `sources.py` | 核心 | 外部数据源：搜索服务可用性、retrieval 的 embedding/reranker、MCP 服务器（请求 > 用户配置 > 组织级合并） | ✅ |
+| `sources.py` | 核心 | 外部数据源：搜索服务配置（缓存里没有时重读保存的配置，不探测服务商）、retrieval 的 embedding/reranker、MCP 服务器（请求 > 用户配置 > 组织级合并） | ✅ |
 | `profile_apply.py` | 核心 | Agent profile 能力包：system_prompt（追加在客户端 `user_instructions` 之后；`agent_config.system_prompt` 缺省用已保存的人设，有值或空串则整体替换，空串即清空；会话级文本只存在于请求里，已保存的智能体不存在时同样生效）、混合路由规则、team leader 协议、locale 后缀、per-agent MCP 过滤、`agent_config` 覆盖、tool gateway | ✅ |
 | `chat_context.py` | 核心 | 会话作用域：chat 行、workspace 解析（项目 / 已有 chat / 首轮 `workspace_dir` / 默认 workspace）、session access roots、共享记忆上下文 | ✅ |
-| `tool_surface.py` | 核心 | 入口面工具挂载：fast（answer_tool-only）vs `WEB_CHAT`，产出 tool flags / prompt_mode / search_depth | ✅ |
+| `tool_surface.py` | 核心 | 入口面工具挂载：fast（answer_tool-only）vs `WEB_CHAT`，产出 tool flags / prompt_mode / search_depth，以及联网搜索是否挂载（`enable_web_search`：有搜索配置，且 fast 或档案含 `web_search`） | ✅ |
 
 ## 依赖关系
 

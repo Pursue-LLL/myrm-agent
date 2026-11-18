@@ -57,7 +57,7 @@ def _request(*, agent_config: dict[str, object] | None) -> AgentRequest:
 
 @contextmanager
 def _converter_env(*, agent_exists: bool) -> Iterator[None]:
-    """Everything the converter reads from outside: the saved profile, the user configs, the live search probe."""
+    """Everything the converter reads from outside: the saved profile and the user configs."""
     profile = ResolvedAgentProfile(
         agent_id="builtin-developer",
         skill_ids=(),
@@ -72,7 +72,6 @@ def _converter_env(*, agent_exists: bool) -> Iterator[None]:
     with (
         patch("app.services.agent.profile.profile_resolver.get_agent_profile_resolver", return_value=resolver),
         patch("app.core.channel_bridge.config_loader.load_user_configs", AsyncMock(return_value=_build_mock_user_configs())),
-        patch("app.services.integrations.search_verify.verify_search_config_cached", AsyncMock(return_value=True)),
     ):
         yield
 

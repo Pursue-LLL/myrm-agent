@@ -62,14 +62,14 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 - **轨道**：默认 Saved Agent、Channel/IM/Cron/Kanban/Eval/Voice 等非 fast Web 入口。
 - **CORE file/bash**：Harness `myrm-agent-harness/src/myrm_agent_harness/agent/tool_management/tool_layers.py` CORE 层 Turn1 eager；前端无开关。
 - **Server 执行层**：`resolve_builtin_tool_flags()` 后调用 `tool_mount.resolve_agent_mount()`，再传入 harness `get_meta_tools`。
-- **Web Search 动态配置与弹性激活**：当 `enabled_builtin_tools` 包含 `web_search` 且初始未拿到搜索配置时，`conversion/tool_surface.py` 主动触发 `invalidate_user_configs_cache()` 与 `reload_user_configs()` 刷新配置；一旦存在有效搜索配置，保障 `search_available=True` 注入，避免因即时网络探测延迟或 TTL 探针抖动导致 `web_search_tool` 被误剥离。
+- **Web Search 挂载**：`conversion/tool_surface.py` 只看搜索配置与档案：有搜索配置，且档案的 `enabled_builtin_tools` 含 `web_search`，才挂载 `web_search_tool`；结果放在 `ToolSurface.enable_web_search`，`converter.py` 原样写入 `GeneralAgentParams.enable_web_search`。档案里取消勾选联网搜索，即使服务商健康也不挂载。转换期不探测搜索服务商：服务商连不上时由搜索自身在运行时报错，需要提前拒绝或告知的入口（如渠道）在各自的执行前置阶段探测。当档案含 `web_search` 且初始未拿到搜索配置时，主动触发 `invalidate_user_configs_cache()` 与 `reload_user_configs()` 刷新配置。
 - **Channel/IM**：仅绑定 General Agent（`SqlTopicManager.bind_topic` 拒绝 `prompt_mode=search`；`resolve_topic` / `get_all_topics` 读时清除 legacy Search 绑定）；未绑定时 `DEFAULT_ENABLED_BUILTIN_TOOLS` + baseline。
 - **persist 语义**：`enabled_builtin_tools` 不含 `file_ops` / `code_execute`；写入 DB 时 strip baseline ID。
 
 ## Search/Fast（Web `action_mode=fast`）
 
 - **唯一不挂 bash 与文件写入类工具的入口**：`conversion/tool_surface.py` 在 `action_mode=fast` 时 `resolve_agent_mount(WEB_FAST, …)`，设 `prompt_mode=search`，并把 profile 覆盖为 answer_tool-only：skills / MCP / subagents 置空，`max_iterations` 30（deep 50）、`engine_params.max_tool_calls` 8（deep 20），记忆策略重置为默认（已保存的智能体档案里的策略不带入这一轮）。仍挂载 **UECD 只读** `file_read_tool`（`.context/{chat_id}/evicted/` + `_uploaded/`），不挂载 write/edit/glob/grep/bash。媒体生成、外部 Agent、embedding/reranker 由 `converter.py` 在装配阶段按 fast 置空。
-- **搜索开关**：`enable_web_search` 取解析结果 `search_cfg is not None`；没有搜索配置时记 warning 并按未启用处理，不会凭空打开搜索。
+- **搜索开关**：`ToolSurface.enable_web_search` 取解析结果 `search_cfg is not None`，不看档案里的 `web_search`；没有搜索配置时记 warning 并按未启用处理，不会凭空打开搜索。
 - **Normal vs Deep**：共用同一 builtin 开关集，`search_depth=deep` 只追加 `SEARCH_DEEP_SUFFIX` prompt、`tool_setup` 内 SufficiencyConfig 与更高的 `max_tool_calls` / `max_iterations`。
 - **Turn1 工具**：`web_search_tool`、`web_fetch_tool`；`file_read_tool`（UECD 只读，读 evicted spill + `_uploaded/`）；`request_answer_user_tool`（`answer_tool` opt-in，EXTENDED 层）。**不挂载记忆工具**：`ToolSurface.memory_recall_mode=RecallMode.CONTEXT`，用户记忆只通过注入的 `<user_memory_context>` 块到达模型（没有记忆保存/管理/搜索工具，历史会话搜索随之不可用），后台自动抽取不受影响。**不默认 bind browser**；browser 仅当用户选用带 `browser` 开关的 Agent profile 时加载。
 - Browser 开启时，`browser-automation` peripheral skill 在 `AgentFactory.create_general_agent` 合并（非 `conversion/tool_surface.py`），保证 Cron/Channel/Kanban 与 Web 一致；`prompt_mode="search"` 跳过绑定。
