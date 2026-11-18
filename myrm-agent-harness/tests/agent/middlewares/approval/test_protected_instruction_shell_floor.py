@@ -13,7 +13,8 @@ the real decision stages:
 3. A scheduled run refuses it whatever its declaration covers, and still approves a read.
 4. A command line is judged command by command: a read beside an unrelated command is not mistaken for a write, and
    a search whose argument spells an edit command is not one either.
-5. Python source the bash tool runs in its wrapper is not shell syntax, and this check does not read it.
+5. Python source the bash tool runs in its wrapper is not shell syntax, and this check does not read it; the same text
+   started in the background is read by a shell, and is judged.
 """
 
 from __future__ import annotations
@@ -111,6 +112,8 @@ _READS_BESIDE_OTHER_WRITES = (
     "cp a.txt b.txt && head SOUL.md",
     "mv old.log new.log | grep AGENTS.md",
 )
+# Python source the bash tool runs in its wrapper, opening a protected file for writing.
+_PYTHON_REWRITE = "python3 -c \"open('AGENTS.md', 'w').write('x')\""
 _BASH, _STDIN = ("code_interpreter", "command"), ("shell_exec", "data")
 _SHELL_TOOLS = pytest.mark.parametrize(("permission", "key"), [_BASH, _STDIN], ids=["bash-tool", "typed-into-process"])
 
@@ -191,12 +194,19 @@ class TestTheEngineAsksAboutAShellWrite:
         assert evaluate_tool_call("shell_exec", {"data": command}, _ASK_EVERYTHING)[0] == DENY
 
     def test_python_source_the_bash_tool_runs_is_not_read_as_a_shell_write(self) -> None:
-        command = "python3 -c \"open('AGENTS.md', 'w').write('x')\""
-
-        _action, reason = evaluate_tool_call("code_interpreter", {"command": command}, _ASK_EVERYTHING)
+        _action, reason = evaluate_tool_call("code_interpreter", {"command": _PYTHON_REWRITE}, _ASK_EVERYTHING)
 
         assert _PROTECTED not in reason
-        assert evaluate_tool_call("shell_exec", {"data": command}, _ASK_EVERYTHING)[0] == DENY
+        assert evaluate_tool_call("shell_exec", {"data": _PYTHON_REWRITE}, _ASK_EVERYTHING)[0] == DENY
+
+    def test_the_same_text_started_in_the_background_is_read_as_a_shell_write(self) -> None:
+        tool_input: dict[str, object] = {"command": _PYTHON_REWRITE, "run_in_background": True}
+
+        action, reason = evaluate_tool_call("code_interpreter", tool_input, _ASK_EVERYTHING)
+
+        assert action == ASK
+        assert isinstance(reason, CodedReason)
+        assert (reason.code, reason.subject) == (ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE, "AGENTS.md")
 
     @_SHELL_TOOLS
     def test_a_rule_that_allows_the_command_does_not_allow_the_write(self, permission: str, key: str) -> None:
