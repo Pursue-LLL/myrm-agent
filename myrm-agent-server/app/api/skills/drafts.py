@@ -6,6 +6,7 @@ front-end refresh events through the single-source publish helpers.
 
 [INPUT]
 - app.database.connection::get_session (POS: 数据库连接管理)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
 - app.services.skills.draft_notification::publish_skill_growth_event (POS: SKILL_GROWTH_UPDATED 前端刷新事件单一出口)
 - app.services.skills.evolution_events::publish_skill_evolved_event (POS: SKILL_EVOLVED 前端刷新事件单一出口)
@@ -39,6 +40,7 @@ from app.api.skills.draft_materialize import (
 )
 from app.api.skills.draft_record import SkillDraftRecord
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 from app.database.models import Agent, ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 from app.services.skills.draft_notification import publish_skill_growth_event
@@ -375,6 +377,8 @@ async def _bind_skill_to_agent(skill_id: str, agent_id: str | None) -> None:
         return
     try:
         async with get_session() as db:
+            # Read-then-write that nothing retries: a lost race would leave the approved skill unbound.
+            await acquire_write_lock(db)
             agent = await db.get(Agent, agent_id)
             if agent is None:
                 logger.warning("Agent %s not found for skill binding, skipping", agent_id)
@@ -394,6 +398,8 @@ async def _rollback_draft_status(draft_id: str) -> None:
     """Revert a draft to PENDING_REVIEW after materialization failure."""
     try:
         async with get_session() as db:
+            # Read-then-write that nothing retries: a lost race would leave the draft approved and stuck.
+            await acquire_write_lock(db)
             result = await db.execute(select(ApprovalRecord).where(ApprovalRecord.id == draft_id))
             draft = result.scalar_one_or_none()
             if draft is not None:

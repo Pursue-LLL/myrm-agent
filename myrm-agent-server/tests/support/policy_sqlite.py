@@ -8,6 +8,7 @@
 - policy_database: build the schema on a policy-running database that ``get_session()`` then hands out
 - hold_write_lock: a writer that keeps the write lock, uncommitted, until the caller lets go
 - PolicyDb.read_issued / wait_until: observe whether a unit has started reading
+- run_while_another_writer_commits: run a unit that another writer commits in front of, and wait for it
 
 [POS]
 The plain ``sqlite+aiosqlite`` engines most fixtures use do not run the policy, so a write lost to SQLITE_BUSY_SNAPSHOT
@@ -20,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import sqlite3
 import uuid
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Coroutine
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -104,3 +105,20 @@ async def wait_until(condition: Callable[[], bool], timeout_s: float) -> None:
     deadline = loop.time() + timeout_s
     while not condition() and loop.time() < deadline:
         await asyncio.sleep(0.005)
+
+
+async def run_while_another_writer_commits(db: PolicyDb, start_unit: Callable[[], Coroutine[object, object, object]]) -> None:
+    """Start the unit while another writer holds the write lock, let that writer commit, and wait for the unit.
+
+    Unprotected, a read-then-write unit reads within milliseconds and keeps that snapshot, so the holder's commit fails
+    its write; protected, it waits for the lock first and issues no read until the holder is done.
+    """
+    holder = await hold_write_lock(db)
+    try:
+        unit = asyncio.create_task(start_unit())
+        await wait_until(db.read_issued, READ_GRACE_S)
+        await holder.commit()
+
+        await asyncio.wait_for(unit, timeout=BUSY_TIMEOUT_MS / 1000)
+    finally:
+        await holder.close()

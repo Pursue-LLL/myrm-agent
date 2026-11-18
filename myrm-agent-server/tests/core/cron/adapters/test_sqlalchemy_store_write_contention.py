@@ -10,8 +10,7 @@ database.
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import AsyncIterator
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,7 +21,7 @@ from myrm_agent_harness.infra.incremental.types import MonitorState
 from myrm_agent_harness.toolkits.cron.types import CronJob, JobType, RunStatus, Schedule, ScheduleKind
 
 from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore
-from tests.support.policy_sqlite import BUSY_TIMEOUT_MS, READ_GRACE_S, PolicyDb, hold_write_lock, policy_database, wait_until
+from tests.support.policy_sqlite import PolicyDb, policy_database, run_while_another_writer_commits
 
 
 @pytest_asyncio.fixture
@@ -41,23 +40,6 @@ def _job(job_id: str) -> CronJob:
     )
 
 
-async def _run_while_another_writer_commits(
-    policy_db: PolicyDb, start_unit: Callable[[], Coroutine[object, object, object]]
-) -> None:
-    """Start the unit while another writer holds the write lock, let that writer commit, and wait for the unit."""
-    holder = await hold_write_lock(policy_db)
-    try:
-        unit = asyncio.create_task(start_unit())
-        # Unprotected, the unit reads within milliseconds and keeps that snapshot; protected, it waits for the lock
-        # first and issues no read until the holder is done.
-        await wait_until(policy_db.read_issued, READ_GRACE_S)
-        await holder.commit()
-
-        await asyncio.wait_for(unit, timeout=BUSY_TIMEOUT_MS / 1000)
-    finally:
-        await holder.close()
-
-
 @pytest.mark.asyncio
 async def test_save_job_keeps_its_write_when_another_writer_commits_first(policy_db: PolicyDb) -> None:
     store = SqlAlchemyCronStore()
@@ -70,7 +52,7 @@ async def test_save_job_keeps_its_write_when_another_writer_commits_first(policy
         fire_count=1,
     )
 
-    await _run_while_another_writer_commits(policy_db, lambda: store.save_job(finished))
+    await run_while_another_writer_commits(policy_db, lambda: store.save_job(finished))
 
     persisted = await store.get_job("running")
     assert persisted is not None
@@ -87,7 +69,7 @@ async def test_save_monitor_state_keeps_its_write_when_another_writer_commits_fi
     await store.save_monitor_state(baseline)
 
     updated = replace(baseline, data={"seen": ["a", "b"]})
-    await _run_while_another_writer_commits(policy_db, lambda: store.save_monitor_state(updated))
+    await run_while_another_writer_commits(policy_db, lambda: store.save_monitor_state(updated))
 
     persisted = await store.get_monitor_state("watcher")
     assert persisted is not None

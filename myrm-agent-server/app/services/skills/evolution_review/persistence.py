@@ -1,6 +1,7 @@
 """
 [INPUT]
 - app.database.models.approval::ApprovalRecord (POS: 统一审批记录模型)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 - .types::EvolutionApprovalPayload (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
 [OUTPUT]
 - load/list/count/persist helpers for evolution ApprovalRecord rows
@@ -11,10 +12,12 @@ Evolution 审核 ApprovalRecord 持久化读写（list/count 在 SQL 层应用 a
 from __future__ import annotations
 
 from datetime import datetime
+from types import EllipsisType
 
-from sqlalchemy import desc, func, or_, select
+from sqlalchemy import ColumnElement, desc, func, or_, select
 
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 from app.database.models import ApprovalRecord
 
 from .types import (
@@ -28,7 +31,7 @@ from .types import (
 )
 
 
-def _pending_growth_status_clause():
+def _pending_growth_status_clause() -> ColumnElement[bool]:
     growth_status = ApprovalRecord.payload["growth_status"].as_string()
     return or_(
         growth_status.in_(PENDING_EVOLUTION_GROWTH_STATUSES),
@@ -49,9 +52,11 @@ async def persist_approval_payload(
     *,
     approval_status: str | None = None,
     payload: EvolutionApprovalPayload | None = None,
-    resolved_at: datetime | None | object = ...,
+    resolved_at: datetime | EllipsisType | None = ...,
 ) -> ApprovalRecord:
     async with get_session() as db:
+        # Read-then-write: take the write lock first, or a writer committing in between fails this settlement.
+        await acquire_write_lock(db)
         record = await db.get(ApprovalRecord, evolution_id)
         if record is None or record.action_type != EVOLUTION_ACTION_TYPE:
             raise RuntimeError(f"Evolution approval record not found: {evolution_id}")

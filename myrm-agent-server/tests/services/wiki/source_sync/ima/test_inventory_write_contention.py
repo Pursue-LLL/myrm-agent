@@ -8,7 +8,6 @@ transaction policy on a file database.
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -18,7 +17,7 @@ import pytest_asyncio
 from app.services.wiki.source_sync.ima import inventory
 from app.services.wiki.source_sync.ima.ledger import InventoryItem
 from app.services.wiki.source_sync.ima.state import ImaSyncState
-from tests.support.policy_sqlite import BUSY_TIMEOUT_MS, READ_GRACE_S, PolicyDb, hold_write_lock, policy_database, wait_until
+from tests.support.policy_sqlite import PolicyDb, policy_database, run_while_another_writer_commits
 
 from .support import FakeIma, library_config, make_ctx, rows
 
@@ -44,16 +43,6 @@ async def test_inventory_page_keeps_its_write_when_another_writer_commits_first(
         remote_version="1",
     )
 
-    holder = await hold_write_lock(policy_db)
-    try:
-        record = asyncio.create_task(inventory._record(ctx, [item]))
-        # Unprotected, the page reads its existing rows within milliseconds and keeps that snapshot; protected, it waits
-        # for the lock first and issues no read until the holder is done.
-        await wait_until(policy_db.read_issued, READ_GRACE_S)
-        await holder.commit()
-
-        await asyncio.wait_for(record, timeout=BUSY_TIMEOUT_MS / 1000)
-    finally:
-        await holder.close()
+    await run_while_another_writer_commits(policy_db, lambda: inventory._record(ctx, [item]))
 
     assert set(await rows(policy_db.factory)) == {"Plan"}

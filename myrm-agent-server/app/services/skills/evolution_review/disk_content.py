@@ -220,9 +220,13 @@ async def apply_content_update(
             from sqlalchemy.orm.attributes import flag_modified
 
             from app.database.connection import get_session
+            from app.database.factory import acquire_write_lock
             from app.database.models import Agent
 
             async with get_session() as db:
+                # Read-then-write that is logged and dropped on failure: a lost race would leave the agent bound to the
+                # skill it was forked from.
+                await acquire_write_lock(db)
                 agent = await db.get(Agent, agent_id)
                 if agent:
                     if agent.mounted_skill_ids and old_skill_id in agent.mounted_skill_ids:

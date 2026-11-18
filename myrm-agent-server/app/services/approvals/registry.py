@@ -15,7 +15,7 @@
 统一审批流调度器。负责将各种拦截节点落库并推送 SSE 事件，接收 resolve 指令。
 outbound_draft 的定案（WebUI/IM 按钮/`/draft`/批量/TTL）统一在此收口：状态提交后调用 finalize_outbound_draft。
 定案是读后写（resolve_approval、TTL 清理），事务起始先取 SQLite 写锁：并发的定案只有一方生效，另一方等待后读到已定案状态
-（resolve_approval 返回 None），不会重复发送，也不会以 "database is locked" 失败；续跑时结算的浏览器接管审批同样逐条走 resolve_approval。
+（resolve_approval 返回 None），不会重复发送；等锁最多一个 busy_timeout，超时才以 "database is locked" 失败。续跑时结算的浏览器接管审批同样逐条走 resolve_approval。
 """
 
 import asyncio
@@ -378,7 +378,7 @@ class ApprovalRegistry:
             )
             approval_ids = list((await db.execute(stmt)).scalars().all())
         # Each one is decided by resolve_approval like any other approval: it takes the write lock first, so a
-        # concurrent writer cannot fail this request, and it refreshes the run digest's pending count.
+        # concurrent writer only delays this request (up to busy_timeout), and it refreshes the run digest's pending count.
         resolved_count = 0
         for approval_id in approval_ids:
             if await cls.resolve_approval(approval_id, normalized) is not None:
