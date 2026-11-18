@@ -4,7 +4,6 @@ src/app/library/components/WikiGraph3D.tsx
 src/app/subscription/page.tsx
 src/components/agent/builtin-agent-i18n-data.ts
 src/components/billing/QuotaDisplay.tsx
-src/components/features/app-shell/search-dialog.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
 src/components/features/artifacts/PublishModal.tsx
@@ -116,7 +115,6 @@ src/services/skill/core.ts
 src/services/skill/growth.ts
 src/services/statistics.ts
 src/services/wiki/service.ts
-src/store/builtinActions.ts
 src/store/chat/messageManagement.ts
 src/store/chat/messageStream/handlers/statusStreamProgressSteps.ts
 src/store/chat/types/agentStream/part1.ts
