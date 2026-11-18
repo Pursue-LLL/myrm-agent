@@ -3,6 +3,9 @@
 - .types::EvolutionApprovalPayload, EvolutionApplyError (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）。)
 - myrm_agent_harness.api.skills::parse_skill_frontmatter, compute_content_hash, read_skill_md (POS: SKILL.md frontmatter parser the skill loader uses; line-ending-insensitive content hash; the SKILL.md text at a path, the one the evolution engine reads)
 - myrm_agent_harness.infra.atomic_write::atomic_write (POS: crash-safe file replace)
+- app.database.connection::get_session (POS: 数据库连接管理)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
+- app.database.models::Agent (POS: Agent 配置域模型)
 [OUTPUT]
 - skill_file_hash: hash of the SKILL.md on disk (the proposal's base)
 - skill_file_differs: whether the SKILL.md holds other text than a given text

@@ -153,4 +153,6 @@ async def test_fork_rebinding_keeps_its_write_when_another_writer_commits_first(
     with patch("app.services.skills.write_orchestrator.persist_skill_md_snapshot", new=AsyncMock()):
         await run_while_another_writer_commits(policy_db, lambda: apply_content_update(payload, store, agent_id="forking-agent"))
 
+    # A fork gives the payload a new id; without one the binding assertion below holds with no write at all.
+    assert payload.skill_id != "skill-1"
     assert (await _stored(policy_db, Agent, "forking-agent")).skill_ids == [payload.skill_id]
