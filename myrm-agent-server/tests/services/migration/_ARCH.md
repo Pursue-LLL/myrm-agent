@@ -22,7 +22,7 @@
 | `test_migration_e2e.py` | 核心 | discover → dry-run 端到端（hermes/openclaw） |
 | `test_loaders_openclaw_extended.py` | 辅助 | OpenClaw 多 workspace / sessions loader 分支 |
 | `test_loader_utils.py` | 辅助 | `_loader_utils` 共享函数 |
-| `test_source_model_migrator.py` | 辅助 | Hermes auxiliary + OpenClaw default model；routing 仅 migrated_slots 非空时启用 |
+| `test_source_model_migrator.py` | 辅助 | Hermes auxiliary + OpenClaw default model；routing 仅 migrated_slots 非空时启用；`extract_openclaw_default_model_config` 只留 model / models，缺失或畸形的 agents 块返回空 |
 | `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入：已有行（id 或 routingProfile 匹配）直接填 key 并带 expected_version、单凭 key 即可用的 provider 才新建行、多端点 provider 记为 needs_endpoint 且不写入、没有对应 provider 的变量按名列出，结果不含值，仅本机/Tauri 可用 |
 | `test_env_secrets.py` | 辅助 | 迁移预览、payload key 名与导入三处读同一份 `.env` 时对「什么算 key」的结论一致（export 前缀、带注释的引号值、别名、空值、`${…}` 引用、缺文件）；没有对应 provider 的 key 变量名按文件顺序列出；payload 的 key 名带来源标记；`MULTI_ENDPOINT_PROVIDERS` 是 `IMPORTABLE_PROVIDERS` 的子集 |
 | `test_import_archive_dry_run.py` | 辅助 | import archive dry-run 编排 |

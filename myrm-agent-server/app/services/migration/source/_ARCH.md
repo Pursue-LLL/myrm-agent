@@ -19,7 +19,7 @@
 | `source_payload_split.py` | 核心 | payload 拆分为 instruction 与 memory 两路（build_instruction_plan / extract_memory_payload）；`has_api_keys` / `has_importable_keys` 按 key 名的来源标记判断 payload 里有没有 key、有没有 opt-in 导入能带走的 key | ✅ |
 | `source_migration_types.py` | 核心 | 四车道迁移 DTO（MigrationLanePreview / SourceInstructionPlan / MigrationWizardOptions 等）；凭证车道有 key 且 provider 就绪时，能 opt-in 导入则提示可选导入，否则提示到 provider 设置手动填写 | ✅ |
 | `source_secrets_importer.py` | 辅助 | opt-in 从竞品 `.env` 导入 API Key（仅本机/Tauri）：key 的读取与变量清单来自上一级 `env_secrets.py`（迁移预览、payload 的 key 名与导入共用），本模块只负责写入 provider 配置；用户已有的 provider 行（id 或 routingProfile 匹配）直接填 key，没有行时只为单凭 key 即可用的 provider 新建（含 Vercel AI Gateway），多端点 provider 不新建而记为 `needs_endpoint`，没有对应 provider 的 key 变量记为 `unsupported`；结果只含变量名，不含值 | ✅ |
-| `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断） | ✅ |
+| `source_model_migrator.py` | 辅助 | 竞品模型配置 → Myrm 模型设置（Hermes auxiliary slots + Smart Routing economy 推断；OpenClaw 默认模型）；`extract_hermes_auxiliary_config` / `extract_openclaw_default_model_config` 只取迁移实际读取的字段（auxiliary 的 provider + model、`agents.defaults` 的 model + models），预览会话里 auxiliary 与默认模型只存这些，配置块里同级的 key 不进会话 | ✅ |
 
 ## 模块依赖
 

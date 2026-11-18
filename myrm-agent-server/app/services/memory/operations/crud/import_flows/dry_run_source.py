@@ -1,6 +1,8 @@
 """Competitor source normalization for the import dry-run.
 
 [INPUT]
+app.services.migration.mcp_config_converter (POS: 竞品 MCP 配置转换)
+app.services.migration.source.source_model_migrator (POS: 竞品模型配置迁移)
 app.services.migration.source.source_payload_loader (POS: 迁移来源载荷加载)
 app.services.migration.source.source_payload_split (POS: 迁移来源载荷拆分)
 app.services.migration.workspace_bind_candidates (POS: 迁移后工作区绑定候选)
@@ -131,6 +133,10 @@ def build_side_channels(loaded: LoadedSource) -> SideChannels:
         mcp_migration_item_to_config_dict,
         mcp_migration_item_to_preview,
     )
+    from app.services.migration.source.source_model_migrator import (
+        extract_hermes_auxiliary_config,
+        extract_openclaw_default_model_config,
+    )
 
     mcp_servers_preview: list[dict[str, object]] = []
     mcp_configs_serialized: list[dict[str, object]] = []
@@ -142,11 +148,14 @@ def build_side_channels(loaded: LoadedSource) -> SideChannels:
         mcp_servers_preview = [mcp_migration_item_to_preview(item) for item in converted]
         mcp_configs_serialized = [mcp_migration_item_to_config_dict(item) for item in converted]
 
+    # The review session is persisted, so the auxiliary and default-model blocks carry only the fields
+    # confirm replays: their raw config blocks also hold credentials (a per-task ``api_key``, the
+    # memory-search key).
     model_migration_payload: dict[str, object] = {}
     hermes_cfg = loaded.loaded_payload.get("hermes_config")
     if isinstance(hermes_cfg, dict):
-        auxiliary = hermes_cfg.get("auxiliary")
-        if isinstance(auxiliary, dict) and auxiliary:
+        auxiliary = extract_hermes_auxiliary_config(hermes_cfg)
+        if auxiliary:
             model_migration_payload["hermes_auxiliary"] = auxiliary
         # MoA presets are not migrated (Hermes/Myrm semantics differ); the raw block is
         # kept only so the post-import readiness check can hint the user to configure MoA.
@@ -155,7 +164,7 @@ def build_side_channels(loaded: LoadedSource) -> SideChannels:
             model_migration_payload["hermes_moa"] = moa_block
     openclaw_cfg = loaded.loaded_payload.get("openclaw_config")
     if isinstance(openclaw_cfg, dict):
-        agents_defaults = (openclaw_cfg.get("agents") or {}).get("defaults", {})
+        agents_defaults = extract_openclaw_default_model_config(openclaw_cfg)
         if agents_defaults.get("model") is not None:
             model_migration_payload["openclaw_agents_defaults"] = agents_defaults
 

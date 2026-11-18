@@ -57,6 +57,7 @@ from app.services.migration.source.source_migration_types import (
 from app.services.migration.source.source_model_migrator import (
     AuxiliaryMigrationResult,
     extract_hermes_auxiliary_config,
+    extract_openclaw_default_model_config,
     migrate_hermes_auxiliary_models,
     migrate_openclaw_default_model,
 )
@@ -121,6 +122,7 @@ __all__ = [
     "discover_pi",
     "extract_hermes_auxiliary_config",
     "extract_memory_payload",
+    "extract_openclaw_default_model_config",
     "extract_pending_skills",
     "external_source_providers_configured",
     "has_api_keys",

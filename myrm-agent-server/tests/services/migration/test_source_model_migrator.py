@@ -11,6 +11,7 @@ from app.services.migration.source.source_model_migrator import (
     AuxiliaryMigrationResult,
     _route_id_to_primary_selection,
     extract_hermes_auxiliary_config,
+    extract_openclaw_default_model_config,
     migrate_hermes_auxiliary_models,
     migrate_openclaw_default_model,
 )
@@ -92,6 +93,29 @@ class TestExtractHermesAuxiliaryConfig:
             },
         }
         assert extract_hermes_auxiliary_config(config) == {}
+
+
+# ---------------------------------------------------------------------------
+# extract_openclaw_default_model_config — pure function, no mock needed
+# ---------------------------------------------------------------------------
+
+
+class TestExtractOpenclawDefaultModelConfig:
+    def test_keeps_only_the_fields_the_migration_reads(self) -> None:
+        defaults: dict[str, Any] = {
+            "model": {"primary": "anthropic/claude-opus-4-6"},
+            "models": {"anthropic/claude-opus-4-6": {"alias": "opus"}},
+            "memorySearch": {"remote": {"apiKey": "PLACEHOLDER_MEMORY_SEARCH_KEY"}},
+        }
+        result = extract_openclaw_default_model_config({"agents": {"defaults": defaults}})
+        assert result == {"model": defaults["model"], "models": defaults["models"]}
+
+    @pytest.mark.parametrize(
+        "config",
+        [{}, {"agents": ["x"]}, {"agents": {"defaults": "x"}}, {"agents": {"defaults": {"sandbox": {}}}}],
+    )
+    def test_a_missing_or_malformed_block_is_empty(self, config: dict[str, Any]) -> None:
+        assert extract_openclaw_default_model_config(config) == {}
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +249,8 @@ class TestMigrateOpenclawDefaultModel:
 
         assert await migrate_openclaw_default_model({}) is None
         assert await migrate_openclaw_default_model({"agents": {"defaults": {}}}) is None
+        assert await migrate_openclaw_default_model({"agents": ["not-a-mapping"]}) is None
+        assert await migrate_openclaw_default_model({"agents": {"defaults": "not-a-mapping"}}) is None
 
     @pytest.mark.asyncio()
     async def test_cloud_mode_returns_none(self, monkeypatch: pytest.MonkeyPatch) -> None:

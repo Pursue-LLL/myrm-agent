@@ -4,6 +4,8 @@
 hermes_config dict (``auxiliary`` section); openclaw_config dict (``agents.defaults``)
 
 [OUTPUT]
+extract_hermes_auxiliary_config() / extract_openclaw_default_model_config(): the config fields the
+    migrations read, so a review session can carry them without the credentials beside them
 migrate_hermes_auxiliary_models(): Hermes per-task auxiliary → Myrm categorical slots
 migrate_openclaw_default_model(): OpenClaw default model → Myrm defaultModelConfig
 
@@ -15,6 +17,7 @@ confirm_import_memories. Only active in local/Tauri deployments.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -54,6 +57,10 @@ _PROVIDER_ROUTE_PREFIX: dict[str, str] = {
     "aigateway": "openai",
     "vercel": "openai",
 }
+
+# Every ``agents.defaults`` key the OpenClaw default-model migration reads; the rest of the block
+# (sandbox, memory search with its remote ``apiKey``, ...) is unrelated to it.
+_OPENCLAW_DEFAULT_MODEL_KEYS = ("model", "models")
 
 
 @dataclass
@@ -235,6 +242,18 @@ async def _enable_economy_routing_if_unset(providers_value: dict[str, Any] | Non
     logger.info("Hermes economy pack: enabled Smart Routing defaults")
 
 
+def extract_openclaw_default_model_config(openclaw_config: Mapping[str, object]) -> dict[str, object]:
+    """Pick the ``agents.defaults`` fields the default-model migration reads.
+
+    A missing or malformed ``agents`` / ``defaults`` value yields an empty result.
+    """
+    agents = openclaw_config.get("agents")
+    defaults = agents.get("defaults") if isinstance(agents, dict) else None
+    if not isinstance(defaults, dict):
+        return {}
+    return {key: defaults[key] for key in _OPENCLAW_DEFAULT_MODEL_KEYS if key in defaults}
+
+
 async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str | None:
     """Extract OpenClaw default model and write to Myrm's defaultModelConfig.
 
@@ -249,7 +268,8 @@ async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str
     if not is_local_mode():
         return None
 
-    model_value = (openclaw_config.get("agents") or {}).get("defaults", {}).get("model")
+    defaults = extract_openclaw_default_model_config(openclaw_config)
+    model_value = defaults.get("model")
     if model_value is None:
         return None
 
@@ -258,7 +278,7 @@ async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str
         return None
     model_str = model_str.strip()
 
-    model_catalog = (openclaw_config.get("agents") or {}).get("defaults", {}).get("models", {})
+    model_catalog = defaults.get("models", {})
     if isinstance(model_catalog, dict) and model_str not in model_catalog:
         for api_id, entry in model_catalog.items():
             if not isinstance(api_id, str):
