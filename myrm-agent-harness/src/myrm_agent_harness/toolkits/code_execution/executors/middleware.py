@@ -11,7 +11,7 @@ Multiple middlewares can be composed into a policy chain.
 - CodeExecutorMiddleware: Executor that forwards every operation to an inner executor; subclasses override the operations they police.
 
 [POS]
-Decorator layer over CodeExecutor. Every CodeExecutor operation is forwarded here, otherwise a wrapped executor silently falls back to the base-class default: shell commands for file operations, no background processes.
+Decorator layer over CodeExecutor. Every CodeExecutor operation is forwarded here, otherwise a wrapped executor silently falls back to the base-class default: shell commands for file operations, no background processes. Its state is the wrapped executor's own: the metrics are the same object, so wrapping an executor that has run commands keeps its counters.
 """
 
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -39,10 +39,6 @@ class CodeExecutorMiddleware(CodeExecutor):
     @property
     def metrics(self) -> ExecutionMetrics:
         return self.inner.metrics
-
-    @metrics.setter
-    def metrics(self, value: ExecutionMetrics) -> None:
-        self.inner.metrics = value
 
     @property
     def workspace_path(self) -> str:

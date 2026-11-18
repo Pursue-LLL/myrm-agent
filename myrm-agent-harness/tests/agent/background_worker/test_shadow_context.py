@@ -206,6 +206,19 @@ class TestRestrictedShadowContext:
             reset_executor(executor_token)
 
     @pytest.mark.asyncio
+    async def test_entering_keeps_the_session_executors_counters(self, inner_executor: _RecordingExecutor) -> None:
+        """The skill-review pre-screener reads the session executor's counters after background work ran."""
+        inner_executor.metrics.record(ExecutionResult(success=False), "bash")
+        executor_token = set_executor(inner_executor)
+        try:
+            async with restricted_shadow_context():
+                pass
+        finally:
+            reset_executor(executor_token)
+
+        assert (inner_executor.metrics.total_executions, inner_executor.metrics.total_failures) == (1, 1)
+
+    @pytest.mark.asyncio
     async def test_suppress_logs_flag(self) -> None:
         assert get_shadow_silent_mode() is False
         async with restricted_shadow_context(suppress_logs=True):

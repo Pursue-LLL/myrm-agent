@@ -83,7 +83,11 @@ class CodeExecutor(ABC):
     def __init__(self, config: ExecutionConfig | None = None):
         self.config = config
         self._workspace_path: str | None = None
-        self.metrics = ExecutionMetrics()
+        self._metrics = ExecutionMetrics()
+
+    @property
+    def metrics(self) -> ExecutionMetrics:
+        return self._metrics
 
     @property
     def workspace_path(self) -> str:

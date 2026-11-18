@@ -199,6 +199,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 - 执行时间（总计、平均、最大）
 - 错误分布（按 `ExecutionResult.error_category` 分类）
 - 支持 `.to_dict()` 结构化导出
+- `CodeExecutorMiddleware`（如后台影子上下文）包裹 executor 时，`metrics` 就是被包裹 executor 的同一个对象，包裹不会清零已累计的计数（技能复盘的预筛选读取这些计数）
 
 ### 7. ExecutionInterceptor（执行拦截器）
 

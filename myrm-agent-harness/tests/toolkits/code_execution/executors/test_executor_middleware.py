@@ -13,7 +13,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
-from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext, ExecutionMetrics
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext, ExecutionResult
 
 _CONTEXT = ExecutionContext(code="echo hi", work_dir="/tmp")
 
@@ -51,8 +51,18 @@ _ANSWERING = frozenset(
         "resolve_path",
     }
 )
-_STATE = frozenset({"workspace_path", "bind_workspace", "get_executor_name"})
+_STATE = frozenset({"workspace_path", "bind_workspace", "get_executor_name", "metrics"})
 _ANSWER = object()
+
+
+class _Executor(CodeExecutor):
+    """A real executor: the counters it accumulates are the object under test, not a mock's attribute."""
+
+    async def execute(self, context: ExecutionContext) -> ExecutionResult:
+        return ExecutionResult(success=True)
+
+    async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
+        return ExecutionResult(success=True)
 
 
 def _wrapped_executor() -> AsyncMock:
@@ -99,6 +109,14 @@ def test_the_state_is_the_wrapped_executors() -> None:
     middleware.bind_workspace("/other")
     inner.bind_workspace.assert_called_once_with("/other")
 
-    replacement = ExecutionMetrics()
-    middleware.metrics = replacement
-    assert inner.metrics is replacement
+
+def test_wrapping_an_executor_keeps_the_counters_it_has_accumulated() -> None:
+    """The skill-review pre-screener reads these counters from the executor a shadow run wrapped."""
+    inner = _Executor()
+    inner.metrics.record(ExecutionResult(success=True), "bash")
+    inner.metrics.record(ExecutionResult(success=False, error_category="timeout"), "python")
+
+    middleware = CodeExecutorMiddleware(inner)
+
+    assert middleware.metrics is inner.metrics
+    assert (inner.metrics.total_executions, inner.metrics.total_success, inner.metrics.total_failures) == (2, 1, 1)
