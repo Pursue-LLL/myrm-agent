@@ -12,21 +12,15 @@ const translate = vi.hoisted(() => (key: string, params?: Record<string, unknown
   }
   return key;
 });
-const mockCompactChat = vi.hoisted(() => vi.fn());
-const mockRefreshCompactionState = vi.hoisted(() => vi.fn());
+const mockRunManualCompaction = vi.hoisted(() => vi.fn());
 
 vi.mock('next-intl', () => ({
   useTranslations: () => translate,
 }));
 
-vi.mock('@/services/contextCompaction', () => ({
-  compactChat: mockCompactChat,
-}));
-
-vi.mock('@/store/useChatStore', () => ({
-  default: {
-    getState: () => ({ refreshCompactionState: mockRefreshCompactionState }),
-  },
+vi.mock('@/services/contextCompaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/contextCompaction')>()),
+  runManualCompaction: mockRunManualCompaction,
 }));
 
 function renderControl({ chatId = 'chat-1' as string | null, usagePercent = 50 } = {}) {
@@ -38,7 +32,6 @@ const compressButton = () => screen.getByRole('button', { name: /^compress/ });
 describe('ContextCompressControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRefreshCompactionState.mockResolvedValue(undefined);
   });
 
   it.each([
@@ -51,36 +44,25 @@ describe('ContextCompressControl', () => {
     expect(compressButton().hasAttribute('disabled')).toBe(!enabled);
   });
 
-  it('compresses without a topic, reports the saved tokens and hands the compaction to the store', async () => {
-    mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 15200, backup_path: '/tmp/backup.json' });
+  it('compresses without a topic and reports the saved tokens', async () => {
+    mockRunManualCompaction.mockResolvedValue({
+      compacted: true,
+      tokens_saved: 15200,
+      backup_path: '/tmp/backup.json',
+    });
     renderControl();
 
     await userEvent.setup().click(compressButton());
 
-    expect(await screen.findByText('compressSuccess:{"tokens":"15.2K"}')).toBeInTheDocument();
-    expect(mockCompactChat).toHaveBeenCalledWith('chat-1', undefined);
-    expect(mockRefreshCompactionState).toHaveBeenCalledWith('chat-1', {
-      tokensSaved: 15200,
-      snapshotPath: '/tmp/backup.json',
-    });
-  });
-
-  it('records no snapshot path when the server kept no backup', async () => {
-    mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 900, backup_path: null });
-    renderControl();
-
-    await userEvent.setup().click(compressButton());
-
-    await waitFor(() => {
-      expect(mockRefreshCompactionState).toHaveBeenCalledWith('chat-1', { tokensSaved: 900, snapshotPath: undefined });
-    });
+    expect(await screen.findByText('compressSuccess:{"tokens":"15.2K"}')).toHaveClass('text-emerald-600');
+    expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-1', undefined);
   });
 
   it.each([
     { name: 'trims the typed focus topic', typed: '  auth module  ', sent: 'auth module' },
     { name: 'sends no focus topic for blank input', typed: '   ', sent: undefined },
   ])('$name', async ({ typed, sent }) => {
-    mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 12000 });
+    mockRunManualCompaction.mockResolvedValue({ compacted: true, tokens_saved: 12000 });
     renderControl();
     const user = userEvent.setup();
 
@@ -88,7 +70,7 @@ describe('ContextCompressControl', () => {
     await user.click(compressButton());
 
     await waitFor(() => {
-      expect(mockCompactChat).toHaveBeenCalledWith('chat-1', sent);
+      expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-1', sent);
     });
   });
 
@@ -101,45 +83,53 @@ describe('ContextCompressControl', () => {
     );
   });
 
-  it('says nothing needed compressing and leaves the store alone', async () => {
-    mockCompactChat.mockResolvedValue({ compacted: false, tokens_saved: 0 });
+  it.each([
+    { reason: 'no_compactable_messages', copy: 'chat.compact.skip.nothing', tone: 'text-muted-foreground' },
+    { reason: 'concurrent_compaction_in_progress', copy: 'chat.compact.skip.busy', tone: 'text-muted-foreground' },
+    { reason: 'summarize_circuit_open', copy: 'chat.compact.skip.paused', tone: 'text-amber-600' },
+    { reason: 'compression_anti_thrash_active', copy: 'chat.compact.skip.ineffective', tone: 'text-amber-600' },
+    { reason: 'timeout: summarizer exceeded 60s', copy: 'chat.compact.failed', tone: 'text-rose-600' },
+  ])('words a compression the server did not run for its reason: $reason', async ({ reason, copy, tone }) => {
+    mockRunManualCompaction.mockResolvedValue({ compacted: false, tokens_saved: 0, reason });
     renderControl();
 
     await userEvent.setup().click(compressButton());
 
-    expect(await screen.findByText('compressNotNeeded')).toBeInTheDocument();
-    expect(mockRefreshCompactionState).not.toHaveBeenCalled();
+    const outcome = await screen.findByText(copy);
+    expect(outcome).toHaveClass(tone);
+    expect(screen.queryByText(reason)).toBeNull();
   });
 
-  it.each([
-    { rejection: new Error('Server error'), shown: 'Server error' },
-    { rejection: 'offline', shown: 'compressError' },
-  ])('shows $shown when the request fails and leaves the store alone', async ({ rejection, shown }) => {
-    mockCompactChat.mockRejectedValue(rejection);
+  it('shows a localized failure, not the raw message, when the request fails', async () => {
+    mockRunManualCompaction.mockRejectedValue(new Error('Server error: 500'));
     renderControl();
 
     await userEvent.setup().click(compressButton());
 
-    expect(await screen.findByText(shown)).toBeInTheDocument();
-    expect(mockRefreshCompactionState).not.toHaveBeenCalled();
+    expect(await screen.findByText('chat.compact.failed')).toHaveClass('text-rose-600');
+    expect(screen.queryByText(/Server error/)).toBeNull();
   });
 
   it('shows a busy button and drops the previous outcome while a new request runs', async () => {
-    mockCompactChat.mockResolvedValueOnce({ compacted: false, tokens_saved: 0 });
+    mockRunManualCompaction.mockResolvedValueOnce({
+      compacted: false,
+      tokens_saved: 0,
+      reason: 'no_compactable_messages',
+    });
     renderControl();
     const user = userEvent.setup();
     await user.click(compressButton());
-    expect(await screen.findByText('compressNotNeeded')).toBeInTheDocument();
+    expect(await screen.findByText('chat.compact.skip.nothing')).toBeInTheDocument();
 
-    const pending = deferred<{ compacted: boolean; tokens_saved: number }>();
-    mockCompactChat.mockReturnValueOnce(pending.promise);
+    const pending = deferred<{ compacted: boolean; tokens_saved: number; reason: string }>();
+    mockRunManualCompaction.mockReturnValueOnce(pending.promise);
     await user.click(compressButton());
 
-    expect(screen.queryByText('compressNotNeeded')).toBeNull();
+    expect(screen.queryByText('chat.compact.skip.nothing')).toBeNull();
     expect(screen.getByRole('button', { name: 'compressing' })).toBeDisabled();
-    expect(mockCompactChat).toHaveBeenCalledTimes(2);
+    expect(mockRunManualCompaction).toHaveBeenCalledTimes(2);
 
-    pending.resolve({ compacted: false, tokens_saved: 0 });
+    pending.resolve({ compacted: false, tokens_saved: 0, reason: 'no_compactable_messages' });
     expect(await screen.findByRole('button', { name: 'compressContext' })).toBeEnabled();
   });
 });

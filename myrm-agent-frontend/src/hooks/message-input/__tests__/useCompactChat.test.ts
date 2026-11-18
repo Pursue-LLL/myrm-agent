@@ -2,7 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCompactChat } from '@/hooks/message-input/useCompactChat';
 
-const mockCompactChat = vi.hoisted(() => vi.fn());
+const mockRunManualCompaction = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => ({
   loading: vi.fn(() => 'toast-1'),
   success: vi.fn(),
@@ -11,20 +11,21 @@ const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
 }));
 
-vi.mock('@/services/contextCompaction', () => ({ compactChat: mockCompactChat }));
+vi.mock('@/services/contextCompaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/contextCompaction')>()),
+  runManualCompaction: mockRunManualCompaction,
+}));
 vi.mock('@/lib/utils/toast', () => ({ toast: toastMock }));
 
-const loadMessages = vi.fn(async () => undefined);
-
 function renderCompact() {
-  return renderHook(() => useCompactChat('chat-1', loadMessages));
+  return renderHook(() => useCompactChat('chat-1'));
 }
 
 describe('useCompactChat', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
-    mockCompactChat.mockResolvedValue({ compacted: true, message_count: 8, tokens_saved: 1200, reason: null });
+    mockRunManualCompaction.mockResolvedValue({ compacted: true, message_count: 8, tokens_saved: 1200, reason: null });
   });
 
   describe('asking before it compacts', () => {
@@ -36,7 +37,7 @@ describe('useCompactChat', () => {
         await result.current.requestCompact('billing');
       });
 
-      expect(mockCompactChat).toHaveBeenCalledWith('chat-1', 'billing');
+      expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-1', 'billing');
       expect(result.current.showCompactConfirm).toBe(false);
     });
 
@@ -48,14 +49,14 @@ describe('useCompactChat', () => {
       });
 
       expect(result.current.showCompactConfirm).toBe(true);
-      expect(mockCompactChat).not.toHaveBeenCalled();
+      expect(mockRunManualCompaction).not.toHaveBeenCalled();
 
       await act(async () => {
         result.current.confirmCompact();
       });
 
-      expect(mockCompactChat).toHaveBeenCalledTimes(1);
-      expect(mockCompactChat).toHaveBeenCalledWith('chat-1', 'billing');
+      expect(mockRunManualCompaction).toHaveBeenCalledTimes(1);
+      expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-1', 'billing');
     });
 
     it('forgets the topic once a confirmation used it', async () => {
@@ -71,7 +72,7 @@ describe('useCompactChat', () => {
         result.current.confirmCompact();
       });
 
-      expect(mockCompactChat).toHaveBeenLastCalledWith('chat-1', undefined);
+      expect(mockRunManualCompaction).toHaveBeenLastCalledWith('chat-1', undefined);
     });
   });
 
@@ -98,18 +99,18 @@ describe('useCompactChat', () => {
     });
 
     it('warns and sends nothing when there is no chat', async () => {
-      const { result } = renderHook(() => useCompactChat(undefined, loadMessages));
+      const { result } = renderHook(() => useCompactChat(undefined));
 
       await act(async () => {
         await result.current.executeCompact();
       });
 
       expect(toastMock.warning).toHaveBeenCalledWith('compact.noChatId');
-      expect(mockCompactChat).not.toHaveBeenCalled();
+      expect(mockRunManualCompaction).not.toHaveBeenCalled();
     });
 
-    it('reloads the transcript and names the topic the server kept', async () => {
-      mockCompactChat.mockResolvedValue({
+    it('names the topic the server kept, not the text that was typed', async () => {
+      mockRunManualCompaction.mockResolvedValue({
         compacted: true,
         message_count: 8,
         tokens_saved: 1200,
@@ -122,32 +123,40 @@ describe('useCompactChat', () => {
         await result.current.executeCompact('billing and a long tail');
       });
 
+      expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-1', 'billing and a long tail');
       expect(toastMock.success).toHaveBeenCalledWith('compact.success (billing)', { id: 'toast-1' });
-      expect(loadMessages).toHaveBeenCalledWith('chat-1');
     });
 
-    it('says why nothing was compacted and leaves the transcript alone', async () => {
-      mockCompactChat.mockResolvedValue({ compacted: false, message_count: 2, tokens_saved: 0, reason: 'too short' });
-      const { result } = renderCompact();
+    it.each([
+      { reason: 'no_compactable_messages', level: 'info', copy: 'chat.compact.skip.nothing' },
+      { reason: 'concurrent_compaction_in_progress', level: 'info', copy: 'chat.compact.skip.busy' },
+      { reason: 'summarize_circuit_open', level: 'warning', copy: 'chat.compact.skip.paused' },
+      { reason: 'compression_anti_thrash_active', level: 'warning', copy: 'chat.compact.skip.ineffective' },
+      { reason: 'timeout: summarizer exceeded 60s', level: 'error', copy: 'chat.compact.failed' },
+    ] as const)(
+      'words a compaction the server did not run for its reason: $reason',
+      async ({ reason, level, copy }) => {
+        mockRunManualCompaction.mockResolvedValue({ compacted: false, message_count: 2, tokens_saved: 0, reason });
+        const { result } = renderCompact();
 
-      await act(async () => {
-        await result.current.executeCompact();
-      });
+        await act(async () => {
+          await result.current.executeCompact();
+        });
 
-      expect(toastMock.info).toHaveBeenCalledWith('compact.skipped', { id: 'toast-1' });
-      expect(loadMessages).not.toHaveBeenCalled();
-    });
+        expect(toastMock[level]).toHaveBeenCalledWith(copy, { id: 'toast-1' });
+        expect(toastMock.success).not.toHaveBeenCalled();
+      },
+    );
 
     it('reports a request that failed', async () => {
-      mockCompactChat.mockRejectedValue(new Error('network'));
+      mockRunManualCompaction.mockRejectedValue(new Error('network'));
       const { result } = renderCompact();
 
       await act(async () => {
         await result.current.executeCompact();
       });
 
-      expect(toastMock.error).toHaveBeenCalledWith('compact.failed', { id: 'toast-1' });
-      expect(loadMessages).not.toHaveBeenCalled();
+      expect(toastMock.error).toHaveBeenCalledWith('chat.compact.failed', { id: 'toast-1' });
     });
   });
 });

@@ -2,8 +2,7 @@
 
 /**
  * [INPUT]
- * - store/useChatStore::refreshCompactionState (POS: Chat state management store.)
- * - services/contextCompaction::compactChat (POS: Context compaction service.)
+ * - services/contextCompaction::runManualCompaction, describeCompactSkip, COMPACT_FAILED_NOTICE, CompactNotice (POS: Manual compaction and the wording of a compaction that did not run.)
  * - lib/constants/compact-focus-topic::COMPACT_FOCUS_TOPIC_MAX_LENGTH (POS: Longest focus topic the server accepts.)
  * - ./contextUsageFormat::formatTokens (POS: Compact K / M token count.)
  *
@@ -11,15 +10,19 @@
  * - ContextCompressControl: focus-topic input, compress button and outcome line of a manual compaction.
  *
  * [POS]
- * Manual compaction control of the strategy panel. Owns the in-flight, result and error state of one request.
- * A compaction that freed tokens goes to the store, whose refresh counter is what makes the indicator read the
- * strategy health again.
+ * Manual compaction control of the strategy panel. Owns the in-flight, typed-topic and outcome state of one request.
+ * The compaction reaches the store inside `runManualCompaction`; the store's refresh counter is what makes the indicator
+ * read the strategy health again, while this control stays mounted and keeps its state.
  */
 
 import { useCallback, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import useChatStore from '@/store/useChatStore';
-import { compactChat } from '@/services/contextCompaction';
+import {
+  COMPACT_FAILED_NOTICE,
+  describeCompactSkip,
+  runManualCompaction,
+  type CompactNotice,
+} from '@/services/contextCompaction';
 import { COMPACT_FOCUS_TOPIC_MAX_LENGTH } from '@/lib/constants/compact-focus-topic';
 import { formatTokens } from './contextUsageFormat';
 
@@ -28,11 +31,24 @@ interface ContextCompressControlProps {
   usagePercent: number;
 }
 
+interface Outcome {
+  tone: 'success' | CompactNotice['severity'];
+  text: string;
+}
+
+const OUTCOME_TONE_CLASS: Record<Outcome['tone'], string> = {
+  success: 'text-emerald-600 dark:text-emerald-400',
+  info: 'text-muted-foreground',
+  warning: 'text-amber-600 dark:text-amber-400',
+  error: 'text-rose-600 dark:text-rose-400',
+};
+
 export function ContextCompressControl({ chatId, usagePercent }: ContextCompressControlProps) {
   const t = useTranslations('chat.contextUsage.strategy');
+  // The notices carry absolute locale keys, shared with the input box and the `/compact` command.
+  const tNotice = useTranslations();
   const [compacting, setCompacting] = useState(false);
-  const [compactResult, setCompactResult] = useState<string | null>(null);
-  const [compactError, setCompactError] = useState<string | null>(null);
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [focusTopic, setFocusTopic] = useState('');
 
   const canCompress = !!chatId && usagePercent >= 30 && !compacting;
@@ -42,25 +58,21 @@ export function ContextCompressControl({ chatId, usagePercent }: ContextCompress
       return;
     }
     setCompacting(true);
-    setCompactResult(null);
-    setCompactError(null);
+    setOutcome(null);
     try {
-      const result = await compactChat(chatId, focusTopic.trim() || undefined);
+      const result = await runManualCompaction(chatId, focusTopic.trim() || undefined);
       if (result.compacted) {
-        setCompactResult(t('compressSuccess', { tokens: formatTokens(result.tokens_saved) }));
-        await useChatStore.getState().refreshCompactionState(chatId, {
-          tokensSaved: result.tokens_saved,
-          snapshotPath: result.backup_path ?? undefined,
-        });
+        setOutcome({ tone: 'success', text: t('compressSuccess', { tokens: formatTokens(result.tokens_saved) }) });
       } else {
-        setCompactResult(t('compressNotNeeded'));
+        const { messageKey, severity } = describeCompactSkip(result.reason);
+        setOutcome({ tone: severity, text: tNotice(messageKey) });
       }
-    } catch (err) {
-      setCompactError(err instanceof Error ? err.message : t('compressError'));
+    } catch {
+      setOutcome({ tone: 'error', text: tNotice(COMPACT_FAILED_NOTICE.messageKey) });
     } finally {
       setCompacting(false);
     }
-  }, [chatId, compacting, focusTopic, t]);
+  }, [chatId, compacting, focusTopic, t, tNotice]);
 
   return (
     <>
@@ -70,13 +82,13 @@ export function ContextCompressControl({ chatId, usagePercent }: ContextCompress
         onChange={(event) => setFocusTopic(event.target.value)}
         maxLength={COMPACT_FOCUS_TOPIC_MAX_LENGTH}
         placeholder={t('focusHintPlaceholder')}
-        className="w-full text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-background"
+        className="w-full text-[11px] px-2 py-1.5 rounded-lg border border-border/60 bg-background"
       />
       <button
         type="button"
         disabled={!canCompress}
         onClick={handleCompress}
-        className={`w-full text-[11px] font-medium py-1.5 px-2 rounded-md transition-colors ${
+        className={`w-full text-[11px] font-medium py-1.5 px-2 rounded-lg transition-colors ${
           canCompress
             ? 'bg-primary-dark/10 text-primary-dark hover:bg-primary-dark/20 dark:bg-primary-light/10 dark:text-primary-light dark:hover:bg-primary-light/20'
             : 'bg-muted text-muted-foreground cursor-not-allowed'
@@ -85,8 +97,7 @@ export function ContextCompressControl({ chatId, usagePercent }: ContextCompress
         {compacting ? t('compressing') : t('compressContext')}
       </button>
 
-      {compactResult && <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{compactResult}</span>}
-      {compactError && <span className="text-[10px] text-rose-600 dark:text-rose-400">{compactError}</span>}
+      {outcome && <span className={`text-[10px] ${OUTCOME_TONE_CLASS[outcome.tone]}`}>{outcome.text}</span>}
     </>
   );
 }

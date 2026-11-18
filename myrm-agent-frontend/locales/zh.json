@@ -254,6 +254,7 @@
       "createCommand": "创建命令…",
       "recentlyUsed": "最近使用"
     },
+    "executeFailed": "命令执行失败，请重试。",
     "builtin": {
       "export": "导出会话或复制 Markdown 到剪贴板（支持 HTML/MD/JSON/ZIP）",
       "compact": "压缩对话上下文以节省 Token",
@@ -263,8 +264,6 @@
       "compactToast": "手动压缩会清除 Prompt Cache。系统会在 Token 使用量达 90% 时自动压缩。",
       "compacting": "压缩中…",
       "compacted": "已压缩 {messageCount} 条消息，节省约 {tokensSaved} tokens",
-      "nothingToCompact": "无需压缩",
-      "compactionFailed": "压缩失败",
       "focusFlushing": "正在清除聊天历史...",
       "focusSuccess": "聊天历史已清除，沙箱环境已保留。",
       "focusFailed": "清除聊天历史失败",
@@ -2602,8 +2601,6 @@
         "compressContext": "压缩上下文",
         "compressing": "压缩中…",
         "compressSuccess": "已节省 {tokens} tokens",
-        "compressNotNeeded": "无需压缩",
-        "compressError": "压缩失败",
         "forkNewTopic": "分支新话题",
         "forking": "创建分支中…",
         "focusHintPlaceholder": "压缩聚焦主题（可选，如 auth 模块）",
@@ -2669,7 +2666,12 @@
       "success": "上下文已压缩：{count} 条消息已摘要，节省约 {tokens} tokens",
       "noChatId": "没有活跃的对话可压缩",
       "failed": "压缩失败",
-      "skipped": "压缩已跳过：{reason}",
+      "skip": {
+        "nothing": "暂无可压缩的内容",
+        "busy": "已有压缩正在进行",
+        "paused": "压缩暂时不可用，请稍后再试",
+        "ineffective": "最近几次压缩节省很少，再压缩也不会有明显效果。可以分叉出新话题，或新建一个会话。"
+      },
       "confirmTitle": "确认压缩上下文？",
       "confirmDescription": "手动压缩会清除 Prompt Cache，可能导致下次对话成本增加。系统会在 token 使用率达到 90% 时自动压缩（最佳时机）。",
       "confirmButton": "仍然压缩",

@@ -28,6 +28,10 @@ const featureGateRef = vi.hoisted(() => ({
   isEnabled: vi.fn(() => false),
 }));
 
+const showToast = vi.hoisted(() => vi.fn());
+
+vi.mock('@/services/i18nToastService', () => ({ showI18nToast: showToast }));
+
 vi.mock('@/store/useChatStore', () => {
   const useChatStore = ((selector: (state: typeof chatStoreRef) => unknown) => selector(chatStoreRef)) as unknown as {
     (selector: (state: typeof chatStoreRef) => unknown): unknown;
@@ -105,6 +109,45 @@ describe('useSlashCommand', () => {
     expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('帮我写个周报 ');
   });
 
+  describe('when a command does not work', () => {
+    const brokenAction = (execute: SlashAction['execute']): SlashAction => ({
+      id: 'builtin:broken',
+      name: 'broken',
+      description: 'A command that fails',
+      type: 'action',
+      execute,
+    });
+
+    it('tells the user instead of leaving the composer silent when the command throws', async () => {
+      const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { result } = renderHook(() => useSlashCommand('/broken', 7));
+
+      await act(async () => {
+        await result.current.executeCommand(
+          brokenAction(async () => {
+            throw new Error('boom');
+          }),
+        );
+      });
+
+      expect(showToast).toHaveBeenCalledWith('commands.executeFailed', undefined, { type: 'error' });
+      expect(chatStoreRef.setInputMessage).not.toHaveBeenCalled();
+      errorLog.mockRestore();
+    });
+
+    it('leaves the toast to a command that already reported its own failure', async () => {
+      const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { result } = renderHook(() => useSlashCommand('/broken', 7));
+
+      await act(async () => {
+        await result.current.executeCommand(brokenAction(async () => ({ success: false, error: 'No active chat' })));
+      });
+
+      expect(showToast).not.toHaveBeenCalled();
+      errorLog.mockRestore();
+    });
+  });
+
   it('clears the input for a bare slash skill command', async () => {
     const { result } = renderHook(() => useSlashCommand('/report', 7));
 
@@ -113,6 +156,33 @@ describe('useSlashCommand', () => {
     });
 
     expect(chatStoreRef.setInputMessage).toHaveBeenCalledWith('');
+  });
+
+  it('moves the highlight back to the first match when typing changes how many commands match', () => {
+    const commandNamed = (name: string): SlashCommand => ({
+      id: `cmd:${name}`,
+      name,
+      type: 'command',
+      template: `/${name}`,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    });
+    commandStoreRef.searchItems.mockImplementation((query) =>
+      ['alpha', 'alpine', 'beta'].filter((name) => name.startsWith(query)).map(commandNamed),
+    );
+    const { result, rerender } = renderHook(({ input }) => useSlashCommand(input, input.length), {
+      initialProps: { input: '/al' },
+    });
+
+    act(() => {
+      result.current.handleKeyDown({ key: 'ArrowDown', preventDefault: vi.fn() } as unknown as KeyboardEvent);
+    });
+    expect(result.current.selectedIndex).toBe(1);
+
+    rerender({ input: '/alph' });
+
+    expect(result.current.filteredItems).toHaveLength(1);
+    expect(result.current.selectedIndex).toBe(0);
   });
 
   it('accepts the active slash command with Tab key', async () => {

@@ -254,6 +254,7 @@
       "createCommand": "Create command…",
       "recentlyUsed": "Recently Used"
     },
+    "executeFailed": "The command could not run. Please try again.",
     "builtin": {
       "export": "Export session or copy Markdown (supports HTML/MD/JSON/ZIP)",
       "compact": "Compress conversation context to save tokens",
@@ -263,8 +264,6 @@
       "compactToast": "Manual compaction clears Prompt Cache. The system auto-compacts at 90% token usage.",
       "compacting": "Compacting…",
       "compacted": "Compacted {messageCount} messages, ~{tokensSaved} tokens saved",
-      "nothingToCompact": "Nothing to compact",
-      "compactionFailed": "Compaction failed",
       "focusFlushing": "Flushing chat history...",
       "focusSuccess": "Chat history cleared. Sandbox environment retained.",
       "focusFailed": "Failed to flush chat",
@@ -2602,8 +2601,6 @@
         "compressContext": "Compress context",
         "compressing": "Compressing…",
         "compressSuccess": "Saved {tokens} tokens",
-        "compressNotNeeded": "No compression needed",
-        "compressError": "Compression failed",
         "forkNewTopic": "Fork new topic",
         "forking": "Forking…",
         "focusHintPlaceholder": "Focus topic (optional, e.g. auth module)",
@@ -2669,7 +2666,12 @@
       "success": "Context compacted: {count} messages summarized, ~{tokens} tokens saved",
       "noChatId": "No active chat to compact",
       "failed": "Compaction failed",
-      "skipped": "Compaction skipped: {reason}",
+      "skip": {
+        "nothing": "Nothing to compress yet",
+        "busy": "A compression is already running",
+        "paused": "Compression is paused for now. Try again later.",
+        "ineffective": "Recent compressions saved little, so another one would not help. Fork a new topic or start a new chat instead."
+      },
       "confirmTitle": "Confirm context compaction?",
       "confirmDescription": "Manual compaction will clear the Prompt Cache, potentially increasing costs for the next conversation. The system automatically compacts at 90% token usage (optimal timing).",
       "confirmButton": "Compact Anyway",

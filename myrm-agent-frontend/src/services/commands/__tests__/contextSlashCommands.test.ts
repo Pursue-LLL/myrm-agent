@@ -8,7 +8,7 @@ const kit = vi.hoisted(() => ({
     resetSessionState: vi.fn<() => void>(),
     stopMessage: vi.fn<() => void>(),
   },
-  compactChat: vi.fn<(chatId: string, focusTopic?: string) => Promise<CompactResult>>(),
+  runManualCompaction: vi.fn<(chatId: string, focusTopic?: string) => Promise<CompactResult>>(),
   focusFlushChat: vi.fn<(chatId: string) => Promise<{ cleared: boolean }>>(),
   showToast: vi.fn(),
   loadingToast: vi.fn(() => 'loading-toast'),
@@ -16,7 +16,10 @@ const kit = vi.hoisted(() => ({
 }));
 
 vi.mock('@/store/useChatStore', () => ({ default: { getState: () => kit.chat } }));
-vi.mock('@/services/contextCompaction', () => ({ compactChat: kit.compactChat }));
+vi.mock('@/services/contextCompaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/contextCompaction')>()),
+  runManualCompaction: kit.runManualCompaction,
+}));
 vi.mock('@/services/chat', () => ({ focusFlushChat: kit.focusFlushChat }));
 vi.mock('@/services/i18nToastService', () => ({ showI18nToast: kit.showToast }));
 vi.mock('sonner', () => ({ toast: { loading: kit.loadingToast, dismiss: kit.dismissToast } }));
@@ -33,7 +36,7 @@ beforeEach(() => {
   localStorage.removeItem('dontRemindCompact');
   kit.chat.chatId = 'chat-1';
   kit.chat.loadMessages.mockResolvedValue(undefined);
-  kit.compactChat.mockResolvedValue(compacted);
+  kit.runManualCompaction.mockResolvedValue(compacted);
   kit.focusFlushChat.mockResolvedValue({ cleared: true });
 });
 
@@ -43,7 +46,7 @@ describe('executeCompactSlashCommand', () => {
 
     await expect(executeCompactSlashCommand('/compact')).resolves.toEqual(NO_CHAT);
 
-    expect(kit.compactChat).not.toHaveBeenCalled();
+    expect(kit.runManualCompaction).not.toHaveBeenCalled();
     expect(kit.loadingToast).not.toHaveBeenCalled();
   });
 
@@ -54,10 +57,10 @@ describe('executeCompactSlashCommand', () => {
   ])('compresses with the topic typed after the command: $input', async ({ input, topic }) => {
     await expect(executeCompactSlashCommand(input)).resolves.toEqual(DONE);
 
-    expect(kit.compactChat).toHaveBeenCalledWith('chat-1', topic);
+    expect(kit.runManualCompaction).toHaveBeenCalledWith('chat-1', topic);
   });
 
-  it('reports what the compression saved and reloads the messages it rewrote', async () => {
+  it('reports what the compression saved and leaves the transcript to the store sync', async () => {
     await executeCompactSlashCommand('/compact');
 
     expect(kit.showToast).toHaveBeenCalledWith(
@@ -66,30 +69,44 @@ describe('executeCompactSlashCommand', () => {
       { type: 'success' },
     );
     expect(kit.dismissToast).toHaveBeenCalledWith('loading-toast');
-    expect(kit.chat.loadMessages).toHaveBeenCalledWith('chat-1');
-  });
-
-  it('says why nothing was compressed and leaves the messages alone', async () => {
-    kit.compactChat.mockResolvedValue({ ...compacted, compacted: false, reason: 'Conversation is too short' });
-
-    await expect(executeCompactSlashCommand('/compact')).resolves.toEqual(DONE);
-
-    expect(kit.showToast).toHaveBeenCalledWith('commands.builtin.nothingToCompact', undefined, {
-      description: 'Conversation is too short',
-      type: 'info',
-    });
     expect(kit.chat.loadMessages).not.toHaveBeenCalled();
   });
 
-  it('reports a failed compression', async () => {
-    kit.compactChat.mockRejectedValue(new Error('server error'));
+  it.each([
+    { reason: 'no_compactable_messages', copy: 'chat.compact.skip.nothing', type: 'info' },
+    { reason: 'concurrent_compaction_in_progress', copy: 'chat.compact.skip.busy', type: 'info' },
+    { reason: 'summarize_circuit_open', copy: 'chat.compact.skip.paused', type: 'warning' },
+    { reason: 'compression_anti_thrash_active', copy: 'chat.compact.skip.ineffective', type: 'warning' },
+  ])('words a compression the server did not run for its reason: $reason', async ({ reason, copy, type }) => {
+    kit.runManualCompaction.mockResolvedValue({ ...compacted, compacted: false, reason });
+
+    await expect(executeCompactSlashCommand('/compact')).resolves.toEqual(DONE);
+
+    expect(kit.showToast).toHaveBeenCalledWith(copy, undefined, { type });
+    expect(kit.dismissToast).toHaveBeenCalledWith('loading-toast');
+    expect(kit.chat.loadMessages).not.toHaveBeenCalled();
+  });
+
+  it('reports a failure the server returned as a failed compression, without the raw reason', async () => {
+    kit.runManualCompaction.mockResolvedValue({ ...compacted, compacted: false, reason: 'timeout: summarizer 60s' });
 
     await expect(executeCompactSlashCommand('/compact')).resolves.toEqual({
       success: false,
       error: 'Compaction failed',
     });
 
-    expect(kit.showToast).toHaveBeenCalledWith('commands.builtin.compactionFailed', undefined, { type: 'error' });
+    expect(kit.showToast).toHaveBeenCalledWith('chat.compact.failed', undefined, { type: 'error' });
+  });
+
+  it('reports a request that failed', async () => {
+    kit.runManualCompaction.mockRejectedValue(new Error('server error'));
+
+    await expect(executeCompactSlashCommand('/compact')).resolves.toEqual({
+      success: false,
+      error: 'Compaction failed',
+    });
+
+    expect(kit.showToast).toHaveBeenCalledWith('chat.compact.failed', undefined, { type: 'error' });
     expect(kit.dismissToast).toHaveBeenCalledWith('loading-toast');
     expect(kit.chat.loadMessages).not.toHaveBeenCalled();
   });

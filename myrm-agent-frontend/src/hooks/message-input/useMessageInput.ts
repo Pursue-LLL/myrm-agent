@@ -67,7 +67,6 @@ export const useMessageInput = () => {
     setInputMessage,
     pendingArchiveRestoreActions,
     setPendingArchiveRestoreActions,
-    loadMessages,
     loading,
     agentConfig,
     incognitoMode,
@@ -89,7 +88,6 @@ export const useMessageInput = () => {
       setInputMessage: state.setInputMessage,
       pendingArchiveRestoreActions: state.pendingArchiveRestoreActions,
       setPendingArchiveRestoreActions: state.setPendingArchiveRestoreActions,
-      loadMessages: state.loadMessages,
       loading: state.loading,
       agentConfig: state.agentConfig,
       incognitoMode: state.incognitoMode,
@@ -134,7 +132,7 @@ export const useMessageInput = () => {
     executeCompact,
     requestCompact,
     confirmCompact,
-  } = useCompactChat(chatId, loadMessages);
+  } = useCompactChat(chatId);
 
   // 仅在草稿变化且当前输入框为空时恢复草稿；读取最新 store 值而非渲染闭包，避免用户输入触发重复恢复
   useEffect(() => {

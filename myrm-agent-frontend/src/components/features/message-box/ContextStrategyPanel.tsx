@@ -14,7 +14,9 @@
  *
  * [POS]
  * Detail panel opened from the context usage ring. Shows compaction / pruning / cache health, lets the user pin files,
- * compress the context on demand and, from 75% usage, fork the conversation into a new topic.
+ * compress the context on demand and, from 75% usage, fork the conversation into a new topic. While the health reads,
+ * only its own block is a skeleton: the pins and the compress control stay mounted, so a compression's outcome line
+ * and the topic typed beside it survive the re-read that compression triggers.
  */
 
 import { useCallback, useState } from 'react';
@@ -155,16 +157,6 @@ export function ContextStrategyPanel({
     }
   }, [chatId, forking]);
 
-  if (loading) {
-    return (
-      <div data-testid="context-usage-panel" className="flex flex-col gap-2 p-3 min-w-[220px] animate-pulse">
-        <div className="h-4 bg-muted rounded w-24" />
-        <div className="h-3 bg-muted rounded w-full" />
-        <div className="h-3 bg-muted rounded w-3/4" />
-      </div>
-    );
-  }
-
   const compaction = health?.compaction;
   const pruning = health?.pruning;
   const cache = health?.cache;
@@ -177,7 +169,17 @@ export function ContextStrategyPanel({
       {watermarkMetrics && watermarkMetrics.historyTurnTokens.length > 0 ? (
         <TurnGrowthSparkline metrics={watermarkMetrics} width={220} height={36} />
       ) : null}
-      {health ? (
+      {/* Only the health block waits for its read: the pins and the compress control below keep their own state. */}
+      {loading ? (
+        <div
+          data-testid="context-health-skeleton"
+          className="flex flex-col gap-2 animate-pulse motion-reduce:animate-none"
+        >
+          <div className="h-4 bg-muted rounded w-24" />
+          <div className="h-3 bg-muted rounded w-full" />
+          <div className="h-3 bg-muted rounded w-3/4" />
+        </div>
+      ) : health ? (
         <>
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-foreground">{t('title')}</span>
@@ -289,13 +291,13 @@ export function ContextStrategyPanel({
             value={pinInput}
             onChange={(event) => setPinInput(event.target.value)}
             placeholder={t('pinPlaceholder')}
-            className="flex-1 text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-background"
+            className="flex-1 text-[11px] px-2 py-1.5 rounded-lg border border-border/60 bg-background"
           />
           <button
             type="button"
             disabled={!chatId || !pinInput.trim() || pinsSaving}
             onClick={() => void handleAddPin()}
-            className="text-[11px] px-2 py-1.5 rounded-md border border-border/60 bg-muted hover:bg-muted/80 disabled:opacity-50"
+            className="text-[11px] px-2 py-1.5 rounded-lg border border-border/60 bg-muted hover:bg-muted/80 disabled:opacity-50"
           >
             {t('addPin')}
           </button>
@@ -308,7 +310,7 @@ export function ContextStrategyPanel({
             type="button"
             onClick={handleFork}
             disabled={forking}
-            className="w-full text-[11px] font-medium py-1.5 px-2 rounded-md transition-colors bg-accent/60 text-accent-foreground hover:bg-accent dark:bg-accent/40 dark:hover:bg-accent/60"
+            className="w-full text-[11px] font-medium py-1.5 px-2 rounded-lg transition-colors bg-accent/60 text-accent-foreground hover:bg-accent dark:bg-accent/40 dark:hover:bg-accent/60"
           >
             {forking ? t('forking') : t('forkNewTopic')}
           </button>

@@ -2,10 +2,13 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const chatStoreRef = vi.hoisted(() => ({ state: {} as Record<string, unknown> }));
-const mockCompactChat = vi.hoisted(() => vi.fn());
+const mockRunManualCompaction = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 
-vi.mock('@/services/contextCompaction', () => ({ compactChat: mockCompactChat }));
+vi.mock('@/services/contextCompaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/contextCompaction')>()),
+  runManualCompaction: mockRunManualCompaction,
+}));
 
 vi.mock('@/lib/utils/toast', () => ({
   toast: {
@@ -61,7 +64,7 @@ describe('useMessageInput /compact', () => {
     localStorage.clear();
     // With the warning switched off, `/compact <topic>` compacts straight away.
     localStorage.setItem('dontRemindCompact', 'true');
-    mockCompactChat.mockReset();
+    mockRunManualCompaction.mockReset();
     mockToastSuccess.mockReset();
     chatStoreRef.state = {
       chatId: 'chat-test',
@@ -80,7 +83,6 @@ describe('useMessageInput /compact', () => {
       setInputMessage: vi.fn(),
       pendingArchiveRestoreActions: [],
       setPendingArchiveRestoreActions: vi.fn(),
-      loadMessages: vi.fn(),
       loading: false,
       messages: [],
       agentConfig: null,
@@ -100,7 +102,7 @@ describe('useMessageInput /compact', () => {
   it('names the topic the server kept in the success toast, not the whole text that was typed', async () => {
     const typed = 'billing '.repeat(60).trim();
     const kept = typed.slice(0, 200).trim();
-    mockCompactChat.mockResolvedValue({
+    mockRunManualCompaction.mockResolvedValue({
       compacted: true,
       message_count: 12,
       tokens_saved: 3400,
@@ -110,12 +112,12 @@ describe('useMessageInput /compact', () => {
 
     await submit(`/compact ${typed}`);
 
-    expect(mockCompactChat).toHaveBeenCalledWith('chat-test', typed);
+    expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-test', typed);
     expect(mockToastSuccess).toHaveBeenCalledWith(`compact.success (${kept})`, { id: 'toast-1' });
   });
 
   it('shows no topic when none was given', async () => {
-    mockCompactChat.mockResolvedValue({
+    mockRunManualCompaction.mockResolvedValue({
       compacted: true,
       message_count: 12,
       tokens_saved: 3400,
@@ -125,7 +127,7 @@ describe('useMessageInput /compact', () => {
 
     await submit('/compact');
 
-    expect(mockCompactChat).toHaveBeenCalledWith('chat-test', undefined);
+    expect(mockRunManualCompaction).toHaveBeenCalledWith('chat-test', undefined);
     expect(mockToastSuccess).toHaveBeenCalledWith('compact.success', { id: 'toast-1' });
   });
 });

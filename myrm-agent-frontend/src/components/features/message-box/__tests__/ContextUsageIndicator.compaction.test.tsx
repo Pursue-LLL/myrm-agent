@@ -6,6 +6,9 @@
  * analytics service keeps a chat's answer for 30 s, so a read that goes through that cache still shows the numbers
  * from before the compression. Runs the real chat store, the real analytics service (only its HTTP call is replaced)
  * and the real English copy.
+ *
+ * The compress control belongs to the open panel too: what the user typed in it and the outcome line of the compression
+ * stay put while that read runs.
  */
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -93,5 +96,27 @@ describe('ContextUsageIndicator after a compaction', () => {
 
     expect(await screen.findByText('4× compressed, 14.2K saved')).toBeInTheDocument();
     expect(analyticsReads(chatId)).toHaveLength(2);
+  });
+
+  it('keeps the typed focus topic and the outcome line through the health read a compression triggers', async () => {
+    const healths = [healthAfter(3, 8200), healthAfter(4, 14200)];
+    mockApiRequest.mockImplementation(async (url: string) =>
+      url === `/chats/${chatId}/compact`
+        ? { compacted: true, message_count: 6, tokens_saved: 6000, reason: null }
+        : { context_health: healths.shift() },
+    );
+    const user = userEvent.setup();
+    render(<ContextUsageIndicator />);
+    await user.click(screen.getByTestId('context-usage-indicator'));
+    expect(await screen.findByText('3× compressed, 8.2K saved')).toBeInTheDocument();
+
+    const topicInput = screen.getByPlaceholderText('Focus topic (optional, e.g. auth module)');
+    await user.type(topicInput, 'billing');
+    await user.click(screen.getByRole('button', { name: 'Compress context' }));
+
+    expect(await screen.findByText('4× compressed, 14.2K saved')).toBeInTheDocument();
+    expect(screen.getByText('Saved 6.0K tokens')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Focus topic (optional, e.g. auth module)')).toBe(topicInput);
+    expect(topicInput).toHaveValue('billing');
   });
 });

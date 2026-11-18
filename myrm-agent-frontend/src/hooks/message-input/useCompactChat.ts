@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/services/contextCompaction::compactChat (POS: 上下文压缩的前端服务)
+ * - @/services/contextCompaction::runManualCompaction, describeCompactSkip, COMPACT_FAILED_NOTICE, DONT_REMIND_COMPACT_STORAGE_KEY (POS: 手动压缩、没压缩时的提示、「不再提醒」偏好键)
  * - @/lib/utils/toast::toast (POS: 统一 toast)
  *
  * [OUTPUT]
@@ -12,13 +12,18 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { compactChat } from '@/services/contextCompaction';
+import {
+  COMPACT_FAILED_NOTICE,
+  DONT_REMIND_COMPACT_STORAGE_KEY,
+  describeCompactSkip,
+  runManualCompaction,
+} from '@/services/contextCompaction';
 import { toast } from '@/lib/utils/toast';
 
-const DONT_REMIND_STORAGE_KEY = 'dontRemindCompact';
-
-export function useCompactChat(chatId: string | undefined, loadMessages: (chatId: string) => Promise<void>) {
+export function useCompactChat(chatId: string | undefined) {
   const t = useTranslations('chat');
+  // The notices carry absolute locale keys, shared with the `/compact` command and the strategy panel.
+  const tNotice = useTranslations();
   const [showCompactConfirm, setShowCompactConfirm] = useState(false);
   const [dontRemindCompact, setDontRemindCompact] = useState(false);
   const pendingCompactTopicRef = useRef<string | undefined>(undefined);
@@ -34,12 +39,12 @@ export function useCompactChat(chatId: string | undefined, loadMessages: (chatId
       }
 
       if (dontRemindCompact) {
-        localStorage.setItem(DONT_REMIND_STORAGE_KEY, 'true');
+        localStorage.setItem(DONT_REMIND_COMPACT_STORAGE_KEY, 'true');
       }
 
       const toastId = toast.loading(t('compact.compacting'));
       try {
-        const result = await compactChat(chatId, focusTopic);
+        const result = await runManualCompaction(chatId, focusTopic);
         if (result.compacted) {
           // The server's echo, not the typed text: a long topic is cut before it is sent, and the toast names what was used.
           const topicHint = result.focus_topic ? ` (${result.focus_topic})` : '';
@@ -49,20 +54,20 @@ export function useCompactChat(chatId: string | undefined, loadMessages: (chatId
               id: toastId,
             },
           );
-          await loadMessages(chatId);
         } else {
-          toast.info(t('compact.skipped', { reason: result.reason ?? '' }), { id: toastId });
+          const { messageKey, severity } = describeCompactSkip(result.reason);
+          toast[severity](tNotice(messageKey), { id: toastId });
         }
       } catch {
-        toast.error(t('compact.failed'), { id: toastId });
+        toast.error(tNotice(COMPACT_FAILED_NOTICE.messageKey), { id: toastId });
       }
     },
-    [chatId, dontRemindCompact, loadMessages, t],
+    [chatId, dontRemindCompact, t, tNotice],
   );
 
   const requestCompact = useCallback(
     async (focusTopic?: string) => {
-      if (localStorage.getItem(DONT_REMIND_STORAGE_KEY) === 'true') {
+      if (localStorage.getItem(DONT_REMIND_COMPACT_STORAGE_KEY) === 'true') {
         await executeCompact(focusTopic);
       } else {
         pendingCompactTopicRef.current = focusTopic;
