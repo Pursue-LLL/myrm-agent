@@ -1,4 +1,4 @@
-"""The leak detector reads a JSON-escaped line break as whitespace: a value stops at it, and the break comes back as it was."""
+"""In the JSON value a text starts with, an escaped line break reads as whitespace and comes back as it was."""
 
 from __future__ import annotations
 
@@ -63,10 +63,10 @@ class TestTheBreaksComeBack:
         assert not any(stand_in in shown for stand_in in _STAND_INS)
 
     def test_text_that_holds_a_stand_in_already_is_scanned_as_it_is(self) -> None:
-        shown = redact_leaks(f"a\x1cb\\n{RANDOM_TOKEN}")
+        shown = redact_leaks(_json_text("a", RANDOM_TOKEN) + "\x1c trailing note")
 
         assert RANDOM_TOKEN not in shown
-        assert shown.startswith("a\x1cb\\n")
+        assert shown.endswith("\x1c trailing note")
 
     def test_an_escaped_backslash_in_front_of_n_is_no_break(self) -> None:
         """A secret that holds a backslash and an ``n`` is one token: the JSON text has ``\\\\n`` in it."""
@@ -81,3 +81,42 @@ class TestTheBreaksComeBack:
         masked = f"{RANDOM_TOKEN[:6]}***...{RANDOM_TOKEN[-4:]} [REDACTED:high_entropy_token]"
 
         assert redact_leaks(f"key {RANDOM_TOKEN} end") == f"key {masked} end"
+
+
+class TestOnlyTheLeadingJsonValueIsRead:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            'API_KEY="aB3xK9mW2pQ7\\nvL4nR8sT1yU6hD0jF5cG"',
+            '[DEBUG] password: "aB3xK9mW2pQ7\\nvL4nR8sT1yU6hD0jF5cG"',
+            "export DB_PASSWORD=Zx9\\tQw3Er7Ty1Ui5OpAs2Df",
+        ],
+        ids=["env-assignment", "text-opening-with-a-bracket", "tab-in-a-password"],
+    )
+    def test_a_backslash_and_an_n_in_a_secret_of_plain_text_are_no_break(self, text: str) -> None:
+        shown = redact_leaks(text)
+
+        assert scan_for_leaks(text)
+        assert "vL4nR8sT1yU6hD0jF5cG" not in shown
+        assert "Ty1Ui5OpAs2Df" not in shown
+
+    def test_a_json_value_followed_by_a_note_is_read_as_json(self) -> None:
+        note = "\n\n Notice: Content contains error pattern: Operation not permitted"
+
+        shown = redact_leaks(_json_text("whoami", "DB_PASSWORD=correcthorsebatterystaple42", "done") + note)
+
+        assert "correcthorsebatterystaple42" not in shown
+        assert r'\ndone", "metadata": {}}' in shown
+        assert shown.endswith(note)
+
+    def test_the_text_after_a_json_value_is_read_as_it_is(self) -> None:
+        trailing = ' api_key="aB3xK9mW2pQ7\\nvL4nR8sT1yU6hD0jF5cG"'
+
+        shown = redact_leaks(_json_text("a", "b") + "\n\n" + trailing)
+
+        assert "vL4nR8sT1yU6hD0jF5cG" not in shown
+
+    def test_nested_brackets_that_are_no_json_do_not_raise(self) -> None:
+        text = "[" * 200_000 + "\\n"
+
+        assert redact_leaks(text) == text

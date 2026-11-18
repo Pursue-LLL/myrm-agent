@@ -10,15 +10,15 @@ Detection strategy:
   3. Structural formats (JWT, PEM block-level, URL passwords, blockchain, cloud infra)
   4. Shannon entropy analysis (catches unknown credential formats; see entropy_scan)
   5. Context-aware blockchain patterns (mnemonic seed phrases)
-  6. A JSON-escaped line break reads as whitespace, so a value never runs on into the next line (see escaped_breaks)
+  6. In JSON text an escaped line break reads as whitespace, so a value stops at it (see escaped_breaks)
 
 [INPUT]
 - core.security.detection.secret_value::is_reference_value (POS: shared rules telling a secret from a reference to
   one: templates, identifiers, calls, class names, slugs, domains, query strings.)
 - core.security.detection.entropy_scan::find_high_entropy, redact_high_entropy (POS: unknown-credential tier of the leak
   detector; a token is found and replaced by position.)
-- core.security.detection.escaped_breaks::reading_breaks, rewriting_breaks (POS: the public functions read a JSON-escaped
-  line break as whitespace and put it back.)
+- core.security.detection.escaped_breaks::reading_breaks, rewriting_breaks (POS: the public functions read a line break
+  escaped in JSON text as whitespace and put it back.)
 - core.security.detection.token_start::TokenStartPattern (POS: the vendor-prefix shapes count only where a token starts.)
 
 [OUTPUT]
