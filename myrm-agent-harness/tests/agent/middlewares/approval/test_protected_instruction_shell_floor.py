@@ -1,15 +1,18 @@
 """A shell command that rewrites a protected instruction file stays with a person, whatever approved it.
 
-The file tools report such a write as an ask under a fixed reason, and the gates "always allow" must never lift (the
-allowlist stage, the pending-approval annotation, the scheduled-run veto) recognise the decision by that reason. The
-shell tools carry the same verdict for a command line that rewrites one of the files, so a standing approval of the
-user cannot carry the rewrite past a person. Verifies, with the real engine and the real decision stages:
-1. The engine asks, under the protected-file code, for the bash tool and for text typed into a process alike, and a
-   rule that allows the command does not turn that ask into an allow.
+The file tools report such a write as an ask under a fixed reason. The gates that "always allow" must never lift
+recognise it by that reason (the allowlist stage and the pending-approval annotation), and a scheduled run refuses any
+path verdict that is not an allow. The shell tools carry the same verdict for a command line that rewrites one of the
+files, so a standing approval of the user cannot carry the rewrite past a person. Verifies, with the real engine and
+the real decision stages:
+1. The engine asks, under the protected-file code, for the bash tool and for text typed into a process alike, in the
+   POSIX, PowerShell and cmd spellings of a write, and a rule that allows the command does not turn that ask into an
+   allow.
 2. An allowlist entry never covers it, the allow-always guard refuses to remember it, and a read of the same files is
    untouched.
-3. A scheduled run refuses it whatever its declaration covers.
-4. A command line is judged command by command: a read beside an unrelated command is not mistaken for a write.
+3. A scheduled run refuses it whatever its declaration covers, and still approves a read.
+4. A command line is judged command by command: a read beside an unrelated command is not mistaken for a write, and
+   a search whose argument spells an edit command is not one either.
 5. Python source the bash tool runs in its wrapper is not shell syntax, and this check does not read it.
 """
 
@@ -67,6 +70,21 @@ _WRITES = (
     ("cat <<'EOF' > AGENTS.md\nhello\nEOF", "AGENTS.md"),
     ("ls && echo x > AGENTS.md", "AGENTS.md"),
     ("echo ok | tee .github/copilot-instructions.md", ".github/copilot-instructions.md"),
+    ("echo x >& AGENTS.md", "AGENTS.md"),
+    ("sed -n -i 's/strict/lax/' SOUL.md", "SOUL.md"),
+    ("sed --in-place 's/strict/lax/' AGENTS.md", "AGENTS.md"),
+    ("(cd repo && cp backdoor.md AGENTS.md)", "AGENTS.md"),
+    ("Set-Content -Path AGENTS.md -Value x", "AGENTS.md"),
+    ("Add-Content -Path docs/SOUL.md -Value x", "SOUL.md"),
+    ("Remove-Item -Force .cursor/rules", ".cursor/rules"),
+    ("Copy-Item backdoor.md MEMORY.md", "MEMORY.md"),
+    ("copy backdoor.md AGENTS.md", "AGENTS.md"),
+    ("del .\\SOUL.md", "SOUL.md"),
+    ("echo x > .\\AGENTS.md", "AGENTS.md"),
+    ("cp backdoor.md C:\\work\\CLAUDE.md", "CLAUDE.md"),
+    ("Set-Content -Path .cursor\\rules\\style.mdc -Value x", ".cursor/rules"),
+    ('powershell -NoProfile -ExecutionPolicy Bypass -Command "del .\\SOUL.md"', "SOUL.md"),
+    ('cmd /c "cd repo && del AGENTS.md"', "AGENTS.md"),
 )
 # Forms a block category stops when they are typed into a process, while the bash tool reaches the ask.
 _BASH_ONLY_WRITES = (
@@ -82,6 +100,10 @@ _READS = (
     "git diff -- AGENTS.md",
     "ls docs && cat AGENTS.md | wc -l",
     "echo AGENTS.md is a great file",
+    "grep -n rm AGENTS.md",
+    "rg tee CLAUDE.md",
+    "git grep -n 'rm ' -- AGENTS.md",
+    "Get-Content .\\AGENTS.md -Tail 20",
 )
 # Reads next to a command that writes something else: judged command by command, they are not writes either.
 _READS_BESIDE_OTHER_WRITES = (
@@ -243,6 +265,8 @@ class TestAStandingApprovalNeverCarriesTheWrite:
             ("cp *", "cp backdoor.md MEMORY.md"),
             ("tee *", "tee -a CLAUDE.md"),
             ("mv *", "mv draft.md .clinerules"),
+            ("Set-Content *", "Set-Content -Path AGENTS.md -Value x"),
+            ("copy *", "copy backdoor.md AGENTS.md"),
         ],
     )
     async def test_a_command_pattern_entry_does_not_approve_the_write_it_covers(
@@ -288,7 +312,10 @@ class TestAStandingApprovalNeverCarriesTheWrite:
 class TestAScheduledRunRefusesTheWrite:
     @_CRON_TOOLS
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("command", ["sed -i 's/strict/lax/' AGENTS.md", "echo x >> SOUL.md"])
+    @pytest.mark.parametrize(
+        "command",
+        ["sed -i 's/strict/lax/' AGENTS.md", "echo x >> SOUL.md", "Set-Content -Path .\\AGENTS.md -Value x"],
+    )
     async def test_a_declared_capability_does_not_approve_it(
         self, call_of: Callable[[str], ToolCall], declared: tuple[str, ...], command: str
     ) -> None:
@@ -302,12 +329,13 @@ class TestAScheduledRunRefusesTheWrite:
 
     @_CRON_TOOLS
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("command", ["cat AGENTS.md", "grep -n rm AGENTS.md", "rg tee CLAUDE.md"])
     async def test_the_same_declaration_still_approves_a_read(
-        self, call_of: Callable[[str], ToolCall], declared: tuple[str, ...]
+        self, call_of: Callable[[str], ToolCall], declared: tuple[str, ...], command: str
     ) -> None:
         config = build_channel_security_config("cron", declared_capabilities=declared)
 
-        (approved, denied, pending), _labels = await judge(call_of("cat AGENTS.md"), config=config, is_cron=True)
+        (approved, denied, pending), _labels = await judge(call_of(command), config=config, is_cron=True)
 
         assert (len(approved), denied, pending) == (1, [], [])
 

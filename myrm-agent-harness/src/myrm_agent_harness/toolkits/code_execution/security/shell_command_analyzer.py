@@ -32,8 +32,9 @@ Layer 3 (quote-stripped, ESCALATE):
   kill/pkill/killall). Forces ASK regardless of permission ruleset.
 
 Layer 3c (ORIGINAL command, ESCALATE):
-  A write to a protected instruction file (redirect, ``sed -i``, ``tee``, ``cp``, ``mv``, ``rm``, ``truncate``, an
-  interpreter opening it for writing), read command by command; the evidence is the file name.
+  A write to a protected instruction file (redirect, ``sed -i``, ``tee``, ``cp``, ``mv``, ``rm``, ``truncate``, their
+  PowerShell and cmd spellings, an interpreter opening it for writing), read command by command; the evidence is the
+  file name.
   See: protected_instruction_command.py
 
 Layer 4 (recursive, BLOCK/ESCALATE):
