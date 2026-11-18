@@ -1,6 +1,7 @@
 """[INPUT]
 - .state (POS: shared startup state)
 - .prebuilt_skills::init_prebuilt_skills (POS: the prebuilt skill sync of the parallel phase)
+- .startup_recovery::recover_failed_init (POS: what follows a failed database initialisation)
 
 [OUTPUT]
 - phase helpers and the sequential/parallel startup phases
@@ -22,6 +23,7 @@ from app.lifecycle import (
 
 from . import state
 from .prebuilt_skills import init_prebuilt_skills
+from .startup_recovery import recover_failed_init
 from .state import logger
 
 
@@ -125,48 +127,7 @@ async def _phase_1a_sequential() -> None:
         logger.info("[Startup] Database initialized")
     except Exception as e:
         logger.error("[Startup] Database initialization failed: %s", e)
-
-        from app.config.settings import settings
-        from app.database.operations.recovery import rescue_database
-        from app.platform_utils import reset_database_engine
-        from app.server.status import system_status
-
-        db_path = settings.database.sqlite_path
-
-        # 1. Try B-Tree page-skipping rowid salvage rescue (last-resort row-level data salvage)
-        if rescue_database(db_path):
-            system_status.database_recovered = True
-            await reset_database_engine()
-            await init_database()
-            logger.info("[Startup] Database rescued successfully")
-        else:
-            # 2. Try multi-snapshot integrity-verified restore
-            restored = False
-            try:
-                from app.database.operations.backup import get_sqlite_backup_manager
-
-                manager = get_sqlite_backup_manager()
-                if manager is not None:
-                    result = manager.restore_latest()
-                    if result.restored:
-                        restored = True
-                        system_status.database_recovered = True
-                        await reset_database_engine()
-                        await init_database()
-                        logger.info(
-                            "[Startup] Database restored from snapshot %s",
-                            result.snapshot_file,
-                        )
-            except Exception as restore_exc:
-                logger.warning("[Startup] Snapshot restore failed: %s", restore_exc)
-
-            # 3. Degrade to in-memory as ultimate fallback
-            if not restored:
-                logger.warning("[Startup] All recovery methods exhausted, degrading to in-memory mode")
-                system_status.database_degraded = True
-                settings.database.sqlite_path = ":memory:"
-                await reset_database_engine()
-                await init_database()
+        await recover_failed_init(e)
 
     from app.services.chat.compact.compression_streak import (
         register_chat_compression_streak_store,

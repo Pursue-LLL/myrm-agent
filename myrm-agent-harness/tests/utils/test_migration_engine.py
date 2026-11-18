@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -267,3 +269,113 @@ async def test_has_pending_treats_a_baselined_database_as_up_to_date(engine):
     await engine_runner.run_migrations(migrations)
 
     assert await engine_runner.has_pending(migrations) is False
+
+
+USERS_EXISTS = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'"
+
+
+class _KilledError(Exception):
+    """Stands in for the process dying while the baseline rows are being written."""
+
+
+async def _recorded_versions(engine) -> list[int]:
+    async with engine.connect() as conn:
+        res = await conn.execute(text("SELECT version FROM _schema_migrations ORDER BY version"))
+        return [row[0] for row in res]
+
+
+async def _user_version(engine) -> int:
+    async with engine.connect() as conn:
+        return (await conn.execute(text("PRAGMA user_version"))).scalar()
+
+
+@pytest.mark.asyncio
+async def test_a_start_killed_before_its_baseline_committed_baselines_on_the_next_start(engine, monkeypatch):
+    """The state table is committed before the baseline rows, so a kill between them leaves it empty.
+
+    Replaying the statements then fails on every later start; the next start has to finish the baseline.
+    """
+    async with engine.begin() as conn:
+        await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+    runner = StatefulMigrationEngine(engine, baseline_check_sql=USERS_EXISTS)
+    migrations = [
+        # Replaying this fails against the existing schema: the table it alters was retired long ago.
+        MigrationStatement(version=0, sql="ALTER TABLE retired ADD COLUMN note TEXT"),
+        MigrationStatement(version=1, sql="ALTER TABLE users ADD COLUMN name TEXT"),
+    ]
+    real_checksum = StatefulMigrationEngine._compute_checksum
+    seen: list[str] = []
+
+    def die_on_the_second_row(self, sql):
+        seen.append(sql)
+        if len(seen) == 2:
+            raise _KilledError
+        return real_checksum(self, sql)
+
+    monkeypatch.setattr(StatefulMigrationEngine, "_compute_checksum", die_on_the_second_row)
+    with pytest.raises(_KilledError):
+        await runner.run_migrations(migrations)
+    monkeypatch.undo()
+
+    assert "_schema_migrations" in await _table_names(engine)
+    assert await _recorded_versions(engine) == [], "the baseline is all-or-nothing"
+
+    report = await runner.run_migrations(migrations)
+
+    assert (report.baselined, report.failed_count, report.applied_count) == (True, 0, 0)
+    assert await _recorded_versions(engine) == [0, 1]
+    assert await _user_version(engine) == 1
+
+
+@pytest.mark.asyncio
+async def test_an_empty_state_table_over_an_empty_schema_still_applies_every_statement(engine):
+    await StatefulMigrationEngine(engine).run_migrations([])  # leaves an empty state table behind
+    runner = StatefulMigrationEngine(engine, baseline_check_sql=USERS_EXISTS)
+
+    report = await runner.run_migrations(
+        [MigrationStatement(version=0, sql="CREATE TABLE users (id INTEGER PRIMARY KEY)")]
+    )
+
+    assert (report.baselined, report.applied_count, report.failed_count) == (False, 1, 0)
+
+
+@pytest.mark.asyncio
+async def test_a_partly_recorded_state_table_resumes_instead_of_baselining(engine):
+    first = MigrationStatement(version=0, sql="CREATE TABLE users (id INTEGER PRIMARY KEY)")
+    await StatefulMigrationEngine(engine).run_migrations([first])
+    runner = StatefulMigrationEngine(engine, baseline_check_sql=USERS_EXISTS)
+    later = MigrationStatement(version=1, sql="ALTER TABLE users ADD COLUMN name TEXT")
+
+    report = await runner.run_migrations([first, later])
+
+    assert (report.baselined, report.applied_count, report.failed_count) == (False, 1, 0)
+    async with engine.connect() as conn:
+        assert "name" in {row[1] for row in await conn.execute(text("PRAGMA table_info(users)"))}
+
+
+@pytest.mark.asyncio
+async def test_two_starts_that_both_decide_to_baseline_do_not_collide(tmp_path):
+    race_engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path / 'race.db'}")
+    try:
+        async with race_engine.begin() as conn:
+            await conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+        both_decided = asyncio.Barrier(2)
+
+        class Racing(StatefulMigrationEngine):
+            async def _needs_baseline(self) -> bool:
+                decided = await super()._needs_baseline()
+                await both_decided.wait()  # neither writes before both have seen an empty state table
+                return decided
+
+        migrations = [
+            MigrationStatement(version=v, sql=f"CREATE TABLE t{v} (id INTEGER PRIMARY KEY)") for v in range(3)
+        ]
+        async with asyncio.timeout(30):
+            reports = await asyncio.gather(
+                *(Racing(race_engine, baseline_check_sql=USERS_EXISTS).run_migrations(migrations) for _ in range(2))
+            )
+
+        assert [(r.baselined, r.failed_count) for r in reports] == [(True, 0), (True, 0)]
+        assert await _recorded_versions(race_engine) == [0, 1, 2]
+    finally:
+        await race_engine.dispose()
