@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
@@ -26,12 +25,20 @@ def _mock_local(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(f"{MODULE}.is_local_mode", lambda: True)
 
 
+def _dig(node: object, *path: str) -> object:
+    """Follow ``path`` through nested objects; a wrong shape fails naming the step it could not read."""
+    for step in path:
+        assert isinstance(node, dict), f"no object to read {step!r} from"
+        node = node[step]
+    return node
+
+
 def _mock_config(
     monkeypatch: pytest.MonkeyPatch,
-    existing_providers: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    existing_providers: dict[str, object] | None = None,
+) -> dict[str, object]:
     """Stand in for config_service with its real signatures; the returned dict captures what ``set`` was given."""
-    captured: dict[str, Any] = {}
+    captured: dict[str, object] = {}
 
     record: ConfigRecord | None = None
     if existing_providers is not None:
@@ -67,7 +74,7 @@ class TestMigrateOpenclawDefaultModel:
             {"agents": {"defaults": {"model": "anthropic/claude-opus-4-6"}}},
         )
         assert result == "anthropic/claude-opus-4-6"
-        written = captured["value"]["defaultModelConfig"]["baseModel"]["primary"]
+        written = _dig(captured, "value", "defaultModelConfig", "baseModel", "primary")
         assert written == {"providerId": "anthropic", "model": "claude-opus-4-6"}
 
     @pytest.mark.asyncio()
@@ -79,7 +86,7 @@ class TestMigrateOpenclawDefaultModel:
             {"agents": {"defaults": {"model": {"primary": "openai/gpt-4o"}}}},
         )
         assert result == "openai/gpt-4o"
-        written = captured["value"]["defaultModelConfig"]["baseModel"]["primary"]
+        written = _dig(captured, "value", "defaultModelConfig", "baseModel", "primary")
         assert written == {"providerId": "openai", "model": "gpt-4o"}
 
     @pytest.mark.asyncio()
@@ -100,7 +107,7 @@ class TestMigrateOpenclawDefaultModel:
             }
         )
         assert result == "anthropic/claude-opus-4-6"
-        written = captured["value"]["defaultModelConfig"]["baseModel"]["primary"]
+        written = _dig(captured, "value", "defaultModelConfig", "baseModel", "primary")
         assert written == {"providerId": "anthropic", "model": "claude-opus-4-6"}
 
     @pytest.mark.asyncio()
@@ -131,7 +138,7 @@ class TestMigrateOpenclawDefaultModel:
             {"agents": {"defaults": {"model": "gpt-4o-mini"}}},
         )
         assert result == "openrouter/gpt-4o-mini"
-        written = captured["value"]["defaultModelConfig"]["baseModel"]["primary"]
+        written = _dig(captured, "value", "defaultModelConfig", "baseModel", "primary")
         assert written == {"providerId": "openrouter", "model": "gpt-4o-mini"}
 
     @pytest.mark.asyncio()
@@ -245,13 +252,13 @@ class TestMigrateHermesAuxiliaryModels:
             }
         )
 
-        routing = captured["value"]["defaultModelConfig"]["routingConfig"]
-        assert routing["enabled"] is True
-        assert routing["lightModel"]["primary"] == {
+        routing = _dig(captured, "value", "defaultModelConfig", "routingConfig")
+        assert _dig(routing, "enabled") is True
+        assert _dig(routing, "lightModel", "primary") == {
             "providerId": "meta-llama",
             "model": "llama-3.3-8b-instruct",
         }
-        assert routing["reasoningModel"]["primary"] == {
+        assert _dig(routing, "reasoningModel", "primary") == {
             "providerId": "deepseek",
             "model": "deepseek-r1",
         }

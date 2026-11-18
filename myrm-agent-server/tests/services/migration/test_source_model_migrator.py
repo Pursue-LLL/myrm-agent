@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from app.services.migration.source.source_model_migrator import (
@@ -41,7 +39,7 @@ class TestRouteIdToPrimarySelection:
 
 class TestExtractHermesAuxiliaryConfig:
     def test_extracts_standard_tasks(self) -> None:
-        config: dict[str, Any] = {
+        config: dict[str, object] = {
             "auxiliary": {
                 "compression": {"provider": "openrouter", "model": "meta-llama/llama-3.3-8b-instruct"},
                 "vision": {"provider": "openai", "model": "gpt-4o-mini"},
@@ -54,7 +52,7 @@ class TestExtractHermesAuxiliaryConfig:
         }
 
     def test_auto_provider_normalised(self) -> None:
-        config: dict[str, Any] = {
+        config: dict[str, object] = {
             "auxiliary": {
                 "compression": {"provider": "auto", "model": "gpt-4o-mini"},
                 "vision": {"provider": "main", "model": "claude-3-haiku"},
@@ -69,7 +67,7 @@ class TestExtractHermesAuxiliaryConfig:
         assert extract_hermes_auxiliary_config({"auxiliary": "not-a-dict"}) == {}
 
     def test_skips_non_dict_task_entries(self) -> None:
-        config: dict[str, Any] = {
+        config: dict[str, object] = {
             "auxiliary": {
                 "compression": "bare-string-value",
                 "vision": {"provider": "openai", "model": "gpt-4o"},
@@ -80,7 +78,7 @@ class TestExtractHermesAuxiliaryConfig:
         assert "vision" in result
 
     def test_skips_empty_model_string(self) -> None:
-        config: dict[str, Any] = {
+        config: dict[str, object] = {
             "auxiliary": {
                 "compression": {"provider": "openai", "model": ""},
             },
@@ -95,7 +93,7 @@ class TestExtractHermesAuxiliaryConfig:
 
 class TestExtractOpenclawDefaultModelConfig:
     def test_keeps_only_the_fields_the_migration_reads(self) -> None:
-        defaults: dict[str, Any] = {
+        defaults: dict[str, object] = {
             "model": {"primary": "anthropic/claude-opus-4-6"},
             "models": {"anthropic/claude-opus-4-6": {"alias": "opus"}},
             "memorySearch": {"remote": {"apiKey": "PLACEHOLDER_MEMORY_SEARCH_KEY"}},
@@ -107,5 +105,5 @@ class TestExtractOpenclawDefaultModelConfig:
         "config",
         [{}, {"agents": ["x"]}, {"agents": {"defaults": "x"}}, {"agents": {"defaults": {"sandbox": {}}}}],
     )
-    def test_a_missing_or_malformed_block_is_empty(self, config: dict[str, Any]) -> None:
+    def test_a_missing_or_malformed_block_is_empty(self, config: dict[str, object]) -> None:
         assert extract_openclaw_default_model_config(config) == {}
