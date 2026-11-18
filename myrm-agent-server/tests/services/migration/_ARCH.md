@@ -24,7 +24,7 @@
 | `test_loader_utils.py` | 辅助 | `_loader_utils` 共享函数 |
 | `test_source_model_migrator.py` | 辅助 | 模型迁移的纯函数部分：路由 id 拆成 provider + model；`extract_hermes_auxiliary_config` / `extract_openclaw_default_model_config` 只留迁移读取的字段，缺失或畸形的 agents 块返回空 |
 | `test_source_model_migrator_writes.py` | 辅助 | Hermes auxiliary + OpenClaw default model 的写入逻辑（配置服务替身与真实签名一致，漏传 `device_id` 会直接失败）；routing 仅 migrated_slots 非空时启用 |
-| `test_migration_config_writes.py` | 核心 | confirm 改的三个配置行（providers / mcpServers / personalSettings）在真实配置服务 + 内存库上的行为：写入者记入审计；MCP 并入运行时读取的 `{"mcpConfigs": [...]}`、默认 disabled、用户已有项与其他键保留、全部已存在时不写；因密钥丢失解不开的行不被覆盖；全局指令合并与回滚；opt-in key 导入同样以迁移记入审计、遇到解不开的 providers 行拒绝不写；写入后下一次 `load_user_configs()` 读到新值 |
+| `test_migration_config_writes.py` | 核心 | confirm 改的三个配置行（providers / mcpServers / personalSettings）在真实配置服务 + 内存库上的行为：写入者记入审计；MCP 并入运行时读取的 `{"mcpConfigs": [...]}`、默认 disabled、用户已有项与其他键保留、全部已存在时不写；因密钥丢失解不开的行不被覆盖；全局指令合并与回滚；opt-in key 导入同样以迁移记入审计、遇到解不开的 providers 行拒绝不写；confirm 通道、回滚与 key 导入写入后，已被加载器缓存的配置在下一次 `load_user_configs()` 就读到新值 |
 | `test_source_secrets_importer.py` | 辅助 | opt-in API key 导入：已有行（id 或 routingProfile 匹配）直接填 key 并带 expected_version、单凭 key 即可用的 provider 才新建行、多端点 provider 记为 needs_endpoint 且不写入、没有对应 provider 的变量按名列出，结果不含值，仅本机/Tauri 可用；providers 行因密钥丢失解不开时导入失败且不写 |
 | `test_env_secrets.py` | 辅助 | 迁移预览、payload key 名与导入三处读同一份 `.env` 时对「什么算 key」的结论一致（export 前缀、带注释的引号值、别名、空值、`${…}` 引用、缺文件）；没有对应 provider 的 key 变量名按文件顺序列出；payload 的 key 名带来源标记；`MULTI_ENDPOINT_PROVIDERS` 是 `IMPORTABLE_PROVIDERS` 的子集 |
 | `test_import_archive_dry_run.py` | 辅助 | import archive dry-run 编排 |

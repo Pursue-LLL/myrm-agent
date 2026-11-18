@@ -3,12 +3,14 @@
 [INPUT]
 app.services.migration.env_secrets (POS: which variables count as keys, and how a .env is read);
 app.services.config.service (POS: 配置核心业务逻辑); myrm_agent_harness BUILTIN_PROVIDER_ROUTE_SEGMENT;
-app.services.migration.source.source_migration_types::MIGRATION_CONFIG_DEVICE_ID (POS: the writer the config audit log names)
+app.services.migration.source.source_migration_types::MIGRATION_CONFIG_DEVICE_ID (POS: the writer the config audit log names);
+app.core.channel_bridge.config_cache::invalidate_user_configs_cache (POS: drops the cached user configs after a settings write)
 
 [OUTPUT]
 import_external_source_secrets(): merge detected .env keys into providers config, creating the provider rows a key alone
-makes usable; returns the imported variable names and the names left alone with the reason (SecretsImportResult); refuses
-    with ValueError when the stored providers are sealed under a key that is gone, so the sealed row is never replaced
+makes usable, and drop the cached user configs so the next agent turn reads them; returns the imported variable names and
+the names left alone with the reason (SecretsImportResult); refuses with ValueError when the stored providers are sealed
+under a key that is gone, so the sealed row is never replaced
 
 [POS]
 Server business layer — explicit user-consented secret migration from external assistant installs. What counts as a key
@@ -157,6 +159,8 @@ async def import_external_source_secrets(root: Path) -> SecretsImportResult:
         imported.append(env_name)
 
     if imported:
+        from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+
         config_value["providers"] = providers
         await config_service.set(
             "providers",
@@ -164,5 +168,7 @@ async def import_external_source_secrets(root: Path) -> SecretsImportResult:
             device_id=MIGRATION_CONFIG_DEVICE_ID,
             expected_version=config_version,
         )
+        # Agent turns read providers through a copy cached for up to 30 s; the imported keys must reach the next turn.
+        invalidate_user_configs_cache()
 
     return SecretsImportResult(imported_keys=imported, skipped_keys=[*needs_endpoint, *unsupported])

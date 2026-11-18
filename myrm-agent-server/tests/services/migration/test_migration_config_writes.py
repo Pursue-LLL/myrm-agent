@@ -350,3 +350,24 @@ async def test_the_confirm_lane_writes_are_seen_by_the_next_config_load(credenti
     default_models = (configs.providers_dict or {}).get("defaultModelConfig")
     assert isinstance(default_models, dict)
     assert default_models["visionFallbackModel"] == {"model": "google/gemini-2.5-flash"}
+
+
+async def _loaded_keys() -> list[object]:
+    """The keys of the one provider row as the next agent turn reads them: through the loader and its cache."""
+    providers = (await load_user_configs()).providers_dict or {}
+    [row] = _entries(providers.get("providers"))
+    return [entry["key"] for entry in _entries(row["apiKeys"])]
+
+
+@pytest.mark.asyncio
+async def test_an_imported_key_is_seen_by_the_next_config_load(
+    credentials: CredentialStore, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    await credentials.store_providers([OPENAI_ROW])
+    monkeypatch.setattr(f"{IMPORTER}.is_local_mode", lambda: True)
+    # The wizard imports the keys right after confirm, and a turn in between has loaded the providers.
+    assert await _loaded_keys() == ["sk-test"]
+
+    await import_external_source_secrets(_dotenv_root(tmp_path))
+
+    assert await _loaded_keys() == [IMPORTED_KEY]
