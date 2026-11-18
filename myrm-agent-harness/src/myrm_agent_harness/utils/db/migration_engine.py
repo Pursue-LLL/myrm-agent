@@ -7,8 +7,9 @@ SQLAlchemy AsyncEngine is optional at import time; install `sqlalchemy` when usi
 - sqlalchemy (optional)::text, AsyncEngine — lazy import at runtime
 
 [OUTPUT]
-- StatefulMigrationEngine: Zero-ops SQLite migration engine with state tracking; ``has_pending`` reports
-  whether a run would still change the database (callers gate pre-migration snapshots on it)
+- StatefulMigrationEngine: Zero-ops SQLite migration engine with state tracking; a schema that already exists while
+  nothing is recorded is baselined (also when an earlier start died before its baseline committed); ``has_pending``
+  reports whether a run would still change the database (callers gate pre-migration snapshots on it)
 - MigrationStatement: Versioned SQL migration statement
 - MigrationReport: Migration execution detailed report
 
@@ -113,8 +114,8 @@ class StatefulMigrationEngine:
         table_name: The name of the state table (default: _schema_migrations).
         baseline_check_sql: SQL to check if the database is already populated
             (e.g., "SELECT 1 FROM sqlite_master WHERE type='table' AND name='users'").
-            If provided and the state table is missing but this check passes,
-            all migrations will be marked as "baselined" (applied) without execution.
+            If provided and no migration has been recorded yet (the state table is missing or empty)
+            but this check passes, all migrations will be marked as "baselined" (applied) without execution.
         slow_threshold_ms: Migrations taking longer than this will be recorded in slowest_migrations.
     """
 
@@ -142,12 +143,10 @@ class StatefulMigrationEngine:
             result = await conn.execute(_sql_text(check_sql), {"name": self.table_name})
             return result.scalar() is not None
 
-    async def _init_state_table(self) -> bool:
-        """Create the state table if it doesn't exist. Returns True if newly created."""
-        if await self._state_table_exists():
-            return False
+    async def _init_state_table(self) -> None:
+        """Create the state table if it doesn't exist."""
         create_sql = f"""
-        CREATE TABLE {self.table_name} (
+        CREATE TABLE IF NOT EXISTS {self.table_name} (
             version INTEGER PRIMARY KEY,
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             duration_ms REAL NOT NULL,
@@ -156,7 +155,6 @@ class StatefulMigrationEngine:
         """
         async with self.engine.begin() as conn:
             await conn.execute(_sql_text(create_sql))
-        return True
 
     async def _read_applied(self) -> dict[int, str]:
         """Applied migration versions mapped to the checksum recorded when they ran."""
@@ -167,8 +165,8 @@ class StatefulMigrationEngine:
     async def has_pending(self, migrations: list[MigrationStatement]) -> bool:
         """Whether ``run_migrations`` would still do any work for these statements.
 
-        Read-only. A missing state table counts as pending: the first run applies every statement
-        or baselines an existing schema, and neither is a no-op.
+        Read-only. A missing or empty state table counts as pending: the first run applies every
+        statement or baselines an existing schema, and neither is a no-op.
         """
         if not await self._state_table_exists():
             return True
@@ -192,16 +190,20 @@ class StatefulMigrationEngine:
         report = MigrationReport()
         total_start = time.time()
 
-        newly_created = await self._init_state_table()
+        await self._init_state_table()
+        applied_versions = await self._read_applied()
 
-        # Handle Baseline for existing databases
-        if newly_created and await self._needs_baseline():
+        # Baseline whenever nothing has ever been recorded, not only in the run that created the state table: a
+        # process killed after the table committed and before the baseline rows did leaves an empty table next to a
+        # schema the statements never built, and replaying them from V0 then fails on every later start. The rows
+        # are inserted idempotently because a second process can reach the same decision before the first commits.
+        if not applied_versions and await self._needs_baseline():
             logger.info("Existing database detected. Baselining migrations...")
             async with self.engine.begin() as conn:
                 for m in migrations:
                     checksum = self._compute_checksum(m.sql)
                     insert_sql = f"""
-                    INSERT INTO {self.table_name} (version, duration_ms, checksum)
+                    INSERT OR IGNORE INTO {self.table_name} (version, duration_ms, checksum)
                     VALUES (:version, 0, :checksum)
                     """
                     await conn.execute(
@@ -215,8 +217,6 @@ class StatefulMigrationEngine:
             report.baselined = True
             report.total_duration_ms = (time.time() - total_start) * 1000
             return report
-
-        applied_versions = await self._read_applied()
 
         # Execute pending migrations
         for m in migrations:
