@@ -3,7 +3,8 @@
 A shell's OS sandbox is fixed when it starts, so a shell is kept per run identity, workspace mode and set of granted
 directories: when the grants change the next command starts a shell under the new sandbox and the old one is closed.
 A command may name a granted directory only when an OS sandbox is there to hold it to the grant, because the command
-validator reads paths, not read from write.
+validator reads paths, not read from write. One shell serves a run identity, so the first commands of a run that
+arrive together (its parallel sub-agents) start it once: the registry check and the start run under a per-identity lock.
 
 [INPUT]
 - core.context_vars::standing_access_roots (POS: The directories granted beside the workspace that outlast one call)
@@ -15,15 +16,17 @@ validator reads paths, not read from write.
 [OUTPUT]
 - shell_grants: The granted roots a shell of this run may use, none without an enforcing sandbox
 - grant_command_paths: Those roots as the paths the command validator lets a command name
-- get_or_create_bash_session: The healthy shell for a context, started when there is none
+- get_or_create_bash_session: The healthy shell for a context, started once when there is none
 - close_bash_sessions: Close and forget every shell
 
 [POS]
-Shell lifecycle for ``LocalExecutor``; the executor keeps the registry, this module decides which shell serves a command.
+Shell lifecycle for ``LocalExecutor``; the executor keeps the registry and the start locks, this module decides which
+shell serves a command.
 """
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import logging
 from functools import cache
@@ -33,6 +36,8 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.core.context_vars import standing_access_roots
 
 if TYPE_CHECKING:
+    from weakref import WeakValueDictionary
+
     from myrm_agent_harness.core.security.types import AccessRoot
     from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
     from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession
@@ -69,8 +74,14 @@ def _grants_signature(grants: tuple[AccessRoot, ...]) -> str:
     return hashlib.blake2s(shape.encode(), digest_size=4).hexdigest()
 
 
+def _start_lock(start_locks: WeakValueDictionary[str, asyncio.Lock], identity: str) -> asyncio.Lock:
+    """The lock of one run identity's shell; it lives while someone holds or awaits it, so idle identities leave none."""
+    return start_locks.get(identity) or start_locks.setdefault(identity, asyncio.Lock())
+
+
 async def get_or_create_bash_session(
     sessions: dict[str, LocalPersistentSession],
+    start_locks: WeakValueDictionary[str, asyncio.Lock],
     context: ExecutionContext,
     env: dict[str, str],
     *,
@@ -81,6 +92,9 @@ async def get_or_create_bash_session(
 
     A shell's sandbox is fixed when it starts, so a read-only run keeps its own shell and never reuses the
     writable run's under the same session id, and a change of the granted directories starts a new shell.
+    Callers of one identity pass through ``start_locks`` one at a time, so the check and the start are one step:
+    shells started side by side would all but the last be dropped from ``sessions`` while their processes keep
+    running, and two callers that both find the shell unhealthy would both restart it.
     """
     from myrm_agent_harness.toolkits.code_execution.session import (
         LocalPersistentSession,
@@ -92,35 +106,36 @@ async def get_or_create_bash_session(
     identity = f"{context.session_id or 'default'}{'_readonly' if context.readonly_workspace else ''}"
     session_key = f"{identity}{_GRANTS_MARK}{_grants_signature(grants)}" if grants else identity
 
-    for stale_key in [key for key in sessions if key != session_key and key.partition(_GRANTS_MARK)[0] == identity]:
-        logger.info(f" [LocalExecutor] Granted directories changed, closing Bash session: {stale_key}")
-        await sessions.pop(stale_key).close()
+    async with _start_lock(start_locks, identity):
+        for stale_key in [key for key in sessions if key != session_key and key.partition(_GRANTS_MARK)[0] == identity]:
+            logger.info(f" [LocalExecutor] Granted directories changed, closing Bash session: {stale_key}")
+            await sessions.pop(stale_key).close()
 
-    if session_key in sessions:
-        session = sessions[session_key]
-        if session.is_alive:
-            if await session.check_health():
-                logger.debug(f" [LocalExecutor] Reusing Bash session: {session_key}")
-                return session
-            logger.warning(f" [LocalExecutor] Unhealthy Bash session, restarting: {session_key}")
-            await session.close()
-            del sessions[session_key]
+        if session_key in sessions:
+            session = sessions[session_key]
+            if session.is_alive:
+                if await session.check_health():
+                    logger.debug(f" [LocalExecutor] Reusing Bash session: {session_key}")
+                    return session
+                logger.warning(f" [LocalExecutor] Unhealthy Bash session, restarting: {session_key}")
+                await session.close()
+                del sessions[session_key]
 
-    logger.info(f" [LocalExecutor] Creating new Bash session: {session_key}")
-    config = SessionConfig(
-        session_id=session_key,
-        work_dir=workspace_path,
-        timeout=context.timeout or 300,
-        env=env,
-        max_memory_mb=max_memory_mb,
-        readonly_workspace=context.readonly_workspace,
-        allow_network=context.allow_network,
-        granted_roots=grants,
-    )
-    session = LocalPersistentSession(config)
-    await session.start()
-    sessions[session_key] = session
-    return session
+        logger.info(f" [LocalExecutor] Creating new Bash session: {session_key}")
+        config = SessionConfig(
+            session_id=session_key,
+            work_dir=workspace_path,
+            timeout=context.timeout or 300,
+            env=env,
+            max_memory_mb=max_memory_mb,
+            readonly_workspace=context.readonly_workspace,
+            allow_network=context.allow_network,
+            granted_roots=grants,
+        )
+        session = LocalPersistentSession(config)
+        await session.start()
+        sessions[session_key] = session
+        return session
 
 
 async def close_bash_sessions(sessions: dict[str, LocalPersistentSession]) -> None:

@@ -1,4 +1,4 @@
-"""Tests for PersistentSession state transitions, recovery paths, output limits, tee logs and disk quota."""
+"""Tests for PersistentSession state transitions, restarts, output limits, tee logs and disk quota."""
 
 from __future__ import annotations
 
@@ -133,10 +133,10 @@ class TestStateMachine:
         assert result.error == "Process unavailable"
 
 
-class TestRecoveryPath:
+class TestRestart:
     @pytest.mark.asyncio
-    async def test_auto_recover_on_process_death(self) -> None:
-        """Execute should auto-recover when process dies mid-flight."""
+    async def test_the_next_command_starts_a_shell_that_died_between_commands(self) -> None:
+        """A shell that is gone when a command arrives is started again; nothing is replayed."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
@@ -147,9 +147,9 @@ class TestRecoveryPath:
             session.process.kill()
             await session.process.wait()
 
-            result = await session.execute("echo recovered")
+            result = await session.execute("echo restarted")
             assert result.success
-            assert "recovered" in result.stdout
+            assert "restarted" in result.stdout
         finally:
             await session.close()
 
@@ -169,30 +169,6 @@ class TestRecoveryPath:
             with pytest.raises(OSError, match="spawn fail"):
                 await session.start()
             assert session.state == SessionState.TERMINATED
-
-    @pytest.mark.asyncio
-    async def test_recover_and_retry_failure(self) -> None:
-        """_recover_and_retry returns error result when recovery itself fails."""
-        from unittest.mock import AsyncMock, patch
-
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            with patch.object(
-                session,
-                "_create_process",
-                new_callable=AsyncMock,
-                side_effect=OSError("fail"),
-            ):
-                result = await session._recover_and_retry("echo x", timeout=5)
-                assert not result.success
-                assert result.error is not None
-                assert "Recovery failed" in result.error
-                assert session.state == SessionState.TERMINATED
-        finally:
-            if session.process and session.process.returncode is None:
-                session.process.kill()
-                await session.process.wait()
 
 
 class TestCheckHealthEdge:
@@ -257,28 +233,30 @@ class TestInitializeShellEdge:
             await session.close()
 
 
-class TestEnsureActiveEdge:
+class TestExecuteStartsTheShell:
     @pytest.mark.asyncio
-    async def test_ensure_active_from_idle(self) -> None:
-        """A session that was never started is started."""
+    async def test_a_session_that_was_never_started_is_started_by_its_first_command(self) -> None:
         session = LocalPersistentSession(make_config())
         assert session.state == SessionState.IDLE
-        await session._ensure_active_unlocked()
         try:
+            result = await session.execute("echo first")
+            assert result.success
+            assert "first" in result.stdout
             assert state_of(session) == SessionState.ACTIVE
             assert session.is_alive
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_ensure_active_from_terminated(self) -> None:
-        """A terminated session is started again."""
+    async def test_a_terminated_session_is_started_again_by_the_next_command(self) -> None:
         session = LocalPersistentSession(make_config())
         await session.start()
         await session.close()
         assert session.state == SessionState.TERMINATED
-        await session._ensure_active_unlocked()
         try:
+            result = await session.execute("echo again")
+            assert result.success
+            assert "again" in result.stdout
             assert state_of(session) == SessionState.ACTIVE
         finally:
             await session.close()

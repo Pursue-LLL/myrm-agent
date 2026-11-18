@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import os
 from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import patch
 
 from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession, SessionConfig
@@ -23,6 +24,11 @@ def make_config(timeout: int = 10, work_dir: str = "/tmp") -> SessionConfig:
 def state_of(session: LocalPersistentSession) -> SessionState:
     """The state as it is now: mypy keeps narrowing ``session.state`` across awaits that change it."""
     return session.state
+
+
+def hold_command(started: Path, gate: Path) -> str:
+    """A command that signals it is running, keeps the shell until ``gate`` exists, then prints ``released``."""
+    return f"touch {started}; while [ ! -f {gate} ]; do sleep 0.05; done; echo released"
 
 
 @contextlib.contextmanager

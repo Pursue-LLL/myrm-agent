@@ -20,13 +20,14 @@ persistent session lifecycle, workspace binding, and composed services
 (VenvManager, CommandRewriter, FileScanner, ExecutionHelper).
 """
 
-import asyncio  # noqa: F401  # exposed as ``executor.asyncio`` for test monkey-patching
+import asyncio  # tests patch ``executor.asyncio.create_subprocess_exec``
 import logging
 import tempfile
 import time
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
+from weakref import WeakValueDictionary
 
 from myrm_agent_harness.core.security.ocap import CapabilityAction, check_capability_access
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -100,6 +101,7 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
 
         self._current_workspace: Path | None = None
         self._bash_sessions: dict[str, LocalPersistentSession] = {}
+        self._bash_start_locks: WeakValueDictionary[str, asyncio.Lock] = WeakValueDictionary()
         self._closed: bool = False
 
         if workspace_path:
@@ -306,6 +308,7 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         """Get the healthy persistent shell for this context or start one."""
         return await get_or_create_bash_session(
             self._bash_sessions,
+            self._bash_start_locks,
             context,
             env,
             workspace=self._current_workspace,

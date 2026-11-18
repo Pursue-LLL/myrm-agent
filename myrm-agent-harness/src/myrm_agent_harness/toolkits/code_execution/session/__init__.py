@@ -7,7 +7,8 @@ Features:
 - Working directory persists across commands
 - Shell functions and aliases persist
 - Session isolation (per chat_id)
-- Health check and auto-recovery
+- Commands of one session run one at a time; a shell that died is rebuilt by the next command
+- Health check
 - Performance optimization (20-100x improvement)
 
 Notes:

@@ -263,11 +263,11 @@ class TestLifecycleSafety:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_set_e_crash_emits_markers_not_sentinel(self) -> None:
+    async def test_set_e_crash_reports_the_exit_code_not_a_dead_shell(self) -> None:
         """Errexit crash (``set -e`` failing) terminates the non-interactive
         shell, but the injected EXIT trap still emits the marker pair with the
         real rc — the result reports the failure instead of misreporting an
-        unexpected crash (which would trigger a pointless recovery)."""
+        unexpected shell death."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:

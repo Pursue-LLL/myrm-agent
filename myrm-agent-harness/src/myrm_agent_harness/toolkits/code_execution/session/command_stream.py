@@ -15,7 +15,8 @@ CANCELLED_WHILE_RUNNING / CANCELLED_BEFORE_START / CANCELLED_EXIT_CODE: result o
 [POS]
 Output pump of the persistent shell. A command ends in one of four ways: its end marker, a dead shell, the timeout
 or a cancelled request. The last two share one exit: the shell tree is killed, the session is marked TERMINATED so
-the next command rebuilds it, and the output produced so far is returned. The credentials delivered to a command
+the next command rebuilds it, and the output produced so far is returned. A dead shell ends its command as a failure
+that says the command may have run; the command is never replayed. The credentials delivered to a command
 (``CommandEnv.scoped``) are masked in everything it prints, before the output is teed, streamed or returned.
 """
 
@@ -46,6 +47,11 @@ _COMMAND_STOPPED_NOTICE = (
 )
 CANCELLED_WHILE_RUNNING = f"Cancelled: the run was stopped while this command was running. {_COMMAND_STOPPED_NOTICE}"
 CANCELLED_BEFORE_START = "Cancelled: the run was stopped before this command started, so it did not run."
+# A command is never replayed on a new shell (it may already have run), so the result tells the agent instead.
+_SESSION_DIED_NOTICE = (
+    "The command may have been only partially applied; the next command starts a new shell, "
+    "so its working directory and exported variables are reset."
+)
 
 
 def _generate_marker(prefix: str) -> str:
@@ -72,9 +78,6 @@ class CommandStreamMixin:
         process: asyncio.subprocess.Process | None
         _flavor: ShellFlavor
         _platform: PlatformInfo
-        _consecutive_failures: int
-        _last_returncode: int | None
-        _SESSION_DIED_SENTINEL: str
 
         async def _discard_shell(self) -> None: ...
 
@@ -101,7 +104,7 @@ class CommandStreamMixin:
             await self.process.stdin.drain()
         except Exception as e:
             logger.error("IPC write failure: %s", e)
-            self._consecutive_failures += 1
+            await self._discard_shell()
             return SessionExecutionResult(False, "", "", 1, error="IPC write failure", is_armored=is_armored)
 
         import aiofiles
@@ -118,6 +121,7 @@ class CommandStreamMixin:
         sop = StreamOutputProcessor()
         tee_file_path = sop.setup_tee(self.config.work_dir)
         cut = DeadlineCut()
+        shell_ended = False
 
         try:
             async with (
@@ -128,17 +132,8 @@ class CommandStreamMixin:
                 while not stream_buf.done:
                     chunk = await self.process.stdout.read(8192)
                     if not chunk:
-                        rc = self.process.returncode
-                        self._last_returncode = rc
-                        self._consecutive_failures += 1
-                        err = f"{self._SESSION_DIED_SENTINEL} (rc={rc})"
-                        return SessionExecutionResult(
-                            False,
-                            stream_buf.get_final_output(),
-                            err,
-                            rc if rc is not None else 1,
-                            error=err,
-                        )
+                        shell_ended = True
+                        break
 
                     safe_text = stream_buf.process_bytes(chunk, exit_marker, end_marker)
                     if safe_text:
@@ -170,7 +165,6 @@ class CommandStreamMixin:
                     error=CANCELLED_WHILE_RUNNING,
                     is_armored=is_armored,
                 )
-            self._consecutive_failures += 1
             return SessionExecutionResult(
                 False,
                 stream_buf.get_final_output(),
@@ -185,6 +179,21 @@ class CommandStreamMixin:
             await self._discard_shell()
             raise
 
+        if shell_ended:
+            # The shell died under the command (killed, crashed, ran out of memory). The next command starts a new
+            # shell; this one is not replayed, because it may already have run.
+            await self._discard_shell()
+            rc = self.process.returncode
+            err = f"Session process ended unexpectedly (rc={rc}). {_SESSION_DIED_NOTICE}"
+            return SessionExecutionResult(
+                False,
+                stream_buf.get_final_output(),
+                err,
+                rc if rc is not None else 1,
+                error=err,
+                is_armored=is_armored,
+            )
+
         if stream_buf.parse_failed:
             # The text between the two markers is not an exit code: the marker
             # lines were consumed or rewritten instead of printed (a command read
@@ -192,7 +201,6 @@ class CommandStreamMixin:
             # Windows flavors do not, or changed how the shell prints). The
             # boundary can no longer be trusted, which is indistinguishable from
             # a permanently broken shell.
-            self._consecutive_failures += 1
             await self._discard_shell()
             return SessionExecutionResult(
                 False,

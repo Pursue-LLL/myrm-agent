@@ -1,4 +1,4 @@
-"""Abstract persistent shell session with auto-recovery.
+"""Abstract persistent shell session.
 
 [INPUT]
 session.models::SessionConfig, SessionExecutionResult, SessionState (POS: Plain session value types)
@@ -6,14 +6,16 @@ session.command_stream::CommandStreamMixin (POS: Command output pump with auto-t
 session.process_tree::kill_process_tree (POS: Stops a shell and every process it started)
 session.shell_flavor::get_flavor (POS: Platform-specific shell command formatting)
 security.script_armor::prepare_armored_command, sweep_stale_materialized_scripts (POS: Execution security armor wrapping script materialization, cleanup, and orphan sweeps)
+utils.runtime.cancellation::OperationCancelledError, run_until_cancelled (POS: Abort an await as soon as the request's token is cancelled)
 
 [OUTPUT]
 PersistentSession: Abstract base for stateful persistent shell sessions.
 
 [POS]
-Abstract persistent shell session base. Manages subprocess lifecycle, state machine, auto-recovery,
-bash syntax pre-check and script materialization armor; the command pump lives in ``CommandStreamMixin``.
-A command whose request is cancelled is stopped like a timed-out one (tree killed, session rebuilt on the next command).
+Abstract persistent shell session base. Manages subprocess lifecycle, state machine, bash syntax pre-check and
+script materialization armor, and runs the commands of one shell one at a time; the command pump lives in
+``CommandStreamMixin``. A command whose request is cancelled is stopped like a timed-out one (tree killed, session
+rebuilt on the next command); a command that reaches a shell that died is never replayed.
 """
 
 from __future__ import annotations
@@ -49,6 +51,7 @@ from myrm_agent_harness.toolkits.code_execution.session.process_tree import kill
 from myrm_agent_harness.toolkits.code_execution.session.shell_flavor import (
     get_flavor,
 )
+from myrm_agent_harness.utils.runtime.cancellation import OperationCancelledError, run_until_cancelled
 
 if TYPE_CHECKING:
     from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
@@ -56,10 +59,12 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _cancelled_before_start() -> SessionExecutionResult:
+    return SessionExecutionResult(False, "", "", CANCELLED_EXIT_CODE, error=CANCELLED_BEFORE_START)
+
+
 class PersistentSession(CommandStreamMixin, ABC):
     """Abstract base class for persistent shell sessions."""
-
-    _SESSION_DIED_SENTINEL = "Session process ended unexpectedly"
 
     def __init__(self, config: SessionConfig, platform_info: PlatformInfo | None = None):
         self.config = config
@@ -67,11 +72,10 @@ class PersistentSession(CommandStreamMixin, ABC):
         self._flavor = get_flavor(self._platform)
 
         self.process: asyncio.subprocess.Process | None = None
+        # ``_lock`` serializes start and close; ``_command_lock`` serializes the commands (see ``execute``).
         self._lock = asyncio.Lock()
+        self._command_lock = asyncio.Lock()
         self._state = SessionState.IDLE
-
-        self._consecutive_failures = 0
-        self._last_returncode: int | None = None
 
     @property
     def state(self) -> SessionState:
@@ -110,7 +114,6 @@ class PersistentSession(CommandStreamMixin, ABC):
                 sweep_stale_materialized_scripts("/tmp")
             self.process = await self._create_process()
             await self._initialize_shell()
-            self._consecutive_failures = 0
             await self._transit_state(SessionState.ACTIVE)
             logger.info(f" Persistent session started: {self.config.session_id}")
         except Exception as e:
@@ -145,70 +148,30 @@ class PersistentSession(CommandStreamMixin, ABC):
         cancel_token: CancellationToken | None = None,
         env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
-        """Execute a command with auto-recovery.
+        """Run ``command`` in the shell once the commands that reached it first are done.
 
-        When ``cancel_token`` is cancelled the command is stopped (see ``CommandStreamMixin``); a request that
-        was already cancelled never starts it. ``env`` is applied around this command only: it is the one way a
-        command's credentials reach a shell that was started before them.
+        The shell has one stdin and one stdout and a command owns both from its first byte to its end marker, so the
+        commands of a session run one at a time (the parallel sub-agents of a run share its shell). A request that is
+        cancelled while its command waits, or before, never starts it (``CANCELLED_BEFORE_START``); one cancelled
+        while the command runs stops it (see ``CommandStreamMixin``). A shell that dies under the command is not
+        retried, because the command may already have run: the failure is returned and the next command starts a
+        new shell. ``env`` is applied around this command only: it is the one way a command's credentials reach a
+        shell that was started before them.
         """
         timeout = timeout or self.config.timeout
-        start_time = time.perf_counter()
-
-        if cancel_token is not None and cancel_token.is_cancelled:
-            return SessionExecutionResult(False, "", "", CANCELLED_EXIT_CODE, error=CANCELLED_BEFORE_START)
-
-        await self._ensure_active_unlocked()
-        result = await self._execute_core(command, timeout, cancel_token, env)
-
-        # Auto-recovery logic
-        if self._should_recover(result):
-            result = await self._recover_and_retry(command, timeout, cancel_token, env)
-
-        return dataclasses.replace(result, duration=time.perf_counter() - start_time)
-
-    async def _ensure_active_unlocked(self) -> None:
-        """Start the session unless it is running.
-
-        Takes no session lock; a session that is starting or recovering is left to finish.
-        """
-        while True:
-            if self._state == SessionState.ACTIVE and self.is_alive:
-                return
-            if self._state in (
-                SessionState.IDLE,
-                SessionState.TERMINATED,
-                SessionState.CLOSING,
-            ) or (self._state == SessionState.ACTIVE and not self.is_alive):
-                await self._start_unlocked()
-                return
-            if self._state in (SessionState.STARTING, SessionState.RECOVERING):
-                return
-
-    def _should_recover(self, result: SessionExecutionResult) -> bool:
-        return (
-            result.error is not None and self._SESSION_DIED_SENTINEL in result.error and self._consecutive_failures <= 1
-        )
-
-    async def _recover_and_retry(
-        self,
-        command: str,
-        timeout: int,
-        cancel_token: CancellationToken | None = None,
-        env: CommandEnv | None = None,
-    ) -> SessionExecutionResult:
-        await self._transit_state(SessionState.RECOVERING)
-        logger.warning(f" Recovering session {self.config.session_id} after crash...")
         try:
-            await self._kill_process_group()
-            self.process = await self._create_process()
-            await self._initialize_shell()
-            self._consecutive_failures = 0
-            await self._transit_state(SessionState.ACTIVE)
-            return await self._execute_core(command, timeout, cancel_token, env)
-        except Exception as e:
-            logger.error("Session recovery failed: %s", e)
-            await self._transit_state(SessionState.TERMINATED)
-            return SessionExecutionResult(False, "", "", 1, error="Recovery failed")
+            await run_until_cancelled(self._command_lock.acquire())
+        except OperationCancelledError:
+            return _cancelled_before_start()
+        try:
+            if cancel_token is not None and cancel_token.is_cancelled:
+                return _cancelled_before_start()
+            start_time = time.perf_counter()
+            await self.start()
+            result = await self._execute_core(command, timeout, cancel_token, env)
+            return dataclasses.replace(result, duration=time.perf_counter() - start_time)
+        finally:
+            self._command_lock.release()
 
     async def _precheck_bash_syntax(self, command: str) -> str | None:
         """Return a bash syntax error message when *command* is malformed.
@@ -294,10 +257,15 @@ class PersistentSession(CommandStreamMixin, ABC):
             await self._transit_state(SessionState.TERMINATED)
 
     async def check_health(self) -> bool:
+        """Whether the shell answers a trivial command.
+
+        A probe that never ran because its request was stopped while it queued learned nothing about the shell, so
+        it counts as healthy: reporting it dead would make the caller kill a shell another command is using.
+        """
         if not self.is_alive:
             return False
         try:
             res = await self.execute("echo ok", timeout=2)
-            return res.success and "ok" in res.stdout
         except Exception:
             return False
+        return res.error == CANCELLED_BEFORE_START or (res.success and "ok" in res.stdout)

@@ -30,7 +30,6 @@ class SessionState(Enum):
     IDLE = auto()
     STARTING = auto()
     ACTIVE = auto()
-    RECOVERING = auto()
     CLOSING = auto()
     TERMINATED = auto()
 
