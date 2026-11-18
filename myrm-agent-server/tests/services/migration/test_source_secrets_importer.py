@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.schemas.config import ConfigRecord
 from app.services.migration.source.source_secrets_importer import (
     SecretsImportResult,
     SkippedKey,
@@ -15,6 +16,18 @@ from app.services.migration.source.source_secrets_importer import (
 )
 
 _PREFIX = "app.services.migration.source.source_secrets_importer"
+
+
+def _providers_record(value: dict[str, object], *, unreadable: bool = False) -> ConfigRecord:
+    """The stored ``providers`` row as the config service returns it."""
+    return ConfigRecord(
+        key="providers",
+        value=value,
+        version="v1",
+        updatedAt="2026-01-01T00:00:00",
+        deviceId="web",
+        unreadable=unreadable,
+    )
 
 
 @dataclass
@@ -39,9 +52,9 @@ async def _import_env(
     (root / ".env").write_bytes(env_bytes)
     written: list[dict[str, object]] = []
     versions: list[str | None] = []
-    record = None if existing is None else MagicMock(version="v1", value={"providers": existing})
+    record = None if existing is None else _providers_record({"providers": existing})
 
-    async def fake_get(key: str) -> MagicMock | None:
+    async def fake_get(key: str) -> ConfigRecord | None:
         assert key == "providers"
         return record
 
@@ -283,13 +296,39 @@ async def test_a_providers_config_that_is_not_an_object_fails_the_import(tmp_pat
     (root / ".env").write_text("OPENAI_API_KEY=sk-test\n", encoding="utf-8")
 
     async def fake_get(key: str) -> MagicMock:
-        return MagicMock(version="v1", value=["not", "an", "object"])
+        # A list is not a value the typed record can hold, so this one shape needs a stand-in.
+        return MagicMock(version="v1", value=["not", "an", "object"], unreadable=False)
 
     monkeypatch.setattr(f"{_PREFIX}.is_local_mode", lambda: True)
     monkeypatch.setattr(f"{_PREFIX}.config_service.get", fake_get)
 
     with pytest.raises(ValueError, match="Providers config is not an object"):
         await import_external_source_secrets(root)
+
+
+@pytest.mark.asyncio
+async def test_providers_sealed_under_a_lost_key_fail_the_import_without_a_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / ".hermes"
+    root.mkdir()
+    (root / ".env").write_text("OPENAI_API_KEY=sk-test\n", encoding="utf-8")
+    writes: list[dict[str, object]] = []
+
+    async def fake_get(key: str) -> ConfigRecord:
+        return _providers_record({}, unreadable=True)
+
+    async def fake_set(key: str, value: dict[str, object], *, device_id: str, expected_version: str | None) -> None:
+        writes.append(value)
+
+    monkeypatch.setattr(f"{_PREFIX}.is_local_mode", lambda: True)
+    monkeypatch.setattr(f"{_PREFIX}.config_service.get", fake_get)
+    monkeypatch.setattr(f"{_PREFIX}.config_service.set", fake_set)
+
+    with pytest.raises(ValueError, match="cannot be decrypted"):
+        await import_external_source_secrets(root)
+
+    assert writes == []
 
 
 @pytest.mark.asyncio

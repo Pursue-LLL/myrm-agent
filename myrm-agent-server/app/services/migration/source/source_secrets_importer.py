@@ -7,7 +7,8 @@ app.services.migration.source.source_migration_types::MIGRATION_CONFIG_DEVICE_ID
 
 [OUTPUT]
 import_external_source_secrets(): merge detected .env keys into providers config, creating the provider rows a key alone
-makes usable; returns the imported variable names and the names left alone with the reason (SecretsImportResult)
+makes usable; returns the imported variable names and the names left alone with the reason (SecretsImportResult); refuses
+    with ValueError when the stored providers are sealed under a key that is gone, so the sealed row is never replaced
 
 [POS]
 Server business layer — explicit user-consented secret migration from external assistant installs. What counts as a key
@@ -126,6 +127,10 @@ async def import_external_source_secrets(root: Path) -> SecretsImportResult:
     config_version: str | None = None
     config_value: dict[str, object] = {"providers": []}
     if record is not None:
+        if record.unreadable:
+            # A sealed row reads as empty; merging into that and saving would destroy ciphertext the user can still restore.
+            msg = "The stored providers cannot be decrypted with the current key, so no key was imported"
+            raise ValueError(msg)
         config_version = record.version
         if not isinstance(record.value, dict):
             msg = "Providers config is not an object"
