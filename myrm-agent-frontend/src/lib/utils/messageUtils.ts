@@ -33,11 +33,12 @@ export const stripUiActionPayload = (text: string): string => {
  * list opens on a non-space character, is at most 1,024 characters (a longer one is ordinary text to the agent) and
  * holds Unicode letters and digits, `_`, `,`, `-` and whitespace (the two engines' Unicode tables differ only at the
  * margins: a few control characters, and characters newer than the older table). The whitespace after `[use` and the
- * list never compete for the same characters, so a flood of spaces without a closing bracket is scanned in linear
- * time. `[instruction: ...]` is the composer's own segment.
+ * list never compete for the same characters, and the composer's own `[instruction: ...]` segment reads its text
+ * straight up to the closing bracket with no whitespace quantifier ahead of it, so a flood of spaces without a closing
+ * bracket is scanned in linear time at either place.
  */
 const EXPLICIT_SKILL_ACTIVATION_PATTERN =
-  /^\[use\s+([\p{L}\p{N}_,-][\p{L}\p{N}_,\s-]{0,1023})\]\s*(?:\[instruction:\s*([^\]]*)\]\s*)?([\s\S]*)$/u;
+  /^\[use\s+([\p{L}\p{N}_,-][\p{L}\p{N}_,\s-]{0,1023})\]\s*(?:\[instruction:([^\]]*)\]\s*)?([\s\S]*)$/u;
 
 export interface ExplicitSkillActivation {
   skillNames: string[];

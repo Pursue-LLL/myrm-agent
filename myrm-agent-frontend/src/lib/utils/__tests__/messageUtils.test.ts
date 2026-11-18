@@ -7,6 +7,7 @@ import {
   buildExplicitSkillWireMessage,
   formatSkillChipLabel,
   getBrowserTimezone,
+  type ExplicitSkillActivation,
 } from '../messageUtils';
 
 /** The harness grammar's `MAX_REFERENCE_LIST_CHARS`: the web parse and the agent must agree on what is a tag. */
@@ -61,6 +62,44 @@ describe('stripUserMessageDisplayText', () => {
   });
 });
 
+type ParseCase = [name: string, text: string, expected: ExplicitSkillActivation | null];
+
+/** What the agent's `parse_use_tag` makes of the start of a message: a tag with its names and text, or ordinary text. */
+const TAG_CASES: ParseCase[] = [
+  ['trims the text behind the tag', '[use a] go  ', { skillNames: ['a'], instruction: null, userText: 'go' }],
+  [
+    'keeps a multi-line text whole',
+    '[use a] line1\nline2',
+    { skillNames: ['a'], instruction: null, userText: 'line1\nline2' },
+  ],
+  [
+    'takes any whitespace after the keyword and around the names',
+    '[use\n\t a , b ] go',
+    { skillNames: ['a', 'b'], instruction: null, userText: 'go' },
+  ],
+  [
+    'takes hyphenated names',
+    '[use my-skill,other-skill] go',
+    { skillNames: ['my-skill', 'other-skill'], instruction: null, userText: 'go' },
+  ],
+  ['ignores a tag that is not at the start', 'note\n[use a] go', null],
+  ['ignores a list without a name', '[use , ,] go', null],
+  ['reads the keyword in lower case only', '[USE a] go', null],
+  ['wants whitespace after the keyword', '[user] hello', null],
+];
+
+const UNCLOSED_INSTRUCTION = `[instruction:${' '.repeat(64_000)}x`;
+
+/** A long run of whitespace with no closing bracket after it, at both places in the tag where one can sit. */
+const FLOOD_CASES: ParseCase[] = [
+  ['after the keyword', `[use${' '.repeat(64_000)}`, null],
+  [
+    'after the instruction marker',
+    `[use a] ${UNCLOSED_INSTRUCTION}`,
+    { skillNames: ['a'], instruction: null, userText: UNCLOSED_INSTRUCTION },
+  ],
+];
+
 describe('parseExplicitSkillActivation', () => {
   it('parses single skill activation', () => {
     expect(parseExplicitSkillActivation('[use daily_report_skill] hello')).toEqual({
@@ -78,6 +117,10 @@ describe('parseExplicitSkillActivation', () => {
     });
   });
 
+  it.each(TAG_CASES)('%s', (_name, text, expected) => {
+    expect(parseExplicitSkillActivation(text)).toEqual(expected);
+  });
+
   it('reads a list at the limit as a tag and one character more as ordinary text', () => {
     const atLimit = 'a'.repeat(MAX_REFERENCE_LIST_CHARS);
     expect(parseExplicitSkillActivation(`[use ${atLimit}] go`)?.skillNames).toEqual([atLimit]);
@@ -92,13 +135,14 @@ describe('parseExplicitSkillActivation', () => {
     });
   });
 
-  it('rejects a flood of whitespace after the keyword in linear time', () => {
-    const flood = `[use${' '.repeat(64_000)}`;
+  it.each(FLOOD_CASES)('reads a flood of whitespace %s in linear time', (_where, text, expected) => {
     // CPU time, not wall-clock: a busy machine stretches the latter without the pattern doing more work. A linear scan
-    // takes well under 1 ms; whitespace and list quantifiers that overlap take hundreds of ms (bounded) to seconds.
+    // takes well under 1 ms; adjacent quantifiers that claim the same characters take hundreds of ms (bounded) to
+    // seconds.
     const before = process.cpuUsage();
-    expect(parseExplicitSkillActivation(flood)).toBeNull();
+    const parsed = parseExplicitSkillActivation(text);
     const { user, system } = process.cpuUsage(before);
+    expect(parsed).toEqual(expected);
     expect((user + system) / 1000).toBeLessThan(50);
   });
 });
