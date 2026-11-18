@@ -61,6 +61,40 @@ class RealBashStack:
         assert isinstance(result, dict)
         return str(result["content"])
 
+    async def start_background(self, command: str) -> int:
+        """Start *command* as a background job and return its pid; the caller owns the job and ends it with ``stop_job``."""
+        spawned = await self.tool.ainvoke(
+            {"command": command, "reason": _REASON, "run_in_background": True}, config=self.config
+        )
+        assert isinstance(spawned, dict)
+        return int(spawned["metadata"]["pid"])
+
+    async def run_detaching(self, command: str, *, yield_after_seconds: int) -> tuple[str, int]:
+        """A foreground call of a build or test command that outlives its yield window and becomes a background job.
+
+        Returns the text the model reads and the pid of the job; the caller ends the job with ``stop_job``.
+        """
+        result = await self.tool.ainvoke(
+            {"command": command, "reason": _REASON, "yield_after_seconds": yield_after_seconds}, config=self.config
+        )
+        assert isinstance(result, dict)
+        return str(result["content"]), int(result["metadata"]["pid"])
+
+    async def read_job(self, pid: int) -> dict[str, object]:
+        """One ``output`` call on job *pid*: the fields the model reads."""
+        polled = await self.process_tool.ainvoke({"action": "output", "pid": pid}, config=self.config)
+        assert isinstance(polled, dict)
+        content = polled["content"]
+        assert isinstance(content, dict)
+        return content
+
+    async def send_to_job(self, pid: int, data: str) -> None:
+        """Answer job *pid* the way the model does: the text plus Enter."""
+        await self.process_tool.ainvoke({"action": "submit_stdin", "pid": pid, "data": data}, config=self.config)
+
+    async def stop_job(self, pid: int) -> None:
+        await self.process_tool.ainvoke({"action": "kill", "pid": pid}, config=self.config)
+
     async def run_background(self, command: str, *, reply: str | None = None) -> BackgroundRun:
         """Start *command* as a background job, wait for it to end and return what it printed.
 
@@ -70,23 +104,14 @@ class RealBashStack:
         model answers a prompt. The job is killed when the call ends, so one that never ends leaves no child process
         and no slot of the session's background-job limit behind.
         """
-        spawned = await self.tool.ainvoke(
-            {"command": command, "reason": _REASON, "run_in_background": True}, config=self.config
-        )
-        assert isinstance(spawned, dict)
-        pid = int(spawned["metadata"]["pid"])
+        pid = await self.start_background(command)
         try:
             if reply is not None:
-                await self.process_tool.ainvoke(
-                    {"action": "submit_stdin", "pid": pid, "data": reply}, config=self.config
-                )
+                await self.send_to_job(pid, reply)
             await self.process_tool.ainvoke(
                 {"action": "wait", "pid": pid, "timeout_seconds": _BACKGROUND_WAIT_SECONDS}, config=self.config
             )
-            polled = await self.process_tool.ainvoke({"action": "output", "pid": pid}, config=self.config)
-            assert isinstance(polled, dict)
-            content = polled["content"]
-            assert isinstance(content, dict)
+            content = await self.read_job(pid)
             stdout = "\n".join(content["stdout"])
             stderr = "\n".join(content["stderr"])
             if content["exit_code"] is None:
@@ -96,7 +121,7 @@ class RealBashStack:
                 )
             return BackgroundRun(exit_code=content["exit_code"], stdout=stdout, stderr=stderr)
         finally:
-            await self.process_tool.ainvoke({"action": "kill", "pid": pid}, config=self.config)
+            await self.stop_job(pid)
 
 
 @asynccontextmanager

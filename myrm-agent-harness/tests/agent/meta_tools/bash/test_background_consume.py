@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections import deque
 from typing import cast
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -19,37 +17,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
 )
-
-
-class _FakeStream:
-    def __init__(self, lines: list[bytes]) -> None:
-        self._lines = list(lines)
-
-    async def readline(self) -> bytes:
-        if not self._lines:
-            return b""
-        return self._lines.pop(0)
-
-    async def readexactly(self, n: int) -> bytes:
-        return b""
-
-
-class _FakeProc:
-    def __init__(self, pid: int, stdout: list[bytes], stderr: list[bytes]) -> None:
-        self._proc = MagicMock()
-        self._proc.pid = pid
-        self.stdout = _FakeStream(stdout)
-        self.stderr = _FakeStream(stderr)
-        self._exit_event = asyncio.Event()
-        self._exit_code = 0
-
-    async def wait(self) -> int:
-        await self._exit_event.wait()
-        return self._exit_code
-
-    def finish(self, code: int = 0) -> None:
-        self._exit_code = code
-        self._exit_event.set()
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc
 
 
 @pytest.mark.asyncio
@@ -61,13 +29,10 @@ async def test_progress_throttle_and_terminal_penetration() -> None:
         emitted.append(payload)
 
     # 50 high-frequency lines emitted in a burst, followed by a 100% completion marker
-    lines = [
-        f'MYRM_PROGRESS {{"percent": {i}, "message": "Step {i}"}}\n'.encode()
-        for i in range(1, 50)
-    ]
+    lines = [f'MYRM_PROGRESS {{"percent": {i}, "message": "Step {i}"}}\n'.encode() for i in range(1, 50)]
     lines.append(b'MYRM_PROGRESS {"percent": 100, "message": "Completed"}\n')
 
-    proc = _FakeProc(pid=29001, stdout=lines, stderr=[])
+    proc = FakeProc(pid=29001, stdout=lines, stderr=[])
     proc.finish(0)
     info = BackgroundProcessInfo(
         job_id="job-29001",
@@ -125,13 +90,10 @@ async def test_trailing_progress_flush_on_non_100_percent_exit() -> None:
         emitted.append(payload)
 
     # 10 lines emitted in zero delay, ending with 98% (not 100%, no checkpoint)
-    lines = [
-        f'MYRM_PROGRESS {{"percent": {i}, "message": "Step {i}"}}\n'.encode()
-        for i in range(1, 10)
-    ]
+    lines = [f'MYRM_PROGRESS {{"percent": {i}, "message": "Step {i}"}}\n'.encode() for i in range(1, 10)]
     lines.append(b'MYRM_PROGRESS {"percent": 98, "message": "Aborted near finish"}\n')
 
-    proc = _FakeProc(pid=29002, stdout=lines, stderr=[])
+    proc = FakeProc(pid=29002, stdout=lines, stderr=[])
     proc.finish(1)
     info = BackgroundProcessInfo(
         job_id="job-29002",
@@ -160,4 +122,3 @@ async def test_trailing_progress_flush_on_non_100_percent_exit() -> None:
     assert emitted[-1]["progress"] == 98
     assert emitted[-1]["message"] == "Aborted near finish"
     assert entry.info.exit_code == 1
-

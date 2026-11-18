@@ -30,7 +30,12 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class AsyncProcessProtocol(Protocol):
-    """Subprocess handle exposed by CodeExecutor (stdio MCP and similar)."""
+    """Subprocess handle exposed by CodeExecutor (stdio MCP and similar).
+
+    ``stdout`` and ``stderr`` are ``asyncio.StreamReader``-like. The background-job registry reads them with
+    ``await read(n)``, which returns up to ``n`` bytes as soon as any are available and ``b""`` at end of stream;
+    it skips a stream that has no ``read``.
+    """
 
     @property
     def stdin(self) -> object: ...

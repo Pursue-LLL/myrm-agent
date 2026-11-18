@@ -16,11 +16,16 @@ from pydantic import ValidationError
 
 import myrm_agent_harness.agent.meta_tools.bash._background.registry as registry_module
 from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import BackgroundOutputSpillWriter
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessRegistry,
     get_background_registry,
 )
-from myrm_agent_harness.agent.meta_tools.bash._background.types import OUTPUT_RING_LINES, WAIT_MAX_SECONDS
+from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    INPUT_WAIT_IDLE_SECONDS,
+    OUTPUT_RING_LINES,
+    WAIT_MAX_SECONDS,
+)
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
     BASH_PROCESS_TOOL_NAME,
     create_bash_process_tool,
@@ -29,7 +34,7 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
 from myrm_agent_harness.agent.middlewares.tooling._tool_helpers.timeouts import get_tool_timeout
 from myrm_agent_harness.agent.middlewares.tooling.tool_executor import execute_with_retry
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
-from tests.agent.meta_tools.bash.test_background_registry import _FakeProc
+from tests.agent.meta_tools.bash.fake_background_proc import FakeOutputPipe, FakeProc, wait_until
 
 _SESSION = "contract-session"
 _CONFIG = {"configurable": {"context": {"session_id": _SESSION}}}
@@ -38,11 +43,11 @@ _SPILL_FILE = "output_contract.txt"
 
 
 @pytest.fixture(autouse=True)
-async def jobs() -> AsyncIterator[list[_FakeProc]]:
+async def jobs() -> AsyncIterator[list[FakeProc]]:
     """The fake jobs a test started; each one is finished at teardown so no reader task outlives its test."""
     registry = get_background_registry()
     registry._entries.clear()  # type: ignore[attr-defined]
-    started: list[_FakeProc] = []
+    started: list[FakeProc] = []
     yield started
     for proc in started:
         proc.finish(0)
@@ -62,11 +67,21 @@ def spill_log(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
     return _SPILL_FILE
 
 
-async def _start_job(jobs: list[_FakeProc], pid: int, *, lines: int = 0) -> _FakeProc:
+async def _start_job(jobs: list[FakeProc], pid: int, *, lines: int = 0) -> FakeProc:
     stdout = [f"line-{i}\n".encode() for i in range(1, lines + 1)]
-    proc = _FakeProc(pid=pid, stdout=stdout, stderr=[])
+    proc = FakeProc(pid=pid, stdout=stdout, stderr=[])
     jobs.append(proc)
     await get_background_registry().register(cast(AsyncProcessProtocol, proc), command="generate", session_id=_SESSION)
+    return proc
+
+
+async def _start_prompting_job(jobs: list[FakeProc], pid: int, *, prompt: bytes = b"Continue? [y/N] ") -> FakeProc:
+    """A running job that has printed *prompt* without a newline and holds its pipe open, as a program that waits does."""
+    proc = FakeProc(pid=pid, stdout=[], stdout_pipe=FakeOutputPipe([prompt], hold_open=True), stdin=MagicMock())
+    jobs.append(proc)
+    registry = get_background_registry()
+    await registry.register(cast(AsyncProcessProtocol, proc), command="installer", session_id=_SESSION)
+    await wait_until(lambda: registry.get_partial_line(pid) != "", what="the prompt to reach the unfinished line")
     return proc
 
 
@@ -79,7 +94,7 @@ def test_schema_has_no_incremental_polling_or_filter_fields() -> None:
 
 
 @pytest.mark.asyncio
-async def test_results_carry_no_cursor_poll_hint_or_filter(jobs: list[_FakeProc]) -> None:
+async def test_results_carry_no_cursor_poll_hint_or_filter(jobs: list[FakeProc]) -> None:
     await _start_job(jobs, 71001, lines=1)
     tool = create_bash_process_tool()
 
@@ -151,7 +166,7 @@ async def test_a_value_past_a_stated_limit_is_rejected(action: str, past_the_lim
 
 
 @pytest.mark.asyncio
-async def test_a_wait_that_runs_out_names_the_seconds_it_waited(jobs: list[_FakeProc]) -> None:
+async def test_a_wait_that_runs_out_names_the_seconds_it_waited(jobs: list[FakeProc]) -> None:
     await _start_job(jobs, 71002)
     started = time.monotonic()
 
@@ -166,7 +181,7 @@ async def test_a_wait_that_runs_out_names_the_seconds_it_waited(jobs: list[_Fake
 
 
 @pytest.mark.asyncio
-async def test_cancelling_a_wait_returns_at_once_and_leaves_the_job_running(jobs: list[_FakeProc]) -> None:
+async def test_cancelling_a_wait_returns_at_once_and_leaves_the_job_running(jobs: list[FakeProc]) -> None:
     await _start_job(jobs, 71003)
     waiting = asyncio.create_task(
         create_bash_process_tool().ainvoke(
@@ -187,7 +202,7 @@ async def test_cancelling_a_wait_returns_at_once_and_leaves_the_job_running(jobs
 
 
 @pytest.mark.asyncio
-async def test_a_finished_wait_carries_what_output_carries(jobs: list[_FakeProc], spill_log: str) -> None:
+async def test_a_finished_wait_carries_what_output_carries(jobs: list[FakeProc], spill_log: str) -> None:
     lines = OUTPUT_RING_LINES + 20
     proc = await _start_job(jobs, 71004, lines=lines)
     proc.finish(0)
@@ -205,7 +220,7 @@ async def test_a_finished_wait_carries_what_output_carries(jobs: list[_FakeProc]
 
 
 @pytest.mark.asyncio
-async def test_a_finished_wait_of_a_short_job_is_not_dropped(jobs: list[_FakeProc]) -> None:
+async def test_a_finished_wait_of_a_short_job_is_not_dropped(jobs: list[FakeProc]) -> None:
     proc = await _start_job(jobs, 71005, lines=3)
     proc.finish(0)
 
@@ -221,7 +236,7 @@ async def test_a_finished_wait_of_a_short_job_is_not_dropped(jobs: list[_FakePro
 @pytest.mark.performance
 @pytest.mark.asyncio
 async def test_a_wait_of_the_limit_comes_back_in_one_call_before_the_executor_deadline(
-    jobs: list[_FakeProc],
+    jobs: list[FakeProc],
 ) -> None:
     """Runs the real ``wait(WAIT_MAX_SECONDS)`` through the executor: a limit at or past its deadline is retried."""
     await _start_job(jobs, 71010)
@@ -249,3 +264,89 @@ async def test_a_wait_of_the_limit_comes_back_in_one_call_before_the_executor_de
     assert isinstance(message, ToolMessage)
     assert json.loads(str(message.content))["still_running"] is True
     assert WAIT_MAX_SECONDS <= elapsed < get_tool_timeout(BASH_PROCESS_TOOL_NAME, arguments)
+
+
+@pytest.mark.asyncio
+async def test_output_and_wait_return_the_unfinished_last_line_of_a_running_job(jobs: list[FakeProc]) -> None:
+    await _start_prompting_job(jobs, 71020)
+    tool = create_bash_process_tool()
+
+    output = await tool.ainvoke({"action": "output", "pid": 71020}, config=_CONFIG)
+    waited = await tool.ainvoke({"action": "wait", "pid": 71020, "timeout_seconds": 1}, config=_CONFIG)
+
+    assert output["content"]["partial_line"] == "Continue? [y/N]"
+    assert output["content"]["stdout"] == []
+    assert waited["content"]["still_running"] is True
+    assert waited["content"]["partial_line"] == "Continue? [y/N]"
+
+
+@pytest.mark.asyncio
+async def test_a_running_job_without_an_unfinished_line_has_no_partial_line_field(jobs: list[FakeProc]) -> None:
+    await _start_job(jobs, 71021, lines=2)
+    tool = create_bash_process_tool()
+
+    output = await tool.ainvoke({"action": "output", "pid": 71021}, config=_CONFIG)
+    waited = await tool.ainvoke({"action": "wait", "pid": 71021, "timeout_seconds": 1}, config=_CONFIG)
+
+    assert "partial_line" not in output["content"]
+    assert waited["content"]["still_running"] is True
+    assert "partial_line" not in waited["content"]
+
+
+@pytest.mark.asyncio
+async def test_a_finished_job_has_no_partial_line_and_its_unfinished_line_is_its_last_line(
+    jobs: list[FakeProc],
+) -> None:
+    proc = await _start_prompting_job(jobs, 71022, prompt=b"building\nlast words")
+    proc.finish(0)
+    tool = create_bash_process_tool()
+
+    waited = await tool.ainvoke({"action": "wait", "pid": 71022, "timeout_seconds": 5}, config=_CONFIG)
+    output = await tool.ainvoke({"action": "output", "pid": 71022}, config=_CONFIG)
+
+    for result in (waited, output):
+        assert "partial_line" not in result["content"]
+        assert result["content"]["stdout"] == ["building", "last words"]
+
+
+@pytest.mark.asyncio
+async def test_the_idle_note_is_fixed_text_and_the_job_s_words_appear_once_in_the_result(
+    jobs: list[FakeProc],
+) -> None:
+    await _start_prompting_job(jobs, 71023)
+    registry = get_background_registry()
+    with registry._lock:  # type: ignore[attr-defined]
+        registry._entries[71023].info.last_output_at = time.time() - INPUT_WAIT_IDLE_SECONDS - 2.0  # type: ignore[attr-defined]
+
+    result = await create_bash_process_tool().ainvoke({"action": "output", "pid": 71023}, config=_CONFIG)
+
+    content = result["content"]
+    assert content["waiting_for_input"] is True
+    assert "Continue" not in content["input_wait_hint"]
+    assert content["partial_line"] == "Continue? [y/N]"
+    assert json.dumps(content).count("Continue?") == 1
+
+
+@pytest.mark.asyncio
+async def test_polling_a_job_redacts_nothing_and_a_read_redacts_its_unfinished_line_once(
+    jobs: list[FakeProc],
+) -> None:
+    """``wait`` takes a snapshot every 0.1 s: redacting the unfinished line there would cost more than the poll."""
+    await _start_prompting_job(jobs, 71024)
+    registry = get_background_registry()
+    calls: list[str] = []
+
+    def _counting(text: str) -> str:
+        calls.append(text)
+        return text
+
+    poll = "myrm_agent_harness.agent.meta_tools.bash._background.poll"
+    with patch(f"{poll}.redact_sensitive_text", _counting):
+        for _ in range(20):
+            registry.get(71024)
+        with registry._lock:  # type: ignore[attr-defined]
+            snapshot_entry(registry._entries[71024])  # type: ignore[attr-defined]
+        assert calls == []
+
+        assert registry.get_partial_line(71024) == "Continue? [y/N]"
+        assert calls == ["Continue? [y/N]"]

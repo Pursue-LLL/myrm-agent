@@ -12,14 +12,14 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import BackgroundProcessRegistry
 from myrm_agent_harness.agent.meta_tools.bash._background.types import BackgroundProcessInfo
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
-from tests.agent.meta_tools.bash.test_background_registry import _FakeProc
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc
 
 # The collection finishes in milliseconds; the deadline only bounds the failure when it never does.
 _COLLECTION_DEADLINE_S = 10.0
 
 
 async def _register_a_job_that_never_ends(registry: BackgroundProcessRegistry, *, pid: int) -> None:
-    proc = _FakeProc(pid=pid, stdout=[], stderr=[])
+    proc = FakeProc(pid=pid, stdout=[], stderr=[])
     await registry.register(cast(AsyncProcessProtocol, proc), command="sleep 999", session_id="s-abandoned")
     await asyncio.sleep(0)  # the consumer is now waiting for the process to exit
 
@@ -57,7 +57,7 @@ async def test_a_cancelled_consumer_still_finishes_the_job() -> None:
         finished.append(info.pid)
 
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=9501, stdout=[], stderr=[])
+    proc = FakeProc(pid=9501, stdout=[], stderr=[])
     await registry.register(
         cast(AsyncProcessProtocol, proc), command="sleep 999", session_id="s-cancelled", finish_listener=on_finish
     )

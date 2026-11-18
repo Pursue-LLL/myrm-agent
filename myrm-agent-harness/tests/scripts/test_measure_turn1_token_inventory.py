@@ -171,7 +171,7 @@ _BASH_TOOL_NAME = "bash_code_execute_tool"
 _BASH_STATIC_DESCRIPTION_TOKENS = 1347
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
-    "bash_process_tool": 159,
+    "bash_process_tool": 175,
     "file_edit_tool": 61,
     "file_read_tool": 47,
     "file_write_tool": 39,

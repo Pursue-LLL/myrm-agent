@@ -35,7 +35,7 @@ from myrm_agent_harness.utils.token_estimation import estimate_tools_schema_toke
 _WIRE_MODEL_ID = "gpt-5"
 _BASH_TOOL_NAME = "bash_code_execute_tool"
 
-# Default Turn-1 wire measured at 7,114 tokens (host-independent); the ceiling leaves ~2.5% headroom.
+# Default Turn-1 wire measured at 7,130 tokens (host-independent); the ceiling leaves ~2.2% headroom.
 _MAX_WIRE_TOKENS = 7_290
 
 # The total ceiling lets one tool balloon while another shrinks, so each tool also has its own. A tool that is not
@@ -44,7 +44,7 @@ _MAX_WIRE_TOKENS = 7_290
 _DEFAULT_TOOL_MAX_WIRE_TOKENS = 500
 _HEAVY_TOOL_MAX_WIRE_TOKENS: dict[str, int] = {
     "bash_code_execute_tool": 1_760,
-    "bash_process_tool": 540,
+    "bash_process_tool": 555,
     "web_search_tool": 1_390,
     "memory_save_tool": 850,
 }

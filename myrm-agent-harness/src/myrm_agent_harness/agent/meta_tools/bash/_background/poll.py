@@ -1,11 +1,14 @@
-"""Read-side views of background bash jobs: entry snapshots and exit waiting.
+"""Read-side views of background bash jobs: entry snapshots, the unfinished last line and exit waiting.
 
 [INPUT]
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo (POS: job snapshot)
 - agent.meta_tools.bash._background.termination::refresh_leftovers (POS: live members of a finished job's group)
+- agent.security.redact::redact_sensitive_text (POS: facade of the redaction domain)
+- utils.text_utils::strip_ansi (POS: strips terminal escape sequences from text)
 
 [OUTPUT]
-- snapshot_entry: detached ``BackgroundProcessInfo`` copy of a live registry entry
+- snapshot_entry: detached ``BackgroundProcessInfo`` copy of a live registry entry (cheap: ``wait`` and the auto-yield window take one every 0.1 s and 0.25 s)
+- unfinished_line: the text a running job printed after its last newline, cleaned and redacted; computed where it is read, never in a snapshot
 - wait_for_exit: block until a job leaves ``running`` or the cap passes
 
 [POS]
@@ -24,11 +27,15 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     BackgroundProcessInfo,
     compute_waiting_for_input,
 )
+from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.utils.text_utils import strip_ansi
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.bash._background.consume import BackgroundRegistryEntry
 
 _WAIT_POLL_INTERVAL_SECONDS = 0.1
+# The longest unfinished line ``output`` and ``wait`` show: a prompt, not a page.
+_UNFINISHED_LINE_MAX_CHARS = 200
 
 
 def snapshot_entry(entry: BackgroundRegistryEntry) -> BackgroundProcessInfo:
@@ -69,6 +76,21 @@ def snapshot_entry(entry: BackgroundRegistryEntry) -> BackgroundProcessInfo:
     return snap
 
 
+def unfinished_line(entry: BackgroundRegistryEntry) -> str:
+    """What a running job printed after its last newline, cleaned for display: usually the prompt it waits at.
+
+    Of the two streams the one that spoke last is read. Escape sequences are dropped and only the last non-empty
+    carriage-return segment is kept (a progress bar redraws one line over and over). The segment is redacted before it
+    is cut to its final characters: a secret split by the length limit would no longer match its pattern.
+    """
+    spoken = [tail for tail in (entry.stdout_unfinished, entry.stderr_unfinished) if tail.text.strip()]
+    if not spoken:
+        return ""
+    text = strip_ansi(max(spoken, key=lambda tail: tail.at).text)
+    segment = next((piece for piece in reversed(text.split("\r")) if piece.strip()), "")
+    return redact_sensitive_text(segment.strip())[-_UNFINISHED_LINE_MAX_CHARS:]
+
+
 async def wait_for_exit(
     get_info: Callable[[int], BackgroundProcessInfo | None],
     pid: int,
@@ -106,4 +128,4 @@ async def wait_for_exit(
     }
 
 
-__all__ = ["snapshot_entry", "wait_for_exit"]
+__all__ = ["snapshot_entry", "unfinished_line", "wait_for_exit"]

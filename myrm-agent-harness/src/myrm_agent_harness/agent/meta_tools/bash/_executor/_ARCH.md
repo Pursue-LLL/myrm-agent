@@ -19,7 +19,7 @@ BashExecutor 聚合根与执行编排域：同步/后台执行、上下文构建
 | `mcp_citation_handler.py` | Core | MCP Metadata Extractor：只信任带这次执行的 IPC 服务端 nonce 的标记（调用方显式传入；没有 nonce 即不信任任何标记）；从标记解出的内容以及自己不认证的形似标记片段会再脱敏（输出脱敏器放行了它们）；`extract_completed_calls` 供失败路径取出去标记的 stdout 和「失败前已完成的 MCP 调用」一行摘要。 | ✅ |
 | `event_logging.py` | Internal | 命令执行事件日志（命令经 `redact_command_line` 脱敏，输出经共享脱敏器，再分类）。 | ✅ |
 | `error.py` | Core | 结构化 ``BashExecutionError``，携带 stdout/stderr eviction 引用与异常消息脱敏。 | ✅ |
-| `auto_yield.py` | Core | 前台白名单命令超时自动后台化。 | ✅ |
+| `auto_yield.py` | Core | 前台白名单命令超时自动后台化；转后台的返回在输出行之后带作业未结束的最后一行（提示没有换行，输出行里读不到它）。 | ✅ |
 | `command_classifier.py` | Core | 命令分类器（READ/WRITE/DANGEROUS/NETWORK/GIT/SEARCH/PYTHON/SKILL）。 | ✅ |
 
 ## Key Dependencies

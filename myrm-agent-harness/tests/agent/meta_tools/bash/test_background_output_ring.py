@@ -9,7 +9,7 @@ import pytest
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import BackgroundProcessRegistry
 from myrm_agent_harness.agent.meta_tools.bash._background.types import OUTPUT_RING_LINES
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
-from tests.agent.meta_tools.bash.test_background_registry import _FakeProc, _wait_until
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc, wait_until
 
 
 def _lines(prefix: str, count: int) -> list[bytes]:
@@ -22,10 +22,10 @@ async def _produce(pid: int, *, stdout: list[bytes], stderr: list[bytes]) -> Bac
     The job has no session, so it has no spill log: the ring is the only place its lines go.
     """
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=pid, stdout=stdout, stderr=stderr)
+    proc = FakeProc(pid=pid, stdout=stdout, stderr=stderr)
     await registry.register(cast(AsyncProcessProtocol, proc), command="generate", session_id=None)
     proc.finish(0)
-    await _wait_until(
+    await wait_until(
         lambda: registry.get(pid) is not None and registry.get(pid).status == "exited",  # type: ignore[union-attr]
         what="the job to exit",
     )

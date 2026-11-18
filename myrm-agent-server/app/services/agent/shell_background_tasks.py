@@ -144,8 +144,20 @@ def _prompt_lines_from_output(payload: object) -> list[str] | None:
     return None
 
 
+def _partial_line_for_live_task(registry: object, pid: int) -> str:
+    """The unfinished last line of a live job: a prompt has no newline, so no output line holds it."""
+    get_partial_line = getattr(registry, "get_partial_line", None)
+    if not callable(get_partial_line):
+        return ""
+    try:
+        text = get_partial_line(pid)
+    except Exception:
+        return ""
+    return text if isinstance(text, str) else ""
+
+
 def _interactive_prompt_for_live_task(registry: object, info: object) -> ShellPrompt | None:
-    """Parse a structured prompt from bounded output only for a waiting live job."""
+    """Parse a structured prompt from bounded output and the unfinished last line, only for a waiting live job."""
     status = getattr(info, "status", None)
     waiting = bool(getattr(info, "waiting_for_input", False))
     pid = getattr(info, "pid", None)
@@ -158,8 +170,11 @@ def _interactive_prompt_for_live_task(registry: object, info: object) -> ShellPr
         payload = get_output(pid, max_lines=12)
     except Exception:
         return None
-    lines = _prompt_lines_from_output(payload)
-    if lines is None:
+    lines = _prompt_lines_from_output(payload) or []
+    partial_line = _partial_line_for_live_task(registry, pid)
+    if partial_line:
+        lines = [*lines, partial_line]
+    if not lines:
         return None
 
     from myrm_agent_harness.toolkits.code_execution.utils.log_distiller import (

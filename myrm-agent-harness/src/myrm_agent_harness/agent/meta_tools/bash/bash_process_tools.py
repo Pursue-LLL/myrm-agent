@@ -134,9 +134,9 @@ _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
     f"wait (block until exit or timeout_seconds, max {WAIT_MAX_SECONDS}), "
     "kill (SIGTERM, then SIGKILL if it does not exit; force=true sends SIGKILL at once), "
     "write_stdin (raw stdin), submit_stdin (stdin + Enter), close_stdin (EOF). "
-    f"waiting_for_input=true only means no output for {_IDLE_SECONDS} s while stdin is open: "
-    "the job may be waiting for input or just quiet. "
-    "If the command is expected to prompt or its latest output asks a question, "
+    "output and wait also return partial_line while the job runs: the unfinished last line, usually a prompt. "
+    f"waiting_for_input=true only means no output for {_IDLE_SECONDS} s while stdin is open. "
+    "If partial_line (or the latest output) asks a question, or the command is expected to prompt, "
     "answer with submit_stdin; otherwise ignore the flag."
 )
 
@@ -147,8 +147,9 @@ _BASH_PROCESS_TOOL_DESCRIPTION_ZH = (
     f"wait（阻塞等待结束或达到 timeout_seconds，最大 {WAIT_MAX_SECONDS} 秒），"
     "kill（先发 SIGTERM，不退出则升级为 SIGKILL；force=true 直接发 SIGKILL），"
     "write_stdin（原始 stdin），submit_stdin（stdin+回车），close_stdin（EOF）。"
-    f"waiting_for_input=true 只表示 stdin 仍开着且已 {_IDLE_SECONDS} 秒无输出：任务要么在等输入，要么只是安静。"
-    "命令本应提问、或最新输出是个问句时，用 submit_stdin 应答；否则忽略该标记。"
+    "作业运行时，output 与 wait 还会返回 partial_line：未结束的最后一行，通常是提示。"
+    f"waiting_for_input=true 只表示 stdin 仍开着且已 {_IDLE_SECONDS} 秒无输出。"
+    "partial_line 或最新输出是个问句、或命令本应提问时，用 submit_stdin 应答；否则忽略该标记。"
 )
 
 

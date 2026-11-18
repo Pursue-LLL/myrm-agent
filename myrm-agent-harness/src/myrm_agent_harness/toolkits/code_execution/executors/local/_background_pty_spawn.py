@@ -113,8 +113,8 @@ class _PtyReaderProtocol(asyncio.StreamReaderProtocol):
     """Stream protocol that reads the PTY hang-up as a clean end of stream.
 
     Once the slave side is closed, Linux fails the next master read with EIO (macOS returns EOF).
-    asyncio then calls ``StreamReader.set_exception``, which makes every later ``readline`` raise and
-    drops the lines still buffered, so the tail of a short-lived job's output would be lost.
+    asyncio then calls ``StreamReader.set_exception``, which makes every later read raise and
+    drops the bytes still buffered, so the tail of a short-lived job's output would be lost.
     """
 
     def connection_lost(self, exc: Exception | None) -> None:

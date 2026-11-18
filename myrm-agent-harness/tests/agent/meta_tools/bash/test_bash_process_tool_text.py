@@ -43,10 +43,19 @@ def test_the_description_states_the_idle_flag_once_with_both_readings(locale: st
     assert text.count("waiting_for_input") == 1
     rule = text.split("waiting_for_input", 1)[1]
     assert _IDLE_SECONDS in rule
+    assert "partial_line" in rule
     assert "submit_stdin" in rule
     assert _IGNORE_THE_FLAG[locale] in rule
     assert "blind" not in text.lower()
     assert "盲" not in text
+
+
+@pytest.mark.parametrize("locale", _LOCALES)
+def test_the_description_names_the_field_that_carries_the_unfinished_last_line(locale: str) -> None:
+    text = resolve_bash_process_tool_description(locale)
+
+    assert text.count("partial_line") == 2
+    assert text.index("partial_line") < text.index("waiting_for_input")
 
 
 @pytest.mark.parametrize("locale", _LOCALES)
@@ -101,8 +110,8 @@ def test_the_input_wait_hint_reads_the_silence_both_ways() -> None:
     seconds = re.match(r"No new output for (\d+) s and stdin is open", hint)
     assert seconds is not None
     assert 20 <= int(seconds.group(1)) <= 22
-    assert "waiting for input" in hint
-    assert "just quiet" in hint
+    assert "partial_line" in hint
+    assert "just be quiet" in hint
     assert hint.index("submit_stdin") < hint.index("write_stdin")
     assert "close_stdin" in hint
     assert "ignore this hint" in hint

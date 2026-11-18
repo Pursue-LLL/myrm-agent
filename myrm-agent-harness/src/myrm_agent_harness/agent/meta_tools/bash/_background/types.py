@@ -68,15 +68,19 @@ def compute_waiting_for_input(
 
 
 def build_input_wait_hint(info: BackgroundProcessInfo) -> str:
-    """The note sent with ``waiting_for_input``: a silent job with open stdin is waiting for input or just quiet."""
+    """The note sent with ``waiting_for_input``: a silent job with open stdin is waiting for input or just quiet.
+
+    The wording is fixed: what the job printed reaches the model only through the ``partial_line`` field.
+    """
     if not info.waiting_for_input:
         return ""
     anchor = info.last_output_at if info.last_output_at > 0 else info.started_at
     idle_sec = max(0, int(time.time() - anchor))
     return (
-        f"No new output for {idle_sec} s and stdin is open: the job may be waiting for input, or just quiet. "
-        "If waiting, answer with submit_stdin (text + Enter; write_stdin sends raw text, close_stdin sends EOF) "
-        "or the Activity panel Send input; if quiet, ignore this hint."
+        f"No new output for {idle_sec} s and stdin is open. If partial_line (or the latest output) asks something, "
+        "answer with submit_stdin (text + Enter; write_stdin sends raw text, close_stdin sends EOF) "
+        "or the Activity panel Send input; otherwise the job may just be quiet: "
+        "ignore this hint unless the command is expected to read input."
     )
 
 

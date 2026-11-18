@@ -20,7 +20,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycl
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
 )
-from tests.agent.meta_tools.bash.test_background_registry import _FakeProc
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc
 
 
 def setup_function() -> None:
@@ -59,7 +59,7 @@ async def test_registry_clears_spawn_when_last_shell_job_exits() -> None:
     registry = BackgroundProcessRegistry(reap_delay_seconds=0)
     activate_session_spawn_tool("chat-shell", "bash_process_tool")
 
-    proc = _FakeProc(pid=4242, stdout=[b"done\n"], stderr=[])
+    proc = FakeProc(pid=4242, stdout=[b"done\n"], stderr=[])
     await registry.register(
         cast(AsyncProcessProtocol, proc),
         command="echo done",
@@ -78,8 +78,8 @@ async def test_registry_keeps_spawn_while_sibling_shell_job_running() -> None:
     registry = BackgroundProcessRegistry(reap_delay_seconds=300)
     activate_session_spawn_tool("chat-shell", "bash_process_tool")
 
-    slow = _FakeProc(pid=5001, stdout=[], stderr=[])
-    fast = _FakeProc(pid=5002, stdout=[b"ok\n"], stderr=[])
+    slow = FakeProc(pid=5001, stdout=[], stderr=[])
+    fast = FakeProc(pid=5002, stdout=[b"ok\n"], stderr=[])
     await registry.register(
         cast(AsyncProcessProtocol, slow),
         command="sleep 999",

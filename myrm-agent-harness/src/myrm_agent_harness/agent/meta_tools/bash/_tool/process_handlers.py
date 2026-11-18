@@ -1,13 +1,13 @@
 """Action handlers of ``bash_process_tool``: list, output, wait, kill and stdin on a session's background jobs.
 
 [INPUT]
-- agent.meta_tools.bash._background.registry::get_background_registry (POS: registry singleton)
+- agent.meta_tools.bash._background.registry::BackgroundProcessRegistry / get_background_registry (POS: registry singleton; ``get_partial_line`` is the unfinished last line of a running job)
 - agent.meta_tools.bash._background.termination::GROUP_VISIBLE (POS: whether the platform can list a job's process group)
-- agent.meta_tools.bash._background.types::OutputTail / build_input_wait_hint (POS: shared dataclasses & typing.)
+- agent.meta_tools.bash._background.types::BackgroundProcessInfo / OutputTail / build_input_wait_hint (POS: shared dataclasses & typing.)
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
-- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, the full log's reference); ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
+- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, the full log's reference); ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
 - kill_report: the text a kill returns to the model, stating what the stop actually achieved
 
 [POS]
@@ -17,10 +17,12 @@ Session-scoped handlers behind the ``bash_process_tool`` facade, which owns the 
 from __future__ import annotations
 
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
+    BackgroundProcessRegistry,
     get_background_registry,
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import GROUP_VISIBLE
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    BackgroundProcessInfo,
     OutputTail,
     build_input_wait_hint,
 )
@@ -41,6 +43,18 @@ def _stream_fields(streams: OutputTail) -> dict[str, object]:
     spill_log_ref = streams.get("spill_log_ref")
     if spill_log_ref:
         fields["spill_log_ref"] = spill_log_ref
+    return fields
+
+
+def _running_fields(registry: BackgroundProcessRegistry, info: BackgroundProcessInfo) -> dict[str, object]:
+    """What a read of a running job adds: the idle flag, the unfinished last line when there is one, and the note on the flag."""
+    fields: dict[str, object] = {"waiting_for_input": info.waiting_for_input, "last_output_at": info.last_output_at}
+    partial_line = registry.get_partial_line(info.pid)
+    if partial_line:
+        fields["partial_line"] = partial_line
+    hint = build_input_wait_hint(info)
+    if hint:
+        fields["input_wait_hint"] = hint
     return fields
 
 
@@ -75,11 +89,7 @@ async def handle_output(session_id: str, pid: int, max_lines: int) -> dict[str, 
     if info.leftover_processes:
         content["leftover_processes"] = info.leftover_processes
     if info.status == "running":
-        content["waiting_for_input"] = info.waiting_for_input
-        content["last_output_at"] = info.last_output_at
-        hint = build_input_wait_hint(info)
-        if hint:
-            content["input_wait_hint"] = hint
+        content.update(_running_fields(registry, info))
 
     return {
         "content": content,
@@ -108,11 +118,7 @@ async def handle_wait(session_id: str, pid: int, timeout_seconds: int) -> dict[s
         live = registry.get(pid)
         content["message"] = f"pid={pid} still running after {timeout_seconds}s; poll with action=output or wait again."
         if live is not None and live.status == "running":
-            content["waiting_for_input"] = live.waiting_for_input
-            content["last_output_at"] = live.last_output_at
-            hint = build_input_wait_hint(live)
-            if hint:
-                content["input_wait_hint"] = hint
+            content.update(_running_fields(registry, live))
     else:
         content.update(_stream_fields(registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)))
         # The job may have finished during the wait, so what it left running is read now, not from the first snapshot.

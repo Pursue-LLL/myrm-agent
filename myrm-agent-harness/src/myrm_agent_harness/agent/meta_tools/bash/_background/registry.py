@@ -24,13 +24,14 @@ dragging in the singleton's ``atexit`` hook. Stopping, reaping and the
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: AsyncProcessProtocol — wait/terminate/kill handle.)
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo / BackgroundQuotaError / FinishListener / OutputTail / ProgressListener (POS: shared dataclasses & typing.)
 - agent.meta_tools.bash._background.lifecycle::RegistryLifecycleMixin (POS: kill / reap / shutdown half of the registry.)
-- agent.meta_tools.bash._background.poll::snapshot_entry / wait_for_exit (POS: read-side views of jobs.)
+- agent.meta_tools.bash._background.poll::snapshot_entry / unfinished_line / wait_for_exit (POS: read-side views of jobs.)
 - agent.meta_tools.bash._background.termination::leader_identity / own_identity (POS: group-level stop primitives; record a job leader's, and this server's, pid with its start stamp.)
 
 [OUTPUT]
 - BackgroundProcessRegistry: Process-wide singleton with per-session buckets,
-  SIGTERM→SIGKILL grace escalation, 32 KiB line truncation, 300 s reap of
+  SIGTERM→SIGKILL grace escalation, 32 Ki-character line truncation, 300 s reap of
   exited entries, ``last_progress`` snapshot on ``BackgroundProcessInfo``,
+  ``get_partial_line`` (the unfinished last line of a running job, computed per read)
   and ``kill_session_jobs`` for cooperative cleanup when an agent session
   is cancelled. A finished job whose children keep running stays listed with
   ``leftover_processes`` until they exit or ``kill`` stops them.
@@ -55,7 +56,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.consume import (
     consume_background_entry,
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.lifecycle import RegistryLifecycleMixin
-from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry, wait_for_exit
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry, unfinished_line, wait_for_exit
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import leader_identity, own_identity
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     OUTPUT_RING_LINES,
@@ -191,6 +192,18 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
         with self._lock:
             entry = self._entries.get(pid)
         return snapshot_entry(entry) if entry else None
+
+    def get_partial_line(self, pid: int) -> str:
+        """The unfinished last line of a running job (usually its prompt), cleaned and redacted; empty otherwise.
+
+        Computed at each read, not in the snapshot: ``wait`` and the auto-yield window poll the snapshot every
+        100–250 ms, and cleaning and redacting the line on each poll would cost far more than the poll itself.
+        """
+        with self._lock:
+            entry = self._entries.get(pid)
+        if entry is None or entry.info.status != "running":
+            return ""
+        return unfinished_line(entry)
 
     def count_running(self, session_id: str | None = None) -> int:
         """Count running background jobs globally or for one session."""

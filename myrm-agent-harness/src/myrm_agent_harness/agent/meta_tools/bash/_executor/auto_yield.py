@@ -2,11 +2,11 @@
 
 [INPUT]
 - agent.goals.wait_background_bash::is_wait_eligible_command (POS: build/test whitelist SSOT)
-- .._background.registry::get_background_registry (POS: poll partial output)
+- .._background.registry::get_background_registry (POS: poll output and the unfinished last line)
 
 [OUTPUT]
 - DEFAULT_YIELD_AFTER_SECONDS: Profile-aligned default when arg omitted
-- build_auto_yield_return: Compose tool payload after yield window
+- build_auto_yield_return: Compose tool payload after yield window (the output lines, then the unfinished last line of a job still running)
 
 [POS]
 Bash-tool helper — keeps bash_code_execute_tool aggregate root thin.
@@ -107,6 +107,10 @@ def build_auto_yield_return(
             hint += stdout_text
         if stderr_text:
             hint += f"\n[stderr]\n{stderr_text}"
+    # A prompt has no newline, so it is in no output line: this is the first place the model can read the question.
+    partial_line = reg.get_partial_line(info.pid)
+    if partial_line:
+        hint += f"\n\nUnfinished last line (no newline yet): {partial_line}"
 
     return {
         "content": hint,

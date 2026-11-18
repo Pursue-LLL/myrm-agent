@@ -17,8 +17,9 @@ PTY-first on POSIX hosts without OS sandbox; falls back to PIPE via `_background
 Background process spawning. Handles sandbox wrapping, environment sanitization,
 memory limits, process group management, non-interactive CI-mode environment
 defaults (``CI`` / ``NO_COLOR`` / ``DEBIAN_FRONTEND`` / ``PYTHONUNBUFFERED``),
-and an 8 MiB ``StreamReader.limit`` so multi-MB log lines (docker manifests,
-pytest dumps) never trip ``LimitOverrunError`` and stall the reader.
+and an 8 MiB ``StreamReader.limit``: the buffer a job may fill before its pipe is
+paused, so a burst of output (docker manifests, pytest dumps) does not stall the job
+while the reader records it.
 """
 
 from __future__ import annotations
@@ -213,12 +214,10 @@ async def spawn_background_process(
                 return pty_proc
             logger.info(" [LocalExecutor] PTY spawn unavailable; falling back to PIPE")
 
-    # The default StreamReader limit is 64 KiB. Real-world tools (docker
-    # manifest JSON, pytest -vv dumps, Node heap dumps) easily exceed that
-    # in a single line, raising ``LimitOverrunError`` which silently kills
-    # the reader and loses every subsequent byte of the long-running job.
-    # 8 MiB is comfortably above any organic line we have seen yet still
-    # tiny relative to per-process RSS.
+    # The reader takes the pipe in 64 KiB blocks, so a line of any length is never held whole by the stream.
+    # The limit sets how much a job may buffer before the transport pauses its pipe (twice the limit): the
+    # default 64 KiB would throttle a job that prints bursts (docker manifest JSON, pytest -vv dumps) while the
+    # reader redacts and spills each line. 8 MiB is far above any burst we have seen and tiny next to a job's RSS.
     kwargs.setdefault("limit", 8 * 1024 * 1024)
     process = await asyncio.create_subprocess_exec(
         *full_cmd_array,

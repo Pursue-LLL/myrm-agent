@@ -15,64 +15,18 @@ from myrm_agent_harness.agent.meta_tools.bash._background.consume import (
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.types import BackgroundProcessInfo
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
+from tests.agent.meta_tools.bash.fake_background_proc import FakeOutputPipe, FakeProc, wait_until
 
 
-class _FakeStream:
-    def __init__(self, lines: list[bytes]) -> None:
-        self._lines = list(lines)
+class _FailingPipe:
+    """A pipe whose read fails, as one does when the other end vanishes."""
 
-    async def readline(self) -> bytes:
-        if not self._lines:
-            return b""
-        return self._lines.pop(0)
-
-
-class _FakeProc:
-    def __init__(
-        self,
-        pid: int,
-        stdout: list[bytes],
-        stderr: list[bytes] | None = None,
-        *,
-        stdout_stream: object | None = None,
-        stderr_stream: object | None = None,
-    ) -> None:
-        self._proc = MagicMock()
-        self._proc.pid = pid
-        self.stdout = stdout_stream if stdout_stream is not None else _FakeStream(stdout)
-        self.stderr = stderr_stream if stderr_stream is not None else _FakeStream(stderr or [])
-        self._exit_event = asyncio.Event()
-        self._exit_code = 0
-
-    async def wait(self) -> int:
-        await self._exit_event.wait()
-        return self._exit_code
-
-    def finish(self, exit_code: int = 0) -> None:
-        self._exit_code = exit_code
-        self._exit_event.set()
-
-
-class _LimitOverrunStream:
-    def __init__(self) -> None:
-        self._raised = False
-
-    async def readline(self) -> bytes:
-        if not self._raised:
-            self._raised = True
-            raise asyncio.LimitOverrunError("line too long", 4096)
-        return b""
-
-    async def readexactly(self, _n: int) -> bytes:
-        return b""
-
-
-class _NoReadlineStream:
-    pass
+    async def read(self, n: int = -1) -> bytes:
+        raise OSError("pipe closed")
 
 
 def _make_entry(
-    proc: _FakeProc,
+    proc: FakeProc,
     *,
     finish_listener: AsyncMock | None = None,
     progress_listener: AsyncMock | None = None,
@@ -80,7 +34,7 @@ def _make_entry(
 ) -> BackgroundRegistryEntry:
     info = BackgroundProcessInfo(
         job_id="a" * 32,
-        pid=proc._proc.pid,
+        pid=proc.pid,
         command="echo test",
         session_id="sess-consume",
         started_at=1.0,
@@ -112,7 +66,7 @@ async def _run_consume(entry: BackgroundRegistryEntry) -> tuple[list[int], list[
 
 @pytest.mark.asyncio
 async def test_consume_background_entry_captures_stdout_and_exits() -> None:
-    proc = _FakeProc(pid=4242, stdout=[b"hello\n"], stderr=[])
+    proc = FakeProc(pid=4242, stdout=[b"hello\n"], stderr=[])
     entry = _make_entry(proc)
 
     task = asyncio.create_task(_run_consume(entry))
@@ -129,7 +83,7 @@ async def test_consume_background_entry_captures_stdout_and_exits() -> None:
 
 @pytest.mark.asyncio
 async def test_consume_background_entry_invokes_finish_listener() -> None:
-    proc = _FakeProc(pid=7777, stdout=[b"done\n"], stderr=[])
+    proc = FakeProc(pid=7777, stdout=[b"done\n"], stderr=[])
     listener = AsyncMock()
     entry = _make_entry(proc, finish_listener=listener)
 
@@ -143,7 +97,7 @@ async def test_consume_background_entry_invokes_finish_listener() -> None:
 
 @pytest.mark.asyncio
 async def test_consume_background_entry_persists_terminal_state() -> None:
-    proc = _FakeProc(pid=8888, stdout=[b"line\n"], stderr=[])
+    proc = FakeProc(pid=8888, stdout=[b"line\n"], stderr=[])
     entry = _make_entry(proc)
 
     with patch(
@@ -159,7 +113,7 @@ async def test_consume_background_entry_persists_terminal_state() -> None:
 
 @pytest.mark.asyncio
 async def test_consume_background_entry_captures_stderr() -> None:
-    proc = _FakeProc(pid=1111, stdout=[], stderr=[b"warn\n"])
+    proc = FakeProc(pid=1111, stdout=[], stderr=[b"warn\n"])
     entry = _make_entry(proc)
 
     task = asyncio.create_task(_run_consume(entry))
@@ -174,7 +128,7 @@ async def test_consume_background_entry_captures_stderr() -> None:
 @pytest.mark.asyncio
 async def test_consume_background_entry_truncates_long_lines() -> None:
     long_payload = b"x" * 33_000 + b"\n"
-    proc = _FakeProc(pid=2222, stdout=[long_payload], stderr=[])
+    proc = FakeProc(pid=2222, stdout=[long_payload], stderr=[])
     entry = _make_entry(proc)
 
     task = asyncio.create_task(_run_consume(entry))
@@ -183,14 +137,14 @@ async def test_consume_background_entry_truncates_long_lines() -> None:
     await task
 
     captured = entry.stdout_buffer[0]
-    assert "bytes truncated" in captured
+    assert captured.endswith("... [+232 chars truncated]")
     assert len(captured) <= 32 * 1024 + 64
 
 
 @pytest.mark.asyncio
 async def test_consume_background_entry_emits_progress() -> None:
     progress_line = b'MYRM_PROGRESS {"percent": 50, "message": "Building"}\n'
-    proc = _FakeProc(pid=3333, stdout=[progress_line], stderr=[])
+    proc = FakeProc(pid=3333, stdout=[progress_line], stderr=[])
     progress_listener = AsyncMock()
     entry = _make_entry(proc, progress_listener=progress_listener)
 
@@ -208,7 +162,7 @@ async def test_consume_background_entry_emits_progress() -> None:
 async def test_consume_background_entry_spill_writer_persists_vault_ref() -> None:
     spill = MagicMock()
     spill.vault_log_ref = "output_spill.txt"
-    proc = _FakeProc(pid=4444, stdout=[b"spilled\n"], stderr=[])
+    proc = FakeProc(pid=4444, stdout=[b"spilled\n"], stderr=[])
     entry = _make_entry(proc, spill_writer=spill)
 
     with patch(
@@ -225,15 +179,8 @@ async def test_consume_background_entry_spill_writer_persists_vault_ref() -> Non
 
 
 @pytest.mark.asyncio
-async def test_consume_background_entry_handles_limit_overrun() -> None:
-    overrun = _LimitOverrunStream()
-    proc = _FakeProc(
-        pid=5555,
-        stdout=[],
-        stderr=[],
-        stdout_stream=overrun,
-        stderr_stream=_FakeStream([]),
-    )
+async def test_a_pipe_whose_read_fails_ends_that_stream_only() -> None:
+    proc = FakeProc(pid=5555, stdout=[], stderr=[b"warn\n"], stdout_pipe=_FailingPipe())
     entry = _make_entry(proc)
 
     task = asyncio.create_task(_run_consume(entry))
@@ -241,19 +188,14 @@ async def test_consume_background_entry_handles_limit_overrun() -> None:
     proc.finish()
     await task
 
-    assert entry.stdout_buffer
-    assert "truncated" in entry.stdout_buffer[0]
+    assert list(entry.stdout_buffer) == []
+    assert list(entry.stderr_buffer) == ["warn"]
+    assert entry.info.status == "exited"
 
 
 @pytest.mark.asyncio
-async def test_consume_background_entry_skips_stream_without_readline() -> None:
-    proc = _FakeProc(
-        pid=6666,
-        stdout=[],
-        stderr=[],
-        stdout_stream=_NoReadlineStream(),
-        stderr_stream=_NoReadlineStream(),
-    )
+async def test_consume_background_entry_skips_stream_without_read() -> None:
+    proc = FakeProc(pid=6666, stdout=[], stderr=[], stdout_pipe=object(), stderr_pipe=object())
     entry = _make_entry(proc)
 
     task = asyncio.create_task(_run_consume(entry))
@@ -266,8 +208,62 @@ async def test_consume_background_entry_skips_stream_without_readline() -> None:
 
 
 @pytest.mark.asyncio
+async def test_what_a_job_prints_without_a_newline_stays_visible_until_it_is_answered() -> None:
+    pipe = FakeOutputPipe([b"Continue? [y/N] "], hold_open=True)
+    proc = FakeProc(pid=6001, stdout=[], stdout_pipe=pipe)
+    entry = _make_entry(proc)
+
+    task = asyncio.create_task(_run_consume(entry))
+    await wait_until(lambda: entry.stdout_unfinished.text != "", what="the prompt to reach the unfinished tail")
+
+    assert entry.stdout_unfinished.text == "Continue? [y/N] "
+    assert list(entry.stdout_buffer) == []
+    assert entry.info.last_output_at == entry.stdout_unfinished.at
+
+    pipe.feed(b"y\n")
+    await wait_until(lambda: bool(entry.stdout_buffer), what="the answered line to complete")
+    assert list(entry.stdout_buffer) == ["Continue? [y/N] y"]
+    assert entry.stdout_unfinished.text == ""
+
+    pipe.close()
+    proc.finish()
+    await task
+
+
+@pytest.mark.asyncio
+async def test_output_without_a_newline_counts_as_output() -> None:
+    """A progress bar redraws one line with carriage returns and never completes a line."""
+    pipe = FakeOutputPipe([b"10%\r"], hold_open=True)
+    proc = FakeProc(pid=6002, stdout=[], stdout_pipe=pipe)
+    entry = _make_entry(proc)
+    entry.info.last_output_at = 1.0
+
+    task = asyncio.create_task(_run_consume(entry))
+    await wait_until(lambda: entry.info.last_output_at > 1.0, what="the bytes to move last_output_at")
+
+    pipe.close()
+    proc.finish()
+    await task
+    assert list(entry.stdout_buffer) == ["10%"]
+
+
+@pytest.mark.asyncio
+async def test_the_unfinished_line_becomes_the_last_line_when_the_stream_ends() -> None:
+    proc = FakeProc(pid=6003, stdout=[b"done\nfinal"], stderr=[])
+    entry = _make_entry(proc)
+
+    task = asyncio.create_task(_run_consume(entry))
+    await asyncio.sleep(0.05)
+    proc.finish()
+    await task
+
+    assert list(entry.stdout_buffer) == ["done", "final"]
+    assert entry.stdout_unfinished.text == ""
+
+
+@pytest.mark.asyncio
 async def test_consume_background_entry_cancelled_returns_without_crash() -> None:
-    proc = _FakeProc(pid=9999, stdout=[b"block\n"], stderr=[])
+    proc = FakeProc(pid=9999, stdout=[b"block\n"], stderr=[])
     entry = _make_entry(proc)
     reaped: list[int] = []
 
