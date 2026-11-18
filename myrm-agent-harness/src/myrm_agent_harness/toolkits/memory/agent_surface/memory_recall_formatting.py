@@ -5,7 +5,7 @@
 - core.security.detection.content_boundary::sanitize (POS: Content boundary defense core)
 
 [OUTPUT]
-- parse_time_bound: Parse a recall time bound (ISO 8601, or a relative amount such as 30m, 24h, 7d, 2w, 1y) into a UTC datetime.
+- parse_time_bound: Parse a recall time bound (ISO 8601, or a relative amount such as 30m, 24h, 7d, 2w, 1y) into a UTC datetime; a date without a time ends at the close of its day as an upper bound.
 - memory_age_label: Human-readable age label for memory timestamps.
 - is_stale: Staleness check for recalled factual memories.
 - channel_label: Human-readable channel provenance label.
@@ -26,7 +26,7 @@ Memory recall formatting helper under ``toolkits/memory/agent_surface/``. Keeps 
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -58,11 +58,20 @@ RECALL_DRIFT_DEFENSE_FOOTER = (
 )
 
 
-def parse_time_bound(value: str | None) -> datetime | None:
+def _date_without_time(value: str) -> date | None:
+    """The day an ISO 8601 date names; None when ``value`` carries a time of day or is not a date."""
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def parse_time_bound(value: str | None, *, is_upper_bound: bool = False) -> datetime | None:
     """Parse a time-bound string into a UTC datetime; None when it is unparseable or out of range.
 
     A bound is an ISO 8601 date or datetime, or an amount counted back from now: ``<n>m`` minutes, ``<n>h`` hours,
-    ``<n>d`` days, ``<n>w`` weeks, ``<n>y`` 365-day years.
+    ``<n>d`` days, ``<n>w`` weeks, ``<n>y`` 365-day years. Both bounds of a search are inclusive, so a date without a
+    time names its whole UTC day: as an upper bound it ends at 23:59:59.999999, otherwise it starts at 00:00.
     """
     if not value:
         return None
@@ -73,6 +82,8 @@ def parse_time_bound(value: str | None) -> datetime | None:
             amount = int(match.group(1))
             unit_seconds = _RELATIVE_UNITS[match.group(2).lower()]
             return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
+        if is_upper_bound and (day := _date_without_time(value)) is not None:
+            return datetime.combine(day, time.max, tzinfo=UTC)
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
             return dt.replace(tzinfo=UTC)

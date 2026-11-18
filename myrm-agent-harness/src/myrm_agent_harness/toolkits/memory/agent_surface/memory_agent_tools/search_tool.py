@@ -115,7 +115,7 @@ def build_memory_search_tool(
         parsed_cats = parse_string_list(categories)
         category_names = [c for c in parsed_cats if c in CATEGORY_TO_TYPE] or None
         parsed_since = _parse_time_bound(since)
-        parsed_until = _parse_time_bound(until)
+        parsed_until = _parse_time_bound(until, is_upper_bound=True)
         recall_limit = normalize_recall_limit(limit)
         sections: list[str] = []
         aggregated_sources: list[dict[str, object]] = []

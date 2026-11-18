@@ -32,7 +32,7 @@ from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryT
 
 _PLAIN = "No relevant memories found."
 _MARCH_WINDOW_NOTE = (
-    f"{_PLAIN} This search was limited to memories saved after 2026-03-01 00:00 UTC and before 2026-03-31 00:00 UTC: "
+    f"{_PLAIN} This search was limited to memories saved after 2026-03-01 00:00 UTC and before 2026-03-31 23:59 UTC: "
     "since/until match when a memory was saved, not the date it describes. "
     "If the memory may have been saved outside this period, retry without since/until."
 )

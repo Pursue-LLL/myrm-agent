@@ -118,7 +118,7 @@ async def search_memory_corpus(
 ) -> str:
     """Search long-term memory corpus (includes active session buffer)."""
     parsed_since = parse_time_bound(since)
-    parsed_until = parse_time_bound(until)
+    parsed_until = parse_time_bound(until, is_upper_bound=True)
     recall_limit = normalize_recall_limit(limit)
     types: list[MemoryType] | None = None
     if categories:
