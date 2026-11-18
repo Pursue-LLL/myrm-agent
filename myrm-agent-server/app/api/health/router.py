@@ -9,7 +9,7 @@
 - GET /api/v1/health - 基础健康检查
 - GET /api/v1/health/liveness - Agent 全局存活状态 SSOT（聚合 Agent/渠道/内存）
 - GET /api/v1/health/ready - 就绪检查（readiness），检查所有依赖服务；数据库就绪即视为首屏将要加载，后台预热随后启动
-- GET /api/v1/health/info - 系统配置信息（部署模式、数据驻留、可选语音组件就绪状态、引擎版本）
+- GET /api/v1/health/info - 系统配置信息（部署模式、数据驻留、可选语音组件安装状态、引擎版本；不导入可选包）
 - GET /api/v1/health/doctor - 聚合 Harness + Server 诊断（fail-only SSE 告警策略）
 - GET /api/v1/health/browser - 浏览器运行时健康状态
 - GET /api/v1/health/browser/doctor - 完整浏览器诊断
@@ -21,6 +21,7 @@
 浏览器相关端点实现在 `app.api.health.browser`（本文件挂载子路由）。
 """
 
+import importlib.util
 import logging
 import os
 
@@ -152,38 +153,18 @@ async def readiness_check() -> dict[str, bool | dict[str, bool]]:
     }
 
 
-def _check_local_stt_installed() -> bool:
-    """Check if faster-whisper STT dependencies are importable."""
-    try:
-        import faster_whisper  # noqa: F401
+def _is_installed(module_name: str) -> bool:
+    """Whether an optional package can be found, without importing it.
 
+    The desktop shell asks for ``/health/info`` while the first screen is loading, and the handler runs on the event
+    loop. Importing faster-whisper loads ctranslate2 and PyAV (FFmpeg); the operating system checks each native library
+    the first time it is loaded, so one import here held every other request for seconds on a fresh install.
+    """
+    try:
+        return importlib.util.find_spec(module_name) is not None
+    except ValueError:
+        # A module put into sys.modules without a spec is already loaded, so it is importable by definition.
         return True
-    except ImportError:
-        return False
-
-
-def _check_edge_tts_installed() -> bool:
-    """Check if optional Edge TTS (voice-tts extra) is importable."""
-    from app.channels.voice.tts import is_edge_tts_available
-
-    return is_edge_tts_available()
-
-
-def _check_local_tts_installed() -> bool:
-    """Check if fully offline local Piper TTS is importable."""
-    from app.channels.voice.tts import is_local_tts_available
-
-    return is_local_tts_available()
-
-
-def _get_tokenizer_backend() -> str:
-    """Return the active tokenizer backend name (jieba or bigram_fallback)."""
-    try:
-        from myrm_agent_harness.toolkits.retriever.bm25 import get_tokenizer_service
-
-        return get_tokenizer_service().backend
-    except Exception:
-        return "unavailable"
 
 
 @router.get("/info")
@@ -194,7 +175,8 @@ async def system_info() -> dict[str, object]:
     - 运维诊断和调试
     - 监控面板显示系统配置
     - CI/CD 流程验证部署配置
-    - 前端设置页读取部署模式、数据驻留、本地语音组件就绪状态与引擎版本
+    - 前端设置页读取部署模式、数据驻留、本地语音组件安装状态与引擎版本
+    - 桌面壳在首屏加载期间读取引擎版本（因此本端点不导入任何可选包、不初始化分词器）
 
     与其余诊断端点一样走正常准入，不属于公开探针。
 
@@ -202,8 +184,9 @@ async def system_info() -> dict[str, object]:
         dict: 系统配置信息
             - deploy_mode: 部署模式（local/tauri/sandbox）
             - data_region: 数据驻留区域
-            - local_stt_available: 本地语音识别组件是否就绪（local-stt extra）
-            - edge_tts_available: Edge TTS 可选组件是否就绪（voice-tts extra）
+            - local_stt_available: 本地语音识别组件是否已安装（local-stt extra）
+            - edge_tts_available: Edge TTS 可选组件是否已安装（voice-tts extra）
+            - local_tts_available: 本地 Piper TTS 是否已安装（voice-tts-local extra）
     """
     from myrm_agent_harness import __version__ as harness_version
 
@@ -213,10 +196,9 @@ async def system_info() -> dict[str, object]:
         "server_version": "0.1.0",
         "harness_version": harness_version,
         "deploy_mode": get_deploy_mode().value,
-        "local_stt_available": _check_local_stt_installed(),
-        "edge_tts_available": _check_edge_tts_installed(),
-        "local_tts_available": _check_local_tts_installed(),
-        "tokenizer_backend": _get_tokenizer_backend(),
+        "local_stt_available": _is_installed("faster_whisper"),
+        "edge_tts_available": _is_installed("edge_tts"),
+        "local_tts_available": _is_installed("piper"),
         "data_region": os.getenv("MYRM_DATA_REGION", "local"),
     }
 
