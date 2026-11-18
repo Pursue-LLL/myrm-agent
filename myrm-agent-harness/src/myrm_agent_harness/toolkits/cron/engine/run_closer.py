@@ -19,7 +19,7 @@ Every one of those pauses names its reason on the job (``paused_reason``). A job
 paused is reported once as a ``CronNotice``, whichever branch paused it. Because
 it writes onto the stored job, a pause, an edit or a delete made while the run was in flight is neither undone nor
 resurrected. A manual run decides nothing about the schedule or the job's state: it only becomes the job's latest
-run. Every decision reads the run's full error; only the text written onto the job is bounded (``stored_error``).
+run. Every decision reads the run's full error; the run record and ``last_error`` keep it bounded (``stored_error``).
 """
 
 from __future__ import annotations
