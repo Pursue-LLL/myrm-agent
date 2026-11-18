@@ -4,9 +4,21 @@ from __future__ import annotations
 
 import pytest
 
-from myrm_agent_harness.core.security.detection.entropy_scan import scan_high_entropy, shannon_entropy
+from myrm_agent_harness.core.security.detection.entropy_scan import (
+    find_high_entropy,
+    redact_high_entropy,
+    shannon_entropy,
+)
 
 RANDOM_TOKEN = "aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cG"
+
+
+def _tokens(text: str, already_matched: frozenset[str] = frozenset()) -> list[str]:
+    return [text[start:end] for start, end in find_high_entropy(text, set(already_matched))]
+
+
+def _mask(token: str) -> str:
+    return f"<{len(token)}>"
 
 
 class TestShannonEntropy:
@@ -20,9 +32,11 @@ class TestShannonEntropy:
         assert shannon_entropy("aB3xK9mW2pQ7vL4nR8sT1yU6") > 4.0
 
 
-class TestScanHighEntropy:
-    def test_random_token_is_reported_with_its_pattern_name(self) -> None:
-        assert scan_high_entropy(f"Found: {RANDOM_TOKEN}", set()) == [("high_entropy_token", RANDOM_TOKEN)]
+class TestFindHighEntropy:
+    def test_random_token_is_reported_with_its_span(self) -> None:
+        text = f"Found: {RANDOM_TOKEN}"
+
+        assert find_high_entropy(text, set()) == [(7, 7 + len(RANDOM_TOKEN))]
 
     @pytest.mark.parametrize(
         "text",
@@ -58,11 +72,39 @@ class TestScanHighEntropy:
         ],
     )
     def test_text_that_is_not_a_secret_is_ignored(self, text: str) -> None:
-        assert scan_high_entropy(text, set()) == []
+        assert _tokens(text) == []
 
     def test_credential_that_borrows_a_pod_name_prefix_is_still_reported(self) -> None:
         token = "payments-api-prod-9f3k2x7m4q8w1zb7"
-        assert scan_high_entropy(f"Found: {token}", set()) == [("high_entropy_token", token)]
+        assert _tokens(f"Found: {token}") == [token]
 
     def test_token_already_matched_by_another_tier_is_skipped(self) -> None:
-        assert scan_high_entropy(f"Found: {RANDOM_TOKEN}", {f"prefix_{RANDOM_TOKEN}_suffix"}) == []
+        assert _tokens(f"Found: {RANDOM_TOKEN}", frozenset({f"prefix_{RANDOM_TOKEN}_suffix"})) == []
+
+    def test_every_occurrence_of_a_token_is_reported(self) -> None:
+        assert _tokens(f"a {RANDOM_TOKEN} b {RANDOM_TOKEN}") == [RANDOM_TOKEN, RANDOM_TOKEN]
+
+    def test_a_token_after_skipped_text_keeps_its_offsets(self) -> None:
+        text = f"see https://example.com/a/b and /var/lib/x/y then {RANDOM_TOKEN}"
+
+        assert find_high_entropy(text, set()) == [(text.index(RANDOM_TOKEN), len(text))]
+
+
+class TestRedactHighEntropy:
+    def test_the_token_is_replaced_and_the_text_around_it_is_kept(self) -> None:
+        assert redact_high_entropy(f"key ({RANDOM_TOKEN}), next", set(), _mask) == "key (<32>), next"
+
+    def test_a_token_that_also_stands_in_a_path_is_replaced_where_it_stands_alone(self) -> None:
+        text = f'{{"log": ".context/{RANDOM_TOKEN}/evicted/out.txt", "id": "{RANDOM_TOKEN}"}}'
+
+        assert redact_high_entropy(text, set(), _mask) == (
+            f'{{"log": ".context/{RANDOM_TOKEN}/evicted/out.txt", "id": "<32>"}}'
+        )
+
+    def test_every_occurrence_is_replaced(self) -> None:
+        assert redact_high_entropy(f"{RANDOM_TOKEN} and {RANDOM_TOKEN}", set(), _mask) == "<32> and <32>"
+
+    def test_text_without_a_token_is_returned_as_it_is(self) -> None:
+        text = "nothing random here: /var/lib/x/y and https://example.com/a/b"
+
+        assert redact_high_entropy(text, set(), _mask) is text

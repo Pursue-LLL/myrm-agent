@@ -94,6 +94,17 @@ class TestShannonEntropy:
         matches = scan_for_leaks(f"Token: {key}")
         assert "github_token" in matches
 
+    def test_a_token_that_also_stands_in_a_path_is_masked_where_it_stands_alone(self) -> None:
+        """The path the token names stays whole; the value of its own is the one that is masked."""
+        token = "aB3xK9mW2pQ7vL4nR8sT1yU6hD0jF5cG"
+        text = f'{{"log_file": ".context/{token}/evicted/out.txt", "session_id": "{token}"}}'
+
+        result = redact_leaks(text)
+
+        assert f".context/{token}/evicted/out.txt" in result
+        assert result.count(token) == 1
+        assert '"session_id": "aB3xK9***...F5cG [REDACTED:high_entropy_token]"' in result
+
     def test_non_ascii_content_not_flagged(self) -> None:
         """Non-ASCII content (CJK, etc.) should not trigger entropy detection."""
         chinese = "## 明天北京到上海卧铺票查询结果 共找到8趟有卧铺的列车\n| 1461 | 北京 | 上海 | 硬卧 | 283.5元 | 1张 |"

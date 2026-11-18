@@ -11,15 +11,14 @@ import json
 from typing import cast
 
 import pytest
-from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import get_background_registry
 from myrm_agent_harness.agent.meta_tools.bash._background.types import OUTPUT_RING_LINES
 from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import create_bash_process_tool
-from myrm_agent_harness.agent.middlewares.security.security_guardrail_middleware import SecurityGuardrailMiddleware
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
 from tests.agent.meta_tools.bash.fake_background_proc import FakeProc, wait_until
+from tests.agent.meta_tools.bash.guardrail_view import shown_to_model
 from tests.agent.meta_tools.bash.secret_shapes import FORM_KEYS, KEY_KINDS, key_block, key_body
 
 pytestmark = pytest.mark.usefixtures("jobs")
@@ -45,17 +44,6 @@ async def _settled(jobs: list[FakeProc], pid: int, *, stdout: list[str], stderr:
     )
 
 
-def _shown_to_model(content: object) -> str:
-    """The tool result as the model gets it: after ``before_model`` of the real guardrail middleware has rewritten it."""
-    call = AIMessage(content="", tool_calls=[{"name": "bash_process_tool", "args": {}, "id": "call-1"}])
-    result = ToolMessage(content=json.dumps(content), tool_call_id="call-1", name="bash_process_tool")
-    update = SecurityGuardrailMiddleware().before_model(
-        {"messages": [HumanMessage(content="run it"), call, result]}, None
-    )
-    rewritten = [m for m in (update or {}).get("messages", []) if isinstance(m, ToolMessage)]
-    return str((rewritten or [result])[-1].content)
-
-
 async def _read(pid: int, *, action: str = "output", max_lines: int = 100) -> dict[str, object]:
     arguments: dict[str, object] = {"action": action, "pid": pid, "max_lines": max_lines}
     if action == "wait":
@@ -69,7 +57,7 @@ async def _shown(
 ) -> str:
     """What the model is shown of a job that printed *lines*."""
     await _settled(jobs, pid, stdout=lines)
-    return _shown_to_model(await _read(pid, action=action, max_lines=max_lines))
+    return shown_to_model(await _read(pid, action=action, max_lines=max_lines))
 
 
 @pytest.mark.asyncio
@@ -83,7 +71,7 @@ async def test_a_key_block_a_job_printed_does_not_reach_the_model(jobs: list[Fak
     # The read masks the block itself; the guardrail is a second layer and covers fewer kinds.
     read_text = json.dumps(content["stdout"])
     assert not any(part in read_text for part in _BODY)
-    assert not any(part in _shown_to_model(content) for part in _BODY)
+    assert not any(part in shown_to_model(content) for part in _BODY)
     assert "building" in read_text
     assert "done" in read_text
 
@@ -102,7 +90,7 @@ async def test_a_key_block_wider_than_the_lines_asked_for_does_not_reach_the_mod
     assert not any(part in read_text for part in _BODY)
     assert "...redacted..." in read_text
     assert "after the key" in read_text
-    assert not any(part in _shown_to_model(content) for part in _BODY)
+    assert not any(part in shown_to_model(content) for part in _BODY)
 
 
 @pytest.mark.asyncio
@@ -116,7 +104,7 @@ async def test_a_form_body_with_twenty_credential_keys_is_masked_in_every_key(jo
 
     read_text = json.dumps(content["stdout"])
     assert [value for value in values if value in read_text] == []
-    assert [value for value in values if value in _shown_to_model(content)] == []
+    assert [value for value in values if value in shown_to_model(content)] == []
     assert "lang=en" in read_text
 
 
@@ -127,7 +115,7 @@ async def test_a_json_pair_split_over_two_lines_does_not_reach_the_model(jobs: l
     content = await _read(72004)
 
     assert "s3cr3t-value-0123456789" not in json.dumps(content["stdout"])
-    assert "s3cr3t-value-0123456789" not in _shown_to_model(content)
+    assert "s3cr3t-value-0123456789" not in shown_to_model(content)
 
 
 @pytest.mark.asyncio
@@ -136,7 +124,7 @@ async def test_the_stderr_stream_is_masked_like_stdout(jobs: list[FakeProc]) -> 
 
     content = await _read(72005)
 
-    assert not any(part in _shown_to_model(content) for part in _BODY)
+    assert not any(part in shown_to_model(content) for part in _BODY)
     assert "...redacted..." in json.dumps(content["stderr"])
 
 
