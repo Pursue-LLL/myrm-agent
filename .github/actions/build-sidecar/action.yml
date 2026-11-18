@@ -11,6 +11,15 @@ inputs:
     description: Rust target to install besides the host's (macOS builds a non-host triple); empty installs the host target only.
     required: false
     default: ''
+  managed-python:
+    description: >-
+      'true' freezes the sidecar with a uv-managed Python instead of the one on the runner. macOS scans every native file
+      of a fresh install the first time it is loaded: the python.org build ships its standard-library extension modules
+      as dozens of separate files, a uv-managed build links nearly all of them into libpython, so the first launch after
+      an install or an update has that many fewer files to wait for. Windows and Linux have no such scan and keep the
+      runner's Python.
+    required: false
+    default: 'false'
 
 runs:
   using: composite
@@ -48,6 +57,13 @@ runs:
       env:
         ARCH: ${{ inputs.arch }}
       run: echo "TARGET_ARCH=$ARCH" >> "$GITHUB_ENV"
+
+    # uv uses a Python it finds on PATH before it downloads one, so without this the venv, and with it the frozen
+    # interpreter, would be the runner's python.org build. bundle_verify.py fails the build if that happens anyway.
+    - name: Prefer a uv-managed Python for the sidecar
+      if: inputs.managed-python == 'true'
+      shell: bash
+      run: echo "UV_PYTHON_PREFERENCE=only-managed" >> "$GITHUB_ENV"
 
     - name: Sync server venv (desktop production)
       shell: bash

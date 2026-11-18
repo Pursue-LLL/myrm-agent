@@ -9,7 +9,7 @@
 | 文件 | 职责 |
 |------|------|
 | `inject-version.sh` | tag → `myrm-agent-desktop/src-tauri/tauri.conf.json` 版本 |
-| `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`）：`uv sync --frozen` 装依赖（跳过 harness 本体）后，用仓库内 `myrm-agent-harness/` 构建 wheel 并安装（非 editable） |
+| `sync-server-venv.sh` | 生产 sidecar venv（`--no-group dev`）：`uv sync --frozen` 装依赖（跳过 harness 本体）后，用仓库内 `myrm-agent-harness/` 构建 wheel 并安装（非 editable）；venv 用哪个 Python 由调用方环境决定（macOS 经 `UV_PYTHON_PREFERENCE=only-managed` 取 uv 托管的那份，见 `sidecar/_ARCH.md`） |
 | `release-common.sh` | `finalize-release.sh` / `verify-release.sh` 共用：`report` / `fail` 把错误写进日志的同时在 GitHub Actions 里发 `::error` annotation（步骤日志要登录才能看，annotation 在运行摘要和 check-runs API 里公开可读，失败原因不依赖日志）；`use_release_tag` 把 `TAG` 规整成 `v` 前缀并校验格式（`0.1.40`、` v0.1.40 ` 都指向 `v0.1.40`，格式不对在任何网络调用前就失败） |
 | `finalize-release.sh` | 下载 Release 资产（与 API 计数对齐重试）→ 匹配 updater 包 + `.sig` → `latest.json` + `.sha256` → upload；`REQUIRED_OTA_PLATFORM_KEYS` 存在时缺 platform/.sig 硬失败；`gh` / `curl` 调用失败时 annotation 带工具的原话；门禁 `tests/architecture/test_desktop_finalize_run.py` 对替身 `gh` / `curl`（把一个目录当 release 提供）真跑本脚本与 `verify-release.sh`：v0.1.40 的真实资产布局（Linux 只有带签名的裸 AppImage）产出三平台 `latest.json` 与 `.sha256` 且 verify 接受；release 不存在、tag 格式不对、`gh` / `curl` 调用失败、必需平台缺 `.sig`、manifest 缺平台各自给出可读的 annotation，非 Actions 环境只写普通日志 |
 | `pick-platform-asset.sh` | OTA 平台资产匹配（`finalize-release.sh` / fixture 共用；glob 加引号 + nullglob） |
@@ -38,7 +38,7 @@
 | `finalize-release` | Mac ARM + Win 完成后：`latest.json` + sha256 + verify；各道门（含 repair 工作流）要求的平台与构建 job 一致由 `test_desktop_release_gates.py` 钉住 |
 | `refinalize-after-linux` | Linux 上传后重跑 finalize + verify |
 
-三个构建 job 的前序（还原前端产物、装 Bun / Rust / uv / Python、注入版本、同步生产依赖 venv、构建 sidecar）是同一个 composite action `.github/actions/build-sidecar`，各 job 只传 `arch`（macOS 另传 `rust-target`）；其后各 job 用 `myrm-agent-desktop/scripts/fetch_node_runtime.py --target <三元组>` 取回随包 Node.js 运行时（`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node`，Tauri 按目标三元组后缀找文件，缺了连 `cargo check` 都报错），再装钉死版本的 Tauri CLI（composite action `.github/actions/install-tauri-cli`，`tauri-action` 以 `tauriScript: tauri` 调用它，不再现装浮动的 `@tauri-apps/cli@v2`），然后进入 `tauri-action` 与各平台自己的步骤。契约测试 `tests/architecture/test_desktop_*.py` 由 `desktop-contracts.yml` 在每次 push main 与 PR 时运行。
+三个构建 job 的前序（还原前端产物、装 Bun / Rust / uv / Python、注入版本、同步生产依赖 venv、构建 sidecar）是同一个 composite action `.github/actions/build-sidecar`，各 job 只传 `arch`（macOS 另传 `rust-target` 与 `managed-python`）；其后各 job 用 `myrm-agent-desktop/scripts/fetch_node_runtime.py --target <三元组>` 取回随包 Node.js 运行时（`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node`，Tauri 按目标三元组后缀找文件，缺了连 `cargo check` 都报错），再装钉死版本的 Tauri CLI（composite action `.github/actions/install-tauri-cli`，`tauri-action` 以 `tauriScript: tauri` 调用它，不再现装浮动的 `@tauri-apps/cli@v2`），然后进入 `tauri-action` 与各平台自己的步骤。契约测试 `tests/architecture/test_desktop_*.py` 由 `desktop-contracts.yml` 在每次 push main 与 PR 时运行。
 
 **验证运行**：非 tag 的 `workflow_dispatch` 会构建并烟测各平台包，但不创建 Release、不上传任何资产（所有上传步骤均 `if: github.ref_type == 'tag'`），版本为 `0.0.0-<run_number>`；`v*` tag push 才发布。
 

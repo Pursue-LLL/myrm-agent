@@ -4,18 +4,22 @@
 # - PyInstaller.archive.readers::CArchiveReader (POS: reads the modules archived inside the bundle's executable)
 #
 # [OUTPUT]
-# - bundle_problems: one sentence per way the finished bundle departs from the inventory
+# - bundle_problems: one sentence per way the finished bundle departs from the inventory or, on macOS, from the
+#   interpreter layout that keeps the first launch short
 # - main: the CLI; exits 1 when the bundle has a problem
 #
 # [POS]
-# Post-build gate: the build fails when the finished bundle lacks an inventory item or holds a channel SDK that is meant
-# to stay out.
+# Post-build gate: the build fails when the finished bundle lacks an inventory item, holds a channel SDK that is meant
+# to stay out, or (macOS) ships the standard library's extension modules as dozens of separate files.
 #
 # The header is a comment because the docstring below is the CLI's --help text.
 """Check a built sidecar bundle against bundle_inventory: every first-party module and data file in, channel SDKs out.
 
 PyInstaller answers a hidden import it cannot resolve with a warning and builds on, so a bundle that lost modules still
-builds, starts and passes /health. This reads the finished bundle and fails the build instead. Run it with the server
+builds, starts and passes /health. This reads the finished bundle and fails the build instead. On macOS it also counts
+the standard library's extension modules the bundle ships as separate files: macOS scans every native file of a fresh
+install the first time it is loaded, so each one delays the first launch after an install or an update. A uv-managed
+Python links nearly all of them into libpython; the python.org build ships dozens beside it. Run it with the server
 venv's Python, which has PyInstaller's archive reader:
 
     python bundle_verify.py --executable <myrmagent-backend> --server-app <app dir> --harness-dir <harness package dir>
@@ -39,6 +43,11 @@ from bundle_inventory import (
 
 # How many offenders a problem names; the full list is the build's own business.
 NAMED_OFFENDERS = 8
+
+# The most standard-library extension modules (`lib-dynload/*.so`) a macOS bundle may ship as separate files. A uv-managed
+# Python keeps one outside libpython (`_dbm`), the python.org build ships 59; the margin absorbs a release that splits a
+# module or two out, while the fallback to the python.org layout still fails.
+MAX_STDLIB_EXTENSION_FILES = 5
 
 
 def bundled_module_names(executable: Path) -> set[str]:
@@ -67,8 +76,13 @@ def missing_files(internal: Path, harness_dir: Path, files: Iterable[Path]) -> l
     return [file for file in files if not (internal / HARNESS_PACKAGE / file.relative_to(harness_dir)).is_file()]
 
 
-def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path) -> list[str]:
-    """What is wrong with the bundle, one sentence each; empty when it is as the inventory asks."""
+def stdlib_extension_files(internal: Path) -> list[Path]:
+    """The standard library's extension modules the bundle ships as files; PyInstaller keeps them under `lib-dynload`."""
+    return sorted(internal.rglob("lib-dynload/*.so"))
+
+
+def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path, *, platform: str = sys.platform) -> list[str]:
+    """What is wrong with the bundle, one sentence each; empty when it is as the inventory asks (and, on macOS, lean)."""
     bundled = bundled_module_names(executable)
     problems: list[str] = []
     for package, modules in first_party_modules(app_dir, harness_dir).items():
@@ -88,6 +102,13 @@ def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path) -> list[
         if absent := missing_files(internal, harness_dir, files):
             names = [file.name for file in absent[:NAMED_OFFENDERS]]
             problems.append(f"{len(absent)} of {len(files)} {label} are not in the bundle: {names}")
+    extensions = stdlib_extension_files(internal) if platform == "darwin" else []
+    if len(extensions) > MAX_STDLIB_EXTENSION_FILES:
+        problems.append(
+            f"{len(extensions)} standard-library extension modules ship as separate files (at most "
+            f"{MAX_STDLIB_EXTENSION_FILES} expected): macOS scans each one the first time a fresh install loads it; "
+            "freeze with a uv-managed Python (UV_PYTHON_PREFERENCE=only-managed), which links them into libpython"
+        )
     return problems
 
 

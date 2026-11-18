@@ -78,6 +78,7 @@ jobs:
         with:
           arch: arm64
           rust-target: aarch64-apple-darwin
+          managed-python: 'true'
 
       - name: Fetch Node.js runtime
         run: python myrm-agent-desktop/scripts/fetch_node_runtime.py --target aarch64-apple-darwin
