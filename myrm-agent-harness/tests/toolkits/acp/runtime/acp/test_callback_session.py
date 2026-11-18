@@ -9,6 +9,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime.acp.callback import AcpCallbackHandler
 from myrm_agent_harness.toolkits.acp.types import PermissionDecision, RuntimeConfig
+from tests.support.windows_text_mode import emulate_windows_text_mode
 
 
 class TestAcpCallbackHandlerSessionUpdate:
@@ -219,6 +220,21 @@ class TestAcpCallbackHandlerFileOps:
 
         assert written == {"success": True}
         assert target.read_bytes() == original
+
+    @pytest.mark.asyncio
+    async def test_a_text_is_written_as_the_bytes_it_holds(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Where text mode translates newlines (Windows), a text with CRLF and a lone CR must still land unchanged."""
+        emulate_windows_text_mode(monkeypatch)
+        text = "crlf\r\nlone\rcr\nunix\ncafé\n"
+        target = tmp_path / "written.txt"
+        handler = self._writable_handler(tmp_path)
+
+        written = await handler.write_text_file(text, str(target), "s1")
+
+        assert written == {"success": True}
+        assert target.read_bytes() == text.encode()
 
 
 class TestAcpCallbackHelpers:

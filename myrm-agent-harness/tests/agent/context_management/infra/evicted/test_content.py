@@ -15,6 +15,7 @@ from myrm_agent_harness.agent.context_management.infra.evicted import (
     persist_evicted_content,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
+from tests.support.windows_text_mode import emulate_windows_text_mode
 
 
 def test_cap_content_for_storage_under_limit() -> None:
@@ -274,12 +275,13 @@ def test_write_evicted_content_sync_success(tmp_path) -> None:
         chat_id_var.reset(c_tok)
 
 
-def test_write_evicted_content_sync_stores_the_text_byte_for_byte(tmp_path) -> None:
-    """The file holds the text whose characters and lines were counted: no newline translation on any platform."""
+def test_write_evicted_content_sync_stores_the_text_byte_for_byte(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The file holds the text whose characters and lines were counted, also where text mode translates newlines."""
     from myrm_agent_harness.agent.context_management.infra.evicted import (
         write_evicted_content_sync,
     )
 
+    emulate_windows_text_mode(monkeypatch)
     w_tok = workspace_root_var.set(str(tmp_path))
     c_tok = chat_id_var.set("chat_sync_bytes")
     try:
