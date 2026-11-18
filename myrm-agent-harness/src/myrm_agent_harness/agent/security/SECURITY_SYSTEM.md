@@ -1123,9 +1123,11 @@ Source: web_search
 1. **前缀模式**（云与 SaaS 厂商）：结构化 token 前缀匹配
 2. **上下文感知**：ENV 赋值、JSON 字段、Auth 头中的凭证
 3. **结构格式**：JWT、PEM 私钥、数据库 URL
-4. **Shannon 熵分析**：未知格式高熵 token 兜底检测（阈值 4.2 bits/char，最小 24 字符，需混合字母+数字，排除 hex/base64/UUID/路径）
+4. **Shannon 熵分析**：未知格式高熵 token 兜底检测（阈值 4.2 bits/char，最小 24 字符，需混合字母+数字，排除 hex/base64/UUID/路径/shell 会话自己的脚本文件名 `.myrm_exec_<32 位 hex>.sh`）
 
 **设计原则**：多层防御 — 已知格式用精确前缀（零误报），未知格式用 Shannon 熵兜底（通过排除规则控制误报）。
+
+**转义换行**：工具回包以 JSON 文本到达护栏，换行是反斜杠加 `n` 两个字符。`scan_for_leaks` 与 `redact_leaks` 把 `\n`、`\r`、`\t` 按空白读（`escaped_breaks.py`），各层的值止于换行，遮蔽区间不会连带下一行，后续行里的 ENV 赋值、URL 口令与高熵 token 与首行同样判定；结果里的转义换行原样还原。
 
 ### 集成方式
 

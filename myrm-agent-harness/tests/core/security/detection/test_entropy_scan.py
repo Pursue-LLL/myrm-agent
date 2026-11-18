@@ -54,6 +54,8 @@ class TestFindHighEntropy:
             "pod/payments-api-7d9f8b6c5-x4k2p condition met",
             "replicaset.apps/kube-prometheus-stack-operator-6f7d9c5b8 scaled",
             "payments-api-7d9f8b6c5-x4k2p.prod unreachable",
+            "ls: .myrm_exec_6bd1b0fd795043be89d374bedb731800.sh",
+            "-rwx------@ 1 user staff 11559 Nov 18 18:52 .myrm_exec_6bd1b0fd795043be89d374bedb731800.sh",
         ],
         ids=[
             "url",
@@ -69,10 +71,20 @@ class TestFindHighEntropy:
             "k8s-pod-path",
             "k8s-replicaset-path",
             "k8s-pod-domain",
+            "session-script",
+            "session-script-in-listing",
         ],
     )
     def test_text_that_is_not_a_secret_is_ignored(self, text: str) -> None:
         assert _tokens(text) == []
+
+    def test_a_token_next_to_the_session_script_name_is_still_reported(self) -> None:
+        assert _tokens(f".myrm_exec_6bd1b0fd795043be89d374bedb731800.sh {RANDOM_TOKEN}") == [RANDOM_TOKEN]
+
+    def test_a_name_in_that_shape_without_a_hex_id_is_still_a_candidate(self) -> None:
+        name = f".myrm_exec_{RANDOM_TOKEN}.sh"
+
+        assert _tokens(name) == [name]
 
     def test_credential_that_borrows_a_pod_name_prefix_is_still_reported(self) -> None:
         token = "payments-api-prod-9f3k2x7m4q8w1zb7"

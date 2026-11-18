@@ -10,10 +10,10 @@
 - shannon_entropy(): Shannon entropy of a string in bits per character
 
 [POS]
-Unknown-credential tier of the leak detector. Splits text into tokens (URLs, UUIDs, long hex digests and file paths
-removed first) and keeps those that are long, ASCII, alphanumeric with both letters and digits, not base64/hex blobs,
-not a reference to a secret and above the entropy threshold. A token is reported and replaced by position: the same
-characters inside a skipped path or URL are not the token the scan found.
+Unknown-credential tier of the leak detector. Splits text into tokens (URLs, UUIDs, long hex digests, file paths and the
+shell session's own script name removed first) and keeps those that are long, ASCII, alphanumeric with both letters and
+digits, not base64/hex blobs, not a reference to a secret and above the entropy threshold. A token is reported and
+replaced by position: the same characters inside a skipped path or URL are not the token the scan found.
 """
 
 from __future__ import annotations
@@ -32,7 +32,10 @@ _URL_STRIP_RE = re.compile(r"https?://\S+")
 _UUID_STRIP_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.I)
 _HEX_HASH_RE = re.compile(r"\b[0-9a-f]{40,}\b")
 _FILE_PATH_RE = re.compile(r"(?:/[\w._-]+){2,}")
-_SKIPPED_RES = (_URL_STRIP_RE, _UUID_STRIP_RE, _HEX_HASH_RE, _FILE_PATH_RE)
+# The file a shell session writes a complex command to (``script_armor``): a UUID in hex, listed by any ``ls -a`` of
+# the workspace.
+_SESSION_SCRIPT_RE = re.compile(r"\.myrm_exec_[0-9a-f]{32}\.sh")
+_SKIPPED_RES = (_URL_STRIP_RE, _UUID_STRIP_RE, _HEX_HASH_RE, _FILE_PATH_RE, _SESSION_SCRIPT_RE)
 _TOKEN_RE = re.compile(r"[^\s,;:\"'`()\[\]{}|<>#]+")
 
 

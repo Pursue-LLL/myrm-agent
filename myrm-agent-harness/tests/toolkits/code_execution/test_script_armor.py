@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import os
 import stat
+import uuid
 from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks, scan_for_leaks
 from myrm_agent_harness.toolkits.code_execution.security.script_armor import (
     ArmoredCommandString,
     ScriptArmorConfig,
@@ -116,7 +118,9 @@ class TestScriptMaterialization:
         assert cmd.startswith('bash "')
         assert str(script.resolve()) in cmd
 
-    def test_materialize_script_failure_cleans_up_and_closes_fd(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_materialize_script_failure_cleans_up_and_closes_fd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def _failing_open(*args, **kwargs):
             raise OSError("simulated disk write error")
 
@@ -199,8 +203,8 @@ EOF
             assert result.success
             assert target_file.exists()
             content = target_file.read_text(encoding="utf-8")
-            assert 'def hello():' in content
-            assert '__myrm_rc__' not in content
+            assert "def hello():" in content
+            assert "__myrm_rc__" not in content
         finally:
             await session.close()
 
@@ -296,3 +300,20 @@ class TestSweepStaleMaterializedScripts:
         monkeypatch.setattr(Path, "stat", _dir_stat_fail)
         assert sweep_stale_materialized_scripts(tmp_path, max_age_seconds=10.0) == 0
 
+
+class TestScriptNameInAListing:
+    """The script is listed by any ``ls -a`` of the workspace while a command runs, and the model reads the listing."""
+
+    def test_the_name_of_a_materialized_script_is_no_credential_to_the_leak_detector(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # An id whose hex digits read as random to the entropy scan (a few ids do not, so a fresh one would not pin it).
+        monkeypatch.setattr("uuid.uuid4", lambda: uuid.UUID("6bd1b0fd-7950-43be-89d3-74bedb731800"))
+        script = materialize_script_to_file("echo hi", temp_dir=tmp_path)
+        try:
+            listing = f"-rwx------@ 1 user staff 11559 Nov 18 18:52 {script.name}"
+
+            assert scan_for_leaks(listing) == []
+            assert redact_leaks(listing) == listing
+        finally:
+            cleanup_materialized_script(script)

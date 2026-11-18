@@ -10,16 +10,15 @@ Detection strategy:
   3. Structural formats (JWT, PEM block-level, URL passwords, blockchain, cloud infra)
   4. Shannon entropy analysis (catches unknown credential formats; see entropy_scan)
   5. Context-aware blockchain patterns (mnemonic seed phrases)
-
-Smart redaction preserves first 6 / last 4 characters of long tokens
-for debugging while keeping the credential unusable. PEM blocks are
-fully redacted (BEGIN to END) with type label preserved.
+  6. A JSON-escaped line break reads as whitespace, so a value never runs on into the next line (see escaped_breaks)
 
 [INPUT]
 - core.security.detection.secret_value::is_reference_value (POS: shared rules telling a secret from a reference to
   one: templates, identifiers, calls, class names, slugs, domains, query strings.)
 - core.security.detection.entropy_scan::find_high_entropy, redact_high_entropy (POS: unknown-credential tier of the leak
   detector; a token is found and replaced by position.)
+- core.security.detection.escaped_breaks::reading_breaks, rewriting_breaks (POS: the public functions read a JSON-escaped
+  line break as whitespace and put it back.)
 - core.security.detection.token_start::TokenStartPattern (POS: the vendor-prefix shapes count only where a token starts.)
 
 [OUTPUT]
@@ -31,7 +30,6 @@ fully redacted (BEGIN to END) with type label preserved.
 
 [POS]
 Output-side credential leak detector. 40+ credential pattern matchers (API key prefixes + blockchain + cloud infra + ENV/JSON/Header context + Shannon entropy + PEM block-level multiline redaction) for preventing secret exfiltration.
-
 """
 
 from __future__ import annotations
@@ -41,6 +39,7 @@ import re
 from functools import partial
 
 from myrm_agent_harness.core.security.detection.entropy_scan import find_high_entropy, redact_high_entropy
+from myrm_agent_harness.core.security.detection.escaped_breaks import reading_breaks, rewriting_breaks
 from myrm_agent_harness.core.security.detection.secret_value import is_reference_value
 from myrm_agent_harness.core.security.detection.token_start import NUMBER_START, TOKEN_START, TokenStartPattern
 
@@ -347,6 +346,7 @@ def _collect_prefix_matches(content: str) -> set[str]:
     return matched
 
 
+@reading_breaks
 def scan_for_leaks(content: str) -> list[str]:
     """Scan content for credential patterns.
 
@@ -364,6 +364,7 @@ def scan_for_leaks(content: str) -> list[str]:
     return matches
 
 
+@rewriting_breaks
 def redact_leaks(content: str) -> str:
     """Smart-redact detected credentials.
 
