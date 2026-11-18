@@ -5535,7 +5535,7 @@
           "userMdTarget": "行为强规则与人设指令 (Procedural Rules)",
           "userMdDesc": "全量置顶注入，享最高行为权威，受保护指令写审批防线护航",
           "memoryMdTarget": "长期事实与情景知识库 (Semantic / Episodic)",
-          "memoryMdDesc": "物理隔离只读上下文，wrap_untrusted 防注入边界阻断越权",
+          "memoryMdDesc": "导入为语义记忆；召回时先脱敏凭据，并标注为不可信数据",
           "sessionSearchTarget": "原生 SQLite FTS5 对话检索",
           "sessionSearchDesc": "本地毫秒级全文精准回溯，0 外部中间件依赖",
           "externalMcpTarget": "渐进式披露与安全沙箱工具体系",

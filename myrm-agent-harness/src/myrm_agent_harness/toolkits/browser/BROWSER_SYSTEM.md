@@ -809,7 +809,7 @@ navigate(url="localhost:3000")       → DENY (Sandbox) / ALLOW (Local)
 
 ### 信任边界标记
 
-浏览器工具返回的所有外部内容（snapshot / extract / inspect / navigate / interact / evaluate / execute_script / console / network / web_vitals / download_url / list_downloads / ask_human 接管结果）经统一出口 `mark_untrusted`（`tools/common.py`）：**先 `redact_sensitive_text` 凭据脱敏，再 `wrap_untrusted` 包装**，格式如下：
+浏览器工具返回的页面内容（snapshot / extract / inspect / navigate / interact / evaluate / emulate / execute_script / console / network / web_vitals / run_site_tool / download_url / list_downloads / ask_human 接管结果）经统一出口 `mark_untrusted`（`tools/common.py`）：**先 `redact_sensitive_text` 凭据脱敏，再 `wrap_untrusted` 包装**，格式如下：
 
 ```
 [SECURITY NOTICE: UNTRUSTED external content below...]
@@ -820,7 +820,9 @@ Source: browser
 <<<END_UNTRUSTED_DATA id="random_boundary_id">>>
 ```
 
-包装用于降低 indirect prompt injection 的风险，是文本层缓解，不是硬边界；各层处理与限度见 [SECURITY_WRAPPER_GUIDE.md](../SECURITY_WRAPPER_GUIDE.md) 的「安全防护层级」。
+不经 `mark_untrusted` 的出口有三处，都在 `browser_manage_tool`：`dialog_response` 的应答回显（页面对话框文字的前 80 个字符）、站点经验的保存与列表回显、站点脚本的失败文本。
+
+包装用于降低 indirect prompt injection 的风险，是文本层缓解，不是硬边界；各层处理与限度见 [SECURITY_WRAPPER_GUIDE.md](../SECURITY_WRAPPER_GUIDE.md) 的「安全防护层级」，各出口的范围与例外见同一文件的「出口一览」。
 
 ---
 

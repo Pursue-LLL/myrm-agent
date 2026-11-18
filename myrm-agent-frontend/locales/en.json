@@ -5535,7 +5535,7 @@
           "userMdTarget": "Procedural Directives & Behavioral Rules",
           "userMdDesc": "Always injected first with the highest behavioral authority; writes to protected instructions go through an approval gate",
           "memoryMdTarget": "Fact & Episodic Knowledge Base",
-          "memoryMdDesc": "Isolated read-only context, wrap_untrusted injection firewall barrier",
+          "memoryMdDesc": "Imported as semantic memories; recalled text is credential-redacted and marked as untrusted data",
           "sessionSearchTarget": "Native SQLite FTS5 Dialogue Backtrace",
           "sessionSearchDesc": "Millisecond-level precise full-text search, 0 external daemon overhead",
           "externalMcpTarget": "Progressive Disclosure & Sandbox Tooling",

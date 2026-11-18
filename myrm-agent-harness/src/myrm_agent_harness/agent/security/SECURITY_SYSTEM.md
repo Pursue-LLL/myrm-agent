@@ -1102,8 +1102,8 @@ Source: web_search
 |------|------|---------|
 | `sanitize(content)` | Layer 1+1.5+2（纯净化，无副作用） | 任意文本、工具错误消息 |
 | `detect_suspicious(content)` | Layer 4（纯检测，无副作用） | 安全扫描 |
-| `wrap_untrusted(content, source)` | 完整 5 层，带来源标注 | 外部数据（web/KB/webhook） |
-| `wrap_tool_output(content)` | 完整 5 层 | 工具执行结果 |
+| `wrap_untrusted(content, source)` | 完整 5 层，带来源标注 | 外部数据（联网搜索与抓取、知识库、浏览器、MCP；各出口的范围与例外见 `toolkits/SECURITY_WRAPPER_GUIDE.md`） |
+| `wrap_tool_output(content)` | 完整 5 层 | 工具执行结果（前台命令输出、默认模式的文件内容与目录列表） |
 
 ---
 

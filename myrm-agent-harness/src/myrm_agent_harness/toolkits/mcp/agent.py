@@ -9,7 +9,7 @@ Provides MCP tool fetching capabilities:
 - Maintains tool-to-server mapping
 - Supports parallel multi-server tool fetching
 - Content block coercion: ensures only LLM-safe types (text, image) reach the API — ``file``, ``audio``, and unknown blocks are gracefully degraded to text, preventing 400 errors and session history poisoning
-- Content boundary defense: applies ``wrap_untrusted()`` to MCP tool outputs, so third-party server data is wrapped in the same content boundary as web and shell outputs
+- Content boundary defense: applies ``wrap_untrusted()`` to MCP string results and to the text blocks of multimodal results, so third-party server data reaches the model inside a content boundary; failure messages the framework generates itself (timeout, unsupported content, re-authorization) are not wrapped
 - Upstream fault tolerance: catches adapter-layer exceptions, returning ``redact_sensitive_text``-sanitized error messages instead of crashing
 - Auth error detection: catches ``httpx2.HTTPStatusError(401)`` from the MCP transport, returns a clear re-authorization message, and emits ``MCPAuthExpiredEvent``
 - Extracts MCP structured_content from artifacts as supplementary text blocks
@@ -36,7 +36,7 @@ MCP tool discovery layer (not harness Agent runtime). Orchestrates multi-server 
 server-prefix isolation (mcp__{server}__{tool} naming), per-server tool filtering
 (include/exclude whitelist), description truncation, content block coercion
 (file/audio/unknown types gracefully degraded to text for LLM API safety),
-content boundary defense (wrap_untrusted for all string outputs against prompt injection),
+content boundary defense (wrap_untrusted on string results and multimodal text blocks against prompt injection),
 upstream fault tolerance (catches NotImplementedError/ValueError),
 auth error detection (httpx2 401 → MCPAuthExpiredEvent + clear re-auth message),
 multimodal result normalization (ImageContent passthrough + structured_content
