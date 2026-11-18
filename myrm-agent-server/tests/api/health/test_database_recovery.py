@@ -1,13 +1,15 @@
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
+from sqlalchemy.exc import DatabaseError as SQLAlchemyDatabaseError
 
 from app.database.operations import recovery as recovery_module
-from app.database.operations.recovery import database_is_damaged, rescue_database
+from app.database.operations.recovery import database_is_damaged, reports_corruption, rescue_database
 from app.server.status import system_status
 
 
@@ -174,6 +176,59 @@ def test_database_is_damaged_is_false_while_another_connection_holds_the_lock(
         assert database_is_damaged(str(populated_db)) is False
     finally:
         holder.close()
+
+
+def _error_sqlite_raises(db_file: Path, statement: str) -> sqlite3.DatabaseError:
+    with closing(sqlite3.connect(str(db_file))) as conn, pytest.raises(sqlite3.DatabaseError) as raised:
+        conn.execute(statement).fetchall()
+    return raised.value
+
+
+@pytest.fixture
+def corruption_error(tmp_path: Path) -> sqlite3.DatabaseError:
+    """What SQLite raises when it opens a file that is not a database."""
+    junk = tmp_path / "junk.db"
+    junk.write_bytes(b"not a database" * 100)
+    error = _error_sqlite_raises(junk, "PRAGMA user_version")
+    assert error.sqlite_errorcode == sqlite3.SQLITE_NOTADB
+    return error
+
+
+def test_reports_corruption_recognises_the_error_sqlite_raises_on_a_damaged_file(corruption_error: sqlite3.DatabaseError):
+    assert reports_corruption(corruption_error) is True
+
+
+def test_reports_corruption_recognises_the_extended_result_codes_of_corruption():
+    reported = sqlite3.DatabaseError("database disk image is malformed")
+    reported.sqlite_errorcode = sqlite3.SQLITE_CORRUPT_INDEX
+
+    assert reported.sqlite_errorcode != sqlite3.SQLITE_CORRUPT
+    assert reports_corruption(reported) is True
+
+
+def test_reports_corruption_finds_it_behind_sqlalchemy_and_exception_causes(corruption_error: sqlite3.DatabaseError):
+    wrapped = SQLAlchemyDatabaseError("SELECT 1", None, corruption_error)
+    chained = RuntimeError("Database table init failed")
+    chained.__cause__ = corruption_error
+
+    assert reports_corruption(wrapped) is True
+    assert reports_corruption(chained) is True
+
+
+def test_reports_corruption_is_false_for_failures_that_say_nothing_about_the_pages(populated_db: Path):
+    no_such_table = _error_sqlite_raises(populated_db, "ALTER TABLE procedural_rules ADD COLUMN source TEXT")
+
+    assert no_such_table.sqlite_errorcode == sqlite3.SQLITE_ERROR
+    assert reports_corruption(no_such_table) is False
+    assert reports_corruption(SQLAlchemyDatabaseError("SELECT 1", None, no_such_table)) is False
+    assert reports_corruption(RuntimeError("Database migration failed at version 0")) is False
+
+
+def test_reports_corruption_terminates_on_a_cycle_of_causes():
+    first, second = RuntimeError("first"), RuntimeError("second")
+    first.__cause__, second.__cause__ = second, first
+
+    assert reports_corruption(first) is False
 
 
 @pytest.mark.asyncio

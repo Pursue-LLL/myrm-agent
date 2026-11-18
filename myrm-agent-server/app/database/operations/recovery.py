@@ -11,11 +11,12 @@
 
 [OUTPUT]
 - database_is_damaged: 文件本身是否损坏（只有确凿的损坏证据才返回 True）；救援会重写文件，只有它为 True 时才该调用 rescue_database。
+- reports_corruption: 一次失败本身是否带有 SQLite 的损坏报告（SQLITE_CORRUPT / SQLITE_NOTADB，含 SQLAlchemy 的 orig 与异常链）。
 - rescue_database: 尝试通过 B-Tree 坏页二分跳跃与 Schema 重放抢救数据库，返回是否成功。
 - rescue_database_detailed: 返回包含各表恢复行数、跳过坏页范围与 SHA-256 审计指标的完整 SalvageResult。
 
 [POS]
-Server 业务数据库容灾层。数据库初始化失败后，由 lifespan 先用 database_is_damaged 判断是否真的损坏，再触发自愈。
+Server 业务数据库容灾层。数据库初始化失败后，由 lifespan 先用 reports_corruption 与 database_is_damaged 判断是否真的损坏，再触发自愈。
 """
 
 from __future__ import annotations
@@ -46,6 +47,29 @@ _PROBE_LOCK_TIMEOUT_SECONDS = 5.0
 def _is_corruption_error(exc: sqlite3.DatabaseError) -> bool:
     code = getattr(exc, "sqlite_errorcode", None)
     return code is not None and (code & 0xFF) in _CORRUPTION_ERROR_CODES
+
+
+def reports_corruption(error: BaseException) -> bool:
+    """Whether SQLite itself called the file corrupt anywhere in the chain of causes behind ``error``.
+
+    SQLAlchemy keeps the driver's error in ``orig``. A start that failed on such an error met the damage first-hand,
+    so a later integrity probe that reads clean cannot overrule it.
+    """
+    pending: list[BaseException] = [error]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, sqlite3.DatabaseError) and _is_corruption_error(current):
+            return True
+        pending.extend(
+            linked
+            for linked in (getattr(current, "orig", None), current.__cause__, current.__context__)
+            if isinstance(linked, BaseException)
+        )
+    return False
 
 
 def database_is_damaged(db_path: str) -> bool:

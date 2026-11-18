@@ -89,6 +89,19 @@ async def test_an_intact_database_is_not_repaired_and_the_original_error_surface
     assert settings.database.sqlite_path == str(scene.db_file)
 
 
+async def test_a_failure_carrying_a_corruption_report_is_repaired_although_the_probe_reads_clean(scene: _Scene) -> None:
+    reported = sqlite3.DatabaseError("database disk image is malformed")
+    reported.sqlite_errorcode = sqlite3.SQLITE_CORRUPT
+    assert recovery.database_is_damaged(str(scene.db_file)) is False
+    scene.rescue.return_value = True
+
+    await recover_failed_init(reported)
+
+    scene.rescue.assert_called_once_with(str(scene.db_file))
+    scene.init_database.assert_awaited_once()
+    assert (system_status.database_recovered, system_status.database_degraded) == (True, False)
+
+
 async def test_a_damaged_database_is_salvaged_and_initialised_again(scene: _Scene) -> None:
     scene.damage()
     scene.rescue.return_value = True

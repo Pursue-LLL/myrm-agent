@@ -1,5 +1,5 @@
 """[INPUT]
-- app.database.operations.recovery::database_is_damaged/rescue_database (POS: file health probe and row-level salvage)
+- app.database.operations.recovery::reports_corruption/database_is_damaged/rescue_database (POS: corruption evidence and row-level salvage)
 - app.database.operations.backup::get_sqlite_backup_manager (POS: integrity-verified snapshot restore)
 - app.database.connection::init_database (POS: schema creation, migrations and indexes, retried after a repair)
 - app.platform_utils::reset_database_engine (POS: drops the pooled engine so a repaired file is reopened)
@@ -10,9 +10,8 @@
 - recover_failed_init: the startup answer to a failed database initialisation
 
 [POS]
-What startup does after init_database() fails. A file that passes the integrity check is left exactly as it is and the
-original error ends startup; a damaged or missing one goes through salvage, snapshot restore and, last, an in-memory
-database.
+What startup does after init_database() fails. A file with no sign of damage is left exactly as it is and the original
+error ends startup; a damaged or missing one goes through salvage, snapshot restore and, last, an in-memory database.
 """
 
 from __future__ import annotations
@@ -27,20 +26,21 @@ async def recover_failed_init(init_error: Exception) -> None:
     """Repair the database after its initialisation failed, or re-raise ``init_error`` for an intact file.
 
     Salvage rewrites the file: it drops the schema version, loses the tables it cannot read, and the next call
-    replaces the isolated original. A file that passes the integrity check failed for another reason (a migration
-    error, a schema newer than this build, a lock) that none of that repairs, so it stays untouched and the real
-    error surfaces. A missing file has nothing to damage and goes on to the snapshot restore.
+    replaces the isolated original. The file counts as damaged when the failed start met a SQLite corruption report
+    or when it fails the integrity probe. Anything else (a migration error, a schema newer than this build, a lock)
+    is not repaired by salvage, so the file stays untouched and the real error surfaces. A missing file has nothing
+    to damage and goes on to the snapshot restore.
     """
     from app.config.settings import settings
     from app.database.connection import init_database
-    from app.database.operations.recovery import database_is_damaged, rescue_database
+    from app.database.operations.recovery import database_is_damaged, reports_corruption, rescue_database
     from app.platform_utils import reset_database_engine
     from app.server.status import system_status
 
     db_path = settings.database.sqlite_path
 
-    if Path(db_path).is_file() and not await asyncio.to_thread(database_is_damaged, db_path):
-        logger.error("[Startup] The database file passes its integrity check: no repair was attempted and it is untouched")
+    if Path(db_path).is_file() and not (reports_corruption(init_error) or await asyncio.to_thread(database_is_damaged, db_path)):
+        logger.error("[Startup] The database file shows no sign of damage: no repair was attempted and it is untouched")
         raise init_error
 
     # 1. Try B-Tree page-skipping rowid salvage rescue (last-resort row-level data salvage)
