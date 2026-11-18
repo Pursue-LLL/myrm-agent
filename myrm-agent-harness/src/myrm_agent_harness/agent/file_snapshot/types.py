@@ -16,15 +16,20 @@ class SnapshotTrigger(StrEnum):
 
     WRITE_FILE = "write_file"
     DELETE_FILE = "delete_file"
-    PATCH_FILE = "patch_file"
     EXECUTE_TERMINAL = "execute_terminal"
     MANUAL = "manual"
     PRE_ROLLBACK = "pre_rollback"
-    TURN_COMPLETED = "turn_completed"
-    TOOL_COMPLETED = "tool_completed"
-    SESSION_ENDED = "session_ended"
-    CHECKPOINT_SYNC = "checkpoint_sync"
-    HIGH_IMPACT_QUARANTINE = "high_impact_quarantine"
+
+    @classmethod
+    def from_stored(cls, value: str) -> SnapshotTrigger:
+        """The trigger a stored snapshot names; a value this version does not know reads as manual.
+
+        A snapshot outlives the version that wrote it, so a trigger this version cannot name must not hide it.
+        """
+        try:
+            return cls(value)
+        except ValueError:
+            return cls.MANUAL
 
 
 SnapshotId = str

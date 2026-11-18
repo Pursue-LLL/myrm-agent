@@ -373,7 +373,7 @@ class LocalFileSnapshotStore:
                     FileSnapshotInfo(
                         snapshot_id=manifest["snapshot_id"],
                         working_dir=manifest["working_dir"],
-                        trigger=SnapshotTrigger(manifest["trigger"]),
+                        trigger=SnapshotTrigger.from_stored(manifest["trigger"]),
                         created_at=manifest["created_at"],
                         file_count=manifest.get("file_count", 0),
                         description=manifest.get("description", ""),

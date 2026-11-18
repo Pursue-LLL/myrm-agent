@@ -10478,7 +10478,6 @@
     "trigger": {
       "write_file": "File written",
       "delete_file": "File deleted",
-      "patch_file": "File updated",
       "execute_terminal": "Terminal",
       "manual": "Manual",
       "pre_rollback": "Before restore"

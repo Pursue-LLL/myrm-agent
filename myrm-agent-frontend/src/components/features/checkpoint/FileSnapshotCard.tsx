@@ -16,15 +16,6 @@ interface FileSnapshotCardProps {
   isLoading: boolean;
 }
 
-const triggerLabels: Record<string, string> = {
-  write_file: 'Write',
-  delete_file: 'Delete',
-  patch_file: 'Patch',
-  execute_terminal: 'Terminal',
-  manual: 'Manual',
-  pre_rollback: 'Pre-rollback',
-};
-
 const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
   snapshot,
   agentName,
@@ -38,9 +29,7 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const date = new Date(snapshot.createdAt * 1000);
   const timeStr = date.toLocaleString();
-  const triggerLabel = t.has(`trigger.${snapshot.trigger}`)
-    ? t(`trigger.${snapshot.trigger}`)
-    : (triggerLabels[snapshot.trigger] ?? snapshot.trigger);
+  const triggerLabel = t.has(`trigger.${snapshot.trigger}`) ? t(`trigger.${snapshot.trigger}`) : snapshot.trigger;
 
   return (
     <div className="border border-border rounded-lg p-4 bg-card">
