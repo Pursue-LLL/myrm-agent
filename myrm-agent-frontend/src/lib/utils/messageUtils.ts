@@ -29,9 +29,10 @@ export const stripUiActionPayload = (text: string): string => {
 
 /**
  * The `[use s1,s2]` wire prefix (written by the composer and by the IM skill commands), read with the harness
- * grammar's bound and character classes (`parse_use_tag`) so the chips drawn are exactly the skills the agent
- * preloads: the list opens on a non-space character, is at most 1,024 characters (a longer one is ordinary text to
- * the agent) and holds Unicode letters and digits, `_`, `,`, `-` and whitespace. The whitespace after `[use` and the
+ * grammar's bound and character classes (`parse_use_tag`) so the chips drawn are the skills the agent preloads: the
+ * list opens on a non-space character, is at most 1,024 characters (a longer one is ordinary text to the agent) and
+ * holds Unicode letters and digits, `_`, `,`, `-` and whitespace (the two engines' Unicode tables differ only at the
+ * margins: a few control characters, and characters newer than the older table). The whitespace after `[use` and the
  * list never compete for the same characters, so a flood of spaces without a closing bracket is scanned in linear
  * time. `[instruction: ...]` is the composer's own segment.
  */
