@@ -26,7 +26,7 @@ import {
   IconBriefcase,
   IconClock,
 } from '@/components/features/icons/PremiumIcons';
-import { Users, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
@@ -348,7 +348,8 @@ const AboutSection = memo(() => {
 
       {/* 资源链接 */}
       <SettingsSection title={t('links.title')} description={t('links.description')}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 卡片数为奇数时末张通栏，避免半行留白 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:[&>a:last-child:nth-child(odd)]:col-span-2">
           <LinkCard
             icon={IconGlobe}
             title={t('links.website.title')}
@@ -366,12 +367,6 @@ const AboutSection = memo(() => {
             title={t('links.documentation.title')}
             description={t('links.documentation.description')}
             href={getDocsUrl('/getting-started/introduction', locale)}
-          />
-          <LinkCard
-            icon={Users}
-            title={t('links.community.title')}
-            description={t('links.community.description')}
-            href="https://discord.gg/myrmagent"
           />
         </div>
       </SettingsSection>

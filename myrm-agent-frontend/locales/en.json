@@ -21213,10 +21213,6 @@
         "documentation": {
           "title": "Documentation",
           "description": "View detailed usage guides and API documentation"
-        },
-        "community": {
-          "title": "Community",
-          "description": "Join the community, connect with developers and users"
         }
       },
       "license": {
