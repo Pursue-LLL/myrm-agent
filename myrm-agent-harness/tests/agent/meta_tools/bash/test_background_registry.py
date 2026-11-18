@@ -117,20 +117,7 @@ async def test_register_captures_output_and_status_transitions() -> None:
     assert "line-1" in stdout_lines
     assert "line-2" in stdout_lines
     assert "warn" in stderr_lines
-    assert isinstance(output["next_cursor"], int) and output["next_cursor"] >= 3
     assert output["dropped"] is False
-
-    # Polling with the previous cursor should produce no new lines.
-    next_cursor = output["next_cursor"]
-    assert isinstance(next_cursor, int)
-    follow = registry.get_output(
-        11111,
-        max_lines=10,
-        since_cursor=next_cursor,
-    )
-    assert follow["stdout"] == []
-    assert follow["stderr"] == []
-    assert follow["next_cursor"] == output["next_cursor"]
 
 
 @pytest.mark.asyncio
@@ -226,12 +213,8 @@ async def test_progress_listener_fires_for_explicit_marker() -> None:
 
 
 @pytest.mark.asyncio
-async def test_since_cursor_respects_cross_stream_interleave() -> None:
-    """The per-line cursor must filter both streams without bleeding counts.
-
-    A shared monotonic counter combined with per-stream ``[-delta:]`` slicing would
-    return stale lines (stderr eating into stdout's quota); the per-line cursor avoids that.
-    """
+async def test_output_returns_both_streams_in_full() -> None:
+    """One read returns every line of both interleaved streams; neither stream eats into the other's tail."""
     registry = BackgroundProcessRegistry()
     proc = _FakeProc(
         pid=66666,
@@ -248,13 +231,9 @@ async def test_since_cursor_respects_cross_stream_interleave() -> None:
         what="stdout lines ingested",
     )
     first = registry.get_output(66666, max_lines=10)
-    assert {"out-1", "out-2", "out-3"}.issubset(set(cast(list[str], first["stdout"])))
-    assert {"err-1", "err-2"}.issubset(set(cast(list[str], first["stderr"])))
-
-    follow = registry.get_output(66666, max_lines=10, since_cursor=cast(int, first["next_cursor"]))
-    assert follow["stdout"] == []
-    assert follow["stderr"] == []
-    assert follow["dropped"] is False
+    assert first["stdout"] == ["out-1", "out-2", "out-3"]
+    assert first["stderr"] == ["err-1", "err-2"]
+    assert first["dropped"] is False
 
     proc.finish(0)
     await asyncio.sleep(0.02)
@@ -608,15 +587,7 @@ async def test_register_redacts_command_in_background_info() -> None:
 
 def test_get_output_unknown_pid_returns_empty_snapshot() -> None:
     registry = BackgroundProcessRegistry()
-    out = registry.get_output(99999, since_cursor=5)
-    assert out["stdout"] == []
-    assert out["stderr"] == []
-    assert out["next_cursor"] == 5
-    assert out["dropped"] is False
-    poll_hint = out.get("poll_hint")
-    assert isinstance(poll_hint, dict)
-    assert poll_hint["has_new_output"] is False
-    assert poll_hint["suggested_wait_ms"] >= 5000
+    assert registry.get_output(99999) == {"stdout": [], "stderr": [], "dropped": False}
 
 
 @pytest.mark.asyncio

@@ -176,7 +176,7 @@ async def test_bash_process_output_exposes_waiting_for_input_and_hint() -> None:
     with registry._lock:  # type: ignore[attr-defined]
         entry = registry._entries[8810]
         entry.info.last_output_at = time.time() - INPUT_WAIT_IDLE_SECONDS - 2.0
-        entry.stdout_buffer.append((1, "Password:"))
+        entry.stdout_buffer.append("Password:")
 
     tool = create_bash_process_tool()
     config = {"configurable": {"context": {"session_id": "sess-output-wait"}}}

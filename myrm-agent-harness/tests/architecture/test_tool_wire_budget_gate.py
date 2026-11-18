@@ -46,7 +46,6 @@ _HEAVY_TOOL_MAX_WIRE_TOKENS: dict[str, int] = {
     "bash_code_execute_tool": 1_850,
     "web_search_tool": 1_390,
     "memory_save_tool": 850,
-    "bash_process_tool": 590,
 }
 
 # The budgeter must not materially under-count what is sent; being conservative is allowed.

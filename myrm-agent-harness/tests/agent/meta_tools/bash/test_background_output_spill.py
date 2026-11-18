@@ -59,8 +59,8 @@ async def test_registry_output_includes_spill_log_ref_on_dropped(
     for i in range(85):
         writer.append_line("stdout", f"line-{i}")
 
-    # Build entry with 200 items in buffer to simulate a dropped ring eviction
-    buf: deque[tuple[int, str]] = deque([(i + 50, f"line-{i+50}") for i in range(200)], maxlen=200)
+    # A ring that holds its 200 newest lines of the 250 the stream produced: the 50 oldest were evicted.
+    buf: deque[str] = deque([f"line-{i + 50}" for i in range(200)], maxlen=200)
     entry = BackgroundRegistryEntry(
         info=BackgroundProcessInfo(
             job_id="job-99991",
@@ -75,15 +75,13 @@ async def test_registry_output_includes_spill_log_ref_on_dropped(
         proc=None,  # type: ignore[arg-type]
         stdout_buffer=buf,
         stderr_buffer=deque(),
-        cursor=250,
+        stdout_total=250,
         spill_writer=writer,
     )
 
     with registry._lock:
         registry._entries[pid] = entry
 
-    # Poll with since_cursor=0 -> oldest kept is cursor 50 > baseline 0 + 1 and ring full -> dropped is True
-    out = registry.get_output(pid, since_cursor=0)
+    out = registry.get_output(pid)
     assert out["dropped"] is True
     assert out.get("spill_log_ref") == writer.vault_log_ref
-

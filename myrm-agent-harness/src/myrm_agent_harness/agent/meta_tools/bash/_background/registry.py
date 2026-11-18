@@ -22,7 +22,7 @@ dragging in the singleton's ``atexit`` hook. Stopping, reaping and the
 
 [INPUT]
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: AsyncProcessProtocol — wait/terminate/kill handle.)
-- agent.meta_tools.bash._background.types::BackgroundProcessInfo / BackgroundQuotaError / FinishListener / ProgressListener (POS: shared dataclasses & typing.)
+- agent.meta_tools.bash._background.types::BackgroundProcessInfo / BackgroundQuotaError / FinishListener / OutputTail / ProgressListener (POS: shared dataclasses & typing.)
 - agent.meta_tools.bash._background.lifecycle::RegistryLifecycleMixin (POS: kill / reap / shutdown half of the registry.)
 - agent.meta_tools.bash._background.poll::snapshot_entry / wait_for_exit (POS: read-side views of jobs.)
 - agent.meta_tools.bash._background.termination::leader_identity / own_identity (POS: group-level stop primitives; record a job leader's, and this server's, pid with its start stamp.)
@@ -58,9 +58,11 @@ from myrm_agent_harness.agent.meta_tools.bash._background.lifecycle import Regis
 from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry, wait_for_exit
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import leader_identity, own_identity
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    OUTPUT_RING_LINES,
     BackgroundProcessInfo,
     BackgroundQuotaError,
     FinishListener,
+    OutputTail,
     ProgressListener,
 )
 
@@ -74,7 +76,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_OUTPUT_TAIL_LINES = 200  # Per process; bounded to keep memory flat under churn.
 _DEFAULT_PER_SESSION_LIMIT = 5  # Soft cap; raise via env if a power-user complains.
 _DEFAULT_REAP_DELAY_SECONDS = 300.0  # Exited entries are purged from the registry after this idle window.
 _WAIT_MAX_SECONDS = 30.0
@@ -148,13 +149,11 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
             status="running",
             last_output_at=started_at,
         )
-        stdout_buffer: deque[tuple[int, str]] = deque(maxlen=_OUTPUT_TAIL_LINES)
-        stderr_buffer: deque[tuple[int, str]] = deque(maxlen=_OUTPUT_TAIL_LINES)
         entry = BackgroundRegistryEntry(
             info=info,
             proc=proc,
-            stdout_buffer=stdout_buffer,
-            stderr_buffer=stderr_buffer,
+            stdout_buffer=deque(maxlen=OUTPUT_RING_LINES),
+            stderr_buffer=deque(maxlen=OUTPUT_RING_LINES),
             finish_listener=finish_listener,
             progress_listener=progress_listener,
             spill_writer=spill_writer,
@@ -204,50 +203,23 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
                 if entry.info.session_id == session_id and entry.info.status == "running"
             )
 
-    def get_output(
-        self,
-        pid: int,
-        *,
-        max_lines: int = 100,
-        since_cursor: int | None = None,
-    ) -> dict[str, object]:
-        """Return ring-tail snapshot plus a monotonic cursor for incremental polling.
+    def get_output(self, pid: int, *, max_lines: int = 100) -> OutputTail:
+        """Return the newest ``max_lines`` lines of each stream from the ring tail.
 
-        When ``since_cursor`` is provided only lines whose cursor is strictly
-        greater than it are returned, clamped to ``max_lines`` per stream.
-        ``next_cursor`` always reflects the registry's current cursor so the
-        caller can chain polls without bookkeeping. ``dropped`` is ``True``
-        when the ring evicted lines the caller has not yet seen — useful for
-        the LLM to know "fetch was incomplete" without scanning content.
+        ``dropped`` is ``True`` once a stream produced more lines than its ring holds: the oldest lines
+        are gone from this view, so the caller knows the tail it got is not the whole output.
         """
-        baseline = since_cursor if since_cursor is not None else 0
         with self._lock:
             entry = self._entries.get(pid)
-        if entry is None:
-            return {
-                "stdout": [],
-                "stderr": [],
-                "next_cursor": baseline,
-                "dropped": False,
-                "poll_hint": {"has_new_output": False, "suggested_wait_ms": 5000},
+            if entry is None:
+                return {"stdout": [], "stderr": [], "dropped": False}
+            dropped = entry.output_dropped
+            payload: OutputTail = {
+                "stdout": list(entry.stdout_buffer)[-max_lines:],
+                "stderr": list(entry.stderr_buffer)[-max_lines:],
+                "dropped": dropped,
             }
-
-        from myrm_agent_harness.agent.meta_tools.bash._background.poll import (
-            build_poll_output,
-        )
-
-        with self._lock:
-            payload, streak = build_poll_output(
-                stdout_buffer=entry.stdout_buffer,
-                stderr_buffer=entry.stderr_buffer,
-                cursor=entry.cursor,
-                empty_poll_streak=entry.empty_poll_streak,
-                max_lines=max_lines,
-                since_cursor=since_cursor,
-            )
-            if since_cursor is not None:
-                entry.empty_poll_streak = streak
-            if payload.get("dropped") and entry.spill_writer is not None:
+            if dropped and entry.spill_writer is not None:
                 spill_ref = entry.spill_writer.vault_log_ref
                 if spill_ref:
                     payload["spill_log_ref"] = spill_ref

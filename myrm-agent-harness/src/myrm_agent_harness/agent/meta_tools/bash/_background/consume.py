@@ -23,7 +23,7 @@ from collections import deque
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import (
     leader_id_reassigned,
@@ -52,16 +52,16 @@ _LINE_MAX_BYTES = 32 * 1024
 # and cascading frontend HTTP refresh requests on high-frequency log bursts.
 _PROGRESS_EMIT_INTERVAL_S = 0.1
 
+StreamName = Literal["stdout", "stderr"]
+
 
 @dataclass
 class BackgroundRegistryEntry:
     """Internal registry record (carries the live process handle).
 
-    Each buffered line is stored as ``(cursor, text)``. ``cursor`` is a
-    process-wide monotonically increasing integer shared between stdout and
-    stderr; this lets ``get_output(since_cursor=...)`` filter both streams
-    against the same cursor without confusing rates (a busy stderr will not
-    eat into stdout's quota or vice versa).
+    ``stdout_buffer`` and ``stderr_buffer`` are the ring tails of the two streams, newest line last.
+    ``stdout_total`` and ``stderr_total`` count every line a stream produced, so a total above the ring's
+    length means older lines fell off (``output_dropped``).
 
     ``leader`` is the job leader as it was at registration; it tells a later
     signal whether the leader's pid still belongs to this job.
@@ -72,19 +72,33 @@ class BackgroundRegistryEntry:
 
     info: BackgroundProcessInfo
     proc: AsyncProcessProtocol
-    stdout_buffer: deque[tuple[int, str]]
-    stderr_buffer: deque[tuple[int, str]]
+    stdout_buffer: deque[str]
+    stderr_buffer: deque[str]
     reader_task: asyncio.Task[None] | None = None
     finish_listener: FinishListener | None = None
     progress_listener: ProgressListener | None = None
     spill_writer: BackgroundOutputSpillWriter | None = None
-    cursor: int = 0
-    empty_poll_streak: int = 0
+    stdout_total: int = 0
+    stderr_total: int = 0
     stdin_lock: asyncio.Lock | None = None
     stdin_closed: bool = False
     last_progress_emit_at: float = 0.0
     leader: GroupMember | None = None
     leftover_members: tuple[GroupMember, ...] = ()
+
+    def append_line(self, stream: StreamName, text: str) -> None:
+        """Add one line to a stream's ring and count it."""
+        if stream == "stderr":
+            self.stderr_buffer.append(text)
+            self.stderr_total += 1
+        else:
+            self.stdout_buffer.append(text)
+            self.stdout_total += 1
+
+    @property
+    def output_dropped(self) -> bool:
+        """True once a stream produced more lines than its ring holds, so ``output`` cannot return the oldest."""
+        return self.stdout_total > len(self.stdout_buffer) or self.stderr_total > len(self.stderr_buffer)
 
 
 async def consume_background_entry(
@@ -126,7 +140,7 @@ async def consume_background_entry(
                 exc,
             )
 
-    async def _pipe(stream: object, sink: deque[tuple[int, str]]) -> None:
+    async def _pipe(stream: object, stream_name: StreamName) -> None:
         reader = getattr(stream, "readline", None)
         if reader is None:
             return
@@ -138,8 +152,7 @@ async def consume_background_entry(
                 if drain_method is not None:
                     with suppress(asyncio.IncompleteReadError, ConnectionError, OSError):
                         await drain_method(exc.consumed)
-                entry.cursor += 1
-                sink.append((entry.cursor, f"[output line >{exc.consumed} bytes truncated]"))
+                entry.append_line(stream_name, f"[output line >{exc.consumed} bytes truncated]")
                 continue
             except (ConnectionError, OSError, asyncio.CancelledError):
                 return
@@ -155,7 +168,6 @@ async def consume_background_entry(
             text = redact_sensitive_text(text)
             spill = entry.spill_writer
             if spill is not None:
-                stream_name = "stderr" if sink is entry.stderr_buffer else "stdout"
                 spill.append_line(stream_name, text)
                 if spill.vault_log_ref and entry.info.vault_log_ref != spill.vault_log_ref:
                     entry.info.vault_log_ref = spill.vault_log_ref
@@ -164,8 +176,7 @@ async def consume_background_entry(
                     )
 
                     persist_vault_log_ref(entry.info)
-            entry.cursor += 1
-            sink.append((entry.cursor, text))
+            entry.append_line(stream_name, text)
             entry.info.last_output_at = time.time()
             progress = try_parse_progress_line(text)
             if progress is not None:
@@ -173,8 +184,8 @@ async def consume_background_entry(
 
     try:
         await asyncio.gather(
-            _pipe(entry.proc.stdout, entry.stdout_buffer),
-            _pipe(entry.proc.stderr, entry.stderr_buffer),
+            _pipe(entry.proc.stdout, "stdout"),
+            _pipe(entry.proc.stderr, "stderr"),
             return_exceptions=True,
         )
         exit_code = await entry.proc.wait()

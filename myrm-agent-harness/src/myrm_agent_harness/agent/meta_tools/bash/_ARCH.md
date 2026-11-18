@@ -71,7 +71,6 @@ bash/
 | `_tool/helpers.py` | Core | BashInput schema、OS hint、上下文恢复；`resolve_skill_storage_paths` 把技能的存储键（相对存储根）解析成宿主机绝对目录供暂存复制，本地技能的绝对目录原样保留。 |
 | `_tool/multimodal.py` | Core | Vision ContentBlock 内联返回。 |
 | `_tool/background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 |
-| `_tool/output_filter_core.py` | Core | 增量输出轮询纯正则行过滤器。 |
 | `_tool/process_handlers.py` | Core | `bash_process_tool` 各 action 的处理器；`kill_report` 如实说明停止效果。 |
 
 ### `_compression/` 输出压缩域

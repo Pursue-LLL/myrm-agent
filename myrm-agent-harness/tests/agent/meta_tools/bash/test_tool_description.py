@@ -130,7 +130,7 @@ def test_no_internal_module_name_leaked_to_prompt() -> None:
 
 def test_background_contract_documented() -> None:
     assert "run_in_background=true" in TOOL_DESCRIPTION_ZH
-    assert "since_cursor" in TOOL_DESCRIPTION_ZH
+    assert "since_cursor" not in TOOL_DESCRIPTION_ZH
     assert "waiting_for_input" in TOOL_DESCRIPTION_ZH
     assert "input_wait_hint" in TOOL_DESCRIPTION_ZH
     assert TOOL_DESCRIPTION_ZH.count("waiting_for_input") >= 2

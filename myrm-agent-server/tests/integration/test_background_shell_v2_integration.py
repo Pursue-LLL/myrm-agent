@@ -88,25 +88,24 @@ while not gate.exists() and time.monotonic() < deadline:
 """
 
 
-async def _cursor_after_first_line(process_tool: BaseTool, pid: int, config: dict[str, object]) -> int:
-    """Wait for the child's first line and return the cursor behind it.
+async def _output_with_first_line(process_tool: BaseTool, pid: int, config: dict[str, object]) -> dict[str, object]:
+    """Return the first ``output`` result that holds the child's first line.
 
-    The child prints at the pace of its interpreter start-up, so a poll right after the spawn can see nothing, and a
-    cursor taken before the line would make the line count as new output of the next poll.
+    The child prints at the pace of its interpreter start-up, so a read right after the spawn can see nothing.
     """
     deadline = time.monotonic() + _EVENT_WAIT_S
     while time.monotonic() < deadline:
         out = await process_tool.ainvoke({"action": "output", "pid": pid}, config=config)
-        content = out["content"]  # type: ignore[index]
-        if any("tick" in line for line in content["stdout"]):
-            return int(content["next_cursor"])
+        content: dict[str, object] = out["content"]  # type: ignore[index]
+        if any("tick" in line for line in content["stdout"]):  # type: ignore[attr-defined]
+            return content
         await asyncio.sleep(0.05)
     raise AssertionError("the child never printed its first line")
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_bash_process_wait_and_poll_hint_integration(tmp_path: Path) -> None:
+async def test_bash_process_output_and_wait_integration(tmp_path: Path) -> None:
     chat_id = f"v2-wait-{uuid.uuid4().hex[:12]}"
     executor = _make_local_executor(tmp_path)
     set_executor(executor)
@@ -137,14 +136,9 @@ async def test_bash_process_wait_and_poll_hint_integration(tmp_path: Path) -> No
 
     pid = int(spawn["metadata"]["pid"])
     try:
-        cursor = await _cursor_after_first_line(process_tool, pid, config)
-        out2 = await process_tool.ainvoke(
-            {"action": "output", "pid": pid, "since_cursor": cursor},
-            config=config,
-        )
-        hint = out2["content"]["poll_hint"]  # type: ignore[index]
-        assert hint["has_new_output"] is False
-        assert hint["suggested_wait_ms"] >= 5000
+        content = await _output_with_first_line(process_tool, pid, config)
+        assert content["dropped"] is False
+        assert content["status"] == "running"
     finally:
         gate.touch()
 

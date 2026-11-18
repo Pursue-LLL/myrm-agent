@@ -128,7 +128,7 @@ asyncio.run(main())
 
 **注意**:传 `run_in_background=true` 时**不要**在命令末尾追加 `&` — 工具已自动后台化,追加 `&` 会导致进程脱离管理(pid 失效,无法 output/kill/wait)。
 
-配套工具 `bash_process_tool` 提供 7 个 action:list(会话内全部任务,含 `last_progress`) / output(增量轮询:传上次 `next_cursor` 为 `since_cursor`) / wait / kill / write_stdin / submit_stdin / close_stdin — 参数与规则详见其工具描述。
+配套工具 `bash_process_tool` 提供 7 个 action:list(会话内全部任务,含 `last_progress`) / output / wait / kill / write_stdin / submit_stdin / close_stdin — 参数与规则详见其工具描述。
 
 **关键**:output/wait 返回 `waiting_for_input=true` 时,读 `input_wait_hint` 并用 `submit_stdin` 应答,勿盲轮询;`waiting_for_input=false` 时正常拉输出/等待即可。
 
@@ -211,7 +211,7 @@ Prefer `/workspace/...` (default working directory) in commands and Python code.
 ## Background Tasks (Optional)
 For dev servers, watchers, or long jobs, pass `run_in_background=true` to return `{pid, status}` immediately without blocking. Max 5 concurrent jobs per session. For long test/build commands, pass `yield_after_seconds=N` (default 10s, 0 to disable) to transition to background if still running.
 **Note**: Do NOT append `&` at the end of the command when `run_in_background=true` (the tool handles backgrounding automatically).
-Use `bash_process_tool` to manage background jobs: `list` (includes `last_progress`), `output` (incremental tail with `since_cursor`), `wait`, `kill`, `write_stdin`, `submit_stdin`, `close_stdin`.
+Use `bash_process_tool` to manage background jobs: `list` (includes `last_progress`), `output`, `wait`, `kill`, `write_stdin`, `submit_stdin`, `close_stdin`.
 When output/wait returns `waiting_for_input=true`, check `input_wait_hint` and respond using `submit_stdin` (do not poll blindly); when `waiting_for_input=false`, continue polling output or waiting normally.
 
 ### Progress Reporting

@@ -81,25 +81,6 @@ async def test_registry_wait_respects_cap_and_still_running() -> None:
 
 
 @pytest.mark.asyncio
-async def test_registry_poll_hint_backoff_on_empty_polls() -> None:
-    registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=9003, stdout=[b"once\n"], stderr=[])
-    await registry.register(cast(AsyncProcessProtocol, proc), command="echo once", session_id="s-poll")
-    await asyncio.sleep(0.05)
-
-    first = registry.get_output(9003, since_cursor=None)
-    cursor = int(first["next_cursor"])
-    second = registry.get_output(9003, since_cursor=cursor)
-    hint = second["poll_hint"]
-    assert isinstance(hint, dict)
-    assert hint["has_new_output"] is False
-    assert hint["suggested_wait_ms"] >= 5000
-
-    third = registry.get_output(9003, since_cursor=cursor)
-    assert third["poll_hint"]["suggested_wait_ms"] >= hint["suggested_wait_ms"]
-
-
-@pytest.mark.asyncio
 async def test_count_running_scoped_by_session() -> None:
     registry = BackgroundProcessRegistry()
     registry._entries.clear()  # type: ignore[attr-defined]
@@ -237,7 +218,6 @@ async def test_build_auto_yield_return_includes_partial_output() -> None:
     payload = build_auto_yield_return(info=info, yield_seconds=10, registry=registry)
     assert payload["metadata"]["background"] is True
     assert "partial" in str(payload["content"])
-    assert "poll_hint" in payload["metadata"]
 
 
 @pytest.mark.asyncio
@@ -290,7 +270,7 @@ async def test_bash_process_list_action() -> None:
 
 
 @pytest.mark.asyncio
-async def test_bash_process_output_success_and_poll_hint() -> None:
+async def test_bash_process_output_success() -> None:
     registry = get_background_registry()
     proc = _FakeProc(pid=9031, stdout=[b"line\n"], stderr=[])
     await registry.register(cast(AsyncProcessProtocol, proc), command="echo line", session_id="chat-out")
@@ -300,7 +280,6 @@ async def test_bash_process_output_success_and_poll_hint() -> None:
     config = {"configurable": {"context": {"session_id": "chat-out"}}}
     result = await tool.ainvoke({"action": "output", "pid": 9031}, config=config)
     assert result["content"]["stdout"]
-    assert "poll_hint" in result["metadata"]
 
 
 @pytest.mark.asyncio
@@ -369,101 +348,6 @@ async def test_bash_process_missing_pid_errors() -> None:
 
 
 @pytest.mark.asyncio
-async def test_bash_process_output_invalid_filter() -> None:
-    registry = get_background_registry()
-    proc = _FakeProc(pid=9036, stdout=[b"line\n"], stderr=[])
-    await registry.register(
-        cast(AsyncProcessProtocol, proc),
-        command="echo line",
-        session_id="chat-bad-filter",
-    )
-
-    tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-bad-filter"}}}
-    result = await tool.ainvoke({"action": "output", "pid": 9036, "filter": "[invalid"}, config=config)
-    assert result["metadata"]["error"] == "invalid_filter"
-
-
-@pytest.mark.asyncio
-async def test_bash_process_output_with_line_filter() -> None:
-    registry = get_background_registry()
-    proc = _FakeProc(pid=9037, stdout=[b"ok\n", b"ERROR: boom\n"], stderr=[b"WARN: slow\n"])
-    await registry.register(cast(AsyncProcessProtocol, proc), command="build", session_id="chat-good-filter")
-    await asyncio.sleep(0.05)
-
-    tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-good-filter"}}}
-    # Case-insensitive and strip test: lowercase 'error|warn' with whitespace matches uppercase 'ERROR: boom'
-    result = await tool.ainvoke({"action": "output", "pid": 9037, "filter": "  error|warn  "}, config=config)
-    assert "ERROR: boom" in result["content"]["stdout"][0]
-    assert "  error|warn  " in result["metadata"]["filter"]
-
-
-@pytest.mark.asyncio
-async def test_bash_process_output_empty_filter_error() -> None:
-    registry = get_background_registry()
-    proc = _FakeProc(pid=9039, stdout=[b"ok\n"], stderr=[])
-    await registry.register(
-        cast(AsyncProcessProtocol, proc),
-        command="echo line",
-        session_id="chat-empty-filter",
-    )
-    tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-empty-filter"}}}
-    result = await tool.ainvoke({"action": "output", "pid": 9039, "filter": "   "}, config=config)
-    assert result["metadata"]["error"] == "invalid_filter"
-
-
-@pytest.mark.asyncio
-async def test_bash_process_output_incremental_cursor_paging() -> None:
-    registry = get_background_registry()
-    # Output 5 lines (cursors 1..5)
-    lines = [f"log-{i}\n".encode() for i in range(1, 6)]
-    proc = _FakeProc(pid=9040, stdout=lines, stderr=[])
-    await registry.register(
-        cast(AsyncProcessProtocol, proc),
-        command="generate_logs",
-        session_id="chat-paging",
-    )
-    await asyncio.sleep(0.05)
-
-    tool = create_bash_process_tool()
-    config = {"configurable": {"context": {"session_id": "chat-paging"}}}
-
-    # Batch 1: since_cursor=0, max_lines=2 -> returns log-1, log-2; next_cursor=2
-    res1 = await tool.ainvoke(
-        {"action": "output", "pid": 9040, "since_cursor": 0, "max_lines": 2},
-        config=config,
-    )
-    assert res1["content"]["stdout"] == ["log-1", "log-2"]
-    assert res1["content"]["next_cursor"] == 2
-
-    # Batch 2: since_cursor=2, max_lines=2 -> returns log-3, log-4; next_cursor=4
-    res2 = await tool.ainvoke(
-        {"action": "output", "pid": 9040, "since_cursor": 2, "max_lines": 2},
-        config=config,
-    )
-    assert res2["content"]["stdout"] == ["log-3", "log-4"]
-    assert res2["content"]["next_cursor"] == 4
-
-    # Batch 3: since_cursor=4, max_lines=2 -> returns log-5; next_cursor=5
-    res3 = await tool.ainvoke(
-        {"action": "output", "pid": 9040, "since_cursor": 4, "max_lines": 2},
-        config=config,
-    )
-    assert res3["content"]["stdout"] == ["log-5"]
-    assert res3["content"]["next_cursor"] == 5
-
-    # Batch 4: since_cursor=5, max_lines=2 -> empty; next_cursor=5
-    res4 = await tool.ainvoke(
-        {"action": "output", "pid": 9040, "since_cursor": 5, "max_lines": 2},
-        config=config,
-    )
-    assert res4["content"]["stdout"] == []
-    assert res4["content"]["next_cursor"] == 5
-
-
-@pytest.mark.asyncio
 async def test_bash_process_wait_wrong_session() -> None:
     registry = get_background_registry()
     proc = _FakeProc(pid=9038, stdout=[], stderr=[])
@@ -483,10 +367,8 @@ async def test_bash_process_unknown_action_fallback() -> None:
         action="bogus",  # type: ignore[arg-type]
         pid=None,
         max_lines=100,
-        since_cursor=None,
         timeout_seconds=30,
         force=False,
-        filter=None,
         config=config,
     )
     assert result["metadata"]["error"] == "invalid_action"

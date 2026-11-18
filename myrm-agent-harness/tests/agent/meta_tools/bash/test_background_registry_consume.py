@@ -122,7 +122,7 @@ async def test_consume_background_entry_captures_stdout_and_exits() -> None:
 
     assert entry.info.status == "exited"
     assert entry.info.exit_code == 0
-    assert [text for _, text in entry.stdout_buffer] == ["hello"]
+    assert list(entry.stdout_buffer) == ["hello"]
     assert reaped == [4242]
     assert cleared == ["sess-consume"]
 
@@ -167,7 +167,7 @@ async def test_consume_background_entry_captures_stderr() -> None:
     proc.finish(exit_code=1)
     await task
 
-    assert [text for _, text in entry.stderr_buffer] == ["warn"]
+    assert list(entry.stderr_buffer) == ["warn"]
     assert entry.info.exit_code == 1
 
 
@@ -182,7 +182,7 @@ async def test_consume_background_entry_truncates_long_lines() -> None:
     proc.finish()
     await task
 
-    captured = entry.stdout_buffer[0][1]
+    captured = entry.stdout_buffer[0]
     assert "bytes truncated" in captured
     assert len(captured) <= 32 * 1024 + 64
 
@@ -242,7 +242,7 @@ async def test_consume_background_entry_handles_limit_overrun() -> None:
     await task
 
     assert entry.stdout_buffer
-    assert "truncated" in entry.stdout_buffer[0][1]
+    assert "truncated" in entry.stdout_buffer[0]
 
 
 @pytest.mark.asyncio

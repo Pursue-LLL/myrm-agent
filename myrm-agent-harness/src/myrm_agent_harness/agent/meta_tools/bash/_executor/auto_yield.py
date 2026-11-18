@@ -74,10 +74,8 @@ def build_auto_yield_return(
     """Return tool payload after the yield window (completed early or still running)."""
     reg = registry or get_background_registry()
     streams = reg.get_output(info.pid, max_lines=50)
-    stdout_lines = streams.get("stdout", [])
-    stderr_lines = streams.get("stderr", [])
-    stdout_text = "\n".join(str(line) for line in stdout_lines) if stdout_lines else ""
-    stderr_text = "\n".join(str(line) for line in stderr_lines) if stderr_lines else ""
+    stdout_text = "\n".join(streams["stdout"])
+    stderr_text = "\n".join(streams["stderr"])
 
     if info.status != "running":
         parts = [f"Command finished during auto-yield window (pid={info.pid})."]
@@ -110,17 +108,15 @@ def build_auto_yield_return(
         if stderr_text:
             hint += f"\n[stderr]\n{stderr_text}"
 
-    poll_hint = streams.get("poll_hint")
-    metadata: dict[str, object] = {
-        "auto_yielded": True,
-        "background": True,
-        "pid": info.pid,
-        "status": info.status,
+    return {
+        "content": hint,
+        "metadata": {
+            "auto_yielded": True,
+            "background": True,
+            "pid": info.pid,
+            "status": info.status,
+        },
     }
-    if isinstance(poll_hint, dict):
-        metadata["poll_hint"] = poll_hint
-
-    return {"content": hint, "metadata": metadata}
 
 
 __all__ = [

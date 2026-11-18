@@ -110,10 +110,6 @@ class _BashProcessInput(BaseModel):
         ge=1,
         le=_OUTPUT_MAX_LINES,
     )
-    since_cursor: int | None = Field(
-        default=None,
-        description=("For output: monotonic cursor from a previous next_cursor for incremental polling."),
-    )
     timeout_seconds: int = Field(
         default=_WAIT_DEFAULT_SECONDS,
         description=f"For wait: seconds to block (1-{_WAIT_MAX_SECONDS}). Returns still_running on timeout.",
@@ -123,12 +119,6 @@ class _BashProcessInput(BaseModel):
     force: bool = Field(
         default=False,
         description="For kill: send SIGKILL when true, else SIGTERM first.",
-    )
-    filter: str | None = Field(
-        default=None,
-        description=(
-            "For output: optional regex applied per line (e.g. 'ERROR|WARN') — only matching stdout/stderr lines are returned."
-        ),
     )
     data: str = Field(
         default="",
@@ -142,7 +132,7 @@ _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
     "Manage background bash processes started with bash_code_execute_tool(run_in_background=true). "
     "When output or wait returns waiting_for_input=true, read input_wait_hint and answer with "
     "submit_stdin (do not blind-poll). "
-    "Actions: list (session jobs + last_progress), output (tail/incremental poll via since_cursor), "
+    "Actions: list (session jobs + last_progress), output (tail of stdout/stderr), "
     "wait (block until exit or timeout_seconds, max 120), kill (SIGTERM or force SIGKILL), "
     "write_stdin (raw stdin), submit_stdin (stdin + Enter), close_stdin (EOF)."
 )
@@ -150,7 +140,7 @@ _BASH_PROCESS_TOOL_DESCRIPTION_EN = (
 _BASH_PROCESS_TOOL_DESCRIPTION_ZH = (
     "管理通过 bash_code_execute_tool(run_in_background=true) 启动的后台进程。"
     "当 output 或 wait 返回 waiting_for_input=true 时，根据 input_wait_hint 使用 submit_stdin 响应（切勿盲目轮询）。"
-    "操作：list（会话任务与 last_progress），output（查看增量输出/配合 since_cursor 轮询），"
+    "操作：list（会话任务与 last_progress），output（查看 stdout/stderr 末尾），"
     "wait（阻塞等待结束或达到 timeout_seconds，最大 120s），kill（默认 SIGTERM，force 时发送 SIGKILL），"
     "write_stdin（原始 stdin），submit_stdin（stdin+换行），close_stdin（EOF）。"
 )
@@ -175,10 +165,8 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
         action: _BASH_PROCESS_ACTIONS,
         pid: int | None = None,
         max_lines: int = OUTPUT_DEFAULT_LINES,
-        since_cursor: int | None = None,
         timeout_seconds: int = _WAIT_DEFAULT_SECONDS,
         force: bool = False,
-        filter: str | None = None,
         data: str = "",
         *,
         config: RunnableConfig,
@@ -212,7 +200,7 @@ def create_bash_process_tool(locale: str | None = None) -> BaseTool:
 
         if action == "output":
             assert pid is not None
-            return await handle_output(session_id, pid, max_lines, since_cursor, filter)
+            return await handle_output(session_id, pid, max_lines)
         if action == "wait":
             assert pid is not None
             return await handle_wait(session_id, pid, timeout_seconds)

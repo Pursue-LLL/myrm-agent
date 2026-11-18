@@ -16,12 +16,16 @@ so that:
 [OUTPUT]
 - BackgroundProcessInfo: Snapshot dataclass exposed to UI/LLM.
 - BackgroundQuotaError: Per-session concurrency cap breach.
+- OutputTail: What a job's output read returns: the newest lines of each stream and whether older ones fell off.
 - FinishListener / ProgressListener: Async callback type aliases used by
   the bash tool to bridge registry lifecycle events into ``ptc_notify`` UI
   updates.
+- OUTPUT_RING_LINES / INPUT_WAIT_IDLE_SECONDS: the limits ``bash_process_tool`` reports to the model
+  (how many lines of a stream a job keeps, how long a silent job with open stdin waits before it is flagged).
 
 [POS]
-PTC-adjacent runtime helper. Pure data types — no I/O, no logging.
+PTC-adjacent runtime helper. Pure data types and the limits shared by the registry and the tool's schema and
+descriptions — no I/O, no logging.
 """
 
 from __future__ import annotations
@@ -29,6 +33,10 @@ from __future__ import annotations
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import NotRequired, TypedDict
+
+# Lines of each stream a job keeps for ``output`` (the newest ones); older lines fall off the ring.
+OUTPUT_RING_LINES = 200
 
 # Idle time after last stdout/stderr before a running job is flagged as likely waiting for stdin.
 INPUT_WAIT_IDLE_SECONDS = 15.0
@@ -70,6 +78,17 @@ class BackgroundQuotaError(RuntimeError):
         super().__init__(f"Session {session_id!r} already has {limit} active background jobs.")
         self.session_id = session_id
         self.limit = limit
+
+
+class OutputTail(TypedDict):
+    """The newest lines of a job's two streams, as ``get_output`` reads them from the ring tails."""
+
+    stdout: list[str]
+    stderr: list[str]
+    # True once a stream produced more lines than its ring holds: the oldest lines are missing from this view.
+    dropped: bool
+    # Where the full output was written; present only when ``dropped`` and the job has a log.
+    spill_log_ref: NotRequired[str]
 
 
 @dataclass
@@ -144,9 +163,11 @@ ProgressListener = Callable[[BackgroundProcessInfo, dict[str, object]], Awaitabl
 
 __all__ = [
     "INPUT_WAIT_IDLE_SECONDS",
+    "OUTPUT_RING_LINES",
     "BackgroundProcessInfo",
     "BackgroundQuotaError",
     "FinishListener",
+    "OutputTail",
     "ProgressListener",
     "build_input_wait_hint",
     "compute_waiting_for_input",

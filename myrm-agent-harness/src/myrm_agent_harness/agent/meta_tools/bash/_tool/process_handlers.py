@@ -4,7 +4,6 @@
 - agent.meta_tools.bash._background.registry::get_background_registry (POS: registry singleton)
 - agent.meta_tools.bash._background.termination::GROUP_VISIBLE (POS: whether the platform can list a job's process group)
 - agent.meta_tools.bash._background.types::build_input_wait_hint (POS: shared dataclasses & typing.)
-- agent.meta_tools.bash._tool.output_filter_core::compile_output_filter / filter_output_lines (POS: incremental output regex line filter)
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
@@ -16,8 +15,6 @@ Session-scoped handlers behind the ``bash_process_tool`` facade, which owns the 
 """
 
 from __future__ import annotations
-
-import re
 
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     get_background_registry,
@@ -45,13 +42,7 @@ async def handle_list(session_id: str) -> dict[str, object]:
     }
 
 
-async def handle_output(
-    session_id: str,
-    pid: int,
-    max_lines: int,
-    since_cursor: int | None,
-    filter_pattern: str | None,
-) -> dict[str, object]:
+async def handle_output(session_id: str, pid: int, max_lines: int) -> dict[str, object]:
     registry = get_background_registry()
     info = registry.get(pid)
     if info is None or info.session_id != session_id:
@@ -59,60 +50,20 @@ async def handle_output(
             "content": f"No background process with pid={pid} in this session.",
             "metadata": {"pid": pid, "found": False, "action": "output"},
         }
-    line_filter = None
-    if filter_pattern:
-        from myrm_agent_harness.agent.meta_tools.bash._tool.output_filter_core import (
-            compile_output_filter,
-        )
 
-        try:
-            line_filter = compile_output_filter(filter_pattern)
-        except (re.error, ValueError) as exc:
-            return {
-                "content": f"Invalid output filter regex: {exc}",
-                "metadata": {
-                    "pid": pid,
-                    "found": True,
-                    "action": "output",
-                    "error": "invalid_filter",
-                },
-            }
-
-    streams = registry.get_output(pid, max_lines=max_lines, since_cursor=since_cursor)
-    stdout = streams["stdout"]
-    stderr = streams["stderr"]
-    if line_filter is not None:
-        from myrm_agent_harness.agent.meta_tools.bash._tool.output_filter_core import (
-            filter_output_lines,
-        )
-
-        stdout = filter_output_lines(list(stdout) if isinstance(stdout, list) else [], line_filter)
-        stderr = filter_output_lines(list(stderr) if isinstance(stderr, list) else [], line_filter)
-
-    poll_hint = streams.get("poll_hint")
-    metadata: dict[str, object] = {
-        "pid": pid,
-        "session_id": session_id,
-        "action": "output",
-    }
-    if filter_pattern:
-        metadata["filter"] = filter_pattern
-    if isinstance(poll_hint, dict):
-        metadata["poll_hint"] = poll_hint
-
+    streams = registry.get_output(pid, max_lines=max_lines)
     content: dict[str, object] = {
         "pid": pid,
         "status": info.status,
         "exit_code": info.exit_code,
         "error_category": info.error_category,
-        "stdout": stdout,
-        "stderr": stderr,
-        "next_cursor": streams["next_cursor"],
+        "stdout": streams["stdout"],
+        "stderr": streams["stderr"],
         "dropped": streams["dropped"],
-        "poll_hint": poll_hint,
     }
-    if streams.get("spill_log_ref"):
-        content["spill_log_ref"] = streams["spill_log_ref"]
+    spill_log_ref = streams.get("spill_log_ref")
+    if spill_log_ref:
+        content["spill_log_ref"] = spill_log_ref
     if info.leftover_processes:
         content["leftover_processes"] = info.leftover_processes
     if info.status == "running":
@@ -124,7 +75,7 @@ async def handle_output(
 
     return {
         "content": content,
-        "metadata": metadata,
+        "metadata": {"pid": pid, "session_id": session_id, "action": "output"},
     }
 
 
@@ -156,8 +107,8 @@ async def handle_wait(session_id: str, pid: int, timeout_seconds: int) -> dict[s
                 content["input_wait_hint"] = hint
     else:
         streams = registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)
-        content["stdout"] = streams.get("stdout", [])
-        content["stderr"] = streams.get("stderr", [])
+        content["stdout"] = streams["stdout"]
+        content["stderr"] = streams["stderr"]
         # The job may have finished during the wait, so what it left running is read now, not from the first snapshot.
         finished = registry.get(pid)
         if finished is not None and finished.leftover_processes:
