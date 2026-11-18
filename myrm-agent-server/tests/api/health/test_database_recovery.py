@@ -1,3 +1,4 @@
+import shutil
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -163,6 +164,21 @@ def test_database_is_damaged_detects_a_damaged_schema_page(populated_db: Path):
     populated_db.write_bytes(content)
 
     assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_reads_a_path_with_spaces_and_url_characters(populated_db: Path, tmp_path: Path):
+    """The desktop database lives under 'Application Support': the probe's URI must carry spaces, '#' and '%'."""
+    folder = tmp_path / "Application Support" / "my data #1 100%"
+    folder.mkdir(parents=True)
+    moved = folder / "data.db"
+    shutil.copy2(populated_db, moved)
+    assert database_is_damaged(str(moved)) is False
+
+    content = bytearray(moved.read_bytes())
+    content[8192 + 100 : 8192 + 200] = b"\xff\x00\xde\xad" * 25
+    moved.write_bytes(content)
+
+    assert database_is_damaged(str(moved)) is True
 
 
 def test_database_is_damaged_is_false_while_another_connection_holds_the_lock(
