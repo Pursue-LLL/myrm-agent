@@ -21,7 +21,6 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any
 
 from app.config.deploy_mode import is_local_mode
 from app.services.config.service import config_service
@@ -75,7 +74,7 @@ class AuxiliaryMigrationResult:
     total_tasks_detected: int = 0
 
 
-def extract_hermes_auxiliary_config(hermes_config: dict[str, Any]) -> dict[str, dict[str, str]]:
+def extract_hermes_auxiliary_config(hermes_config: Mapping[str, object]) -> dict[str, dict[str, str]]:
     """Extract per-task auxiliary model assignments from Hermes config.yaml.
 
     Hermes format (nested dict):
@@ -117,7 +116,7 @@ def _resolve_route_model_id(provider: str, model: str) -> str:
     return f"{prefix}/{model}"
 
 
-async def _load_providers_value() -> dict[str, Any] | None:
+async def _load_providers_value() -> dict[str, object] | None:
     """The stored providers config a migration merges into: empty on a fresh install, ``None`` when it cannot be read.
 
     A row sealed under a key that is gone reads as empty, and writing a migration over that empty value would destroy
@@ -133,7 +132,7 @@ async def _load_providers_value() -> dict[str, Any] | None:
 
 
 async def migrate_hermes_auxiliary_models(
-    hermes_config: dict[str, Any],
+    hermes_config: Mapping[str, object],
 ) -> AuxiliaryMigrationResult:
     """Detect Hermes auxiliary model config and apply to Myrm's default model slots.
 
@@ -153,7 +152,7 @@ async def migrate_hermes_auxiliary_models(
     if providers_value is None:
         return result
     stored_model_config = providers_value.get("defaultModelConfig")
-    current_model_config: dict[str, Any] = stored_model_config if isinstance(stored_model_config, dict) else {}
+    current_model_config: dict[str, object] = stored_model_config if isinstance(stored_model_config, dict) else {}
 
     slot_candidates: dict[str, str] = {}
 
@@ -201,7 +200,7 @@ def _route_id_to_primary_selection(route_model_id: str) -> dict[str, str]:
     return {"providerId": provider_id, "model": model_id}
 
 
-def _slot_primary_selection(model_config: dict[str, Any], slot_name: str) -> dict[str, str] | None:
+def _slot_primary_selection(model_config: Mapping[str, object], slot_name: str) -> dict[str, str] | None:
     slot = model_config.get(slot_name)
     if not isinstance(slot, dict):
         return None
@@ -230,12 +229,12 @@ async def _enable_economy_routing_if_unset() -> None:
     if isinstance(routing_config, dict) and routing_config.get("enabled"):
         return
 
-    empty_slot: dict[str, Any] = {"primary": None, "fallback": None}
+    empty_slot: dict[str, object] = {"primary": None, "fallback": None}
     existing_routing = routing_config if isinstance(routing_config, dict) else {}
     stored_light = existing_routing.get("lightModel")
-    light_slot: dict[str, Any] = stored_light if isinstance(stored_light, dict) else empty_slot
+    light_slot: dict[str, object] = stored_light if isinstance(stored_light, dict) else empty_slot
     stored_reasoning = existing_routing.get("reasoningModel")
-    reasoning_slot: dict[str, Any] = stored_reasoning if isinstance(stored_reasoning, dict) else empty_slot
+    reasoning_slot: dict[str, object] = stored_reasoning if isinstance(stored_reasoning, dict) else empty_slot
 
     light_primary = _slot_primary_selection(model_config, "liteModel")
     if light_primary and not _routing_slot_has_primary(light_slot):
@@ -267,7 +266,7 @@ def extract_openclaw_default_model_config(openclaw_config: Mapping[str, object])
     return {key: defaults[key] for key in _OPENCLAW_DEFAULT_MODEL_KEYS if key in defaults}
 
 
-async def migrate_openclaw_default_model(openclaw_config: dict[str, Any]) -> str | None:
+async def migrate_openclaw_default_model(openclaw_config: Mapping[str, object]) -> str | None:
     """Extract OpenClaw default model and write to Myrm's defaultModelConfig.
 
     OpenClaw stores the primary model in ``agents.defaults.model`` as either a
