@@ -1,3 +1,4 @@
+import os
 import shutil
 import sqlite3
 from contextlib import closing
@@ -179,6 +180,16 @@ def test_database_is_damaged_reads_a_path_with_spaces_and_url_characters(populat
     moved.write_bytes(content)
 
     assert database_is_damaged(str(moved)) is True
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="needs a POSIX user that file permissions bind")
+def test_database_is_damaged_is_false_for_a_file_that_cannot_be_read(populated_db: Path):
+    """A permission error says nothing about the pages: the file must not be reported damaged, and so not rewritten."""
+    populated_db.chmod(0)
+    try:
+        assert database_is_damaged(str(populated_db)) is False
+    finally:
+        populated_db.chmod(0o600)
 
 
 def test_database_is_damaged_is_false_while_another_connection_holds_the_lock(
