@@ -6,7 +6,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.infra.sqlite_backup import SQLiteBackupManager
 
-from app.database.operations.recovery import rescue_database
+from app.database.operations import recovery as recovery_module
+from app.database.operations.recovery import database_is_damaged, rescue_database
 from app.server.status import system_status
 
 
@@ -104,6 +105,75 @@ def test_rescue_database_detailed_flow(tmp_path: Path):
     assert "chat_history" in result.table_stats
     assert Path(db_file).exists()
     assert (tmp_path / "corrupt_flow.db.corrupted").exists()
+
+
+@pytest.fixture
+def populated_db(tmp_path: Path) -> Path:
+    """A multi-page database, so a truncation or a damaged page lands inside real content."""
+    db_file = tmp_path / "populated.db"
+    conn = sqlite3.connect(str(db_file))
+    conn.execute("PRAGMA page_size = 4096;")
+    conn.execute("CREATE TABLE chat_history (id INTEGER PRIMARY KEY, content TEXT);")
+    for i in range(1, 501):
+        conn.execute("INSERT INTO chat_history VALUES (?, ?);", (i, f"message_{i}" * 10))
+    conn.commit()
+    conn.close()
+    return db_file
+
+
+def test_database_is_damaged_is_false_for_an_intact_file(populated_db: Path):
+    assert database_is_damaged(str(populated_db)) is False
+
+
+def test_database_is_damaged_is_false_for_a_missing_or_empty_file(tmp_path: Path):
+    empty = tmp_path / "empty.db"
+    empty.touch()
+
+    assert database_is_damaged(str(tmp_path / "absent.db")) is False
+    assert database_is_damaged(str(empty)) is False
+
+
+def test_database_is_damaged_detects_garbage_where_the_header_belongs(tmp_path: Path):
+    junk = tmp_path / "junk.db"
+    junk.write_bytes(b"not a database" * 100)
+
+    assert database_is_damaged(str(junk)) is True
+
+
+def test_database_is_damaged_detects_a_truncated_file(populated_db: Path):
+    populated_db.write_bytes(populated_db.read_bytes()[: populated_db.stat().st_size // 2])
+
+    assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_detects_a_corrupted_page(populated_db: Path):
+    content = bytearray(populated_db.read_bytes())
+    content[8192 + 100 : 8192 + 200] = b"\xff\x00\xde\xad" * 25
+    populated_db.write_bytes(content)
+
+    assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_detects_a_damaged_schema_page(populated_db: Path):
+    """Page 1 holds the schema: SQLite itself refuses to read the file, with no page-level report to inspect."""
+    content = bytearray(populated_db.read_bytes())
+    content[100:300] = b"\xff\x00\xde\xad" * 50
+    populated_db.write_bytes(content)
+
+    assert database_is_damaged(str(populated_db)) is True
+
+
+def test_database_is_damaged_is_false_while_another_connection_holds_the_lock(
+    populated_db: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """A lock says nothing about the pages: the file must not be reported damaged, and so must not be rewritten."""
+    monkeypatch.setattr(recovery_module, "_PROBE_LOCK_TIMEOUT_SECONDS", 0.05)
+    holder = sqlite3.connect(str(populated_db), isolation_level=None)
+    holder.execute("BEGIN EXCLUSIVE")
+    try:
+        assert database_is_damaged(str(populated_db)) is False
+    finally:
+        holder.close()
 
 
 @pytest.mark.asyncio
