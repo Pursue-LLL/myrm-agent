@@ -30,9 +30,7 @@ vi.mock('@/store/useChatStore', () => ({
 }));
 
 function renderControl({ chatId = 'chat-1' as string | null, usagePercent = 50 } = {}) {
-  const onCompacted = vi.fn();
-  render(<ContextCompressControl chatId={chatId} usagePercent={usagePercent} onCompacted={onCompacted} />);
-  return { onCompacted };
+  render(<ContextCompressControl chatId={chatId} usagePercent={usagePercent} />);
 }
 
 const compressButton = () => screen.getByRole('button', { name: /^compress/ });
@@ -53,9 +51,9 @@ describe('ContextCompressControl', () => {
     expect(compressButton().hasAttribute('disabled')).toBe(!enabled);
   });
 
-  it('compresses without a topic, records the saved tokens, then asks the panel to reload', async () => {
+  it('compresses without a topic, reports the saved tokens and hands the compaction to the store', async () => {
     mockCompactChat.mockResolvedValue({ compacted: true, tokens_saved: 15200, backup_path: '/tmp/backup.json' });
-    const { onCompacted } = renderControl();
+    renderControl();
 
     await userEvent.setup().click(compressButton());
 
@@ -65,9 +63,6 @@ describe('ContextCompressControl', () => {
       tokensSaved: 15200,
       snapshotPath: '/tmp/backup.json',
     });
-    expect(onCompacted).toHaveBeenCalledTimes(1);
-    // The panel reloads only after the store has taken the compaction in, so it reads the state the run produced.
-    expect(mockRefreshCompactionState.mock.invocationCallOrder[0]).toBeLessThan(onCompacted.mock.invocationCallOrder[0]);
   });
 
   it('records no snapshot path when the server kept no backup', async () => {
@@ -106,28 +101,27 @@ describe('ContextCompressControl', () => {
     );
   });
 
-  it('says nothing needed compressing and leaves the panel alone', async () => {
+  it('says nothing needed compressing and leaves the store alone', async () => {
     mockCompactChat.mockResolvedValue({ compacted: false, tokens_saved: 0 });
-    const { onCompacted } = renderControl();
+    renderControl();
 
     await userEvent.setup().click(compressButton());
 
     expect(await screen.findByText('compressNotNeeded')).toBeInTheDocument();
     expect(mockRefreshCompactionState).not.toHaveBeenCalled();
-    expect(onCompacted).not.toHaveBeenCalled();
   });
 
   it.each([
     { rejection: new Error('Server error'), shown: 'Server error' },
     { rejection: 'offline', shown: 'compressError' },
-  ])('shows $shown when the request fails and leaves the panel alone', async ({ rejection, shown }) => {
+  ])('shows $shown when the request fails and leaves the store alone', async ({ rejection, shown }) => {
     mockCompactChat.mockRejectedValue(rejection);
-    const { onCompacted } = renderControl();
+    renderControl();
 
     await userEvent.setup().click(compressButton());
 
     expect(await screen.findByText(shown)).toBeInTheDocument();
-    expect(onCompacted).not.toHaveBeenCalled();
+    expect(mockRefreshCompactionState).not.toHaveBeenCalled();
   });
 
   it('shows a busy button and drops the previous outcome while a new request runs', async () => {

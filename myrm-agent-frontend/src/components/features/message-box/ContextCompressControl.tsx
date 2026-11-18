@@ -11,8 +11,9 @@
  * - ContextCompressControl: focus-topic input, compress button and outcome line of a manual compaction.
  *
  * [POS]
- * Manual compaction control of the strategy panel. Owns the in-flight, result and error state of one request;
- * the panel hears about a compaction that freed tokens only through onCompacted.
+ * Manual compaction control of the strategy panel. Owns the in-flight, result and error state of one request.
+ * A compaction that freed tokens goes to the store, whose refresh counter is what makes the indicator read the
+ * strategy health again.
  */
 
 import { useCallback, useState } from 'react';
@@ -25,11 +26,9 @@ import { formatTokens } from './contextUsageFormat';
 interface ContextCompressControlProps {
   chatId: string | null;
   usagePercent: number;
-  /** Runs after a compaction freed tokens, so the panel can reload what it shows. */
-  onCompacted: () => void;
 }
 
-export function ContextCompressControl({ chatId, usagePercent, onCompacted }: ContextCompressControlProps) {
+export function ContextCompressControl({ chatId, usagePercent }: ContextCompressControlProps) {
   const t = useTranslations('chat.contextUsage.strategy');
   const [compacting, setCompacting] = useState(false);
   const [compactResult, setCompactResult] = useState<string | null>(null);
@@ -53,7 +52,6 @@ export function ContextCompressControl({ chatId, usagePercent, onCompacted }: Co
           tokensSaved: result.tokens_saved,
           snapshotPath: result.backup_path ?? undefined,
         });
-        onCompacted();
       } else {
         setCompactResult(t('compressNotNeeded'));
       }
@@ -62,7 +60,7 @@ export function ContextCompressControl({ chatId, usagePercent, onCompacted }: Co
     } finally {
       setCompacting(false);
     }
-  }, [chatId, compacting, focusTopic, t, onCompacted]);
+  }, [chatId, compacting, focusTopic, t]);
 
   return (
     <>

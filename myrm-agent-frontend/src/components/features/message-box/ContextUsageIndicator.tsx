@@ -4,8 +4,7 @@
  * [INPUT]
  * - store/useChatStore::messages, chatId, compactionRefreshNonce, setActiveSessionAnalyticsId (POS: Chat state management store.)
  * - store/useConfigStore::showContextUsage (POS: User configuration store.)
- * - services/statistics::getSessionAnalytics (POS: Statistics API client DTO layer.)
- * - services/contextHealth::ContextHealth (POS: Statistics context-health DTO layer.)
+ * - ./useContextHealthPanel::useContextHealthPanel (POS: Panel open state and strategy health of the chat in view.)
  * - ./ContextStrategyPanel, ./ContextBreakdown, ./TurnGrowthSparkline (POS: Panel and tooltip sections.)
  * - ./contextUsageFormat (POS: Pure display helpers.)
  *
@@ -18,7 +17,7 @@
  * the strategy panel (popover on desktop, bottom sheet on mobile).
  */
 
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
@@ -27,11 +26,10 @@ import useChatStore from '@/store/useChatStore';
 import useConfigStore from '@/store/useConfigStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useIsMobile } from '@/hooks/ui/useMediaQuery';
-import { getSessionAnalytics } from '@/services/statistics';
-import type { ContextHealth } from '@/services/contextHealth';
 import { ContextBreakdown, hasContextBreakdown } from './ContextBreakdown';
 import { ContextStrategyPanel } from './ContextStrategyPanel';
 import TurnGrowthSparkline from './TurnGrowthSparkline';
+import { useContextHealthPanel } from './useContextHealthPanel';
 import { useContextWatermarkMetrics } from './useContextWatermarkMetrics';
 import {
   STATUS_DOT_COLORS,
@@ -44,9 +42,6 @@ import {
 export default function ContextUsageIndicator() {
   const t = useTranslations('chat.contextUsage');
   const isMobile = useIsMobile();
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [contextHealth, setContextHealth] = useState<ContextHealth | null>(null);
-  const [loadingHealth, setLoadingHealth] = useState(false);
 
   const showContextUsage = useConfigStore((state) => state.showContextUsage);
   const messages = useChatStore(useShallow((state) => state.messages));
@@ -54,6 +49,12 @@ export default function ContextUsageIndicator() {
   const compactionRefreshNonce = useChatStore((state) => state.compactionRefreshNonce);
   const setActiveSessionAnalyticsId = useChatStore((state) => state.setActiveSessionAnalyticsId);
   const watermarkMetrics = useContextWatermarkMetrics(messages);
+  const {
+    panelOpen,
+    setPanelOpen,
+    health: contextHealth,
+    loading: loadingHealth,
+  } = useContextHealthPanel(chatId, compactionRefreshNonce);
 
   const contextBudget = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -64,29 +65,6 @@ export default function ContextUsageIndicator() {
     }
     return null;
   }, [messages]);
-
-  const fetchHealth = useCallback(() => {
-    if (!chatId) {
-      return;
-    }
-    setLoadingHealth(true);
-    getSessionAnalytics(chatId)
-      .then((analytics) => setContextHealth(analytics.context_health ?? null))
-      .catch(() => setContextHealth(null))
-      .finally(() => setLoadingHealth(false));
-  }, [chatId]);
-
-  useEffect(() => {
-    if (panelOpen && chatId) {
-      fetchHealth();
-    }
-  }, [panelOpen, chatId, fetchHealth]);
-
-  useEffect(() => {
-    if (compactionRefreshNonce > 0 && chatId) {
-      fetchHealth();
-    }
-  }, [compactionRefreshNonce, chatId, fetchHealth]);
 
   const { percentage, displayUsage } = useMemo(() => {
     if (!contextBudget) {
@@ -129,10 +107,9 @@ export default function ContextUsageIndicator() {
   };
 
   const ringElement = (
-    <div
+    <output
       data-testid="context-usage-indicator"
       className="relative inline-flex items-center justify-center cursor-pointer select-none p-1"
-      role="status"
       aria-label={t('title')}
     >
       <svg width={size} height={size} className="rotate-[-90deg]" viewBox={`0 0 ${size} ${size}`}>
@@ -164,7 +141,7 @@ export default function ContextUsageIndicator() {
           aria-hidden="true"
         />
       )}
-    </div>
+    </output>
   );
 
   const panelContent = (
@@ -176,7 +153,6 @@ export default function ContextUsageIndicator() {
       contextBudget={contextBudget}
       watermarkMetrics={watermarkMetrics}
       onNavigateDetails={handleNavigateDetails}
-      onRefreshHealth={fetchHealth}
     />
   );
 

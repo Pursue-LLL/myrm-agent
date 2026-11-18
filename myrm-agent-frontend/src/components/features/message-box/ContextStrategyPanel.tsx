@@ -37,7 +37,6 @@ interface ContextStrategyPanelProps {
   contextBudget: ContextBudget | null;
   watermarkMetrics?: ContextWatermarkMetrics;
   onNavigateDetails: () => void;
-  onRefreshHealth: () => void;
 }
 
 export function ContextStrategyPanel({
@@ -48,7 +47,6 @@ export function ContextStrategyPanel({
   contextBudget,
   watermarkMetrics,
   onNavigateDetails,
-  onRefreshHealth,
 }: ContextStrategyPanelProps) {
   const t = useTranslations('chat.contextUsage.strategy');
   const contextPinnedFiles = useChatStore((state) => state.contextPinnedFiles);
@@ -303,7 +301,7 @@ export function ContextStrategyPanel({
           </button>
         </div>
         <p className="text-[10px] text-muted-foreground leading-snug">{t('archiveRestoreHint')}</p>
-        <ContextCompressControl chatId={chatId} usagePercent={usagePercent} onCompacted={onRefreshHealth} />
+        <ContextCompressControl chatId={chatId} usagePercent={usagePercent} />
 
         {canFork && (
           <button

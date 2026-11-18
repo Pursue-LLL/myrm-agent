@@ -322,7 +322,7 @@ describe('ContextUsageIndicator', () => {
       await user.click(screen.getByRole('status'));
 
       await waitFor(() => {
-        expect(mockGetSessionAnalytics).toHaveBeenCalledWith('test-chat-123');
+        expect(mockGetSessionAnalytics).toHaveBeenCalledWith('test-chat-123', false);
       });
 
       await waitFor(() => {
