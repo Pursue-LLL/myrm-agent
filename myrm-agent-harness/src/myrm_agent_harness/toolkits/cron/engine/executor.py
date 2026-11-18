@@ -14,7 +14,7 @@ but owns no scheduling state — that remains in ``CronScheduler``.
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
 - toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)
 - toolkits.cron.engine.incremental_monitoring::IncrementalMonitoringMixin (POS: diff of a run's output against its baseline, mixed into the executor)
-- toolkits.cron.engine.run_closer::RunCloserMixin (POS: the closing write of a run, mixed into the executor)
+- toolkits.cron.engine.run_closer::RunCloserMixin, stored_error (POS: the closing write of a run, mixed into the executor; the bound on the error text a run persists)
 - toolkits.cron.engine.run_notices::RunNoticeMixin (POS: notices about a run's outcome and an automatic pause, mixed into the executor)
 
 [OUTPUT]
@@ -49,7 +49,7 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
 )
 from myrm_agent_harness.toolkits.cron.engine.helpers import run_status_of
 from myrm_agent_harness.toolkits.cron.engine.incremental_monitoring import IncrementalMonitoringMixin
-from myrm_agent_harness.toolkits.cron.engine.run_closer import RunCloserMixin
+from myrm_agent_harness.toolkits.cron.engine.run_closer import RunCloserMixin, stored_error
 from myrm_agent_harness.toolkits.cron.engine.run_notices import RunNoticeMixin
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
@@ -229,7 +229,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
             duration_ms=duration_ms,
             status=run_status_of(result),
             output=result.output[:_MAX_OUTPUT_CHARS] if result.output else None,
-            error=result.error[:1000] if result.error else None,
+            error=stored_error(result.error),
             model=model,
             usage_input_tokens=usage_in,
             usage_output_tokens=usage_out,

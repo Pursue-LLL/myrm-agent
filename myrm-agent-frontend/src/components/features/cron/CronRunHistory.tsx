@@ -168,6 +168,8 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
         </span>
       </div>
 
+      <CronJobProblemBanner job={job} />
+
       <CronJobAuditPanel
         jobId={job.id}
         initialJob={job}
@@ -217,8 +219,6 @@ export default function CronRunHistory({ job, onBack, onJobUpdated }: CronRunHis
       )}
       {job.job_type === 'agent' && <CapabilityEditor job={job} onUpdated={handleEditorUpdated} />}
       {job.job_type === 'agent' && <AllowedRootsEditor job={job} onUpdated={handleEditorUpdated} />}
-
-      <CronJobProblemBanner job={job} />
 
       {runsLoading && runs.length === 0 ? (
         <HistorySkeleton />

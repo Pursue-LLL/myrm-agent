@@ -10,7 +10,8 @@
  *
  * [POS]
  * Notice at the top of a job's run history. A job the scheduler paused by itself says why in plain words; the raw
- * last error follows it, except after a loop-guard break, whose internal error text is not for the user.
+ * last error follows it, scrolling inside a fixed height so a long one never pushes the job's controls away, except
+ * after a loop-guard break, whose internal error text is not for the user.
  */
 
 import { useTranslations } from 'next-intl';
@@ -34,7 +35,7 @@ export default function CronJobProblemBanner({ job }: CronJobProblemBannerProps)
     <div className="space-y-1 rounded-2xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive-text">
       {reason && <p className="font-medium">{t(pauseReasonLabelKey(reason))}</p>}
       {showLastError && (
-        <p className="break-words">
+        <p className="max-h-40 overflow-y-auto break-words">
           {t('lastError')}: {lastError}
         </p>
       )}
