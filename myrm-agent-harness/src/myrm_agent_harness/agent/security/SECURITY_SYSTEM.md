@@ -23,8 +23,8 @@
   │
   ▼
 ┌──────────────────┐
-│ Content Boundary  │ ← 数据边界：wrap_untrusted / wrap_tool_output / strip_invisible_unicode
-│  (5层纵深防护)     │    Unicode折叠 → 结构化token剥离(XML/ChatML/CDATA/fence) → 标记消毒 → 随机边界 → 模式检测 → 零宽字符剥离
+│ Content Boundary  │ ← 数据边界：wrap_untrusted / wrap_tool_output（文本层缓解）
+│  (5层纵深防护)     │    Unicode折叠 → 结构化token剥离(XML/ChatML/CDATA/fence) → 标记消毒 → 随机边界；模式检测在原文上扫描，只记日志
 └──────────────────┘
   │
   ▼
@@ -1090,7 +1090,7 @@ Source: web_search
 <<<END_UNTRUSTED_DATA id="a3f7b2c9e1d4f8a0">>>
 ```
 
-随机 ID 使攻击者无法预测边界标记，从根本上防止边界逃逸。
+随机 ID 使攻击者无法预测边界标记，事先写不出与本次匹配的结束标记；程序化解包按 ID 精确配对，伪造的结束标记不会提前截断内容。
 
 **Layer 4 — 可疑模式检测**：
 

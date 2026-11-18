@@ -809,7 +809,7 @@ navigate(url="localhost:3000")       → DENY (Sandbox) / ALLOW (Local)
 
 ### 信任边界标记
 
-浏览器工具返回的所有外部内容（snapshot / extract / inspect / navigate / interact / evaluate / execute_script / console / network / web_vitals / download_url / list_downloads / ask_human 接管结果）经统一出口 `mark_untrusted`（`tools/common.py`）：**先 `redact_sensitive_text` 凭据脱敏，再 `wrap_untrusted` 包装**，提供 5 层安全防护：
+浏览器工具返回的所有外部内容（snapshot / extract / inspect / navigate / interact / evaluate / execute_script / console / network / web_vitals / download_url / list_downloads / ask_human 接管结果）经统一出口 `mark_untrusted`（`tools/common.py`）：**先 `redact_sensitive_text` 凭据脱敏，再 `wrap_untrusted` 包装**，格式如下：
 
 ```
 [SECURITY NOTICE: UNTRUSTED external content below...]
@@ -820,12 +820,7 @@ Source: browser
 <<<END_UNTRUSTED_DATA id="random_boundary_id">>>
 ```
 
-防御 indirect prompt injection，包含：
-- L1: Unicode Folding（26种角括号规范化）
-- L2: 不可见字符过滤（13类）
-- L3: 可疑模式检测（20种）
-- L4: 随机边界 ID
-- L5: 安全提示前缀（指示 LLM 不执行内容中的指令）
+包装用于降低 indirect prompt injection 的风险，是文本层缓解，不是硬边界；各层处理与限度见 [SECURITY_WRAPPER_GUIDE.md](../SECURITY_WRAPPER_GUIDE.md) 的「安全防护层级」。
 
 ---
 

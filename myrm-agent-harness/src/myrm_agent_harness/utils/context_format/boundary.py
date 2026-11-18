@@ -23,7 +23,7 @@ def wrap_with_external_sources_tag(context: str, *, source: str = "external") ->
     用于包裹外部数据源（web_search、web_fetch、browser、wiki、MCP远程数据），
     触发引用规则；具体引用格式由业务层 prompt/middleware 定义。
 
-    安全：5 层防护（Unicode folding + invisible chars + pattern detection + random boundary + security notice）。
+    安全：文本层缓解；分层处理与限度见 toolkits/SECURITY_WRAPPER_GUIDE.md 与 content_boundary 模块文档。
     """
     from myrm_agent_harness.core.security.detection.content_boundary import (
         wrap_untrusted,
@@ -39,7 +39,7 @@ def wrap_with_tool_output_tag(content: str) -> str:
     用于包裹工具执行结果（代码输出、文件内容），防止 prompt injection，
     但不触发引用规则（模型无需添加引用标记）。
 
-    安全：5 层防护（Unicode folding + invisible chars + pattern detection + random boundary + security notice）。
+    安全：文本层缓解；分层处理与限度见 toolkits/SECURITY_WRAPPER_GUIDE.md 与 content_boundary 模块文档。
     """
     from myrm_agent_harness.core.security.detection.content_boundary import (
         wrap_tool_output,

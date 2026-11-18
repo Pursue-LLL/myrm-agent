@@ -9,7 +9,7 @@ Provides MCP tool fetching capabilities:
 - Maintains tool-to-server mapping
 - Supports parallel multi-server tool fetching
 - Content block coercion: ensures only LLM-safe types (text, image) reach the API — ``file``, ``audio``, and unknown blocks are gracefully degraded to text, preventing 400 errors and session history poisoning
-- Content boundary defense: applies ``wrap_untrusted()`` to MCP tool outputs, ensuring third-party server data receives the same 5-layer content boundary protection as all built-in tools
+- Content boundary defense: applies ``wrap_untrusted()`` to MCP tool outputs, so third-party server data is wrapped in the same content boundary as web and shell outputs
 - Upstream fault tolerance: catches adapter-layer exceptions, returning ``redact_sensitive_text``-sanitized error messages instead of crashing
 - Auth error detection: catches ``httpx2.HTTPStatusError(401)`` from the MCP transport, returns a clear re-authorization message, and emits ``MCPAuthExpiredEvent``
 - Extracts MCP structured_content from artifacts as supplementary text blocks
