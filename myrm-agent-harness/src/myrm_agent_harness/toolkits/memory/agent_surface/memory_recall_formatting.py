@@ -5,7 +5,7 @@
 - core.security.detection.content_boundary::sanitize (POS: Content boundary defense core)
 
 [OUTPUT]
-- parse_time_bound: Parse a recall time bound (ISO 8601, or a relative amount such as 30m, 24h, 7d, 2w, 1y) into a UTC datetime; a date without a time ends at the close of its day as an upper bound.
+- parse_time_bound: Parse a recall time bound (ISO 8601, or a relative amount such as 30m, 24h, 7d, 2w, 1y) into a UTC datetime; a date or time without an offset is read in the given zone (UTC without one), and a date without a time ends at the close of its day as an upper bound.
 - memory_age_label: Human-readable age label for memory timestamps.
 - is_stale: Staleness check for recalled factual memories.
 - channel_label: Human-readable channel provenance label.
@@ -28,6 +28,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, date, datetime, time, timedelta
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
@@ -66,16 +67,19 @@ def _date_without_time(value: str) -> date | None:
         return None
 
 
-def parse_time_bound(value: str | None, *, is_upper_bound: bool = False) -> datetime | None:
+def parse_time_bound(value: str | None, *, is_upper_bound: bool = False, zone: str | None = None) -> datetime | None:
     """Parse a time-bound string into a UTC datetime; None when it is unparseable or out of range.
 
     A bound is an ISO 8601 date or datetime, or an amount counted back from now: ``<n>m`` minutes, ``<n>h`` hours,
-    ``<n>d`` days, ``<n>w`` weeks, ``<n>y`` 365-day years. Both bounds of a search are inclusive, so a date without a
-    time names its whole UTC day: as an upper bound it ends at 23:59:59.999999, otherwise it starts at 00:00.
+    ``<n>d`` days, ``<n>w`` weeks, ``<n>y`` 365-day years. A date or datetime without an offset is read in ``zone``
+    (an IANA name that ``ZoneInfo`` accepts; UTC when None), one with an offset keeps it. Both bounds of a search are
+    inclusive, so a date without a time names its whole day in ``zone``: as an upper bound it ends at 23:59:59.999999,
+    otherwise it starts at 00:00.
     """
     if not value:
         return None
     value = value.strip()
+    local = ZoneInfo(zone) if zone else UTC
     try:
         match = _RELATIVE_TIME_RE.match(value)
         if match:
@@ -83,10 +87,12 @@ def parse_time_bound(value: str | None, *, is_upper_bound: bool = False) -> date
             unit_seconds = _RELATIVE_UNITS[match.group(2).lower()]
             return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
         if is_upper_bound and (day := _date_without_time(value)) is not None:
-            return datetime.combine(day, time.max, tzinfo=UTC)
+            # fold=1: when the clocks turn back at midnight the day's last minute occurs twice, and the day
+            # ends at the later one.
+            return datetime.combine(day, time.max, tzinfo=local).replace(fold=1).astimezone(UTC)
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=UTC)
+            dt = dt.replace(tzinfo=local)
         return dt.astimezone(UTC)
     except (ValueError, OverflowError):
         return None

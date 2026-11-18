@@ -1,6 +1,7 @@
 """memory_search_tool: unified read plane over memory / wiki / sessions.
 
 [INPUT]
+- core.context_vars::request_timezone (POS: Foundation ContextVar registry shared by agent/ and toolkits/)
 - toolkits.memory.agent_surface.memory_agent_tools.common::{CATEGORY_TO_TYPE, parse_string_list} (POS: Stateless helpers for memory_search/save/manage tool arguments)
 - toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
 - toolkits.memory.agent_surface.memory_search_policy (POS: corpus ACL and optional wiki/sessions backends)
@@ -13,7 +14,7 @@
 - build_memory_search_tool: bind memory_search_tool to a manager, corpus policy and backends
 
 [POS]
-Read plane of the agent memory tools: unified search over memory, wiki and sessions; the write plane lives in save_tool / manage_tool.
+Read plane of the agent memory tools: unified search over memory, wiki and sessions, with ``since`` / ``until`` read once here, in the requester's zone, for every corpus; the write plane lives in save_tool / manage_tool.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from typing import Literal
 
 from langchain_core.tools import BaseTool, tool
 
+from myrm_agent_harness.core.context_vars import request_timezone
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common import (
     CATEGORY_TO_TYPE,
     parse_string_list,
@@ -114,8 +116,10 @@ def build_memory_search_tool(
 
         parsed_cats = parse_string_list(categories)
         category_names = [c for c in parsed_cats if c in CATEGORY_TO_TYPE] or None
-        parsed_since = _parse_time_bound(since)
-        parsed_until = _parse_time_bound(until, is_upper_bound=True)
+        # A date or time without an offset is read in the requester's zone: "the 14th" is the user's own 14th.
+        zone = request_timezone()
+        parsed_since = _parse_time_bound(since, zone=zone)
+        parsed_until = _parse_time_bound(until, is_upper_bound=True, zone=zone)
         recall_limit = normalize_recall_limit(limit)
         sections: list[str] = []
         aggregated_sources: list[dict[str, object]] = []
@@ -131,8 +135,8 @@ def build_memory_search_tool(
                     category_to_type=CATEGORY_TO_TYPE,
                     categories=category_names,
                     limit=recall_limit,
-                    since=since,
-                    until=until,
+                    since=parsed_since,
+                    until=parsed_until,
                     detail_level=detail_level,
                     domain=domain,
                 )

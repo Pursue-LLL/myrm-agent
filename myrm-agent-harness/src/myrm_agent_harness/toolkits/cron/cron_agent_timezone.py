@@ -5,11 +5,10 @@ expression and the active-hours window. The zone is the explicit ``tz``, else th
 being edited, else the requester's zone, else UTC. A time that carries its own offset keeps it.
 
 [INPUT]
-- core.context_vars::user_timezone_var (POS: 跨层 ContextVar)
+- core.context_vars::request_timezone (POS: 跨层 ContextVar，请求时区的校验后访问器)
 - toolkits.cron.engine.parser::validate_timezone (POS: cron 表达式解析与下次运行时间计算)
 
 [OUTPUT]
-- request_timezone: the requester's zone, when the request carries a valid one
 - resolve_timezone: explicit zone, else inherited, else the requester's, as (error, zone name or None for UTC)
 - parse_local_datetime: ISO 8601 text to an aware datetime; a time without offset is read in the zone
 - zone_fields: the ``timezone`` and ``next_run_local`` entries of a task's JSON result
@@ -24,16 +23,10 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from myrm_agent_harness.core.context_vars import user_timezone_var
+from myrm_agent_harness.core.context_vars import request_timezone
 from myrm_agent_harness.toolkits.cron.engine.parser import validate_timezone
 
 _ISO_EXAMPLE = "'2026-03-01T10:00:00' or '2026-03-01T10:00:00+08:00'"
-
-
-def request_timezone() -> str | None:
-    """The zone of the request the tool runs in; a name that is not a real zone counts as no zone."""
-    name = (user_timezone_var.get() or "").strip()
-    return name if name and validate_timezone(name) else None
 
 
 def resolve_timezone(explicit: str, *, inherited: str | None = None) -> tuple[str | None, str | None]:

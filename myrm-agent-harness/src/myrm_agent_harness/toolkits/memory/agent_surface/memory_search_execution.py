@@ -7,7 +7,7 @@
 - toolkits.memory.conversation_search.types::ConversationSearchRequest (POS: Conversation search request DTO)
 - toolkits.memory.agent_surface.memory_citations::cited_memory_ref, emit_cited_memory_ids (POS: cited_memory_ids SSE bridge for recalled memories)
 - toolkits.memory.agent_surface.memory_recall_budget::MAX_RECALL_OUTPUT_CHARS, budget_recall_line, line_cost, normalize_recall_limit (POS: recall output budget guardrails)
-- toolkits.memory.agent_surface.memory_recall_formatting::finalize_recall_tool_output, format_drill_down_output, memory_age_label, channel_label, is_stale, parse_time_bound (POS: recall sanitize SSOT, line labels, since/until bounds and the by-id read-back output)
+- toolkits.memory.agent_surface.memory_recall_formatting::finalize_recall_tool_output, format_drill_down_output, memory_age_label, channel_label, is_stale (POS: recall sanitize SSOT, line labels, since/until bounds and the by-id read-back output)
 - toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply (POS: the reply to a search that finds nothing)
 - toolkits.memory.agent_surface.memory_search_policy::MemorySearchBackends (POS: corpus ACL with the optional wiki and sessions backends)
 - toolkits.memory.agent_surface.tool_result_sources::pack_tool_result_with_sources (POS: pack/unpack metadata.sources for corpus results)
@@ -49,7 +49,6 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
     format_recall_source_error_suffix,
     is_stale,
     memory_age_label,
-    parse_time_bound,
     recall_drift_defense_footer_chars,
     recall_preamble_overhead_chars,
 )
@@ -111,14 +110,16 @@ async def search_memory_corpus(
     category_to_type: dict[str, MemoryType],
     categories: list[str] | None,
     limit: int | str | None,
-    since: str | None,
-    until: str | None,
+    since: datetime | None,
+    until: datetime | None,
     detail_level: str = "overview",
     domain: str | None = None,
 ) -> str:
-    """Search long-term memory corpus (includes active session buffer)."""
-    parsed_since = parse_time_bound(since)
-    parsed_until = parse_time_bound(until, is_upper_bound=True)
+    """Search long-term memory corpus (includes active session buffer).
+
+    ``since`` and ``until`` are the inclusive bounds on when a memory was saved, parsed by the caller; None leaves a
+    side open.
+    """
     recall_limit = normalize_recall_limit(limit)
     types: list[MemoryType] | None = None
     if categories:
@@ -129,8 +130,8 @@ async def search_memory_corpus(
         query,
         memory_types=types,
         limit=recall_limit,
-        since=parsed_since,
-        until=parsed_until,
+        since=since,
+        until=until,
     )
     output: list[str] = []
     displayed_results: list[MemorySearchResult] = []
@@ -167,7 +168,7 @@ async def search_memory_corpus(
                 codes = manager.last_retrieval_trace.warning_codes
                 code_suffix = f" ({', '.join(codes)})" if codes else ""
                 return f"Memory search degraded due to timeout or internal store error{code_suffix}. Try a more specific query or retry."
-        return no_result_reply(types, since=parsed_since, until=parsed_until)
+        return no_result_reply(types, since=since, until=until)
 
     for result in results:
         memory = result.memory
@@ -273,7 +274,7 @@ async def search_memory_corpus(
         )
 
     if not output:
-        return no_result_reply(types, since=parsed_since, until=parsed_until)
+        return no_result_reply(types, since=since, until=until)
 
     text = finalize_recall_tool_output("\n".join(output))
     text += RECALL_DRIFT_DEFENSE_FOOTER

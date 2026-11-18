@@ -9,6 +9,7 @@ a model that is not told the window concludes the memory does not exist.
 - toolkits.memory.agent_surface.memory_search_execution::search_memory_corpus (POS: memory corpus search of memory_search_tool)
 - toolkits.memory.agent_surface.memory_agent_tools.common::CATEGORY_TO_TYPE (POS: agent-visible category names)
 - toolkits.memory.agent_surface.memory_recall_budget::DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT (POS: the recall limits the reply quotes)
+- toolkits.memory.agent_surface.memory_recall_formatting::parse_time_bound (POS: the since/until parser of the recall tools)
 - toolkits.memory.setup::create_local_memory_manager (POS: embeddings-less local memory manager)
 
 [POS]
@@ -26,6 +27,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common import CATEGORY_TO_TYPE
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget import DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import parse_time_bound
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import search_memory_corpus
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType, SemanticMemory
@@ -60,8 +62,8 @@ async def _search(
             category_to_type=CATEGORY_TO_TYPE,
             categories=categories,
             limit=None,
-            since=since,
-            until=until,
+            since=parse_time_bound(since),
+            until=parse_time_bound(until, is_upper_bound=True),
             domain=domain,
         )
 
@@ -142,8 +144,8 @@ async def test_a_memory_saved_before_the_window_is_only_found_without_it(tmp_pat
                 category_to_type=CATEGORY_TO_TYPE,
                 categories=["knowledge"],
                 limit=5,
-                since=since,
-                until=until,
+                since=parse_time_bound(since),
+                until=parse_time_bound(until, is_upper_bound=True),
             )
 
         windowed = await search(since="2026-03-01", until="2026-03-31")
