@@ -85,11 +85,11 @@ class TestSmartEnvInjection:
 
 
 class TestResilienceGitCredentialInjection:
-    """GitHub credential/identity injection guards in resilience_init.sh (git push/commit).
+    """GitHub credential/identity injection guards in resilience_init.sh (git clone/push/commit).
 
-    Verifies: HTTPS push gets an env-ref credential helper (token never inlined),
-    SSH pushes passthrough, and commits resolve/inject identity only when the
-    sandbox has none.
+    Verifies: HTTPS clone and push get an env-ref credential helper (token never inlined),
+    SSH and third-party remotes passthrough, and commits resolve/inject identity only when
+    the sandbox has none.
     """
 
     _RESILIENCE = os.path.join(
@@ -116,7 +116,7 @@ case "$1" in
         esac;;
       *) exit 0;;
     esac;;
-  remote) echo "$FAKE_GIT_REMOTE"; exit 0;;
+  remote) [ -n "$FAKE_GIT_REMOTE" ] || exit 2; echo "$FAKE_GIT_REMOTE"; exit 0;;
   symbolic-ref) echo "feat/test"; exit 0;;
 esac
 exit 0
@@ -241,6 +241,44 @@ exit 0
         )
         assert "-c credential.helper=" not in log
         assert "origin main" in log
+
+    @pytest.mark.asyncio
+    async def test_push_without_a_configured_remote_still_runs_under_errexit(self) -> None:
+        """A failed remote lookup must not end a script running under ``set -e`` before git is called."""
+        log = await self._run(
+            self._env(remote="", token="ghp_testtoken"),
+            "set -e\ngit push https://github.com/owner/repo.git main",
+        )
+        assert "push https://github.com/owner/repo.git main" in log
+
+    @pytest.mark.asyncio
+    async def test_clone_https_injects_host_scoped_helper(self) -> None:
+        """An HTTPS GitHub clone gets the same env-ref helper as a push, so a private repository clones."""
+        log = await self._run(
+            self._env(remote="", token="ghp_testtoken"),
+            "git clone https://github.com/owner/repo.git",
+        )
+        assert "-c credential.helper=" in log
+        assert 'host=*) host="${line#host=}"' in log
+        assert 'password="${GITHUB_TOKEN}"' in log
+        assert "password=ghp_testtoken" not in log
+        assert "clone https://github.com/owner/repo.git" in log
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://gitlab.example.com/owner/repo.git",
+            "git@github.com:owner/repo.git",
+            "https://user:secret@github.com/owner/repo.git",
+        ],
+        ids=["third-party-host", "ssh", "credentials-in-url"],
+    )
+    async def test_clone_of_a_url_that_is_not_plain_https_github_passthrough(self, url: str) -> None:
+        """Only an HTTPS GitHub URL without credentials of its own may be handed the GitHub token."""
+        log = await self._run(self._env(remote="", token="ghp_testtoken"), f"git clone {url}")
+        assert "-c credential.helper=" not in log
+        assert f"clone {url}" in log
 
     @pytest.mark.asyncio
     async def test_commit_injects_resolved_identity(self) -> None:

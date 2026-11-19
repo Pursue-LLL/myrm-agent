@@ -44,6 +44,19 @@ class BackgroundRun:
 
 
 @dataclass(frozen=True)
+class StubBin:
+    """A directory in front of the PATH the stack's shell inherits, holding stand-ins for host tools."""
+
+    directory: Path
+
+    def add(self, name: str, script: str) -> None:
+        """Make *name* a POSIX shell script with the body *script*, run in place of the host's tool."""
+        path = self.directory / name
+        path.write_text(f"#!/bin/sh\n{script}\n", encoding="utf-8")
+        path.chmod(0o755)
+
+
+@dataclass(frozen=True)
 class RealBashStack:
     """One chat's bash tool: every call goes through the same persistent shell session."""
 
