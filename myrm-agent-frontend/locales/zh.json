@@ -21731,6 +21731,7 @@
             "install_failed": "技能安装失败",
             "enable_failed": "已安装，但未能自动启用，请在技能列表中手动启用",
             "stdio_not_allowed": "当前环境无法运行本地进程类 MCP 服务器",
+            "mcp_config_unreadable": "无法读取已保存的 MCP 服务器列表，该服务器未被添加",
             "persist_failed": "智能体保存失败",
             "invalid_agent": "智能体定义无效",
             "generic": "无法导入"

@@ -367,6 +367,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `integration/test_web_search_fetch_hint_alignment.py` | 集成 | 搜索工具对网页抓取工具能力的推荐保持同步：经真实的 `ToolSetupMixin` 装配，仅当高级检索开启且重排与嵌入配置齐全时，web_fetch 才带 `operation` 参数、web_search 描述才推荐 `fetch_and_extract`；缺任一配置、高级检索关闭或 web_fetch 未挂载时都不提 |
 | `services/plugins/test_export_acceptance.py` | 模块 | 专家导出验收（以官方冻结 schema 与归档字节为判据，不对内部结构做断言）：`plugin.json`/`mcp.json` schema 合规与 `ai.myrm` 独占扩展 · 归档路径安全 · 脱敏只触及秘密（其余字节不变）· 未带出清单对账（含反例）· 导出→导入→再导出定点往返 · 本地导出→云端导入的 stdio 降级 |
 | `services/plugins/test_third_party_plugin.py` | 模块 | 第三方真实插件（`fixtures/agent_plugins/third_party/hindsight/`）在平铺与单层包裹两种归档下都能解析并预览：技能与远程连接器不丢，外来 `extensions` 命名空间保持外来 |
+| `services/plugins/test_mcp_row_writes.py` | 模块 | 插件导入与卸载对已存 `mcpServers` 行的写入（真实配置服务 + 内存库，不替身）：导入并入已存列表（disabled、行内其它键保留、下一次配置加载即见新条目）· 首次导入建行 · 封存密钥已丢失的行与读取失败都不被覆盖（逐连接器记 `mcp_config_unreadable`、`imported_servers` 为 0、记 WARNING）· 卸载只删本插件条目并保留其它键 · 读不出的行卸载不写，已装列表按没有处理 |
 | `fixtures/agent_plugins/` | 辅助 | 官方冻结 JSON Schema（`plugin.schema.json` / `mcp.schema.json`）与第三方真实插件夹具（`third_party/hindsight/`，`NOTICE` 记录来源与许可） |
 | `integration/test_expert_exchange_integration.py` | 模块 | 专家交换真实栈集成（真实数据库 + 连接器配置库 + 技能安装流水线 + 导出/导入路由 + ZIP，无 mock）：团队（含泄漏密钥、越权策略、远程连接器）导出 → 空的第二套安装导入（子专家重新连线 · 密钥与越权策略不外带 · 连接器默认停用且头部为占位符）；自定义技能（安装 → 导出 → 卸载 → 导入：路径泄漏被脱敏、专家重新指向新装技能）；同机导入默认生成「(imported)」副本且不动原件，选择「替换」时保存可回滚版本并保持用户自己的安全策略 |
 | `integration/extension_real_browser/conftest.py` | 辅助 | 真实 Chromium 扩展 e2e 的共用夹具 `stack`：每个测试一份全新浏览器 profile，扩展已处于用户在 popup 点击连接后的状态并接着生产 bridge，测试后拆除 |

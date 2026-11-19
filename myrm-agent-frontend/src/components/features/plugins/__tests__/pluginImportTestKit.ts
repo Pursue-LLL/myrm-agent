@@ -120,6 +120,7 @@ const IMPORT_TEXT: Record<string, string> = {
   'failures.components.agent': 'Agent',
   'failures.codes.install_failed': 'The skill could not be installed',
   'failures.codes.stdio_not_allowed': 'Local MCP servers cannot run here',
+  'failures.codes.mcp_config_unreadable': 'The saved MCP server list could not be read',
   'failures.codes.generic': 'It could not be imported',
   'result.checking': 'Checking readiness...',
   'result.readinessUnavailable': 'Readiness could not be checked',

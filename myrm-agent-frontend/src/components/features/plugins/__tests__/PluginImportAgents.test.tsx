@@ -241,6 +241,7 @@ describe('PluginImportDialog - agents', () => {
         failures: [
           { component: 'skill', name: 'extract', code: 'install_failed', message: 'English diagnostic for logs' },
           { component: 'mcp', name: 'odd', code: 'brand_new_code', message: 'English diagnostic for logs' },
+          { component: 'mcp', name: 'docs', code: 'mcp_config_unreadable', message: 'English diagnostic for logs' },
         ],
       }),
     );
@@ -258,6 +259,7 @@ describe('PluginImportDialog - agents', () => {
     expect(screen.getByText('Some components were not imported')).toBeInTheDocument();
     expect(screen.getByText(/The skill could not be installed/)).toBeInTheDocument();
     expect(screen.getByText(/It could not be imported/)).toBeInTheDocument();
+    expect(screen.getByText(/The saved MCP server list could not be read/)).toBeInTheDocument();
     expect(screen.queryByText(/English diagnostic for logs/)).not.toBeInTheDocument();
 
     // Readiness arrives after the result is shown, with a deep link for unresolved items.

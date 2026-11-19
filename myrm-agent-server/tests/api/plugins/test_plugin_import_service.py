@@ -394,6 +394,11 @@ def _decision(component: str, virtual_id: str, name: str, resolution: str = "ins
     return PluginConfirmItem(component=component, virtual_id=virtual_id, resolution=resolution, name=name)
 
 
+def _stored_mcp(*, value: object) -> SimpleNamespace:
+    """The ``mcpServers`` record as the config service returns it for a row it could read (``unreadable`` is False)."""
+    return SimpleNamespace(value=value, unreadable=False)
+
+
 EMPTY_RESULT: dict[str, object] = {
     "imported_skills": 0,
     "skipped_skills": 0,
@@ -494,9 +499,7 @@ class TestConfirmPluginImport:
     async def test_duplicate_server_name_not_counted_or_bound(self, confirm_env: SimpleNamespace) -> None:
         session = _parse_session()
         server_keys = list(session.servers_by_key)
-        confirm_env.config_service.get.return_value = SimpleNamespace(
-            value={"mcpConfigs": [{"name": "pdf-server", "enabled": True}]}
-        )
+        confirm_env.config_service.get.return_value = _stored_mcp(value={"mcpConfigs": [{"name": "pdf-server", "enabled": True}]})
 
         result = await confirm_plugin_import(
             session,
@@ -530,7 +533,7 @@ class TestConfirmPluginImport:
     async def test_merges_existing_mcp_configs(self, confirm_env: SimpleNamespace) -> None:
         session = _parse_session()
         server_keys = list(session.servers_by_key)
-        confirm_env.config_service.get.return_value = SimpleNamespace(
+        confirm_env.config_service.get.return_value = _stored_mcp(
             value={"mcpConfigs": [{"name": "pdf-server", "enabled": True, "command": "/old"}]}
         )
 
@@ -559,7 +562,7 @@ class TestConfirmPluginImport:
         """
         session = _parse_session()
         server_key = next(iter(session.servers_by_key))
-        confirm_env.config_service.get.return_value = SimpleNamespace(
+        confirm_env.config_service.get.return_value = _stored_mcp(
             value=[{"name": "user-mcp", "enabled": True, "command": "/keep-me"}]
         )
 
@@ -895,7 +898,7 @@ class TestListAndUninstallPlugins:
 
         config_service = SimpleNamespace(
             get=AsyncMock(
-                return_value=SimpleNamespace(
+                return_value=_stored_mcp(
                     value={
                         "mcpConfigs": [
                             {
@@ -943,7 +946,7 @@ class TestListAndUninstallPlugins:
         from app.services.plugins.import_service import list_installed_plugins
 
         config_service = SimpleNamespace(
-            get=AsyncMock(return_value=SimpleNamespace(value={"mcpConfigs": []})),
+            get=AsyncMock(return_value=_stored_mcp(value={"mcpConfigs": []})),
             set=AsyncMock(),
         )
         with patch("app.services.config.service.config_service", config_service):
@@ -954,7 +957,7 @@ class TestListAndUninstallPlugins:
 
         config_service = SimpleNamespace(
             get=AsyncMock(
-                return_value=SimpleNamespace(
+                return_value=_stored_mcp(
                     value={
                         "mcpConfigs": [
                             {
@@ -1020,7 +1023,7 @@ class TestListAndUninstallPlugins:
         from app.services.plugins.import_service import uninstall_plugin
 
         config_service = SimpleNamespace(
-            get=AsyncMock(return_value=SimpleNamespace(value={"mcpConfigs": [{"name": "user-mcp", "command": "/keep"}]})),
+            get=AsyncMock(return_value=_stored_mcp(value={"mcpConfigs": [{"name": "user-mcp", "command": "/keep"}]})),
             set=AsyncMock(),
         )
         with (
@@ -1098,7 +1101,7 @@ class TestListAndUninstallPlugins:
 
         config_service = SimpleNamespace(
             get=AsyncMock(
-                return_value=SimpleNamespace(
+                return_value=_stored_mcp(
                     value={
                         "mcpConfigs": [
                             {

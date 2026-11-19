@@ -16,7 +16,12 @@ skill ids / server names to an Agent profile.
 
 [OUTPUT]
 - _collect_server_configs / _write_mcp_servers: MCP decision filtering + merge
-  into mcpServers UserConfig; returns persisted names only.
+  into mcpServers UserConfig; returns the persisted names and the failures. A
+  stored row that cannot be read back is left untouched and every server is
+  reported with ``mcp_config_unreadable``.
+- _read_stored_mcp_servers / _load_persisted_mcp_configs: the stored row for a
+  writer (``None`` when it cannot be read back) and its entries for a reader
+  (empty then).
 - _server_to_config_dict: serialize a plugin MCP server (secret references +
   required_secrets for Scoped Secret Injection); embeds plugin_name / cwd / env
   and the persisted plugin_root / data_root into extra_params.
@@ -24,7 +29,7 @@ skill ids / server names to an Agent profile.
 - SECRET_REF_PATTERN / is_secret_reference: the ``{{secret:KEY}}`` reference grammar, shared with export.
 - _bind_agent: atomically append skill_ids + mcp_ids to an Agent profile.
 - _remove_plugin_mcp_servers: drop every mcpServers entry imported by a plugin
-  name (uninstall).
+  name (uninstall); a row that cannot be read back is left untouched.
 - _unbind_plugin_from_agents: remove uninstalled server names from every
   agent's mcp_ids (uninstall).
 
@@ -37,6 +42,7 @@ from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.plugins.models import PluginMcpServer
@@ -50,6 +56,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 BLOCK_MISSING_ARTIFACT = "missing_artifact"
+FAILURE_MCP_CONFIG_UNREADABLE = "mcp_config_unreadable"
 
 SECRET_REF_PATTERN = re.compile(r"\{\{secret:([^}]+)\}\}")
 
@@ -172,64 +179,109 @@ def _collect_required_secret_keys(configs: list[dict[str, object]]) -> list[str]
     return list(dict.fromkeys(key.strip() for key in keys if key.strip()))
 
 
+@dataclass(frozen=True, slots=True)
+class _StoredMcpServers:
+    """The ``mcpServers`` row a writer extends: its entries and the other keys of the stored value."""
+
+    configs: list[dict[str, object]]
+    extras: dict[str, object]
+
+    def with_configs(self, configs: list[dict[str, object]]) -> dict[str, object]:
+        """The value to store: ``configs`` in the ``{"mcpConfigs": [...]}`` envelope, the other keys as they were."""
+        return {**self.extras, "mcpConfigs": configs}
+
+
+def _unreadable_failures(configs: list[dict[str, object]]) -> list[ComponentFailure]:
+    names = (str(cfg.get("name", "")).strip() for cfg in configs)
+    return [
+        ComponentFailure(
+            "mcp",
+            name,
+            FAILURE_MCP_CONFIG_UNREADABLE,
+            f"Connector '{name}' was not imported (the stored MCP server list cannot be read)",
+        )
+        for name in names
+        if name
+    ]
+
+
 async def _write_mcp_servers(
     configs: list[dict[str, object]],
-) -> list[str]:
-    """Persist MCP servers, skipping existing names; returns persisted names.
+) -> tuple[list[str], list[ComponentFailure]]:
+    """Persist MCP servers, skipping existing names; returns ``(persisted names, failures)``.
 
     ``mcpServers`` is stored as ``{"mcpConfigs": [...]}`` to match the frontend
     config sync and runtime config loader contract. Existing user-configured
-    servers are merged and preserved so a plugin import never drops them.
-    The returned names reflect only entries actually written (a duplicate name
-    is skipped, not counted, not bound).
+    servers and any other key of the stored value are kept so a plugin import
+    never drops them. The returned names reflect only entries actually written
+    (a duplicate name is skipped, not counted, not bound).
+
+    A row that cannot be read back is left as it is and every server is reported
+    as failed: it reads as empty, and writing over it would destroy what the
+    user can still restore once the key is back.
     """
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.services.config.service import config_service
 
-    existing = await _load_persisted_mcp_configs(config_service)
+    stored = await _read_stored_mcp_servers(config_service)
+    if stored is None:
+        logger.warning("MCP servers were not imported: the stored mcpServers cannot be read back")
+        return [], _unreadable_failures(configs)
 
-    existing_names = {str(cfg.get("name", "")) for cfg in existing if isinstance(cfg, dict)}
-    new_configs: list[dict[str, object]] = []
+    taken_names = {str(cfg.get("name", "")) for cfg in stored.configs}
+    added: list[dict[str, object]] = []
     persisted_names: list[str] = []
     for cfg in configs:
         name = str(cfg.get("name", "")).strip()
-        if not name or name in existing_names:
+        if not name or name in taken_names:
             continue
-        entry = {**cfg, "enabled": False}
-        existing.append(entry)
-        existing_names.add(name)
-        new_configs.append(entry)
+        added.append({**cfg, "enabled": False})
+        taken_names.add(name)
         persisted_names.append(name)
 
-    if new_configs:
-        await config_service.set("mcpServers", {"mcpConfigs": existing}, device_id="plugin-import")
+    if added:
+        await config_service.set("mcpServers", stored.with_configs([*stored.configs, *added]), device_id="plugin-import")
         invalidate_user_configs_cache()
-    return persisted_names
+    return persisted_names, []
 
 
-async def _load_persisted_mcp_configs(
-    config_service: "ConfigService",
-) -> list[dict[str, object]]:
-    """Load persisted MCP entries from the ``mcpServers`` UserConfig.
+async def _read_stored_mcp_servers(config_service: "ConfigService") -> _StoredMcpServers | None:
+    """Read the ``mcpServers`` UserConfig; ``None`` when it cannot be read back.
 
-    Supports both the canonical ``{"mcpConfigs": [...]}`` envelope and a
-    bare list payload. Returns an empty list when the record is absent or
-    unreadable (corrupt payloads are replaced on save).
+    A row sealed under a key that is gone reads as empty (``unreadable``) and a failed read says nothing, so neither
+    means "no servers": a writer that took it for that would overwrite entries the user still has.
     """
     try:
         record = await config_service.get("mcpServers")
     except Exception as exc:
         logger.warning("Failed to load existing mcpServers config: %s", exc)
-        return []
+        return None
     if record is None:
-        return []
+        return _StoredMcpServers(configs=[], extras={})
+    if record.unreadable:
+        return None
     value = record.value
+    extras = {key: item for key, item in value.items() if key != "mcpConfigs"} if isinstance(value, dict) else {}
+    return _StoredMcpServers(configs=_configs_in(value), extras=extras)
+
+
+def _configs_in(value: object) -> list[dict[str, object]]:
+    """The entries of a stored value: the canonical ``{"mcpConfigs": [...]}`` envelope or a bare list payload."""
     if isinstance(value, dict):
-        raw = value.get("mcpConfigs")
-        return [cfg for cfg in raw if isinstance(cfg, dict)] if isinstance(raw, list) else []
-    if isinstance(value, list):
-        return [cfg for cfg in value if isinstance(cfg, dict)]
-    return []
+        value = value.get("mcpConfigs")
+    return [cfg for cfg in value if isinstance(cfg, dict)] if isinstance(value, list) else []
+
+
+async def _load_persisted_mcp_configs(
+    config_service: "ConfigService",
+) -> list[dict[str, object]]:
+    """Load persisted MCP entries from the ``mcpServers`` UserConfig for a reader.
+
+    Returns an empty list when the record is absent or cannot be read back;
+    readers (preview, export, installed listing) have nothing to show then.
+    """
+    stored = await _read_stored_mcp_servers(config_service)
+    return stored.configs if stored is not None else []
 
 
 async def _bind_agent(
@@ -276,22 +328,28 @@ async def _remove_plugin_mcp_servers(plugin_name: str) -> int:
     """Remove every mcpServers entry imported by ``plugin_name``.
 
     Returns the number of removed entries. The global mcpServers UserConfig is
-    rewritten without the plugin's entries; user-configured servers are kept.
+    rewritten without the plugin's entries; user-configured servers and the other
+    keys of the stored value are kept. A row that cannot be read back is left
+    as it is (nothing is removed from it).
     """
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.services.config.service import config_service
 
-    existing = await _load_persisted_mcp_configs(config_service)
+    stored = await _read_stored_mcp_servers(config_service)
+    if stored is None:
+        logger.warning("MCP servers of plugin '%s' were not removed: the stored mcpServers cannot be read back", plugin_name)
+        return 0
+
     remaining: list[dict[str, object]] = []
     removed = 0
-    for cfg in existing:
+    for cfg in stored.configs:
         if _plugin_name_of_cfg(cfg) == plugin_name:
             removed += 1
             continue
         remaining.append(cfg)
 
     if removed:
-        await config_service.set("mcpServers", {"mcpConfigs": remaining}, device_id="plugin-uninstall")
+        await config_service.set("mcpServers", stored.with_configs(remaining), device_id="plugin-uninstall")
         invalidate_user_configs_cache()
     return removed
 

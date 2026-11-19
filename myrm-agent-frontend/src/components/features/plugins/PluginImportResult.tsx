@@ -26,6 +26,7 @@ const KNOWN_FAILURE_CODES = new Set([
   'install_failed',
   'enable_failed',
   'stdio_not_allowed',
+  'mcp_config_unreadable',
   'persist_failed',
   'invalid_agent',
 ]);
