@@ -224,9 +224,9 @@ class SSRFResult:
 
 BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`, `&&`, `||`, `>` 等合法 Shell 操作符。
 
-**改写受保护指令文件的 shell 命令**：文件工具写这些文件时给出的 ASK，理由固定为 `Protected instruction file write requires human approval: <文件名>`（`ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE`），allowlist 阶段与待审批标注认这条理由，定时运行则否决任何不是放行的路径裁决，所以 allowlist 条目、仓库声明的命令前缀、定时作业的能力声明都替用户放行不了。shell 命令走同一条 ASK，理由由 `checks.py` 的同一个构造函数给出：bash 工具与 `shell_exec` 一视同仁，命令没有宿主文件路径参数时，`engine.check_tool_path_policy` 返回 `check_command_protected_write`（引擎与定时运行共用）；`shell_exec` 经 `check_shell_threats` 时，BLOCK 仍先于它，同一行里的其他升级项（如 `eval`）不会盖过它。bash 工具里按 Python 源码运行的文本（`runs_as_python`）不是 shell 语法，不在此判定。判定只由 `protected_instruction_mutation_target(command)` 一个函数给出，分析器、引擎和 `should_block_allow_always` 共用：先看命令里有没有受保护名字，没有就不再往下；只读分类器（`risk_classifier`）判为 SAFE 的命令不算改写，所以 `grep -n rm AGENTS.md` 不会因参数里拼出了 `rm` 被当成改写；其余按 `split_command_spans` 逐条命令匹配写形态：POSIX 的重定向（含 `>&`）、`sed -i`（`-i` 在参数里的位置不限，`--in-place` 同）、`tee`、`cp`、`mv`、`rm`、`truncate`，PowerShell 的 `Set-Content`、`Add-Content`、`Out-File`、`Clear-Content`、`Remove-Item`、`Copy-Item`、`Move-Item`、`Rename-Item`、`New-Item`，cmd 的 `del`、`erase`、`copy`、`move`、`ren`、`rename`（这六个只认作一条命令的第一个词：命令本身、`cmd /c` 或 `powershell -Command` 交给它的命令（`-ExecutionPolicy Bypass`、`-WindowStyle Hidden` 里选项的取值照认，不会被当成命令），或跟在 `;`、`&`、`|`、`(`、`{` 之后的词，所以带引号的 `cmd /c "cd repo && del AGENTS.md"` 与 `{ del AGENTS.md }` 块认得出；出现在别的命令的参数里不算），所以 `rm -rf build && cat AGENTS.md` 不算改写。名字取自 `PROTECTED_INSTRUCTION_PATTERNS`，路径段之间的反斜杠与文件工具一样当分隔符（反斜杠加空格是转义的空格，不算），更长的文件名（`AGENTS.md.bak`）与文件工具一样算另一个文件；一行命令的判定时间随长度线性增长。
+**改写受保护指令文件的 shell 命令**：文件工具写这些文件时给出的 ASK，理由固定为 `Protected instruction file write requires human approval: <文件名>`（`ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE`），allowlist 阶段与待审批标注认这条理由，定时运行则否决任何不是放行的路径裁决，所以 allowlist 条目、仓库声明的命令前缀、定时作业的能力声明都替用户放行不了。shell 命令走同一条 ASK，理由由 `checks.py` 的同一个构造函数给出：bash 工具与 `shell_exec` 一视同仁，命令没有宿主文件路径参数时，`engine.check_tool_path_policy` 返回 `check_command_protected_write`（引擎与定时运行共用）；`shell_exec` 经 `check_shell_threats` 时，BLOCK 仍先于它，同一行里的其他升级项（如 `eval`）不会盖过它。bash 工具里按 Python 源码运行的文本（`runs_as_python`）不是 shell 语法，不在此判定。判定只由 `protected_instruction_mutation_target(command)` 一个函数给出，分析器、引擎和 `should_block_allow_always` 共用：先看命令里有没有受保护名字，没有就不再往下；只读分类器（`risk_classifier`）判为 SAFE 的命令不算改写，所以 `grep -n rm AGENTS.md` 不会因参数里拼出了 `rm` 被当成改写；其余按 `split_command_spans` 逐条命令匹配写形态：POSIX 的重定向（含 `>&`）、`sed -i`（`-i` 在参数里的位置不限，`--in-place` 同）、`tee`、`cp`、`mv`、`rm`、`truncate`，PowerShell 的 `Set-Content`、`Add-Content`、`Out-File`、`Clear-Content`、`Remove-Item`、`Copy-Item`、`Move-Item`、`Rename-Item`、`New-Item`，cmd 的 `del`、`erase`、`copy`、`move`、`ren`、`rename`（这六个只认作一条命令的第一个词：命令本身、`cmd /c` 或 `powershell -Command` 交给它的命令（`-ExecutionPolicy Bypass`、`-WindowStyle Hidden` 里选项的取值照认，不会被当成命令），或跟在 `;`、`&`、`|`、`(`、`{` 之后的词，所以带引号的 `cmd /c "cd repo && del AGENTS.md"` 与 `{ del AGENTS.md }` 块认得出；出现在别的命令的参数里不算），所以 `rm -rf build && cat AGENTS.md` 不算改写。名字取自 `PROTECTED_INSTRUCTION_PATTERNS`，路径段之间的反斜杠与文件工具一样当分隔符（反斜杠加空格是转义的空格，不算），更长的文件名（`AGENTS.md.bak`）与文件工具一样算另一个文件；一行命令的判定时间随长度线性增长。YOLO 模式与 auto-mode 的审核模型放行不了这类 ASK（5.0 节、5.3 节），审批过期设为「允许」时含它的批次也按拒绝处理；写 Git 钩子与配置的 ASK 同属这一类（`approval_reason.HUMAN_ONLY_CODES`）。
 
-**改写受保护指令文件的设计内残余**：词法判定不分一条命令读的文件与写的文件（`cp AGENTS.md /tmp/b.md` 按改写处理），也按命令文字读引号里的内容（`echo "a > AGENTS.md"`）；整行没被只读分类器判为 SAFE 时（带重定向、用括号分组，或同一行里还有写命令），只读命令的参数拼出编辑命令（`grep -n rm AGENTS.md > found.txt`）仍按改写处理；经符号链接别名、通配符、变量或 Windows 给同一文件起的其他名字（文件名后的点、8.3 短名）到达的文件认不出；写形态之外的写法（例如 `dd of=`、`install`、`ln`、`curl -o`、`perl -pi`、`git checkout --`、`>|`，cmd 的六个命令跟在 `if exist …`、`for … do` 之后，PowerShell 的短别名 `sc`、`ac`、`ni`、`ri`、`cpi`、`mi`、`rni`，`[IO.File]::WriteAllText` 这类 .NET 静态调用，等等）认不出；解释器的程序放在 heredoc 或脚本文件里时，只看命令的同一行，正文与脚本内容读不到（`node - <<'JS'`）；bash 工具里按 Python 源码运行的文本（形态见下文「Python 源码不经 shell」一段，后台启动不算）不判，包装脚本的审计钩子（`toolkits/code_execution/security/audit_sandbox.py`）只把写限制在工作区与临时目录内、不认这些指令文件，所以这类文本在工作区里改写它们不会触发这条询问：默认规则下它落到通用的逐条审批（不带受保护文件的理由）；bash 工具上能匹配到它的常驻放行（例如范围为「工具」或「权限」的 allowlist 条目）或规则里的 ALLOW 会让它无声通过，同样的 shell 写法在这两种情况下仍被问；YOLO 开着时这类 ASK 与文件工具的一样被直接放行；定时 shell 作业（`cron_manage_tool` 的 `command`，由 `ShellJobRunner` 运行）运行前只过 `has_block_threat`，不过这条判定。这条判定拦的是明文写出的改写，不是针对刻意绕开的边界；操作系统沙箱也不替这些文件兜底：`SandboxPolicy.read_only_subpaths` 只装工作区里仓库的 git 元数据（`.git/config`、`.git/hooks` 与子模块的 git 目录，范围见 `toolkits/code_execution/EXECUTION_SYSTEM.md`；Windows 的 AppContainer 还不执行它，见 `toolkits/code_execution/sandbox/sandbox_types.py`），不含任何指令文件，所以各平台上 shell 侧对这些文件都只有这条词法判定。
+**改写受保护指令文件的设计内残余**：词法判定不分一条命令读的文件与写的文件（`cp AGENTS.md /tmp/b.md` 按改写处理），也按命令文字读引号里的内容（`echo "a > AGENTS.md"`）；整行没被只读分类器判为 SAFE 时（带重定向、用括号分组，或同一行里还有写命令），只读命令的参数拼出编辑命令（`grep -n rm AGENTS.md > found.txt`）仍按改写处理；经符号链接别名、通配符、变量或 Windows 给同一文件起的其他名字（文件名后的点、8.3 短名）到达的文件认不出；写形态之外的写法（例如 `dd of=`、`install`、`ln`、`curl -o`、`perl -pi`、`git checkout --`、`>|`，cmd 的六个命令跟在 `if exist …`、`for … do` 之后，PowerShell 的短别名 `sc`、`ac`、`ni`、`ri`、`cpi`、`mi`、`rni`，`[IO.File]::WriteAllText` 这类 .NET 静态调用，等等）认不出；解释器的程序放在 heredoc 或脚本文件里时，只看命令的同一行，正文与脚本内容读不到（`node - <<'JS'`）；bash 工具里按 Python 源码运行的文本（形态见下文「Python 源码不经 shell」一段，后台启动不算）不判，包装脚本的审计钩子（`toolkits/code_execution/security/audit_sandbox.py`）只把写限制在工作区与临时目录内、不认这些指令文件，所以这类文本在工作区里改写它们不会触发这条询问：默认规则下它落到通用的逐条审批（不带受保护文件的理由）；bash 工具上能匹配到它的常驻放行（例如范围为「工具」或「权限」的 allowlist 条目）或规则里的 ALLOW 会让它无声通过，同样的 shell 写法在这两种情况下仍被问；YOLO 开着时，认得出的这类 ASK 与文件工具的一样挂起等人（5.0 节），认不出的写法只是普通 ASK，被 YOLO 照常放行；定时 shell 作业（`cron_manage_tool` 的 `command`，由 `ShellJobRunner` 运行）运行前只过 `has_block_threat`，不过这条判定。这条判定拦的是明文写出的改写，不是针对刻意绕开的边界；操作系统沙箱也不替这些文件兜底：`SandboxPolicy.read_only_subpaths` 只装工作区里仓库的 git 元数据（`.git/config`、`.git/hooks` 与子模块的 git 目录，范围见 `toolkits/code_execution/EXECUTION_SYSTEM.md`；Windows 的 AppContainer 还不执行它，见 `toolkits/code_execution/sandbox/sandbox_types.py`），不含任何指令文件，所以各平台上 shell 侧对这些文件都只有这条词法判定。
 
 **Python 源码不经 shell，不查 Layer 1.5**：`bash_code_execute_tool` 也直接接收 Python 源码，由 Python 包装脚本运行，不经过 shell；包装脚本内联的 PEP 578 审计钩子拒绝 `subprocess` / `os.system`，文本没有办法再交给 shell。对这类文本 `check_shell_threats`（`code_interpreter`）只做 Layer 1：`$'` / `$"` 在 Python 里是正则结尾锚点后面跟引号（`re.match(r'^v(\d+)$', s)`），不是 shell 引用。判定用 `code_detector.runs_as_python()`，与执行器同一套：去首尾空白、去一层 Markdown 围栏后，含 `python -c` / `python3 -c` 的命令、用 heredoc 包装的 Python（`python3 <<EOF`、`python3 - <<EOF`，或把 Python 脚本写进 `.py` 文件的 `cat` heredoc）、能按 Python 解析且含 shell 命令行写不出的构造的文本（`import`、`def`、循环、调用语句、带调用的赋值等；解析不了但以 `import` / `def` / `class` 开头的也算）按 Python 源码运行，其余都按 shell：选项夹在 `python3` 与 `-c` 之间（`python3 -u -c`）、带版本号的解释器名（`python3.12 -c`）、`python3 script.py` 都是 shell 命令。后台启动（`run_in_background`）始终是 shell，所有无条件类别照旧；自动让出（命中 build/test 白名单）和后台共用的 shell 启动点 `BashExecutor.spawn_background` 再对最终文本按 shell 语义检查一次，所以引擎对 Python 文本的放宽不会让文本绕到 shell 那边。`shell_exec`（往运行中的进程键入）永远按 shell 看。
 
@@ -630,7 +630,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 ### 5.0 YOLO Mode — 全自动审批快速路径
 
-当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。计时键有两种写法，解析时蛇形键优先：服务端的授权（渠道 `/yolo`、目标与看板的无人值守授权）写 `yolo_mode_enabled_at` / `yolo_mode_timeout`，键存在即胜出，值为 `None` 表示无时限，不会继承用户在网页里设过的计时；Web 设置界面写驼峰键 `yoloModeEnabledAt` / `yoloModeTimeout`（秒），只在蛇形键缺席时读取，所以网页关闭后超时同样在服务端生效。无法解析的开启时刻按很久以前处理，带超时时视为已过期。
+当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`；下文「安全保证」列出的几类调用除外）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。计时键有两种写法，解析时蛇形键优先：服务端的授权（渠道 `/yolo`、目标与看板的无人值守授权）写 `yolo_mode_enabled_at` / `yolo_mode_timeout`，键存在即胜出，值为 `None` 表示无时限，不会继承用户在网页里设过的计时；Web 设置界面写驼峰键 `yoloModeEnabledAt` / `yoloModeTimeout`（秒），只在蛇形键缺席时读取，所以网页关闭后超时同样在服务端生效。无法解析的开启时刻按很久以前处理，带超时时视为已过期。
 
 核心安全原则：**deny always wins** — DENY 规则在任何模式下都不可被绕过。
 
@@ -639,7 +639,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 - 渠道 `/yolo` 命令（Router 内存态，通过 `InboundMessage.metadata["yolo_state"]` 注入）
 - Agent 安全配置中显式启用（per-Agent YOLO）
 
-安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性三类调用不受 YOLO 放行，仍挂起等人审批。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入命令、读过凭据文件后的外发请求、作业区之外的路径（含 shell 命令改写受保护指令文件），哪怕 allowlist 或审核模型已放行也照样拒绝（各类识别的范围见「Cron 渠道安全配置」，另见「Cron 安全策略」）。
+安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性的调用，以及写受保护指令文件、写 git 钩子与配置（`approval_reason.HUMAN_ONLY_CODES` 里的两个码）的调用不受 YOLO 放行，仍挂起等人审批（审计依次为 `YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED`、`YOLO_PROTECTED_WRITE_BLOCKED`）；写入类挂起时沿用引擎原样写下的理由，卡片与不开 YOLO 时一样按码出文案。这类写入与社交不可逆调用、资金类调用一样不交 auto-mode 的审核模型；审批过期设为「允许」时，含这类写入、社交不可逆调用或破坏性调用的批次改按拒绝处理（付款类的应答要带动作摘要，计时器带不了，本就被拒）。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入命令、读过凭据文件后的外发请求、作业区之外的路径（含 shell 命令改写受保护指令文件），哪怕 allowlist 或审核模型已放行也照样拒绝（各类识别的范围见「Cron 渠道安全配置」，另见「Cron 安全策略」）。
 
 ### 5.0.1 Managed Approval Policy (MAP) — 组织审批下限
 
@@ -790,7 +790,7 @@ class AllowlistEntry:
 `batch_processor.evaluate_tool_batch`（`batch_processor/{core,yolo}.py` 与 `decide/` 子包，阶段划分见 `batch_processor/decide/_ARCH.md`）对每个调用的判定顺序：
 
 ```
-0. YOLO 生效、组织策略允许该模型且不是定时运行 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝）；定时运行不走此分支
+0. YOLO 生效、组织策略允许该模型且不是定时运行 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝；资金类、社交不可逆、破坏性与受保护写入仍待人审批）；定时运行不走此分支
 1. 前置拒绝（直接 DENY）：桌面视觉按键只给了单个可打印运算符；不可信入口栅栏剥离的工具；只读研究租约不允许的工具
 2. resolve_permission_type(tool_name, tool_input) → evaluate_tool_call(permission, tool_input, config, workspace_root=..., tool_name=...) → (action, reason)
    - tool_name 用于 mcp_invoke 的 per-tool target resolution（如 mcp__gmail__send_email）
@@ -806,12 +806,13 @@ class AllowlistEntry:
 6. ASK 的后续裁决，依次：
      a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，四类调用除外（`cron_never_class`：付款类工具调用、读过凭据文件后的外发请求、越界路径（含 shell 命令改写受保护指令文件）、集成写入命令；识别范围见「Cron 渠道安全配置」）；未声明能力集 fail-closed 拒绝
      b. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
-     c. auto-mode LLM 审核（社交不可逆动作与资金类工具不交审核模型，直接进 d）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
+     c. auto-mode LLM 审核（社交不可逆动作、资金类工具与只能由人答复的写入（受保护指令文件、git 钩子与配置）不交审核模型，直接进 d）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
      d. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）；资金类调用另带动作摘要，批准时须原样回传，不符即拒绝（`DIGEST_MISMATCH_REJECT`），社交不可逆调用不带摘要，批准即放行
      定时运行没有人答复待审：本批做完后仍待审的调用（例如审核模型对外发检查或 shell 升级审核无法裁决的调用），由 `evaluate_tool_batch` 末尾交 `_cron_settle.settle_pending`，按 a 的规则放行或拒绝；allowlist 或审核模型已放行的调用也在这里过一遍 `_cron_settle.veto_never_classes`，落入 a 里那四类的改为拒绝（审计 `CRON_DENY`）；返回的待审列表恒为空
 7. 限流（evaluate_target）：同一用户在滑动窗口内审批请求过多 → 本批待审调用全部拒绝
 8. 发问（ToolApprovalMiddleware）：被拒调用 → 错误 ToolMessage；待审调用合并为一次 interrupt(payload) 批量审批
      子 Agent 的 payload 带 action_type=subagent_approval 与 subagent_task_id（缺 task_id 时直接拒绝）；影子 Agent 没有 UI 通道，直接拒绝
+     审批过期时各个计时器（前端倒计时、后端 WebUI 与渠道调度器）都按 payload 的 `extensions.timeout.behavior` 应答，且只带决定、不带动作摘要；配置为 allow 时，批次里只要有只能由人答复的写入、社交不可逆调用或破坏性调用，payload 就把它改成 deny（`_interrupt_payload._held_for_a_person`，付款类除外）
      match decision.type:
           approve → 执行（可选 allow_always 写入 Allowlist）
           edit    → 替换参数后执行（可选 allow_always），并触发 APPROVAL_CORRECTION 钩子
@@ -1387,7 +1388,7 @@ class SecurityDecision:
 | 防滥用 | `LOOP_WARN` / `LOOP_BREAK`、`TURN_BUDGET_BREAK`、`ESTOP_BLOCKED`、`SANDBOX_BOUNDARY_ESCALATE` |
 | 输入/输出检测 | `INJECTION_DETECTED` / `INJECTION_BLOCKED`、`DANGEROUS_INTENT_DETECTED` / `DANGEROUS_INTENT_BLOCKED`、`CANARY_LEAKED`、`CREDENTIAL_LEAK_DETECTED` / `CREDENTIAL_LEAK_BLOCKED`、`PII_DETECTED` / `PII_REDACTED` / `PII_BLOCKED`、`SSRF_BLOCKED`、`SCAN_FINDING` |
 | 自动审查 | `LLM_REVIEW_ALLOW` / `LLM_REVIEW_DENY` / `LLM_REVIEW_UNCERTAIN`、`SHELL_ESCALATION_ALLOW` / `SHELL_ESCALATION_DENY`、`OUTBOUND_ALLOW` / `OUTBOUND_DENY` |
-| YOLO 不可绕过的门禁 | `YOLO_DENY_OVERRIDE`、`YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED` |
+| YOLO 不可绕过的门禁 | `YOLO_DENY_OVERRIDE`、`YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED`、`YOLO_PROTECTED_WRITE_BLOCKED` |
 | 完整性 | `DIGEST_MISMATCH_REJECT`、`SCRIPT_INTEGRITY_REJECT`、`SCRIPT_OPERAND_DRIFT_REJECT` |
 
 ### 工作机制

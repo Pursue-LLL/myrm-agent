@@ -11,7 +11,7 @@
 3. `allowlist.py`：ASK 命中 allowlist 条目、或命中可信工作区声明的命令前缀（仅限调用启动的那条单条命令）才放行；批量双保险、资金、不可逆社交、受保护指令文件四道门对两类命中一视同仁、不可越过；组织策略忽略 allowlist 时两类命中一并忽略。
 4. `allow_gates.py`：任何来源的 ALLOW，遇不可逆社交、资金、不可逆破坏性 shell，或 auto-mode 拒绝阈值被突破，退回 ASK。
 5. ALLOW 的落定：`taint.py`（会话污点与工具 sink 冲突则转人工或交安全复核）；无污点时 `allow_review.py`（auto-mode 的外部代理出站复核与 shell 升级复核，通过后放行）。
-6. `hitl.py`：DENY 拒绝；定时运行的 ASK 由作业声明裁决；浏览器域名已在本会话批准则放行；auto-mode 安全复核；拒绝阈值被突破时 auto-mode 暂停并标高风险。
+6. `hitl.py`：DENY 拒绝；定时运行的 ASK 由作业声明裁决；浏览器域名已在本会话批准则放行；auto-mode 安全复核（资金、社交不可逆与只能由人答复的写入不交复核）；拒绝阈值被突破时 auto-mode 暂停并标高风险。
 7. `pending.py`：仍挂起的调用补齐审批卡上下文与恢复时复核所需的摘要。
 
 ## 文件清单
@@ -27,7 +27,7 @@
 | `allow_gates.py` | 核心 | ALLOW 的统一复核：社交不可逆、资金、破坏性 shell、auto-mode 暂停 | ✅ |
 | `taint.py` | 核心 | 污点 sink 冲突检测；冲突的 ALLOW 退回 ASK，auto-mode 下可由安全复核落定 | ✅ |
 | `allow_review.py` | 核心 | 无污点 ALLOW 的 auto-mode 出站复核与 shell 升级复核，通过后放行 | ✅ |
-| `hitl.py` | 核心 | DENY 拒绝、定时运行的 ASK 裁决、会话域名放行、auto-mode 安全复核与暂停标记 | ✅ |
+| `hitl.py` | 核心 | DENY 拒绝、定时运行的 ASK 裁决、会话域名放行、auto-mode 安全复核（资金、社交不可逆与只能由人答复的写入除外）与暂停标记 | ✅ |
 | `pending.py` | 核心 | 挂起调用的审批卡上下文：风险、批量影响、恢复提示、资金与不可逆标记、回滚快照、脚本内容摘要 | ✅ |
 
 ## 依赖关系

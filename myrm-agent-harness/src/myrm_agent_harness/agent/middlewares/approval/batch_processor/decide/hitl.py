@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.agent.security.approval_reason::is_human_only (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) which asks are not theirs to answer.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.command_rules::COMMAND_BEARING_PERMISSIONS / command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.security.engine::extract_url_domains (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
@@ -14,7 +15,7 @@
 - settle_denied: refuse a DENY verdict with the wording the model reads
 - settle_cron_ask: answer an ASK of a run with no approver from the job's declaration
 - settle_runtime_domain: approve a browser call whose domains a person already approved in this session
-- review_before_asking: let auto mode's security reviewer settle an ASK, or mark it high risk when auto mode is suspended
+- review_before_asking: let auto mode's security reviewer settle an ASK (never a payment, a socially irreversible call or a write only a person may answer), or mark it high risk when auto mode is suspended
 
 [POS]
 Last settling stages of the decision loop, for a call that is not approved: a DENY is refused, an ASK of a scheduled
@@ -27,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 
+from myrm_agent_harness.agent.security.approval_reason import is_human_only
 from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
 from myrm_agent_harness.agent.security.engine import extract_url_domains
@@ -108,8 +110,10 @@ def settle_runtime_domain(ctx: BatchContext, verdicts: Verdicts, call: CallState
 async def review_before_asking(ctx: BatchContext, verdicts: Verdicts, call: CallState) -> bool:
     """Let auto mode's security reviewer judge an ASK; True when it approved the call or refused it.
 
-    An uncertain verdict leaves the ASK in place and marks it high risk. While a denial threshold is breached, auto
-    mode is suspended: the ASK is not reviewed and goes to a person marked high risk.
+    An uncertain verdict leaves the ASK in place and marks it high risk. A payment, a socially irreversible call and a
+    write only a person may answer are never put to the reviewer: it reads what the model says about the call, and
+    for these a person alone answers. While a denial threshold is breached, auto mode is suspended: the ASK is not
+    reviewed and goes to a person marked high risk.
     """
     tool_name, tool_input = call.tool_name, call.tool_input
     if (
@@ -118,6 +122,7 @@ async def review_before_asking(ctx: BatchContext, verdicts: Verdicts, call: Call
         and is_threshold_breached(ctx.session_key) == ThresholdBreach.NONE
         and not is_irreversible_social_action(tool_name, tool_input)
         and not is_financial_or_spend_tool(tool_name, tool_input)
+        and not is_human_only(call.reason)
     ):
         # Build command representation for the classifier
         if call.permission_type in COMMAND_BEARING_PERMISSIONS:

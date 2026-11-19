@@ -1,14 +1,14 @@
 """The approval interrupt payload the client renders its card from.
 
 [INPUT]
-- agent.security.approval_reason::CodedReason (POS: an engine reason that remembers its stable code, for the card to word)
+- agent.security.approval_reason::CodedReason / is_human_only (POS: an engine reason that remembers its stable code, for the card to word, and which asks no automatic approver may answer)
 - agent.security.engine::extract_url_domains (POS: the domains a call reaches, for per-domain approval)
 - agent.security.session_access::plan_directory_grants (POS: the folders a path approval can also grant)
 - core.security.redact::redact_for_display (POS: arguments shown to the human are redacted)
 - toolkits.code_execution.security.command_explainer.extract::build_shell_approval_fields (POS: shell command spans and risks)
 
 [OUTPUT]
-- build_interrupt_payload: Build LangChain-standard interrupt payload for batch approval (includes optional command_spans for shell tools).
+- build_interrupt_payload: Build LangChain-standard interrupt payload for batch approval (includes optional command_spans for shell tools). A batch that holds a call only a person may answer expires into a denial, whatever expiry is configured.
 
 [POS]
 The outbound half of batch approval; the user's answer comes back through `_batch_decisions.apply_approval_decisions`.
@@ -19,11 +19,12 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from langchain_core.messages import ToolCall
 
-from myrm_agent_harness.agent.security.approval_reason import CodedReason
+from myrm_agent_harness.agent.security.approval_reason import CodedReason, is_human_only
 from myrm_agent_harness.agent.security.engine import extract_url_domains
 from myrm_agent_harness.agent.security.session_access import (
     PATH_WRITE_PERMISSION_TYPES,
@@ -37,6 +38,20 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_APPROVAL_TIMEOUT_SECONDS = 600
 _DEFAULT_TIMEOUT_BEHAVIOR = "deny"
+# Context flags of a call that cannot be undone once it runs.
+_IRREVERSIBLE_FLAGS = ("socially_irreversible", "irreversible_destructive")
+
+
+def _held_for_a_person(pending_approval: Sequence[tuple[int, ToolCall, str, str, Mapping[str, object] | None]]) -> bool:
+    """Whether the batch holds a call no timer may release: a write only a person may answer, or one that cannot be undone.
+
+    A payment is not among them: its approval must carry the action digest, which a timer never has, so a timer's
+    approval of it is refused when the answer is applied.
+    """
+    return any(
+        is_human_only(reason) or (extra_ctx is not None and any(extra_ctx.get(flag) for flag in _IRREVERSIBLE_FLAGS))
+        for _idx, _call, _permission, reason, extra_ctx in pending_approval
+    )
 
 
 def build_interrupt_payload(
@@ -56,7 +71,8 @@ def build_interrupt_payload(
             so the card words it in the viewer's language instead of showing the English text
         session_key: session identifier for routing
         approval_timeout_seconds: seconds before auto-resolution (from SecurityConfig)
-        timeout_behavior: "deny" or "allow" — action taken when timeout expires
+        timeout_behavior: "deny" or "allow" — action taken when timeout expires; a batch that holds a call only a
+            person may answer (see ``_held_for_a_person``) expires into a denial whatever is set
         workspace_root: the run's workspace, which relative paths resolve against
         path_policy: the configured path policy; with it, a file call naming directories outside the allowed
             zones carries ``grantDirectories`` — the folders "also grant folder access" would add
@@ -188,6 +204,11 @@ def build_interrupt_payload(
 
     has_handover = any(perm_type == "browser_human_handover" for _, _, perm_type, _, _ in pending_approval)
     display_mode = "handover" if has_handover else "approval"
+
+    # Every timer (the page, the channel card, the backend) reads this behavior and answers with nothing but the
+    # decision, so an expiry that allows would release the call with nobody having looked at it.
+    if timeout_behavior == "allow" and _held_for_a_person(pending_approval):
+        timeout_behavior = _DEFAULT_TIMEOUT_BEHAVIOR
 
     effective_timeout = approval_timeout_seconds or _DEFAULT_APPROVAL_TIMEOUT_SECONDS
     expires_at = time.time() + effective_timeout

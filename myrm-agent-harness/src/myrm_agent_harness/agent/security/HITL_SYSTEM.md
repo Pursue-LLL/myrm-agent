@@ -293,12 +293,13 @@ const resumeValue = { decisions };
 - **不提供的授权**：可写且包含危险根的目录（主目录、盘符根、`/`，经其子树可触达 `~/.ssh`）不会被提供，也不会被授权；同一目录的只读授权不受影响。计划与授权共用这条判断，卡片不会承诺一个勾选后被丢弃的文件夹。
 - **锁定**：`PathPolicy.allow_directory_grants=False`（配置键 `pathPolicy.allowDirectoryGrants`）供需要把运行限制在工作区与声明根之内的宿主使用（如把执行范围钉在单一工作区的部署）：工作区与声明根之外的路径由引擎直接 DENY（没有任何审批能放宽它，所以不会弹出注定失败的询问），计划为空、授权被拒。
 - **持久化与部署边界**：授权的持久化与部署边界（云卷、危险根）由业务层 `session_access_service` 负责：`is_directory_grant_allowed_for_deployment` 在轮次启动（`bootstrap_session_access_roots`）、拖拽授权（`POST session-access-roots`，被拒返回 403）与审批恢复（`apply_directory_resume_grant`）三处是同一道闸门——云卷部署下授权必须落在持久卷根或工作区之内，可写授权不得包含危险根。harness 在批准后对当次运行的授权不经过部署边界检查，该检查只约束业务层的持久化。
-- **Git 钩子与配置**：向 `.git/hooks` 与 `.git/config`（含子模块 `.git/modules/**`）的写入、编辑，在所有渠道预设下一律 ASK（`is_executable_git_metadata_file`，与受保护指令文件同一道写入闸门）：它们决定用户下一次 `git commit` 会执行什么，注入的提示词不能在 agent 监督之外悄悄写入。读取不受影响。
+- **Git 钩子与配置**：向 `.git/hooks` 与 `.git/config`（含子模块 `.git/modules/**`）的写入、编辑，在所有渠道预设下一律 ASK（`is_executable_git_metadata_file`，与受保护指令文件同一道写入闸门）：它们决定用户下一次 `git commit` 会执行什么，注入的提示词不能在 agent 监督之外悄悄写入：YOLO 模式与 auto-mode 的审核模型放行不了它（与受保护指令文件同属只能由人答复的写入，见下一节），审批过期设为「允许」时含它的批次也按拒绝处理。读取不受影响。
 
 ### 审批理由的本地化
 引擎只用英文写一次理由：它给模型与审计看，也是卡片拿不到码时显示的原文。会让人回答的七类判定（`ApprovalReasonCode`：路径在允许范围之外、写只读位置、写受保护指令文件、写 Git 钩子与配置、敏感文件、未列入名单的域名、需要确认的 shell 命令）同时带一个稳定的码和一个主体（路径、文件名、域名，或 shell 分析器的发现）：
 
 - **码跟着文本走**：`approval_reason.py::CodedReason` 就是那段英文文本，另带 `code` 与 `subject`，所以所有读理由字符串的地方不变。加前缀、追加备注、`str()` 都得到普通字符串、丢掉码：卡片只给「引擎原样写下的理由」按码出文案，改写过的理由（PTC 前缀、审查员备注）与批处理自己写的理由（不可逆操作、自动模式暂停、污点等）仍显示原文，不会挂在一个不再描述它的码下。拒绝（DENY）的理由不带码，它只去给模型。
+- **码也决定谁能答复**：`approval_reason.py::HUMAN_ONLY_CODES`（写受保护指令文件、写 Git 钩子与配置）里的码只有人能答复，三个不经人的答复者都绕开它们：YOLO 分支把这类 ASK 挂起（审计 `YOLO_PROTECTED_WRITE_BLOCKED`，理由原样，卡片与不开 YOLO 时相同）；auto-mode 的审核模型不看它们（`decide/hitl.py::review_before_asking`）；审批过期设为「允许」时，`build_interrupt_payload` 把含它们的批次的过期行为改为 `deny`（社交不可逆与破坏性调用同样；付款类的动作摘要本就拒绝没带摘要的计时器应答，不在此列）。判据是 `is_human_only(reason)`：读码不读文本，所以改写过、丢了码的理由不算；这条保证因此依赖引擎原样把理由交到这些阶段，由 `tests/agent/middlewares/approval/test_human_only_floor.py` 用真实引擎与真实阶段钉住。
 - **载荷**：`build_interrupt_payload` 在动作请求里附 `reasonCode` 与 `reasonSubject`；`description` 仍是英文原文，且是普通字符串。
 - **渲染**：Web 卡片按 `toolApproval.reasons.<code>` 取中英文案并把主体填进句子；渠道卡片按 `approval_reason_<code>` 取渠道目录（en、zh-CN；繁体中文读 zh-CN，其他语言整张审批卡读英文）。没有码、码未知、目录里没有该码的句子时，显示 `description` 原文。shell 命令的发现是分析器写的英文短句，接在本地化的句子后面，所以这一类整句是中英混排；这样用户仍然知道命令为什么要确认。
 
@@ -367,7 +368,7 @@ and ask for permission or alternative instructions.]
 - ✅ 双渠道完整支持（Web UI + IM批量命令）
 - ✅ 完整安全防护（5层评估 + 审计日志）
 - ✅ 审批超时三层守卫（前端倒计时 + 后端 WebUI 调度器 + 后端 Channel 调度器）
-- ✅ 超时行为可配置（deny/allow），超时决策记录安全审计日志
+- ✅ 超时行为可配置（deny/allow；批次里有只能由人答复的写入、社交不可逆或破坏性调用时一律 deny），超时决策记录安全审计日志
 - ✅ Hook 系统支持 HTTP webhook + auth 认证
 - ✅ 生产级代码质量（类型安全、测试与静态检查）
 

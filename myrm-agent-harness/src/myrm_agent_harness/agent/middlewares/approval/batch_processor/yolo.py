@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.agent.security.approval_reason::is_human_only (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) which asks are not theirs to answer.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
 - myrm_agent_harness.agent.security.guards.untrusted_ingress_fence::is_tool_allowed_under_untrusted_ingress / is_untrusted_ingress_active (POS: Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.)
@@ -12,11 +13,12 @@
 
 [OUTPUT]
 - operator_as_key_deny_message: Fail-closed before HITL: lone printable operators are never key names.
-- _evaluate_yolo_batch: one verdict per call of a watched run: approved, refused, or pending for the three kinds only a person may accept
+- _evaluate_yolo_batch: one verdict per call of a watched run: approved, refused, or pending for the four kinds only a person may accept
 
 [POS]
 batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用、且不是定时运行时调用。
-定时运行里没有人能为 YOLO 负责，一律按任务声明的能力结算；资金、社交不可逆、破坏性三类调用仍交给人审批。
+定时运行里没有人能为 YOLO 负责，一律按任务声明的能力结算。YOLO 之下，资金、社交不可逆、破坏性、受保护写入
+（指令文件、git 钩子与配置）四类调用仍交给人审批。
 """
 
 from __future__ import annotations
@@ -25,6 +27,7 @@ import logging
 
 from langchain_core.messages import ToolCall
 
+from myrm_agent_harness.agent.security.approval_reason import is_human_only
 from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.engine import (
     evaluate_tool_call,
@@ -254,6 +257,17 @@ async def _evaluate_yolo_batch(
                         f"Irreversible destructive operation ({destr_reason or tool_name}) requires explicit human approval",
                         destr_ctx,
                     )
+                )
+            elif is_human_only(reason):
+                logger.warning(
+                    "[YOLO_PROTECTED_WRITE_GATE] Tool %s blocked from YOLO auto-approval: %s",
+                    tool_name,
+                    reason,
+                )
+                record_decision(tool_name, "YOLO_PROTECTED_WRITE_BLOCKED", reason)
+                # The engine's own reason goes on: the card words it by its code, as it does without YOLO.
+                pending_approval.append(
+                    (idx, tool_call, permission_type, reason, {"high_risk": True, "hide_allow_always": True})
                 )
             else:
                 record_decision(tool_name, "YOLO_AUTO_APPROVE", "YOLO mode enabled")

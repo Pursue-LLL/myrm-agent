@@ -86,6 +86,11 @@ _WRITES = (
     ("Set-Content -Path .cursor\\rules\\style.mdc -Value x", ".cursor/rules"),
     ('powershell -NoProfile -ExecutionPolicy Bypass -Command "del .\\SOUL.md"', "SOUL.md"),
     ('cmd /c "cd repo && del AGENTS.md"', "AGENTS.md"),
+    # A python interpreter the wrapper does not run as Python source (an option between it and ``-c``, a versioned
+    # name) is a shell command like any other.
+    ("python3 -u -c \"open('AGENTS.md', 'w').write('x')\"", "AGENTS.md"),
+    ("python -u -c \"open('AGENTS.md', 'w').write('x')\"", "AGENTS.md"),
+    ('python3.12 -c "print(1)" | tee AGENTS.md', "AGENTS.md"),
 )
 # Forms a block category stops when they are typed into a process, while the bash tool reaches the ask.
 _BASH_ONLY_WRITES = (

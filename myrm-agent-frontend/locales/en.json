@@ -15147,7 +15147,7 @@
       "approvalTimeoutDesc": "Seconds to wait for your approval before auto-resolving a tool call.",
       "seconds": "seconds",
       "timeoutBehavior": "Timeout Action",
-      "timeoutBehaviorDesc": "Action to take when approval times out. \"Deny\" rejects the tool call; \"Allow\" auto-approves it.",
+      "timeoutBehaviorDesc": "Action to take when approval times out. \"Deny\" rejects the tool call; \"Allow\" auto-approves it, except actions only you may approve, which are always rejected: payments, irreversible outbound actions, destructive commands, and edits to protected instruction files or git hooks.",
       "timeoutDeny": "Deny",
       "timeoutAllow": "Allow",
       "rulesTitle": "Permission Rules",
