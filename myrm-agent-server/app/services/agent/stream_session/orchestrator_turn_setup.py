@@ -166,9 +166,13 @@ async def build_turn_params(
 
 
 def search_service_unavailable_detail(request: AgentRequest, params: GeneralAgentParams) -> str | None:
-    """User-facing reason the turn cannot run without a configured search service, or None when it can."""
+    """User-facing reason a search-bound turn cannot run (no search service, or Web Search turned off), or None."""
     if request.agent_id in _SEARCH_AGENT_IDS and not params.enable_web_search:
-        return "Search service not configured. Please add a search service in Settings."
+        # The flag is also false when the request's tool list leaves web_search out; sending that user to Settings
+        # points at a search service that is already configured.
+        if params.search_service_cfg is None:
+            return "Search service not configured. Please add a search service in Settings."
+        return "Web Search is turned off. Turn it on under Built-in Tools and send again."
     if request.action_mode == "fast" and params.search_service_cfg is None:
         return "Search service not configured. Fast search requires a configured search service."
     return None

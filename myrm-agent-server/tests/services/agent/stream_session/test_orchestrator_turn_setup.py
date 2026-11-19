@@ -49,7 +49,9 @@ def _params(**overrides: object) -> GeneralAgentParams:
 
 
 def _joined(**overrides: object) -> SimpleNamespace:
-    fields = dict(preview=None, snapshot=None, brief_status={}, prewarm_hit=False, prewarm_ms=None, still_warming=False)
+    fields: dict[str, object] = dict(
+        preview=None, snapshot=None, brief_status={}, prewarm_hit=False, prewarm_ms=None, still_warming=False
+    )
     return SimpleNamespace(**{**fields, **overrides})
 
 
@@ -130,7 +132,11 @@ class TestSearchServiceUnavailableDetail:
     @pytest.mark.parametrize(
         ("request_fields", "params_fields", "expected"),
         [
-            ({"agent_id": "builtin-deep-search"}, {"enable_web_search": False}, "add a search service in Settings"),
+            (
+                {"agent_id": "builtin-deep-search"},
+                {"enable_web_search": False, "search_service_cfg": None},
+                "add a search service in Settings",
+            ),
             ({"action_mode": "fast"}, {"search_service_cfg": None}, "Fast search requires"),
         ],
     )
@@ -142,6 +148,15 @@ class TestSearchServiceUnavailableDetail:
         assert detail is not None
         assert detail.startswith("Search service not configured.")
         assert expected in detail
+
+    @pytest.mark.parametrize("agent_id", ["builtin-fast-search", "builtin-deep-search"])
+    def test_blames_the_switched_off_web_search_not_a_configured_search_service(self, agent_id: str) -> None:
+        detail = setup.search_service_unavailable_detail(_request(agent_id=agent_id), _params(enable_web_search=False))
+
+        assert detail is not None
+        assert "Web Search is turned off" in detail
+        assert "Built-in Tools" in detail
+        assert "not configured" not in detail
 
     def test_reports_nothing_for_a_turn_that_does_not_need_search(self) -> None:
         assert setup.search_service_unavailable_detail(_request(), _params(enable_web_search=False)) is None
@@ -176,7 +191,7 @@ class TestPrepareGoalProvider:
         result = await setup.prepare_goal_provider(_request(), "hello")
 
         assert result is provider
-        goal_branch_stash.check_and_handle_branch_stash.assert_awaited_once_with(CHAT_ID)
+        cast("AsyncMock", goal_branch_stash.check_and_handle_branch_stash).assert_awaited_once_with(CHAT_ID)
         provider.create_goal.assert_not_called()
 
     @pytest.mark.asyncio
