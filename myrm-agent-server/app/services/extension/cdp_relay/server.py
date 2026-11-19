@@ -35,6 +35,7 @@ class LoopbackCdpRelayServer:
         self._runner: web.AppRunner | None = None
         self._site: web.TCPSite | None = None
         self._port: int = 0
+        self._start_lock = asyncio.Lock()
 
     @property
     def http_endpoint(self) -> str | None:
@@ -47,34 +48,40 @@ class LoopbackCdpRelayServer:
         return self._port > 0 and self._runner is not None
 
     async def start(self) -> str:
-        if self.is_running and self.http_endpoint:
-            return self.http_endpoint
+        """Bind the loopback listener on the first call and return its endpoint; later and concurrent calls share it.
 
-        app = web.Application()
-        for path, handler in (
-            ("/json/version", self._handle_json_version),
-            ("/json/list", self._handle_json_list),
-            ("/json", self._handle_json_list),
-        ):
-            app.router.add_get(path, handler)
-            app.router.add_get(f"{path}/", handler)
-        app.router.add_get("/cdp", self._handle_cdp_ws)
+        The extension connecting and a tool call asking for the endpoint can arrive together. Each building its own
+        runner would replace the other's, so one of them fails to bind and the shared state is torn down.
+        """
+        async with self._start_lock:
+            if self.is_running and self.http_endpoint:
+                return self.http_endpoint
 
-        self._runner = web.AppRunner(app)
-        await self._runner.setup()
-        self._site = web.TCPSite(self._runner, host="127.0.0.1", port=0)
-        await self._site.start()
+            app = web.Application()
+            for path, handler in (
+                ("/json/version", self._handle_json_version),
+                ("/json/list", self._handle_json_list),
+                ("/json", self._handle_json_list),
+            ):
+                app.router.add_get(path, handler)
+                app.router.add_get(f"{path}/", handler)
+            app.router.add_get("/cdp", self._handle_cdp_ws)
 
-        addresses = self._runner.addresses
-        if not addresses:
-            await self.stop()
-            raise RuntimeError("Failed to bind loopback CDP relay server")
-        self._port = int(addresses[0][1])
-        endpoint = self.http_endpoint
-        if endpoint is None:
-            raise RuntimeError("Loopback CDP relay server started without endpoint")
-        logger.info("Extension CDP relay listening at %s", endpoint)
-        return endpoint
+            self._runner = web.AppRunner(app)
+            await self._runner.setup()
+            self._site = web.TCPSite(self._runner, host="127.0.0.1", port=0)
+            await self._site.start()
+
+            addresses = self._runner.addresses
+            if not addresses:
+                await self.stop()
+                raise RuntimeError("Failed to bind loopback CDP relay server")
+            self._port = int(addresses[0][1])
+            endpoint = self.http_endpoint
+            if endpoint is None:
+                raise RuntimeError("Loopback CDP relay server started without endpoint")
+            logger.info("Extension CDP relay listening at %s", endpoint)
+            return endpoint
 
     async def stop(self) -> None:
         if self._runner is not None:
