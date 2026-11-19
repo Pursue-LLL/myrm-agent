@@ -50,7 +50,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | 模块 | 职责 | 文档 |
 |------|------|------|
 | `providers/` | 业务层 Channel 实现（仅 ChatChannel）及辅助 API 客户端。所有通用 IM 通道已内置于框架层 | [_ARCH.md](providers/_ARCH.md) |
-| `wake_return/` | 唤醒回合与所有者 IM 私聊的接点：登记会话来自哪条 IM 消息（`WakeOrigins`）；作为 `adaptive_wakeup/chat_busy` 端口的探针告诉唤醒回合所有者在这条私聊里正有回合在跑；作为 `adaptive_wakeup/reply_return` 端口的承载方把回复（连同它点名的工作区文件）经网关 `deliver_followup` 送出；`wiring.py` 在网关启停时登记 / 清除两者 | [_ARCH.md](wake_return/_ARCH.md) |
+| `wake_return/` | 唤醒回合与所有者 IM 私聊的接点：登记会话来自哪条 IM 消息（`WakeOrigins`）；作为 `adaptive_wakeup/chat_busy` 端口的探针告诉唤醒回合与聊天回退所有者在这条私聊里正有回合在跑；作为 `adaptive_wakeup/reply_return` 端口的承载方把回复（连同它点名的工作区文件）经网关 `deliver_followup` 送出；`wiring.py` 在网关启停时登记 / 清除两者 | [_ARCH.md](wake_return/_ARCH.md) |
 
 ---
 

@@ -28,6 +28,12 @@ from .common import (
 from .siblings import SiblingsMixin
 
 
+def _after_anchor(anchor: MessageDTO, include_anchor: bool) -> ColumnElement[bool]:
+    """Rows that come after ``anchor`` in ``(created_at, id)`` order, the anchor itself on request."""
+    later_id = Message.id >= anchor.id if include_anchor else Message.id > anchor.id
+    return (Message.created_at > anchor.created_at) | ((Message.created_at == anchor.created_at) & later_id)
+
+
 class MessagesMixin:
     @staticmethod
     async def count_messages(db: AsyncSession, chat_id: str) -> int:
@@ -167,22 +173,34 @@ class MessagesMixin:
         return MessageDTO.model_validate(msg) if msg else None
 
     @staticmethod
+    async def message_ids_from(db: AsyncSession, chat_id: str, anchor: MessageDTO) -> frozenset[str]:
+        """IDs of the anchor and every row after it, inactive siblings included.
+
+        This is the set ``delete_messages_after(..., include_anchor=True)`` removes.
+        """
+        result = await db.execute(
+            select(Message.id).where(Message.chat_id == chat_id, _after_anchor(anchor, include_anchor=True))
+        )
+        return frozenset(result.scalars().all())
+
+    @staticmethod
     async def delete_messages_after(
         db: AsyncSession,
         chat_id: str,
         anchor: MessageDTO,
         include_anchor: bool = False,
+        only_ids: frozenset[str] | None = None,
     ) -> list[str]:
-        """Delete messages after anchor and return their IDs."""
-        if include_anchor:
-            condition = (Message.created_at > anchor.created_at) | (
-                (Message.created_at == anchor.created_at) & (Message.id >= anchor.id)
-            )
-        else:
-            condition = (Message.created_at > anchor.created_at) | (
-                (Message.created_at == anchor.created_at) & (Message.id > anchor.id)
-            )
-        to_delete = (await db.execute(select(Message).where(Message.chat_id == chat_id, condition))).scalars().all()
+        """Delete messages after anchor and return their IDs.
+
+        With ``only_ids`` every row outside the set stays: a caller that chose what to remove earlier, and acted on
+        exactly those rows, does not take along what was written since. The set filters the rows the position query
+        returns; it is not sent as an ``IN`` list, which SQLite refuses past its bound-variable limit.
+        """
+        query = select(Message).where(Message.chat_id == chat_id, _after_anchor(anchor, include_anchor))
+        to_delete = (await db.execute(query)).scalars().all()
+        if only_ids is not None:
+            to_delete = [msg for msg in to_delete if msg.id in only_ids]
         deleted_ids = [msg.id for msg in to_delete]
         for msg in to_delete:
             await db.delete(msg)

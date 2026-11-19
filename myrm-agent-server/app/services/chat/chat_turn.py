@@ -5,7 +5,8 @@
 - chat_helpers::RetryResult, RegenerateResult, UndoResult, TruncateResult, RewindResult (POS: 操作结果 DTO)
 - database.repositories.chat_repo::SiblingDetail (POS: 兄弟消息详情)
 - services.chat.chat_title::generate_chat_title, generate_fallback_title, call_llm_for_title (POS: Chat title generation layer decoupled from turn management)
-- services.chat.session_continuity_service::hold_session_for_continuity, pause_active_goal_for_rewind, invalidate_chat_checkpoint (POS: Server-layer adapter for truncate/undo/retry/rewind checkpoint consistency; holds the chat's session while a rewind runs)
+- services.chat.session_continuity_service::hold_session_for_continuity, pause_active_goal_for_rewind, invalidate_chat_checkpoint (POS: Server-layer adapter for truncate/undo/retry/rewind checkpoint consistency; holds the chat while a rewind runs)
+- services.chat.rewind_files::snapshot_pre_rewind, restore_pre_rewind_snapshot, revert_files_for_messages, cleanup_orphan_snapshots (POS: File side of a chat rewind: the protective snapshot, the file revert and the snapshot cleanup)
 
 [OUTPUT]
 - _ChatTurnMixin: 重试、撤销、截断、重新生成、兄弟切换、原子回滚自愈
@@ -25,6 +26,12 @@ from app.database.repositories.uow import UnitOfWork
 
 from ._base import _ChatServiceBase
 from .chat_helpers import RegenerateResult, RetryResult, RewindResult, TruncateResult, UndoResult
+from .rewind_files import (
+    cleanup_orphan_snapshots,
+    restore_pre_rewind_snapshot,
+    revert_files_for_messages,
+    snapshot_pre_rewind,
+)
 
 if TYPE_CHECKING:
     from app.database.dto import _TitleModelConfig
@@ -199,8 +206,9 @@ class _ChatTurnMixin(_ChatServiceBase):
         When ``revert_files`` is set, file changes made by the deleted messages are
         also reverted (newest first) so the workspace matches the pre-rewind state.
 
-        The chat's session is held from the first step to the last, so no turn starts in between and loses its
-        messages to the deletion. A chat a turn holds, or a draining gateway, yields ``SESSION_BUSY``.
+        The chat is held from the first step to the last, so no entry that reserves it first starts in between. A chat
+        a turn holds (an IM turn included), or a draining gateway, yields ``SESSION_BUSY``. Only the rows found in the
+        first step are deleted, so a message another writer adds meanwhile stays.
         """
         from app.services.chat.session_continuity_service import SessionBusyError, hold_session_for_continuity
 
@@ -253,14 +261,18 @@ class _ChatTurnMixin(_ChatServiceBase):
                     error="REWIND_USER_ONLY",
                 )
 
+            # Read before the active rows: the files are reverted for the active rows in this set and the deletion removes
+            # exactly this set, so a row another writer adds meanwhile (an IM reply, the note of a settled background
+            # task) is neither reverted nor deleted.
+            rewound_ids = await _ChatServiceBase._cr(uow).message_ids_from(chat_id, msg)
             all_messages = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
             message_index = next((idx for idx, item in enumerate(all_messages) if item.id == message_id), -1)
             composer_text = msg.content.strip()
 
             target_messages = all_messages[message_index:] if message_index >= 0 else []
-            target_deleted_ids = [m.id for m in target_messages]
+            active_rewound_ids = [m.id for m in target_messages if m.id in rewound_ids]
 
-        if not target_deleted_ids:
+        if not active_rewound_ids:
             return RewindResult(
                 success=False,
                 deleted_count=0,
@@ -274,9 +286,9 @@ class _ChatTurnMixin(_ChatServiceBase):
         # Prevents split-brain data loss if file I/O fails.
         file_revert: dict[str, list[str]] = {}
         if revert_files:
-            pre_snap_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+            pre_snap_id = await snapshot_pre_rewind(chat_id)
             try:
-                file_revert = await _ChatTurnMixin._revert_files_for_messages(chat_id, target_deleted_ids)
+                file_revert = await revert_files_for_messages(chat_id, active_rewound_ids)
             except Exception as exc:
                 logger.error(
                     "Physical file revert failed for chat=%s, executing rollback compensation: %s",
@@ -284,7 +296,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                     exc,
                 )
                 if pre_snap_id:
-                    await _ChatTurnMixin._restore_pre_rewind_snapshot(chat_id, pre_snap_id)
+                    await restore_pre_rewind_snapshot(chat_id, pre_snap_id)
                 raise exc
 
         # Phase 2: Atomic database mutation and checkpoint sync
@@ -293,6 +305,7 @@ class _ChatTurnMixin(_ChatServiceBase):
                 chat_id,
                 msg,
                 include_anchor=True,
+                only_ids=rewound_ids,
             )
             if deleted_ids:
                 await _ChatTurnMixin._refresh_last_message(uow, chat_id)
@@ -313,7 +326,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         goal_paused = await pause_active_goal_for_rewind(chat_id)
 
         if not revert_files:
-            await _ChatTurnMixin._cleanup_orphan_snapshots(chat_id, deleted_ids)
+            await cleanup_orphan_snapshots(chat_id, deleted_ids)
 
         return RewindResult(
             success=True,
@@ -325,123 +338,6 @@ class _ChatTurnMixin(_ChatServiceBase):
             file_warnings=file_revert.get("warnings"),
             skipped_files=file_revert.get("skipped_files"),
         )
-
-    @staticmethod
-    async def _snapshot_pre_rewind(chat_id: str) -> str | None:
-        """Take a pre-rollback workspace snapshot before a file-reverting rewind.
-
-        Mirrors the pre-rollback protection of snapshot restore so the user can
-        undo an accidental rewind from the file snapshot panel. Best-effort: a
-        snapshot failure must never block the rewind itself.
-        """
-        from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
-        from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
-
-        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
-
-        async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
-        if not chat:
-            return None
-        workspace = await resolve_effective_chat_workspace(chat, jit_fallback=False)
-        if not workspace:
-            return None
-        try:
-            store = await create_file_snapshot_store()
-            return await store.take_snapshot(
-                working_dir=workspace,
-                trigger=SnapshotTrigger.PRE_ROLLBACK,
-            )
-        except Exception as e:
-            logger.warning("Pre-rewind snapshot failed (chat=%s): %s", chat_id, e)
-            return None
-
-    @staticmethod
-    async def _restore_pre_rewind_snapshot(chat_id: str, snapshot_id: str) -> bool:
-        """Restore workspace to pre-rewind snapshot when physical file revert fails."""
-        from myrm_agent_harness.agent.file_snapshot import create_file_snapshot_store
-
-        from app.services.chat.effective_workspace import resolve_effective_chat_workspace
-
-        async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
-        if not chat:
-            return False
-        workspace = await resolve_effective_chat_workspace(chat, jit_fallback=False)
-        if not workspace:
-            return False
-        try:
-            store = await create_file_snapshot_store()
-            res = await store.restore(snapshot_id)
-            return res.success
-        except Exception as exc:
-            logger.warning("Restoring pre-rewind snapshot failed (chat=%s): %s", chat_id, exc)
-            return False
-
-    @staticmethod
-    async def _revert_files_for_messages(chat_id: str, deleted_message_ids: list[str]) -> dict[str, list[str]]:
-        """Revert file changes made by deleted messages, newest message first.
-
-        A later message may overwrite a file touched by an earlier one, so reverting
-        in reverse chronological order restores each file to its state before the
-        rewind target message. Messages without snapshots are skipped gracefully.
-        """
-        from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
-
-        from app.services.files.revert_agent_notify import notify_agent_of_turn_revert
-        from app.services.files.revert_hydrate import (
-            cleanup_persisted_snapshots,
-            ensure_session_snapshots_hydrated,
-        )
-
-        await ensure_session_snapshots_hydrated(chat_id)
-
-        reverted_files: list[str] = []
-        warnings: list[str] = []
-        skipped_files: list[str] = []
-        for message_id in reversed(deleted_message_ids):
-            result = await RevertService.revert_message(chat_id, message_id)
-            if result.reverted_files:
-                await cleanup_persisted_snapshots(chat_id, message_id)
-                reverted_files.extend(result.reverted_files)
-            warnings.extend(result.warnings)
-            skipped_files.extend(result.skipped_files)
-
-        # A file touched by multiple messages is reported by each revert; keep
-        # first occurrence order so the UI count reflects distinct files.
-        reverted_files = list(dict.fromkeys(reverted_files))
-
-        if reverted_files:
-            notify_agent_of_turn_revert(
-                session_id=chat_id,
-                message_id=None,
-                reverted_files=reverted_files,
-            )
-
-        return {
-            "reverted_files": reverted_files,
-            "warnings": warnings,
-            "skipped_files": skipped_files,
-        }
-
-    @staticmethod
-    async def _cleanup_orphan_snapshots(chat_id: str, deleted_message_ids: list[str]) -> None:
-        """Drop snapshot state for messages removed by a conversation-only rewind.
-
-        File snapshots (System A) are persisted per message; when the rewind
-        scope excludes files, removed messages' snapshots would otherwise stay
-        on disk and be hydrated again on the next file-changes query.
-        """
-        from myrm_agent_harness.agent.meta_tools.file_ops.observers.snapshot_observer import (
-            SnapshotStore,
-        )
-
-        from app.services.files.revert_hydrate import cleanup_persisted_snapshots
-
-        store = SnapshotStore.get()
-        for message_id in deleted_message_ids:
-            store.remove_message(chat_id, message_id)
-            await cleanup_persisted_snapshots(chat_id, message_id)
 
     @staticmethod
     async def generate_chat_title(

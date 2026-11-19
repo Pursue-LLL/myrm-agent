@@ -174,7 +174,7 @@ async def test_rewind_to_message_rebuilds_usage(
         _noop,
     )
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._cleanup_orphan_snapshots",
+        "app.services.chat.chat_turn.cleanup_orphan_snapshots",
         AsyncMock(),
     )
 

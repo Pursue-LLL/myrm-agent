@@ -263,7 +263,7 @@ async def test_rewind_both_scope_reverts_files(
         }
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._revert_files_for_messages",
+        "app.services.chat.chat_turn.revert_files_for_messages",
         _fake_revert_files,
     )
 
@@ -315,7 +315,7 @@ async def test_rewind_conversation_scope_skips_file_revert(
         return {"reverted_files": [], "warnings": [], "skipped_files": []}
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._revert_files_for_messages",
+        "app.services.chat.chat_turn.revert_files_for_messages",
         _fake_revert_files,
     )
 
@@ -338,7 +338,7 @@ async def test_revert_files_for_messages_reverts_newest_first(
 
     from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
 
-    from app.services.chat.chat_turn import _ChatTurnMixin
+    from app.services.chat.rewind_files import revert_files_for_messages
 
     reverted_order: list[str] = []
 
@@ -366,7 +366,7 @@ async def test_revert_files_for_messages_reverts_newest_first(
         lambda **kwargs: notify_calls.append(kwargs),
     )
 
-    result = await _ChatTurnMixin._revert_files_for_messages("chat-1", ["msg-1", "msg-2"])
+    result = await revert_files_for_messages("chat-1", ["msg-1", "msg-2"])
 
     assert reverted_order == ["msg-2", "msg-1"]
     assert result["reverted_files"] == ["msg-2_a.txt", "msg-2_b.txt", "msg-1_a.txt", "msg-1_b.txt"]
@@ -384,7 +384,7 @@ async def test_revert_files_for_messages_skips_messages_without_snapshots(
 
     from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
 
-    from app.services.chat.chat_turn import _ChatTurnMixin
+    from app.services.chat.rewind_files import revert_files_for_messages
 
     async def _fake_revert(session_id: str, message_id: str):
         return SimpleNamespace(reverted_files=[], warnings=["No snapshots"], skipped_files=[])
@@ -405,7 +405,7 @@ async def test_revert_files_for_messages_skips_messages_without_snapshots(
         lambda **kwargs: notify_calls.append(kwargs),
     )
 
-    result = await _ChatTurnMixin._revert_files_for_messages("chat-1", ["msg-1", "msg-2"])
+    result = await revert_files_for_messages("chat-1", ["msg-1", "msg-2"])
 
     assert result["reverted_files"] == []
     assert result["warnings"] == ["No snapshots", "No snapshots"]
@@ -419,7 +419,7 @@ async def test_cleanup_orphan_snapshots_on_conversation_only_rewind(
     """Conversation-only rewind drops snapshot state for deleted messages."""
     from types import SimpleNamespace
 
-    from app.services.chat.chat_turn import _ChatTurnMixin
+    from app.services.chat.rewind_files import cleanup_orphan_snapshots
 
     cleanup_calls: list[tuple[str, str]] = []
 
@@ -440,7 +440,7 @@ async def test_cleanup_orphan_snapshots_on_conversation_only_rewind(
         SimpleNamespace(get=lambda: fake_store),
     )
 
-    await _ChatTurnMixin._cleanup_orphan_snapshots("chat-1", ["msg-1", "msg-2"])
+    await cleanup_orphan_snapshots("chat-1", ["msg-1", "msg-2"])
 
     assert remove_calls == [("chat-1", "msg-1"), ("chat-1", "msg-2")]
     assert cleanup_calls == [("chat-1", "msg-1"), ("chat-1", "msg-2")]
@@ -455,7 +455,7 @@ async def test_snapshot_pre_rewind_creates_pre_rollback_snapshot(
 
     from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 
-    from app.services.chat.chat_turn import _ChatTurnMixin
+    from app.services.chat.rewind_files import snapshot_pre_rewind
 
     async def _fake_workspace(_chat, *, jit_fallback: bool, persist_jit: bool = False) -> str:
         return "/ws"
@@ -476,7 +476,7 @@ async def test_snapshot_pre_rewind_creates_pre_rollback_snapshot(
     chat_id = f"rewind-pre-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)
 
-    snapshot_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+    snapshot_id = await snapshot_pre_rewind(chat_id)
 
     assert snapshot_id == "snap-pre"
     fake_store.take_snapshot.assert_awaited_once_with(
@@ -492,7 +492,7 @@ async def test_snapshot_pre_rewind_skips_without_workspace(
     """Rewinds without a resolvable workspace skip the protection snapshot."""
     from types import SimpleNamespace
 
-    from app.services.chat.chat_turn import _ChatTurnMixin
+    from app.services.chat.rewind_files import snapshot_pre_rewind
 
     async def _fake_workspace(_chat, *, jit_fallback: bool, persist_jit: bool = False) -> None:
         return None
@@ -518,7 +518,7 @@ async def test_snapshot_pre_rewind_skips_without_workspace(
     chat_id = f"rewind-nws-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)
 
-    snapshot_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+    snapshot_id = await snapshot_pre_rewind(chat_id)
 
     assert snapshot_id is None
     assert snapshot_calls == []
@@ -531,7 +531,7 @@ async def test_snapshot_pre_rewind_degrades_on_store_failure(
     """A snapshot failure never blocks the rewind (returns None, no raise)."""
     from types import SimpleNamespace
 
-    from app.services.chat.chat_turn import _ChatTurnMixin
+    from app.services.chat.rewind_files import snapshot_pre_rewind
 
     async def _fake_workspace(_chat, *, jit_fallback: bool, persist_jit: bool = False) -> str:
         return "/ws"
@@ -552,7 +552,7 @@ async def test_snapshot_pre_rewind_degrades_on_store_failure(
     chat_id = f"rewind-fail-{uuid.uuid4().hex[:8]}"
     await _create_chat(chat_id)
 
-    snapshot_id = await _ChatTurnMixin._snapshot_pre_rewind(chat_id)
+    snapshot_id = await snapshot_pre_rewind(chat_id)
 
     assert snapshot_id is None
 
@@ -590,7 +590,7 @@ async def test_rewind_both_scope_snapshots_before_file_revert(
         return "snap-pre"
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._snapshot_pre_rewind",
+        "app.services.chat.chat_turn.snapshot_pre_rewind",
         _fake_pre_rewind,
     )
 
@@ -599,7 +599,7 @@ async def test_rewind_both_scope_snapshots_before_file_revert(
         return {"reverted_files": ["a.py"], "warnings": [], "skipped_files": []}
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._revert_files_for_messages",
+        "app.services.chat.chat_turn.revert_files_for_messages",
         _fake_revert_files,
     )
 
@@ -644,7 +644,7 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
         return "snap-pre-comp"
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._snapshot_pre_rewind",
+        "app.services.chat.chat_turn.snapshot_pre_rewind",
         _fake_pre_rewind,
     )
 
@@ -652,7 +652,7 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
         raise OSError("Disk full while reverting files")
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._revert_files_for_messages",
+        "app.services.chat.chat_turn.revert_files_for_messages",
         _fake_revert_files,
     )
 
@@ -661,7 +661,7 @@ async def test_rewind_both_scope_triggers_rollback_compensation_on_revert_failur
         return True
 
     monkeypatch.setattr(
-        "app.services.chat.chat_turn._ChatTurnMixin._restore_pre_rewind_snapshot",
+        "app.services.chat.chat_turn.restore_pre_rewind_snapshot",
         _fake_restore_snapshot,
     )
 

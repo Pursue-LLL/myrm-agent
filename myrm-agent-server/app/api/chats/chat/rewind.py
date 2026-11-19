@@ -1,7 +1,7 @@
 """Chat rewind HTTP routes.
 
 [INPUT]
-- app.services.chat.chat_service::ChatService (POS: Chat business facade; its rewind holds the chat's session and answers SESSION_BUSY when a turn holds it)
+- app.services.chat.chat_service::ChatService (POS: Chat business facade; its rewind holds the chat and answers SESSION_BUSY when a turn holds it or an IM turn is running in it)
 - app.services.chat.session_continuity_service::CheckpointClearError (POS: checkpoint-clear failure after a history mutation)
 
 [OUTPUT]
