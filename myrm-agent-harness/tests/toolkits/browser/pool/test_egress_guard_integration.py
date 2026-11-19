@@ -108,8 +108,8 @@ class TestWhatTheGuardStops:
             assert guard.handled >= len(ATTACK_PATHS)  # every request of the page was judged, none ignored
 
     @pytest.mark.parametrize("target", ["literal", "name", "redirect"])
-    async def test_a_document_the_driver_fetches_cannot_reach_it_either(self, target: str) -> None:
-        """Document requests go through the driver (script injection), a path of their own that is guarded too."""
+    async def test_a_navigated_document_cannot_reach_it_either(self, target: str) -> None:
+        """The browser loads a document itself, through the same guard as every subresource."""
         guard = EgressGuard(table_resolver)
         with attack_world() as world:
             url = {
