@@ -205,9 +205,6 @@ vi.mock('../../SecondBrainSetupCard', async () => (await hoisted.loadStubs()).de
 vi.mock('../../ObsidianVaultActions', async () =>
   (await hoisted.loadStubs()).namedModule('ObsidianVaultActions', 'ObsidianVaultActions'),
 );
-vi.mock('../../MeetingNotesImportCard', async () =>
-  (await hoisted.loadStubs()).defaultModule('MeetingNotesImportCard'),
-);
 vi.mock('../../DailyReviewCard', async () => (await hoisted.loadStubs()).defaultModule('DailyReviewCard'));
 vi.mock('../../wiki/WikiLayersLedgerPanel', async () =>
   (await hoisted.loadStubs()).namedModule('WikiLayersLedgerPanel', 'WikiLayersLedgerPanel'),

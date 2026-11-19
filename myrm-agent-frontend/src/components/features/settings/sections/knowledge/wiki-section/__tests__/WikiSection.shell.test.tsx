@@ -95,7 +95,6 @@ describe('WikiSection: overview layout', () => {
       screen.getByText('purpose.title'),
       screen.getByText('stats.title'),
       screen.getByTestId('ObsidianVaultActions'),
-      screen.getByTestId('MeetingNotesImportCard'),
       screen.getByTestId('DailyReviewCard'),
       screen.getByText('query.title'),
       screen.getByText('actions.title'),

@@ -17609,19 +17609,6 @@
       "undoSuccess": "Successfully undone archive and restored concept",
       "reviveSuccess": "Successfully revived concept: {name}",
       "actionError": "Governance action failed, please try again",
-      "meetingNotes": {
-        "title": "Meeting Notes Import",
-        "description": "Upload meeting audio for chunked transcription, decisions & action items extraction, and Wiki knowledge sync",
-        "processing": "Transcribing & distilling minutes…",
-        "uploadButton": "Transcribe & Generate Minutes",
-        "decisions": "Decisions",
-        "debates": "Key Debate Points",
-        "actionItems": "Action Items",
-        "risks": "Risks",
-        "durationMinutes": "{minutes} min",
-        "tbd": "TBD",
-        "error": "Transcription failed; please retry later"
-      },
       "dailyReview": {
         "title": "Daily Review Compounding",
         "description": "Store today's review verbatim as evidence; it is distilled into Projects / Knowledge / Methods / Comparisons drafts that await human review",

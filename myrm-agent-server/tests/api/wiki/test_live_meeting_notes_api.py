@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import Query
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
@@ -64,14 +65,19 @@ def _fake_llm() -> AsyncMock:
     return llm
 
 
-def _build_client(tmp_path: Path) -> tuple[TestClient, MemoryToWikiArchiver, WikiStructure]:
-    from app.api.wiki.router import _get_wiki_archiver
-
-    archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=str(tmp_path / "wiki"))
+def _make_archiver(wiki_dir: Path) -> MemoryToWikiArchiver:
+    archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=str(wiki_dir))
     archiver._structure.ensure_structure()
     archiver._llm = _fake_llm()
     archiver._compiler = MagicMock()
     archiver._compiler._queue = MagicMock()
+    return archiver
+
+
+def _build_client(tmp_path: Path) -> tuple[TestClient, MemoryToWikiArchiver, WikiStructure]:
+    from app.api.wiki.router import _get_wiki_archiver
+
+    archiver = _make_archiver(tmp_path / "wiki")
 
     app = build_minimal_app(preset="wiki")
 
@@ -168,6 +174,28 @@ def test_finalize_honours_auto_compile_default_from_the_frontend(
     _ingest_all(client, "compile-default")
     assert client.post("/api/v1/wiki/meeting-notes/live/compile-default/finalize").status_code == 200
     enqueue.enqueue_file.assert_called_once()
+
+
+def test_finalize_publishes_into_the_vault_of_the_requested_agent(tmp_path: Path) -> None:
+    """The vault comes from the scoped archiver dependency; finalize needs no agent id of its own."""
+    from app.api.wiki.router import _get_wiki_archiver
+
+    default_archiver = _make_archiver(tmp_path / "default")
+    agent_archiver = _make_archiver(tmp_path / "agent-b")
+    app = build_minimal_app(preset="wiki")
+
+    async def _scoped(agent_id: Annotated[str | None, Query()] = None) -> MemoryToWikiArchiver:
+        return agent_archiver if agent_id == "agent-b" else default_archiver
+
+    app.dependency_overrides[_get_wiki_archiver] = _scoped
+    client = TestClient(app)
+    _ingest_all(client, "agent-scoped")
+
+    final = client.post("/api/v1/wiki/meeting-notes/live/agent-scoped/finalize?agent_id=agent-b&auto_compile=false")
+
+    assert final.status_code == 200, final.text
+    assert list((agent_archiver._structure.raw_dir / "meeting-notes").glob("*.md"))
+    assert not (default_archiver._structure.raw_dir / "meeting-notes").exists()
 
 
 def test_ingest_after_finalize_starts_a_fresh_session(

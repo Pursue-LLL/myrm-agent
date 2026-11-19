@@ -13,7 +13,7 @@
 Business orchestration layer for live meeting notes. Consumes *finalized* transcript
 lines from the existing streaming STT path, keeps the running transcript, and
 periodically produces rolling structured notes (summary / decisions / action items)
-by reusing the batch distillation prompt. Contains no ASR implementation and no
+through the shared minutes distillation. Contains no ASR implementation and no
 framework code; it is a thin, deterministic scheduler around the existing distillation.
 """
 

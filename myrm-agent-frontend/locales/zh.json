@@ -17609,19 +17609,6 @@
       "undoSuccess": "已成功撤销归档恢复概念",
       "reviveSuccess": "已成功复活概念：{name}",
       "actionError": "治理操作失败，请重试",
-      "meetingNotes": {
-        "title": "会议听记导入",
-        "description": "上传会议音频，自动分片转写、提取决议与待办，并沉淀入 Wiki 知识库",
-        "processing": "转写与纪要生成中…",
-        "uploadButton": "转写并生成纪要",
-        "decisions": "会议决议",
-        "debates": "关键争论点",
-        "actionItems": "待办任务",
-        "risks": "风险",
-        "durationMinutes": "{minutes} 分钟",
-        "tbd": "待定",
-        "error": "转写失败，请稍后重试"
-      },
       "dailyReview": {
         "title": "每日复盘一键知识化",
         "description": "把今天的复盘原样存为证据，自动萃取分流到项目/知识/方法/对比四维知识体系，草稿经人工审核后发布",
