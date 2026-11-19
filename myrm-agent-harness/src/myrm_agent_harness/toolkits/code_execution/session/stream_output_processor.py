@@ -3,6 +3,7 @@
 [INPUT]
 utils.text_utils::strip_ansi (POS: ANSI escape sequence stripping, ECMA-48 full spec)
 executors.models::scrub_sensitive_info (POS: absolute-path and credential scrubbing for output streams)
+utils.scratch_dir::ensure_scratch_dir (POS: The harness's own directories inside a workspace, hidden from git)
 
 [OUTPUT]
 StreamOutputProcessor: Handles auto-tee writing, SSE flood protection, whole-line scrubbing of live text, and disk quota.
@@ -10,7 +11,8 @@ StreamOutputProcessor: Handles auto-tee writing, SSE flood protection, whole-lin
 [POS]
 Single source of truth for output handling: tee file writing with 50MB quota,
 SSE 10FPS throttle, 500KB valve, and LRU log cleanup. Used by the output pump of
-PersistentSession (CommandStreamMixin._execute_core_stream).
+PersistentSession (CommandStreamMixin._execute_core_stream). The logs sit in the workspace's
+``.myrm/tee`` directory, which git ignores, so a commit never picks one up.
 Live (SSE) text is scrubbed here, on whole lines of the accumulated output: a credential
 or key block that arrives split across reads is joined before it is matched, so it never
 reaches the UI half-redacted. The tee file keeps the raw log; the credentials delivered to the command are
@@ -26,6 +28,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from myrm_agent_harness.toolkits.code_execution.executors.models import scrub_sensitive_info
+from myrm_agent_harness.toolkits.code_execution.utils.scratch_dir import ensure_scratch_dir
 from myrm_agent_harness.utils.text_utils import strip_ansi
 
 if TYPE_CHECKING:
@@ -90,8 +93,7 @@ class StreamOutputProcessor:
 
         Also performs LRU cleanup of old log files.
         """
-        tee_dir = Path(work_dir) / ".myrm" / "tee"
-        tee_dir.mkdir(parents=True, exist_ok=True)
+        tee_dir = ensure_scratch_dir(work_dir, "tee")
 
         try:
             log_files = sorted(tee_dir.glob("cmd_*.log"), key=lambda p: p.stat().st_mtime)

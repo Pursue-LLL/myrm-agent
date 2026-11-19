@@ -121,7 +121,6 @@ class PersistentSession(CommandStreamMixin, ABC):
             logger.info(f" Starting persistent session: {self.config.session_id}")
             if not self._platform.is_windows:
                 sweep_stale_materialized_scripts(self.config.work_dir)
-                sweep_stale_materialized_scripts("/tmp")
             self.process = await self._create_process()
             await self._initialize_shell()
             await self._transit_state(SessionState.ACTIVE)

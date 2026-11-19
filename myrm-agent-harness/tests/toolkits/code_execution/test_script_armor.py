@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import stat
+import time
 from pathlib import Path
 
 import pytest
@@ -29,10 +30,27 @@ from myrm_agent_harness.toolkits.code_execution.session import (
     LocalPersistentSession,
     SessionConfig,
 )
+from myrm_agent_harness.toolkits.code_execution.utils.scratch_dir import scratch_dir
 
 
-def _make_config(timeout: int = 10) -> SessionConfig:
-    return SessionConfig(session_id="test_armor", work_dir="/tmp", timeout=timeout, sandbox_mode="disable")
+def _make_config(work_dir: Path, timeout: int = 10) -> SessionConfig:
+    return SessionConfig(session_id="test_armor", work_dir=str(work_dir), timeout=timeout, sandbox_mode="disable")
+
+
+def _script_dir(work_dir: Path) -> Path:
+    """Where the armor keeps the scripts of the workspace ``work_dir`` (the layout the docs promise)."""
+    return scratch_dir(work_dir, "exec")
+
+
+def _write_script(work_dir: Path, name: str, age_seconds: float) -> Path:
+    """Put a script file, last touched ``age_seconds`` ago, into the script directory of ``work_dir``."""
+    script_dir = _script_dir(work_dir)
+    script_dir.mkdir(parents=True, exist_ok=True)
+    path = script_dir / name
+    path.write_text("echo script\n", encoding="utf-8")
+    mtime = time.time() - age_seconds
+    os.utime(path, (mtime, mtime))
+    return path
 
 
 class TestScriptArmorHeuristicProbe:
@@ -90,7 +108,7 @@ class TestScriptMaterialization:
 
     def test_materialize_file_permissions_and_content(self, tmp_path: Path) -> None:
         cmd = "echo 'armor test'\nexit 0"
-        script_path = materialize_script_to_file(cmd, temp_dir=tmp_path)
+        script_path = materialize_script_to_file(cmd, tmp_path)
         try:
             assert script_path.exists()
             # Verify 0700 permission (owner read/write/execute)
@@ -116,21 +134,23 @@ class TestScriptMaterialization:
         assert cmd.startswith('bash "')
         assert str(script.resolve()) in cmd
 
-    def test_materialize_script_failure_cleans_up_and_closes_fd(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_materialize_script_failure_cleans_up_and_closes_fd(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def _failing_open(*args, **kwargs):
             raise OSError("simulated disk write error")
 
         monkeypatch.setattr("builtins.open", _failing_open)
         with pytest.raises(OSError, match="simulated disk write error"):
-            materialize_script_to_file("echo test", temp_dir=tmp_path)
+            materialize_script_to_file("echo test", tmp_path)
 
 
 class TestPrepareArmoredCommandContextManager:
     """Test context manager lifecycle and cleanup guarantee."""
 
-    def test_direct_command_passes_through(self) -> None:
+    def test_direct_command_passes_through(self, tmp_path: Path) -> None:
         raw_cmd = "git status"
-        with prepare_armored_command(raw_cmd) as cmd_to_run:
+        with prepare_armored_command(raw_cmd, work_dir=tmp_path) as cmd_to_run:
             assert cmd_to_run == raw_cmd
 
     def test_armored_command_creates_and_cleans_up(self, tmp_path: Path) -> None:
@@ -145,6 +165,12 @@ class TestPrepareArmoredCommandContextManager:
         # After exiting with block, file must be destroyed
         assert created_file is not None
         assert not created_file.exists()
+
+    def test_script_sits_in_the_workspace_and_stays_out_of_git(self, tmp_path: Path) -> None:
+        with prepare_armored_command("echo 1\necho 2\necho 3\n", work_dir=tmp_path) as cmd_to_run:
+            script = Path(cmd_to_run.split('"', 2)[1])
+            assert script.parent == _script_dir(tmp_path).resolve()
+            assert (script.parent / ".gitignore").read_text(encoding="utf-8") == "*\n"
 
     def test_armored_command_cleans_up_on_exception(self, tmp_path: Path) -> None:
         raw_cmd = "exit 1"
@@ -163,9 +189,9 @@ class TestPersistentSessionIntegration:
     """End-to-end integration with LocalPersistentSession."""
 
     @pytest.mark.asyncio
-    async def test_exit_statement_does_not_kill_persistent_shell(self) -> None:
+    async def test_exit_statement_does_not_kill_persistent_shell(self, tmp_path: Path) -> None:
         """A script with 'exit 42' must return exit code 42 without killing the persistent shell."""
-        session = LocalPersistentSession(_make_config())
+        session = LocalPersistentSession(_make_config(tmp_path))
         await session.start()
         try:
             # First command: sets an environment variable
@@ -192,23 +218,23 @@ def hello():
     return "world"
 EOF
 """
-        session = LocalPersistentSession(_make_config())
+        session = LocalPersistentSession(_make_config(tmp_path))
         await session.start()
         try:
             result = await session.execute(heredoc_cmd)
             assert result.success
             assert target_file.exists()
             content = target_file.read_text(encoding="utf-8")
-            assert 'def hello():' in content
-            assert '__myrm_rc__' not in content
+            assert "def hello():" in content
+            assert "__myrm_rc__" not in content
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_trailing_comment_without_newline(self) -> None:
+    async def test_trailing_comment_without_newline(self, tmp_path: Path) -> None:
         """A command ending with a single-line comment must not swallow exit markers."""
         cmd = "echo 'comment_test' # trailing comment without newline"
-        session = LocalPersistentSession(_make_config())
+        session = LocalPersistentSession(_make_config(tmp_path))
         await session.start()
         try:
             result = await session.execute(cmd)
@@ -219,9 +245,9 @@ EOF
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_armored_metadata_propagates_to_execution_result(self) -> None:
+    async def test_armored_metadata_propagates_to_execution_result(self, tmp_path: Path) -> None:
         """Verify is_armored is False for direct commands and True for materialized scripts."""
-        session = LocalPersistentSession(_make_config())
+        session = LocalPersistentSession(_make_config(tmp_path))
         await session.start()
         try:
             # Direct command -> is_armored is False
@@ -235,33 +261,39 @@ EOF
         finally:
             await session.close()
 
+    @pytest.mark.asyncio
+    async def test_session_start_clears_the_stale_scripts_of_its_workspace(self, tmp_path: Path) -> None:
+        """A script a killed shell left in the workspace is gone once a session starts there."""
+        _write_script(tmp_path, ".myrm_exec_left_behind.sh", age_seconds=7200)
+        session = LocalPersistentSession(_make_config(tmp_path))
+        await session.start()
+        try:
+            assert not list(_script_dir(tmp_path).glob(".myrm_exec_*.sh"))
+        finally:
+            await session.close()
+
 
 class TestSweepStaleMaterializedScripts:
     """Test orphan script cleanup mechanism."""
 
     def test_sweep_cleans_stale_files_and_keeps_fresh_ones(self, tmp_path: Path) -> None:
-        import time
-
-        now = time.time()
-        stale_file = tmp_path / ".myrm_exec_stale123.sh"
-        stale_file.write_text("echo stale\n", encoding="utf-8")
-        # Set mtime to 2 hours ago
-        os.utime(stale_file, (now - 7200, now - 7200))
-
-        fresh_file = tmp_path / ".myrm_exec_fresh456.sh"
-        fresh_file.write_text("echo fresh\n", encoding="utf-8")
-        # Set mtime to now
-        os.utime(fresh_file, (now, now))
-
-        other_file = tmp_path / "regular_file.sh"
-        other_file.write_text("echo regular\n", encoding="utf-8")
-        os.utime(other_file, (now - 7200, now - 7200))
+        stale_file = _write_script(tmp_path, ".myrm_exec_stale123.sh", age_seconds=7200)
+        fresh_file = _write_script(tmp_path, ".myrm_exec_fresh456.sh", age_seconds=0)
+        other_file = _write_script(tmp_path, "regular_file.sh", age_seconds=7200)
 
         cleaned = sweep_stale_materialized_scripts(tmp_path, max_age_seconds=3600.0)
         assert cleaned == 1
         assert not stale_file.exists()
         assert fresh_file.exists()
         assert other_file.exists()
+
+    def test_sweep_only_looks_in_the_script_directory(self, tmp_path: Path) -> None:
+        elsewhere = tmp_path / ".myrm_exec_stale789.sh"
+        elsewhere.write_text("echo mine\n", encoding="utf-8")
+        os.utime(elsewhere, (time.time() - 7200, time.time() - 7200))
+
+        assert sweep_stale_materialized_scripts(tmp_path, max_age_seconds=3600.0) == 0
+        assert elsewhere.exists()
 
     def test_sweep_nonexistent_directory(self) -> None:
         assert sweep_stale_materialized_scripts("/nonexistent/dir/xyz_404") == 0
@@ -276,8 +308,7 @@ class TestSweepStaleMaterializedScripts:
         assert sliced == "bash"
 
     def test_sweep_handles_os_error_gracefully(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        stale_file = tmp_path / ".myrm_exec_stale_err.sh"
-        stale_file.write_text("echo err\n", encoding="utf-8")
+        stale_file = _write_script(tmp_path, ".myrm_exec_stale_err.sh", age_seconds=7200)
 
         real_stat = Path.stat
 
@@ -288,11 +319,18 @@ class TestSweepStaleMaterializedScripts:
 
         monkeypatch.setattr(Path, "stat", _selective_stat)
         assert sweep_stale_materialized_scripts(tmp_path, max_age_seconds=10.0) == 0
+        monkeypatch.undo()
+        assert stale_file.exists()
 
-    def test_sweep_handles_dir_stat_error_gracefully(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        def _dir_stat_fail(self, *args, **kwargs):
+    def test_sweep_handles_unlistable_directory_gracefully(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        stale_file = _write_script(tmp_path, ".myrm_exec_stale_dir.sh", age_seconds=7200)
+
+        def _unlistable(self, *args, **kwargs):
             raise OSError("Permission denied on directory")
 
-        monkeypatch.setattr(Path, "stat", _dir_stat_fail)
+        monkeypatch.setattr(Path, "glob", _unlistable)
         assert sweep_stale_materialized_scripts(tmp_path, max_age_seconds=10.0) == 0
-
+        monkeypatch.undo()
+        assert stale_file.exists()

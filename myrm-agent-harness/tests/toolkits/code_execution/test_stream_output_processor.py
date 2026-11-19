@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -153,6 +155,32 @@ class TestValve:
         sop.accumulate_sse("x" * 600_000)
         sop._last_sse_time = time.monotonic() - 1.0
         assert sop.accumulate_sse("more") is None
+
+
+class TestTeeDirectory:
+    """The tee logs sit in the workspace, in a directory that keeps itself out of git."""
+
+    def test_the_tee_directory_ignores_itself(self, tmp_path: Path) -> None:
+        sop = StreamOutputProcessor()
+        tee_file = sop.setup_tee(str(tmp_path))
+
+        assert tee_file.parent == tmp_path / ".myrm" / "tee"
+        assert (tee_file.parent / ".gitignore").read_text(encoding="utf-8") == "*\n"
+        assert sop.relative_tee_path == Path(".myrm") / "tee" / tee_file.name
+
+    def test_log_cleanup_keeps_the_ignore_file(self, tmp_path: Path) -> None:
+        tee_dir = tmp_path / ".myrm" / "tee"
+        tee_dir.mkdir(parents=True)
+        now = time.time()
+        for index in range(25):
+            log = tee_dir / f"cmd_{index:08d}.log"
+            log.write_text("old\n", encoding="utf-8")
+            os.utime(log, (now - 100 + index, now - 100 + index))
+
+        StreamOutputProcessor().setup_tee(str(tmp_path))
+
+        assert len(list(tee_dir.glob("cmd_*.log"))) == 20
+        assert (tee_dir / ".gitignore").exists()
 
 
 class TestTeeNotStripped:

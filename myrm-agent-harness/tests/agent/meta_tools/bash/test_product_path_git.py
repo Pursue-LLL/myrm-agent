@@ -79,6 +79,19 @@ async def test_a_push_reaches_the_remote(real_stack: RealBashStack) -> None:
     assert "first" in await real_stack.run(_SUBJECT_ON_REMOTE, timeout=_TIMEOUT)
 
 
+async def test_git_add_all_stages_none_of_the_harness_files(real_stack: RealBashStack) -> None:
+    """The script a command runs from and the output log of the command before it sit in the workspace, not in a commit."""
+    await real_stack.run("echo first", timeout=_TIMEOUT)
+
+    output = await real_stack.run(
+        "git init -q -b main && echo x > a.txt && git add -A && git ls-files", timeout=_TIMEOUT
+    )
+
+    staged = output.split()
+    assert "a.txt" in staged
+    assert not [name for name in staged if name.startswith(".myrm")]
+
+
 async def test_a_script_in_strict_mode_can_commit_and_push(real_stack: RealBashStack) -> None:
     await _prepare_repository(real_stack)
 

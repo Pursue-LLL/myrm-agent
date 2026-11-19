@@ -1,23 +1,24 @@
 """Script armor suite — file-backed subprocess invocation & quote/syntax escaping armor.
 
 [INPUT]
-- None (POS: Zero-dependency leaf utility module in security toolkit)
+utils.scratch_dir::ensure_scratch_dir, scratch_dir (POS: The harness's own directories inside a workspace, hidden from git)
 
 [OUTPUT]
 - ScriptArmorConfig: Dataclass configuring direct execution thresholds
 - ArmoredCommandString: String subclass carrying is_armored execution tag
 - should_materialize_script: Dual-mode heuristic decision probe
-- materialize_script_to_file: Atomic 0700 script file creation
+- materialize_script_to_file: Atomic 0700 script file creation in a given directory
 - build_file_backed_command: Subshell invocation command formatter
 - cleanup_materialized_script: Safe file unlink cleanup
-- sweep_stale_materialized_scripts: Safe cleanup of stale orphan materialized scripts
+- sweep_stale_materialized_scripts: Removes the stale scripts a killed process left in a workspace
 - prepare_armored_command: Context manager wrapping materialization, execution, and cleanup
 
 [POS]
 Execution security armor. Protects persistent sessions against beacon swallowing,
 exit-statement process deaths, and quote bombs by materializing complex scripts to
-secured temporary files executed via subshells, while preserving the direct execution
-fast-path for session state modifiers (cd, export, source).
+0700 files executed via subshells, while preserving the direct execution
+fast-path for session state modifiers (cd, export, source). The scripts live in the
+workspace's ``.myrm/exec`` directory, which git ignores, so a commit never picks one up.
 """
 
 from __future__ import annotations
@@ -27,11 +28,17 @@ import dataclasses
 import logging
 import os
 import re
+import time
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
+from myrm_agent_harness.toolkits.code_execution.utils.scratch_dir import ensure_scratch_dir, scratch_dir
+
 logger: logging.Logger = logging.getLogger(__name__)
+
+_SCRIPT_DIR_NAME = "exec"
+_SCRIPT_PREFIX = ".myrm_exec_"
 
 # Fast-path commands that must execute directly in the parent persistent shell
 # to preserve session-level state (directory changes, environment variables).
@@ -65,8 +72,6 @@ class ScriptArmorConfig:
     enabled: bool = True
     direct_max_bytes: int = 512
     max_direct_lines: int = 2
-    temp_dir: str = "/tmp"
-    script_prefix: str = ".myrm_exec_"
 
 
 class ArmoredCommandString(str):
@@ -135,20 +140,12 @@ def should_materialize_script(command: str, config: ScriptArmorConfig | None = N
     return bool(_EXIT_PATTERN.search(command))
 
 
-def materialize_script_to_file(
-    command: str,
-    temp_dir: str | Path = "/tmp",
-    prefix: str = ".myrm_exec_",
-) -> Path:
-    """Atomically write *command* to a secured temporary executable shell script.
+def materialize_script_to_file(command: str, script_dir: Path) -> Path:
+    """Atomically write *command* to a secured executable shell script in the existing *script_dir*.
 
     File permissions are explicitly set to 0700 (owner read, write, execute only).
     """
-    target_dir: Path = Path(temp_dir)
-    target_dir.mkdir(parents=True, exist_ok=True)
-
-    unique_id: str = uuid.uuid4().hex
-    script_path: Path = target_dir / f"{prefix}{unique_id}.sh"
+    script_path: Path = script_dir / f"{_SCRIPT_PREFIX}{uuid.uuid4().hex}.sh"
 
     # Use os.open with O_CREAT | O_WRONLY | O_EXCL to prevent symlink attacks and race conditions
     fd: int = os.open(str(script_path), os.O_CREAT | os.O_WRONLY | os.O_EXCL, 0o700)
@@ -179,36 +176,22 @@ def cleanup_materialized_script(script_path: str | Path | None) -> None:
         Path(script_path).unlink(missing_ok=True)
 
 
-def sweep_stale_materialized_scripts(
-    temp_dir: str | Path = "/tmp",
-    max_age_seconds: float = 3600.0,
-    prefix: str = ".myrm_exec_",
-) -> int:
-    """Scan *temp_dir* and safely unlink stale materialized script files.
+def sweep_stale_materialized_scripts(work_dir: str | Path, max_age_seconds: float = 3600.0) -> int:
+    """Unlink the scripts of the workspace *work_dir* that are older than *max_age_seconds*.
 
-    Used during session initialization or periodic maintenance to clean up
-    orphan scripts left behind by ungraceful terminations (e.g. OOM-kill).
-    Returns the number of files cleaned.
+    A session calls this when it starts, to clear what a process that was killed under a command (OOM kill) left
+    behind. Returns the number of files removed.
     """
     cleaned: int = 0
-    dir_path: Path = Path(temp_dir)
-    try:
-        if not dir_path.is_dir():
-            return 0
-    except OSError:
-        return 0
-
-    import time
-
     now: float = time.time()
     try:
-        for p in dir_path.glob(f"{prefix}*.sh"):
+        for path in scratch_dir(work_dir, _SCRIPT_DIR_NAME).glob(f"{_SCRIPT_PREFIX}*.sh"):
             try:
-                if (now - p.stat().st_mtime) > max_age_seconds:
-                    p.unlink(missing_ok=True)
+                if (now - path.stat().st_mtime) > max_age_seconds:
+                    path.unlink(missing_ok=True)
                     cleaned += 1
             except OSError:
-                pass
+                continue
     except OSError:
         pass
     return cleaned
@@ -217,7 +200,7 @@ def sweep_stale_materialized_scripts(
 @contextlib.contextmanager
 def prepare_armored_command(
     command: str,
-    work_dir: str | Path = "/tmp",
+    work_dir: str | Path,
     is_windows: bool = False,
     config: ScriptArmorConfig | None = None,
 ) -> Iterator[str]:
@@ -233,8 +216,8 @@ def prepare_armored_command(
 
     materialized_path: Path | None = None
     try:
-        target_dir: Path = Path(work_dir) if Path(work_dir).is_dir() else Path("/tmp")
-        materialized_path = materialize_script_to_file(command, temp_dir=target_dir)
+        # The script stays in the workspace: a sandbox may give the shell a private /tmp, but it mounts the workspace.
+        materialized_path = materialize_script_to_file(command, ensure_scratch_dir(work_dir, _SCRIPT_DIR_NAME))
         yield ArmoredCommandString(build_file_backed_command(materialized_path), is_armored=True)
     except Exception as e:
         logger.warning("Script materialization failed, fallback to direct: %s", e)
