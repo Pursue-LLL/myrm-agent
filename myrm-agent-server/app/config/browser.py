@@ -11,6 +11,8 @@
 [OUTPUT] get_configured_browser_pool: 带部署模式配置的 GlobalBrowserPool 单例
 [POS] 浏览器池配置工厂。按部署模式（Local/Sandbox）生成 BrowserPoolConfig 预设，支持注入云浏览器 endpoint；
 云端部署的浏览器池另带出口连接守卫，所有创建池的入口都经由这里取配置，避免先创建者的配置胜出。
+浏览器默认校验 TLS 证书；运营方可用环境变量 MYRM_BROWSER_IGNORE_HTTPS_ERRORS 让浏览器上下文打开证书不受信任的页面，
+该开关对两种部署模式同样生效。
 """
 
 import dataclasses
@@ -30,6 +32,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.browser.pool import EgressGuard, GlobalBrowserPool
 
 logger = logging.getLogger(__name__)
+
+_IGNORE_HTTPS_ERRORS_ENV = "MYRM_BROWSER_IGNORE_HTTPS_ERRORS"
+
+
+def _operator_ignores_https_errors() -> bool:
+    """Whether the operator opted in to opening pages whose TLS certificate the browser would refuse."""
+    return (os.getenv(_IGNORE_HTTPS_ERRORS_ENV) or "").strip().lower() in ("true", "1", "yes")
 
 
 def _resolve_local_cdp_endpoint() -> str:
@@ -102,25 +111,26 @@ def get_browser_pool_config(*, remote_ws_endpoint: str | None = None) -> Browser
 
     环境变量:
         CDP_PORT: 覆盖默认 CDP 端口 (默认 9222)
+        MYRM_BROWSER_IGNORE_HTTPS_ERRORS: true/1/yes 时浏览器上下文打开证书不受信任的页面 (默认校验证书)
 
     Returns:
         对应部署模式下的 `BrowserPoolConfig` 实例
     """
     if is_local_mode():
-        cdp_endpoint = _resolve_local_cdp_endpoint()
-
-        base = BrowserPoolConfig.minimal()
-        return dataclasses.replace(
-            base,
+        config = dataclasses.replace(
+            BrowserPoolConfig.minimal(),
             launch_mode=LaunchMode.AUTO,
-            cdp_endpoint=cdp_endpoint,
+            cdp_endpoint=_resolve_local_cdp_endpoint(),
             remote_ws_endpoint=remote_ws_endpoint,
         )
+    else:
+        config = BrowserPoolConfig.defensive()
+        if remote_ws_endpoint:
+            config = dataclasses.replace(config, remote_ws_endpoint=remote_ws_endpoint)
 
-    base = BrowserPoolConfig.defensive()
-    if remote_ws_endpoint:
-        return dataclasses.replace(base, remote_ws_endpoint=remote_ws_endpoint)
-    return base
+    if _operator_ignores_https_errors():
+        config = dataclasses.replace(config, ignore_https_errors=True)
+    return config
 
 
 def get_browser_launch_options() -> dict[str, object]:

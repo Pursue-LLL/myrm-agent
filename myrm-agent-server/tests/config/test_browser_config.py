@@ -1,10 +1,12 @@
-"""Tests for app/config/browser.py — deploy_mode to LaunchMode mapping."""
+"""Tests for app/config/browser.py — deploy_mode to LaunchMode mapping, the operator's certificate switch and the egress guard."""
 
 from __future__ import annotations
 
+import dataclasses
 from unittest.mock import MagicMock, patch
 
-from myrm_agent_harness.toolkits.browser.pool.config import _DEFAULT_CDP_ENDPOINT, LaunchMode
+import pytest
+from myrm_agent_harness.toolkits.browser.pool.config import _DEFAULT_CDP_ENDPOINT, BrowserPoolConfig, LaunchMode
 
 from app.config.browser import (
     get_browser_egress_guard,
@@ -78,6 +80,63 @@ class TestGetBrowserPoolConfig:
         with patch("app.config.browser.is_local_mode", return_value=False):
             config = get_browser_pool_config()
             assert config.cdp_endpoint is None
+
+
+_IGNORE_HTTPS_ERRORS_ENV = "MYRM_BROWSER_IGNORE_HTTPS_ERRORS"
+
+
+class TestIgnoreHttpsErrorsSwitch:
+    """The operator's switch for pages whose certificate the browser would refuse; unset means the browser verifies."""
+
+    @staticmethod
+    def _config(monkeypatch: pytest.MonkeyPatch, *, local: bool, remote_ws_endpoint: str | None = None) -> BrowserPoolConfig:
+        monkeypatch.setattr("app.config.browser.is_local_mode", lambda: local)
+        monkeypatch.setattr("app.config.browser._resolve_local_cdp_endpoint", lambda: _DEFAULT_CDP_ENDPOINT)
+        return get_browser_pool_config(remote_ws_endpoint=remote_ws_endpoint)
+
+    @pytest.mark.parametrize("local", [True, False], ids=["local", "sandbox"])
+    def test_certificates_are_verified_when_the_variable_is_unset(self, monkeypatch: pytest.MonkeyPatch, local: bool) -> None:
+        monkeypatch.delenv(_IGNORE_HTTPS_ERRORS_ENV, raising=False)
+
+        assert self._config(monkeypatch, local=local).ignore_https_errors is False
+
+    @pytest.mark.parametrize("local", [True, False], ids=["local", "sandbox"])
+    @pytest.mark.parametrize("value", ["true", "TRUE", "1", "yes", " Yes "])
+    def test_the_operator_opts_out_with_a_true_value(self, monkeypatch: pytest.MonkeyPatch, local: bool, value: str) -> None:
+        monkeypatch.setenv(_IGNORE_HTTPS_ERRORS_ENV, value)
+
+        assert self._config(monkeypatch, local=local).ignore_https_errors is True
+
+    @pytest.mark.parametrize("value", ["", "false", "0", "no", "off", "2", "enabled"])
+    def test_any_other_value_keeps_verification(self, monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+        monkeypatch.setenv(_IGNORE_HTTPS_ERRORS_ENV, value)
+
+        assert self._config(monkeypatch, local=False).ignore_https_errors is False
+
+    @pytest.mark.parametrize("local", [True, False], ids=["local", "sandbox"])
+    def test_the_switch_leaves_the_rest_of_the_deployment_config_alone(
+        self, monkeypatch: pytest.MonkeyPatch, local: bool
+    ) -> None:
+        monkeypatch.delenv(_IGNORE_HTTPS_ERRORS_ENV, raising=False)
+        before = self._config(monkeypatch, local=local, remote_ws_endpoint="wss://browser.example/")
+        monkeypatch.setenv(_IGNORE_HTTPS_ERRORS_ENV, "true")
+
+        after = self._config(monkeypatch, local=local, remote_ws_endpoint="wss://browser.example/")
+
+        assert after.ignore_https_errors is True
+        assert after == dataclasses.replace(before, ignore_https_errors=True)
+
+    def test_the_configured_pool_is_created_with_the_choice(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv(_IGNORE_HTTPS_ERRORS_ENV, "true")
+        monkeypatch.setattr("app.config.browser.is_local_mode", lambda: False)
+
+        with (
+            patch("app.config.browser.get_browser_egress_guard", return_value=None),
+            patch(_CREATE_POOL) as create_pool,
+        ):
+            get_configured_browser_pool()
+
+        assert create_pool.call_args.kwargs["config"].ignore_https_errors is True
 
 
 class TestGetBrowserLaunchOptions:
