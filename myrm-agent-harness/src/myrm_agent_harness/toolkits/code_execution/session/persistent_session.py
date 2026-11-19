@@ -75,6 +75,7 @@ class PersistentSession(CommandStreamMixin, ABC):
         # ``_lock`` serializes start and close; ``_command_lock`` serializes the commands (see ``execute``).
         self._lock = asyncio.Lock()
         self._command_lock = asyncio.Lock()
+        self._commands_waiting = 0
         self._state = SessionState.IDLE
 
     @property
@@ -84,6 +85,15 @@ class PersistentSession(CommandStreamMixin, ABC):
     @property
     def is_alive(self) -> bool:
         return self.process is not None and self.process.returncode is None
+
+    @property
+    def _in_use(self) -> bool:
+        """Whether a command runs in the shell or waits for it.
+
+        The lock alone does not say: it is free in the moment between one command and the next that waits, and
+        while a command that just asked for it has not taken it yet.
+        """
+        return self._command_lock.locked() or self._commands_waiting > 0
 
     async def _transit_state(self, new_state: SessionState) -> None:
         """Atomic state transition with logging."""
@@ -182,6 +192,7 @@ class PersistentSession(CommandStreamMixin, ABC):
         back, and a wait that has not finished is cancelled before it can take the lock.
         """
         acquire = asyncio.ensure_future(self._command_lock.acquire())
+        self._commands_waiting += 1
         try:
             await run_until_cancelled(acquire)
         except BaseException:
@@ -190,6 +201,8 @@ class PersistentSession(CommandStreamMixin, ABC):
             elif not acquire.cancelled():
                 self._command_lock.release()
             raise
+        finally:
+            self._commands_waiting -= 1
 
     async def _precheck_bash_syntax(self, command: str) -> str | None:
         """Return a bash syntax error message when *command* is malformed.
@@ -275,13 +288,17 @@ class PersistentSession(CommandStreamMixin, ABC):
             await self._transit_state(SessionState.TERMINATED)
 
     async def check_health(self) -> bool:
-        """Whether the shell answers a trivial command.
+        """Whether the shell is alive and, when no command is using it, answers a trivial command.
 
-        A probe that never ran because its request was stopped while it queued learned nothing about the shell, so
-        it counts as healthy: reporting it dead would make the caller kill a shell another command is using.
+        A shell in use is not probed: its commands have a deadline of their own, and a probe could only queue behind
+        them while the caller that asked holds up everyone after it. A probe whose request was already stopped never
+        ran and learned nothing about the shell, so it counts as healthy: reporting it dead would make the caller
+        restart a shell it has no reason to doubt.
         """
         if not self.is_alive:
             return False
+        if self._in_use:
+            return True
         try:
             res = await self.execute("echo ok", timeout=2)
         except Exception:

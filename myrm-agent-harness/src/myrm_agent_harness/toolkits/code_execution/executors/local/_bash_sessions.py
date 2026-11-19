@@ -94,7 +94,8 @@ async def get_or_create_bash_session(
     writable run's under the same session id, and a change of the granted directories starts a new shell.
     Callers of one identity pass through ``start_locks`` one at a time, so the check and the start are one step:
     shells started side by side would all but the last be dropped from ``sessions`` while their processes keep
-    running, and two callers that both find the shell unhealthy would both restart it.
+    running, and two callers that both find the shell unhealthy would both restart it. The check never waits for a
+    command (``check_health`` leaves a shell in use alone), so no caller queued here is held up by one.
     """
     from myrm_agent_harness.toolkits.code_execution.session import (
         LocalPersistentSession,
