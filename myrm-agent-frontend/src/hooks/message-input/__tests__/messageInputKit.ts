@@ -116,7 +116,6 @@ vi.mock('@/hooks/message-input/useQueueDrain', () => ({
 
 vi.mock('@/hooks/message-input/useInputFileUpload', () => ({
   useInputFileUpload: () => ({
-    isUploadingPaste: false,
     handlePaste: vi.fn(),
     handleDroppedFiles: vi.fn(),
   }),

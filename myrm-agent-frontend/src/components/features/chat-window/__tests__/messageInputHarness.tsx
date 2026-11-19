@@ -207,7 +207,6 @@ export function makeHook(overrides: Partial<MessageInputHook> = {}): MessageInpu
     showLinkDialog: false,
     dontRemindAgain: false,
     setDontRemindAgain: vi.fn(),
-    isUploadingPaste: false,
     showCompactConfirm: false,
     setShowCompactConfirm: vi.fn(),
     dontRemindCompact: false,

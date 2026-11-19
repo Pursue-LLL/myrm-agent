@@ -97,7 +97,7 @@ export const useMessageInput = () => {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const linkPrompt = useLinkAtPrompt({ inputMessage, setInputMessage, inputRef });
 
-  const { isUploadingPaste, handlePaste, handleDroppedFiles } = useInputFileUpload({
+  const { handlePaste, handleDroppedFiles } = useInputFileUpload({
     actionMode,
     files,
     setFiles,
@@ -417,7 +417,6 @@ export const useMessageInput = () => {
     showLinkDialog: linkPrompt.showLinkDialog,
     dontRemindAgain: linkPrompt.dontRemindAgain,
     setDontRemindAgain: linkPrompt.setDontRemindAgain,
-    isUploadingPaste,
     showCompactConfirm,
     setShowCompactConfirm,
     dontRemindCompact,

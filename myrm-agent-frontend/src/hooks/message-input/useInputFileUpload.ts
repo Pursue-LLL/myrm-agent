@@ -6,7 +6,7 @@
  * - @/lib/utils/fileUtils::computeFileHash (POS: Browser file hashing utility)
  *
  * [OUTPUT]
- * - useInputFileUpload: 暴露粘贴/拖拽上传处理函数、乐观入队状态与延迟处理流水线。
+ * - useInputFileUpload: 暴露粘贴、拖拽与按文件列表上传的处理函数；附件乐观入队，后续处理走非阻塞的延迟流水线。
  *
  * [POS]
  * 聊天输入文件上传 Hook。负责粘贴/拖拽文件上传、Office 剪贴板文本优先智能识别、SHA-256 去重和非阻塞延迟处理流水线；
@@ -352,7 +352,6 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
   );
 
   return {
-    isUploadingPaste: false,
     handlePaste,
     handleDroppedFiles,
     uploadInputFiles,

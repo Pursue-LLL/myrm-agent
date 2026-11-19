@@ -615,23 +615,8 @@ describe('useInputFileUpload', () => {
     });
   });
 
-  describe('isUploadingPaste state', () => {
-    it('should set isUploadingPaste during upload and reset after', async () => {
-      mockUploadFilesWithProgress.mockResolvedValue({ uploaded_count: 0, files: [] });
-
-      const { result } = renderHook(() => useInputFileUpload(defaultParams));
-      expect(result.current.isUploadingPaste).toBe(false);
-
-      const file = new File(['x'], 'x.txt', { type: 'text/plain' });
-
-      await act(async () => {
-        await result.current.handleDroppedFiles([file]);
-      });
-
-      expect(result.current.isUploadingPaste).toBe(false);
-    });
-
-    it('should reset isUploadingPaste even on upload error', async () => {
+  describe('handleDroppedFiles - upload failures', () => {
+    it('should report an upload that failed', async () => {
       mockUploadFilesWithProgress.mockRejectedValue(new Error('network error'));
 
       const { result } = renderHook(() => useInputFileUpload(defaultParams));
@@ -641,7 +626,6 @@ describe('useInputFileUpload', () => {
         await result.current.handleDroppedFiles([file]);
       });
 
-      expect(result.current.isUploadingPaste).toBe(false);
       expect(mockToast.error).toHaveBeenCalledWith('uploadError');
     });
 
@@ -656,7 +640,6 @@ describe('useInputFileUpload', () => {
         await result.current.handleDroppedFiles([file]);
       });
 
-      expect(result.current.isUploadingPaste).toBe(false);
       expect(mockToast.error).not.toHaveBeenCalled();
     });
   });
