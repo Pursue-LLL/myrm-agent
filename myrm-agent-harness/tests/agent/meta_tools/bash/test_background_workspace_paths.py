@@ -1,7 +1,7 @@
 """A background command reads ``/workspace`` as a foreground command does: the directory the executor is bound to.
 
-The shell is given the command with that directory in place of ``/workspace``. The job list, the execution record and the
-threat check keep the command as typed.
+The shell is given the command with that directory in place of ``/workspace``, quoted where a space or a shell
+metacharacter in its name needs it. The job list, the execution record and the threat check keep the command as typed.
 """
 
 from __future__ import annotations
@@ -54,6 +54,13 @@ async def test_the_container_root_names_the_directory_the_executor_is_bound_to()
     )
 
     assert spawned.context.args == ["-c", "cd /srv/project/app && ls /srv/project"]
+
+
+@pytest.mark.asyncio
+async def test_a_directory_the_shell_would_split_is_quoted() -> None:
+    spawned = await _spawned("cd /workspace/app && ls", executor_root="/srv/My Docs", session_root="/chats/c1")
+
+    assert spawned.context.args == ["-c", "cd '/srv/My Docs'/app && ls"]
 
 
 @pytest.mark.asyncio

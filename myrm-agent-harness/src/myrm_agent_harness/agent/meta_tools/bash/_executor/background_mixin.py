@@ -149,9 +149,10 @@ class BashExecutorBackgroundMixin:
         # for a project-bound chat, not the session's own storage directory. Starting a job leaves that binding alone.
         workspace_root = self._execution_workspace_root(self._workspace_manager.get_workspace_path(workspace)) or ""
         # A shell has no ``/workspace``: the path the model writes for the project is replaced by that root, as a
-        # foreground command's is. What was typed stays the command that was judged above and is recorded below.
+        # foreground command's is, quoted for the bash or sh that runs the job. What was typed stays the command that
+        # was judged above and is recorded below.
         shell_command = CommandRewriter().rewrite_workspace_paths(
-            command, Path(workspace_root) if workspace_root else None
+            command, Path(workspace_root) if workspace_root else None, posix_shell=True
         )
 
         network_config = self.config.network

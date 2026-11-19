@@ -4,9 +4,11 @@ Transforms commands for code execution (workspace path rewriting).
 
 [INPUT]
 - core.security.redact::command_preview (POS: masked, cut command for a log line)
+- core.security.shell_command_lexer::iter_syntax_chars (POS: the one reading of a shell command line)
 
 [OUTPUT]
-- CommandRewriter: Stateless command rewriter.
+- CommandRewriter: Stateless command rewriter; the workspace root it puts into a POSIX shell command is quoted
+  where the shell reads it as plain text and the root needs it.
 
 [POS]
 Command rewriting service.
@@ -14,9 +16,12 @@ Command rewriting service.
 
 import logging
 import re
+import shlex
+from collections.abc import Callable
 from pathlib import Path
 
 from myrm_agent_harness.core.security.redact import command_preview
+from myrm_agent_harness.core.security.shell_command_lexer import iter_syntax_chars
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +33,29 @@ logger = logging.getLogger(__name__)
 # ``PYTHONPATH=/workspace/a:/workspace/b`` is rewritten.
 _WORKSPACE_ROOT = re.compile(r"""(?:(?<![\w.~)}\]\x00])|(?<=\s-[A-Za-z]))/workspace(?=/|$|[\s'";&|)`:])""")
 
+# A root of only letters, digits and these characters is one literal word to a POSIX shell: quoting it changes nothing.
+_INERT_PUNCTUATION = frozenset("_./@%+=:,-")
+# The body of a heredoc is text the shell never splits into words, while the command line before it is. One quoting
+# rule cannot serve both, and a lexical scan does not know where the body starts.
+_HEREDOC = re.compile(r"(?<!<)<<(?!<)")
+
+
+def _is_inert(root: str) -> bool:
+    return all(char.isalnum() or char in _INERT_PUNCTUATION for char in root)
+
+
+def _replacement(protected: str, root: str, *, posix_shell: bool) -> Callable[[re.Match[str]], str]:
+    """Return what each ``/workspace`` match in ``protected`` becomes.
+
+    The root as it is, except where a POSIX shell reads the match as plain text and the root needs quoting: there it
+    is quoted, so it stays one word and its characters never run as shell code.
+    """
+    if not posix_shell or _is_inert(root) or _HEREDOC.search(protected):
+        return lambda _match: root
+    plain_text = {index for index, _ in iter_syntax_chars(protected)}
+    quoted = shlex.quote(root)
+    return lambda match: quoted if match.start() in plain_text else root
+
 
 class CommandRewriter:
     """Stateless command rewriter.
@@ -35,7 +63,7 @@ class CommandRewriter:
     Resolves /workspace paths to actual working directories.
     """
 
-    def rewrite_workspace_paths(self, command: str, workspace_path: Path | None) -> str:
+    def rewrite_workspace_paths(self, command: str, workspace_path: Path | None, *, posix_shell: bool) -> str:
         """Rewrite /workspace paths in commands to the actual working directory.
 
         AI agents may use the container-convention path /workspace.
@@ -50,6 +78,13 @@ class CommandRewriter:
         side of a mapping (``-v $(pwd):/workspace``, ``scp host:/workspace/x``), are taken for the root. One
         followed by a wildcard, a comma or a brace (``/workspace*``, ``/workspace,/tmp``, ``{/tmp,/workspace}``)
         stays as typed.
+
+        The path is spliced into the shell's text, so ``posix_shell`` (a bash or sh reads the command) decides how.
+        A root with a space, parenthesis, ``&``, ``;``, ``$`` or apostrophe is quoted wherever the shell reads the
+        match as plain text: the folder stays one word and its name never runs as code. The root goes in as typed
+        where quotes already enclose the match (a root that holds that quote character, ``$``, a backtick or a
+        backslash still breaks out there), in a command with a heredoc operator, and for any other shell (PowerShell
+        and cmd have quoting rules of their own, which are not applied).
 
         The resolved workspace path itself is protected before rewriting, so a
         command that already contains the real workspace (e.g. eval graders
@@ -70,7 +105,7 @@ class CommandRewriter:
 
         protected = re.sub(re.escape(workspace_str), _protect, command)
 
-        new_command = _WORKSPACE_ROOT.sub(workspace_str.replace("\\", "\\\\"), protected)
+        new_command = _WORKSPACE_ROOT.sub(_replacement(protected, workspace_str, posix_shell=posix_shell), protected)
 
         for index, real in enumerate(placeholders):
             new_command = new_command.replace(f"\x00wbws{index}\x00", real)
