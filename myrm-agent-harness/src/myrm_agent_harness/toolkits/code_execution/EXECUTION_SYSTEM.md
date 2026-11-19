@@ -151,7 +151,7 @@ Python wrapper 在用户代码运行前注入一个 import 钩子，惰性拦截
 长驻 Shell 进程管理，支持 macOS/Linux（bash）和 Windows（cmd.exe）：
 
 - 通过 stdin 发送命令，stdout 使用**每次命令随机生成**的唯一标记分隔输出（`secrets.token_hex`），杜绝用户输出与固定标记文本碰撞导致的截断/误判退出码
-- 命令发送前对 bash 命令做 `bash -n` **语法预检**，畸形多行命令（裸 `}`、未闭合的 `if`/heredoc）被前置拒绝，避免语法错误杀死长驻 Shell
+- 命令发送前对 bash 命令做 `bash -n` **语法预检**，畸形多行命令（裸 `}`、未闭合的 `if`/heredoc）整条被前置拒绝：bash 边读边执行，没有预检时语法错误之前的行已经跑完
 - LLM 生成的 `exit N`、`exec` 只结束命令自己的子 bash（见「Bash 执行」），长驻 Shell 与它的状态不受影响，退出码照常返回
 - 命令包装为**块内捕获 rc** 的多行结构（`{ <command>; __myrm_rc__=$?; }`），注释行/空命令/heredoc/续行均不会使花括号块悬挂，rc 语义与退出状态零变化
 - **命令块的 stdin 是 `/dev/null`**（`{ <command>; __myrm_rc__=$?; } </dev/null`）：会话自己的 stdin 是承载后续标记命令的控制通道，不能交给命令：读 stdin 的命令（`cat`、`read`、`wc -l`、`ssh`）会把标记命令读走，输出边界随之损坏。块内的命令读到 EOF 即返回；命令自己指定的输入（管道、heredoc、`< file`）照常到达；标记命令与 `EXIT` trap 在块外，Shell 照常从管道读取。Windows 的 PowerShell 与 cmd 两种 flavor 的包装不隔离 stdin。Python 脚本子进程（`run_python_subprocess`）同样以 `/dev/null` 为 stdin：`input()` 立即得到 `EOFError`，不会等待宿主自己的 stdin

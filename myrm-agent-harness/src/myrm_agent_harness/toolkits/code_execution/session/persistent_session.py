@@ -207,11 +207,12 @@ class PersistentSession(CommandStreamMixin, ABC):
     async def _precheck_bash_syntax(self, command: str) -> str | None:
         """Return a bash syntax error message when *command* is malformed.
 
-        Spawns ``bash -n`` before the command reaches the persistent shell so
-        a broken multi-line block (unbalanced braces, unterminated ``if`` /
-        heredoc) is rejected upfront instead of killing the long-lived shell
-        process. Best-effort: returns ``None`` on platform mismatch, spawn
-        failure or timeout so execution still proceeds and surfaces real errors.
+        Spawns ``bash -n`` before the command runs so a broken multi-line block
+        (unbalanced braces, unterminated ``if`` / heredoc) is rejected whole:
+        bash reads a script as it executes it, so without the check the lines
+        before the syntax error would already have run. Best-effort: returns
+        ``None`` on platform mismatch, spawn failure or timeout so execution
+        still proceeds and surfaces real errors.
         """
         if self._platform.is_windows:
             return None
