@@ -8,6 +8,7 @@
  * @/lib/utils/authHeaders::getAuthHeaders (POS: Authorization headers of backend requests)
  * @/lib/api::ApiError (POS: Typed API failure carrying the HTTP status of a rejected request)
  * @/hooks/shared/useToast::useToast (POS: Toast hook compatible with the shadcn/ui and Sonner APIs)
+ * ./useComposerFastFocus::focusComposer (POS: Programmatic focus of the chat composer input, with a brief highlight ring)
  *
  * [OUTPUT]
  * RewindDialog: Dialog component for rollback scope selection and confirmation
@@ -15,7 +16,8 @@
  * [POS]
  * Modal dialog for rollbacks. Provides scope choice (conversation vs conversation + files)
  * and file change preview before dispatching rewind request, then puts the rewound message
- * (its text and skill chip) back into the composer with any unsent draft kept below it. The
+ * (its text and skill chip) back into the composer with any unsent draft kept below it and hands the
+ * focus to the composer. The dialog cannot be dismissed while the request is in flight. The
  * transcript, composer and plan are only touched while the dialog's chat is still the open one, and a
  * request that settles after the dialog is gone does not close the target of a newer dialog.
  */
@@ -42,6 +44,7 @@ import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import { splitUserMessageForComposer } from '@/lib/utils/messageUtils';
+import { focusComposer } from './useComposerFastFocus';
 
 interface RewindDialogProps {
   open: boolean;
@@ -177,6 +180,13 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
     };
   }, [open, chatId, messageId, messageIndex]);
 
+  // A rewind cannot be called back once sent, so the dialog stays until the server has answered.
+  const handleOpenChange = (next: boolean) => {
+    if (!isRewinding) {
+      onOpenChange(next);
+    }
+  };
+
   const handleRewind = async () => {
     if (useChatStore.getState().loading) {
       toast({
@@ -239,16 +249,11 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
         onOpenChange(false);
       }
 
-      if (stillOpen && typeof window !== 'undefined') {
+      if (stillOpen) {
+        // A frame later, after the closing dialog has returned the focus on its own timer. The composer is found by
+        // its marker: the first textarea of the page need not be the composer.
         requestAnimationFrame(() => {
-          const textarea = document.querySelector<HTMLTextAreaElement>(
-            'textarea[data-testid="chat-input-textarea"], textarea',
-          );
-          if (textarea) {
-            textarea.focus();
-            const len = textarea.value.length;
-            textarea.setSelectionRange(len, len);
-          }
+          focusComposer();
         });
       }
     } catch (error) {
@@ -286,8 +291,8 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]" hideCloseButton={isRewinding}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Undo2 className="h-5 w-5" />

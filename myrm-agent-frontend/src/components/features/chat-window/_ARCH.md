@@ -127,7 +127,7 @@
 | `__tests__/trajectoryKit.ts` | 测试 | 轨迹对比测试的构造器（步骤 / 轮次 / 会话） | ✅ |
 | `__tests__/trajectoryDiffModel.test.ts` | 测试 | 对比规则：分歧按全部步骤计数、参数按内容比较、一方先结束、轮次起点 | ✅ |
 | `__tests__/TrajectoryDiffModal.test.tsx` | 测试 | 对比弹窗：关闭时不读取、当前会话逐轮展示、加载中、可选会话（不含当前）、B 侧占位与选择、分歧标记落在对应轮次、参数键序不算分歧、一方先结束、迟到的旧选择被丢弃、上一个选择不在加载期间显示、各处读取失败的提示、关闭 | ✅ |
-| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 回填（被回退消息的文字与技能 chip 一并还原，与截断后的转录一次写入；输入框里未发送的草稿留在回填文字下方，其技能 chip 随草稿保留，回填消息自带 chip 时以后者为准；请求返回时打开的若已不是本弹窗的聊天，则不动转录、输入框与计划，toast 也不再指向输入框；弹窗已卸载后才返回的请求不再去关闭回退目标，免得关掉更新的弹窗）；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
+| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 回填（被回退消息的文字与技能 chip 一并还原，与截断后的转录一次写入；输入框里未发送的草稿留在回填文字下方，其技能 chip 随草稿保留，回填消息自带 chip 时以后者为准；回填后经 `focusComposer` 按 `[data-chat-input]` 标记把焦点交给输入框）；请求进行中弹窗不可关闭（Esc 与点遮罩被忽略，关闭按钮隐藏，取消按钮禁用），失败后恢复可关；请求返回时打开的若已不是本弹窗的聊天，则只提示回退完成，转录、输入框、计划与焦点都不动，提示语也不指向输入框；弹窗已卸载后才返回的请求不调用 `onOpenChange`，免得关掉更新的弹窗；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 输入里出现没加 `@` 的链接时的询问对话框：「是」补上 `@`，「否」或任何其他关闭方式（Esc、点遮罩、右上角叉）都不改文本；可勾「不再提醒」；状态与落盘在 `useLinkAtPrompt`（`__tests__/LinkDetectionDialog.test.tsx`） | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、click-outside 关闭）；tooltip 里的时间按界面语言排版（一周内为相对时间，更早为日期），不随浏览器语言；按下即选中且不抢走输入框焦点，活动项随键盘移动滚入视野（`__tests__/InputHistoryPopup.test.tsx`） | ✅ |
@@ -143,7 +143,7 @@
 | `SessionAccessRootsBar.tsx` | 组件 | 输入区上方 session 已授权目录 chips（RO/RW badge + 悬停全路径与一键复制 + revoke 撤销）；依赖 store `sessionAccessRoots`（grant 后 `sessionAccessRefresh` 刷新） | ✅ |
 | `QueuedMessagesList.tsx` | 组件 | 消息队列 Dock 栏可视化：支持 Dock 折叠/展开胶囊头、按会话持久化偏好、全局 Esc 暂停自动展开、DnD 拖拽排序（复用 @dnd-kit；键盘拖拽的说明与播报经 `useDndAccessibility`，按「排队中 (n/m)」称呼每条消息，不念消息内容）与全部清空 | ✅ |
 | `useQueueDockCollapsePersistence.ts` | Hook | 按会话持久化队列 Dock 栏折叠/展开状态至 localStorage（SSR 安全防崩溃） | ✅ |
-| `useComposerFastFocus.ts` | Hook | 全局快捷键（Mod+K / Mod+Shift+C）与 `myrm:focus-composer` 事件一键把光标移回聊天输入框（`[data-chat-input]`），焦点已在输入框时放行默认行为；`Chat.tsx` 挂载 | ✅ |
+| `useComposerFastFocus.ts` | Hook | 全局快捷键（Mod+K / Mod+Shift+C）与 `myrm:focus-composer` 事件一键把光标移回聊天输入框（`[data-chat-input]`），焦点已在输入框时放行默认行为；`Chat.tsx` 挂载；导出的 `focusComposer()` 供 `RewindDialog` 在回填后把焦点交给输入框 | ✅ |
 | `__tests__/useComposerFastFocus.test.ts` | 测试 | 快速聚焦单测：有输入框时聚焦且光标落末尾、无输入框返回 false、Mod+K 与 Mod+Shift+C 快捷键、`myrm:focus-composer` 事件，`enabled=false` 时不拦截快捷键 | ✅ |
 | `QueuedMessageItem.tsx` | 组件 | 单条排队消息：就地多行编辑（IME 守卫）、一键置顶 Move to top（ArrowUp 快捷提速）、附件角标、能力覆写摘要 | ✅ |
 | `MessageListSkeleton.tsx` | 辅助 | 消息列表首屏加载 skeleton | ✅ |
