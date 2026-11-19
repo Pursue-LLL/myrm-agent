@@ -1,7 +1,8 @@
 """A background command reads ``/workspace`` as a foreground command does: the directory the executor is bound to.
 
-The shell is given the command with that directory in place of ``/workspace``, quoted where a space or a shell
-metacharacter in its name needs it. The job list, the execution record and the threat check keep the command as typed.
+The shell is given the command with that directory in place of ``/workspace``, quoted where a space, a comma or a
+shell metacharacter in its name needs it. The job list, the execution record and the threat check keep the command as
+typed.
 """
 
 from __future__ import annotations

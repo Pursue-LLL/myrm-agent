@@ -1,16 +1,19 @@
 """A workspace root the shell would split or expand still reaches the shell as one path.
 
-``/workspace`` becomes the real workspace root as text inside the command. A root holding a space, a parenthesis,
-``&``, ``;``, ``$`` or an apostrophe is quoted wherever a POSIX shell reads the match as plain text, so every unquoted
-form below, run by a real bash, sees one word. Inside quotes, in a command with a heredoc and for a non-POSIX
-shell the root goes in as typed.
+``/workspace`` becomes the real workspace root as text inside the command. A root holding a space, a comma, a
+parenthesis, ``&``, ``;``, ``$`` or an apostrophe is quoted wherever a POSIX shell reads the match as plain text, so
+every unquoted form below, run by a real bash, sees one word. Inside quotes, in a command with a heredoc and for a
+non-POSIX shell the root goes in as typed.
 """
 
 from __future__ import annotations
 
+import itertools
 import shlex
 import shutil
+import string
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -32,8 +35,10 @@ _SPECIAL_ROOT_NAMES = [
     "我的 项目",
     "Q3 Report - final",
 ]
+# One folder name per ASCII punctuation mark (a path separator cannot be in a name; Windows rejects some marks).
+_PUNCTUATION_ROOT_NAMES = [] if sys.platform == "win32" else [f"a{mark}b" for mark in string.punctuation if mark != "/"]
 # Roots every POSIX shell reads as one literal word: they go in as typed.
-_PLAIN_ROOTS = ["/data/agent/ws1", "/Users/me/我的项目", "/srv/a-b_c.d@e+f=g:h,i%j"]
+_PLAIN_ROOTS = ["/data/agent/ws1", "/Users/me/我的项目", "/srv/a-b_c.d@e+f=g:h%j"]
 _COMMANDS_NAMING_THE_ROOT = [
     "cd /workspace && ls",
     'cat "/workspace/a b.txt"',
@@ -51,7 +56,14 @@ _WORD_CONTEXTS = {
     "glob suffix": ("cat /workspace/*.txt", "hello"),
     "here-string": ("cat <<< /workspace/x.txt", "<root>/x.txt\n"),
     "command substitution": ("echo $(cat /workspace/x.txt)", "hello\n"),
+    "brace list": ("printf '[%s]' {/workspace/x.txt,/workspace/y.txt}", "[<root>/x.txt][<root>/y.txt]"),
 }
+# A punctuation mark is read four ways: as an argument, glued to an option, as an assigned value, in a brace list.
+_PUNCTUATION_CONTEXTS = ("argument", "glued option value", "assignment", "brace list")
+_ROOT_CASES = [
+    *itertools.product(_SPECIAL_ROOT_NAMES, _WORD_CONTEXTS),
+    *itertools.product(_PUNCTUATION_ROOT_NAMES, _PUNCTUATION_CONTEXTS),
+]
 
 
 def _rewrite(command: str, root: Path | str, *, posix_shell: bool = True) -> str:
@@ -71,8 +83,7 @@ def _shell_output(command: str, root: Path) -> str:
 
 
 class TestRootsTheShellWouldSplit:
-    @pytest.mark.parametrize("context", _WORD_CONTEXTS)
-    @pytest.mark.parametrize("name", _SPECIAL_ROOT_NAMES)
+    @pytest.mark.parametrize(("name", "context"), _ROOT_CASES)
     def test_a_root_read_as_plain_text_stays_one_path(self, tmp_path: Path, name: str, context: str) -> None:
         root = _make_root(tmp_path, name)
         command, expected = _WORD_CONTEXTS[context]
