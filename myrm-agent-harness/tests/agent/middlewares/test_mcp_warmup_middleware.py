@@ -136,8 +136,8 @@ async def test_tool_calls_are_held_until_the_live_session_is_up(tmp_path: Path) 
     waiting = asyncio.create_task(_wrap(middleware, model))
     await asyncio.sleep(0.05)
 
+    assert seen_pending_at_request == [[]]
     assert pool.asked == ["demo"]
-    assert seen_pending_at_request == [["demo"]]
     assert not waiting.done()
 
     pool.gate.set()

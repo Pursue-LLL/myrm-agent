@@ -22,6 +22,7 @@ is the barrier for that.
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
 from collections.abc import Coroutine, Mapping, Sequence
 from dataclasses import dataclass
@@ -168,6 +169,9 @@ class McpWarmup:
         """Start the session of a served server and bring the cache in line with what it exposes."""
         name = job.config.name
         try:
+            # The SDK import is hundreds of milliseconds of CPU: on the event loop it would hold up the model request
+            # that is being sent while this session starts.
+            await asyncio.to_thread(importlib.import_module, "mcp")
             conn = await job.manager.get_connection([job.config])
         except Exception as exc:
             logger.warning("MCP server '%s' failed to start after its cached tool table was served: %s", name, exc)

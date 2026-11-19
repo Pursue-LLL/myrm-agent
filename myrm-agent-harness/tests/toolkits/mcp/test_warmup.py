@@ -12,9 +12,11 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import logging
 import threading
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -89,6 +91,58 @@ async def test_start_runs_each_session_once(store: ToolTableStore, pool: FakePoo
     await warmup.settle()
 
     assert pool.asked == ["demo"]
+
+
+async def test_the_sdk_is_imported_off_the_event_loop_before_the_session_is_asked_for(
+    store: ToolTableStore, pool: FakePool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The import is hundreds of milliseconds of CPU: on the loop it would hold up the request being sent."""
+    store.save("hash-demo", table_of("a"))
+    pool.live["demo"] = FakeConnection("demo", live_tools("a"))
+    imports: list[tuple[int, list[str]]] = []
+    real_import_module = importlib.import_module
+
+    def import_module(name: str, package: str | None = None) -> ModuleType:
+        if name == "mcp":
+            imports.append((threading.get_ident(), list(pool.asked)))
+        return real_import_module(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", import_module)
+    warmup = McpWarmup(store)
+    await _serve(warmup, pool)
+
+    warmup.start()
+    await warmup.settle()
+
+    assert len(imports) == 1
+    importing_thread, asked_at_import = imports[0]
+    assert importing_thread != threading.get_ident()
+    assert asked_at_import == []
+    assert pool.asked == ["demo"]
+
+
+async def test_a_missing_sdk_is_reported_like_a_session_that_cannot_start(
+    store: ToolTableStore, pool: FakePool, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    store.save("hash-demo", table_of("a"))
+    warmup = McpWarmup(store)
+    await _serve(warmup, pool)
+    real_import_module = importlib.import_module
+
+    def import_module(name: str, package: str | None = None) -> ModuleType:
+        if name == "mcp":
+            raise ModuleNotFoundError("No module named 'mcp'")
+        return real_import_module(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", import_module)
+
+    with caplog.at_level(logging.WARNING, logger=_LOGGER):
+        warmup.start()
+        await warmup.settle()
+
+    assert pool.asked == []
+    assert store.load("hash-demo") is None
+    assert "failed to start after its cached tool table was served" in caplog.text
 
 
 async def test_an_unchanged_surface_leaves_the_cache_alone(
