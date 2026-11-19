@@ -3,6 +3,7 @@ import {
   stripMarkdown,
   stripUiActionPayload,
   stripUserMessageDisplayText,
+  splitUserMessageForComposer,
   parseExplicitSkillActivation,
   buildExplicitSkillWireMessage,
   formatSkillChipLabel,
@@ -152,6 +153,49 @@ describe('buildExplicitSkillWireMessage', () => {
     expect(buildExplicitSkillWireMessage({ skillNames: ['a_skill', 'b_skill'], instruction: 'brief' }, 'do work')).toBe(
       '[use a_skill,b_skill] [instruction: brief] do work',
     );
+  });
+});
+
+type ComposerSplitCase = [name: string, wire: string, expected: ReturnType<typeof splitUserMessageForComposer>];
+
+/** What the composer holds after a stored user message is given back: its text and, apart from it, the skill chip. */
+const COMPOSER_SPLIT_CASES: ComposerSplitCase[] = [
+  ['takes plain text as it is', 'plain text', { text: 'plain text', activation: null }],
+  [
+    'splits a skill tag from its text',
+    '[use daily_report_skill] generate today report',
+    { text: 'generate today report', activation: { skillNames: ['daily_report_skill'], instruction: null } },
+  ],
+  [
+    'keeps the instruction on the chip, not in the text',
+    '[use write_report_skill,send_feishu_skill] [instruction: be concise] 生成本周报告',
+    {
+      text: '生成本周报告',
+      activation: { skillNames: ['write_report_skill', 'send_feishu_skill'], instruction: 'be concise' },
+    },
+  ],
+  [
+    'gives an empty text for a tag without one',
+    '[use writer_skill]',
+    {
+      text: '',
+      activation: { skillNames: ['writer_skill'], instruction: null },
+    },
+  ],
+  [
+    'gives an empty text, not the instruction, for a tag with an instruction only',
+    '[use writer_skill] [instruction: only this]',
+    { text: '', activation: { skillNames: ['writer_skill'], instruction: 'only this' } },
+  ],
+];
+
+describe('splitUserMessageForComposer', () => {
+  it.each(COMPOSER_SPLIT_CASES)('%s', (_name, wire, expected) => {
+    const split = splitUserMessageForComposer(wire);
+
+    expect(split).toEqual(expected);
+    // Sending what the composer now holds reproduces the stored message byte for byte.
+    expect(split.activation ? buildExplicitSkillWireMessage(split.activation, split.text) : split.text).toBe(wire);
   });
 });
 

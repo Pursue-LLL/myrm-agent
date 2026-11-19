@@ -5,6 +5,7 @@
  * - stripDatetimeTag: 剥离时间戳标签
  * - stripUiActionPayload: 剥离 Agent 用 ui_action JSON 块
  * - stripUserMessageDisplayText: 用户消息展示用清理（含 explicit skill wire 前缀）
+ * - splitUserMessageForComposer: 已存的用户消息拆成输入框文字与技能 chip（回填输入框用）
  * - parseExplicitSkillActivation: 解析 `[use s1,s2]` wire 前缀（列表上界与字符集同 harness 文法，超界按普通文本）
  * - buildExplicitSkillWireMessage: 由 pending activation + 用户文本构建 wire
  * - formatSkillChipLabel: Skill chip 展示名
@@ -91,6 +92,20 @@ export const buildExplicitSkillWireMessage = (
 /** User-visible chat text: datetime tag + hidden ui_action + skill wire prefix removed. */
 export const stripUserMessageDisplayText = (text: string): string => {
   return stripExplicitSkillActivationPrefix(stripUiActionPayload(stripDatetimeTag(text)));
+};
+
+/**
+ * A stored user message as the composer holds it again: the text the user typed and, apart from it, the skill chip the
+ * message was sent with. `buildExplicitSkillWireMessage` turns the pair back into the stored wire message.
+ */
+export const splitUserMessageForComposer = (
+  wire: string,
+): { text: string; activation: Pick<ExplicitSkillActivation, 'skillNames' | 'instruction'> | null } => {
+  const activation = parseExplicitSkillActivation(wire);
+  return {
+    text: stripUserMessageDisplayText(wire),
+    activation: activation && { skillNames: activation.skillNames, instruction: activation.instruction },
+  };
 };
 
 /** 剥离 markdown 语法为纯文本，用于预览、TTS 等场景 */

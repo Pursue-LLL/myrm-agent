@@ -46,10 +46,40 @@ const renderDialog = (messageIndex = 2, messageId = 'u2') => {
   return { onOpenChange };
 };
 
+const composer = () => {
+  const { inputMessage, pendingExplicitSkillActivation } = useChatStore.getState();
+  return { inputMessage, pendingExplicitSkillActivation };
+};
+
+/** Rewind to `u2` with the server handing back `composerText`, and wait until the transcript has been cut. */
+const rewindWithComposerText = async (composerText: string) => {
+  useChatStore.setState({
+    messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+    loading: false,
+  });
+  rewindToMessageMock.mockResolvedValue({
+    data: {
+      success: true,
+      deleted_count: 2,
+      composer_text: composerText,
+      message_index: 1,
+      goal_paused: false,
+      reverted_files: [],
+    },
+  });
+  renderDialog();
+  fireEvent.click(screen.getByText('scopeConversation'));
+  fireEvent.click(screen.getByText('confirm'));
+  await waitFor(() => {
+    expect(useChatStore.getState().messages).toHaveLength(2);
+  });
+};
+
 describe('RewindDialog', () => {
   beforeEach(() => {
     rewindToMessageMock.mockReset();
     toastMock.mockReset();
+    useChatStore.setState({ inputMessage: '', pendingExplicitSkillActivation: null });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
   });
 
@@ -131,6 +161,48 @@ describe('RewindDialog', () => {
     });
     expect(useChatStore.getState().messages).toHaveLength(2);
     expect(useChatStore.getState().inputMessage).toBe('hello world');
+  });
+
+  it('puts the skill chip and the text of a skill-driven message back into the composer', async () => {
+    await rewindWithComposerText('[use writer_skill] draft the memo');
+
+    expect(composer()).toEqual({
+      inputMessage: 'draft the memo',
+      pendingExplicitSkillActivation: { skillNames: ['writer_skill'], instruction: null },
+    });
+  });
+
+  it('keeps the instruction of a skill bundle on the chip instead of in the composer text', async () => {
+    await rewindWithComposerText('[use a_skill,b_skill] [instruction: be concise] 生成本周报告');
+
+    expect(composer()).toEqual({
+      inputMessage: '生成本周报告',
+      pendingExplicitSkillActivation: { skillNames: ['a_skill', 'b_skill'], instruction: 'be concise' },
+    });
+  });
+
+  it('clears a skill chip armed before the rewind when the restored message carries none', async () => {
+    useChatStore.setState({ pendingExplicitSkillActivation: { skillNames: ['stale_skill'] } });
+
+    await rewindWithComposerText('hello');
+
+    expect(composer()).toEqual({ inputMessage: 'hello', pendingExplicitSkillActivation: null });
+  });
+
+  it('shows the empty hint without asking for file changes when no assistant message follows the target', async () => {
+    useChatStore.setState({
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+      loading: false,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderDialog();
+
+    await waitFor(() => {
+      expect(screen.getByText('noFileSnapshots')).toBeInTheDocument();
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('shows files-reverted toast when both scope reverts files', async () => {

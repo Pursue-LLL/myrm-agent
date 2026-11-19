@@ -2,13 +2,20 @@
  * [INPUT]
  * @/services/chat::rewindToMessage (POS: Chat session truncation and rollback API client)
  * @/store/useChatStore::useChatStore (POS: Global chat store for message state)
+ * @/store/chat/goals/usePlanStore::usePlanStore (POS: Store of the active plan, refetched after a rewind)
+ * @/lib/utils/messageUtils::splitUserMessageForComposer (POS: Message text cleanup, explicit skill wire format)
+ * @/lib/utils/apiConfig::getBackendUrl (POS: Backend base URL without the API path prefix)
+ * @/lib/utils/authHeaders::getAuthHeaders (POS: Authorization headers of backend requests)
+ * @/lib/api::ApiError (POS: Typed API failure carrying the HTTP status of a rejected request)
+ * @/hooks/shared/useToast::useToast (POS: Toast hook compatible with the shadcn/ui and Sonner APIs)
  *
  * [OUTPUT]
  * RewindDialog: Dialog component for rollback scope selection and confirmation
  *
  * [POS]
  * Modal dialog for rollbacks. Provides scope choice (conversation vs conversation + files)
- * and file change preview before dispatching rewind request.
+ * and file change preview before dispatching rewind request, then puts the rewound message
+ * (its text and skill chip) back into the composer.
  */
 
 'use client';
@@ -32,7 +39,7 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
-import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
+import { splitUserMessageForComposer } from '@/lib/utils/messageUtils';
 
 interface RewindDialogProps {
   open: boolean;
@@ -84,8 +91,9 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       return;
     }
 
+    // Chat mounts one dialog per rewind target (keyed by message id), so the preview starts as 'checking' for every
+    // target and needs no reset here.
     let cancelled = false;
-    setPreview({ status: 'checking', fileCount: 0, skippedCount: 0, files: [] });
 
     const currentMessages = useChatStore.getState().messages;
     const authoritativeIndex = currentMessages.findIndex((m) => m.messageId === messageId);
@@ -95,11 +103,6 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       .slice(resolvedIndex)
       .filter((m) => m.role === 'assistant')
       .map((m) => m.messageId);
-
-    if (assistantIds.length === 0) {
-      setPreview({ status: 'empty', fileCount: 0, skippedCount: 0, files: [] });
-      return;
-    }
 
     (async () => {
       const results = await Promise.all(
@@ -173,16 +176,17 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       const envelope = response as { data?: RewindResult };
       const payload = envelope.data ?? (response as RewindResult);
       const composerRaw = typeof payload.composer_text === 'string' ? payload.composer_text : '';
-      const activation = parseExplicitSkillActivation(composerRaw);
-      const composerText = activation ? activation.instruction : stripUserMessageDisplayText(composerRaw);
+      const composer = splitUserMessageForComposer(composerRaw);
 
-      useChatStore.setState((state) => {
-        const authorIndex = state.messages.findIndex((m) => m.messageId === messageId);
-        const sliceIndex = authorIndex >= 0 ? authorIndex : messageIndex;
-        return {
-          messages: state.messages.slice(0, sliceIndex),
-          inputMessage: composerText,
-        };
+      // One write for the transcript, the composer text and its skill chip. The object form keeps the store's field
+      // types checked, which a callback's returned object is not.
+      const { messages } = useChatStore.getState();
+      const authorIndex = messages.findIndex((m) => m.messageId === messageId);
+      const sliceIndex = authorIndex >= 0 ? authorIndex : messageIndex;
+      useChatStore.setState({
+        messages: messages.slice(0, sliceIndex),
+        inputMessage: composer.text,
+        pendingExplicitSkillActivation: composer.activation,
       });
       void usePlanStore.getState().fetchPlan(chatId);
 

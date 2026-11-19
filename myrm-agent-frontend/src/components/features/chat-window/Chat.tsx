@@ -337,6 +337,7 @@ const Chat = ({
         )}
         {rewindTarget && (
           <RewindDialog
+            key={rewindTarget.messageId}
             open={true}
             onOpenChange={(open) => {
               if (!open) {
