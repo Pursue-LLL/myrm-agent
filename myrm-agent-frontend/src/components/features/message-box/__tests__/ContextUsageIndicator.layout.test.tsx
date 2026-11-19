@@ -26,6 +26,14 @@ describe('ContextUsageIndicator panel layout', () => {
     expect(popover).not.toHaveClass('w-auto');
   });
 
+  it('caps the desktop popover at the room above the ring and scrolls inside it, so a short window cannot push the top out of reach', async () => {
+    renderIndicator();
+
+    const popover = await openPanelContainer();
+
+    expect(popover).toHaveClass('max-h-[var(--radix-popover-content-available-height)]', 'overflow-y-auto');
+  });
+
   it('lets the phone sheet scroll, so a panel taller than the sheet keeps its compress control reachable', async () => {
     mockIsMobile.value = true;
     renderIndicator();

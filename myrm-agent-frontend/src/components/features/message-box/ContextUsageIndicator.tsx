@@ -213,8 +213,14 @@ export default function ContextUsageIndicator() {
             {tooltipContent}
           </TooltipContent>
         </Tooltip>
-        {/* Radix sizes the popover to its widest line, so `w-auto` would stretch the card to the longest hint. */}
-        <PopoverContent side="top" align="center" className="w-80 p-0 border shadow-lg" sideOffset={8}>
+        {/* Radix sizes the popover to its widest line, so `w-auto` would stretch the card to the longest hint.
+            Its height is capped at the room above the ring, so a short window scrolls the panel instead of pushing its top out of reach. */}
+        <PopoverContent
+          side="top"
+          align="center"
+          className="w-80 p-0 border shadow-lg max-h-[var(--radix-popover-content-available-height)] overflow-y-auto"
+          sideOffset={8}
+        >
           {panelContent}
         </PopoverContent>
       </Popover>
