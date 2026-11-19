@@ -43,7 +43,7 @@
 
 ## 出口一览
 
-每个出口属于下面四档之一。「范围」是已包装的返回内容，「例外」是同一出口里不包装的分支；锚点写 `文件::符号`，路径相对 `myrm_agent_harness/`。新增、修改或移除出口时，同步改这张表。
+本表登记已读过源码的出口，每个出口属于下面四档之一；表里没有的出口，不代表已包装。「范围」是已包装的返回内容，「例外」是同一出口里不包装的分支；锚点写 `文件::符号`，路径相对 `myrm_agent_harness/`。新增、修改或移除出口时，同步改这张表。
 
 ### ① UNTRUSTED_DATA 信封
 
@@ -63,7 +63,7 @@
 
 | 出口 | 范围 | 例外（不包装） | 锚点 |
 |------|------|----------------|------|
-| **命令行** `bash_code_execute_tool` | 普通前台命令的输出 | 命中构建与测试白名单（npm、yarn、pnpm、bun 的 build 或 test，pytest，cargo，make，docker compose，mvn，gradle）的命令默认走自动让出路径：让出窗口内（默认 10 秒，`yield_after_seconds=0` 关闭）结束的输出、仍在运行时的部分输出，直接拼进返回文本；后台启动的返回只含任务编号、进程号、命令与状态 | `agent/meta_tools/bash/_tool/formatting.py::format_result`；例外 `agent/meta_tools/bash/_executor/auto_yield.py::build_auto_yield_return`、`agent/goals/wait_background_bash.py`（白名单） |
+| **命令行** `bash_code_execute_tool` | 普通前台命令的输出 | 命中构建与测试白名单（以锚点里的 `is_wait_eligible_command` 为准）的命令默认走自动让出路径：让出窗口内（默认 10 秒，`yield_after_seconds=0` 关闭）结束的输出、仍在运行时的部分输出，直接拼进返回文本；后台启动的返回只含任务编号、进程号、命令与状态 | `agent/meta_tools/bash/_tool/formatting.py::format_result`；例外 `agent/meta_tools/bash/_executor/auto_yield.py::build_auto_yield_return`、`agent/goals/wait_background_bash.py::is_wait_eligible_command`（白名单） |
 | **文件读取** `file_read_tool` | 默认模式（`mode="all"`）的文本文件与按行范围读取；目录列表 | `preview` 与 `stream` 模式（含超过 100 MB 的文件自动降级的 preview）、`parse_mode="structure"` 的结构大纲、PDF 与 Office 文档与图片 OCR 与视频的文本块（只做凭据脱敏）；技能文档（路径含 `SKILL.md` 且在 `skills` 目录下）与 `/mcp/` 虚拟路径按设计不包装，要让模型遵循 | `agent/meta_tools/file_ops/core/result_formatter.py::ResultFormatter.format_file_content`、`::format_directory_listing`；例外 `agent/meta_tools/file_ops/core/file_read/text_paths.py::process_text_paths`、`agent/meta_tools/file_ops/core/file_read/multimodal.py::build_multimodal_result` |
 
 ### ③ 固定前缀 + 脱敏 + 清洗（不套信封）
@@ -80,9 +80,14 @@
 |------|------|------|
 | **后台进程轮询** `bash_process_tool` | 后台进程的输出原样返回 | `agent/meta_tools/bash/_tool/process_handlers.py::handle_output` / `handle_wait` |
 | **文件搜索** `grep_tool`、`glob_tool` | 路径与匹配行原样返回；`grep_tool` 的匹配行先按文件类型脱敏凭据 | `agent/meta_tools/file_search/grep_tool.py`、`glob_tool.py` |
-| **记忆 store/manage 其它**：knowledge/event/rule；`memory_manage_tool` | 成功 ack 不回显 user body 或仅返回 ID；写入/变更仍走 `memory_scanner` | 无需 recall 前言 |
-| **Agent 委托** `delegate_task_tool`、PTC `spawn_subagent`（Dynamic Workflow） | Agent 之间的内部通信，是可信的 | — |
-| **系统工具** `goals`、`cron`、`tasks` | 系统内部数据，是可信的 | — |
+| **记忆 store/manage 其它**：knowledge/event/rule；`memory_manage_tool` | 成功 ack 不回显 user body 或仅返回 ID，无需 recall 前言；写入/变更仍走 `memory_scanner` | `toolkits/memory/agent_surface/memory_recall_formatting.py::format_write_ack`、`toolkits/memory/agent_surface/memory_agent_tools/manage_tool.py` |
+| **Agent 委托** `delegate_task_tool`、PTC `spawn_subagent`（Dynamic Workflow） | Agent 之间的内部通信，按设计视为可信来源，不包装 | — |
+| **系统工具** `goals`、`cron`、`tasks` | 系统内部数据，按设计视为可信来源，不包装 | — |
+| **OpenAPI 桥生成的工具** | 第三方 API 的响应正文原样返回（JSON 格式化后最多 8000 个字符，纯文本最多 4000 个字符，错误状态加 `Error {状态码}:` 前缀） | `toolkits/openapi_bridge/http_executor.py::OpenAPIExecutor._format_response` |
+| **外部 Agent 委托** `invoke_acp_agent_tool` | 外部 Agent 的输出文本原样返回，超过 `max_response_chars` 时截断；文本里可以带有该 Agent 读取过的外部内容 | `toolkits/acp/acp_agent_tools.py::_run_turn_and_collect` |
+| **技能市场** `skill_market_tool` | `search` 动作返回的第三方技能名称与描述，原样拼进结果文本 | `agent/meta_tools/skills/market/skill_market_tool.py::_handle_search` |
+
+最后三行返回的是外部来源的文本，与「包装决策树」对外部来源的要求不一致；这是当前代码的实际状态，本表如实登记。
 
 ---
 
