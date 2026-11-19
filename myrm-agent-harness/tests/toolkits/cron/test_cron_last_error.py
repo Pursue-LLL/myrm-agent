@@ -1,11 +1,10 @@
 """What a run leaves in ``last_error`` on a job that still carries an earlier failure.
 
-``last_error`` belongs to the latest run that was not skipped. A success clears it, however the run was started, and a
-skipped run (a runner or probe skip, a dispatch guard's refusal, a ``retry_at`` deferral) leaves it alone: the failure
-stays on the job until a run that executed replaces or clears it. Two related cases have their own tests: a one-time
-job's success (``test_cron_once_completion.py``) and the reason written for a schedule that cannot be computed
-(``test_cron_notices.py``). These scenarios run the real executor over the in-memory store; only the runner, the
-delivery and the pre-flight probe are stand-ins.
+A success clears ``last_error``, however the run was started, and a skipped run (a runner or probe skip, a dispatch
+guard's refusal, a ``retry_at`` deferral) leaves it alone: the failure the job already carries stays on it. Two related
+cases have their own tests: a one-time job's success (``test_cron_once_completion.py``) and the reason written for a
+schedule that cannot be computed (``test_cron_notices.py``). These scenarios run the real executor over the in-memory
+store; only the runner, the delivery and the pre-flight probe are stand-ins.
 """
 
 from __future__ import annotations

@@ -19,8 +19,8 @@ Every one of those pauses names its reason on the job (``paused_reason``). A job
 paused is reported once as a ``CronNotice``, whichever branch paused it. Because
 it writes onto the stored job, a pause, an edit or a delete made while the run was in flight is neither undone nor
 resurrected. A manual run decides nothing about the schedule or the job's state: it only becomes the job's latest
-run. ``last_error`` is the error of the latest run that was not skipped; a success clears it, recurring or one-time, and
-a skipped run (a deferral or a guard's refusal) leaves it alone. A schedule that cannot be computed names its own reason
+run. Closing a run sets ``last_error`` to its error, so a success clears it, a manual run's, a recurring job's and a
+one-time job's alike. A skipped run never reaches this write. A schedule that cannot be computed names its own reason
 there. Every decision reads the run's full error; the run record and ``last_error`` keep it bounded (``stored_error``).
 """
 
