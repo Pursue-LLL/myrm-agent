@@ -2,9 +2,11 @@
 
 /**
  * [INPUT]
+ * - @/lib/api::apiRequest, ApiError (POS: unified frontend API request entry and its normalized error type)
  * - @/services/wikiService::buildWikiApiPath (POS: Wiki endpoint path builder with optional agent_id query)
  * - POST /wiki/meeting-notes/transcribe with the audio file as multipart form data (chunk size, parallelism and
- *   auto-compile keep the server defaults)
+ *   auto-compile keep the server defaults); transcribing long audio takes minutes, so the request has no client timeout
+ * - useTranslations('settings.wiki') (POS: i18n locale namespace)
  *
  * [OUTPUT]
  * MeetingNotesImportCard: meeting audio import card in knowledge settings.
@@ -19,6 +21,7 @@ import { useTranslations } from 'next-intl';
 import { FileAudio, Loader2 } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
+import { ApiError, apiRequest } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
 
 interface MeetingNotesResponse {
@@ -56,26 +59,26 @@ export default function MeetingNotesImportCard() {
     try {
       const form = new FormData();
       form.append('file', file);
-      const response = await fetch(buildWikiApiPath('/wiki/meeting-notes/transcribe'), {
+      // timeout 0: chunked transcription of up to 500 MB of audio outlasts the 30 s default. silent: the error is
+      // shown inline under the form, not as a global toast.
+      const payload = await apiRequest<MeetingNotesResponse>(buildWikiApiPath('/wiki/meeting-notes/transcribe'), {
         method: 'POST',
         body: form,
+        timeout: 0,
+        silent: true,
       });
-      const payload = (await response.json()) as MeetingNotesResponse;
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.error || `HTTP ${response.status}`);
-      }
       setResult(payload);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
+      // Only server-reported reasons are shown verbatim; transport failures get the localized message.
+      setError(err instanceof ApiError && err.message ? err.message : t('meetingNotes.error'));
     } finally {
       setUploading(false);
     }
-  }, []);
+  }, [t]);
 
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.round(seconds / 60);
-    return `${mins} min`;
-  };
+  const formatDuration = (seconds: number): string =>
+    t('meetingNotes.durationMinutes', { minutes: Math.round(seconds / 60) });
+  const tbd = t('meetingNotes.tbd');
 
   return (
     <Card>
@@ -91,7 +94,7 @@ export default function MeetingNotesImportCard() {
           <input
             ref={inputRef}
             type="file"
-            accept="audio/*,.mp3,.m4a,.wav,.webm,.ogg,.flac,.opus"
+            accept={`audio/*,${ACCEPT}`}
             className="block w-full cursor-pointer rounded-lg border border-border bg-background text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium"
             data-testid="meeting-notes-file-input"
           />
@@ -152,7 +155,7 @@ export default function MeetingNotesImportCard() {
                 <ul className="list-disc pl-5 text-xs text-muted-foreground">
                   {result.action_items.map((item) => (
                     <li key={item.description}>
-                      {item.description} ({item.owner ?? 'TBD'} · {item.due_hint ?? 'TBD'})
+                      {item.description} ({item.owner ?? tbd} · {item.due_hint ?? tbd})
                     </li>
                   ))}
                 </ul>

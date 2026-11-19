@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * - @/lib/api::apiRequest,getApiUrl (POS: frontend API request helper)
+ * - @/lib/api::apiRequest (POS: frontend API request helper that owns the base URL, so callers pass endpoint paths)
  * - @/services/wikiService::buildWikiApiPath (POS: Wiki API path constructor)
  *
  * [OUTPUT]
@@ -12,7 +12,7 @@
  * for in-meeting rolling structured notes (summary / decisions / action items).
  */
 
-import { apiRequest, getApiUrl } from '@/lib/api';
+import { apiRequest } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
 
 export interface LiveMeetingActionItem {
@@ -54,7 +54,7 @@ function sessionPath(sessionId: string): string {
  * duplicating the line in the transcript and the distilled minutes.
  */
 export async function ingestLiveTranscript(sessionId: string, line: LiveTranscriptLine): Promise<LiveMeetingSnapshot> {
-  return apiRequest<LiveMeetingSnapshot>(getApiUrl(`${sessionPath(sessionId)}/ingest`), {
+  return apiRequest<LiveMeetingSnapshot>(`${sessionPath(sessionId)}/ingest`, {
     method: 'POST',
     body: JSON.stringify({
       text: line.text,
@@ -65,11 +65,11 @@ export async function ingestLiveTranscript(sessionId: string, line: LiveTranscri
 }
 
 export async function getLiveMeetingSnapshot(sessionId: string): Promise<LiveMeetingSnapshot> {
-  return apiRequest<LiveMeetingSnapshot>(getApiUrl(sessionPath(sessionId)), { method: 'GET' });
+  return apiRequest<LiveMeetingSnapshot>(sessionPath(sessionId), { method: 'GET' });
 }
 
 export async function finalizeLiveMeeting(sessionId: string): Promise<LiveMeetingSnapshot> {
-  return apiRequest<LiveMeetingSnapshot>(getApiUrl(`${sessionPath(sessionId)}/finalize`), {
+  return apiRequest<LiveMeetingSnapshot>(`${sessionPath(sessionId)}/finalize`, {
     method: 'POST',
     body: JSON.stringify({}),
   });

@@ -2,8 +2,10 @@
 
 /**
  * [INPUT]
- * fetch POST {text, title} -> /api/v1/wiki/daily-review (buildWikiApiPath)
- * useTranslations('settings.wiki') (POS: i18n locale namespace)
+ * - @/lib/api::apiRequest, ApiError (POS: unified frontend API request entry and its normalized error type)
+ * - @/services/wikiService::buildWikiApiPath (POS: Wiki endpoint path builder with optional agent_id query)
+ * - POST {text, title} to /wiki/daily-review
+ * - useTranslations('settings.wiki') (POS: i18n locale namespace)
  *
  * [OUTPUT]
  * DailyReviewCard: one-click daily review journal card in knowledge settings.
@@ -22,6 +24,7 @@ import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
+import { ApiError, apiRequest } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
 
 interface DailyReviewResponse {
@@ -49,20 +52,18 @@ export default function DailyReviewCard() {
     setError(null);
     setResult(null);
     try {
-      const response = await fetch(buildWikiApiPath('/wiki/daily-review'), {
+      // silent: the error is shown inline under the form, not as a global toast.
+      const payload = await apiRequest<DailyReviewResponse>(buildWikiApiPath('/wiki/daily-review'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, title }),
+        silent: true,
       });
-      const payload = (await response.json()) as DailyReviewResponse & { detail?: { message?: string } };
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.detail?.message || payload.message || `HTTP ${response.status}`);
-      }
       setResult(payload);
       setText('');
       setTitle('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('dailyReview.error'));
+      // Only server-reported reasons are shown verbatim; transport failures get the localized message.
+      setError(err instanceof ApiError && err.message ? err.message : t('dailyReview.error'));
     } finally {
       setSubmitting(false);
     }

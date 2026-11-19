@@ -202,8 +202,8 @@ describe('useWikiOverviewData: warm-platform fetch fallback', () => {
       compile_run: compileRunOf(),
     });
     const { result } = await setup('a1');
-    expect(fetchMock).toHaveBeenCalledWith('/wiki/stats?agent_id=a1', { cache: 'no-store' });
-    expect(fetchMock).toHaveBeenCalledWith('/wiki/health-report?agent_id=a1', { cache: 'no-store' });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/wiki/stats?agent_id=a1', { cache: 'no-store' });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/wiki/health-report?agent_id=a1', { cache: 'no-store' });
     expect(result.current.rawTreeData).toEqual([NODE]);
     expect(result.current.compileRun).toEqual(compileRunOf());
     expect(result.current.stats).toEqual(richStats());
@@ -220,7 +220,7 @@ describe('useWikiOverviewData: warm-platform fetch fallback', () => {
     });
     const { result } = await setup();
     expect(result.current.stats?.total_concepts).toBe(55);
-    expect(fetchMock).toHaveBeenCalledWith('/wiki/health-report', { cache: 'no-store' });
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/wiki/health-report', { cache: 'no-store' });
     expect(result.current.healthReport?.issues_found).toBe(4);
     expect(service.getHealthReport).not.toHaveBeenCalled();
     expect(result.current.healthReportExpanded).toBe(false);

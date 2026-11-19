@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const apiRequest = vi.fn();
 
+// A strict mock: apiRequest is the only export, since the API client alone owns the base URL.
 vi.mock('@/lib/api', () => ({
   apiRequest: (...args: unknown[]) => apiRequest(...args),
-  getApiUrl: (endpoint: string) => `http://test/api/v1${endpoint}`,
 }));
 
 vi.mock('@/services/wikiService', () => ({
@@ -21,7 +21,7 @@ describe('liveMeeting service', () => {
 
   it('posts finalized transcript + line id + timestamp to the ingest endpoint', async () => {
     await ingestLiveTranscript('meeting-1', { id: 'line-1', text: 'hello world', timestamp: 12 });
-    expect(apiRequest).toHaveBeenCalledWith('http://test/api/v1/wiki/meeting-notes/live/meeting-1/ingest', {
+    expect(apiRequest).toHaveBeenCalledWith('/wiki/meeting-notes/live/meeting-1/ingest', {
       method: 'POST',
       body: JSON.stringify({ text: 'hello world', line_id: 'line-1', timestamp: 12 }),
     });
@@ -35,10 +35,10 @@ describe('liveMeeting service', () => {
 
   it('reads the snapshot and finalizes the session', async () => {
     await getLiveMeetingSnapshot('meeting-1');
-    expect(apiRequest).toHaveBeenCalledWith('http://test/api/v1/wiki/meeting-notes/live/meeting-1', { method: 'GET' });
+    expect(apiRequest).toHaveBeenCalledWith('/wiki/meeting-notes/live/meeting-1', { method: 'GET' });
 
     await finalizeLiveMeeting('meeting-1');
-    expect(apiRequest).toHaveBeenCalledWith('http://test/api/v1/wiki/meeting-notes/live/meeting-1/finalize', {
+    expect(apiRequest).toHaveBeenCalledWith('/wiki/meeting-notes/live/meeting-1/finalize', {
       method: 'POST',
       body: JSON.stringify({}),
     });

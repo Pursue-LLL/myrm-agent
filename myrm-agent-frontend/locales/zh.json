@@ -17614,7 +17614,10 @@
         "decisions": "会议决议",
         "debates": "关键争论点",
         "actionItems": "待办任务",
-        "risks": "风险"
+        "risks": "风险",
+        "durationMinutes": "{minutes} 分钟",
+        "tbd": "待定",
+        "error": "转写失败，请稍后重试"
       },
       "dailyReview": {
         "title": "每日复盘一键知识化",

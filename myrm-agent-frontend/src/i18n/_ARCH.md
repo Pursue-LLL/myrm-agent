@@ -22,6 +22,7 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 | `index.ts`                              | `getLocale`（cookie 读取，非受支持值回退 `defaultLocale`）/ `setLocale`（cookie 写入）            |
 | `LocalizedProviders.tsx`                | 根 i18n + 全局 initializer 树（Suspense 内）                                                      |
 | `DocumentLang.tsx`                      | 客户端同步 `<html lang>`                                                                          |
+| `timezone.ts`                           | next-intl 必填的 `timeZone`：`NEXT_PUBLIC_DEFAULT_TIMEZONE` 优先，否则取运行时本地时区（读取失败回退 UTC）；`request.ts`（服务端）与 `ClientIntlProvider.tsx`（浏览器）共用，两端渲染同一份日期时间标记，避免水合不一致 |
 
 ## 依赖
 

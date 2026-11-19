@@ -17614,7 +17614,10 @@
         "decisions": "Decisions",
         "debates": "Key Debate Points",
         "actionItems": "Action Items",
-        "risks": "Risks"
+        "risks": "Risks",
+        "durationMinutes": "{minutes} min",
+        "tbd": "TBD",
+        "error": "Transcription failed; please retry later"
       },
       "dailyReview": {
         "title": "Daily Review Compounding",
