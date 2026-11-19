@@ -4,7 +4,7 @@
 - toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run, pause_job, run_status_of (POS: pure engine helpers: error classification, backoff, the next slot to book, the one way a failure pauses a job and the status a run carries)
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
-- toolkits.cron.types::CronJob, JobResult, JobStatus, PauseReason, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob, DeliveryStatus, JobResult, JobStatus, PauseReason, ScheduleKind (POS: Cron job domain types.)
 - utils.text_utils::smart_truncate (POS: Text processing utilities. Provides token counting, language detection, smart truncation, and output sanitization.)
 
 [OUTPUT]
@@ -12,16 +12,9 @@
 - MAX_STORED_ERROR_CHARS, stored_error: the bound on the error text a run persists and the one way to apply it, shared by the run record (the executor) and the job's `last_error`
 
 [POS]
-Mixed into ``JobExecutor``. After a run is recorded, adopts the stored job and applies what the run decided: auto-pause
-on a circuit break or on too many failures, the next slot or the backoff retry, completion of a one-time job (deleted
-only when its run succeeded and its delivery did not fail), and the pause of a job whose schedule cannot be computed.
-Every one of those pauses names its reason on the job (``paused_reason``). A job this write moves from active to
-paused is reported once as a ``CronNotice``, whichever branch paused it. Because
-it writes onto the stored job, a pause, an edit or a delete made while the run was in flight is neither undone nor
-resurrected. A manual run decides nothing about the schedule or the job's state: it only becomes the job's latest
-run. Closing a run sets ``last_error`` to its error, so a success clears it, a manual run's, a recurring job's and a
-one-time job's alike. A skipped run never reaches this write. A schedule that cannot be computed names its own reason
-there. Every decision reads the run's full error; the run record and ``last_error`` keep it bounded (``stored_error``).
+Mixed into ``JobExecutor``: the closing write once a run is recorded, which adopts the stored job and applies what the
+run decided (pauses with their reasons, the next slot or a backoff retry, one-time completion, the schedule-error
+pause). It also owns the bound on the error text a run persists (``stored_error``).
 """
 
 from __future__ import annotations
