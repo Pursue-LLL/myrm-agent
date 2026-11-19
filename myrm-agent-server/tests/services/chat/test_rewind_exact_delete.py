@@ -51,9 +51,32 @@ async def _seed(db: AsyncSession, *messages: MessageDTO) -> None:
     await db.commit()
 
 
+async def _seed_a_regenerated_answer(db: AsyncSession) -> None:
+    """Two turns; the answer to the second was regenerated, so its first try stays behind as an inactive sibling."""
+    await _seed(
+        db,
+        _message("u1", "user", "Q1", 0),
+        _message("a1", "assistant", "A1", 1),
+        _message("u2", "user", "Q2", 2),
+        _message("a2-first-try", "assistant", "A2 first try", 3, sibling_group="answers-to-u2", active=False),
+        _message("a2", "assistant", "A2", 4, sibling_group="answers-to-u2"),
+    )
+
+
 async def _stored_ids(db: AsyncSession) -> list[str]:
     """Every row of the chat, inactive ones included."""
     return sorted((await db.execute(select(Message.id).where(Message.chat_id == CHAT_ID))).scalars().all())
+
+
+class _RevertRecorder:
+    """Stands in for the file revert and remembers which rows it was asked to revert."""
+
+    def __init__(self) -> None:
+        self.calls: list[list[str]] = []
+
+    async def __call__(self, chat_id: str, message_ids: list[str]) -> dict[str, list[str]]:
+        self.calls.append(list(message_ids))
+        return {}
 
 
 @pytest.mark.asyncio
@@ -84,17 +107,57 @@ async def test_a_row_written_while_the_files_are_reverted_is_neither_reverted_no
 
 @pytest.mark.asyncio
 async def test_the_inactive_siblings_after_the_anchor_go_with_the_rewind(db_session: AsyncSession) -> None:
-    await _seed(
-        db_session,
-        _message("u1", "user", "Q1", 0),
-        _message("a1", "assistant", "A1", 1),
-        _message("u2", "user", "Q2", 2),
-        _message("a2-first-try", "assistant", "A2 first try", 3, sibling_group="answers-to-u2", active=False),
-        _message("a2", "assistant", "A2", 4, sibling_group="answers-to-u2"),
-    )
+    await _seed_a_regenerated_answer(db_session)
 
     result = await ChatService.rewind_to_message(CHAT_ID, "u2")
 
     assert result.success is True
     assert result.deleted_count == 3
     assert await _stored_ids(db_session) == ["a1", "u1"]
+
+
+@pytest.mark.asyncio
+async def test_the_files_are_reverted_for_the_active_rows_only(db_session: AsyncSession) -> None:
+    await _seed_a_regenerated_answer(db_session)
+    revert = _RevertRecorder()
+
+    with patch(REVERT_FILES, new=revert):
+        result = await ChatService.rewind_to_message(CHAT_ID, "u2", revert_files=True)
+
+    assert result.success is True
+    assert revert.calls == [["u2", "a2"]]
+    assert await _stored_ids(db_session) == ["a1", "u1"]
+
+
+@pytest.mark.asyncio
+async def test_a_row_written_between_the_two_reads_is_neither_reverted_nor_deleted(db_session: AsyncSession) -> None:
+    await _seed(
+        db_session,
+        _message("u1", "user", "Q1", 0),
+        _message("a1", "assistant", "A1", 1),
+        _message("u2", "user", "Q2", 2),
+        _message("a2", "assistant", "A2", 3),
+    )
+    revert = _RevertRecorder()
+    read_active_rows = ChatRepository.get_all_messages
+    reply_arrived = False
+
+    async def read_after_an_im_reply_arrives(db: AsyncSession, chat_id: str) -> list[MessageDTO]:
+        """The first read of the active rows comes after the id set was read and sees a row the set lacks."""
+        nonlocal reply_arrived
+        if not reply_arrived:
+            reply_arrived = True
+            await ChatRepository.add_message(db, _message("im-reply", "assistant", "IM reply", 600))
+        return await read_active_rows(db, chat_id)
+
+    with (
+        patch(REVERT_FILES, new=revert),
+        patch.object(ChatRepository, "get_all_messages", new=read_after_an_im_reply_arrives),
+    ):
+        result = await ChatService.rewind_to_message(CHAT_ID, "u2", revert_files=True)
+
+    assert reply_arrived
+    assert result.success is True
+    assert result.deleted_count == 2
+    assert revert.calls == [["u2", "a2"]]
+    assert await _stored_ids(db_session) == ["a1", "im-reply", "u1"]

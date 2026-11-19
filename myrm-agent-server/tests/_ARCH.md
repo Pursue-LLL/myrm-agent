@@ -440,7 +440,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/chat/test_rewind_pauses_goal.py` | 模块 | rewind 后暂停会话的活动目标（真实管理器，会话空闲、没有 provider 登记）：ACTIVE 目标被暂停并记下 rewind 原因，非 ACTIVE 的目标与没有目标的聊天原样不动 |
 | `services/chat/conftest.py` | 辅助 | `rewind_collaborators`：rewind 测试里把检查点清除、回退前快照、孤儿快照清理与目标暂停换成替身（它们不是被测对象）；`test_rewind_holds_session.py` 与 `test_rewind_exact_delete.py` 用 `usefixtures` 打开 |
 | `services/chat/test_rewind_holds_session.py` | 模块 | rewind 从头到尾占住聊天（私有网关实例 + 真 DB）：文件回退期间新一轮的预留被拒；回退完成或失败后释放；运行中的轮次占着或网关排空时得 `SESSION_BUSY` 且不放掉别人的占用；网关看不见的 IM 回合在跑（探针答忙）时回退在动文件之前就被拒、不占会话、不改历史；第二个 rewind 在第一个进行时被拒；占着期间调用方自己抛出的网关错误原样传出、不被当成聊天在忙；被流接管的预留不被释放 |
-| `services/chat/test_rewind_exact_delete.py` | 模块 | rewind 只删它第一步查到的行（真 DB）：文件回退期间别处写入的行（IM 回复）既不被还原也不被删；锚点之后不活跃的兄弟行随回退一并删掉、不留孤儿行 |
+| `services/chat/test_rewind_exact_delete.py` | 模块 | rewind 只删它第一步查到的行（真 DB）：文件回退期间别处写入的行（IM 回复）既不被还原也不被删；第一步先读 id 集合、再读活跃行，两次读取之间写入的行同样既不被还原也不被删；锚点之后不活跃的兄弟行随回退一并删掉、不留孤儿行，文件只对其中的活跃行还原 |
 | `services/kanban/test_unblock_resumes_goal.py` | 模块 | 看板任务从 BLOCKED 解除阻塞时恢复其停放的目标（真实管理器，`kanban:<task_id>` 键）：暂停/等待/待复核/预算受限各自回到 ACTIVE，且不登记 provider |
 | `core/channel_bridge/test_goal_commands_between_turns.py` | 模块 | IM `/goal <目标>`（目标写入存储、不登记 provider）与 `/goal status`/`pause`/`resume`/`clear`/`wait`/`unwait`/`budget`/`constraint`、恢复 kickoff 在回合之间（没有注册 provider）作用于存储里的目标；聊天里没有目标时各命令回自己的「无目标」文案，且都不注册 provider |
 | `core/channel_bridge/test_goal_subgoal_command.py` | 模块 | IM `/subgoal add` 在回合之间落在存储里的目标上，且不注册 provider |
