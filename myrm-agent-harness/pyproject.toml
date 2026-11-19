@@ -323,7 +323,8 @@ reportIndexIssue = false
 reportTypedDictNotRequiredAccess = false
 reportRedeclaration = false
 # 保留有价值的规则（默认 error）：Optional 家族 + UndefinedVariable 已证明能发现真实 bug。
-reportUnnecessaryTypeIgnoreComment = "warning"
+# 多余的 `# type: ignore` 由 mypy strict（warn_unused_ignores）负责；pyright 对部分调用的推断与 mypy 不同，
+# 在此开启会把 mypy 需要的 ignore 误报为多余。
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
