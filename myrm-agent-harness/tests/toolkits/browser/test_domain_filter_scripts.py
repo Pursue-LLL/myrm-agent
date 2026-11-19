@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist
 from myrm_agent_harness.toolkits.browser.domain_filter.scripts import build_csp_meta_script, build_init_script
 
@@ -55,18 +57,21 @@ def test_build_csp_meta_script_directives() -> None:
     assert "default-src" not in script
 
 
-def test_build_csp_meta_script_empty_allowlist() -> None:
-    """Test CSP with empty allowlist only allows self."""
-    allowlist = DomainAllowlist(patterns=())
+def test_build_csp_meta_script_rejects_an_empty_allowlist() -> None:
+    """An empty allowlist is no filter at all, so there is no policy to build; ``install_domain_filter`` never asks."""
+    with pytest.raises(ValueError, match="empty"):
+        build_csp_meta_script(DomainAllowlist(patterns=()))
 
-    script = build_csp_meta_script(allowlist)
 
-    assert "connect-src 'self'" in script
-    assert "script-src 'self'" in script
-    assert "frame-src 'self'" in script
-    assert "object-src 'none'" in script
-    assert "example.com" not in script
-    assert "github.com" not in script
+def test_build_csp_meta_script_applies_the_policy_before_the_channels_no_request_filter_sees() -> None:
+    """A reused popup window keeps the script's globals but not its document, so the constructors apply the policy."""
+    script = build_csp_meta_script(DomainAllowlist(patterns=("example.com",)))
+
+    for channel in ("WebSocket", "Worker", "SharedWorker"):
+        assert f"'{channel}'" in script
+    assert "new Proxy(" in script
+    assert "Reflect.construct" in script
+    assert script.count("connect-src 'self' example.com") == 1
 
 
 def test_build_csp_meta_script_wildcard_domain_expansion() -> None:

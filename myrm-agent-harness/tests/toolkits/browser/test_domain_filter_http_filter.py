@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Awaitable, Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from patchright.async_api import Route
 
 from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist
+
+_RouteHandler = Callable[[Route], Awaitable[None]]
 
 
 @pytest.mark.asyncio
@@ -16,9 +19,9 @@ async def test_http_filter_blocks_non_allowed_domain() -> None:
     from myrm_agent_harness.toolkits.browser.domain_filter import _install_http_filter
 
     context = MagicMock()
-    route_handler = None
+    route_handler: _RouteHandler | None = None
 
-    async def capture_handler(pattern: str, handler: Any) -> None:
+    async def capture_handler(pattern: str, handler: _RouteHandler) -> None:
         nonlocal route_handler
         route_handler = handler
 
@@ -47,9 +50,9 @@ async def test_http_filter_allows_allowed_domain() -> None:
     from myrm_agent_harness.toolkits.browser.domain_filter import _install_http_filter
 
     context = MagicMock()
-    route_handler = None
+    route_handler: _RouteHandler | None = None
 
-    async def capture_handler(pattern: str, handler: Any) -> None:
+    async def capture_handler(pattern: str, handler: _RouteHandler) -> None:
         nonlocal route_handler
         route_handler = handler
 
@@ -77,9 +80,9 @@ async def test_http_filter_non_http_document_blocked() -> None:
     from myrm_agent_harness.toolkits.browser.domain_filter import _install_http_filter
 
     context = MagicMock()
-    route_handler = None
+    route_handler: _RouteHandler | None = None
 
-    async def capture_handler(pattern: str, handler: Any) -> None:
+    async def capture_handler(pattern: str, handler: _RouteHandler) -> None:
         nonlocal route_handler
         route_handler = handler
 
@@ -106,9 +109,9 @@ async def test_http_filter_blocks_domain_blocklist_before_allowlist() -> None:
     from myrm_agent_harness.toolkits.browser.domain_filter import _install_http_filter
 
     context = MagicMock()
-    route_handler = None
+    route_handler: _RouteHandler | None = None
 
-    async def capture_handler(pattern: str, handler: Any) -> None:
+    async def capture_handler(pattern: str, handler: _RouteHandler) -> None:
         nonlocal route_handler
         route_handler = handler
 
@@ -137,9 +140,9 @@ async def test_http_filter_non_http_non_document_allowed() -> None:
     from myrm_agent_harness.toolkits.browser.domain_filter import _install_http_filter
 
     context = MagicMock()
-    route_handler = None
+    route_handler: _RouteHandler | None = None
 
-    async def capture_handler(pattern: str, handler: Any) -> None:
+    async def capture_handler(pattern: str, handler: _RouteHandler) -> None:
         nonlocal route_handler
         route_handler = handler
 

@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import pytest
-from patchright.async_api import Browser, BrowserContext
+from patchright.async_api import Browser, BrowserContext, Page
 from patchright.async_api import Error as BrowserDriverError
 
 from myrm_agent_harness.toolkits.browser.pool import (
@@ -79,7 +79,7 @@ async def _visit(pool: GlobalBrowserPool, url: str) -> str:
         await pool.release_page(page, context_key)
 
 
-async def _goto_error(page, url: str) -> str:  # type: ignore[no-untyped-def]
+async def _goto_error(page: Page, url: str) -> str:
     """The driver's error for a navigation that must fail ("" when it loaded)."""
     try:
         await page.goto(url)

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from collections.abc import Callable
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist
+
+_CdpEventHandler = Callable[[dict[str, object]], None]
 
 # =============================================================================
 # CDP audit (_schedule_cdp_audit, _log_task_exception) - Layer 3
@@ -128,9 +130,9 @@ async def test_install_cdp_audit_ws_violation_logging() -> None:
     mock_cdp = AsyncMock()
     mock_cdp.send = AsyncMock()
 
-    ws_handler = None
+    ws_handler: _CdpEventHandler | None = None
 
-    def capture_on(event: str, handler: Any) -> None:
+    def capture_on(event: str, handler: _CdpEventHandler) -> None:
         nonlocal ws_handler
         if event == "Network.webSocketCreated":
             ws_handler = handler

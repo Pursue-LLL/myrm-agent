@@ -1,8 +1,7 @@
 """Domain deep filtering — four-layer defense-in-depth for browser network egress.
 
-Prevents pages from exfiltrating data through non-HTTP channels (WebSocket,
-EventSource, sendBeacon, WebRTC, WebTransport) that bypass Playwright's
-``context.route()``.
+Prevents pages from exfiltrating data through the channels that bypass Playwright's
+``context.route()``: WebSocket, WebRTC and WebTransport.
 
 Architecture
 ~~~~~~~~~~~~
@@ -10,25 +9,28 @@ Architecture
 Layer 0 — CSP Core Defense (``<meta http-equiv="Content-Security-Policy">``, delivered by an init script)
     Browser-native policy enforcement via Content Security Policy.
     Restricts the document's own network connections (fetch/XHR/WebSocket/EventSource/sendBeacon) and
-    script/iframe loading; a ``blob:`` Worker is refused (``worker-src`` falls back to ``script-src``).
-    A Worker started from a URL answers to its own response's policy, so Layer 1 is what stops its requests.
+    script/iframe loading; a ``blob:`` or ``data:`` Worker is refused (``worker-src`` falls back to ``script-src``).
+    A Worker started from a URL answers to its own response's policy, so Layer 1 is what stops its HTTP requests
+    and a WebSocket it opens itself is judged by none of the layers.
     Does NOT restrict img/style/font/media (allows CDN resources for compatibility).
-    The policy is document-scoped: the first document of a same-origin popup opened with ``window.open`` reuses the
-    opener's initial window, which the init script saw only as ``about:blank``, so that document has no policy.
+    The policy is document-scoped, and the first document of a same-origin popup opened with ``window.open`` gets no
+    init-script run: it reuses the opener's initial window. The script therefore wraps the WebSocket, Worker and
+    SharedWorker constructors, which puts the policy on the current document before the browser runs one.
 
 Layer 1 — Protocol Interception (``context.route('**/*')``)
-    Hard-blocks all HTTP/HTTPS requests to non-allowed domains.
+    Hard-blocks all HTTP/HTTPS requests to non-allowed domains (fetch, XHR, EventSource and sendBeacon included),
+    in every document of the context, a popup's first one too.
     Supports resource type filtering (image/stylesheet/script/font/media).
     Fallback defense if CSP is disabled.
 
 Layer 2 — Main Thread Hardening (init script)
     Hardens RTCPeerConnection and WebTransport (not covered by CSP).
     Disables Service Worker registration (offline cache not needed for agents).
-    Does NOT harden Web Workers to avoid anti-bot detection.
-    Window-global, so it also applies in the popup documents that Layer 0 does not reach.
+    Does NOT harden Web Workers to avoid anti-bot detection; Layer 0 only wraps their constructors.
+    Window-global, so it also holds in a reused popup window.
 
 Layer 3 — CDP Audit Monitor (``Network.webSocketCreated``)
-    Detects WebSocket connections at the Chrome DevTools Protocol level.
+    Detects WebSocket connections of page targets at the Chrome DevTools Protocol level.
     Does not block — provides audit visibility for all layers.
 
 
@@ -45,9 +47,10 @@ Layer 3 — CDP Audit Monitor (``Network.webSocketCreated``)
 
 [POS]
 Deep domain filtering, resource blocking, and ad/tracker domain blocking module for the browser toolkit.
-Called by ContextFactory during context creation. Covers HTTP + WebSocket + EventSource + sendBeacon +
-WebRTC + WebTransport across all channels, with resource type blocking (image/stylesheet/script/font/media)
-and ad/tracker domain blocklist (~3500 domains via ad_domains.py).
+Called by ContextFactory during context creation. Layer 1 judges every HTTP(S) request of the context; Layers 0
+and 2 cover what it cannot see (WebSocket, Workers started from a blob or data URL, WebRTC, WebTransport and
+Service Worker registration). Resource type blocking (image/stylesheet/script/font/media) and the ad/tracker
+domain blocklist (~3500 domains via ad_domains.py) are applied by Layer 1.
 """
 
 from __future__ import annotations
@@ -203,7 +206,7 @@ async def install_domain_filter(
 
     logger.info(
         "Domain filter / Resource block installed: %d allow patterns, %d block patterns, CDP audit=%s, resource_block=%s, ad_blocklist=%d",
-        len(allowlist.patterns) if allowlist else 0,
+        len(allowlist.patterns),
         len(domain_blocklist.patterns) if domain_blocklist else 0,
         enable_cdp_audit and not allowlist.is_empty,
         resource_block is not None,

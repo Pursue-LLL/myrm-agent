@@ -8,7 +8,7 @@
 
 1. **Agent 友好**：通过引用系统（@refs）和自愈定位器（O(1) BBox 特征）简化元素定位，消除因 DOM 变动导致的 Agent 崩溃，减少 Token 消耗。
 2. **高性能**：混合会话降级机制（静态页极速 HTTP 注入）、零拷贝页面复用、MutationObserver变化检测、感知哈希截图对比。
-3. **高安全**：URL scheme 白名单验证、四层纵深域名过滤（覆盖 Worker）、加密 Session 存储、审批机制与语义否决（Semantic Veto）。
+3. **高安全**：URL scheme 白名单验证、四层纵深域名过滤（含 Worker 的 HTTP 请求与 `blob:` / `data:` Worker）、加密 Session 存储、审批机制与语义否决（Semantic Veto）。
 4. **高可靠**：双引擎反爬机制（Patchright/Camoufox）、智能重试、精细化错误处理。
 
 ### 已登录站点与内网访问
@@ -468,7 +468,7 @@ Rejected dangerous schemes: javascript/file/data/blob/ftp. Got: javascript:alert
 
 ### 10. 四层纵深域名过滤
 
-**设计目标**：覆盖主线程和 Web Worker 的所有网络出口通道，防止数据泄露
+**设计目标**：封住请求过滤器看不到的出口通道（WebSocket、WebRTC、WebTransport）与 Worker 的 HTTP 请求，防止数据泄露；未覆盖的边界见「覆盖通道」
 
 ```
 Layer 0: CSP (Content-Security-Policy)   ← BROWSER KERNEL (文档自身的连接)
@@ -486,7 +486,7 @@ Layer 3: CDP Network.webSocketCreated     ← AUDIT VISIBILITY
 
 **Layer 0（CSP）核心优势**：
 - 浏览器内核层执行（W3C 标准原生实现）
-- 覆盖文档自身发起的连接（fetch/XHR/WebSocket/EventSource/sendBeacon）；`blob:` Worker 因 `worker-src` 回落到 `script-src` 被拒，从 URL 加载的 Worker 遵循它自己响应的策略、不受这份 CSP 约束，它的请求由 Layer 1 拦截（实测：Worker 里请求白名单之外的主机，CSP 无违规事件、目标站点 0 次命中；同样的 Worker 在没有白名单的上下文里请求成功）
+- 覆盖文档自身发起的连接（fetch/XHR/WebSocket/EventSource/sendBeacon）；`blob:` / `data:` Worker 因 `worker-src` 回落到 `script-src` 被拒，从 URL 加载的 Worker 遵循它自己响应的策略、不受这份 CSP 约束，它的 HTTP 请求由 Layer 1 拦截（实测：Worker 里请求白名单之外的主机，CSP 无违规事件、目标站点 0 次命中；同样的 Worker 在没有白名单的上下文里请求成功），它自己开的 WebSocket 则不受任何一层约束（实测：连接到达白名单之外的主机，Layer 3 也没有审计行）
 - 成熟可靠，无法被页面脚本篡改
 
 **Layer 2 硬化机制**：
@@ -500,18 +500,18 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 ```
 
 **覆盖通道**：
-- Layer 0（CSP）: **文档自身**: fetch/XHR/WebSocket/EventSource/sendBeacon；`blob:` Worker 被拒
-- Layer 1: HTTP/HTTPS（含 Worker 发起的请求）
+- Layer 0（CSP）: **文档自身**: fetch/XHR/WebSocket/EventSource/sendBeacon；`blob:` / `data:` Worker 被拒；同源弹窗的首个文档在第一次构造 WebSocket / Worker / SharedWorker 之前补上同一份策略
+- Layer 1: HTTP/HTTPS（含 Worker 发起的请求；同源弹窗首个文档里的 fetch/XHR/sendBeacon/EventSource 同样经过它）
 - Layer 2: RTCPeerConnection, WebTransport, Service Worker registration
-- Layer 3: WebSocket audit（含 Worker）
+- Layer 3: WebSocket audit（页面目标，只记日志；不含 Worker 自己开的 WebSocket）
 
-**脚本送达**：Layer 0 与 Layer 2 的脚本由 `install_domain_filter` 经 `BrowserContext.add_init_script` 注册（DOM 增强与 STEALTH 脚本同理，由 `ContextFactory` 注册）。浏览器在上下文的每个文档里、页面自己的脚本之前运行它们，与文档由谁取回无关：顶层、同源 iframe、`srcdoc`、脚本创建的 iframe、`target=_blank`、`noopener` 与跨站弹窗、表单 POST 的应答页，真实 Chromium 实测；`tests/toolkits/browser/test_script_delivery_integration.py` 用浏览器信任、驱动不信任的证书守着这一点。CSP `<meta>` 由脚本在解析器创建 `<head>` 之后插入其首位，先于页面自己的脚本（head 阶段首个内联脚本、body、`DOMContentLoaded`、`load` 与 load 后 200 ms 五个检测阶段全部在策略之下）；没有 `<head>` 的文档（SVG）不设策略。已知边界（实测）：同源的 `window.open` 弹窗，其首个文档复用 opener 打开的初始窗口，init script 只在那个 `about:blank` 上跑过一次，所以这个文档没有 CSP `<meta>`（20 轮里 19 轮五个检测阶段都没有策略）；窗口上的全局加固（`RTCPeerConnection` 等）留在窗口里继续有效（22 个弹窗中 21 个从 head 阶段起即被拦，1 个在 head 阶段短暂暴露）；这类弹窗里 DOM 增强的 body 观察器不会重新挂接。
+**脚本送达**：Layer 0 与 Layer 2 的脚本由 `install_domain_filter` 经 `BrowserContext.add_init_script` 注册（DOM 增强与 STEALTH 脚本同理，由 `ContextFactory` 注册）。浏览器在上下文的每个文档里、页面自己的脚本之前运行它们，与文档由谁取回无关：顶层、同源 iframe、`srcdoc`、脚本创建的 iframe、`target=_blank`、`noopener` 与跨站弹窗、表单 POST 的应答页，真实 Chromium 实测；`tests/toolkits/browser/test_script_delivery_integration.py` 用浏览器信任、驱动不信任的证书守着这一点。CSP `<meta>` 由脚本在解析器创建 `<head>` 之后插入其首位，先于页面自己的脚本（head 阶段首个内联脚本、body、`DOMContentLoaded`、`load` 与 load 后 200 ms 五个检测阶段全部在策略之下）；没有 `<head>` 的文档（SVG）不设策略。同源的 `window.open` 弹窗是唯一不重跑脚本的文档（实测）：它的首个文档复用 opener 打开的初始窗口，init script 只在那个 `about:blank` 上跑过一次，所以这个文档一开始没有 CSP `<meta>`（20 轮里 19 轮五个检测阶段都没有策略）；窗口上的全局加固（`RTCPeerConnection` 等）留在窗口里继续有效（22 个弹窗中 21 个从 head 阶段起即被拦，1 个在 head 阶段短暂暴露）；HTTP 通道由 Layer 1 判定，不依赖这份策略（实测：这样的弹窗里向白名单之外的主机发 fetch、XHR、sendBeacon、EventSource、图片与脚本请求，目标站点 0 次命中；不装过滤器的对照 6 次全部命中）。Layer 0 的脚本因此包装 `WebSocket` / `Worker` / `SharedWorker` 构造器：构造之前把同一份策略补进当前文档（每个文档只补一次），这三类通道在弹窗里便与带策略的文档一样被拒；包装不抛异常、不自行判定，拒绝仍由浏览器给出（页面看到的是同样的 `securitypolicyviolation`，不是同步异常）。`tests/toolkits/browser/test_popup_channel_policy_integration.py` 在真实 Chromium 里让每条路线各自作为全新文档的第一个通道，分别在导航后的标签页与同源弹窗里运行（构造器本身、`prototype.constructor`、实例的 `constructor`、子类、`Reflect.construct`、另一个 realm、`blob:` / `data:` Worker 与 `blob:` SharedWorker，其中的脚本再开 WebSocket）：弹窗的判定与标签页一致，白名单之外的目标站点 0 次命中。这类弹窗里 DOM 增强的 body 观察器不会重新挂接。
 
-**私网策略**：云托管（默认 `allow_private_networks=False`）下，导航守卫在 `goto` 之前对 URL 做 DNS 解析校验（所有地址必须为公网），context 过滤器对每个请求逐跳校验。本地模式 `BrowserSession(allow_private_networks=True)` 经 `context_kwargs` → `ContextFactory` → `install_domain_filter(allow_private_networks=…)` → Layer 1 `install_http_filter`，只放行「智能体显式导航到的私网源」（scheme + host + port，登记在 `utils/private_origins.private_origin_grants(context)`，导航守卫与过滤器共用同一份）：页面脚本 / 重定向 / iframe 指向其他私网地址仍被拦，云元数据端点（`169.254.169.254`、`metadata.google.internal` 等）永远被拦。本地模式先按字面主机分类，再对普通主机名做一次 DNS 查询（`core/security/redirect_hop_guard/name_resolution.py`，2 秒上限、15 秒缓存，失败也缓存）：只有解析到环回 / 链路本地 / 未指定地址或云元数据地址的域名（如 `127.0.0.1.nip.io`、攻击者控制的 A 记录）才视同该私网源——显式导航到的源放行，其他被拦，云元数据永不放行；解析到 RFC 1918、CGNAT、`198.18.0.0/15` 的结果不判定（代理与 fake-IP 会把公网域名映射到这些段），解析失败或超时不拦。过滤器仅检查 document 请求，子资源交给 Chromium 的私网访问规则。blocklist、allowlist、广告与资源类型规则照常生效，因此是否挂载域名列表或资源拦截，都不改变会话自己声明的私网策略；域名列表对入口 URL 与子资源由过滤器判定，对文档重定向的后续各跳由导航守卫在加载后回放判定（见下一段）。该标志与 allowlist 一样在 context 创建时生效，同一 `context_key` 以首个创建者的策略为准。
+**私网策略**：云托管（默认 `allow_private_networks=False`）下，导航守卫在 `goto` 之前对 URL 做 DNS 解析校验（所有地址必须为公网），context 过滤器对每个请求逐跳校验。本地模式 `BrowserSession(allow_private_networks=True)` 经 `context_kwargs` → `ContextFactory` → `install_domain_filter(allow_private_networks=…)` → Layer 1 `install_http_filter`，只放行「智能体显式导航到的私网源」（scheme + host + port，登记在 `utils/private_origins.private_origin_grants(context)`，导航守卫与过滤器共用同一份）：页面脚本 / 重定向 / iframe 指向其他私网地址仍被拦，云元数据端点（`169.254.169.254`、`metadata.google.internal` 等）永远被拦。Chromium 自己的 Local Network Access 检查在本地模式里另有一层限制（`chromium-1248` 实测）：页面里指向*另一个*环回 / 私网源的跨源子框架以 `net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` 失败，该源是否已登记为显式导航的私网源、是否挂了域名过滤器都一样（四种组合下子框架均未加载、目标站点 0 次命中）；跨源 `fetch` 同样失败（`TypeError: Failed to fetch`，在两个源都已登记、未挂过滤器时测过）；顶层导航（脚本改 `location`、点链接、`window.open`）不受影响。给上下文授予 `local-network-access` 权限后子框架与 `fetch` 都能成功，但这会放开该上下文对所有环回 / 私网目标的这类请求，所以不默认授予。本地模式先按字面主机分类，再对普通主机名做一次 DNS 查询（`core/security/redirect_hop_guard/name_resolution.py`，2 秒上限、15 秒缓存，失败也缓存）：只有解析到环回 / 链路本地 / 未指定地址或云元数据地址的域名（如 `127.0.0.1.nip.io`、攻击者控制的 A 记录）才视同该私网源——显式导航到的源放行，其他被拦，云元数据永不放行；解析到 RFC 1918、CGNAT、`198.18.0.0/15` 的结果不判定（代理与 fake-IP 会把公网域名映射到这些段），解析失败或超时不拦。过滤器仅检查 document 请求，子资源交给 Chromium 的私网访问规则。blocklist、allowlist、广告与资源类型规则照常生效，因此是否挂载域名列表或资源拦截，都不改变会话自己声明的私网策略；域名列表对入口 URL 与子资源由过滤器判定，对文档重定向的后续各跳由导航守卫在加载后回放判定（见下一段）。该标志与 allowlist 一样在 context 创建时生效，同一 `context_key` 以首个创建者的策略为准。
 
 **重定向链的判定时机**：patchright 不会把文档重定向的中间跳交给 route，所以链路在加载完成后用 `request.redirected_from` 回放判定；命中则把标签页重置为 `about:blank` 并抛 `BrowserNavigationBlockedError`，页面内容不会返回给调用方。回放时除私网 / 元数据判定外，还会把该 agent 配置的域名白名单 / 黑名单（`domain_filter/context_lists.py`，由请求过滤器绑定到 context）应用到入口 URL 之后的每一跳：白名单站点不能再通过重定向把标签页带到名单之外的域名，经第三方 IdP 的 OAuth 跳转在配置了白名单的 agent 上也按名单处理。入口 URL 仍由请求过滤器判定。文档由浏览器自己加载并执行重定向（页面 URL 与 origin 正确、cookie 正确、链路可见、请求只发一次），表单 POST 也由浏览器自己发出，服务端只收到一次，答复比上下文的默认超时慢、或一直不来时也一样，后一种情形不拖住收尾（`tests/toolkits/browser/test_document_redirect_integration.py` 逐项数服务端收到的请求）。出站连接层：严格策略（云托管）下，池自己启动的 Chromium 的每个 context 都经 `EgressGuard`（`pool/egress_guard.py`，本机回环 SOCKS5 代理）出网。Chromium 把主机*名*交给代理，代理只解析一次、要求所有答案都是公网地址、只拨已校验的地址，所以重定向的中间跳、子资源、WebSocket、脚本发起的请求和 DNS rebinding 都到不了内部地址，内部服务一次请求也收不到（真实 Chromium 对照：不经守卫时攻击页的 8 种请求全部落到内部站点，经守卫 0 个）；被拒的连接在页面上表现为 `net::ERR_SOCKS_CONNECTION_FAILED`（Chromium 对所有 SOCKS5 拒绝码给同一个错误，实测），守卫停止后新连接失败为 `ERR_PROXY_CONNECTION_FAILED`，即浏览器没有网络（安全失败）。第一个受守卫的 context 创建前先过金丝雀（用一个不可能存在的域名开临时页，守卫必须听到这次连接，否则抛 `EgressGuardError`，不为一个无视代理设置的浏览器提供页面）。WebRTC 的 UDP 不经任何代理，守卫配置时池的启动参数带 `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`（实测：无该参数时 STUN 数据报发到回环 UDP 端口，有则 0 个）；配置代理后 Chromium 也不再直连 QUIC（WebTransport 实测 0 个数据报）。守卫只执行 SSRF 公网策略，不执行用户的 `network_blocklist`（见下）。守卫不适用于：本地模式与声明 `allow_private_networks` 的 context（私网本就允许）、自带代理的 context（代理池或显式代理，出口策略由代理运营方承担）、经 CDP / 远程 / 扩展接入的浏览器和 Camoufox（不是池启动的 Chromium，池无法为其配置）、SSRF 盾关闭、以及环境配置了 HTTP 代理（`http_proxy` / `https_proxy` / `all_proxy`，守卫直连会绕过该代理，启动时记一条告警）。web_fetch 的 L3 Stealth 层在同样的条件下为每次抓取单独起一个守卫（Scrapling 自己启动 Chromium，不走池），抓取结束即停。不在守卫范围内时，剩余边界依旧成立：Chromium 在判定之前会向未授权的内部地址发出一次 GET（响应不会交给调用方，也读不到内容）；本地模式对主机名的判定与 Chromium 自己的解析是两次独立查询，攻击者控制的 DNS 可在两次之间换答案（DNS rebinding）。这两点只有出站网络层（防火墙 / egress 代理，云托管由控制平面 iptables 承担）才能彻底阻止。web_fetch 的 HTTP / Stealth 层使用同一套策略（`web_fetch/fetchers/target_guard.py`），被策略拒绝的 URL 是终态，不会降级到下一层重试。用户的 `network_blocklist` 由同一模块的 `assert_not_blocklisted` 判定：HTTP 层的每一跳在请求之前判定；Stealth 层与浏览器层只判定入口 URL 与最终页面，中间跳在这两层不可见（浏览器层的池化上下文被所有用户共用，名单无法装进上下文）；命中同样是终态。
 
-**反爬检测友好**：不硬化 Web Worker 构造器（避免 `new Worker()` 抛异常）：从 URL 加载的 Worker 照常运行；挂了域名白名单的上下文里 `blob:` Worker 由 Layer 0 拒绝，与 browser-use（81K stars）策略一致
+**反爬检测友好**：不硬化 Web Worker 构造器（避免 `new Worker()` 抛异常）：从 URL 加载的 Worker 照常运行；挂了域名白名单的上下文里 `blob:` / `data:` Worker 由 Layer 0 拒绝。Layer 0 的脚本包装 `WebSocket` / `Worker` / `SharedWorker` 构造器用的是 `Proxy`，只在构造之前补上策略，不抛异常、不改行为。对照原生构造器，页面能观察到两处差异（`chromium-1248` 实测）：`Function.prototype.toString` 的结果缺少函数名（`function () { [native code] }`，原生为 `function WebSocket() { [native code] }`）；原生构造器抛出的 `TypeError`（例如不带参数）的 `stack` 多一帧 `at Object.construct (<anonymous>:…)`。其余与原生一致：`name`、`length`、`prototype.constructor === 构造器`、属性描述符、自有键、静态常量、子类化与带字段的子类、`bind`、猴子补丁 `prototype.send`、给全局赋值再还原、协议数组、同源 URL 的 Worker、无效 URL 的 `SyntaxError`（含其 `stack`）与不带 `new` 调用的报错
 
 ---
 
@@ -666,7 +666,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 
 #### URL blocklist（Settings → 安全策略）
 
-用户可编辑 `network_blocklist`（Settings `DomainBlocklistEditor` → server `SecurityConfig` → harness `BrowserSession.domain_blocklist`）。评估顺序：**blocklist DENY 优先于 allowlist HITL**。会话层在 `navigate()` 入口硬拦截（`BROWSER_URL_BLOCKLIST`）；`domain_filter` 四层过滤同步注入 blocklist 模式。
+用户可编辑 `network_blocklist`（Settings `DomainBlocklistEditor` → server `SecurityConfig` → harness `BrowserSession.domain_blocklist`）。评估顺序：**blocklist DENY 优先于 allowlist HITL**。会话层在 `navigate()` 入口硬拦截（`BROWSER_URL_BLOCKLIST`）；`domain_filter` 的 Layer 1 请求过滤同步按 blocklist 判定（CSP 与主线程硬化只随 allowlist 挂载）。
 
 #### 两阶段快照架构
 

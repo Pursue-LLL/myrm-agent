@@ -1,17 +1,21 @@
-"""Page-side scripts of the domain filter: the CSP policy (Layer 0) and the main-thread hardening (Layer 2).
+"""Page-side scripts of the domain filter: the CSP policy and its guard (Layer 0), the hardening (Layer 2).
 
 [INPUT]
 - domain_filter::DomainAllowlist (POS: immutable domain pattern matcher; only its ``patterns`` are read here)
 - stdlib json (POS: the policy text is embedded as a JSON string literal)
 
 [OUTPUT]
-- build_csp_meta_script: init script that puts the allowlist's Content-Security-Policy ``<meta>`` at the top of a document's head
+- build_csp_meta_script: init script that puts the allowlist's Content-Security-Policy ``<meta>`` at the top of a
+  document's head and puts it there again before a page opens a WebSocket or Worker; raises ``ValueError`` for an
+  empty allowlist
 - build_init_script: init script that hardens WebRTC, WebTransport and Service Worker registration
 
 [POS]
-The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script``. The browser runs an init script
-in every document of the context before the page's own scripts, whatever fetched the document; the one exception, the first
-document of a same-origin popup, is described with Layer 0 in the package docstring.
+The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script``. The browser runs an init
+script in every window it creates, before the page's own scripts, whatever fetched the document. A same-origin popup
+is the one document that gets no run: it reuses its opener's initial window, so what a script set on the window stays
+and what it did to the document does not. The Layer 0 script covers that case itself (see Layer 0 in the package
+docstring).
 """
 
 from __future__ import annotations
@@ -23,75 +27,99 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist
 
 
+_CSP_SCRIPT_TEMPLATE = """(function() {
+  'use strict';
+  var policy = __POLICY__;
+  var construct = Reflect.construct;
+  var carriers = new WeakSet();
+
+  function ensurePolicy() {
+    var doc = document;
+    if (carriers.has(doc) || !doc.head) return;
+    var meta = doc.createElement('meta');
+    meta.httpEquiv = 'Content-Security-Policy';
+    meta.content = policy;
+    doc.head.insertBefore(meta, doc.head.firstChild);
+    carriers.add(doc);
+  }
+
+  if (document.head) {
+    ensurePolicy();
+  } else {
+    var observer = new MutationObserver(function() {
+      if (document.head) {
+        observer.disconnect();
+        ensurePolicy();
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+    document.addEventListener('DOMContentLoaded', function() { observer.disconnect(); }, { once: true });
+  }
+
+  ['WebSocket', 'Worker', 'SharedWorker'].forEach(function(name) {
+    var Native = window[name];
+    if (typeof Native !== 'function') return;
+    var guarded = new Proxy(Native, {
+      construct: function(target, args, newTarget) {
+        ensurePolicy();
+        return construct(target, args, newTarget === guarded ? target : newTarget);
+      }
+    });
+    Object.defineProperty(Native.prototype, 'constructor', { value: guarded });
+    Object.defineProperty(window, name, { value: guarded });
+  });
+})();"""
+
+
 def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
-    """Generate the init script that puts the allowlist's CSP ``<meta>`` at the top of every document's ``<head>``.
+    """Generate the init script that gives every document the allowlist's CSP ``<meta>`` and keeps it there.
+
+    The policy is enforced by the browser for the connections the document itself makes, and cannot be bypassed
+    by page scripts. Directives:
+    - connect-src: Restricts network connections (fetch/XHR/WebSocket/EventSource/sendBeacon)
+    - script-src: Restricts script loading (allows inline/eval for compatibility); also decides which Workers may start,
+      so a Worker whose script comes from a blob or data URL is refused
+    - frame-src: Restricts iframe loading
+    - object-src: Blocks plugins (Flash/Java)
+
+    Note: img-src/style-src/font-src/media-src are not restricted (allow CDN resources).
 
     An init script runs before the parser has created the document's ``<head>``, so the script waits for it: a
     ``MutationObserver`` on the document inserts the policy as the head's first child, ahead of the page's own scripts,
     and is dropped once it has done so or the document is fully parsed (a document that never gets a head, such as an SVG,
     gets no policy and no lingering observer). Creating a head here instead would leave a stray element in such documents.
 
-    The policy is enforced by the browser for the connections the document itself makes, and cannot be bypassed
-    by page scripts. Directives:
-    - connect-src: Restricts network connections (fetch/XHR/WebSocket/EventSource/sendBeacon)
-    - script-src: Restricts script loading (allows inline/eval for compatibility)
-    - frame-src: Restricts iframe loading
-    - object-src: Blocks plugins (Flash/Java)
+    A window the browser reuses for a same-origin popup keeps what this script set on it, but its new document gets
+    no init-script run and so no policy. WebSocket, Worker and SharedWorker are the channels no request filter sees,
+    so their constructors are wrapped in a ``Proxy`` that puts the policy on the current document before the real
+    constructor runs. The wrapper neither throws nor filters by itself: the refusal is the browser's, delivered the way
+    it is in a document that had the policy from the start. A page can tell the wrapper from the native constructor in
+    two ways: the ``toString`` text lacks the function name, and a ``TypeError`` the native constructor throws gains a
+    stack frame.
 
-    Note: img-src/style-src/font-src/media-src are not restricted (allow CDN resources).
+    Raises:
+        ValueError: ``allowlist`` is empty. An empty allowlist installs no filter, so there is no policy to build.
     """
-    normalized_domains = []
-    for p in allowlist.patterns:
-        if p.startswith("*."):
-            bare = p[2:]
-            normalized_domains.append(bare)
-            normalized_domains.append(p)
-        else:
-            normalized_domains.append(p)
+    if allowlist.is_empty:
+        raise ValueError("An empty allowlist has no Content-Security-Policy; it installs no filter")
 
-    domains_list = " ".join(normalized_domains) if normalized_domains else ""
+    sources: list[str] = []
+    for pattern in allowlist.patterns:
+        # ``*.example.com`` matches the apex for the host matcher; a CSP wildcard host source does not.
+        if pattern.startswith("*."):
+            sources.append(pattern[2:])
+        sources.append(pattern)
+    hosts = " ".join(sources)
 
-    directives = ["object-src 'none'"]
-    if domains_list:
-        directives.extend(
-            [
-                f"connect-src 'self' {domains_list}",
-                f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {domains_list}",
-                f"frame-src 'self' {domains_list}",
-            ]
+    policy = "; ".join(
+        (
+            "object-src 'none'",
+            f"connect-src 'self' {hosts}",
+            f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {hosts}",
+            f"frame-src 'self' {hosts}",
         )
-    else:
-        directives.extend(
-            [
-                "connect-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-                "frame-src 'self'",
-            ]
-        )
-
-    csp_content = "; ".join(directives)
-
-    return f"""(function() {{
-  'use strict';
-  var meta = document.createElement('meta');
-  meta.httpEquiv = 'Content-Security-Policy';
-  meta.content = {json.dumps(csp_content)};
-  function insertPolicy() {{
-    document.head.insertBefore(meta, document.head.firstChild);
-  }}
-  if (document.head) {{
-    insertPolicy();
-    return;
-  }}
-  var observer = new MutationObserver(function() {{
-    if (document.head) {{
-      observer.disconnect();
-      insertPolicy();
-    }}
-  }});
-  observer.observe(document, {{ childList: true, subtree: true }});
-  document.addEventListener('DOMContentLoaded', function() {{ observer.disconnect(); }}, {{ once: true }});
-}})();"""
+    )
+    return _CSP_SCRIPT_TEMPLATE.replace("__POLICY__", json.dumps(policy))
 
 
 def build_init_script() -> str:
@@ -102,7 +130,7 @@ def build_init_script() -> str:
     - WebTransport (new standard)
     - Service Worker registration
 
-    Web Workers are not hardened, which keeps anti-bot checks quiet; the Layer 1 route filter stops their requests.
+    Web Workers are not hardened, which keeps anti-bot checks quiet; the Layer 1 route filter stops their HTTP requests.
     """
     return """(function() {
   'use strict';
