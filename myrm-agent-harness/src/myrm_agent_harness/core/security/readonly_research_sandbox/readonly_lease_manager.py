@@ -80,7 +80,7 @@ class ReadOnlyLeaseManager:
             return lease
 
     def evaluate_tool(self, session_id: str, tool_name: str) -> tuple[bool, str]:
-        """Evaluate if tool can run or is physically stripped by active read-only lease.
+        """Decide whether a tool may run under the session's active read-only lease.
 
         Tools outside the lease's allow-list are denied; the denial wording distinguishes tools the
         safety registry marks destructive from tools that are merely not whitelisted.

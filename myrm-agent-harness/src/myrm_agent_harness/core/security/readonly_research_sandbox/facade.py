@@ -67,7 +67,7 @@ class ReadOnlyResearchSandboxFacade:
         return lease
 
     def evaluate_tool(self, session_id: str, tool_name: str) -> tuple[bool, str]:
-        """Evaluate if tool can run or is physically blocked by read-only lease."""
+        """Decide whether a tool may run under the session's read-only lease; each denial is counted."""
         allowed, reason = self._lease_manager.evaluate_tool(session_id, tool_name)
         if not allowed:
             with self._lock:
