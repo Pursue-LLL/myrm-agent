@@ -2,10 +2,13 @@
 
 [INPUT]
 - toolkits.mcp.connection_manager::get_mcp_connection_manager (POS: MCP connection pool layer.)
+- toolkits.mcp.tool_table::ServerSurface, tools_of_server (POS: Serializable snapshot of the tools one MCP server exposes)
+- toolkits.mcp.warmup::McpWarmup (POS: Serves MCP tool tables from the local cache while the servers' sessions start)
 - agent.skills.mcp.core_generator::mcp_skill_generator (POS: PTC skill metadata generator)
 
 [OUTPUT]
-- route_mcp_servers(): split MCP servers into direct tools vs PTC skills
+- route_mcp_servers(): split MCP servers into direct tools vs PTC skills; with a warm-up, Skill-path servers whose
+  session is not up yet are routed from their cached tool table
 - _wrap_direct_tool_with_cache(): share MCP result cache with Direct FC tools
 - demote_direct_servers_over_budget(): whole-server Skill demotion when aggregate direct budget exceeded
 - PTC_OVERHEAD_MULTIPLIER, FALLBACK_PTC_OVERHEAD_TOKENS, compute_direct_threshold, estimate_schema_tokens
@@ -22,7 +25,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, cast
 
@@ -45,6 +48,7 @@ from myrm_agent_harness.toolkits.mcp.config import (
     mcp_config_to_runtime_dict,
 )
 from myrm_agent_harness.toolkits.mcp.structured_tool import SafeStructuredTool
+from myrm_agent_harness.toolkits.mcp.tool_table import ServerSurface, tools_of_server
 from myrm_agent_harness.utils.token_estimation import (
     estimate_tool_schema_tokens,
     estimate_tools_schema_tokens,
@@ -54,6 +58,7 @@ from myrm_agent_harness.utils.token_estimation import (
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.skills import SkillMetadata
     from myrm_agent_harness.toolkits.mcp.client import MCPServerConfigProtocol
+    from myrm_agent_harness.toolkits.mcp.warmup import McpWarmup
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +155,7 @@ def estimate_single_tool_tokens(tool: BaseTool) -> int:
 
 async def _generate_mcp_skills(
     ptc_servers: list[MCPConfig],
+    surfaces: Mapping[str, ServerSurface],
 ) -> list[SkillMetadata]:
     from myrm_agent_harness.agent.skills.mcp.core_generator import mcp_skill_generator
     from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
@@ -162,7 +168,7 @@ async def _generate_mcp_skills(
         len(ptc_servers),
         [s.name for s in ptc_servers],
     )
-    mcp_skills = await mcp_skill_generator.generate_metadata_only(ptc_servers)
+    mcp_skills = await mcp_skill_generator.generate_metadata_only(ptc_servers, surfaces)
     logger.info("MCP PTC skill generation: produced %d skill(s)", len(mcp_skills))
 
     for skill in mcp_skills:
@@ -237,8 +243,14 @@ async def route_mcp_servers(
     mcp_servers: Sequence[MCPServerConfigProtocol],
     *,
     surface_mode: MCPSurfaceMode | str | None = MCPSurfaceMode.AUTO,
+    warmup: McpWarmup | None = None,
 ) -> MCPRoutingResult:
-    """Route MCP servers into direct Turn1 tools or MCP PTC paths."""
+    """Route MCP servers into direct Turn1 tools or MCP PTC paths.
+
+    With a ``warmup``, a server routed to the Skill path whose session is not up yet is generated from its cached
+    tool table instead of waiting for the session; every server that is not served that way is routed as always, and
+    the Skill-path ones are remembered for the next cold start.
+    """
     resolved_surface = (
         surface_mode
         if isinstance(surface_mode, MCPSurfaceMode)
@@ -256,19 +268,22 @@ async def route_mcp_servers(
     manager = await get_mcp_connection_manager()
     force_direct = resolved_surface == MCPSurfaceMode.DIRECT_FC
 
+    cached: dict[str, ServerSurface] = {}
+    if warmup is not None and not force_direct:
+        cached = await warmup.serve(manager, all_mcp_configs, threshold=direct_threshold)
+    live_configs = [cfg for cfg in all_mcp_configs if cfg.name not in cached]
+
     conn_results = await asyncio.gather(
-        *(manager.get_connection([cfg]) for cfg in all_mcp_configs),
+        *(manager.get_connection([cfg]) for cfg in live_configs),
         return_exceptions=True,
     )
 
-    for cfg, conn in zip(all_mcp_configs, conn_results, strict=True):
+    for cfg, conn in zip(live_configs, conn_results, strict=True):
         if isinstance(conn, BaseException):
             logger.warning("MCP server '%s' failed to connect, skipping: %s", cfg.name, conn)
             continue
 
-        server_tools = conn.tools_by_server.get(cfg.name) or next(
-            (tools for tools in conn.tools_by_server.values() if tools), []
-        )
+        server_tools = tools_of_server(conn.tools_by_server, cfg.name)
         if not server_tools:
             logger.warning("MCP server '%s' exposed no tools, skipping", cfg.name)
             continue
@@ -300,6 +315,12 @@ async def route_mcp_servers(
                 )
         else:
             ptc_servers.append(cfg)
+            if warmup is not None:
+                warmup.remember(
+                    manager,
+                    cfg,
+                    ServerSurface(tools=tuple(server_tools), instructions=conn.instructions_by_server.get(cfg.name)),
+                )
             logger.info(
                 "MCP hybrid: server '%s' (%d tools, ~%d tokens, threshold=%d) → PTC/Skill",
                 cfg.name,
@@ -307,6 +328,9 @@ async def route_mcp_servers(
                 schema_tokens,
                 direct_threshold,
             )
+
+    # A server served from the cache takes the place it would have had if its session had been up.
+    ptc_servers = [cfg for cfg in all_mcp_configs if cfg.name in cached or cfg in ptc_servers]
 
     if resolved_surface == MCPSurfaceMode.DIRECT_FC:
         kept_bundles = direct_bundles
@@ -322,7 +346,7 @@ async def route_mcp_servers(
     for bundle in kept_bundles:
         mcp_direct_tools.extend(_wrap_direct_tool_with_cache(tool, bundle.config) for tool in bundle.tools)
 
-    mcp_skills = await _generate_mcp_skills(ptc_servers)
+    mcp_skills = await _generate_mcp_skills(ptc_servers, cached)
 
     logger.info(
         "MCP routing summary: %d direct tools, %d PTC skills",

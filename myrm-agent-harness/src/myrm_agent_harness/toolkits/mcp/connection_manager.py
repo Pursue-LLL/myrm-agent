@@ -147,8 +147,8 @@ class MCPConnectionManager:
         await self.close_all()
         logger.info("[MCPConnectionManager] Stopped")
 
-    def _make_config_hash(self, config: Sequence[MCPServerConfigProtocol]) -> str:
-        """Hash the full effective config so distinct configs never collide."""
+    def config_hash(self, config: Sequence[MCPServerConfigProtocol]) -> str:
+        """Pool key of ``config``: a hash of the full effective config, so distinct configs never collide."""
         config_data = [
             {
                 "name": s.name,
@@ -171,13 +171,21 @@ class MCPConnectionManager:
         config_json = json.dumps(config_data, sort_keys=True, default=str)
         return hashlib.sha256(config_json.encode()).hexdigest()
 
+    def is_pooled(self, config: Sequence[MCPServerConfigProtocol]) -> bool:
+        """Whether the pool holds a connection for ``config`` on the running loop.
+
+        Asking for it then waits for no server to start (a connection that went unhealthy is still recreated).
+        """
+        existing = self._connections.get(self.config_hash(config))
+        return existing is not None and existing.is_bound_to_current_loop()
+
     async def get_connection(
         self,
         config: Sequence[MCPServerConfigProtocol],
     ) -> MCPConnection:
         """Get (or lazily create) the warm connection for ``config``."""
         self._ensure_cleanup_running()
-        config_hash = self._make_config_hash(config)
+        config_hash = self.config_hash(config)
 
         existing = self._connections.get(config_hash)
         if existing is not None:

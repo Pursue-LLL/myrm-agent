@@ -2,6 +2,8 @@
 
 [INPUT]
 - agent._factory.mcp_routing::route_mcp_servers (POS: MCP hybrid direct/PTC routing)
+- toolkits.mcp.warmup::McpWarmup (POS: Serves MCP tool tables from the local cache while the servers' sessions start)
+- agent.middlewares.mcp_warmup_middleware::McpWarmupMiddleware (POS: Starts the cached servers' sessions with the first model request)
 - agent.skill_agent::SkillAgent (POS: Skill Agent implementation)
 - agent.types::AgentRuntimeSpec, AgentRuntimeConfig (POS: Agent runtime types)
 
@@ -54,6 +56,8 @@ if TYPE_CHECKING:
 
 from myrm_agent_harness.agent._factory.mcp_routing import route_mcp_servers
 from myrm_agent_harness.agent._factory.one_time_work import start_one_time_work
+from myrm_agent_harness.toolkits.mcp.tool_table_store import ToolTableStore
+from myrm_agent_harness.toolkits.mcp.warmup import McpWarmup
 
 logger = logging.getLogger(__name__)
 
@@ -171,10 +175,13 @@ async def create_skill_agent(
 
     mcp_skills: list[SkillMetadata] = []
     mcp_direct_tools: list[BaseTool] = []
+    mcp_warmup: McpWarmup | None = None
     if spec.mcp_servers:
+        mcp_warmup = McpWarmup(ToolTableStore.at_state_root())
         routing_result = await route_mcp_servers(
             spec.mcp_servers,
             surface_mode=spec.mcp_surface_mode,
+            warmup=mcp_warmup,
         )
         mcp_skills = routing_result.skills
         mcp_direct_tools = routing_result.direct_tools
@@ -370,6 +377,11 @@ async def create_skill_agent(
             logger.info(" 上下文管理中间件已通过 EngineParams 禁用")
     else:
         logger.info(" 使用用户提供的自定义中间件")
+
+    if mcp_warmup is not None and mcp_warmup.has_jobs:
+        from myrm_agent_harness.agent.middlewares.mcp_warmup_middleware import McpWarmupMiddleware
+
+        final_middlewares = [*final_middlewares, McpWarmupMiddleware(mcp_warmup)]
 
     final_write_backend: ScanningSkillWriteBackend | None = None
     if write_backend is not None:

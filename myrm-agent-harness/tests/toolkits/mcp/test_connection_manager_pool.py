@@ -257,7 +257,7 @@ class TestCreateConnection:
             client_key_password="s3cret",
         )
         with _spawning() as spawned:
-            await manager._create_connection([cfg], manager._make_config_hash([cfg]))
+            await manager._create_connection([cfg], manager.config_hash([cfg]))
 
         conn = spawned[0].conn
         assert conn["ssl_verify"] == "/etc/ssl/private-ca.pem"
@@ -274,7 +274,7 @@ class TestCreateConnection:
         )
         plain = MCPConfig(name="plain", type="streamable_http", url="http://mcp.example.test/mcp")
         with _spawning() as spawned:
-            await manager._create_connection([insecure, plain], manager._make_config_hash([insecure, plain]))
+            await manager._create_connection([insecure, plain], manager.config_hash([insecure, plain]))
 
         by_name = {actor.server_name: actor.conn for actor in spawned}
         assert by_name["insecure"]["ssl_verify"] is False
@@ -286,7 +286,7 @@ class TestCreateConnection:
     ) -> None:
         configs = [_cfg("good"), _cfg("bad")]
         with _spawning(fail_for=frozenset({"bad"})), caplog.at_level(logging.WARNING, logger=cm_module.logger.name):
-            conn = await manager._create_connection(configs, manager._make_config_hash(configs))
+            conn = await manager._create_connection(configs, manager.config_hash(configs))
 
         assert set(conn.instructions_by_server) == {"good"}
         assert "1/2 MCP server(s) failed to start" in caplog.text
@@ -299,7 +299,7 @@ class TestCreateConnection:
             _spawning(fail_for=frozenset({"bad-a", "bad-b"})),
             pytest.raises(RuntimeError, match=r"All MCP servers failed to start: .*refused to start"),
         ):
-            await manager._create_connection(configs, manager._make_config_hash(configs))
+            await manager._create_connection(configs, manager.config_hash(configs))
 
         assert not manager._connections
 

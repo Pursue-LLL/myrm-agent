@@ -218,6 +218,8 @@ class ToolLayer(IntEnum):
 
 **Profile 兼容**：`mcp_surface_mode=catalog_invoke` 解析为 `auto` 并打 WARNING（`mcp_surface.py`）。
 
+**MCP PTC 冷启动（本地工具表缓存）**：走 MCP PTC 的服务器，其 Skill 表面（L1 描述、L2 索引、L3 文档）只读工具名、描述与 schema。路由时若本机已有该服务器（按配置哈希）的工具表、该服务器不在连接池里、且按表估算的 schema 超过阈值（即必走 PTC，Direct FC 需要活的工具对象），就直接用工具表生成 Skill 表面，不等 MCP 会话建立；会话随首个模型请求在后台启动，响应里带工具调用时 `McpWarmupMiddleware` 在模型节点内等会话就绪（审批与 IPC 策略门读取的工具安全元数据只有活会话才登记），纯文本回答不等。会话就绪后与缓存对比：表面变了，本次运行保持提示词里已展示的表面、把新表写回供下次使用；连不上则丢弃该条缓存。缓存缺失或损坏、服务器已在连接池里、Direct FC 服务器一律走原路径，结局仍只有两种。证据：`toolkits/mcp/warmup.py` · `tool_table.py` · `tool_table_store.py` · `agent/middlewares/mcp_warmup_middleware.py`
+
 ---
 
 ## 三、核心/外围技能机制 (Core/Peripheral Skills)

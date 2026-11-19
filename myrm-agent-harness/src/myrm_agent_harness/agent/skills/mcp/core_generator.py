@@ -7,6 +7,7 @@ Implements:
 
 [INPUT]
 - backends.skills.types::MCPSkillData (POS: MCP-specific data of skills generated from MCP server configurations)
+- toolkits.mcp.tool_table::ServerSurface, tools_of_server (POS: The tools and instructions a server's Skill surface is generated from)
 
 [OUTPUT]
 - MCPSkillGenerator: MCP service to skill generator with progressive disclosure.
@@ -20,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from collections.abc import Mapping
 
 from langchain_core.tools import BaseTool
 
@@ -48,6 +50,7 @@ from myrm_agent_harness.agent.skills.runtime.ptc_calling import CALL_SYNTAX, CAL
 from myrm_agent_harness.backends.skills.types import MCPSkillData, SkillMetadata
 from myrm_agent_harness.toolkits.mcp import MCPConfig
 from myrm_agent_harness.toolkits.mcp.config import mcp_config_to_runtime_dict
+from myrm_agent_harness.toolkits.mcp.tool_table import ServerSurface, tools_of_server
 from myrm_agent_harness.utils.text_utils import get_token_count
 
 logger = logging.getLogger(__name__)
@@ -75,7 +78,11 @@ class MCPSkillGenerator:
 
     # ========== Level 1: Metadata Generation ==========
 
-    async def generate_metadata_only(self, mcp_configs: list[MCPConfig]) -> list[SkillMetadata]:
+    async def generate_metadata_only(
+        self,
+        mcp_configs: list[MCPConfig],
+        surfaces: Mapping[str, ServerSurface] | None = None,
+    ) -> list[SkillMetadata]:
         """Generate MCP skill metadata from server configs.
 
         Acquires a warm pooled session per server (reused later at call time),
@@ -88,6 +95,8 @@ class MCPSkillGenerator:
 
         Args:
             mcp_configs: MCP server configuration list
+            surfaces: Tools and instructions the caller already holds for some servers, by server name. Those
+                servers are generated from them without waiting for a session.
 
         Returns:
             List of SkillMetadata (one per server)
@@ -102,29 +111,36 @@ class MCPSkillGenerator:
             get_mcp_connection_manager,
         )
 
+        known = surfaces or {}
         config_desc_map = {cfg.name: cfg.description for cfg in mcp_configs if cfg.description}
         manager = await get_mcp_connection_manager()
 
-        conn_results = await asyncio.gather(
-            *(manager.get_connection([cfg]) for cfg in mcp_configs),
-            return_exceptions=True,
+        conn_results = iter(
+            await asyncio.gather(
+                *(manager.get_connection([cfg]) for cfg in mcp_configs if cfg.name not in known),
+                return_exceptions=True,
+            )
         )
 
         skills: list[SkillMetadata] = []
         claimed_skill_names: dict[str, str] = {}
-        for cfg, conn in zip(mcp_configs, conn_results, strict=True):
-            if isinstance(conn, BaseException):
-                logger.warning("MCP skill gen: server '%s' connect failed: %s", cfg.name, conn)
-                continue
-
-            server_tools = conn.tools_by_server.get(cfg.name) or next(
-                (tools for tools in conn.tools_by_server.values() if tools), []
-            )
+        for cfg in mcp_configs:
+            surface = known.get(cfg.name)
+            if surface is None:
+                conn = next(conn_results)
+                if isinstance(conn, BaseException):
+                    logger.warning("MCP skill gen: server '%s' connect failed: %s", cfg.name, conn)
+                    continue
+                surface = ServerSurface(
+                    tools=tuple(tools_of_server(conn.tools_by_server, cfg.name)),
+                    instructions=conn.instructions_by_server.get(cfg.name),
+                )
+            server_tools = list(surface.tools)
             if not server_tools:
                 logger.warning("MCP skill gen: server '%s' exposed no tools", cfg.name)
                 continue
 
-            instructions = conn.instructions_by_server.get(cfg.name)
+            instructions = surface.instructions
             _, base_name = self._get_safe_names(cfg.name)
             skill_name = self._dedupe_skill_name(base_name, claimed_skill_names)
             if skill_name != base_name:

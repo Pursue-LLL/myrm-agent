@@ -322,7 +322,7 @@ def mcp_config_to_runtime_dict(cfg: object) -> dict[str, object]:
 
     Single source of truth used by ``mcp_routing`` and ``core_generator`` when
     persisting MCP configs into ``MCPSkillData.config``. Preserves all fields
-    that affect ``MCPConnectionManager._make_config_hash`` as well as auth,
+    that affect ``MCPConnectionManager.config_hash`` as well as auth,
     TLS/mTLS, timeout, and runtime handler callbacks so PTC execution reuses
     the warm pooled session without cache misses or credential loss.
     """

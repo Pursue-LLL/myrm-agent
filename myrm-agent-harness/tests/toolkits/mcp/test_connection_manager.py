@@ -193,53 +193,82 @@ class TestMCPConnectionManager:
         MCPConnectionManager._instance = None
         return MCPConnectionManager(ttl=600, cleanup_interval=60)
 
-    def test_make_config_hash_deterministic(
+    def test_config_hash_deterministic(
         self, manager: MCPConnectionManager
     ) -> None:
         configs = [_FakeConfig(name="a"), _FakeConfig(name="b")]
-        assert manager._make_config_hash(configs) == manager._make_config_hash(configs)
+        assert manager.config_hash(configs) == manager.config_hash(configs)
 
-    def test_make_config_hash_different_for_different_configs(
+    def test_config_hash_different_for_different_configs(
         self, manager: MCPConnectionManager
     ) -> None:
-        assert manager._make_config_hash(
+        assert manager.config_hash(
             [_FakeConfig(name="a")]
-        ) != manager._make_config_hash([_FakeConfig(name="b")])
+        ) != manager.config_hash([_FakeConfig(name="b")])
 
-    def test_make_config_hash_order_independent(
+    def test_config_hash_order_independent(
         self, manager: MCPConnectionManager
     ) -> None:
         c1 = [_FakeConfig(name="a"), _FakeConfig(name="b")]
         c2 = [_FakeConfig(name="b"), _FakeConfig(name="a")]
-        assert manager._make_config_hash(c1) == manager._make_config_hash(c2)
+        assert manager.config_hash(c1) == manager.config_hash(c2)
 
-    def test_make_config_hash_distinguishes_args(
+    def test_config_hash_distinguishes_args(
         self, manager: MCPConnectionManager
     ) -> None:
         a = [_FakeConfig(name="x", args=["1"])]
         b = [_FakeConfig(name="x", args=["2"])]
-        assert manager._make_config_hash(a) != manager._make_config_hash(b)
+        assert manager.config_hash(a) != manager.config_hash(b)
 
-    def test_make_config_hash_distinguishes_tool_filter(
+    def test_config_hash_distinguishes_tool_filter(
         self, manager: MCPConnectionManager
     ) -> None:
         a = [_FakeConfig(name="x", tool_include=["t1"])]
         b = [_FakeConfig(name="x", tool_include=["t2"])]
-        assert manager._make_config_hash(a) != manager._make_config_hash(b)
+        assert manager.config_hash(a) != manager.config_hash(b)
 
-    def test_make_config_hash_distinguishes_host_serial(
+    def test_config_hash_distinguishes_host_serial(
         self, manager: MCPConnectionManager
     ) -> None:
         a = [_FakeConfig(name="x", host_serial=False)]
         b = [_FakeConfig(name="x", host_serial=True)]
-        assert manager._make_config_hash(a) != manager._make_config_hash(b)
+        assert manager.config_hash(a) != manager.config_hash(b)
 
-    def test_make_config_hash_distinguishes_keepalive_interval(
+    def test_config_hash_distinguishes_keepalive_interval(
         self, manager: MCPConnectionManager
     ) -> None:
         a = [_FakeConfig(name="x", keepalive_interval=None)]
         b = [_FakeConfig(name="x", keepalive_interval=30.0)]
-        assert manager._make_config_hash(a) != manager._make_config_hash(b)
+        assert manager.config_hash(a) != manager.config_hash(b)
+
+    @pytest.mark.asyncio
+    async def test_is_pooled_is_false_for_a_cold_config(
+        self, manager: MCPConnectionManager
+    ) -> None:
+        assert manager.is_pooled([_FakeConfig()]) is False
+
+    @pytest.mark.asyncio
+    async def test_is_pooled_is_true_for_a_connection_of_the_running_loop(
+        self, manager: MCPConnectionManager
+    ) -> None:
+        conn = MagicMock(spec=MCPConnection)
+        conn.is_bound_to_current_loop.return_value = True
+        config = [_FakeConfig()]
+        manager._connections[manager.config_hash(config)] = conn
+
+        assert manager.is_pooled(config) is True
+        assert manager.is_pooled([_FakeConfig(name="other")]) is False
+
+    @pytest.mark.asyncio
+    async def test_is_pooled_is_false_for_a_connection_of_another_loop(
+        self, manager: MCPConnectionManager
+    ) -> None:
+        conn = MagicMock(spec=MCPConnection)
+        conn.is_bound_to_current_loop.return_value = False
+        config = [_FakeConfig()]
+        manager._connections[manager.config_hash(config)] = conn
+
+        assert manager.is_pooled(config) is False
 
     @pytest.mark.asyncio
     async def test_start_stop(self, manager: MCPConnectionManager) -> None:
@@ -322,7 +351,7 @@ class TestMCPConnectionManager:
         )
 
         config = [_FakeConfig()]
-        manager._connections[manager._make_config_hash(config)] = mock_conn
+        manager._connections[manager.config_hash(config)] = mock_conn
 
         result = await manager.get_connection(config)
         assert result is mock_conn
@@ -338,7 +367,7 @@ class TestMCPConnectionManager:
         stale.close = AsyncMock()
 
         config = [_FakeConfig()]
-        manager._connections[manager._make_config_hash(config)] = stale
+        manager._connections[manager.config_hash(config)] = stale
 
         fresh = MagicMock(spec=MCPConnection)
         with patch.object(
@@ -359,7 +388,7 @@ class TestMCPConnectionManager:
         stale.close = AsyncMock()
 
         config = [_FakeConfig()]
-        manager._connections[manager._make_config_hash(config)] = stale
+        manager._connections[manager.config_hash(config)] = stale
 
         fresh = MagicMock(spec=MCPConnection)
         with patch.object(manager, "_create_connection", AsyncMock(return_value=fresh)):
@@ -416,7 +445,7 @@ class TestSpawnBoundaryStdioLaunch:
                 _Capture,
             ),
         ):
-            await manager._create_connection([cfg], manager._make_config_hash([cfg]))
+            await manager._create_connection([cfg], manager.config_hash([cfg]))
         return captured
 
     @pytest.mark.asyncio

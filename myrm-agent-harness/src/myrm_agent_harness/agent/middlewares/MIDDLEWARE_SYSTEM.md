@@ -30,6 +30,7 @@
 │ replan_middleware                         │  ← 动态重规划
 │ GuardrailMiddleware (guardrails/)       │  ← 技能边界等
 │ security_*_middleware                   │  ← 安全边界/护栏
+│ mcp_warmup_middleware (有缓存工具表时)     │  ← 首个模型请求时启动 MCP 会话；带工具调用的响应等会话就绪
 │ subagent_limit_middleware               │  ← 委派 fan-out 限制
 │ tool_history_hygiene.py                 │  ← ToolMessage dedup + within/cross-turn tool_call_id re-id
 │ dangling_tool_call_middleware           │  ← 悬空 tool_call 修复 + invalid 重放隔离
@@ -80,6 +81,7 @@
 | `replan_middleware.py` | 动态重规划循环（导出 `get_replan_error_summary` 与 `get_max_consecutive_replan_errors` 只读遥测） |
 
 | `model_call_cancel.py` | 最外层模型调用包装：Stop 时在一个轮询周期内中断在途模型请求（含其内侧中间件的限流等待与重试），抛 `OperationCancelledError`，执行器按 Stop 收尾 |
+| `mcp_warmup_middleware.py` | 只在有 MCP 服务器按本地缓存的工具表生成了 Skill 表面时由装配方追加：首个模型请求发出时启动这些服务器的会话；响应里带工具调用时，在模型节点内（早于所有 `after_model` 钩子）等会话就绪，因为审批与 IPC 策略门读取的工具安全元数据只有活会话才登记；纯文本回答不等 |
 | `parallel_tool_calls.py` | `EngineParams.enable_parallel_tool_calls` 设定后，每次带工具的模型调用经 `ModelRequest.model_settings` 带上 `parallel_tool_calls`（请求已带的设定保留；不带工具的调用不加）；装配在所有会重写请求的中间件之后、两个守卫包装之前，故故障切换重建图时同样作用于新模型 |
 | `thinking_replay_guard_middleware.py` | 签名推理块回放的安全网：提供商拒绝回放的块（`FailoverReason.THINKING_SIGNATURE`）时，请求副本去掉全部块重发一次，并在本次运行内不再回放（拒绝记忆放在运行字典里，下一次运行重新回放）；执行器层的一次性恢复仍是最后一道 |
 | `request_view_guard_middleware.py` | 离提供商最近的模型调用包装：把请求各消息的摘要交给本次运行的缓存断点检测器，由它指出请求从哪条消息起不再延续上一个请求；只记录，不改写 |
