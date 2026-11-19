@@ -120,7 +120,6 @@ src/services/wiki/service.ts
 src/store/builtinActions.ts
 src/store/chat/messageManagement.ts
 src/store/chat/messageStream/handlers/statusStreamProgressSteps.ts
-src/store/chat/types/agentStream/part1.ts
 src/store/memory/useMemoryStore.ts
 src/store/useArtifactPortalStore.ts
 src/store/useChatStore.ts

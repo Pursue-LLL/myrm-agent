@@ -16,6 +16,7 @@ export * from './artifacts';
 export * from './builtinTools';
 export * from './toolApproval';
 export * from './agentStream/part1';
+export * from './agentStream/part1Approval';
 export * from './agentStream/part2';
 export * from './agentStream/part3';
 export * from './agentStream/union';

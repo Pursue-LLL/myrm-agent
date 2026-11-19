@@ -11,11 +11,9 @@
 
 import type { AgentCancelledStreamEvent } from './part1';
 import type {
-  ApprovalRequiredStreamEvent,
   ArtifactContentStreamEvent,
   ArtifactFocusStreamEvent,
   ArtifactsStreamEvent,
-  ClarificationRequiredStreamEvent,
   CapabilityGapStreamEvent,
   SkillGapStreamEvent,
   PhaseTransitionStreamEvent,
@@ -32,7 +30,6 @@ import type {
   SteeringUnreadStreamEvent,
   TasksStepsStreamEvent,
   TokenUsageStreamEvent,
-  ToolApprovalRequestStreamEvent,
   ToolCancelledStreamEvent,
   ToolEvictedRefStreamEvent,
   ToolEndStreamEvent,
@@ -42,6 +39,11 @@ import type {
   ToolStdoutChunkStreamEvent,
   UIUpdateStreamEvent,
 } from './part1';
+import type {
+  ApprovalRequiredStreamEvent,
+  ClarificationRequiredStreamEvent,
+  ToolApprovalRequestStreamEvent,
+} from './part1Approval';
 import type {
   CaptchaStreamEvent,
   CatchupSnapshotStreamEvent,

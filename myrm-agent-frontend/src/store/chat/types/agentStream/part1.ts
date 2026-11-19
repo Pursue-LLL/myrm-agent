@@ -8,7 +8,7 @@
  * AgentEventType, BaseAgentEvent, 核心 SSE 事件接口（消息/工具前半）。
  *
  * [POS]
- * SSE 事件类型前半段；与后端 AgentEventType 对齐。
+ * SSE 事件类型前半段；与后端 AgentEventType 对齐。等人答复的事件（审批、澄清）在 part1Approval.ts。
  */
 
 import type { Artifact } from '../artifacts';
@@ -199,70 +199,6 @@ export interface ToolHeartbeatStreamEvent extends BaseAgentEvent {
 export interface SourcesStreamEvent extends BaseAgentEvent {
   type: typeof AgentEventType.SOURCES;
   data: Source[];
-}
-
-export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.TOOL_APPROVAL_REQUEST;
-  /** LangGraph interrupt the card answers; the same interrupt is announced again while it stays pending. */
-  interruptId?: string;
-  data: {
-    // Standard LangChain HITL structure
-    actionRequests: Array<{
-      action: string;
-      args: Record<string, unknown>;
-      description: string;
-      domains?: string[];
-      ptc_annotations?: Record<string, boolean>;
-    }>;
-    reviewConfigs: Array<{
-      allowedDecisions: Array<'approve' | 'reject' | 'edit'>;
-      domainApproval?: boolean;
-      smartDenied?: boolean;
-      hideAllowAlways?: boolean;
-      heldForPerson?: boolean;
-      isSpend?: boolean;
-      spendAmount?: number;
-      spendCurrency?: string;
-      actionDigest?: string;
-    }>;
-    // Extensions (custom fields)
-    extensions: {
-      timeout: {
-        seconds: number;
-        expiresAt: number;
-        behavior: 'deny' | 'allow';
-      };
-      approval: {
-        requestId: string;
-        sessionKey: string;
-        permissionType: string;
-        allowAlways: boolean;
-      };
-      displayMode: 'approval' | 'handover';
-    };
-  };
-}
-
-export interface ApprovalRequiredStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.APPROVAL_REQUIRED;
-  interruptId?: string;
-  data: {
-    type: string;
-    message?: string;
-    [key: string]: unknown;
-  };
-}
-
-export interface ClarificationRequiredWireData {
-  type: 'ask_question';
-  form: unknown;
-}
-
-export interface ClarificationRequiredStreamEvent extends BaseAgentEvent {
-  type: typeof AgentEventType.CLARIFICATION_REQUIRED;
-  /** LangGraph interrupt the card answers: the answer is addressed to it, so it can never settle a later pause. */
-  interruptId?: string;
-  data: ClarificationRequiredWireData;
 }
 
 export interface SteeringStreamEvent extends BaseAgentEvent {
