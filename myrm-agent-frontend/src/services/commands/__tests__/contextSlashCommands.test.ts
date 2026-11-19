@@ -76,7 +76,6 @@ describe('executeCompactSlashCommand', () => {
     { reason: 'no_compactable_messages', copy: 'chat.compact.skip.nothing', type: 'info' },
     { reason: 'concurrent_compaction_in_progress', copy: 'chat.compact.skip.busy', type: 'info' },
     { reason: 'summarize_circuit_open', copy: 'chat.compact.skip.paused', type: 'warning' },
-    { reason: 'compression_anti_thrash_active', copy: 'chat.compact.skip.ineffective', type: 'warning' },
   ])('words a compression the server did not run for its reason: $reason', async ({ reason, copy, type }) => {
     kit.runManualCompaction.mockResolvedValue({ ...compacted, compacted: false, reason });
 
@@ -88,7 +87,7 @@ describe('executeCompactSlashCommand', () => {
   });
 
   it('reports a failure the server returned as a failed compression, without the raw reason', async () => {
-    kit.runManualCompaction.mockResolvedValue({ ...compacted, compacted: false, reason: 'timeout: summarizer 60s' });
+    kit.runManualCompaction.mockResolvedValue({ ...compacted, compacted: false, reason: 'timeout' });
 
     await expect(executeCompactSlashCommand('/compact')).resolves.toEqual({
       success: false,

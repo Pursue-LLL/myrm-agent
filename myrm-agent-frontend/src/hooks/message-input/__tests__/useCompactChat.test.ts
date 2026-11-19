@@ -131,8 +131,7 @@ describe('useCompactChat', () => {
       { reason: 'no_compactable_messages', level: 'info', copy: 'chat.compact.skip.nothing' },
       { reason: 'concurrent_compaction_in_progress', level: 'info', copy: 'chat.compact.skip.busy' },
       { reason: 'summarize_circuit_open', level: 'warning', copy: 'chat.compact.skip.paused' },
-      { reason: 'compression_anti_thrash_active', level: 'warning', copy: 'chat.compact.skip.ineffective' },
-      { reason: 'timeout: summarizer exceeded 60s', level: 'error', copy: 'chat.compact.failed' },
+      { reason: 'timeout', level: 'error', copy: 'chat.compact.failed' },
     ] as const)(
       'words a compaction the server did not run for its reason: $reason',
       async ({ reason, level, copy }) => {

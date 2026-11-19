@@ -53,16 +53,14 @@ export interface CompactNotice {
 const NOTHING_TO_COMPACT: CompactNotice = { messageKey: 'chat.compact.skip.nothing', severity: 'info' };
 const ALREADY_RUNNING: CompactNotice = { messageKey: 'chat.compact.skip.busy', severity: 'info' };
 const TEMPORARILY_PAUSED: CompactNotice = { messageKey: 'chat.compact.skip.paused', severity: 'warning' };
-const RECENTLY_INEFFECTIVE: CompactNotice = { messageKey: 'chat.compact.skip.ineffective', severity: 'warning' };
 export const COMPACT_FAILED_NOTICE: CompactNotice = { messageKey: 'chat.compact.failed', severity: 'error' };
 
-/** The server's reasons that are not failures, keyed by the code that leads the reason (`too_few_messages (2 < 4)`). */
-const NOTICE_BY_REASON_CODE = new Map<string, CompactNotice>([
+/** The server's reasons that are not failures. A reason is a bare code, so it is matched whole. */
+const NOTICE_BY_REASON = new Map<string, CompactNotice>([
   ['no_compactable_messages', NOTHING_TO_COMPACT],
   ['too_few_messages', NOTHING_TO_COMPACT],
   ['concurrent_compaction_in_progress', ALREADY_RUNNING],
   ['summarize_circuit_open', TEMPORARILY_PAUSED],
-  ['compression_anti_thrash_active', RECENTLY_INEFFECTIVE],
 ]);
 
 /**
@@ -70,8 +68,7 @@ const NOTICE_BY_REASON_CODE = new Map<string, CompactNotice>([
  * are worded as such: an unknown one (a timeout, a failed save, a code added later) must not read as "nothing to do".
  */
 export function describeCompactSkip(reason: string | null): CompactNotice {
-  const code = /^[a-z_]+/.exec(reason ?? '')?.[0] ?? '';
-  return NOTICE_BY_REASON_CODE.get(code) ?? COMPACT_FAILED_NOTICE;
+  return NOTICE_BY_REASON.get(reason ?? '') ?? COMPACT_FAILED_NOTICE;
 }
 
 /**

@@ -87,8 +87,7 @@ describe('ContextCompressControl', () => {
     { reason: 'no_compactable_messages', copy: 'chat.compact.skip.nothing', tone: 'text-muted-foreground' },
     { reason: 'concurrent_compaction_in_progress', copy: 'chat.compact.skip.busy', tone: 'text-muted-foreground' },
     { reason: 'summarize_circuit_open', copy: 'chat.compact.skip.paused', tone: 'text-amber-600' },
-    { reason: 'compression_anti_thrash_active', copy: 'chat.compact.skip.ineffective', tone: 'text-amber-600' },
-    { reason: 'timeout: summarizer exceeded 60s', copy: 'chat.compact.failed', tone: 'text-rose-600' },
+    { reason: 'timeout', copy: 'chat.compact.failed', tone: 'text-rose-600' },
   ])('words a compression the server did not run for its reason: $reason', async ({ reason, copy, tone }) => {
     mockRunManualCompaction.mockResolvedValue({ compacted: false, tokens_saved: 0, reason });
     renderControl();

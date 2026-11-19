@@ -115,8 +115,8 @@ describe('runManualCompaction', () => {
   });
 
   it.each([
-    { reason: 'timeout: summarizer exceeded 60s', logged: true },
-    { reason: 'persist_failed: database is locked', logged: true },
+    { reason: 'timeout', logged: true },
+    { reason: 'persist_failed', logged: true },
     { reason: 'no_compactable_messages', logged: false },
     { reason: 'concurrent_compaction_in_progress', logged: false },
   ])('keeps the raw reason of a failure for the console only ($reason)', async ({ reason, logged }) => {
@@ -132,13 +132,14 @@ describe('runManualCompaction', () => {
 /** Every reason the compaction service reports for a request it did not run. */
 const SKIP_CASES = [
   { reason: 'no_compactable_messages', messageKey: 'chat.compact.skip.nothing', severity: 'info' },
-  { reason: 'too_few_messages (2 < 4)', messageKey: 'chat.compact.skip.nothing', severity: 'info' },
+  { reason: 'too_few_messages', messageKey: 'chat.compact.skip.nothing', severity: 'info' },
   { reason: 'concurrent_compaction_in_progress', messageKey: 'chat.compact.skip.busy', severity: 'info' },
   { reason: 'summarize_circuit_open', messageKey: 'chat.compact.skip.paused', severity: 'warning' },
-  { reason: 'compression_anti_thrash_active', messageKey: 'chat.compact.skip.ineffective', severity: 'warning' },
+  { reason: 'compression_anti_thrash_active', messageKey: 'chat.compact.failed', severity: 'error' },
   { reason: 'chat_not_found', messageKey: 'chat.compact.failed', severity: 'error' },
-  { reason: 'timeout: summarizer exceeded 60s', messageKey: 'chat.compact.failed', severity: 'error' },
-  { reason: 'persist_failed: database is locked', messageKey: 'chat.compact.failed', severity: 'error' },
+  { reason: 'timeout', messageKey: 'chat.compact.failed', severity: 'error' },
+  { reason: 'persist_failed', messageKey: 'chat.compact.failed', severity: 'error' },
+  { reason: 'too_few_messages (2 < 4)', messageKey: 'chat.compact.failed', severity: 'error' },
   { reason: 'a_reason_added_later', messageKey: 'chat.compact.failed', severity: 'error' },
   { reason: 'constructor', messageKey: 'chat.compact.failed', severity: 'error' },
   { reason: '__proto__', messageKey: 'chat.compact.failed', severity: 'error' },
