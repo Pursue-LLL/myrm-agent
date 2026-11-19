@@ -3,6 +3,7 @@
 [INPUT]
 - app.main (POS: HTTP application import surface)
 - app.ai_agents.general_agent.tools::ensure_tool_layer_bootstrap (POS: lazy tool registration)
+- app.server.lifespan.startup_tasks::_preload_agent_tool_layers (POS: boot tasks that stand alone, run by the startup phases and the background start)
 
 [OUTPUT]
 - Regression coverage for keeping provider SDKs, the tokenizer stack and the server tool
@@ -60,7 +61,7 @@ def test_tool_layer_bootstrap_is_idempotent() -> None:
 
 @pytest.mark.asyncio
 async def test_startup_preload_calls_the_tool_layer_bootstrap(monkeypatch: pytest.MonkeyPatch) -> None:
-    from app.server import lifespan
+    from app.server.lifespan import startup_tasks
 
     calls: list[bool] = []
     monkeypatch.setattr(
@@ -68,6 +69,6 @@ async def test_startup_preload_calls_the_tool_layer_bootstrap(monkeypatch: pytes
         lambda: calls.append(True),
     )
 
-    await lifespan._preload_agent_tool_layers()
+    await startup_tasks._preload_agent_tool_layers()
 
     assert calls == [True]

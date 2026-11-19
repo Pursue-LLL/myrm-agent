@@ -112,7 +112,7 @@ Design notes:
 - **排队超时**：等待超过 `AGENT_QUEUE_TIMEOUT` 秒抛 `AgentQueueTimeout`；异常携带 `reason`（`memory_pressure` / `user_limit` / `global_limit` 三态）与 `active_sessions` 占用者快照，供 `stream_finalize` 渲染结构化 SSE 错误（`error_kind=concurrency_limit` + `diagnostic_result` 含 i18n 用户文案与 resolution_steps）
 - **执行看门狗**：idle 静默判定 — 事件流每次产出事件即续期 deadline（分层阈值：默认 `AGENT_EXECUTION_TIMEOUT`、fission 2x、goal 3600s）；静默间隙超过阈值或总时长超过硬顶 `AGENT_EXECUTION_HARD_CEILING`(3600s) 抛 `AgentExecutionTimeout`（活跃流不因总时长被杀）
 - **中断支持**：`interrupt()` 信号全部运行中 Agent 停止；`interrupt_session(chat_id)` 单会话停止；`get_active_message_id(chat_id)` 供 chat cancel 同步 harness `CancellationRegistry`
-- **优雅排空**：`begin_drain(timeout=120)` 进入 draining 状态 → 拒绝新 turn（`AgentDrainingError`）→ 等待 `_active_sessions` 清空或超时 → 超时后 `interrupt_all()` 强制中断。`cancel_drain()` 撤销排空重新接受请求。`lifespan._shutdown()` 和 `POST /shutdown` API 均在关闭组件前先 drain；CP 销毁沙箱前通过 `POST /api/v1/system/drain` 触发（休眠不 drain：回收器只休眠无在途工作的沙箱），`DELETE /api/v1/system/drain` 取消
+- **优雅排空**：`begin_drain(timeout=120)` 进入 draining 状态 → 拒绝新 turn（`AgentDrainingError`）→ 等待 `_active_sessions` 清空或超时 → 超时后 `interrupt_all()` 强制中断。`cancel_drain()` 撤销排空重新接受请求。`app/server/lifespan/shutdown.py::_shutdown()` 和 `POST /shutdown` API 均在关闭组件前先 drain；CP 销毁沙箱前通过 `POST /api/v1/system/drain` 触发（休眠不 drain：回收器只休眠无在途工作的沙箱），`DELETE /api/v1/system/drain` 取消
 - **活跃会话追踪**：`ActiveSessionInfo` 元数据（chatId、agentType、agentId、elapsedSeconds、current_message_id），`get_active_sessions()` 和 `get_available_slots()` 供 Multi-Pane 工作台和 Fleet Overview 使用
 - **API 端点**：`GET /agents/active-sessions`（Multi-Pane 状态）、`POST /api/agent/interrupt`（远程中断）、`POST /agents/chats/{chat_id}/cancel`（scoped pair 单 chat 取消：interrupt + registry）
 

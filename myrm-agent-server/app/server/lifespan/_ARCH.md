@@ -6,7 +6,7 @@ FastAPI 应用 lifespan。启动按“串行关键阶段 → 并行阶段”执�
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `__init__.py` | 子域出口 | 聚合 `optimized_lifespan`、阶段函数、启动任务与 logger（测试用 `inspect` 检查阶段实现） | — |
+| `__init__.py` | 子域出口 | 聚合 `optimized_lifespan`、阶段函数与 logger（测试用 `inspect` 检查阶段实现） | — |
 | `state.py` | 辅助 | logger、`_checkpointer_cleanup` 与 `_context_cleanup_scheduler_instance` 两个进程级句柄 | ✅ |
 | `startup.py` | 核心 | `_phase_1a_sequential`（本地开发持久根配置、挂起的实例切换、数据库初始化与救援、特性开关、配置加密迁移、Provider 凭据整理、应用归因身份注册（`app.core.brand` 的 `CLIENT_ATTRIBUTION`，无条件的顶层语句、不进吞异常的 `try`：它是静态常量，失败只会是代码错误，应当让启动失败；必须先于并发阶段与所有请求里的模型创建，因为模型实例被缓存）、订阅令牌刷新器、TLS 与隐私策略、控制面 SSRF 登记等）、`_phase_1b_parallel`（并行启动任务，含 checkpointer、状态管理器、白名单与工作区信任存储、预置技能（`prebuilt_skills.py`）与内置 Agent、Vault 凭据、Wiki Vault 等，带严格配对的日志标签） | ✅ |
 | `startup_tasks.py` | 核心 | 五个独立的启动任务：`_register_db_pool_metrics_task`（DB 连接池指标注册，阶段 1a 串行等待）、`_apply_code_execution_config`（把业务层 code execution 配置注入框架，阶段 1b 并行任务之一）、`_dispatch_startup_event`（派发 `@startup` 系统事件，绑定了该事件的 cron 任务据此在启动时触发）、`_preload_agent_tool_layers`（后台导入并注册服务端工具层，首个 Agent 回合等待同一道门闩）、`_seed_trunk_templates`（后台补齐缺失的主干工作流模板，启动不等它）；后三个由 `background.py` 在首屏之后派生 | ✅ |
