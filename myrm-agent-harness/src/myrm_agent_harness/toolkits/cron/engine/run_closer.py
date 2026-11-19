@@ -48,9 +48,9 @@ MAX_STORED_ERROR_CHARS = 1000
 def stored_error(error: str | None) -> str | None:
     """The error text as persisted: at most ``MAX_STORED_ERROR_CHARS``, its head and its tail kept.
 
-    The tail is kept because the cause of a failure is usually its last line. Apply it where the text is written and
-    nowhere earlier: the retry decision reads the run's full error, and a transient keyword the cut dropped would no
-    longer be seen.
+    Both ends are kept because runtimes disagree on where the error message sits: near the start of the output
+    (Node, Java, Ruby) or at its end (Python tracebacks). Apply it where the text is written and nowhere earlier:
+    the retry decision reads the run's full error, and a transient keyword the cut dropped would no longer be seen.
     """
     return smart_truncate(error, MAX_STORED_ERROR_CHARS) if error else None
 

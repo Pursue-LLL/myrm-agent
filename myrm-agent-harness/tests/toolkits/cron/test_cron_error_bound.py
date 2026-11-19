@@ -1,7 +1,8 @@
 """The error text a failed run leaves behind is bounded, on the run record and on the job alike.
 
 A shell job's stderr can be megabytes and the job travels with every list call, so only a bounded head and tail is
-stored. What a run decides still reads the full error: a transient keyword in the part the cut dropped must retry.
+stored: runtimes disagree on where the cause sits, so neither end may be dropped. What a run decides still reads the
+full error: a transient keyword in the part the cut dropped must retry.
 """
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.cron.engine.run_closer import MAX_STORED_ERROR_CHARS
+from myrm_agent_harness.toolkits.cron.engine.run_closer import MAX_STORED_ERROR_CHARS, stored_error
 from myrm_agent_harness.toolkits.cron.types import JobResult, JobStatus, ScheduleKind
 from tests.support.cron_executor_mocks import make_executor, make_job, make_schedule, store_holds
 
@@ -28,6 +29,38 @@ def _failure(error: str) -> AsyncMock:
 def _with_cause_last(*parts: str) -> str:
     """Filler first and the cause on the last line, as a traceback ends."""
     return "\n".join([*parts, _CAUSE])
+
+
+def _with_cause_first(*parts: str) -> str:
+    """The cause on the first line and the filler after it, as a Java or Ruby error starts."""
+    return "\n".join([_CAUSE, *parts])
+
+
+def _after_a_preamble(*parts: str) -> str:
+    """The cause on the fifth line, after the location and source line a Node uncaught error echoes."""
+    return "\n".join(["/srv/job.js:1", "const payload = load();", "      ^", "", _CAUSE, *parts])
+
+
+_STACK = [f"    at frame{depth} (/srv/job.js:{depth}:1)" for depth in range(200)]
+
+
+class TestStoredError:
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(_with_cause_last(*_STACK), id="a-traceback-ends-with-the-cause"),
+            pytest.param(_with_cause_first(*_STACK), id="a-java-error-starts-with-the-cause"),
+            pytest.param(_after_a_preamble(*_STACK), id="a-node-error-puts-the-cause-after-a-preamble"),
+        ],
+    )
+    def test_the_cause_survives_wherever_the_runtime_puts_it(self, error: str) -> None:
+        assert len(error) > MAX_STORED_ERROR_CHARS
+
+        kept = stored_error(error)
+
+        assert kept is not None
+        assert len(kept) <= MAX_STORED_ERROR_CHARS
+        assert _CAUSE in kept
 
 
 class TestRecurringJob:

@@ -1,19 +1,22 @@
 """What a run leaves in ``last_error`` on a job that still carries an earlier failure.
 
 A success clears ``last_error``, however the run was started, and a skipped run (a runner or probe skip, a dispatch
-guard's refusal, a ``retry_at`` deferral) leaves it alone: the failure the job already carries stays on it. Two related
-cases have their own tests: a one-time job's success (``test_cron_once_completion.py``) and the reason written for a
-schedule that cannot be computed (``test_cron_notices.py``). These scenarios run the real executor over the in-memory
-store; only the runner, the delivery and the pre-flight probe are stand-ins.
+guard's refusal, a ``retry_at`` deferral, a slot found past its misfire grace) leaves it alone: the failure the job
+already carries stays on it. Two related cases have their own tests: a one-time job's success
+(``test_cron_once_completion.py``) and the reason written for a schedule that cannot be computed
+(``test_cron_notices.py``). These scenarios run the real executor, or the startup recovery that skips a late slot, over
+the in-memory store; only the runner, the delivery and the pre-flight probe are stand-ins.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 
 import pytest
 
 from myrm_agent_harness.toolkits.cron.engine.executor import JobExecutor
+from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.cron.triggers import TriggerKind
 from myrm_agent_harness.toolkits.cron.types import (
@@ -68,11 +71,15 @@ async def _job_that_failed(*, probed: bool = False) -> tuple[JobExecutor, InMemo
     return JobExecutor(store=store, delivery=_Delivery(), pre_condition=pre_condition), store, job
 
 
-async def _assert_failure_kept_by_a_skipped_run(store: InMemoryCronStore, job: CronJob) -> None:
+async def _assert_failure_kept(store: InMemoryCronStore, job: CronJob) -> None:
     kept = await store.get_job(job.id)
     assert kept is not None
     assert kept.last_status == RunStatus.SKIPPED
     assert kept.last_error == _EARLIER_FAILURE
+
+
+async def _assert_failure_kept_by_a_skipped_run(store: InMemoryCronStore, job: CronJob) -> None:
+    await _assert_failure_kept(store, job)
     (run,) = await store.list_runs(job.id)
     assert run.status == RunStatus.SKIPPED
 
@@ -121,3 +128,10 @@ class TestASkippedRunKeepsTheError:
         await executor.run_and_record(job, _Runner(deferral))
 
         await _assert_failure_kept_by_a_skipped_run(store, job)
+
+    async def test_a_slot_found_past_its_misfire_grace(self) -> None:
+        _, store, job = await _job_that_failed()
+
+        await StartupRecovery(store, AsyncMock()).reschedule_skipped(job.id)
+
+        await _assert_failure_kept(store, job)

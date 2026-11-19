@@ -112,6 +112,14 @@ class TestUpdateJobPatch:
         result = await self._do_update(mgr, job, CronJobPatch(clear_active_hours=True))
         assert result.active_hours is None
 
+    # --- clear_last_error ---
+
+    @pytest.mark.asyncio
+    async def test_clear_last_error(self, mgr: CronManager) -> None:
+        job = make_job(last_error="HTTP 500: upstream unavailable")
+        result = await self._do_update(mgr, job, CronJobPatch(clear_last_error=True))
+        assert result.last_error is None
+
     # --- cooldown_seconds ---
 
     @pytest.mark.asyncio
@@ -191,6 +199,7 @@ class TestUpdateJobPatch:
             session_target=SessionTarget.MAIN,
             failure_alert=fa,
             run_retention_days=90,
+            last_error="HTTP 500: upstream unavailable",
         )
         result = await self._do_update(mgr, job, CronJobPatch())
         assert result.cooldown_seconds == 60
@@ -199,6 +208,7 @@ class TestUpdateJobPatch:
         assert result.session_target == SessionTarget.MAIN
         assert result.failure_alert == fa
         assert result.run_retention_days == 90
+        assert result.last_error == "HTTP 500: upstream unavailable"
 
 
 # ---------------------------------------------------------------------------

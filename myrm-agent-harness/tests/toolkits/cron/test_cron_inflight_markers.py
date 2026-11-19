@@ -192,7 +192,12 @@ class TestReportInterrupted:
         assert (run.status, run.trigger_source, run.error) == (RunStatus.ERROR, "shutdown", STOPPING)
         assert (run.started_at, run.delivery_status) == (started, DeliveryStatus.SKIPPED) and run.finished_at >= started
         stored = await stack.stored()
-        assert (stored.status, stored.consecutive_failures, stored.last_error) == (JobStatus.ACTIVE, 2, STOPPING)
+        assert (stored.status, stored.last_status, stored.consecutive_failures, stored.last_error) == (
+            JobStatus.ACTIVE,
+            RunStatus.ERROR,
+            2,
+            STOPPING,
+        )
         assert stored.next_run_at is not None and await stack.markers() == []
 
     async def test_the_marker_of_a_deleted_job_is_dropped_without_a_record(self, stack: InflightStack) -> None:

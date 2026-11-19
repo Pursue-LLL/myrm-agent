@@ -271,7 +271,7 @@ class TestTestDeliveryEndpoint:
             )
         )
         degraded_job = client.get(f"/cron/{job['id']}").json()
-        assert degraded_job["consecutive_failures"] == 3
+        assert (degraded_job["consecutive_failures"], degraded_job["last_error"]) == (3, "502 Bad Gateway")
 
         mock_delivery = AsyncMock()
         with patch(
