@@ -9,9 +9,9 @@ Utility functions module.
 |------|------|-------------|-------|
 | __init__.py | Package | Utility functions module. | — |
 | document_reader.py | Core | Document file reader for file_read_tool. Converts .docx/.doc/.xlsx/.xls/.pptx/.ppt/.ipynb to Markdown via file_parsers with multimodal plot blocks and magic bytes sniffing. A workbook read as its structure (asked for, or a large one by default) shows no cell values, so its result ends with the call that reads them (`parse_mode='content'`). | ✅ |
-| file_utils.py | Core | Provides parse_path_with_range with positive line numbers and ordered range validation. | ✅ |
+| file_utils.py | Core | `parse_path_with_range`: the file and the validated line range (positive numbers in order) of a path argument. It reads the range with `READ_RANGE_PATTERN` of `core.security.tool_registry`, the grammar the permission verdict strips ranges with (`strip_read_range`), so the file read is the file judged. Only a trailing `:START-END` or `:START-` is a range; every other colon, such as a drive letter or the one in `notes:v2.md`, belongs to the file name. | ✅ |
 | image_reader.py | Core | Provides is_image_path, read_image_as_content_blocks. Quality Ladder compression (95->20) + (original/attached/scale) coordinate scale factor disclosure. | ✅ |
-| line_endings.py | Core | Line ending detection and normalization (CRLF/LF preserved across edits) plus UTF-8 BOM stripping on display. | ✅ |
+| line_endings.py | Core | Line ending detection and normalization (CRLF/LF preserved across edits), UTF-8 BOM stripping on display, and `view_lines`, the lines a view shows for text split on LF (CRLF and a bare CR end a line too). | ✅ |
 | vault_scope.py | Core | Obsidian vault root detection via `.obsidian/` marker | ✅ |
 | office_scope.py | Core | Office `.docx`/`.xlsx` extension scope for write guards | ✅ |
 | office_opc.py | Core | OPC metrics + xlsx formula snapshots + corrupt Office file audit read errors for bash post-audit | ✅ |
@@ -29,3 +29,4 @@ Utility functions module.
 ## Key Dependencies
 
 - `toolkits`
+- `core.security.tool_registry` (the line-range grammar `file_utils.py` parses with)

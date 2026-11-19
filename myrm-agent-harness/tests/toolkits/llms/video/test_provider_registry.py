@@ -15,7 +15,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.llms.video.providers import registry as registry_module
 
-_EXPECTED_IDS = {"openai", "gemini", "qwen", "minimax", "xai", "fal", "volcengine"}
+_EXPECTED_IDS = {"gemini", "qwen", "minimax", "xai", "fal", "volcengine"}
 
 
 @pytest.fixture(autouse=True)
@@ -49,3 +49,15 @@ def test_provider_that_fails_to_import_is_skipped_and_reported(
     with caplog.at_level(logging.WARNING, logger=registry_module.logger.name):
         assert _registered_ids() == _EXPECTED_IDS - {"fal"}
     assert "FalVideoProvider" in caplog.text
+
+
+def test_serves_only_models_a_registered_provider_lists() -> None:
+    registry = registry_module.get_registry()
+    provider = registry.get("fal")
+    assert provider is not None
+    listed_model = provider.supported_models[0].id
+
+    assert registry.serves("fal", listed_model)
+    assert not registry.serves("fal", "sora")
+    assert not registry.serves("openai", "sora")
+    assert not registry.serves("fal", "")

@@ -5,27 +5,32 @@ orchestration's persistence ordering and scheduler notification, so they can be 
 (and tested) on their own.
 
 [INPUT]
-- cron.engine.parser::validate_cron_expr, validate_timezone (POS: cron 表达式与时区校验)
+- cron.engine.helpers::is_within_active_hours, next_eligible_run (POS: pure engine helpers: the active window and the next slot to book)
+- cron.engine.parser::compute_next_run, validate_cron_expr, validate_timezone (POS: 下一次触发时刻、cron 表达式与时区校验)
 - cron.triggers::TriggerConfig, WebhookTrigger, generate_webhook_path, generate_webhook_secret (POS: webhook 触发定义与凭据生成)
 - cron.types::CronJob, CronJobPatch, JobType, Schedule, ScheduleKind (POS: cron 数据模型)
 
 [OUTPUT]
 - CronValidationMixin: _validate_create / _validate_job_content / _validate_update_content /
-  _validate_schedule / _validate_context_from / _validate_resume_preconditions /
+  _validate_schedule / _validate_context_from / _validate_resume_preconditions / _book_slot /
   _ensure_webhook_credentials / _resolve_name_conflict
 
 [POS]
 Validation half of the cron CRUD manager. A mixin rather than free functions because every
 rule either needs the job store (reference and name checks) or the shell-enabled policy, both
-of which belong to the manager instance.
+of which belong to the manager instance. ``_book_slot`` is the one booking a user's input makes
+(create, edit, resume): the next slot, or a refusal when the job's active window is one its
+schedule never reaches.
 """
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.cron.engine.helpers import is_within_active_hours, next_eligible_run
 from myrm_agent_harness.toolkits.cron.engine.parser import (
+    compute_next_run,
     validate_cron_expr,
     validate_timezone,
 )
@@ -41,6 +46,16 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
     from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, Schedule
 
+# ``next_eligible_run`` ends on a slot outside the active window when no candidate within its budget lies inside it.
+# That proves the window unreachable only if the budget covered a whole daily cycle: a schedule that fires every few
+# seconds spends it within hours, and for it the dispatch guards keep skipping and rebooking.
+_UNREACHABLE_WINDOW_SPAN = timedelta(days=1)
+
+
+def _once_has_passed(schedule: Schedule, now: datetime) -> bool:
+    """A one-shot names its own instant; ``compute_next_run`` yields nothing once that instant is not ahead of ``now``."""
+    return schedule.kind == ScheduleKind.ONCE and compute_next_run(schedule, now) is None
+
 
 class CronValidationMixin:
     """Field-level validation for cron job creation, updates, and resumption."""
@@ -55,12 +70,33 @@ class CronValidationMixin:
         """Reject resuming a job whose constraints make it immediately un-runnable."""
         if job.status == JobStatus.COMPLETED:
             raise ValueError("completed jobs cannot be resumed")
+        if _once_has_passed(job.schedule, now):
+            raise ValueError("its scheduled time has passed; set a new time before resuming")
         if job.expires_at is not None:
             expires_at = job.expires_at if job.expires_at.tzinfo else job.expires_at.replace(tzinfo=UTC)
             if now >= expires_at:
                 raise ValueError("job has expired; extend expires_at before resuming")
         if job.max_fires is not None and job.fire_count >= job.max_fires:
             raise ValueError("max execution count reached; increase max_fires before resuming")
+
+    @staticmethod
+    def _book_slot(job: CronJob, now: datetime) -> datetime | None:
+        """The slot a create, an edit or a resume books for ``job``; a window its schedule never reaches is refused.
+
+        Without the refusal the job would stay enabled with a next run years away (the slot scan ends on a far slot
+        outside the window) and never run. A one-shot names its own instant, which the active window does not restrict.
+        """
+        slot = next_eligible_run(job, now)
+        if (
+            slot is not None
+            and job.schedule.kind != ScheduleKind.ONCE
+            and not is_within_active_hours(job.active_hours, now=slot)
+            and slot - now >= _UNREACHABLE_WINDOW_SPAN
+        ):
+            raise ValueError(
+                "no run of this schedule falls inside its active hours; widen the hours or change the schedule"
+            )
+        return slot
 
     def _validate_create(
         self,
@@ -121,11 +157,13 @@ class CronValidationMixin:
 
     @staticmethod
     def _validate_schedule(schedule: Schedule) -> None:
-        """Validate schedule cron expression and timezone."""
+        """Validate the cron expression and the timezone, and that a one-shot's time is still ahead."""
         if schedule.kind == ScheduleKind.CRON and not validate_cron_expr(schedule.expr or ""):
             raise ValueError(f"invalid cron expression: {schedule.expr!r}")
         if schedule.tz and not validate_timezone(schedule.tz):
             raise ValueError(f"unknown timezone: {schedule.tz!r}")
+        if _once_has_passed(schedule, datetime.now(UTC)):
+            raise ValueError("its scheduled time has passed; choose a future time")
 
     async def _validate_context_from(self, job_id: str, context_from: tuple[str, ...]) -> None:
         """Ensure context_from references are valid and non-circular."""

@@ -1,9 +1,8 @@
 """Chrome LIVE E2E: web_search source numbers continue across turns and every citation binds by number.
 
-Real fast-search turns in the WebUI, no mocks. Both questions are scoped to Bilibili videos with an explicit
-``site:`` operator, which the engine answers from the keyless Bilibili API: the run exercises the real
-tool-call -> sources SSE -> numbering -> inline citation chain without spending search-provider credits
-(a search service must still be configured, it gates the tool).
+Real fast-search turns in the WebUI, no mocks. Each turn runs one real search through the configured search
+service, so the run spends two searches of that service's credits and needs a working key; it exercises the real
+tool-call -> sources SSE -> numbering -> inline citation chain.
 
 Contract asserted on the real UI and on the persisted history:
 * every source of a turn carries a unique number and the second turn continues after the first;
@@ -59,14 +58,14 @@ from tests.support.test_secrets import resolve_test_env  # noqa: E402
 _TURN_WAIT_SEC = 180.0
 _PERSIST_WAIT_SEC = 30.0
 _FIRST_PROMPT = (
-    "请必须使用 web_search 工具搜索，query 参数逐字使用「Python 3.14 新特性 site:bilibili.com/video」，"
-    "不要改写，也不要追加其他词。用一句话总结搜索结果，正文中用【1】标注引用来源，末尾单独一行写 SCOPE_ONE_OK。"
+    "请必须使用 web_search 工具搜索，query 参数逐字使用「Python 3.14 新特性」，"
+    "不要改写，也不要追加其他词。用一句话总结搜索结果，正文中用【1】标注引用来源，末尾单独一行写 SEARCH_ONE_OK。"
     "完成搜索后直接给出最终回答，禁止调用其他工具。"
 )
 _SECOND_PROMPT = (
-    "请再次使用 web_search 工具搜索，query 参数逐字使用「Rust 异步编程 site:bilibili.com/video」，"
+    "请再次使用 web_search 工具搜索，query 参数逐字使用「Rust 异步编程」，"
     "不要改写，也不要追加其他词。用一句话总结这次的搜索结果，正文中用工具结果里给出的来源编号标注引用"
-    "（形如【n】，编号以工具结果为准，不要自己编号），末尾单独一行写 SCOPE_TWO_OK。"
+    "（形如【n】，编号以工具结果为准，不要自己编号），末尾单独一行写 SEARCH_TWO_OK。"
     "完成搜索后直接给出最终回答，禁止调用其他工具。"
 )
 
@@ -130,18 +129,21 @@ _CITATION_STATE_JS = """(() => {
 
 
 def _ensure_search_services(api_url: str) -> None:
-    """Configure the search service the tool is gated on, exactly as the settings page persists it."""
+    """Configure the search service the turns search with, exactly as the settings page persists it."""
     current = fetch_config_value("searchServices", api_url=api_url)
     configs = current.get("searchServiceConfigs")
     if isinstance(configs, list) and configs:
         return
+    api_key = resolve_test_env("TAVILY_API_KEY") or resolve_test_env("SEARCH_API_KEY")
+    if not api_key:
+        pytest.fail("The turns run real searches: set TAVILY_API_KEY or SEARCH_API_KEY, or configure a search service")
     item: dict[str, object] = {
         "id": f"e2e-search-{uuid.uuid4().hex[:8]}",
         "name": "E2E Search",
         "enabled": True,
         "priority": 1,
         "search_service": resolve_test_env("SEARCH_SERVICE", "tavily") or "tavily",
-        "api_key": resolve_test_env("TAVILY_API_KEY") or resolve_test_env("SEARCH_API_KEY", "test-tavily-key"),
+        "api_key": api_key,
         "createdAt": int(time.time() * 1000),
     }
     put_config_value("searchServices", {"searchServiceConfigs": [item]}, api_url=api_url)
@@ -198,7 +200,7 @@ def _assert_numbering_and_binding(state: dict[str, object]) -> None:
     for row in rows:
         for source in row["sources"]:
             url_by_number[int(source["index"])] = str(source["url"])
-            assert "bilibili.com" in str(source["url"]), f"source outside the requested site: {source}"
+            assert str(source["url"]).startswith(("http://", "https://")), f"source without a web link: {source}"
 
     for row in rows:
         assert row["anchors"], f"no inline citation anchor rendered: {row}"
@@ -261,7 +263,7 @@ async def _wait_persisted_source_indexes(api_url: str, chat_id: str, expected: l
 async def test_fast_search_numbers_continue_and_bind_across_turns_chrome_e2e(
     e2e_resource_ledger: E2EResourceLedger,
 ) -> None:
-    """Lane-C: two site-scoped fast-search turns -> continued numbering -> number-bound citations -> reload."""
+    """Lane-C: two fast-search turns -> continued numbering -> number-bound citations -> reload."""
     api_base = get_e2e_api_url()
     prepare_e2e_ui_session(api_base)
     seed_live_e2e_providers(api_base)

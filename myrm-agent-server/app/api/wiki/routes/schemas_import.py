@@ -18,13 +18,10 @@ Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀�
 """
 
 import logging
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

@@ -44,11 +44,11 @@ class TestGoalProviderSetup:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=None)
             mock_provider.create_goal = AsyncMock()
-            mock_registry.get_or_create_provider.return_value = mock_provider
+            mock_registry.register.return_value = mock_provider
 
             await runner._setup_goal_provider(task)
 
-            mock_registry.get_or_create_provider.assert_called_once_with("kanban:abc123")
+            mock_registry.register.assert_called_once_with("kanban:abc123")
             mock_provider.create_goal.assert_called_once()
             call_kwargs = mock_provider.create_goal.call_args
             assert call_kwargs.kwargs["session_id"] == "kanban:abc123"
@@ -68,7 +68,7 @@ class TestGoalProviderSetup:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=None)
             mock_provider.create_goal = AsyncMock()
-            mock_registry.get_or_create_provider.return_value = mock_provider
+            mock_registry.register.return_value = mock_provider
 
             await runner._setup_goal_provider(task)
 
@@ -86,7 +86,7 @@ class TestGoalProviderSetup:
         with patch("app.services.kanban.task_runner.runner.GoalRegistry") as mock_registry:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=MagicMock())
-            mock_registry.get_or_create_provider.return_value = mock_provider
+            mock_registry.register.return_value = mock_provider
 
             result = await runner._setup_goal_provider(task)
 
@@ -108,7 +108,7 @@ class TestGoalProviderSetup:
             mock_provider = AsyncMock()
             mock_provider.get_active_goal = AsyncMock(return_value=None)
             mock_provider.create_goal = AsyncMock()
-            mock_registry.get_or_create_provider.return_value = mock_provider
+            mock_registry.register.return_value = mock_provider
 
             await runner._setup_goal_provider(task)
 
@@ -138,7 +138,7 @@ class TestGoalOutcomeMapping:
             paused_goal.is_terminal = False
             mock_provider.get_latest_goal = AsyncMock(return_value=paused_goal)
             mock_provider.resume_goal = AsyncMock()
-            mock_registry.get_or_create_provider.return_value = mock_provider
+            mock_registry.register.return_value = mock_provider
 
             result = await runner._setup_goal_provider(task)
 

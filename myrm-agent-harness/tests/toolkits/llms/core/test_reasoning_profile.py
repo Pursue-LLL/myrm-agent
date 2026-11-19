@@ -10,6 +10,7 @@ from myrm_agent_harness.toolkits.llms.core.reasoning_profile import (
     extract_reasoning_effort,
     get_model_headroom_floor,
     get_model_timeout_floor,
+    is_disabled_effort,
     is_reasoning_explicitly_disabled,
     is_reasoning_explicitly_enabled,
     is_thinking_model,
@@ -99,6 +100,56 @@ class TestThreeTierIntentLadder:
         assert extract_reasoning_effort({"reasoning_effort": "HIGH"}) == "high"
         assert extract_reasoning_effort({"extra_body": {"reasoning_effort": "low"}}) == "low"
         assert extract_reasoning_effort({"extra_body": {"reasoning": {"effort": "medium"}}}) == "medium"
+        assert extract_reasoning_effort({"extra_body": {"chat_template_kwargs": {"reasoning_effort": "MAX"}}}) == "max"
+
+    @pytest.mark.parametrize(
+        "extra_body",
+        [{"enable_thinking": False}, {"chat_template_kwargs": {"thinking": False}}],
+        ids=["enable_thinking", "chat_template"],
+    )
+    def test_a_gateway_switch_that_is_off_disables_reasoning_like_a_thinking_object(
+        self, extra_body: dict[str, object]
+    ) -> None:
+        kwargs: dict[str, object] = {"extra_body": extra_body}
+
+        assert is_reasoning_explicitly_disabled(kwargs) is True
+        assert is_reasoning_explicitly_enabled(kwargs) is False
+        assert get_model_timeout_floor("deepseek-v4-flash", kwargs) is None
+        assert get_model_headroom_floor("deepseek-v4-flash", kwargs) is None
+
+    @pytest.mark.parametrize(
+        "extra_body",
+        [{"enable_thinking": True}, {"chat_template_kwargs": {"enable_thinking": True}}],
+        ids=["enable_thinking", "chat_template"],
+    )
+    def test_a_gateway_switch_that_is_on_enables_reasoning_on_an_unlisted_model(
+        self, extra_body: dict[str, object]
+    ) -> None:
+        kwargs: dict[str, object] = {"extra_body": extra_body}
+
+        assert is_reasoning_explicitly_enabled(kwargs) is True
+        assert is_thinking_model("vendor/unlisted-model", kwargs) is True
+
+    def test_a_switch_that_is_not_a_boolean_states_nothing(self) -> None:
+        kwargs: dict[str, object] = {"extra_body": {"enable_thinking": "yes", "chat_template_kwargs": {"thinking": 1}}}
+
+        assert is_reasoning_explicitly_disabled(kwargs) is False
+        assert is_reasoning_explicitly_enabled(kwargs) is False
+
+    @pytest.mark.parametrize("value", ["off", "OFF", " none ", "disabled", "false", "0"])
+    def test_disabled_effort_spellings(self, value: str) -> None:
+        assert is_disabled_effort(value) is True
+
+    @pytest.mark.parametrize("value", ["low", "high", "max", "", None, 0, False])
+    def test_other_values_are_not_a_disabled_effort(self, value: object) -> None:
+        assert is_disabled_effort(value) is False
+
+    @pytest.mark.parametrize("effort", ["off", " off ", "OFF"])
+    def test_a_disabled_effort_is_explicitly_disabled_reasoning_however_it_is_spelled(self, effort: str) -> None:
+        kwargs: dict[str, object] = {"reasoning_effort": effort}
+
+        assert is_reasoning_explicitly_disabled(kwargs) is True
+        assert is_reasoning_explicitly_enabled(kwargs) is False
 
 
 class TestApplyThinkingHeadroom:

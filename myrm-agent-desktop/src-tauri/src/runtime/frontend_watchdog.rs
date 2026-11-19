@@ -3,15 +3,16 @@
 //! [INPUT]
 //! - runtime::NextJSFrontend (POS: 前端子进程句柄)
 //! - config::{ConfigManager, FrontendConfig} (POS: 重启时读取最新端口配置)
+//! - runtime::ProductOrigin (POS: 重启后主窗口回到的 Next 首页地址)
 //!
 //! [OUTPUT]
 //! - spawn_frontend_watchdog / FrontendWatchdogHandle: 前端崩溃或假死后的指数退避重启
 //! - 前端崩溃/恢复/崩溃循环事件（frontend-crash / frontend-restarted / frontend-crash-loop）
 //!
 //! [POS]
-//! 桌面端前端进程的运行时看护。后端有 watchdog，前端此前只有启动时一次 try_wait：
-//! 进程一旦退出或端口假死，WebView 就停在白屏/连接失败页，用户只能重启整个应用。
-//! 这里补齐与后端同构的「检测 → 退避 → 重启」闭环，并在连续失败时交给托盘告警。
+//! 桌面端前端进程的运行时看护，与后端 watchdog 同构的「检测 → 退避 → 重启」闭环：
+//! 进程一旦退出或端口假死，WebView 就会停在白屏/连接失败页，用户只能重启整个应用，
+//! 所以由这里持续检测并重启，连续失败时交给托盘告警。
 
 use std::time::{Duration, Instant};
 
@@ -19,7 +20,7 @@ use tauri::{async_runtime::JoinHandle, AppHandle, Emitter, Manager};
 use tokio::sync::watch;
 
 use crate::config::{ConfigManager, FrontendConfig};
-use crate::runtime::NextJSFrontend;
+use crate::runtime::{NextJSFrontend, ProductOrigin};
 
 const HEALTH_CHECK_INTERVAL: Duration = Duration::from_secs(10);
 const HEALTH_TIMEOUT: Duration = Duration::from_secs(3);
@@ -152,14 +153,10 @@ async fn run_watchdog(
                 // showing the old connection-error page. Navigate back so recovery is
                 // visible without asking the user to reload.
                 if let Some(window) = app.get_webview_window("main") {
-                    if let Ok(url) =
-                        format!("http://127.0.0.1:{frontend_port}/").parse::<tauri::Url>()
+                    if let Err(error) =
+                        window.navigate(ProductOrigin::standalone_root(frontend_port))
                     {
-                        if let Err(error) = window.navigate(url) {
-                            eprintln!(
-                                "[frontend-watchdog] Failed to navigate after restart: {error}"
-                            );
-                        }
+                        eprintln!("[frontend-watchdog] Failed to navigate after restart: {error}");
                     }
                 }
                 restart_timestamps.push(Instant::now());

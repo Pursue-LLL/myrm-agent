@@ -13,7 +13,7 @@
 - 导入结果只用界面语言提示，不显示服务端文本：文件夹 / ZIP 汇总已导入与被跳过的文件数（没有可导入的文本文件时单独提示），Obsidian 汇总笔记数，服务端拒绝一律提示导入失败；确有文件入队才提示重复扫描并切到重复审核页，否则只重读统计。命中冲突时保留重试信息，用户选择“覆盖”后以 supersede 重试，重试结果按被重试的导入种类提示，不会再次弹出冲突框；迁移向导交接的 Obsidian vault 路径只在首次进入时自动导入一次。
 - 修复页面类型 / 发布状态与重建向量索引只部分成功时，警告按处理计数以界面语言给出；重建的逐条错误仍在重建索引的错误清单里。
 - 被风控拦下的提问只出统一提示，不叠加“查询失败”。
-- 本地开发域名（127.0.0.1 / localhost）挂有供 E2E 注入统计与健康报告的桥，部署域名上不挂；`e2e_warm_platform_readiness` 打开时，统计与健康报告先走 `fetch` 回退。
+- 供 E2E 注入统计与健康报告的桥只挂在非生产构建的本地开发域名（127.0.0.1 / localhost）上；生产构建（含同样从回环地址提供页面的桌面发行版）与部署域名上都不挂；`e2e_warm_platform_readiness` 打开时，统计与健康报告先走 `fetch` 回退。
 
 ## 文件清单
 
@@ -24,7 +24,7 @@
 | `useWikiScope.ts`             | 辅助 | 智能体范围（`agentId` / 证据上下文键 / 范围名称）、可选智能体列表与范围修订号，以及切换范围、前往知识图谱的动作            | ✅    |
 | `useWikiTabs.ts`              | 辅助 | 当前标签页与 URL 的双向同步，跨页签跳转（概念、健康问题、待审综合、重复审核）、待审页初始筛选与 `focus=wikiignore` 滚动    | ✅    |
 | `useWikiPurpose.ts`           | 辅助 | “目的 / 方向”文本：已保存值与草稿分开，范围变化时重读，保存动作                                                            | ✅    |
-| `useWikiOverviewData.ts`      | 辅助 | 统计、健康报告、原文树、编译运行与 ingest 快照的加载与重载，及待综合 / 重复组计数；本地开发域名上的 E2E 注入桥             | ✅    |
+| `useWikiOverviewData.ts`      | 辅助 | 统计、健康报告、原文树、编译运行与 ingest 快照的加载与重载，及待综合 / 重复组计数；非生产构建在本地开发域名上的 E2E 注入桥 | ✅    |
 | `useWikiQuery.ts`             | 辅助 | 问答的输入、结果、证据抽屉状态与提交动作；提交前清空上一次结果，被风控拦下的提问只出统一提示                               | ✅    |
 | `useWikiMaintenance.ts`       | 辅助 | 编译 / 恢复编译熔断、维护（结构化 / 完整，可取消）、修复页面类型与发布状态、重建向量索引的状态与动作                       | ✅    |
 | `useWikiImport.ts`            | 辅助 | 文件夹 / ZIP / Obsidian 导入、链接与视频导入收尾、冲突 / 安全提示对话框的状态与回调，supersede 重试，迁移向导 vault 交接   | ✅    |
@@ -50,5 +50,6 @@ hook 逐层覆盖：`useWikiScope` / `useWikiTabs` / `useWikiPurpose` / `useWiki
 ## 依赖
 
 - `@/services/wikiService`、`@/services/wiki/evidenceMetrics`、`@/services/agent`、`@/lib/api`
+- `@/components/dev/localDevHost::isLocalDevHost`：E2E 注入桥只在非生产构建的本地开发主机上挂（`useWikiOverviewData`）
 - 同级 [`../useWikiIngestSubscription.ts`](../useWikiIngestSubscription.ts)、[`../useWikiMaintainRun.ts`](../useWikiMaintainRun.ts)、[`../wiki/`](../wiki/_ARCH.md)（对话框、原文树与工具函数）
 - 父模块 [`../_ARCH.md`](../_ARCH.md)

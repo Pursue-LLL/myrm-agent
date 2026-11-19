@@ -40,5 +40,4 @@ bash "${SCRIPT_DIR}/ensure-next-native-swc.sh"
 
 echo ""
 echo "✅ Setup complete."
-echo "  myrm dev    # backend :8080 only"
 echo "  myrm start  # backend + frontend → http://localhost:3000"

@@ -1,10 +1,19 @@
 'use client';
 
 /**
+ * [INPUT]
+ * - @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫)
+ *
+ * [OUTPUT]
+ * - E2EWikiBridge: localhost dev-only `window.__MYRM_E2E_WIKI__` / `window.__MYRM_E2E_MIGRATION__` for Wiki settings + migration wizard Chrome E2E
+ *
+ * [POS]
  * Dev-only bridge for Wiki settings + migration wizard Chrome E2E.
  * Mounted from E2eBridgeLoader (root layout) so inject works before route chunks load.
  */
 import { useLayoutEffect, useState } from 'react';
+
+import { isLocalDevHost } from '@/components/dev/localDevHost';
 
 type WikiInjectPayload = {
   stats?: Record<string, unknown>;
@@ -30,14 +39,6 @@ type WikiE2EHandlers = {
   applyStats: (stats: Record<string, unknown>) => void;
   applyHealth: (health: Record<string, unknown>) => void;
 };
-
-function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  const host = window.location.hostname;
-  return host === '127.0.0.1' || host === 'localhost';
-}
 
 function provenanceLabels(issues: WikiHealthIssue[]): { en: string; zh: string } {
   const provenance = issues.filter((item) => item.issue_type === 'provenance_gap');

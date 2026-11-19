@@ -215,7 +215,7 @@ def create_engine() -> AsyncEngine:
 
     配置 WAL 模式、busy_timeout、mmap 等性能优化 PRAGMA。
     """
-    from myrm_agent_harness.utils.db.sqlite import cleanup_orphan_wal
+    from myrm_agent_harness.utils.db.sqlite import RollbackBeforeCloseConnection, cleanup_orphan_wal
 
     url = get_database_url()
     echo = settings.database.database_echo
@@ -227,8 +227,11 @@ def create_engine() -> AsyncEngine:
     engine = create_async_engine(
         url,
         echo=echo,
+        # ``str(error)`` of a failed statement lists its bound parameters, and chat search binds what a person typed, so
+        # they stay out of every log line that prints an error. ``DATABASE_ECHO`` is the opt-in for seeing them.
+        hide_parameters=not echo,
         future=True,
-        connect_args={"check_same_thread": False},
+        connect_args={"check_same_thread": False, "factory": RollbackBeforeCloseConnection},
         pool_size=pool_size,
         max_overflow=settings.database.sqlite_pool_max_overflow,
     )

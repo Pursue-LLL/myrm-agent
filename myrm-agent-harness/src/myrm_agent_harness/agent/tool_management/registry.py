@@ -12,6 +12,7 @@
 
 [POS]
 Single registry for the tools one build cycle binds: accumulates them from every source, de-duplicates them by source priority and orders them by layer.
+Built with ``no_builtin_tools`` it refuses the built-in meta tools, so what it holds is the host's whole action space.
 Orchestration signals (Verifier) are **not** registered here — see ``agent/orchestration/``.
 """
 
@@ -75,6 +76,10 @@ def _safe_extract_schema(tool: BaseTool) -> dict[str, object] | None:
 class ToolRegistry:
     """Accumulates tools from multiple sources and produces a final ordered list.
 
+    With ``no_builtin_tools=True`` the built-in framework meta tools (``ToolSource.META``) are never registered, so
+    every view of the registry (``resolve``, ``snapshot``, ``has_tool``, ``tool_names``) is the same action space, and
+    a host tool that shares a built-in's name is the only tool with that name.
+
     Usage::
 
         reg = ToolRegistry()
@@ -83,7 +88,8 @@ class ToolRegistry:
         tools = reg.resolve()
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, no_builtin_tools: bool = False) -> None:
+        self._no_builtin_tools = no_builtin_tools
         self._entries: list[ToolEntry] = []
 
     def register(
@@ -104,7 +110,8 @@ class ToolRegistry:
         tool:
             A LangChain ``BaseTool`` instance.
         source:
-            Where the tool comes from (META / USER / MIDDLEWARE).
+            Where the tool comes from (META / USER / MIDDLEWARE). A registry built with ``no_builtin_tools``
+            does not register META tools.
         layer:
             Explicit cache-ordering layer.  When ``None`` the layer is
             looked up from the global ``_TOOL_LAYERS`` mapping (falling
@@ -121,6 +128,10 @@ class ToolRegistry:
             ReplaySafety classification (SAFE / NEVER). Defaults to lookup in
             SSOT _TOOL_REPLAY_SAFETY, falling back to NEVER.
         """
+        if self._no_builtin_tools and source == ToolSource.META:
+            logger.debug("Built-in tool '%s' not registered: no_builtin_tools is enabled", tool.name)
+            return
+
         resolved_layer = layer if layer is not None else get_tool_layer(tool.name)
         resolved_safety = replay_safety if replay_safety is not None else get_tool_replay_safety(tool.name)
 
@@ -187,7 +198,7 @@ class ToolRegistry:
             ),
         )
 
-    def resolve(self, *, no_builtin_tools: bool = False) -> list[BaseTool]:
+    def resolve(self) -> list[BaseTool]:
         """Deduplicate and sort all registered tools.
 
         Dedup rule: on name collision the entry with the **highest source
@@ -195,9 +206,6 @@ class ToolRegistry:
 
         Sort rule: first by ``ToolLayer`` (CORE → HIGH_PRIORITY → EXTENDED → EXTERNAL),
         then HIGH_PRIORITY group priority, then alphabetically within each tier.
-
-        When ``no_builtin_tools=True``, only user-provided/external domain tools are kept;
-        all built-in framework meta tools (source == ToolSource.META) are excluded.
 
         Only returns Turn1-bound tools (``bind_mode == TURN1``).
         """
@@ -215,12 +223,7 @@ class ToolRegistry:
                 current_map[e.tool.name] = e.allowed_domains
         set_allowed_domains_map(current_map)
 
-        if no_builtin_tools:
-            resolved_tools = [
-                e.tool for e in entries if e.bind_mode == ToolBindMode.TURN1 and e.source != ToolSource.META
-            ]
-        else:
-            resolved_tools = [e.tool for e in entries if e.bind_mode == ToolBindMode.TURN1]
+        resolved_tools = [e.tool for e in entries if e.bind_mode == ToolBindMode.TURN1]
 
         # Weave dynamic schemas (e.g. cross-tool hints)
         resolved_names = {t.name for t in resolved_tools}

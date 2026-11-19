@@ -58,12 +58,6 @@ interface Window {
     appName: string;
     updatedAt: number;
   };
-  /** Dev E2E: last BROWSER_VIEW_UPDATE refs (survives TOOL_END inspector re-fetch). */
-  __MYRM_E2E_BROWSER_REFS__?: {
-    refs: Record<string, { role?: string; name?: string }>;
-    pageUrl: string;
-    updatedAt: number;
-  };
   /** Dev-only bridge for CDP Chrome E2E (AppLayout E2EChatBridge). */
   __MYRM_E2E_SKILLS_DISCOVER__?: {
     showInstallResultToast: (payload: {
@@ -79,14 +73,9 @@ interface Window {
       text: string,
       opts?: {
         baselineUserCount?: number;
-        waitForStreamCompletion?: boolean;
         preserveActionMode?: boolean;
         ephemeralSubagents?: Record<string, unknown>;
       },
-    ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
-    kickoffChatMessage?: (
-      text: string,
-      opts?: { baselineUserCount?: number; preserveActionMode?: boolean; profile?: 'live' | 'read' },
     ) => Promise<{ ok: boolean; err?: string; chatId?: string | null; mode?: string; debug?: Record<string, unknown> }>;
     submitAndObserveTurn?: (
       text: string,
@@ -229,8 +218,8 @@ interface Window {
       query: string,
       messageId: string,
     ) => Promise<{ ok: boolean; busy: boolean; err?: string }>;
-    /** CDP E2E: resume active clarification with empty answer (Skip parity). */
-    skipActiveClarificationForE2e?: () => { messageId: string };
+    /** CDP E2E: skip the active clarification the way its Skip button does (answer flow, addressed to the card's pause). */
+    skipActiveClarificationForE2e?: () => { messageId: string; interruptId: string | null };
     setBrowserSource?: (source: string) => void;
     getBrowserSource?: () => string | null | undefined;
     ensureComputerUseReady?: () => void;

@@ -23,8 +23,8 @@
   │
   ▼
 ┌──────────────────┐
-│ Content Boundary  │ ← 数据边界：wrap_untrusted / wrap_tool_output / strip_invisible_unicode
-│  (5层纵深防护)     │    Unicode折叠 → 结构化token剥离(XML/ChatML/CDATA/fence) → 标记消毒 → 随机边界 → 模式检测 → 零宽字符剥离
+│ Content Boundary  │ ← 数据边界：wrap_untrusted / wrap_tool_output（文本层缓解）
+│  (5层纵深防护)     │    Unicode折叠 → 结构化token剥离(XML/ChatML/CDATA/fence) → 标记消毒 → 随机边界；模式检测在原文上扫描，只记日志
 └──────────────────┘
   │
   ▼
@@ -160,7 +160,7 @@ Layer 2 由多个子模块组成，覆盖网络安全、命令安全、文件系
 
 **阻断的主机名**：`localhost`, `169.254.169.254`(AWS), `metadata.google.internal`(GCP), `100.100.100.200`(阿里云), `metadata.tencentyun.com`(腾讯云)
 
-**规范写法（判什么就拨什么）**：出站 URL 先由 `utils/url_syntax.py::parse_outbound_url` 解析成唯一的规范写法：UTS 46 映射并把非 ASCII 标签写成 Punycode，旧式数字 IPv4（`2130706433`、`0x7f.1`、`0177.0.0.1`）写成点分十进制，IPv6 取压缩形式，去掉末尾的点，端口按数字写，凭据段保留。各层判定的是这一写法的主机（引擎的黑名单与域名审批、`web_fetch` 的主机黑名单与 SSRF 分类、外泄白名单、技能域名白名单），拨号点发出的也是这一写法（`web_fetch_tool` 取回 `_url_gate.validate_urls` 返回的规范 URL，L1 HTTP 层的每一跳——入口 URL 与每个重定向的 `Location`——先过 `FetchTargetGuard.canonical_url` 再判定、再请求，浏览器导航前先过 `canonical_navigation_url`），所以被判定的主机就是客户端实际连接的主机。含反斜杠、制表符、换行、百分号编码的主机、畸形 authority（多个 `@`、未闭合的方括号）、非法主机或端口的 URL 没有规范写法，一律拒绝，不会让分类器和客户端各读出一个主机。
+**规范写法（判什么就拨什么）**：出站 URL 先由 `utils/url_syntax.py::parse_outbound_url` 解析成唯一的规范写法：UTS 46 映射并把非 ASCII 标签写成 Punycode，旧式数字 IPv4（`2130706433`、`0x7f.1`、`0177.0.0.1`）写成点分十进制，IPv6 取压缩形式，去掉末尾的点，端口按数字写，凭据段保留。各层判定的是这一写法的主机（引擎的黑名单与域名审批、`web_fetch` 的主机黑名单与 SSRF 分类、外泄白名单、技能域名白名单），拨号点发出的也是这一写法（`web_fetch_tool` 取回 `_url_gate.validate_urls` 返回的规范 URL，L1 HTTP 层的每一跳——入口 URL 与每个重定向的 `Location`——先过 `FetchTargetGuard.canonical_url` 再判定、再请求，浏览器导航前先过 `canonical_navigation_url`），所以被判定的主机就是客户端实际连接的主机。L1 HTTP 层还把连接限定在这次判定看过的地址上：`FetchTargetGuard.pin` 返回该跳判定所依据的地址（云端策略为 `async_vetted_addresses` 解析出的全部公网地址，本地策略为 `HopEvaluationResult.addresses`），`bounded_get` 经 `connection_pin` 用 libcurl 的 `CURLOPT_RESOLVE` 让客户端只连这些地址，URL 仍保留主机名（HTTPS 证书按主机名校验，连不上不会改用主机名重试再解析一次），判定之后 DNS 再换答案也不会改变连接目标；进程内首次钉死抓取前用一次真实请求自检（`ensure_connection_pinning`），库升级后钉死不再生效则拒绝抓取（`ConnectionPinError`）；经代理的请求由代理自己解析主机，不在此列。含反斜杠、制表符、换行、百分号编码的主机、畸形 authority（多个 `@`、未闭合的方括号）、非法主机或端口的 URL 没有规范写法，一律拒绝，不会让分类器和客户端各读出一个主机。
 
 **DNS Pinning 策略**：
 
@@ -177,7 +177,7 @@ class SSRFResult:
 
 提供同步 (`validate_url_for_ssrf`) 和异步 (`async_validate_url_for_ssrf`) 两个版本。
 
-**出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、cron webhook、HTTP hooks、LobeHub 技能安装、wiki asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
+**出站 HTTP 执行层（httpx）**：`core/security/http/secure_fetch.py` 提供 `secure_get` / `secure_request` / `resolve_secure_http_target`，在 httpx 出站路径上强制执行 DNS pinning 与逐跳 redirect 复检。下载体量默认受 `DEFAULT_MAX_CONTENT_LENGTH`（20 MB）上限约束，超限在流式读取中即时终止并抛出 `ContentTooLargeError`；各调用点可显式传 `max_content_length` 收紧（如 zip/图片/视频/附件）或传 `None` 关闭。消费者包括 MediaResolver、ZipInstaller、OpenAPI Bridge、cron webhook、HTTP hooks、LobeHub 技能安装、wiki asset 下载、image/video 用户与模型结果 URL 下载、server 媒体/模型发现/渠道下载、WebUI 链接预览抓取。`async_pin_url` 阻断时写入 `SSRF_BLOCKED` 审计条目。
 
 **浏览器 document 导航层（Playwright）**：`toolkits/browser/navigation/ssrf_guard.py` 先把导航 URL 规范化（`canonical_navigation_url`，没有规范写法的网络 URL 抛 `BrowserNavigationBlockedError`），再在 `page.goto` 期间注册 document 级 route 拦截，对每个 document 请求与 redirect 链逐跳调用 `async_pin_url` 校验。不拦截 subresource。本地模式 `allow_private_networks=True` 时改用私网源授权策略：会话显式导航到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝。
 
@@ -206,7 +206,7 @@ class SSRFResult:
 
 ### 3.2.1 Shell Command Analyzer
 
-**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `persistent_env.py`（持久 shell 的代码注入变量）
+**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `persistent_env.py`（持久 shell 的代码注入变量）· `protected_instruction_command.py`（受保护指令文件的写形态）
 
 统一 Shell 命令安全分析模块，多层检测（带引号感知预处理）：
 
@@ -217,13 +217,18 @@ class SSRFResult:
 | Layer 2: 注入/危险命令 | BLOCK | 6 注入向量（`$()`, `` ` ``, `${}`, `;`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
 | Layer 2.5: SQL 语句守卫 | ESCALATE | 数据库客户端命令（`psql`/`mysql`/`sqlite3`/`sqlcmd`/`mongosh`）中的破坏性 SQL；作用于引号剥离前的原始命令，以捕获单引号内的 SQL（`sql_statement_guard.py`） |
 | Layer 3: 可疑模式 | ESCALATE | `curl \| sh`, `eval`, `base64 -d`, `kill`/`pkill`/`killall` 等 |
+| Layer 3c: 受保护指令文件改写 | ESCALATE | 重定向写入，或 `sed -i`、`tee`、`cp`、`mv`、`rm`、`truncate`（及其 PowerShell / cmd 写法：`Set-Content`、`Remove-Item`、`copy`、`del` 等）点名，或解释器（`python`/`node`/`ruby`/`perl`）在同一条命令里以写方式打开 `AGENTS.md`、`CLAUDE.md`、`SOUL.md`、`.cursor/rules` 等受保护指令文件（bash 工具里按 Python 源码运行的文本不在此列，见下）；只读分类器判为 SAFE 的命令不算改写；作用于原始命令，证据是匹配到的名字（`protected_instruction_command.py`） |
 | Layer 4: 递归展开 | BLOCK / ESCALATE | 把载荷藏在单引号里的包装（`bash -c '...'`、`sh -c '...'`、`trap '...' SIGNAL`）取出后递归分析，深度有上限（`_MAX_RECURSIVE_DEPTH`）防 DoS |
 
 引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`find -exec {} \;` 的转义分号通过 `shell_command_rules.FIND_EXEC_TERMINATOR_RE` 精确豁免。
 
 BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`, `&&`, `||`, `>` 等合法 Shell 操作符。
 
-**Python 源码不经 shell，不查 Layer 1.5**：`bash_code_execute_tool` 也直接接收 Python 源码，由 Python 包装脚本运行，不经过 shell；包装脚本内联的 PEP 578 审计钩子拒绝 `subprocess` / `os.system`，文本没有办法再交给 shell。对这类文本 `check_shell_threats`（`code_interpreter`）只做 Layer 1：`$'` / `$"` 在 Python 里是正则结尾锚点后面跟引号（`re.match(r'^v(\d+)$', s)`），不是 shell 引用。判定用 `code_detector.runs_as_python()`，与执行器同一套（去首尾空白、去一层 Markdown 围栏、`code_detector`）。后台启动（`run_in_background`）始终是 shell，所有无条件类别照旧；自动让出（命中 build/test 白名单）和后台共用的 shell 启动点 `BashExecutor.spawn_background` 再对最终文本按 shell 语义检查一次，所以引擎对 Python 文本的放宽不会让文本绕到 shell 那边。`shell_exec`（往运行中的进程键入）永远按 shell 看。
+**改写受保护指令文件的 shell 命令**：文件工具写这些文件时给出的 ASK，理由固定为 `Protected instruction file write requires human approval: <文件名>`（`ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE`），allowlist 阶段与待审批标注认这条理由，定时运行则否决任何不是放行的路径裁决，所以 allowlist 条目、仓库声明的命令前缀、定时作业的能力声明都替用户放行不了。shell 命令走同一条 ASK，理由由 `checks.py` 的同一个构造函数给出：bash 工具与 `shell_exec` 一视同仁，命令没有宿主文件路径参数时，`engine.check_tool_path_policy` 返回 `check_command_protected_write`（引擎与定时运行共用）；`shell_exec` 经 `check_shell_threats` 时，BLOCK 仍先于它，同一行里的其他升级项（如 `eval`）不会盖过它。bash 工具里按 Python 源码运行的文本（`runs_as_python`）不是 shell 语法，不在此判定。判定只由 `protected_instruction_mutation_target(command)` 一个函数给出，分析器、引擎和 `should_block_allow_always` 共用：先看命令里有没有受保护名字，没有就不再往下；只读分类器（`risk_classifier`）判为 SAFE 的命令不算改写，所以 `grep -n rm AGENTS.md` 不会因参数里拼出了 `rm` 被当成改写；其余按 `split_command_spans` 逐条命令匹配写形态：POSIX 的重定向（含 `>&`）、`sed -i`（`-i` 在参数里的位置不限，`--in-place` 同）、`tee`、`cp`、`mv`、`rm`、`truncate`，PowerShell 的 `Set-Content`、`Add-Content`、`Out-File`、`Clear-Content`、`Remove-Item`、`Copy-Item`、`Move-Item`、`Rename-Item`、`New-Item`，cmd 的 `del`、`erase`、`copy`、`move`、`ren`、`rename`（这六个只认作一条命令的第一个词：命令本身、`cmd /c` 或 `powershell -Command` 交给它的命令（`-ExecutionPolicy Bypass`、`-WindowStyle Hidden` 里选项的取值照认，不会被当成命令），或跟在 `;`、`&`、`|`、`(`、`{` 之后的词，所以带引号的 `cmd /c "cd repo && del AGENTS.md"` 与 `{ del AGENTS.md }` 块认得出；出现在别的命令的参数里不算），所以 `rm -rf build && cat AGENTS.md` 不算改写。名字取自 `PROTECTED_INSTRUCTION_PATTERNS`，路径段之间的反斜杠与文件工具一样当分隔符（反斜杠加空格是转义的空格，不算），更长的文件名（`AGENTS.md.bak`）与文件工具一样算另一个文件；一行命令的判定时间随长度线性增长。YOLO 模式与 auto-mode 的审核模型放行不了这类 ASK（5.0 节、5.3 节），审批过期设为「允许」时含它的批次也按拒绝处理；写 Git 钩子与配置的 ASK 同属这一类（`approval_reason.HUMAN_ONLY_CODES`）。
+
+**改写受保护指令文件的设计内残余**：词法判定不分一条命令读的文件与写的文件（`cp AGENTS.md /tmp/b.md` 按改写处理），也按命令文字读引号里的内容（`echo "a > AGENTS.md"`）；整行没被只读分类器判为 SAFE 时（带重定向、用括号分组，或同一行里还有写命令），只读命令的参数拼出编辑命令（`grep -n rm AGENTS.md > found.txt`）仍按改写处理；经符号链接别名、通配符、变量或 Windows 给同一文件起的其他名字（文件名后的点、8.3 短名）到达的文件认不出；写形态之外的写法（例如 `dd of=`、`install`、`ln`、`curl -o`、`perl -pi`、`git checkout --`、`>|`，cmd 的六个命令跟在 `if exist …`、`for … do` 之后，PowerShell 的短别名 `sc`、`ac`、`ni`、`ri`、`cpi`、`mi`、`rni`，`[IO.File]::WriteAllText` 这类 .NET 静态调用，等等）认不出；解释器的程序放在 heredoc 或脚本文件里时，只看命令的同一行，正文与脚本内容读不到（`node - <<'JS'`）；bash 工具里按 Python 源码运行的文本（形态见下文「Python 源码不经 shell」一段，后台启动不算）不判，包装脚本的审计钩子（`toolkits/code_execution/security/audit_sandbox.py`）只把写限制在工作区与临时目录内、不认这些指令文件，所以这类文本在工作区里改写它们不会触发这条询问：默认规则下它落到通用的逐条审批（不带受保护文件的理由）；bash 工具上能匹配到它的常驻放行（例如范围为「工具」或「权限」的 allowlist 条目）或规则里的 ALLOW 会让它无声通过，同样的 shell 写法在这两种情况下仍被问；YOLO 开着时，认得出的这类 ASK 与文件工具的一样挂起等人（5.0 节），认不出的写法只是普通 ASK，被 YOLO 照常放行；定时 shell 作业（`cron_manage_tool` 的 `command`，由 `ShellJobRunner` 运行）运行前只过 `has_block_threat`，不过这条判定。这条判定拦的是明文写出的改写，不是针对刻意绕开的边界；操作系统沙箱也不替这些文件兜底：`SandboxPolicy.read_only_subpaths` 只装工作区里仓库的 git 元数据（`.git/config`、`.git/hooks` 与子模块的 git 目录，范围见 `toolkits/code_execution/EXECUTION_SYSTEM.md`；Windows 的 AppContainer 还不执行它，见 `toolkits/code_execution/sandbox/sandbox_types.py`），不含任何指令文件，所以各平台上 shell 侧对这些文件都只有这条词法判定。
+
+**Python 源码不经 shell，不查 Layer 1.5**：`bash_code_execute_tool` 也直接接收 Python 源码，由 Python 包装脚本运行，不经过 shell；包装脚本内联的 PEP 578 审计钩子拒绝 `subprocess` / `os.system`，文本没有办法再交给 shell。对这类文本 `check_shell_threats`（`code_interpreter`）只做 Layer 1：`$'` / `$"` 在 Python 里是正则结尾锚点后面跟引号（`re.match(r'^v(\d+)$', s)`），不是 shell 引用。判定用 `code_detector.runs_as_python()`，与执行器同一套：去首尾空白、去一层 Markdown 围栏后，含 `python -c` / `python3 -c` 的命令、用 heredoc 包装的 Python（`python3 <<EOF`、`python3 - <<EOF`，或把 Python 脚本写进 `.py` 文件的 `cat` heredoc）、能按 Python 解析且含 shell 命令行写不出的构造的文本（`import`、`def`、循环、调用语句、带调用的赋值等；解析不了但以 `import` / `def` / `class` 开头的也算）按 Python 源码运行，其余都按 shell：选项夹在 `python3` 与 `-c` 之间（`python3 -u -c`）、带版本号的解释器名（`python3.12 -c`）、`python3 script.py` 都是 shell 命令。后台启动（`run_in_background`）始终是 shell，所有无条件类别照旧；自动让出（命中 build/test 白名单）和后台共用的 shell 启动点 `BashExecutor.spawn_background` 再对最终文本按 shell 语义检查一次，所以引擎对 Python 文本的放宽不会让文本绕到 shell 那边。`shell_exec`（往运行中的进程键入）永远按 shell 看。
 
 ### 3.2.2 Safe Exec — 直接执行路径
 
@@ -303,30 +308,40 @@ BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`,
 
 **位置**：`guards/taint_tracker.py`
 
-**防御目标**：阻止 prompt injection → command injection 的攻击链。当 LLM 上下文中包含了来自外部网络的不可信数据后，如果 Agent 试图执行 shell 命令或写入文件，这可能是注入攻击。
+**防御目标**：阻止 prompt injection → command injection 的攻击链。当 LLM 上下文中包含了来自外部网络的不可信数据后，如果 Agent 试图执行 shell 命令或写入文件，这可能是注入攻击；会话读过凭据之后，向外发送数据的调用同样是汇。
 
 **污点标签**：
 
 ```python
 class TaintLabel(StrEnum):
-    EXTERNAL_NETWORK = "external_network"  # 来自网络的不可信数据
-    SECRET = "secret"                      # 敏感信息
+    EXTERNAL_NETWORK = "external_network"    # 来自网络的不可信数据
+    SECRET = "secret"                        # 凭据、密钥
+    PII_SENSITIVE = "pii_sensitive"          # 个人敏感信息：隐私分类命中 S2/S3 时记录，目前没有汇读取它
+    UNTRUSTED_INGRESS = "untrusted_ingress"  # 来自不可信入站消息：宿主经 record_ingress_taint 写入
 ```
+
+回合开始前写入的标签会被 `reset_all_guards` 清掉，所以不可信入站回合另由围栏标记（见 `untrusted_ingress_fence.py`）。
 
 **污点源（Source）**：
 
 | 工具 | 污点标签 |
 |------|---------|
-| `web_fetch_tool` | `EXTERNAL_NETWORK` |
-| `web_search_tool` | `EXTERNAL_NETWORK` |
+| `web_fetch_tool`、`web_search_tool`、`browser_navigate_tool`、`browser_snapshot_tool`、`browser_extract_tool` | `EXTERNAL_NETWORK` |
+| `file_read_tool` | `SECRET`（只在读取的文件匹配凭据文件名单时，如 `.env`、`.netrc`、`.ssh/`、`.aws/`、`id_rsa`、`credentials.json`） |
+| `bash_code_execute_tool` | `SECRET`（只在命令形似读取凭据文件时） |
+
+污点源只看上表这些工具的参数：经写进运行中进程 stdin 的命令读出的凭据，以及 `grep_tool` 读出的凭据文件内容，都不记 `SECRET`。
 
 **污点汇（Sink）策略**：
 
 | 工具 | 阻止的污点 |
 |------|-----------|
-| `bash_code_execute_tool` | `EXTERNAL_NETWORK` |
-| `file_write_tool` | `EXTERNAL_NETWORK` |
-| `file_edit_tool` | `EXTERNAL_NETWORK` |
+| `bash_code_execute_tool`、`file_write_tool`、`file_edit_tool` | `EXTERNAL_NETWORK`、`UNTRUSTED_INGRESS` |
+| `web_fetch_tool`、`browser_navigate_tool`、`browser_snapshot_tool`、`browser_extract_tool` | `SECRET` |
+
+汇表 `TAINT_SINK_POLICIES` 的键是工具名；权限类型（`code_interpreter`、`shell_exec` 等）不是它的键。
+
+**命令文本的动态升级**：会话带 `SECRET` 污点时，命令文本形似网络传输（`_BASH_EGRESS_RE`）的调用也是 `SECRET` 的汇。调用的权限类型须属 `COMMAND_BEARING_PERMISSIONS`：`bash_code_execute_tool`（`code_interpreter`），以及写进运行中进程 stdin 的 `bash_process_tool`（`write_stdin`、`submit_stdin`，权限类型按动作解析为 `shell_exec`）；命令文本由 `command_rules.command_text` 按权限类型取得（见 Target Resolution 一节的「命令文本的来源」）。后台启动的 shell 会把 stdin 读到的文字当命令执行，所以两条通道按同一套判定。
 
 **工作机制**：
 
@@ -335,7 +350,7 @@ class TaintLabel(StrEnum):
 3. **Reasoning-Blind Transcript Classifier**：如果启用了 `auto_mode_enabled`，在污点冲突提升为 ASK 之前（以及所有其他 engine 返回 ASK 的场景），会调用 Transcript Classifier（优先使用用户配置的轻量级 `auto_review_model`）。Classifier 采用 Reasoning-Blind 设计——只看用户消息（`intent_context`）和最近工具调用序列（`recent_tool_calls`，只含工具名+参数，不含 assistant 文本和工具输出），以防止 agent 通过自我合理化绕过审查。Classifier 同时接收当前会话的 Taint 标签（由 `middleware` 从 `TaintTracker.labels` 提取）和 Trust Context（用户配置的 `network_allowlist` 作为 `trusted_domains` 传递，帮助区分内部可信域名与外部不可信目标），其 Prompt 内置 Taint Context Rules 和 Trust Context Rules。Taint Context 使 Classifier 能理解 `EXTERNAL_NETWORK`（不可信网络数据）和 `SECRET`（凭据/密钥）的安全含义，在存在 taint 的会话中做出更谨慎的判断；Trust Context 使 Classifier 知道用户显式信任的域名（如公司内部 API），避免将 shell 命令中针对可信域名的网络操作误判为数据外泄（Trust Context 不覆盖 BLOCK RULES）。Classifier 根据四大阻止规则类别（销毁/外泄、降低安全态势、跨信任边界、绕过审查）和用户授权意图进行分步判断。如果符合用户预期则静默 ALLOW；如果违反阻止规则或超出用户授权范围则 DENY；如果无法判断（UNCERTAIN），则回退到 ASK 弹窗，**并将 Classifier 的疑虑分析（Reason）注入到弹窗提示中**，辅助用户决策（所有场景均已覆盖）。审查结果通过 Structured Output (Pydantic) 强制约束，确保解析鲁棒性。所有分类决策（ALLOW/DENY/UNCERTAIN）均通过 `record_decision` 记录到安全审计链。
 4. 每次 Agent run 开始时 `reset_taint_tracker()` 重置
 
-**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，若调用的每个网址（`url` 与 `urls`）的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，仍按汇处理。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
+**可信主机豁免**：`check_sink` 在 `trusted_hosts`（用户配置的 `network_allowlist`）非空时，只有接收网址的工具可以豁免：调用的权限类型属 `URL_BEARING_PERMISSIONS`（`web_fetch_tool` 的 `urls`、`browser_navigate_tool` 的 `url`），且其中每个网址的 hostname 都落在其中，这次调用不算汇；只要有一个网址不在其中，或调用没有网址参数，仍按汇处理。其他工具（shell、文件写改、快照、提取、写进进程 stdin）不享受豁免，调用里带不带 `url` 或 `urls` 键都一样：这些工具不接收网址，键不代表它们要去的地方。条目按 `core/security/domain_match.py` 读取：`example.com` 只信任该主机本身，信任其子域要写 `*.example.com` 或 `.example.com`。
 
 **保守策略与智能放行**：由于 LLM 是黑盒，无法确定它是否"忘记"了污点数据，因此一旦标记，污点在整个会话期间持续存在。传统做法是冲突时一律提升到用户审批（导致警报疲劳）。引入 Smart Intent Guard 后，系统能在保证安全的前提下，通过理解用户意图实现智能放行。
 
@@ -379,6 +394,8 @@ Session-scoped HITL grants live in `agent/security/session_access.py` (ContextVa
 ```
 check_path_policy(raw_path, policy, workspace_root, require_write)
   │
+  ├─ 前置：网络共享 / NT 命名空间拼写 → DENY（只按文本判断，先于归一化与 realpath）
+  │
   ├─ Layer 1: forbidden_paths → DENY（绝对优先，不可覆盖）
   │
   ├─ Layer 2: access_roots（writable）→ ALLOW
@@ -400,6 +417,7 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 6. **Revoke 对称** — `revoke_session_access_root` + server `revoke_chat_session_access_root` 持久化到 `session_access_roots`
 7. **云卷部署边界** — `/persistent` 真实挂载时，grant 仅限卷内或 chat workspace；本地桌面允许主机路径（仍受 forbidden/dangerous 约束）
 8. **Directory HITL 900s 超时** — 与 clarify 对称，`{granted:false}` auto-resume，避免挂死
+9. **网络共享与 NT 命名空间路径只按文本拒绝，先于任何文件系统调用** — 在 Windows 上打开 `\\host\share\x` 会让系统去连接那台主机并发送用户凭据（提示注入可以诱导模型去读一个攻击者主机上的共享）。`is_network_or_nt_path`（`core/security/path/filesystem.py`）判定的拼写：反斜杠写法 `\\host\share`、`\\?\`、`\\.\`、`\??\` 在所有宿主上拒绝；开头连续两个及以上的斜杠（正反斜杠混用也算，如 `//host/share`）只在 Windows 主机上拒绝，因为在 POSIX 上 `//tmp` 是普通绝对路径。路径沿途的每一道闸门都在自己的第一个文件系统调用之前做这个判断：权限引擎的 `check_path_policy`（DENY）、目录授权的 `_resolve_named_path`（返回空）、`file_read_tool` 的 Pre-IO 阻断、`PathValidator` 与 `CodeExecutor.resolve_path`；文本由 `network_path_refusal` 统一，提示改用工作区内的路径或映射盘符
 9. **FE SSOT 刷新** — grant/revoke 后 `refreshSessionAccessRoots` 同步 `SessionAccessRootsBar`；path-ASK 带 optimistic fallback
 10. **Runtime path coercion** — `coerce_filesystem_path` 仅接受 `str | Path | os.PathLike`，拒绝 `unittest.mock` 对象（MagicMock 实现 `__fspath__`）；用于工作区 journal sidecar 等写盘边界
 
@@ -421,13 +439,13 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 **位置**：`agent/security/workspace_trust/`（harness）· `app/services/security/workspace_trust_store.py` + `/security/workspace-trust/*`（server）· Settings + FolderGate UI（frontend）
 
-**设计动机**：绑定项目工作区后，仓库内的 **skills / workspace rules / 本地 MCP spawn** 属于「旁路执行面」——不经过 Permission Engine 的常规工具审批链即可触发本机进程或注入 prompt。Myrm 采用 **FolderGate + 默认 Restricted** 模式：**未知或未决策 workspace 一律 RESTRICTED（fail-closed）**。
+**设计动机**：绑定项目工作区后，仓库内的 **skills / workspace rules / 本地 MCP spawn / 编辑后会加载工程代码的格式化器（prettier、`mix format`）** 属于「旁路执行面」——不经过 Permission Engine 的常规工具审批链即可触发本机进程或注入 prompt。Myrm 采用 **FolderGate + 默认 Restricted** 模式：**未知或未决策 workspace 一律 RESTRICTED（fail-closed）**。
 
 ### 信任级别
 
 | 级别 | 旁路行为 |
 |------|----------|
-| `TRUSTED` | 启用 workspace skills、rules 注入、工作区内 MCP spawn；`.myrm/config.toml` 声明的 repo command prefix 可参与 allowlist 自动放行 |
+| `TRUSTED` | 启用 workspace skills、rules 注入、工作区内 MCP spawn、编辑后的 prettier 与 `mix format`；`.myrm/config.toml` 声明且用户在信任弹窗里看过的 repo command prefix 可参与 allowlist 自动放行 |
 | `RESTRICTED` / `REVOKED` / 未知 | 禁用上述旁路；MCP spawn 抛出 `WorkspaceTrustBlockedError`；repo prefix 匹配不参与自动 ALLOW |
 | 默认 | 未 bind 或未在 registry 决策 → **RESTRICTED**（`provider.resolve_workspace_trust_level`） |
 
@@ -438,7 +456,8 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 3. **Rules**：`workspace_rules/middleware.py` — RESTRICTED 时跳过 rules 注入。放行之后规则文件仍是仓库作者可控的输入：`workspace_rules/rule_read_guard.py` 让一次扫描（含信任前的 FolderGate 披露）只读真实路径落在边界之内的文件（边界是 git 根，没有 git 根时是工作区根；指向边界外的符号链接只得到占位文本，不读内容），单文件最多读 256,000 字符，一次扫描最多 512 个文件、2,000,000 字符；规则文件名经 `core/security/detection/display_name.py` 压成单行纯文本后才进入系统消息与工具结果。
 4. **信任前披露读取**：`workspace_trust/manifest.py` 在用户决定之前读取工作区内的 `mcp.json`（四个位置）与 `.myrm/config.toml`，大小与种类同样由仓库决定，所以同样经 `read_text_bounded`，上限 1,048,576 字符：超限的 MCP 配置按一个 server 计，超限的 `config.toml` 记 warning 并视为未声明前缀；披露对任何扫描失败降级为零计数，不阻塞弹窗。
 5. **MCP spawn**：`workspace_trust` 包在导入时把 gate 注册到 `toolkits/mcp/trust_gate.py`（该注册表不导入 MCP SDK，所以导入 `workspace_trust` 不会拖入 SDK）；stdio server 启动前由 `toolkits/mcp/session_actor_tools.py`（常驻会话）、`toolkits/mcp/agent.py`（工具枚举）与 `toolkits/mcp/transport.py`（executor transport）调用 `assert_mcp_spawn_allowed()`；cwd/plugin_root 落在 workspace 内且未 trust → `WorkspaceTrustBlockedError(reason=mcp_spawn_blocked)`。
-6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor/` — 仅 TRUSTED 且 **非复合 shell 命令**（`;` / `&&` 等经 `is_compound_shell_command` 拦截）可 prefix 匹配 auto-ALLOW。
+6. **Repo command prefix 自动放行**：`middlewares/approval/batch_processor/decide/allowlist.py` — 仅 TRUSTED，且只对 bash 工具启动的**单条非复合命令**（`;` / `&&` / 重定向 / 命令替换等经 `is_compound_shell_command` 拦截）按整词前缀匹配；敲进运行中进程的文本不是启动，不参与。命中与 allowlist 条目走同一条链：批量双保险、资金、不可逆社交、受保护指令文件四道门不可越过，组织策略 `ignoreAllowlistForModels` 对该模型生效时一并忽略；放行之后污点检查、auto-mode 复核与定时运行的 never-class 否决照常生效。审计标签 `REPO_PREFIX_AUTO_APPROVE`。
+7. **编辑后的格式化**：`agent/meta_tools/file_ops/observers/format_observer.py` — prettier（执行 `prettier.config.js` 与配置里声明的本地插件）与 `mix format`（执行 `.formatter.exs`）只在 TRUSTED 工作区运行；RESTRICTED、REVOKED、未决策或没有执行器时静默跳过，不报错也不在回执里加说明。工作区里的这些文件可由智能体自己的沙箱不经审批写入，写入后的格式化若照跑，就等于在宿主机上执行它们。级别由执行器的工作区根经 `resolve_workspace_trust_level` 在进程级登记表里查，不读运行期的 `ContextVar`（LangGraph 在另一个任务里执行工具体时读不到它，已信任的文件夹会被当成受限）；ruff、black、gofmt、rustfmt 等只读声明式配置的格式化器不受影响。已信任的工作区里这条路径仍然存在：智能体自己写下可执行配置、再靠格式化触发它；没有廉价的判据把它与工程自带的配置区分开（会被执行的文件名单不可穷举），所以这里不处理。
 
 ### 持久化与 API（server）
 
@@ -452,11 +471,11 @@ Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validato
 
 ### 前端 FolderGate
 
-`ProjectWorkspaceMount` 在 `updateProject` 绑定前调用 manifest → 用户选择 Trust / Restrict → decide → 再绑定路径。Settings → Security Policy → **Trusted Folders** 可列表查看与撤销。
+`ProjectWorkspaceMount` 在 `updateProject` 绑定前调用 manifest → 用户选择 Trust / Restrict → decide → 再绑定路径。Settings → Security Policy → **Trusted Folders** 可列表查看与撤销：已信任的文件夹只读列出用户信任时看过的命令前缀（`disclosed_command_prefixes`；前缀之后附带的参数同样免确认，复合命令不匹配），撤销后这些命令恢复为需要确认。信任弹窗、顶部通知条与该列表对前缀范围的文案一致。
 
 ### 与 Permission Engine 的边界
 
-Workspace Trust **不替代** Capability Fence / Permission Engine / Path Policy。它仅 gate **仓库本地旁路**（skills、rules、repo-local MCP、repo-declared command prefix shortcut）。Shell、文件读写、网络等仍走 Layer 1–4 常规链。
+Workspace Trust **不替代** Capability Fence / Permission Engine / Path Policy。它仅 gate **仓库本地旁路**（skills、rules、repo-local MCP、repo-declared command prefix shortcut）。Shell、文件读写、网络等仍走 Layer 1–4 常规链；前缀捷径只把引擎给出的 ASK 升为 ALLOW，DENY 与后续各道检查不受影响。
 
 ### 刻意不在 Phase 1 的范围
 
@@ -541,7 +560,7 @@ DEFAULT_RULESET = (
 
 ### Shell Command Analyzer（不可覆盖）
 
-`shell_command_analyzer.py` 在 `evaluate_tool_call()` 的第二步检查，**无论用户如何配置规则都无法覆盖**。仅对 `shell_exec` 权限类型生效。
+`shell_command_analyzer.py` 在 `evaluate_tool_call()` 的第二步检查，**无论用户如何配置规则都无法覆盖**。对命令承载权限类型（`COMMAND_BEARING_PERMISSIONS`：`code_interpreter`、`shell_exec`）生效，读的是该权限执行的那个参数。
 
 三层检测：注入向量（BLOCK）→ 危险命令模式（BLOCK）→ 可疑模式（ESCALATE→ASK）。详见 3.2.1 节。
 
@@ -573,7 +592,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 **Step 2b1 — URL Syntax Check**：对 `web_fetch`、`net_fetch`、`browser_navigate`，调用里任何含 `://` 的网址（参数 `url`，或 `urls` 中的每一项，也接受 JSON 数组文本）若没有规范写法（含反斜杠、制表符、换行等分歧字符，百分号编码的主机，畸形 authority 或端口，非法主机），直接 **DENY**，理由为 `URL not allowed: …`：这样的网址里，列表读出的主机与客户端拨的主机可能不是同一个，没有任何名单能可靠判定它。不含 `://` 的字符串（裸 `host:port`）不在此列，由 Step 2b2 与规则按原文处理。
 
-**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的规范主机（小写、非 ASCII 标签写成 Punycode、旧式数字 IPv4 写成点分十进制、去掉末尾的点；没有规范写法的字符串以其原文参与匹配），逐个匹配 `SecurityConfig.network_blocklist`（条目语法与 allowlist、浏览器域名过滤器、污点豁免共用 `core/security/domain_match.py`：`example.com` 只匹配该域本身，`*.example.com` 与 `.example.com` 匹配该域及其全部子域；条目里的协议、路径、端口与末尾的点被忽略，大小写不敏感；主机按浏览器拨号时的写法比较（UTS 46 映射：全角字符与表意句号折成普通写法，非 ASCII 标签写成 Punycode，`ß`、`ς` 保持原字，所以 `straße.de` 与 `strasse.de` 是两个主机；旧式数字 IPv4 写成点分十进制，所以条目 `127.0.0.1` 与 `2130706433`、`0x7f.1` 是同一个主机）；`*`、`*.*` 这类不指向任何主机的条目留在列表里、什么也不匹配）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。
+**Step 2b2 — Domain Blocklist**：对 `web_fetch`（参数 `urls`，一次调用可含多个网址，也接受 JSON 数组文本）与 `browser_navigate`（参数 `url`），提取调用中每个网址的规范主机（小写、非 ASCII 标签写成 Punycode、旧式数字 IPv4 写成点分十进制、去掉末尾的点；没有规范写法的字符串以其原文参与匹配），逐个匹配 `SecurityConfig.network_blocklist`（条目语法与 allowlist、浏览器域名过滤器、污点豁免共用 `core/security/domain_match.py`：`example.com` 只匹配该域本身，`*.example.com` 与 `.example.com` 匹配该域及其全部子域；条目里的协议、路径、端口与末尾的点被忽略，大小写不敏感；主机按浏览器拨号时的写法比较（UTS 46 映射：全角字符与表意句号折成普通写法，非 ASCII 标签写成 Punycode，`ß`、`ς` 保持原字，所以 `straße.de` 与 `strasse.de` 是两个主机；旧式数字 IPv4 写成点分十进制，所以条目 `127.0.0.1` 与 `2130706433`、`0x7f.1` 是同一个主机）；`*`、`*.*` 这类不指向任何主机的条目留在列表里、什么也不匹配）。任一 hostname 命中则 **DENY**，不进入 HITL。WebUI Settings `DomainBlocklistEditor` 持久化；harness `BrowserSession.navigate()` 与会话 `domain_filter` 同步 enforcement。入口 URL 之后的重定向在权限层看不到，所以 `web_fetch` 的抓取引擎对同一份名单（用户并集 Agent 追加项）再判定：引擎入口 URL；L1 HTTP 层的每一跳（请求之前）；L3 Stealth 与 L2 浏览器层的入口 URL 与最终页面 URL；L4 远程抓取服务回报的页面 URL。命中是终态（不降级、不重试），审计记一条 `web_fetch` DENY（只含主机）。名单在每次工具调用时从当前策略读取，会话中途修改对下一次调用生效；名单非空时该次调用使用独立引擎，不共享跨调用缓存。边界：L2、L3 看不到入口与最终页之间的中间跳；平台快速通道（YouTube、Bilibili、微信、X）只按入口 URL 的主机判定，不单独判定它们实际访问的平台主机（如 `youtu.be`、`b23.tv` 短链指向的主机）；L4 只判定服务回报的 URL。
 
 **Step 2c — Domain HITL**：当 `SecurityConfig.domain_hitl_enabled=True` 时，对浏览器导航（`browser_navigate`）提取 hostname 并检查是否在 `network_allowlist` 中。不在 allowlist 中的域名触发 ASK，经由批量审批流程呈现给用户。`web_fetch` 只读取页面，不触发域名审批，仍受 Step 2b2 黑名单与 Step 4 规则约束。用户可选择：
 - "本次允许" — 正常批准
@@ -588,9 +607,12 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 |---------|---------|---------|
 | `browser_navigate` | `url` | 提取规范主机（见 3.1「规范写法」）；没有规范写法的字符串（如不带协议的 `host:port`）以原文作为目标 |
 | `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的规范主机并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
-| `shell_exec` | `command` | 原始值 |
+| `code_interpreter`（`bash_code_execute_tool`） | `command` | 原始值（去首尾空白） |
+| `shell_exec`（`bash_process_tool` 的 `write_stdin` / `submit_stdin` / `close_stdin` / `kill`） | `data` | 原始值（去首尾空白）；`kill` 不带文字，目标为 `"*"` |
 | `file_read` / `file_write` | `path` | 原始值 |
 | 其他 | — | 返回 `"*"` |
+
+**命令文本的来源**：命令承载权限类型只有 `code_interpreter` 与 `shell_exec`，各自只读执行器真正执行的那一个参数（`command_rules.COMMAND_TEXT_KEY`，契约测试对照执行器的入参模型与 `resolve_permission_type` 钉死这张映射）。入参里多带的其它键（执行器的入参模型会丢弃未声明的键）不参与任何判定，所以各层看到的文字与实际执行的文字是同一份：权限引擎的目标与安全命令自动放行、Shell Command Analyzer、命令 denylist、污点外发汇、审核模型的跳过、cron 的集成写入检查、脚本文件的内容摘要、allow-always 的守卫、技能边界记入权限日志的操作文本，都经 `command_text` 取文本；允许列表的命令模式经 `launch_command` 取启动的命令（只有 `code_interpreter` 是一条启动的命令，进程 stdin 的文字不进入命令模式）。其它权限类型没有命令文本，这些检查对它们不产生判定。
 
 ### 规则集合并与配置解析
 
@@ -608,16 +630,16 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 
 ### 5.0 YOLO Mode — 全自动审批快速路径
 
-当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。计时键有两种写法，解析时蛇形键优先：服务端的授权（渠道 `/yolo`、目标与看板的无人值守授权）写 `yolo_mode_enabled_at` / `yolo_mode_timeout`，键存在即胜出，值为 `None` 表示无时限，不会继承用户在网页里设过的计时；Web 设置界面写驼峰键 `yoloModeEnabledAt` / `yoloModeTimeout`（秒），只在蛇形键缺席时读取，所以网页关闭后超时同样在服务端生效。无法解析的开启时刻按很久以前处理，带超时时视为已过期。
+当 `SecurityConfig.yolo_mode_enabled=True` 时，`batch_processor.evaluate_tool_batch()` 自动审批所有非 DENY 的工具调用。对每个 tool_call 仍执行 `evaluate_tool_call()` 检查：若结果为 `DENY` 则强制拒绝（记录 `YOLO_DENY_OVERRIDE` 决策），否则自动批准（记录 `YOLO_AUTO_APPROVE`；下文「安全保证」列出的几类调用除外）。支持可选超时（`yolo_mode_timeout` 秒），过期后自动恢复正常审批流。计时键有两种写法，解析时蛇形键优先：服务端的授权（渠道 `/yolo`、目标与看板的无人值守授权）写 `yolo_mode_enabled_at` / `yolo_mode_timeout`，键存在即胜出，值为 `None` 表示无时限，不会继承用户在网页里设过的计时；Web 设置界面写驼峰键 `yoloModeEnabledAt` / `yoloModeTimeout`（秒），只在蛇形键缺席时读取，所以网页关闭后超时同样在服务端生效。无法解析的开启时刻按很久以前处理，带超时时视为已过期。
 
 核心安全原则：**deny always wins** — DENY 规则在任何模式下都不可被绕过。
 
 触发方式：
 - 前端 Settings UI 中的 YOLO 开关（写入 UserConfig → `parse_security_config()` 解析）
 - 渠道 `/yolo` 命令（Router 内存态，通过 `InboundMessage.metadata["yolo_state"]` 注入）
-- Agent 安全配置中显式启用（per-Agent YOLO，适用于定时任务等无人值守场景）
+- Agent 安全配置中显式启用（per-Agent YOLO）
 
-安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。
+安全保证：YOLO 模式仅跳过 ASK 审批弹窗，不影响 DENY 规则、Layer 1-3 的权限检查和能力围栏。资金类、社交不可逆、破坏性的调用，以及写受保护指令文件、写 git 钩子与配置（`approval_reason.HUMAN_ONLY_CODES` 里的两个码）的调用不受 YOLO 放行，仍挂起等人审批（审计依次为 `YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED`、`YOLO_PROTECTED_WRITE_BLOCKED`）；写入类挂起时沿用引擎原样写下的理由，卡片与不开 YOLO 时一样按码出文案。这类写入与社交不可逆调用、资金类调用一样不交 auto-mode 的审核模型；审批过期设为「允许」时，含这类写入、社交不可逆调用或破坏性调用的批次改按拒绝处理（付款类的应答要带动作摘要，计时器带不了，本就被拒）。定时运行（定时作业本身与它委派的子智能体）里没有人能为 YOLO 开关负责，所以 `evaluate_tool_batch` 对它不走 YOLO 分支，结果与 YOLO 关闭时完全相同：每个调用由 `_cron_settle` 按作业声明裁决（声明了且不属于下面四类才放行，其余拒绝），都不会挂起；四类指付款类调用、集成写入命令、读过凭据文件后的外发请求、作业区之外的路径（含 shell 命令改写受保护指令文件），哪怕 allowlist 或审核模型已放行也照样拒绝（各类识别的范围见「Cron 渠道安全配置」，另见「Cron 安全策略」）。
 
 ### 5.0.1 Managed Approval Policy (MAP) — 组织审批下限
 
@@ -749,8 +771,8 @@ class AllowlistEntry:
 
 - 连续拒绝达到 3 次（`_CONSECUTIVE_THRESHOLD`）：引导升级为"auto-mode 暂停，后续动作都需人工批准，停下来向用户解释"。任何一次被放行的操作都会让连续计数清零。
 - 累计拒绝达到 20 次（`_TOTAL_THRESHOLD`）：同样升级；之后一次显式批准把累计降到阈值以下以解除，平时每连续 3 次安全执行抵消 1 次累计拒绝。
-- 任一阈值被突破期间 auto-mode 真的被暂停（`batch_processor/decide.py`）：auto mode 下原本 ALLOW 的调用升级为 ASK（审计 `AUTO_MODE_SUSPENDED_ALLOW_ESCALATED`，审批卡标为高风险并隐藏"始终允许"），LLM 安全复核也不再自动放行。
-- 定时任务会话（session key 以 `cron:` 开头）没有人可问，升级文案改为"不要重试被拒动作，先完成不依赖它们的部分，并在最终回复里说明被拦下的动作与原因"。
+- 任一阈值被突破期间 auto-mode 真的被暂停（`batch_processor/decide/allow_gates.py`、`decide/hitl.py`）：auto mode 下原本 ALLOW 的调用升级为 ASK（审计 `AUTO_MODE_SUSPENDED_ALLOW_ESCALATED`，审批卡标为高风险并隐藏"始终允许"），LLM 安全复核也不再自动放行。定时运行除外：没有人能解除暂停，且每个 ASK 本就由作业声明裁决，所以不因拒绝累积而暂停。
+- 定时运行（作业本身与它委派的子智能体：`SecurityConfig.is_cron` 为真，或 session key 以 `cron:` 开头）没有人可问，升级文案改为"不要重试被拒动作，先完成不依赖它们的部分，并在最终回复里说明被拦下的动作与原因"。
 - 计数按会话键隔离，进程内注册表上限 10000 个会话，超限淘汰最早的一个。
 
 连续拒绝触发的升级引导示例：
@@ -765,31 +787,32 @@ class AllowlistEntry:
 
 审批分两个 graph 节点（见 `HITL_SYSTEM.md`）：`ApprovalEvaluationMiddleware`（`middlewares/approval/evaluation/`）对一次模型响应里的调用只判定一次——审核模型、拒绝计数、限流这些副作用都发生在这里，结论存入私有状态键 `approval_evaluation`；`ToolApprovalMiddleware` 只读这份结论并向用户发问。用户答复后 LangGraph 会从发问节点的第一行重跑，副作用因此不会重复。
 
-`batch_processor.evaluate_tool_batch`（`batch_processor/{core,decide,yolo}.py`）对每个调用的判定顺序：
+`batch_processor.evaluate_tool_batch`（`batch_processor/{core,yolo}.py` 与 `decide/` 子包，阶段划分见 `batch_processor/decide/_ARCH.md`）对每个调用的判定顺序：
 
 ```
-0. YOLO 生效且组织策略允许该模型 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝）
+0. YOLO 生效、组织策略允许该模型且不是定时运行 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝；资金类、社交不可逆、破坏性与受保护写入仍待人审批）；定时运行不走此分支
 1. 前置拒绝（直接 DENY）：桌面视觉按键只给了单个可打印运算符；不可信入口栅栏剥离的工具；只读研究租约不允许的工具
 2. resolve_permission_type(tool_name, tool_input) → evaluate_tool_call(permission, tool_input, config, workspace_root=..., tool_name=...) → (action, reason)
    - tool_name 用于 mcp_invoke 的 per-tool target resolution（如 mcp__gmail__send_email）
    - PTC 调用先过路径策略
    - ASK 且为只读 MCP / PTC 工具（is_read_only && !is_open_world && !is_destructive）→ ALLOW
-3. ASK → Allowlist：可信工作区声明的 shell 命令前缀，或用户 allowlist 命中 → ALLOW
-   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件不可由 allowlist 放行；组织策略（MAP）可让该模型忽略 allowlist
-4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破；
+3. ASK → Allowlist：用户 allowlist 条目命中，或可信工作区声明的命令前缀命中（仅 bash 工具启动的单条非复合命令）→ ALLOW
+   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件、其余只能由人答复的写入（git 钩子与配置，按引擎写下的码判定，审计 `PROTECTED_WRITE_ALLOWLIST_BLOCKED`）不可由两类命中放行；组织策略（MAP）可让该模型忽略 allowlist（前缀命中一并忽略）
+4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；资金类工具（审计 `FINANCIAL_GATE_ESCALATED`）；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破（定时运行除外）；
    污点冲突（auto-mode 下先交 LLM 审核：ALLOW 放行 / DENY 拒绝 / UNCERTAIN 回到 ASK）
    auto-mode 下，invoke_external_agent 与非平凡 shell 在放行前还要过一次 LLM 审核（拒绝或存疑时不放行）
    全部通过 → 执行工具
 5. DENY → 记录审计 → 记录拒绝计数 → 返回错误 ToolMessage
 6. ASK 的后续裁决，依次：
-     a. Cron 会话 → resolve_cron_ask：能力声明视为预授权，凭据外送、越界路径、集成写入除外；未声明能力集 fail-closed 拒绝
-     b. 技能钩子：BLOCK → 拒绝；REQUIRE_APPROVAL → 待审
-     c. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
-     d. auto-mode LLM 审核：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
-     e. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）
+     a. 定时运行 → `_cron_settle.settle_ask`（`resolve_cron_ask`）：能力声明视为预授权，四类调用除外（`cron_never_class`：付款类工具调用、读过凭据文件后的外发请求、越界路径（含 shell 命令改写受保护指令文件）、集成写入命令；识别范围见「Cron 渠道安全配置」）；未声明能力集 fail-closed 拒绝
+     b. domain_hitl_enabled 且域名已在会话运行时白名单 → ALLOW
+     c. auto-mode LLM 审核（社交不可逆动作、资金类工具与只能由人答复的写入（受保护指令文件、git 钩子与配置）不交审核模型，直接进 d）：ALLOW → 放行；DENY → 交互会话转为待审并附审核意见，非交互会话直接拒绝；UNCERTAIN → 待审
+     d. 其余 → 待审，并附带风险上下文（高风险标记、隐藏 allow_always、资金/不可逆信息、受保护指令文件、脚本内容哈希）；资金类调用另带动作摘要，批准时须原样回传，不符即拒绝（`DIGEST_MISMATCH_REJECT`），社交不可逆调用不带摘要，批准即放行
+     定时运行没有人答复待审：本批做完后仍待审的调用（例如审核模型对外发检查或 shell 升级审核无法裁决的调用），由 `evaluate_tool_batch` 末尾交 `_cron_settle.settle_pending`，按 a 的规则放行或拒绝；allowlist 或审核模型已放行的调用也在这里过一遍 `_cron_settle.veto_never_classes`，落入 a 里那四类的改为拒绝（审计 `CRON_DENY`）；返回的待审列表恒为空
 7. 限流（evaluate_target）：同一用户在滑动窗口内审批请求过多 → 本批待审调用全部拒绝
 8. 发问（ToolApprovalMiddleware）：被拒调用 → 错误 ToolMessage；待审调用合并为一次 interrupt(payload) 批量审批
      子 Agent 的 payload 带 action_type=subagent_approval 与 subagent_task_id（缺 task_id 时直接拒绝）；影子 Agent 没有 UI 通道，直接拒绝
+     审批过期时各个计时器（前端倒计时、后端 WebUI 与渠道调度器）都按 payload 的 `extensions.timeout.behavior` 应答，且只带决定、不带动作摘要；配置为 allow 时，批次里只要有只能由人答复的写入、社交不可逆调用或破坏性调用，payload 就把它改成 deny（`_interrupt_payload._held_for_a_person`，付款类除外）
      match decision.type:
           approve → 执行（可选 allow_always 写入 Allowlist）
           edit    → 替换参数后执行（可选 allow_always），并触发 APPROVAL_CORRECTION 钩子
@@ -1068,7 +1091,7 @@ Source: web_search
 <<<END_UNTRUSTED_DATA id="a3f7b2c9e1d4f8a0">>>
 ```
 
-随机 ID 使攻击者无法预测边界标记，从根本上防止边界逃逸。
+随机 ID 使攻击者无法预测边界标记，事先写不出与本次匹配的结束标记；程序化解包按 ID 精确配对，伪造的结束标记不会提前截断内容。
 
 **Layer 4 — 可疑模式检测**：
 
@@ -1080,8 +1103,8 @@ Source: web_search
 |------|------|---------|
 | `sanitize(content)` | Layer 1+1.5+2（纯净化，无副作用） | 任意文本、工具错误消息 |
 | `detect_suspicious(content)` | Layer 4（纯检测，无副作用） | 安全扫描 |
-| `wrap_untrusted(content, source)` | 完整 5 层，带来源标注 | 外部数据（web/KB/webhook） |
-| `wrap_tool_output(content)` | 完整 5 层 | 工具执行结果 |
+| `wrap_untrusted(content, source)` | 完整 5 层，带来源标注 | 外部数据（联网搜索与抓取、知识库、浏览器、MCP；各出口的范围与例外见 `toolkits/SECURITY_WRAPPER_GUIDE.md`） |
+| `wrap_tool_output(content)` | 完整 5 层 | 工具执行结果（前台命令输出、默认模式的文件内容与目录列表） |
 
 ---
 
@@ -1162,7 +1185,7 @@ ruleset = (
 )
 ```
 
-Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。用户可通过 YOLO 模式或 Smart Guard 显式授权。
+Cron 渠道采用 **fail-closed** 策略：`shell_exec`、`code_interpreter`、`mcp_invoke` 回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按 `_cron_policy.resolve_cron_ask` 处理——无声明式能力围栏时 DENY，有声明式能力围栏时 pre-approval ALLOW，但落入 `_cron_policy.cron_never_class` 四类的调用即使声明了能力也 DENY，allowlist 或审核模型的放行同样解除不了（`evaluate_tool_batch` 末尾对已放行的调用再过一遍 `_cron_settle.veto_never_classes`）。四类的识别范围：付款类工具调用——工具名或参数命中资金类词表；集成写入命令——shell 与 code_interpreter 命令命中业务层注册的模式（注册表默认为空）；读过凭据文件后的外发请求——会话带 SECRET 污点后，`web_fetch`、浏览器的导航/快照/提取工具，以及 curl、wget、nc、ncat、socat、ssh、scp、rsync、ftp 后跟 http(s) 链接、或 curl、wget、nc、ncat、socat 带数据参数的 shell 命令（bash 工具的命令，以及写进运行中进程 stdin 的文字；`taint_tracker.py` 的 `TAINT_SINK_POLICIES` 与 `_BASH_EGRESS_RE`），但 `web_fetch` 与浏览器导航的每个网址（`url`、`urls`）都在域名白名单（`network_allowlist`，见 3.5 节「可信主机豁免」）内时不算外发，快照与提取工具不带网址、shell 命令与 stdin 文字不解析主机，均不享受豁免，多带一个 `url` 键也不例外；作业区之外的路径——路径分区检查不放行的文件调用（作业目录之外、敏感或受保护文件），以及 shell 命令改写受保护指令文件（bash 工具的命令，以及写进运行中进程 stdin 的文字；写形态见 3.2.1 节）。识别不到的形态（不带 http(s) 链接的 scp、rsync、ssh，nc 直连主机端口，经 code_interpreter 运行的脚本，未注册的集成写入，写形态之外的改写写法）、读过网页内容这类非凭据污点之后的 shell 命令、读取与发送写在同一条 shell 命令里的单行命令（检查时会话还没有 SECRET 污点），以及凭据经 stdin 里的命令或 `grep_tool` 读出的会话（污点源不认这两条读取通道），仍由声明放行，是设计内残余。YOLO 开关对 Cron 运行无效，拒绝累积也不会暂停它的 auto-mode。桌面控制（GUI 快照与操作）在 Cron 渠道一律 DENY。**Prompt injection 默认 `fail_closed`**（Cron 抓取的网页内容可能包含注入攻击）。
 
 ### 本地模式浏览器放宽
 
@@ -1365,7 +1388,7 @@ class SecurityDecision:
 | 防滥用 | `LOOP_WARN` / `LOOP_BREAK`、`TURN_BUDGET_BREAK`、`ESTOP_BLOCKED`、`SANDBOX_BOUNDARY_ESCALATE` |
 | 输入/输出检测 | `INJECTION_DETECTED` / `INJECTION_BLOCKED`、`DANGEROUS_INTENT_DETECTED` / `DANGEROUS_INTENT_BLOCKED`、`CANARY_LEAKED`、`CREDENTIAL_LEAK_DETECTED` / `CREDENTIAL_LEAK_BLOCKED`、`PII_DETECTED` / `PII_REDACTED` / `PII_BLOCKED`、`SSRF_BLOCKED`、`SCAN_FINDING` |
 | 自动审查 | `LLM_REVIEW_ALLOW` / `LLM_REVIEW_DENY` / `LLM_REVIEW_UNCERTAIN`、`SHELL_ESCALATION_ALLOW` / `SHELL_ESCALATION_DENY`、`OUTBOUND_ALLOW` / `OUTBOUND_DENY` |
-| YOLO 不可绕过的门禁 | `YOLO_DENY_OVERRIDE`、`YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED` |
+| YOLO 不可绕过的门禁 | `YOLO_DENY_OVERRIDE`、`YOLO_FINANCIAL_GATE_BLOCKED`、`YOLO_SOCIAL_IRREVERSIBLE_BLOCKED`、`YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED`、`YOLO_PROTECTED_WRITE_BLOCKED` |
 | 完整性 | `DIGEST_MISMATCH_REJECT`、`SCRIPT_INTEGRITY_REJECT`、`SCRIPT_OPERAND_DRIFT_REJECT` |
 
 ### 工作机制
@@ -1376,11 +1399,9 @@ class SecurityDecision:
 
 使用 `ContextVar[list[SecurityDecision]]` 实现会话级隔离。
 
-### Cron 审计持久化 + Merkle 链防篡改
+### Cron 审计持久化
 
 Cron run 结束时，审计日志通过 `get_audit_entries()` 获取并写入 `JobResult.metadata.securityAudit`。`executor.py` 将 metadata 持久化到数据库的 `cron_runs.metadata` JSON 列。
-
-每条 CronRunRecord 包含 `integrity_hash`（SHA-256 canonical hash）和 `prev_hash`（前一条记录的 hash），形成 per-job 的 Merkle 链。`integrity.py` 提供 `verify_chain()` 纯函数验证链完整性，API 层通过 `GET /{job_id}/integrity` 端点暴露验证能力。任何对历史记录的篡改（插入、删除、修改）都会导致链断裂并被检测到。
 
 ---
 
@@ -1395,10 +1416,11 @@ Cron 是非交互式的，运行时无人可以审批。因此：
 1. **声明式能力围栏** — `CronJob.required_capabilities: tuple[str, ...]` 在创建时声明所需能力
 2. **声明式路径授权** — `CronJob.allowed_roots: tuple[str, ...]` 在创建时声明可访问的文件路径根目录
 3. **强制声明** — 每个 Cron Job 必须声明能力和路径，空声明 = 无能力 + 仅 workspace 内路径
-4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `batch_processor/` 的 cron 分支决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
+4. **fail-closed 策略** — Cron 渠道不强制 ALLOW `shell_exec/code_interpreter/mcp_invoke`，这些权限回落到 DEFAULT_RULESET 的 ASK，由 `_cron_settle` 按声明决策：无声明式能力围栏时 DENY（fail-closed），有声明式能力围栏时 pre-approval ALLOW
+5. **定时运行里没有调用会挂起等人** — 「定时运行」指作业本身与它委派的子智能体、工作流节点：`SecurityConfig.is_cron`（CRON 渠道的配置带此标记，委派出去的智能体继承同一份配置）为真，或会话键以 `cron:` 开头（`_cron_policy.is_cron_run`）。委派出去的智能体的会话键是任务 id，不带 `cron:` 前缀，所以判定不能只看会话键。`evaluate_tool_batch` 对定时运行不走 YOLO 分支；一般分支做完后，把已放行的调用交给 `_cron_settle.veto_never_classes`（落入 `cron_never_class` 四类的改为拒绝，不论谁放行），把仍待审的调用交给 `_cron_settle.settle_pending`，上述 fail-closed 规则对作业本身与委派出去的智能体一视同仁
 
 ```python
-# channel_presets.py — Cron 构建声明式能力集; declared_allowed_roots 适用于所有渠道
+# channel_presets.py — Cron 构建声明式能力集并标记定时作业; declared_allowed_roots 适用于所有渠道
 if channel_type == ChannelType.CRON and declared_capabilities:
     capabilities = _build_declared_capability_set(declared_capabilities)
 
@@ -1406,14 +1428,25 @@ if declared_allowed_roots:
     merged_roots = tuple(sorted(set(path_policy.allowed_roots) | set(declared_allowed_roots)))
     path_policy = PathPolicy(forbidden_paths=path_policy.forbidden_paths, allowed_roots=merged_roots)
 
-# batch_processor/ — Cron fail-closed 决策
-if is_cron:
-    if config.capabilities == DEFAULT_CAPABILITIES:
-        record_decision(tool_name, "CRON_DENY", "cron fail-closed: no explicit capability declaration")
-    elif is_integration_mutation_command(shell_cmd):
-        record_decision(tool_name, "CRON_DENY", "cron fail-closed: integration write mutation")
-    else:
-        record_decision(tool_name, "ALLOW", "cron capability pre-approval")
+SecurityConfig(..., is_cron=channel_type == ChannelType.CRON)
+
+# batch_processor/core.py — 定时运行不走 YOLO 分支；本批已放行的调用先过一遍四类检查，仍待审的调用在返回前一次裁决
+if not is_cron:
+    return auto_approved, auto_denied, pending_approval
+kept, vetoed = veto_never_classes(auto_approved, ...)
+settled_approved, settled_denied = settle_pending(pending_approval, ...)
+return [*kept, *settled_approved], [*auto_denied, *vetoed, *settled_denied], []
+
+# _cron_policy 给出裁决，_cron_settle 记审计 — Cron fail-closed 决策（cron_never_class 对已放行的调用同样适用）
+if config.capabilities == DEFAULT_CAPABILITIES:
+    record_decision(tool_name, "CRON_DENY", "cron fail-closed: no explicit capability declaration")
+elif is_financial_or_spend_tool(tool_name, tool_input):
+    record_decision(tool_name, "CRON_DENY", "cron fail-closed: payment-like tool call")
+elif is_integration_mutation_command(shell_cmd):
+    record_decision(tool_name, "CRON_DENY", "cron fail-closed: integration write mutation")
+# 另有两类：读过凭据文件后的外发请求、作业区之外的路径
+else:
+    record_decision(tool_name, "ALLOW", "cron capability pre-approval")
 ```
 
 ---
@@ -1523,7 +1556,7 @@ GeneralAgent → build_channel_security_config(agent_security_raw=...) → _merg
 
 - **审计日志**：每次非 CLEAN 的扫描结果通过 `record_decision()` 写入安全审计链（BLOCKED → DENY / 其他 → SCAN_FINDING）
 - **命中率指标**：`_ScanMetrics` 线程安全单例追踪 total_scans / blocked / redacted / warned / clean，通过 `get_scan_metrics().snapshot()` 获取
-- **读取路径防护**：`memory_context_middleware.py` 把存储的记忆置于 `<user_memory_context>` **SystemMessage**，每个存储值先过 `defang_markup()`（ASCII `<`、全角 `＜`、小号 `﹤` 三种标签起始符一律改写为 `&lt;`，`&`、`>`、URL 与代码围栏原样保留），存储值既关不掉记忆块，也开不出自己的 `<user_instructions>` 等高权限块；已学习的事实不进块，由模型经 `memory_search_tool` 检索；工具 recall 路径（`memory_search_tool` memory/sessions corpus、MCP `memory_recall`/`memory_list`）经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认）+ SemanticMemory `source_error` 后缀经 `format_recall_source_error_suffix()` + 静态 untrusted 前言；preference save 成功 ack 经 `format_preference_save_ack()` 同 SSOT
+- **读取路径防护**：`memory_context_middleware.py` 把存储的记忆置于 `<user_memory_context>` **SystemMessage**，每个存储值先过 `defang_markup()`（ASCII `<`、全角 `＜`、小号 `﹤` 三种标签起始符一律改写为 `&lt;`，`&`、`>`、URL 与代码围栏原样保留），存储值既关不掉记忆块，也开不出自己的 `<user_instructions>` 等高权限块；已学习的事实不进块，由模型经 `memory_search_tool` 检索；工具 recall 路径（`memory_search_tool` memory/sessions corpus 与按 id 取回、MCP `memory_recall`/`memory_list`）经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认）+ SemanticMemory `source_error` 后缀经 `format_recall_source_error_suffix()` + 静态 untrusted 前言；preference save 成功 ack 经 `format_preference_save_ack()` 同 SSOT
 
 ### 配置
 
@@ -1578,6 +1611,6 @@ Spawn 路径额外 floor：父 Profile 全局 `file_write=DENY` 时，`spawn_pre
 | **纯函数设计** | 所有检测模块无副作用，通过中间件集成，易于测试 |
 | **零外部依赖** | 仅使用 Python 标准库，无供应链风险 |
 | **保守策略** | 污点追踪宁可误报（提升审批）不可漏报，超时自动拒绝 |
-| **可审计** | 每个安全决策都被记录，Cron 审计持久化到数据库 + Merkle 链防篡改 |
+| **可审计** | 每个安全决策都被记录，Cron 审计持久化到数据库 |
 | **渠道隔离** | 不同渠道有不同的安全姿态，渠道限制不可被用户配置绕过 |
 | **效率优先** | Allowlist + allow-always 减少重复审批，Cron 声明式预授权 |

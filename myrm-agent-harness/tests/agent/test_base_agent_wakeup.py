@@ -1,14 +1,18 @@
+from collections.abc import Collection
 from unittest.mock import AsyncMock, MagicMock, patch
+from uuid import UUID
 
 import pytest
 
 from myrm_agent_harness.agent.base_agent import BaseAgent
+from myrm_agent_harness.agent.meta_tools.spawn_subagent.agent_manage_tool import create_subagent_control_tool
 from myrm_agent_harness.agent.streaming.types import AgentEventType
-from myrm_agent_harness.agent.sub_agents.types import SubAgentResult
+from myrm_agent_harness.agent.sub_agents.types import SubAgentResult, SubAgentStatus
+from myrm_agent_harness.utils.runtime.wakeup_registry import set_global_wakeup_handler
 
 
 @pytest.fixture
-def mock_agent():
+def mock_agent() -> BaseAgent:
     """Create a minimal mock BaseAgent for testing."""
     agent = BaseAgent(llm=MagicMock(), tools=[], system_prompt="You are a test agent.")
     # Mock the context to provide a session_id and agent_id
@@ -19,7 +23,9 @@ def mock_agent():
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.utils.runtime.wakeup_registry.get_global_wakeup_handler")
 @patch("myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink")
-async def test_trigger_async_wakeup_with_handler_and_sink(mock_get_sink, mock_get_handler, mock_agent):
+async def test_trigger_async_wakeup_with_handler_and_sink(
+    mock_get_sink: MagicMock, mock_get_handler: MagicMock, mock_agent: BaseAgent
+) -> None:
     """Test that trigger_async_wakeup calls both the global handler and the progress sink."""
     # Setup mocks
     mock_handler = AsyncMock()
@@ -57,9 +63,77 @@ async def test_trigger_async_wakeup_with_handler_and_sink(mock_get_sink, mock_ge
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("raw_session_id", "expected"),
+    [
+        ("abc", "abc"),
+        (123, "123"),
+        (UUID(int=1), "00000000-0000-0000-0000-000000000001"),
+        (None, None),
+    ],
+)
 @patch("myrm_agent_harness.utils.runtime.wakeup_registry.get_global_wakeup_handler")
 @patch("myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink")
-async def test_trigger_async_wakeup_no_handler_no_sink(mock_get_sink, mock_get_handler, mock_agent):
+async def test_trigger_async_wakeup_routes_by_the_string_form_of_the_session_id(
+    mock_get_sink: MagicMock,
+    mock_get_handler: MagicMock,
+    mock_agent: BaseAgent,
+    raw_session_id: object,
+    expected: str | None,
+) -> None:
+    """A host may carry its session id as int or UUID; the handler still receives it, as ``str``."""
+    mock_handler = AsyncMock()
+    mock_get_handler.return_value = mock_handler
+    mock_get_sink.return_value = None
+    mock_agent._last_context = {"session_id": raw_session_id, "agent_id": "test-parent-agent"}
+    result = SubAgentResult(task_id="task-004", agent_type="test_subagent", success=True)
+
+    await mock_agent.trigger_async_wakeup(result)
+
+    mock_handler.on_async_wakeup.assert_awaited_once_with(result, "test-parent-agent", expected)
+
+
+class _RecordingHandler:
+    def __init__(self) -> None:
+        self.woken: list[str | None] = []
+        self.read: list[str | None] = []
+
+    async def on_async_wakeup(self, result: SubAgentResult, agent_id: str, session_id: str | None) -> None:
+        self.woken.append(session_id)
+
+    def on_results_read(self, task_ids: Collection[str], session_id: str | None) -> None:
+        self.read.append(session_id)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("raw_session_id", ["abc", 123, UUID(int=1)], ids=["str", "int", "uuid"])
+async def test_a_wake_and_the_read_that_stands_it_down_name_the_same_session(
+    mock_agent: BaseAgent, raw_session_id: object
+) -> None:
+    """The wake turn is queued under one key and stood down under it, whatever type the host carries its id in."""
+    handler = _RecordingHandler()
+    set_global_wakeup_handler(handler)
+    mock_agent._last_context = {"session_id": raw_session_id, "agent_id": "test-parent-agent"}
+    settled = [{"task_id": "task-005", "status": SubAgentStatus.COMPLETED.value}]
+    try:
+        with patch.object(mock_agent, "list_children", return_value=settled):
+            await create_subagent_control_tool(mock_agent).ainvoke({"action": "list"})
+        await mock_agent.trigger_async_wakeup(
+            SubAgentResult(task_id="task-005", agent_type="test_subagent", success=True)
+        )
+    finally:
+        set_global_wakeup_handler(None)
+
+    assert handler.woken == [str(raw_session_id)]
+    assert handler.read == [str(raw_session_id)]
+
+
+@pytest.mark.asyncio
+@patch("myrm_agent_harness.utils.runtime.wakeup_registry.get_global_wakeup_handler")
+@patch("myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink")
+async def test_trigger_async_wakeup_no_handler_no_sink(
+    mock_get_sink: MagicMock, mock_get_handler: MagicMock, mock_agent: BaseAgent
+) -> None:
     """Test that trigger_async_wakeup handles None returned by getters gracefully."""
     # Setup mocks to return None
     mock_get_handler.return_value = None
@@ -79,7 +153,9 @@ async def test_trigger_async_wakeup_no_handler_no_sink(mock_get_sink, mock_get_h
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.utils.runtime.wakeup_registry.get_global_wakeup_handler")
 @patch("myrm_agent_harness.utils.runtime.progress_sink.get_tool_progress_sink")
-async def test_trigger_async_wakeup_exception_handling(mock_get_sink, mock_get_handler, mock_agent):
+async def test_trigger_async_wakeup_exception_handling(
+    mock_get_sink: MagicMock, mock_get_handler: MagicMock, mock_agent: BaseAgent
+) -> None:
     """Test that trigger_async_wakeup catches exceptions from handler/sink and continues."""
     # Setup mocks to raise exceptions
     mock_handler = AsyncMock()

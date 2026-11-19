@@ -1,4 +1,5 @@
-"""Racing resolvers decide a held reply once: it is sent or released a single time and nobody fails.
+"""Racing resolvers decide an approval once and nobody fails: a held reply is sent or released a single time, and the
+takeover resolution a resumed chat runs goes through while other writers commit.
 
 Runs on an engine set up like the production one (WAL, a deferred BEGIN that escalates to IMMEDIATE on the first write),
 where two overlapping read-then-write transactions would otherwise fail the later one with "database is locked".
@@ -13,7 +14,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from sqlalchemy import event
@@ -49,6 +50,22 @@ class RaceDb:
             )
             await db.commit()
 
+    async def seed_takeover(self, approval_id: str, chat_id: str) -> None:
+        async with self.sessions() as db:
+            db.add(
+                ApprovalRecord(
+                    id=approval_id,
+                    agent_id="agent-1",
+                    chat_id=chat_id,
+                    action_type="browser_takeover",
+                    reason="sign-in needed",
+                    severity="warning",
+                    payload={},
+                    status="PENDING",
+                )
+            )
+            await db.commit()
+
 
 @pytest.fixture()
 async def race_db(tmp_path: Path) -> AsyncIterator[RaceDb]:
@@ -75,6 +92,8 @@ async def race_db(tmp_path: Path) -> AsyncIterator[RaceDb]:
     with (
         patch("app.services.approvals.registry.get_session", get_session),
         patch("app.services.approvals.registry.finalize_outbound_draft", finalize),
+        # The run digest is process-wide state this file has no stake in.
+        patch.object(ApprovalRegistry, "_sync_copilot_pending", AsyncMock()),
     ):
         yield db
     await engine.dispose()
@@ -108,3 +127,23 @@ async def test_expiry_sweep_racing_a_click_decides_the_reply_once(race_db: RaceD
         assert swept + (clicked is not None) == 1, "the sweep or the click decides the reply, never both"
 
     assert race_db.finalized == Counter({f"expired-{n}": 1 for n in range(ROUNDS)})
+
+
+async def test_takeover_resolution_amid_other_writers_never_fails(race_db: RaceDb) -> None:
+    # A writer that commits between the resolver's read and its write fails a read-then-write that did not take the lock first.
+    stop = asyncio.Event()
+
+    async def keep_writing() -> None:
+        written = 0
+        while not stop.is_set():
+            await race_db.seed_draft(f"noise-{written}")
+            written += 1
+
+    writer = asyncio.create_task(keep_writing())
+    try:
+        for round_no in range(ROUNDS):
+            await race_db.seed_takeover(f"takeover-{round_no}", "chat-1")
+            assert await ApprovalRegistry.resolve_pending_browser_takeover_for_chat("chat-1") == 1
+    finally:
+        stop.set()
+        await writer

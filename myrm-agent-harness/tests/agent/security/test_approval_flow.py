@@ -336,7 +336,8 @@ class TestAllowlist:
             async def remove(self, *a, **kw):
                 pass
 
-        al._store = MockStore()
+        store = MockStore()
+        al._store = store
 
         await add_to_allowlist_if_needed(
             {"args": False, "ttl_seconds": -1},
@@ -346,38 +347,8 @@ class TestAllowlist:
             session_id="sess_mock_42",
         )
         # Verify not saved to store
-        assert len(al._store.saved) == 0
+        assert len(store.saved) == 0
         # Verify matched in memory for sess_mock_42
         assert al.check("user_sess_test", "shell_exec", "git_tool", session_id="sess_mock_42") is True
         # Verify not matched for other session
         assert al.check("user_sess_test", "shell_exec", "git_tool", session_id="other_sess") is False
-
-    @pytest.mark.asyncio
-    async def test_sandbox_aware_auto_bypass_audit_trace(self) -> None:
-        """Verify that when running in sandbox mode, safe commands trigger SANDBOX_AUTO_BYPASS."""
-        from myrm_agent_harness.agent.middlewares.approval.batch_processor import evaluate_tool_batch
-        from myrm_agent_harness.agent.security.types import SecurityConfig
-        from myrm_agent_harness.core.security.audit import get_audit_entries, reset_audit_log
-
-        reset_audit_log()
-        config = SecurityConfig(is_sandbox=True)
-
-        tool_calls = [{"name": "bash_code_execute_tool", "args": {"command": "ls -la"}}]
-        auto_approved, auto_denied, pending = await evaluate_tool_batch(
-            tool_calls,
-            config=config,
-            is_cron=False,
-            workspace_root="/tmp",
-            session_key="test_sandbox_sess",
-            args_hashes={0: None},
-        )
-        assert len(auto_approved) == 1
-        assert len(auto_denied) == 0
-        assert len(pending) == 0
-
-        audit_entries = get_audit_entries()
-        assert any(e.decision == "SANDBOX_AUTO_BYPASS" for e in audit_entries)
-
-
-
-

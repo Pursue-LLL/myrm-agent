@@ -3,6 +3,7 @@
  * - `@/lib/backend-health` (`checkBackendReadyOnce`)
  * - `@/lib/deploy-mode` (`isLocalMode`, `isRemoteGatewayActive`, `setRemoteGatewayConfig`, `getRemoteGatewayConfig`, `isTauriRuntime`)
  * - `@/lib/remote-follow-switch` (`switchRemoteFollow`, 切回本地显式重启后端)
+ * - `@/lib/local-backend-e2e-probe` (`isChromeE2eTab`, `waitForChromeE2eBackendBinding`；POS: 非生产构建里等 E2E 私有后端绑定，抑制误报)
  * - `next-intl` (`common.configLoadError`, `common.close`, `common.remoteGateway`)
  *
  * [OUTPUT]
@@ -135,7 +136,8 @@ export default function LocalBackendUnavailableBanner({ className }: LocalBacken
     }
 
     void (async () => {
-      if (!remoteActive && isChromeE2eTab()) {
+      // E2E-only wait for the private backend binding; the literal lets a production build drop the whole branch.
+      if (!remoteActive && process.env.NODE_ENV !== 'production' && isChromeE2eTab()) {
         const bound = await waitForChromeE2eBackendBinding();
         if (cancelled) {
           return;

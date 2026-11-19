@@ -74,6 +74,56 @@ describe('findActivePendingClarification', () => {
 
     expect(findActivePendingClarification(messages)?.messageId).toBe('a1');
   });
+
+  describe('once the user has moved on', () => {
+    const card: Message = {
+      messageId: 'a1',
+      chatId: 'c1',
+      role: 'assistant',
+      content: 'Which one?',
+      createdAt: new Date('2025-06-01T10:00:00Z'),
+      clarification: { answered: false, form: { questions: [{ id: 'q1', prompt: 'Which one?' }] } },
+    };
+    const userTurn = (messageId: string): Message => ({
+      messageId,
+      chatId: 'c1',
+      role: 'user',
+      content: 'never mind, do something else',
+      createdAt: new Date('2025-06-01T10:05:00Z'),
+    });
+
+    it('ignores a card the user answered with a new message and the agent replied to', () => {
+      const reply: Message = {
+        messageId: 'a2',
+        chatId: 'c1',
+        role: 'assistant',
+        content: 'Sure.',
+        createdAt: new Date(),
+      };
+
+      expect(findActivePendingClarification([card, userTurn('u2'), reply])).toBeNull();
+    });
+
+    it('ignores a card as soon as the new user message is in the list, before any reply', () => {
+      expect(findActivePendingClarification([card, userTurn('u2')])).toBeNull();
+    });
+
+    it('keeps a card that only background messages follow', () => {
+      const notice: Message = {
+        messageId: 'n1',
+        chatId: 'c1',
+        role: 'custom_message',
+        content: 'A background task finished',
+        createdAt: new Date(),
+      };
+
+      expect(findActivePendingClarification([userTurn('u1'), card, notice])?.messageId).toBe('a1');
+    });
+
+    it('keeps the card of the current turn, whose user message comes before it', () => {
+      expect(findActivePendingClarification([userTurn('u1'), card])?.messageId).toBe('a1');
+    });
+  });
 });
 
 describe('normalizeHydratedClarification', () => {

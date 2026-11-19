@@ -17,6 +17,7 @@ from fastapi import Header, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.event_log import EventLogAnalytics
 from myrm_agent_harness.agent.event_log.backends.file_backend import FileEventLogBackend
+from myrm_agent_harness.toolkits.cron import matching_run_statuses
 from sqlalchemy import func, select
 
 from app.api.statistics.timezone_helper import resolve_user_timezone
@@ -156,7 +157,7 @@ async def get_nav_badges() -> JSONResponse:
                 select(func.count())
                 .select_from(CronRunModel)
                 .where(
-                    CronRunModel.status.in_(("failed", "error")),
+                    CronRunModel.status.in_(matching_run_statuses("error")),
                     CronRunModel.started_at >= twenty_four_hours_ago,
                 )
             )

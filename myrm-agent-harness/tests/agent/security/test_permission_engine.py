@@ -11,7 +11,6 @@ from myrm_agent_harness.agent.security.checks import (
     check_shell_threats,
 )
 from myrm_agent_harness.agent.security.config import (
-    apply_remote_exposed_overlay,
     from_config,
     parse_security_config,
     remote_exposed_permissions,
@@ -231,15 +230,15 @@ class TestCheckShellThreats:
         assert action is None
 
     def test_safe_command(self) -> None:
-        action, _ = check_shell_threats("shell_exec", {"command": "ls -la"})
+        action, _ = check_shell_threats("shell_exec", {"data": "ls -la"})
         assert action is None
 
     def test_dangerous_command(self) -> None:
-        action, _reason = check_shell_threats("shell_exec", {"command": "rm -rf /"})
+        action, _reason = check_shell_threats("shell_exec", {"data": "rm -rf /"})
         assert action is not None
 
     def test_empty_command(self) -> None:
-        action, _ = check_shell_threats("shell_exec", {"command": ""})
+        action, _ = check_shell_threats("shell_exec", {"data": ""})
         assert action is None
 
 
@@ -308,8 +307,12 @@ class TestCheckToolPathPolicy:
 
 
 class TestResolveTarget:
-    def test_shell_exec_returns_command(self) -> None:
-        target = _resolve_target("shell_exec", {"command": "ls -la"})
+    def test_shell_exec_returns_the_typed_process_input(self) -> None:
+        target = _resolve_target("shell_exec", {"data": "ls -la"})
+        assert target == "ls -la"
+
+    def test_code_interpreter_returns_the_command(self) -> None:
+        target = _resolve_target("code_interpreter", {"command": "ls -la"})
         assert target == "ls -la"
 
     def test_unknown_permission_returns_star(self) -> None:
@@ -414,7 +417,7 @@ class TestEvaluateToolCall:
 
     def test_shell_threat_denied(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "rm -rf /"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "rm -rf /"}, config)
         assert action in (PermissionAction.DENY, PermissionAction.ASK)
 
     def test_navigate_scheme_denied(self) -> None:
@@ -554,37 +557,37 @@ class TestRiskClassificationIntegration:
 
     def test_safe_command_auto_allowed(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "ls -la"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "ls -la"}, config)
         assert action == PermissionAction.ALLOW
 
     def test_safe_pipeline_auto_allowed(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "cat file | grep pattern"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "cat file | grep pattern"}, config)
         assert action == PermissionAction.ALLOW
 
     def test_unknown_command_still_asks(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "rm file.txt"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "rm file.txt"}, config)
         assert action == PermissionAction.ASK
 
     def test_redirect_not_auto_allowed(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "echo hello > file.txt"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "echo hello > file.txt"}, config)
         assert action == PermissionAction.ASK
 
     def test_dangerous_command_still_denied(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "rm -rf /"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "rm -rf /"}, config)
         assert action in (PermissionAction.DENY, PermissionAction.ASK)
 
     def test_user_deny_overrides_risk_classification(self) -> None:
         config = SecurityConfig(ruleset=(PermissionRule("shell_exec", "*", PermissionAction.DENY),))
-        action, _ = evaluate_tool_call("shell_exec", {"command": "ls"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "ls"}, config)
         assert action == PermissionAction.DENY
 
     def test_user_allow_still_works(self) -> None:
         config = SecurityConfig(ruleset=(PermissionRule("shell_exec", "*", PermissionAction.ALLOW),))
-        action, _ = evaluate_tool_call("shell_exec", {"command": "rm file.txt"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "rm file.txt"}, config)
         assert action == PermissionAction.ALLOW
 
     def test_non_shell_permission_unaffected(self) -> None:
@@ -595,34 +598,34 @@ class TestRiskClassificationIntegration:
     def test_git_read_only_auto_allowed(self) -> None:
         """Git read-only commands with valid flags should be auto-allowed via risk classifier."""
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "git status -s"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "git status -s"}, config)
         assert action == PermissionAction.ALLOW
 
     def test_git_log_with_flags_auto_allowed(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "git log --oneline -n 10"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "git log --oneline -n 10"}, config)
         assert action == PermissionAction.ALLOW
 
     def test_git_diff_auto_allowed(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "git diff --stat"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "git diff --stat"}, config)
         assert action == PermissionAction.ALLOW
 
     def test_git_push_not_auto_allowed(self) -> None:
         """Write operations should remain ASK."""
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "git push origin main"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "git push origin main"}, config)
         assert action == PermissionAction.ASK
 
     def test_git_commit_not_auto_allowed(self) -> None:
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "git commit -m 'test'"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "git commit -m 'test'"}, config)
         assert action == PermissionAction.ASK
 
     def test_git_unknown_flag_not_auto_allowed(self) -> None:
         """Git commands with unknown flags should remain ASK."""
         config = SecurityConfig()
-        action, _ = evaluate_tool_call("shell_exec", {"command": "git diff --output=pwned.txt"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "git diff --output=pwned.txt"}, config)
         assert action == PermissionAction.ASK
 
     def test_code_interpreter_git_status_auto_allowed(self) -> None:
@@ -663,15 +666,3 @@ class TestSecurityConfigSerialization:
         assert isinstance(perms, dict)
         assert perms.get("skill_manage") == "deny"
         assert perms.get("cron_manage") == "deny"
-
-    def test_apply_remote_exposed_overlay_merges_deny_rules(self) -> None:
-        base = SecurityConfig(
-            network_blocklist=("blocked.test",),
-            yolo_mode_enabled=True,
-            yolo_mode_timeout=120,
-        )
-        merged = apply_remote_exposed_overlay(base)
-        assert merged.network_blocklist == ("blocked.test",)
-        assert merged.yolo_mode_enabled is False
-        assert merged.yolo_mode_timeout is None
-        assert len(merged.ruleset) >= len(base.ruleset)

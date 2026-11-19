@@ -7,7 +7,7 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 子域出口 | 聚合 `AppSettings`、`settings`、`get_settings` 与全部配置组 | — |
-| `llm.py` | 核心 | `LLMProvider`、`ProviderCacheConfig` / `PROVIDER_CACHE_CONFIGS`、`CacheSettings` | ✅ |
+| `llm.py` | 核心 | `CacheSettings`（harness 级缓存优化开关） | ✅ |
 | `channels.py` | 核心 | DingTalk / MCP / BrowserPool / WebUI 配置组 | ✅ |
 | `security.py` | 核心 | Bash 审计、代码执行、安全、Agent Gateway 配置组 | ✅ |
 | `infra.py` | 核心 | 数据库、服务、控制面、监控、上下文压缩与记忆遥测、执行缓存配置组 | ✅ |
@@ -17,4 +17,4 @@
 ## 依赖关系
 
 - 上游：`pydantic` / `pydantic-settings`、`app.config.deploy_mode`、`app.config.paths`
-- 下游：全仓 212 个模块通过 `from app.config.settings import settings / get_settings` 读取配置
+- 下游：全仓模块通过 `from app.config.settings import settings / get_settings` 读取配置

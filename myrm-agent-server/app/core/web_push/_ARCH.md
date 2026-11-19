@@ -60,7 +60,7 @@ Paths align with in-app SSE handlers (`useGlobalEvents`):
 | `CHANNEL_DISCONNECTED` | `/settings/channels` |
 | `OAUTH_REAUTH_REQUIRED` | `/settings/credentials`（所有 OAuth 账号，含 xAI） |
 
-The browser SW (`src/app/sw.ts`) imports `src/lib/web-push/pushTargetUrl.ts` (bundled via `scripts/build-sw-src.mjs` before inject-manifest). It sanitizes payload URLs before `openWindow`. When a window client is already on the target pathname but the query differs (e.g. approval deep link), the SW calls `client.navigate()` instead of focus-only.
+The browser SW (`src/app/sw.ts`) imports `src/lib/web-push/pushTargetUrl.ts` (bundled into `public/sw.js` by the frontend's `bun run build:sw`). It sanitizes payload URLs before `openWindow`. When a window client is already on the target pathname but the query differs (e.g. approval deep link), the SW calls `client.navigate()` instead of focus-only.
 
 ## VAPID Key Storage
 

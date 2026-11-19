@@ -1,21 +1,15 @@
 """What becomes of a goal when a stream the server started on its own fails.
 
-[INPUT] GoalProvider, channel_t, app_event_bus, config_loader (the owner's locale)
-[OUTPUT] TriggerFailurePolicy, resolve_user_locale, publish_goal_needs_review_notification, handle_unattended_goal_stream_failure
+[INPUT] GoalRegistry (the session's goal provider), channel_t, app_event_bus, config_loader (the owner's locale)
+[OUTPUT] resolve_user_locale, publish_goal_needs_review_notification, handle_unattended_goal_stream_failure
 [POS] The failure policy every unattended goal stream shares (resume, follow-up turn, wake after a background job).
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Literal
-
-if TYPE_CHECKING:
-    from myrm_agent_harness.agent.goals.protocols import GoalProvider
 
 logger = logging.getLogger(__name__)
-
-TriggerFailurePolicy = Literal["needs_human_review", "keep_active"]
 
 
 async def resolve_user_locale() -> str:
@@ -65,41 +59,30 @@ async def publish_goal_needs_review_notification(session_id: str, goal_id: str) 
 async def handle_unattended_goal_stream_failure(
     session_id: str,
     goal_id: str,
-    provider: GoalProvider | None,
     *,
-    on_failure: TriggerFailurePolicy,
     context: str,
 ) -> None:
-    """Apply unattended stream failure policy — review state or Cron keep-active.
+    """Leave the goal of a start or run that failed for review, and tell its owner.
 
-    Only a goal still ACTIVE is escalated: a run that already parked, paused or finished
-    the goal before failing must not have that state overwritten.
+    Nothing else would run an ACTIVE goal whose turn failed, so it moves to NEEDS_HUMAN_REVIEW. Only a goal still
+    ACTIVE is escalated: a run that already parked, paused or finished the goal before failing must not have that
+    state overwritten. The goal is read and changed through the registry's provider for the session, since the turn
+    that failed has already given its own back.
     """
-    if on_failure == "keep_active":
-        logger.error(
-            "Goal %s remains ACTIVE for Cron fallback after %s failure",
-            goal_id,
-            context,
-        )
-        return
-
-    if provider is None:
-        logger.warning(
-            "Cannot mark goal %s as NEEDS_HUMAN_REVIEW: no GoalProvider",
-            goal_id,
-        )
-        return
-
     from myrm_agent_harness.agent.goals.types import GoalStatus
 
+    from app.services.agent.goals.goal_registry import GoalRegistry
+
     try:
+        provider = GoalRegistry.resolve_provider(session_id)
         goal = await provider.get_goal(goal_id)
         if goal is None or goal.status is not GoalStatus.ACTIVE:
             logger.info("Goal %s already left ACTIVE during %s; keeping its state", goal_id, context)
             return
         await provider.update_status(goal_id, GoalStatus.NEEDS_HUMAN_REVIEW)
     except Exception:
-        logger.warning("Could not mark goal %s as NEEDS_HUMAN_REVIEW", goal_id)
+        # The goal stays ACTIVE with no turn to run it, and nothing else tells why: keep the cause with the message.
+        logger.exception("Could not mark goal %s as NEEDS_HUMAN_REVIEW", goal_id)
         return
 
     try:

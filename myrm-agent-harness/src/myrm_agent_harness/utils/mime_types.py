@@ -1,6 +1,6 @@
 """Centralized image MIME type utilities.
 
-Provides extension ↔ MIME mappings and magic-bytes detection used by
+Provides extension ↔ MIME mappings and magic-bytes detection (images and video containers) used by
 image generation, video generation, channel media, and external-agent image delegation.
 """
 
@@ -47,14 +47,10 @@ _MAGIC_SIGNATURES: tuple[tuple[bytes, int, bytes | None, str], ...] = (
 )
 
 
-def detect_image_mime(data: bytes, fallback: str = "image/png") -> str:
-    """Detect image MIME type from leading magic bytes.
-
-    Checks JPEG, PNG, WebP, and GIF signatures.  Returns *fallback*
-    when the data is too short or matches no known signature.
-    """
+def sniff_image_mime(data: bytes) -> str | None:
+    """Image MIME type named by the leading magic bytes, or ``None`` when no known signature matches."""
     if len(data) < 4:
-        return fallback
+        return None
     for signature, offset, extra, mime in _MAGIC_SIGNATURES:
         end = offset + len(signature)
         if data[offset:end] == signature:
@@ -63,7 +59,36 @@ def detect_image_mime(data: bytes, fallback: str = "image/png") -> str:
             extra_start = 8  # RIFF(4) + filesize(4)
             if data[extra_start : extra_start + len(extra)] == extra:
                 return mime
-    return fallback
+    return None
+
+
+def detect_image_mime(data: bytes, fallback: str = "image/png") -> str:
+    """Detect image MIME type from leading magic bytes.
+
+    Checks JPEG, PNG, WebP, GIF and BMP signatures.  Returns *fallback*
+    when the data is too short or matches no known signature.
+    """
+    return sniff_image_mime(data) or fallback
+
+
+# (signature, offset, RIFF form type at byte 8 or None): MP4/MOV (ftyp box), WebM/Matroska (EBML header), AVI.
+_VIDEO_MAGIC_SIGNATURES: tuple[tuple[bytes, int, bytes | None], ...] = (
+    (b"ftyp", 4, None),
+    (b"\x1a\x45\xdf\xa3", 0, None),
+    (b"RIFF", 0, b"AVI "),
+)
+_MIN_VIDEO_BYTES = 12
+
+
+def is_video_content(data: bytes) -> bool:
+    """Whether the leading magic bytes identify a video container (MP4/MOV, WebM/Matroska, AVI)."""
+    if len(data) < _MIN_VIDEO_BYTES:
+        return False
+    return any(
+        data[offset : offset + len(signature)] == signature
+        and (form_type is None or data[8 : 8 + len(form_type)] == form_type)
+        for signature, offset, form_type in _VIDEO_MAGIC_SIGNATURES
+    )
 
 
 def extension_for_mime(mime: str, fallback: str = "png") -> str:

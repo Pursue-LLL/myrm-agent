@@ -4,7 +4,8 @@
 - transport.capabilities (POS: gemini_from_3, gemini_thinks_by_level, gemini_thinking_level — what a Gemini generation takes)
 - transport.gemini_contents (POS: history as alternating turns, the call-id signature convention)
 - transport.gemini_schema (POS: tool-parameter schema reduction to the Gemini subset)
-- transport.profile (POS: Route — endpoint root and credential)
+- transport.endpoint (POS: GEMINI_OFFICIAL_HOST, the one host that takes the key as a header only)
+- transport.profile (POS: Route — endpoint root, endpoint query and credential)
 - transport.params (POS: CallOptions split of the call's keyword arguments)
 - transport.chat_shape (POS: answered_without, the failure of a 200 answer that holds no candidate)
 - transport.http (POS: PreparedRequest, StreamDecoder)
@@ -38,13 +39,14 @@ from myrm_agent_harness.toolkits.llms.transport.capabilities import (
     gemini_thinks_by_level,
 )
 from myrm_agent_harness.toolkits.llms.transport.chat_shape import answered_without
+from myrm_agent_harness.toolkits.llms.transport.endpoint import GEMINI_OFFICIAL_HOST
 from myrm_agent_harness.toolkits.llms.transport.errors import LLMAnswerError
 from myrm_agent_harness.toolkits.llms.transport.frames import json_frame
 from myrm_agent_harness.toolkits.llms.transport.gemini_contents import SIGNATURE_SEPARATOR, Part, to_contents
 from myrm_agent_harness.toolkits.llms.transport.gemini_schema import to_gemini_schema
 from myrm_agent_harness.toolkits.llms.transport.http import Chunk, PreparedRequest, StreamDecoder
 from myrm_agent_harness.toolkits.llms.transport.params import CallOptions, merge_headers, split_params
-from myrm_agent_harness.toolkits.llms.transport.profile import GEMINI_OFFICIAL_HOST, Route, UnsupportedProviderError
+from myrm_agent_harness.toolkits.llms.transport.profile import Route, UnsupportedProviderError
 from myrm_agent_harness.toolkits.llms.transport.retry import DEFAULT_RETRIES
 
 logger = logging.getLogger(__name__)
@@ -220,7 +222,7 @@ def prepare(route: Route, messages: Sequence[Mapping[str, object]], params: Mapp
         timeout=opts.timeout,
         proxy=opts.proxy,
         stream=opts.stream,
-        query={"alt": "sse"} if opts.stream else {},
+        query={**route.query, "alt": "sse"} if opts.stream else dict(route.query),
         retries=DEFAULT_RETRIES,
     )
 

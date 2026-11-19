@@ -1,12 +1,11 @@
 """Multimodal reads for file_read_tool: image, PDF, document and video blocks, and their text-mode fallbacks.
 
 [INPUT]
-- core.file_operation_service::FileOperationService (POS: file operation service)
-- core.operation_context::OperationContext, OperationType (POS: file operation context)
-- file_read.text_paths::read_structure_outline (POS: structure-mode outline of a text path)
+- file_read.text_paths::process_text_paths (POS: text path read: modes, page cap, structure outline, per-file redaction)
 - utils.*_reader (POS: image/pdf/video/document readers)
 - utils.vault_read::read_vault_paths_to_parts (POS: vault URI batch reader)
-- agent.security.redact::redact_sensitive_text (POS: tool output redaction)
+- agent.security.redact::redact_sensitive_text, redact_extracted_text (POS: tool output redaction; redaction of the text a reader extracted, by file type)
+- core.security.tool_registry::strip_read_range (POS: the file path of a path argument, without its ``:START-END`` range)
 - backends.skills.types::SkillMetadata (POS: MCP skill metadata)
 
 [OUTPUT]
@@ -14,7 +13,8 @@
 - append_media_text_parts: text-mode fallbacks for image/pdf/document/video
 
 [POS]
-Multimodal read execution for file_read_tool; plain text paths are read in text_paths.py.
+Multimodal read execution for file_read_tool. The text of every block it returns is redacted as its file's type is,
+a notebook as source code; plain text paths are read in text_paths.py, the way a call without media reads them.
 """
 
 from __future__ import annotations
@@ -25,16 +25,15 @@ from typing import TYPE_CHECKING, cast
 from langchain_core.messages.content import ContentBlock, create_text_block
 from langchain_core.runnables import RunnableConfig
 
-from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.agent.security.redact import redact_extracted_text, redact_sensitive_text
+from myrm_agent_harness.core.security.tool_registry import strip_read_range
 
 from ...utils.document_reader import read_document_as_text, read_document_multimodal
 from ...utils.image_reader import read_image_as_content_blocks
 from ...utils.pdf_reader import read_pdf_as_content_blocks
 from ...utils.vault_read import read_vault_paths_to_parts
 from ...utils.video_reader import read_video_as_content_blocks
-from ..file_operation_service import FileOperationService
-from ..operation_context import OperationContext, OperationType
-from .text_paths import read_structure_outline
+from .text_paths import process_text_paths
 
 if TYPE_CHECKING:
     from myrm_agent_harness.backends.skills.types import SkillMetadata
@@ -65,6 +64,25 @@ async def _read_image_via_ocr(img_path: str, executor: CodeExecutor) -> str | No
     return f"[Image OCR for {img_path}]:\n{text}"
 
 
+def _as_blocks(result: str | list[ContentBlock]) -> list[ContentBlock]:
+    """A reader's answer as content blocks: a plain string is one text block."""
+    return result if isinstance(result, list) else [create_text_block(result)]
+
+
+def _redact_text_blocks(blocks: list[ContentBlock], path: str) -> list[ContentBlock]:
+    """``blocks`` with the text of each redacted as the text extracted from ``path``; an image block stays as it is."""
+    base = strip_read_range(path)
+    redacted: list[ContentBlock] = []
+    for block in blocks:
+        fields = cast("dict[str, object]", block)
+        text = fields.get("text")
+        if fields.get("type") == "text" and isinstance(text, str):
+            redacted.append(cast("ContentBlock", {**fields, "text": redact_extracted_text(base, text)}))
+        else:
+            redacted.append(block)
+    return redacted
+
+
 async def build_multimodal_result(
     image_paths: list[str],
     pdf_paths: list[str],
@@ -86,19 +104,20 @@ async def build_multimodal_result(
     *,
     config: RunnableConfig,
 ) -> list[ContentBlock]:
-    """Build multimodal result: images/PDFs as content blocks, documents/text as text blocks."""
+    """Build multimodal result: images/PDFs as content blocks, documents/text as text blocks.
+
+    Every text block is redacted: the text of a media or document block as its file's type is, a URL refusal and
+    vault text in full, and text paths by ``process_text_paths``. Images pass through as they are.
+    """
     blocks: list[ContentBlock] = []
 
     if url_errors:
-        blocks.append(create_text_block("\n".join(url_errors)))
+        blocks.append(create_text_block(redact_sensitive_text("\n".join(url_errors))))
 
     for img_path in image_paths:
+        shown: list[ContentBlock] = []
         if supports_vision:
-            result = await read_image_as_content_blocks(img_path, executor, supports_vision=True)
-            if isinstance(result, list):
-                blocks.extend(result)
-            else:
-                blocks.append(create_text_block(result))
+            shown.extend(_as_blocks(await read_image_as_content_blocks(img_path, executor, supports_vision=True)))
         elif vision_fallback_model_cfg is not None or vision_fallback_model_cfgs is not None:
             from myrm_agent_harness.toolkits.llms.vision.fallback_engine import (
                 create_vision_fallback_engine,
@@ -112,20 +131,17 @@ async def build_multimodal_result(
                 if engine is None:
                     raise ValueError("Vision fallback engine is not configured")
                 fallback_text = await engine.describe_local_image(img_path, executor)
-                blocks.append(create_text_block(f"[Image Analysis for {img_path}]:\n{fallback_text}"))
+                shown.append(create_text_block(f"[Image Analysis for {img_path}]:\n{fallback_text}"))
             except Exception as e:
                 logger.warning("Vision fallback failed for %s: %s", img_path, e)
-                blocks.append(create_text_block(f"[Image file: {img_path}] (Vision analysis unavailable)"))
+                shown.append(create_text_block(f"[Image file: {img_path}] (Vision analysis unavailable)"))
         else:
             ocr_text = await _read_image_via_ocr(img_path, executor)
             if ocr_text is not None:
-                blocks.append(create_text_block(ocr_text))
+                shown.append(create_text_block(ocr_text))
             else:
-                plain_result = await read_image_as_content_blocks(img_path, executor, supports_vision=False)
-                if isinstance(plain_result, list):
-                    blocks.extend(plain_result)
-                else:
-                    blocks.append(create_text_block(plain_result))
+                shown.extend(_as_blocks(await read_image_as_content_blocks(img_path, executor, supports_vision=False)))
+        blocks.extend(_redact_text_blocks(shown, img_path))
 
     for pdf_path in pdf_paths:
         result = await read_pdf_as_content_blocks(
@@ -136,10 +152,7 @@ async def build_multimodal_result(
             vision_fallback_model_cfgs=vision_fallback_model_cfgs,
             parse_mode=parse_mode,
         )
-        if isinstance(result, list):
-            blocks.extend(result)
-        else:
-            blocks.append(create_text_block(result))
+        blocks.extend(_redact_text_blocks(_as_blocks(result), pdf_path))
 
     for doc_path in document_paths:
         doc_blocks = await read_document_multimodal(
@@ -148,7 +161,7 @@ async def build_multimodal_result(
             supports_vision=supports_vision,
             parse_mode=parse_mode,
         )
-        blocks.extend(doc_blocks)
+        blocks.extend(_redact_text_blocks(doc_blocks, doc_path))
 
     for vid_path in video_paths or []:
         result = await read_video_as_content_blocks(
@@ -160,10 +173,7 @@ async def build_multimodal_result(
             vision_fallback_model_cfgs=vision_fallback_model_cfgs,
             video_fallback_model_cfgs=video_fallback_model_cfgs,
         )
-        if isinstance(result, list):
-            blocks.extend(result)
-        else:
-            blocks.append(create_text_block(result))
+        blocks.extend(_redact_text_blocks(_as_blocks(result), vid_path))
 
     if vault_paths:
         vault_parts = await read_vault_paths_to_parts(vault_paths, executor, mode, config=config)
@@ -171,21 +181,11 @@ async def build_multimodal_result(
             blocks.append(create_text_block(redact_sensitive_text("\n\n".join(vault_parts))))
 
     if text_paths:
-        if parse_mode == "structure":
-            for tp in text_paths:
-                blocks.append(create_text_block(await read_structure_outline(tp, executor, skills, reason)))
-        else:
-            op_context = OperationContext(
-                operation=OperationType.VIEW,
-                executor=executor,
-                skills=skills or [],
-                paths=text_paths,
-                reason=reason,
-            )
-            service = FileOperationService(op_context)
-            text_result = await service.execute()
-            if text_result:
-                blocks.append(create_text_block(redact_sensitive_text(text_result)))
+        text = "\n\n".join(
+            await process_text_paths(text_paths, executor, skills, reason, mode, config=config, parse_mode=parse_mode)
+        )
+        if text:
+            blocks.append(create_text_block(text))
 
     return blocks if blocks else [create_text_block("No results.")]
 

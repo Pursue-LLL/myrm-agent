@@ -25,7 +25,7 @@ FE：`useChatTurnPrewarm.ts` module-level inflight dedupe — EmptyChat / Messag
 
 Orchestrator：`stream_session/orchestrator.py` 在 send 路径调用 `join_for_turn`（默认 join 0.3s）。
 
-Goal：`ensure_warming` / `join_for_turn` 的指纹都带 `has_active_goal`（`GoalRegistry.has_active_goal` 读存储）。活跃 Goal 在 build 期挂载 `complete_goal_tool` 并强制 planning，而 Goal provider 只在回合内注册，所以 `ensure_warming` 对有活跃 Goal 的 chat 不预热 agent（空闲期构建的 agent 缺这些工具，却会以带 Goal 的 key 被下一回合复用）；该 agent 由回合内的 `join_for_turn` 构建，编排器在 `build_turn_extra_context` 之前先 `prepare_goal_provider`。
+Goal：`ensure_warming` / `join_for_turn` 的指纹都带 `has_active_goal`（`GoalRegistry.has_active_goal` 读存储）。活跃 Goal 在 build 期挂载 `complete_goal_tool` 并强制 planning；`ensure_warming` 对有活跃 Goal 的 chat 不预热 agent（空闲期构建的 agent 会把 Goal 工具挂在不登记的存储直读 provider 上，而不是回合内登记的那个）；该 agent 由回合内的 `join_for_turn` 构建，编排器在 `build_turn_extra_context` 之前先 `prepare_goal_provider`。
 
 持锁方：预热自己不持有 turn lock；`stream_pipeline` 整个回合都在 `guard_turn` 内，以 `holds_turn_guard=True` 调用 `coalesced_acquire`。持锁回合合并到预热的在途 acquire 后，若该 acquire 因回合已持锁而被推迟，持锁方复核 `is_warm`，不匹配就自己完成替换（见 [execution_cache/_ARCH.md](../_ARCH.md)“指纹变化的生效路径”）。
 

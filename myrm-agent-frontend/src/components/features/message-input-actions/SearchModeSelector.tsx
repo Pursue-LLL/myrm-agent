@@ -95,12 +95,13 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
                     aria-checked={isActive}
                     aria-label={t(`${mode.key}Title`)}
                     onClick={() => handleModeChange(mode.key)}
-                    className="group/segmented-control relative rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+                    // Phones: segments are 44px wide and the invisible `after:` box adds the missing height, so both reach 44px.
+                    className="group/segmented-control relative rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5"
                   >
                     {isActive && (
                       <div className="pointer-events-none absolute inset-0 z-0 block bg-white dark:bg-black dark:bg-gradient-to-b dark:from-primary/20 dark:to-primary/20 border border-primary dark:border-primary/30 rounded-lg shadow-[0_1px_3px_0] shadow-primary/30 dark:shadow-primary/5 transition-all duration-300" />
                     )}
-                    <div className="relative z-10 flex h-8 min-w-9 items-center justify-center px-2.5">
+                    <div className="relative z-10 flex h-8 min-w-9 items-center justify-center px-2.5 max-sm:min-w-11">
                       <Icon
                         className={cn(
                           isActive

@@ -58,8 +58,8 @@ async def test_singleton_per_path(tmp_path):
 async def test_memory_fallback_isolated_per_path(tmp_path):
     """不同 base_path 的 fallback 必须隔离，不能共享同一内存 store。
 
-    回归：fallback 统一 cache_key 为 "memory_fallback" 导致多个不可写路径
-    共享同一个 in-memory Qdrant 实例（数据串写），且 evict 无法按原路径清理。
+    fallback 若统一 cache_key（如 "memory_fallback"），多个不可写路径会共享同一个
+    in-memory Qdrant 实例（数据串写），且 evict 无法按原路径清理。
     """
     from unittest.mock import MagicMock, patch
 
@@ -103,8 +103,8 @@ async def test_memory_fallback_isolated_per_path(tmp_path):
 async def test_explicit_memory_does_not_share_fallback_key(tmp_path):
     """显式 :memory: 与 fallback store 不得共用 cache_key。
 
-    回归：显式 ":memory:" 与不可写路径 fallback 此前共用 "memory_fallback"，
-    测试用的内存 store 会被 fallback 数据污染。
+    两者若共用同一个 cache_key（如 "memory_fallback"），测试用的内存 store 会被
+    fallback 数据污染。
     """
     from unittest.mock import MagicMock, patch
 
@@ -139,8 +139,8 @@ async def test_explicit_memory_does_not_share_fallback_key(tmp_path):
 async def test_memory_fallback_repeat_returns_same_instance(tmp_path):
     """同一不可写路径重复调用必须返回同一实例，不得覆盖泄漏。
 
-    回归：fallback 改写 cache_key 后未复查缓存，重复调用同一不可写路径
-    会新建 store 覆盖缓存，旧 QdrantClient 泄漏且单例语义破坏。
+    fallback 改写 cache_key 后必须复查缓存；否则重复调用同一不可写路径会新建 store
+    覆盖缓存，旧 QdrantClient 泄漏且单例语义被破坏。
     """
     from unittest.mock import MagicMock, patch
 
@@ -299,8 +299,8 @@ async def test_fallback_store_is_ephemeral(tmp_path):
 async def test_fallback_memory_failure_preserves_original_error(tmp_path):
     """磁盘失败 + 内存 fallback 也失败时，必须保留原始磁盘错误链。
 
-    回归：fallback 的 QdrantClient(:memory:) 抛异常会从 except 块逃逸，
-    原始磁盘错误（__cause__）丢失，调用方只看到误导性的新异常。
+    fallback 的 QdrantClient(:memory:) 抛异常时不能从 except 块逃逸；否则原始磁盘
+    错误（__cause__）丢失，调用方只看到误导性的新异常。
     """
     from unittest.mock import patch
 

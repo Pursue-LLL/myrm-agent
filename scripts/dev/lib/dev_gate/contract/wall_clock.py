@@ -125,11 +125,12 @@ def formal_chrome_e2e_runtime_heal_agent(agent_id: str) -> bool:
 # The observe window is the longest a new chat may take to commit its first assistant output
 # (the user row is persisted after it). Real sends sealed in 10.8 to 45.3 s, the slowest under
 # host load, so the window keeps about twice that; the page declares the same value as
-# SEND_TURN_OBSERVE_MS in E2EChatBridge.tsx.
+# SEND_TURN_OBSERVE_MS in e2eBridge/sendTurnContract.ts.
 SEND_TURN_OBSERVE_SEC: Final[int] = 90
 SEND_TURN_API_POLL_SEC: Final[int] = 60
-# Cap on one message-list poll in the page (SEND_TURN_API_POLL_TIMEOUT_MS in E2EChatBridge.tsx);
-# a poll that never answers would otherwise hold the observe loop until the Python wall.
+# Cap on one message-list poll in the page (SEND_TURN_API_POLL_TIMEOUT_MS in
+# e2eBridge/sendTurnContract.ts); a poll that never answers would otherwise hold the
+# observe loop until the Python wall.
 SEND_TURN_API_POLL_TIMEOUT_SEC: Final[int] = 10
 SEND_TURN_EVAL_RECV_SEC: Final[float] = float(
     SEND_TURN_OBSERVE_SEC + SEND_TURN_API_POLL_SEC + 10

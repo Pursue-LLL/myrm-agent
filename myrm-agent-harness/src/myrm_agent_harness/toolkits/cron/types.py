@@ -7,10 +7,11 @@ Consumed by scheduler, manager, tools, and application adapters.
 - infra.incremental.types::MonitorConfig (POS: Domain types for incremental monitoring.)
 
 [OUTPUT]
-- ScheduleKind: Classifies transient errors for smart retry decisions.
-- JobType: class — Job Type
-- JobStatus: class — Job Status
-- RunStatus: class — Run Status
+- ScheduleKind: how a job is scheduled — by cron expression, at a fixed interval or once
+- JobType: what a job runs — an agent prompt, a shell command, a router or a reminder
+- JobStatus: whether a job is active, paused or completed
+- RunStatus: how a run ended — ok, error, skipped or circuit break
+- RunNowOutcome: what a manual-run request came to — started, or why it did not
 - TransientErrorKind: Classifies transient errors for smart retry decisions.
 - CronNoticeKind: what a notice reports — a run's outcome or an automatic pause
 - CronNotice: one user-facing fact about a job, handed to the application layer's notice callback
@@ -55,6 +56,15 @@ class RunStatus(StrEnum):
     ERROR = "error"
     SKIPPED = "skipped"
     CIRCUIT_BREAK = "circuit_break"
+
+
+class RunNowOutcome(StrEnum):
+    """What a request for a manual run came to: the run started, or the reason it did not."""
+
+    STARTED = "started"
+    NOT_FOUND = "not_found"
+    NOT_ACTIVE = "not_active"
+    ALREADY_RUNNING = "already_running"
 
 
 class TransientErrorKind(StrEnum):
@@ -328,9 +338,6 @@ class CronRunRecord:
 
     ``metadata`` carries structured data collected during execution
     (e.g. blockedActions, progressSteps, sources).
-
-    ``integrity_hash`` and ``prev_hash`` form a per-job Merkle chain
-    that detects tampering of historical run records.
     """
 
     id: str
@@ -349,8 +356,6 @@ class CronRunRecord:
     delivery_status: DeliveryStatus | None = None
     delivery_error: str | None = None
     metadata: dict[str, object] | None = None
-    integrity_hash: str = ""
-    prev_hash: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -410,6 +415,7 @@ class CronNoticeKind(StrEnum):
     RUN_FAILED = "run_failed"
     JOB_EXPIRED = "job_expired"
     JOB_MAX_FIRES_REACHED = "job_max_fires_reached"
+    JOB_PAUSED_BY_FAILURE = "job_paused_by_failure"
 
 
 @dataclass(frozen=True, slots=True)

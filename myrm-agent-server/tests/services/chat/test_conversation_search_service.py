@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 import pytest
 from myrm_agent_harness.toolkits.memory.conversation_search import (
     ConversationSearchRequest,
+    ConversationSearchResponse,
 )
 from pydantic import ValidationError
 from sqlalchemy import text
@@ -16,12 +17,12 @@ from app.services.chat.conversation_recall_index_service import (
     ConversationRecallIndexService,
 )
 from app.services.chat.conversation_search_service import ConversationSearchService
-from tests.services.chat.search_support import seed_chat_and_messages
+from tests.services.chat.search_support import assert_snippet_split, seed_chat_and_messages
 
 
 class TestConversationSearchService:
     @pytest.mark.asyncio
-    async def test_search_returns_conversation_summary_and_snippet(self, fts_db: AsyncSession):
+    async def test_search_returns_conversation_summary_and_snippet(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET compacted_summary = :summary, agent_id = :agent_id WHERE id = :chat_id"),
@@ -43,10 +44,10 @@ class TestConversationSearchService:
         assert len(response.hits) == 1
         assert response.hits[0].conversation_id == chat_id
         assert response.hits[0].summary == "Deployment summary: use Docker Compose locally before Kubernetes."
-        assert "<mark>" in response.hits[0].snippet
+        assert_snippet_split(response.hits[0], "docker")
 
     @pytest.mark.asyncio
-    async def test_search_returns_matching_segment_message_id(self, fts_db: AsyncSession):
+    async def test_search_returns_matching_segment_message_id(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -57,10 +58,10 @@ class TestConversationSearchService:
         assert response.hits
         assert response.hits[0].conversation_id == chat_id
         assert response.hits[0].message_id in {"msg-3", "msg-4"}
-        assert "<mark>" in response.hits[0].snippet
+        assert_snippet_split(response.hits[0], "kubernetes")
 
     @pytest.mark.asyncio
-    async def test_empty_query_returns_recent_conversations(self, fts_db: AsyncSession):
+    async def test_empty_query_returns_recent_conversations(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -72,7 +73,7 @@ class TestConversationSearchService:
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
 
     @pytest.mark.asyncio
-    async def test_current_conversation_is_excluded(self, fts_db: AsyncSession):
+    async def test_current_conversation_is_excluded(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -83,7 +84,7 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_current_agent_scope_is_hard_filter(self, fts_db: AsyncSession):
+    async def test_current_agent_scope_is_hard_filter(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET agent_id = 'agent-a' WHERE id = :chat_id"),
@@ -100,7 +101,7 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_current_agent_scope_filters_null_agent(self, fts_db: AsyncSession):
+    async def test_current_agent_scope_filters_null_agent(self, fts_db: AsyncSession) -> None:
         null_agent_chat_id = await seed_chat_and_messages(fts_db)
         other_chat_id = "chat-agent-b"
         fts_db.add(
@@ -132,12 +133,12 @@ class TestConversationSearchService:
 
         assert [hit.conversation_id for hit in response.hits] == [null_agent_chat_id]
 
-    def test_all_scope_is_rejected_by_contract(self):
+    def test_all_scope_is_rejected_by_contract(self) -> None:
         with pytest.raises(ValidationError):
-            ConversationSearchRequest(query="docker", limit=3, scope="all")
+            ConversationSearchRequest.model_validate({"query": "docker", "limit": 3, "scope": "all"})
 
     @pytest.mark.asyncio
-    async def test_search_can_match_precomputed_summary_only(self, fts_db: AsyncSession):
+    async def test_search_can_match_precomputed_summary_only(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await fts_db.execute(
             text("UPDATE chats SET compacted_summary = :summary WHERE id = :chat_id"),
@@ -156,10 +157,10 @@ class TestConversationSearchService:
 
         assert [hit.conversation_id for hit in response.hits] == [chat_id]
         assert response.hits[0].summary == "Strategic recall keyword: bluegreenphoenix cutover plan."
-        assert "<mark>" in response.hits[0].snippet
+        assert_snippet_split(response.hits[0], "bluegreenphoenix")
 
     @pytest.mark.asyncio
-    async def test_search_uses_or_fallback_for_broad_natural_language_query(self, fts_db: AsyncSession):
+    async def test_search_uses_or_fallback_for_broad_natural_language_query(self, fts_db: AsyncSession) -> None:
         chat_id = "chat-bluegreen"
         fts_db.add(Chat(id=chat_id, title="Bluegreen release notes", action_mode="agent"))
         fts_db.add(
@@ -185,7 +186,7 @@ class TestConversationSearchService:
         assert "Bluegreen" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_lineage_ancestors_restricts_recall_to_parent_chain(self, fts_db: AsyncSession):
+    async def test_lineage_ancestors_restricts_recall_to_parent_chain(self, fts_db: AsyncSession) -> None:
         parent_id = "chat-parent"
         current_id = "chat-current"
         unrelated_id = "chat-unrelated"
@@ -240,7 +241,7 @@ class TestConversationSearchService:
         assert [hit.conversation_id for hit in response.hits] == [parent_id]
 
     @pytest.mark.asyncio
-    async def test_excluded_conversation_is_not_recalled(self, fts_db: AsyncSession):
+    async def test_excluded_conversation_is_not_recalled(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         await ConversationRecallRepository.set_excluded(fts_db, chat_id, True)
         await fts_db.commit()
@@ -253,7 +254,7 @@ class TestConversationSearchService:
         assert response.hits == []
 
     @pytest.mark.asyncio
-    async def test_excluded_conversation_can_be_listed_and_restored(self, fts_db: AsyncSession):
+    async def test_excluded_conversation_can_be_listed_and_restored(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
         assert await ConversationRecallIndexService.set_chat_excluded(chat_id, True) is True
 
@@ -267,7 +268,7 @@ class TestConversationSearchService:
         assert excluded_rows == []
 
     @pytest.mark.asyncio
-    async def test_expand_message_window_returns_segments(self, fts_db: AsyncSession):
+    async def test_expand_message_window_returns_segments(self, fts_db: AsyncSession) -> None:
         chat_id = await seed_chat_and_messages(fts_db)
 
         response = await ConversationSearchService.search(
@@ -285,145 +286,6 @@ class TestConversationSearchService:
         assert "Kubernetes" in response.hits[0].snippet
 
     @pytest.mark.asyncio
-    async def test_interactive_source_ranks_above_cron(self, fts_db: AsyncSession):
-        cron_id = "chat-cron-alpha"
-        web_id = "chat-web-alpha"
-        now = datetime(2026, 4, 18, 12, 0, 0, tzinfo=timezone.utc)
-        fts_db.add_all(
-            [
-                Chat(
-                    id=cron_id,
-                    title="Cron alpha digest",
-                    action_mode="agent",
-                    source="cron",
-                ),
-                Chat(
-                    id=web_id,
-                    title="Web alpha planning",
-                    action_mode="agent",
-                    source="web",
-                ),
-            ]
-        )
-        fts_db.add_all(
-            [
-                Message(
-                    id="msg-cron-alpha",
-                    chat_id=cron_id,
-                    role="assistant",
-                    content="Alpha project cron summary for nightly automation.",
-                    sent_at=now,
-                    sent_timezone="UTC",
-                ),
-                Message(
-                    id="msg-web-alpha",
-                    chat_id=web_id,
-                    role="assistant",
-                    content="Alpha project planning notes from interactive chat.",
-                    sent_at=now,
-                    sent_timezone="UTC",
-                ),
-            ]
-        )
-        await fts_db.commit()
-        await ConversationRecallRepository.rebuild_chat(fts_db, cron_id)
-        await ConversationRecallRepository.rebuild_chat(fts_db, web_id)
-        await fts_db.commit()
-
-        response = await ConversationSearchService.search(
-            ConversationSearchRequest(query="alpha project", limit=3),
-            agent_id=None,
-        )
-
-        assert len(response.hits) >= 2
-        assert response.hits[0].conversation_id == web_id
-        assert response.hits[0].score >= response.hits[1].score
-
-    @pytest.mark.asyncio
-    async def test_the_strongest_match_ranks_first(self, fts_db: AsyncSession) -> None:
-        """A chat packed with the query outranks one that mentions it once inside a long conversation."""
-        now = datetime(2026, 4, 18, 12, 0, 0, tzinfo=timezone.utc)
-        matching = {
-            "chat-docker-strong": "docker " * 30 + "deployment",
-            "chat-docker-mid": "docker " * 6 + "deployment notes about compose files",
-            "chat-docker-weak": "docker " + " ".join(f"background{i}" for i in range(150)),
-        }
-        unrelated = {f"chat-planning-{i}": f"weekly planning notes number {i} about the roadmap" for i in range(60)}
-        everything = {**matching, **unrelated}
-        fts_db.add_all([Chat(id=chat_id, title=chat_id, action_mode="agent", source="web") for chat_id in everything])
-        fts_db.add_all(
-            [
-                Message(
-                    id=f"msg-{chat_id}",
-                    chat_id=chat_id,
-                    role="assistant",
-                    content=content,
-                    sent_at=now,
-                    sent_timezone="UTC",
-                )
-                for chat_id, content in everything.items()
-            ]
-        )
-        await fts_db.commit()
-        for chat_id in everything:
-            await ConversationRecallRepository.rebuild_chat(fts_db, chat_id)
-        await fts_db.commit()
-
-        response = await ConversationSearchService.search(
-            ConversationSearchRequest(query="docker", limit=3),
-            agent_id=None,
-        )
-
-        assert [hit.conversation_id for hit in response.hits] == list(matching)
-
-    @pytest.mark.asyncio
-    async def test_fts_hits_use_rank_normalized_scores_and_index_source(self, fts_db: AsyncSession) -> None:
-        await seed_chat_and_messages(fts_db)
-        second_id = "chat-docker-second"
-        fts_db.add(Chat(id=second_id, title="Second docker notes", action_mode="agent"))
-        fts_db.add(
-            Message(
-                id="msg-docker-second",
-                chat_id=second_id,
-                role="assistant",
-                content="Docker image layers explained.",
-                sent_at=datetime(2026, 4, 18, 12, 0, 0, tzinfo=timezone.utc),
-                sent_timezone="UTC",
-            )
-        )
-        await fts_db.commit()
-        await ConversationRecallRepository.rebuild_chat(fts_db, second_id)
-        await fts_db.commit()
-
-        response = await ConversationSearchService.search(
-            ConversationSearchRequest(query="docker", limit=3),
-            agent_id=None,
-        )
-
-        # Deterministic RRF normalized to [0, 1]: 0.98 * 61 / (60 + rank).
-        assert [hit.score for hit in response.hits] == pytest.approx([0.98, 0.98 * 61 / 62])
-        assert {hit.source for hit in response.hits} == {"conversation_index"}
-        assert all(hit.source_ref is not None and hit.source_ref.score == hit.score for hit in response.hits)
-        assert response.recall_debug is not None
-        assert response.recall_debug["fused_count"] == 2
-
-        filtered = await ConversationSearchService.search(
-            ConversationSearchRequest(query="docker", limit=3, min_score=0.97),
-            agent_id=None,
-        )
-        assert [hit.conversation_id for hit in filtered.hits] == [response.hits[0].conversation_id]
-
-    def test_source_interaction_boost_values(self) -> None:
-        from app.services.chat.conversation_search_service import (
-            _source_interaction_boost,
-        )
-
-        assert _source_interaction_boost("cron") == -0.10
-        assert _source_interaction_boost("web") == 0.06
-        assert _source_interaction_boost("kanban") == 0.0
-        assert _source_interaction_boost(None) == 0.0
-
-    @pytest.mark.asyncio
     async def test_conversation_history_search_provider_default_scope(self) -> None:
         from unittest.mock import AsyncMock, patch
 
@@ -435,10 +297,11 @@ class TestConversationSearchService:
             default_scope="same_source",
         )
 
-        with patch.object(ConversationSearchService, "search", AsyncMock(return_value="mock_resp")) as mock_search:
+        canned = ConversationSearchResponse(mode="search", hits=[], query="test")
+        with patch.object(ConversationSearchService, "search", AsyncMock(return_value=canned)) as mock_search:
             req = ConversationSearchRequest(query="test", limit=5)
             res = await provider.search(req)
-            assert res == "mock_resp"
+            assert res is canned
             mock_search.assert_called_once()
             passed_req = mock_search.call_args[0][0]
             assert passed_req.scope == "same_source"

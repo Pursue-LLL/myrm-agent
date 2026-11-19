@@ -28,16 +28,13 @@ Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀�
 """
 
 import logging
-from typing import TYPE_CHECKING, Annotated, Literal
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
 from app.services.wiki import MemoryToWikiArchiver
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

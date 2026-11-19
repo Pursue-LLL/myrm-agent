@@ -1,7 +1,7 @@
 /**
  * [OUTPUT]
  * - normalizeHydratedClarification: restore pending clarify fields (and the camelCase form) after DB hydrate
- * - findActivePendingClarification: locate the latest unanswered assistant clarify turn
+ * - findActivePendingClarification: locate the unanswered clarify card the conversation is still waiting on
  *
  * [POS]
  * Shared clarify state helpers for message hydrate and Composer takeover selection.
@@ -23,18 +23,21 @@ export function normalizeHydratedClarification(
   return clarification;
 }
 
+/**
+ * The card is waiting only until the user writes again: a newer user message replaces the question, so the composer,
+ * the attention summary and the companion must not keep waiting for an answer nobody asks for any more.
+ */
 export function findActivePendingClarification(
   messages: Message[],
 ): { messageId: string; clarification: NonNullable<Message['clarification']> } | null {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const message = messages[index];
-    if (message.role !== 'assistant') {
-      continue;
+    if (message.role === 'user') {
+      return null;
     }
-    if (message.clarification && !message.clarification.answered) {
+    if (message.role === 'assistant' && message.clarification && !message.clarification.answered) {
       return { messageId: message.messageId, clarification: message.clarification };
     }
-    continue;
   }
   return null;
 }

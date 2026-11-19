@@ -38,7 +38,6 @@ describe('SessionContextJumpModal component', () => {
     description: 'Kernel and Sandbox Isolation',
     color: '#ef4444',
     workspace_path: '/workspace/security-core',
-    git_repo_url: 'https://github.com/myrm-agent/security.git',
     sessions: [mockSession],
     active_agent_count: 1,
     total_tokens: 28400,

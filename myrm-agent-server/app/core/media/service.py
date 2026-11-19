@@ -1,8 +1,17 @@
-"""Media library service — CRUD, search, tagging for AI-generated media.
+"""Media library service: persist, query, tag and delete AI-generated media.
 
-Persists generated images/videos/audio with rich metadata.
-Storage is delegated to the existing StorageProvider (local filesystem or persistent volume),
-while metadata lives in the SQLite media_library table for fast queries.
+[INPUT]
+- app.database.models::MediaLibrary (POS: the table of stored media items and their metadata)
+- app.platform_utils::get_storage_provider (POS: process-wide file storage, resolved per call so tests and deployments swap it)
+
+[OUTPUT]
+- MediaQueryParams: filter and pagination parameters of a listing
+- MediaLibraryService / media_library_service: save (file, WebP thumbnail for images, record), cursor-paginated query,
+  get, tag replace, delete (record and files), tag list, count, batch delete and batch tag replace
+
+[POS]
+The write path of every generated image, video and audio. Bytes go to the storage provider, metadata to the
+``media_library`` table for fast queries; the record id is the identity the ``media://<id>`` reference carries.
 """
 
 from __future__ import annotations
@@ -30,7 +39,6 @@ class MediaQueryParams:
         "tags",
         "keyword",
         "session_id",
-        "batch_job_id",
         "before",
         "after",
         "cursor",
@@ -44,7 +52,6 @@ class MediaQueryParams:
         tags: list[str] | None = None,
         keyword: str | None = None,
         session_id: str | None = None,
-        batch_job_id: str | None = None,
         before: datetime | None = None,
         after: datetime | None = None,
         cursor: str | None = None,
@@ -54,7 +61,6 @@ class MediaQueryParams:
         self.tags = tags
         self.keyword = keyword
         self.session_id = session_id
-        self.batch_job_id = batch_job_id
         self.before = before
         self.after = after
         self.cursor = cursor
@@ -83,7 +89,6 @@ class MediaLibraryService:
         resolution: str | None = None,
         source: str = "generate",
         session_id: str | None = None,
-        batch_job_id: str | None = None,
         tags: list[str] | None = None,
     ) -> MediaLibrary:
         """Persist media bytes + metadata, generate thumbnail."""
@@ -120,7 +125,6 @@ class MediaLibraryService:
             thumbnail_key=thumbnail_key,
             tags=tags or [],
             session_id=session_id,
-            batch_job_id=batch_job_id,
         )
         session.add(record)
         await session.flush()
@@ -139,8 +143,6 @@ class MediaLibraryService:
             stmt = stmt.where(MediaLibrary.media_type == params.media_type)
         if params.session_id:
             stmt = stmt.where(MediaLibrary.session_id == params.session_id)
-        if params.batch_job_id:
-            stmt = stmt.where(MediaLibrary.batch_job_id == params.batch_job_id)
         if params.after:
             stmt = stmt.where(MediaLibrary.created_at >= params.after)
         if params.before:
@@ -307,6 +309,7 @@ _MIME_EXT_MAP: dict[str, str] = {
     "video/mp4": "mp4",
     "video/webm": "webm",
     "audio/mp3": "mp3",
+    "audio/mpeg": "mp3",
     "audio/wav": "wav",
 }
 

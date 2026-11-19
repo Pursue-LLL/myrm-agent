@@ -60,7 +60,8 @@
 | `agent/sub_agents/checkpoint/state_extractor.py` | 状态提取工具（extract_subagent_state_sync/async，从child agent提取context/stats/messages） |
 | `agent/sub_agents/config_loader.py` | YAML 配置加载器（SubagentConfigLoader, Pydantic 验证, 批量目录加载） |
 | `agent/hooks/graceful_shutdown.py` | 优雅关机管理器（GracefulShutdownManager，SIGTERM/SIGINT信号处理，单例模式） |
-| `agent/base_agent.py` | 委托入口 + `_last_context` 保存 + 父取消传播 |
+| `agent/base_agent.py` | `_last_context` 保存 + 父取消传播；子智能体管理方法经 `BaseAgentChildrenMixin` 提供 |
+| `agent/_internals/base_agent_children_mixin.py` | 委托入口：`_spawn_child` / `list_children` / `cancel_child` / `cancel_all_children` / `steer_child` / `wait_children` 转发给 `SubagentManager`；`trigger_async_wakeup` 不经它，直接通知全局唤醒处理器并推送到当前进度通道 |
 | `agent/meta_tools/spawn_subagent/delegate_task_tool.py` | LLM `delegate_task_tool`（mode=single\|batch\|parallel\|council\|alternatives 的路由；动态 roster） |
 | `agent/meta_tools/spawn_subagent/_delegate_single.py` | 单任务委派执行：agent_type 准入、重复委派指纹、readonly/spawn 策略、OCap 句柄、验证循环、审批恢复 |
 | `agent/meta_tools/spawn_subagent/_delegate_budget.py` | 预算准入、策略拒绝、重复委派指纹、动态 roster |
@@ -378,7 +379,7 @@ configs/subagents/
 
 ### 14. 生命周期 Hook
 
-子 agent 的生命周期事件走全局 Hook 系统，没有 per-config 内联 hook 字段：
+子 agent 的生命周期事件由全局 Hook 系统投递：
 
 - `SUBAGENT_START`：一次 run 开始（payload 含 `task_id` / `agent_type` / `task_description` / `trace_id`）
 - `SUBAGENT_STOP`：一次 run 结束，与 START 成对（语义见下方能力矩阵「Hook 成对」）

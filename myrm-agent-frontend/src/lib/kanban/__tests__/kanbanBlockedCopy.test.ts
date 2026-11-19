@@ -8,7 +8,7 @@ import type { BlockKind } from '@/services/kanban';
 // The global test setup replaces next-intl with an identity translator, which cannot tell a missing message from a present one.
 const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
 
-const LOCALES = ['en', 'zh', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['en', 'zh'] as const;
 
 // Typed as a record so that adding a kind to `BlockKind` fails compilation here until its copy is covered below.
 const BLOCK_KINDS: Record<BlockKind, true> = { human: true, scheduled: true, external: true };

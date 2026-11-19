@@ -1,6 +1,7 @@
 """What ExecutionStreamBuffer hands back: the whole output while it fits, head and tail with the middle counted beyond.
 
 Covers:
+- The exit code between the two markers is read; marker lines that came back as text, not as printed output, fail the boundary
 - An output that fits ``max_chars`` comes back exactly: no notice splits it where the head ends, and ``truncated`` is False
 - An output beyond it keeps its head and tail, and one notice counts exactly the characters dropped between them
 - The result, notice included, fits ``max_chars``, so the cut that ``ExecutionResult`` makes of stdout leaves it alone
@@ -132,3 +133,26 @@ class TestCapTooSmallForTheNotice:
         assert text.startswith(head)
         assert text.endswith(tail)
         assert len(head) + dropped + len(tail) == len(text)
+
+
+class TestExitMarkers:
+    def test_the_exit_code_between_the_markers_is_read(self) -> None:
+        buffer = ExecutionStreamBuffer()
+
+        text = buffer.process_bytes(f"out\n{_EXIT_MARKER}7\n{_END_MARKER}\n".encode(), _EXIT_MARKER, _END_MARKER)
+
+        assert text == "out\n"
+        assert buffer.done
+        assert buffer.exit_code == 7
+        assert not buffer.parse_failed
+
+    def test_marker_lines_that_came_back_as_text_fail_the_boundary(self) -> None:
+        # What a command that took the marker commands off the session's pipe would print back.
+        echoed = f"echo '{_EXIT_MARKER}'\"$__myrm_rc__\"\necho '{_END_MARKER}'\n"
+        buffer = ExecutionStreamBuffer()
+
+        buffer.process_bytes(echoed.encode(), _EXIT_MARKER, _END_MARKER)
+
+        assert buffer.done
+        assert buffer.parse_failed
+        assert buffer.exit_code == 1

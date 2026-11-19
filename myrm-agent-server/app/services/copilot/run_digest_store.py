@@ -5,7 +5,8 @@
 - ApprovalRegistry pending counts (async refresh)
 
 [OUTPUT]
-- RunDigestStore: get/update/clear per chat_id + SSE publish; terminal_failures lists chats whose last run failed or was cancelled
+- RunDigestStore: get/update/clear per chat_id + SSE publish; terminal_failures lists chats whose last run failed or was cancelled; an approval raised with no live run publishes the chat as waiting, then as idle once its approvals are resolved
+- RunSession: the live run of a chat, returned by begin_run so that the turn which began a run is the one that ends it
 
 [POS]
 Business-layer copilot run observation. Not harness; not control plane.
@@ -29,25 +30,29 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
-class _RunSession:
+class RunSession:
     started_at: float
-    phase: RunDigestPhase = RunDigestPhase.RUNNING
     pending_approval_count: int = 0
     progress_steps: list[dict[str, object]] = field(default_factory=list)
+    # Opened by an approval while the chat had no live run: no turn will end it, so its last approval does.
+    approval_only: bool = False
 
 
 class RunDigestStore:
     """Process-local run digest registry keyed by chat_id."""
 
     _digests: dict[str, RunDigest] = {}
-    _sessions: dict[str, _RunSession] = {}
+    _sessions: dict[str, RunSession] = {}
 
     @classmethod
-    def begin_run(cls, chat_id: str) -> None:
+    def begin_run(cls, chat_id: str) -> RunSession | None:
+        """Start the chat's run as the live one and return its handle; None for a turn without a chat."""
         if not chat_id:
-            return
-        cls._sessions[chat_id] = _RunSession(started_at=time.monotonic())
+            return None
+        run = RunSession(started_at=time.monotonic())
+        cls._sessions[chat_id] = run
         cls._publish(chat_id, RunDigestPhase.RUNNING, [])
+        return run
 
     @classmethod
     def end_run(
@@ -56,11 +61,20 @@ class RunDigestStore:
         *,
         phase: RunDigestPhase = RunDigestPhase.COMPLETED,
         progress_steps: list[dict[str, object]] | None = None,
-    ) -> None:
+        run: RunSession | None = None,
+    ) -> bool:
+        """End the chat's live run and publish its final digest; False when `run` is no longer the live run.
+
+        A turn passes the handle `begin_run` gave it, so a turn that ends late neither closes the run of the turn that
+        started after it nor closes its own run twice. Without a handle, whichever run is live ends.
+        """
         if not chat_id:
-            return
+            return False
+        session = cls._sessions.get(chat_id)
+        if run is not None and session is not run:
+            return False
+        cls._sessions.pop(chat_id, None)
         steps = progress_steps or []
-        session = cls._sessions.pop(chat_id, None)
         elapsed = 0
         if session is not None:
             elapsed = int(time.monotonic() - session.started_at)
@@ -73,6 +87,7 @@ class RunDigestStore:
         )
         cls._digests[chat_id] = digest
         cls._emit(digest)
+        return True
 
     @classmethod
     def clear(cls, chat_id: str) -> None:
@@ -101,8 +116,9 @@ class RunDigestStore:
             return
         session = cls._sessions.get(chat_id)
         if session is None:
-            session = _RunSession(started_at=time.monotonic())
+            session = RunSession(started_at=time.monotonic())
             cls._sessions[chat_id] = session
+        session.approval_only = False
         session.progress_steps = list(progress_steps)
         if pending_approval_count is not None:
             session.pending_approval_count = pending_approval_count
@@ -119,19 +135,29 @@ class RunDigestStore:
 
     @classmethod
     def set_pending_approval_count(cls, chat_id: str, count: int) -> None:
+        """Record the chat's pending approvals and publish the digest they put it in.
+
+        Approvals raised while no run is live leave the chat idle once the last one is resolved, because the session
+        they open has no turn to end it.
+        """
+        count = max(0, count)
         session = cls._sessions.get(chat_id)
-        if session is None and count <= 0:
-            return
         if session is None:
-            session = _RunSession(started_at=time.monotonic())
+            if count == 0:
+                return
+            session = RunSession(started_at=time.monotonic(), approval_only=True)
             cls._sessions[chat_id] = session
-        session.pending_approval_count = max(0, count)
-        phase = RunDigestPhase.WAITING_APPROVAL if session.pending_approval_count > 0 else RunDigestPhase.RUNNING
+        session.pending_approval_count = count
+        if session.approval_only and count == 0:
+            del cls._sessions[chat_id]
+            cls._publish(chat_id, RunDigestPhase.IDLE, [])
+            return
+        phase = RunDigestPhase.WAITING_APPROVAL if count > 0 else RunDigestPhase.RUNNING
         cls._publish(
             chat_id,
             phase,
             session.progress_steps,
-            pending_approval_count=session.pending_approval_count,
+            pending_approval_count=count,
             elapsed_seconds=int(time.monotonic() - session.started_at),
         )
 
@@ -168,4 +194,4 @@ class RunDigestStore:
             logger.warning("Failed to publish run digest SSE: %s", exc)
 
 
-__all__ = ["RunDigestStore"]
+__all__ = ["RunDigestStore", "RunSession"]

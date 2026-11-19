@@ -15,10 +15,6 @@ Provides FileOperationObserver.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from ..core.operation_context import OperationType
 
 
 class FileOperationObserver(ABC):
@@ -53,15 +49,6 @@ class FileOperationObserver(ABC):
         """文件查看事件
 
         Args:
-            path: 文件路径
-        """
-        pass
-
-    async def on_operation_complete(self, operation: OperationType, path: str) -> None:  # noqa: B027
-        """操作完成事件（可选实现）
-
-        Args:
-            operation: 操作类型
             path: 文件路径
         """
         pass

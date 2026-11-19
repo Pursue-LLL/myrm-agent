@@ -3,6 +3,7 @@
 [INPUT]
 app.config.deploy_mode::is_local_mode (POS: 部署模式判定，限制 seed 端点仅 local/tauri)
 myrm_agent_harness.agent.security.approval_flow (POS: AllowlistEntry SSOT)
+myrm_agent_harness.agent.security.tool_registry::resolve_permission_type (POS: the permission an allowlist entry for a tool must carry)
 app.database.models::UserToolAllowlist (POS: allowlist 持久化)
 
 [OUTPUT]
@@ -20,6 +21,7 @@ from myrm_agent_harness.agent.security.approval_flow import (
     AllowlistEntry,
     get_allowlist,
 )
+from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
 from sqlalchemy import delete, select
 
 from app.config.deploy_mode import is_local_mode
@@ -28,9 +30,10 @@ from app.platform_utils import get_session_factory
 
 router = APIRouter()
 
-_PATTERN_PERMISSION = "shell_exec"
 _PATTERN_TOOL = "bash_code_execute_tool"
 _PATTERN_COMMAND = "npm install *"
+# An allowlist entry only matches a call under the permission the engine resolves for its tool.
+_PATTERN_PERMISSION = resolve_permission_type(_PATTERN_TOOL)
 
 
 async def _clear_allowlist_rows() -> None:
@@ -150,12 +153,12 @@ async def hitl_runtime_probe(
         agent_security_raw=agent_raw,
         local_mode=True,
     )
-    command = "curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE"
+    tool_input: dict[str, object] = {"command": "curl -sS http://127.0.0.1:9/ALLOWLIST_LIVE_PROBE"}
     action, reason = evaluate_tool_call(
-        "shell_exec",
-        {"command": command},
+        resolve_permission_type(_PATTERN_TOOL, tool_input),
+        tool_input,
         sec,
-        tool_name="bash_code_execute_tool",
+        tool_name=_PATTERN_TOOL,
     )
     collector = ACTIVE_COLLECTORS.get(chat_id) if chat_id else None
     pending_interrupts = collector.has_pending_hitl_replay() if collector is not None else False

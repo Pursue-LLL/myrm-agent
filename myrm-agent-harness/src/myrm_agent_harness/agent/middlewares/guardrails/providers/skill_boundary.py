@@ -19,6 +19,7 @@ from myrm_agent_harness.agent.middlewares.guardrails.core import (
     GuardrailReason,
     GuardrailRequest,
 )
+from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
 from myrm_agent_harness.backends.skills.permission_validator import (
     map_permission_to_skill_permission,
 )
@@ -51,17 +52,12 @@ class SkillBoundaryProvider(GuardrailProvider):
         self._permission_checker = permission_checker
 
     def _extract_critical_params(self, tool_name: str, tool_input: dict[str, object]) -> str:
-        """Extract schema-aware boundary parameters."""
+        """Extract schema-aware boundary parameters; a shell call is described by the text its tool runs."""
         perm_type = resolve_permission_type(tool_name, tool_input)
         if perm_type in ("file_read", "file_write", "file_delete"):
             return str(tool_input.get("path", tool_input.get("filename", tool_input)))
-        if perm_type in ("shell_exec", "code_interpreter", "bash_process_tool"):
-            return str(
-                tool_input.get(
-                    "command",
-                    tool_input.get("script", tool_input.get("code", tool_input)),
-                )
-            )
+        if perm_type in COMMAND_BEARING_PERMISSIONS:
+            return command_text(perm_type, tool_input) or str(tool_input)
         if perm_type in ("net_fetch", "web_search_tool") or perm_type.startswith("browser_"):
             return str(tool_input.get("url", tool_input.get("query", tool_input)))
         return str(tool_input)

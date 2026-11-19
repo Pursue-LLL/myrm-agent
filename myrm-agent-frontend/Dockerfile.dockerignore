@@ -1,0 +1,19 @@
+# The host's dependencies, build and test output, generated files and env files stay out of the
+# build context. Dependencies come from the deps stage, and `bun run build` regenerates
+# locales/namespaces, public/sw.js and .next.
+#
+# BuildKit applies this file to myrm-agent-frontend/Dockerfile. The context is the myrm-agent/ root
+# that the backend image shares, so the frontend rules carry the myrm-agent-frontend/ prefix.
+**/node_modules
+**/__pycache__
+myrm-agent-frontend/.next
+myrm-agent-frontend/.next-*
+myrm-agent-frontend/coverage
+myrm-agent-frontend/locales/namespaces
+myrm-agent-frontend/public/sw.js
+myrm-agent-frontend/*.tsbuildinfo
+myrm-agent-frontend/next-env.d.ts
+
+# NEXT_PUBLIC_* values in env files are inlined into the client bundle at build time; the image
+# takes its settings from build args instead.
+myrm-agent-frontend/.env*

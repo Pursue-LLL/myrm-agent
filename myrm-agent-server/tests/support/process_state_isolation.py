@@ -65,6 +65,21 @@ def _isolate_agent_gateway_drain() -> Iterator[None]:
 
 
 @pytest.fixture(autouse=True)
+def _isolate_goal_registry() -> Iterator[None]:
+    """A turn gives back the goal provider it registered when it ends, and a test that registers one without running
+    a turn to its end would leave it registered: it would show in the active-goal endpoints and counts of the tests
+    that follow."""
+    yield
+    module = sys.modules.get("app.services.agent.goals.goal_registry")
+    if module is None:
+        return
+    for session_id in module.GoalRegistry.session_ids():
+        provider = module.GoalRegistry.get_provider(session_id)
+        if provider is not None:
+            module.GoalRegistry.unregister(session_id, provider)
+
+
+@pytest.fixture(autouse=True)
 def _isolate_task_metrics_registry() -> Iterator[None]:
     """Task metrics are kept per chat id in a process-wide registry, and tests share ids such as ``chat-1``: the
     archive refetch events one test leaves behind would exhaust the per-task restore budget of the next test that

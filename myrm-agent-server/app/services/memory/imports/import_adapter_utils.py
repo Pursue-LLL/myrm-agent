@@ -4,7 +4,7 @@
 Raw dicts and values from external memory payloads.
 
 [OUTPUT]
-Normalized helper functions: type coercion, result builders, warning constants.
+Normalized helper functions: type coercion, rule trigger/action fields, result builders, warning constants.
 
 [POS]
 Common utility layer shared by all import adapters (native, agentmemory, claude, hermes, etc.).
@@ -23,6 +23,10 @@ from myrm_agent_harness.toolkits.memory import (
 )
 
 SUPPORTED_NATIVE_BUCKETS = {"profile", "semantic", "episodic", "procedural"}
+
+# A rule the source ties to no condition applies to every project.
+DEFAULT_RULE_TRIGGER = "When working on any project"
+RULE_ACTION_MAX_CHARS = 500
 
 WARNING_NO_NATIVE_BUCKETS = "no_native_buckets"
 WARNING_MYRM_ARCHIVE_MEMORY_SECTION_MISSING = "myrm_archive_memory_section_missing"
@@ -110,6 +114,16 @@ def text(value: object) -> str:
     """Extract a stripped string or return empty."""
 
     return value.strip() if isinstance(value, str) else ""
+
+
+def rule_fields(content: str, trigger: object = None) -> dict[str, str]:
+    """The ``trigger`` and ``action`` a rule needs to be stored, for a source that carries only the rule text.
+
+    ``MemoryManager.import_memories`` drops a rule that lacks either, so the rule text is the action and a rule
+    without a stated condition gets ``DEFAULT_RULE_TRIGGER``.
+    """
+
+    return {"trigger": text(trigger) or DEFAULT_RULE_TRIGGER, "action": content[:RULE_ACTION_MAX_CHARS]}
 
 
 def string_list(value: object) -> list[str]:

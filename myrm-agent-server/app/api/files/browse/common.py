@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import os
-from urllib.parse import quote
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
@@ -211,18 +210,3 @@ def _is_text_file(filename: str) -> bool:
         return True
     _, ext = os.path.splitext(name_lower)
     return ext in _TEXT_EXTENSIONS
-
-
-def _content_disposition(disposition: str, filename: str) -> str:
-    """Build a header-safe Content-Disposition value.
-
-    Strips CR/LF (header injection) and escapes quotes for the ASCII fallback
-    while RFC 5987 ``filename*`` carries the original bytes (non-ASCII names).
-    """
-    cleaned = filename.replace("\r", "").replace("\n", "")
-    ascii_name = cleaned.encode("ascii", "ignore").decode("ascii")
-    if not ascii_name:
-        ascii_name = "file"
-    safe = ascii_name.replace("\\", "\\\\").replace('"', '\\"')
-    encoded = quote(cleaned.encode("utf-8"))
-    return f"{disposition}; filename=\"{safe}\"; filename*=UTF-8''{encoded}"

@@ -601,7 +601,7 @@ class TestWindsurfDryRun:
         procedural = result.normalized_data.get("procedural")
         assert isinstance(procedural, list) and len(procedural) == 1
         assert "Use standard HTTP errors" in procedural[0]["content"]
-        assert "project" in procedural[0]["trigger_keywords"]
+        assert procedural[0]["trigger"] == "When working on project: API Rule"
 
     def test_windsurf_memories_with_memory_key_and_confidence(self) -> None:
         payload = {

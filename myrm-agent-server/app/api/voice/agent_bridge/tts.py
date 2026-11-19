@@ -11,10 +11,6 @@ Voice bridge mixin: TTS segment streaming and interruption bookkeeping.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 from .common import (
     _FALLBACK_EN,

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -255,3 +256,42 @@ async def test_creation_times_in_different_offsets_order_by_the_instant(store: S
     await store.create_rule(_rule_created_at("later", later))
 
     assert [rule.trigger for rule in await store.list_rules()] == ["later", "earlier"]
+
+
+@pytest.fixture
+def host_clock_at_utc_plus_8(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Put the process clock at UTC+8, so reading a UTC wall time as local time is off by eight hours."""
+    monkeypatch.setenv("TZ", "Asia/Shanghai")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+@pytest.mark.asyncio
+async def test_a_creation_time_without_an_offset_is_utc_whatever_the_host_zone(
+    store: SQLiteRelationalStore, host_clock_at_utc_plus_8: None
+) -> None:
+    """Importers hand over ISO strings, which parse to a time without an offset; the memory package reads that as UTC."""
+    unmarked = await store.create_rule(_rule_created_at("unmarked", datetime(2026, 1, 1, 12, 0)))
+    await store.create_rule(_rule_created_at("marked", datetime(2026, 1, 1, 9, 0, tzinfo=UTC)))
+
+    fetched = await store.get_rule(unmarked.id)
+    assert fetched is not None
+    assert fetched.created_at == datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+    assert [rule.trigger for rule in await store.list_rules()] == ["unmarked", "marked"]
+
+
+@pytest.mark.asyncio
+async def test_a_creation_time_in_the_future_is_stored_as_now(store: SQLiteRelationalStore) -> None:
+    """A record with a wrong clock must not outrank every preference stated after it."""
+    before = datetime.now(UTC)
+    future = await store.create_rule(_rule_created_at("future", before + timedelta(days=365)))
+    after = datetime.now(UTC)
+
+    fetched = await store.get_rule(future.id)
+    assert fetched is not None
+    assert before <= fetched.created_at <= after
+
+    await store.create_rule(make_rule("stated later", "act"))
+    assert [rule.trigger for rule in await store.list_rules()] == ["stated later", "future"]

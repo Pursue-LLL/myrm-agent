@@ -2,7 +2,7 @@
 
 Claims are compiled, retrieval-only knowledge (``ClaimMemory`` says so) and the writer rejects them:
 an exported claim must never reach ``store_batch``, and must not cost the other types in the same
-file their import. A rule exported while rules still carried a priority imports without it.
+file their import. A rule exported while rules still carried a priority or trigger keywords imports without them.
 """
 
 from __future__ import annotations
@@ -95,3 +95,23 @@ async def test_a_rule_exported_with_the_retired_priority_field_still_imports() -
     assert isinstance(rule, ProceduralMemory)
     assert (rule.trigger, rule.action) == ("reply style", "Reply in German.")
     assert not hasattr(rule, "priority")
+
+
+@pytest.mark.asyncio
+async def test_a_rule_exported_with_the_retired_trigger_keywords_field_still_imports() -> None:
+    importer = _Importer()
+    exported = {
+        "content": "When: deploy → Do: Run the whole test suite.",
+        "trigger": "deploy",
+        "action": "Run the whole test suite.",
+        "trigger_keywords": ["deploy", "release"],
+        "created_at": "2026-03-01T00:00:00+00:00",
+    }
+
+    counts = await importer.import_memories({"procedural": [exported]})
+
+    assert counts == {"procedural": 1}
+    (rule,) = importer.batches[0]
+    assert isinstance(rule, ProceduralMemory)
+    assert (rule.trigger, rule.action) == ("deploy", "Run the whole test suite.")
+    assert not hasattr(rule, "trigger_keywords")

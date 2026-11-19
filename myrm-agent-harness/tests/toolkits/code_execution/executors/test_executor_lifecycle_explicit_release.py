@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -5,13 +6,12 @@ import pytest
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.base import (
     CodeExecutor,
-    clear_and_close_stashed_executor,
     clear_stashed_executor,
     get_stashed_executor,
     stash_executor_for_session,
 )
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-from myrm_agent_harness.toolkits.code_execution.executors.middleware import CodeExecutorMiddleware
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext, ExecutionResult
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.appcontainer import AppContainerProvider
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.bwrap import BwrapProvider
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import NullProvider
@@ -24,10 +24,10 @@ class _DummyExecutor(CodeExecutor):
         super().__init__()
         self.closed = False
 
-    async def execute(self, context):
+    async def execute(self, context: ExecutionContext) -> ExecutionResult:
         raise NotImplementedError
 
-    async def execute_bash(self, context):
+    async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         raise NotImplementedError
 
     async def close(self) -> None:
@@ -41,15 +41,6 @@ async def test_code_executor_async_context_manager() -> None:
     async with executor as exc:
         assert exc is executor
     assert executor.closed
-
-
-@pytest.mark.asyncio
-async def test_code_executor_middleware_close_delegation() -> None:
-    inner = _DummyExecutor()
-    middleware = CodeExecutorMiddleware(inner)
-    assert not inner.closed
-    await middleware.close()
-    assert inner.closed
 
 
 @pytest.mark.asyncio
@@ -72,28 +63,18 @@ async def test_local_executor_close_idempotency() -> None:
 
 
 @pytest.mark.asyncio
-async def test_stashed_executor_clear_and_close() -> None:
+async def test_stashed_executor_clear_removes_it_and_closes_it_in_the_background() -> None:
     executor = _DummyExecutor()
-    session_id = "test-session-lifecycle"
-
-    stash_executor_for_session(session_id, executor)
-    assert get_stashed_executor(session_id) is executor
-
-    await clear_and_close_stashed_executor(session_id)
-    assert get_stashed_executor(session_id) is None
-    assert executor.closed
-
-
-@pytest.mark.asyncio
-async def test_stashed_executor_sync_clear_schedules_close() -> None:
-    executor = _DummyExecutor()
-    session_id = "test-session-sync-clear"
+    session_id = "test-session-clear"
 
     stash_executor_for_session(session_id, executor)
     assert get_stashed_executor(session_id) is executor
 
     clear_stashed_executor(session_id)
     assert get_stashed_executor(session_id) is None
+
+    await asyncio.sleep(0)  # one loop turn runs the scheduled close task to completion
+    assert executor.closed
 
 
 def test_sandbox_providers_cleanup_protocol() -> None:
@@ -118,15 +99,3 @@ def test_appcontainer_provider_cleanup_sync_safety() -> None:
 
 def test_code_executor_warm_up_defaults_to_nothing() -> None:
     _DummyExecutor().warm_up()
-
-
-def test_code_executor_middleware_warm_up_delegation() -> None:
-    class _WarmableExecutor(_DummyExecutor):
-        warmed = False
-
-        def warm_up(self) -> None:
-            self.warmed = True
-
-    inner = _WarmableExecutor()
-    CodeExecutorMiddleware(inner).warm_up()
-    assert inner.warmed

@@ -120,7 +120,7 @@ class FetchEngineCacheMixin:
         self._fail_cache.set(cache_key, True)
 
         if isinstance(error, SSRFSecurityError):
-            logger.warning(f"URL blocked (SSRF): {url} — {error}")
+            logger.warning(f"URL blocked by outbound policy: {url} — {error}")
             if not future.done():
                 future.set_result(None)
             return None

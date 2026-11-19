@@ -228,7 +228,6 @@ class ProceduralMemory(BaseMemory):
     reasoning: str = Field(default="", description="Why this rule exists (Context/Rationale)")
     application: str = Field(default="", description="How to apply this rule (Nuances/Boundaries)")
     is_active: bool = Field(default=True, description="Derived from status on save")
-    trigger_keywords: list[str] = Field(default_factory=list)
     source: RuleSource = RuleSource.USER_EXTRACTED
     language: Literal["zh", "en"] = "en"
     source_chat_id: str | None = None

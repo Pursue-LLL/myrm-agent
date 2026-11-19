@@ -38,12 +38,7 @@ from .infra import (
     MonitoringSettings,
     ServiceSettings,
 )
-from .llm import (
-    PROVIDER_CACHE_CONFIGS,
-    CacheSettings,
-    LLMProvider,
-    ProviderCacheConfig,
-)
+from .llm import CacheSettings
 from .security import (
     AgentGatewaySettings,
     BashAuditSettings,
@@ -104,7 +99,7 @@ class AppSettings(BaseSettings):
 
     # --- [P] HTTP listen ---
     port: int = 8080  # PORT
-    host: str = "0.0.0.0"  # HOST
+    host: str = "127.0.0.1"  # HOST
 
     # --- Code constants (not env-overridable in .env.example) ---
     app_name: str = "MyrmAgent"
@@ -200,32 +195,6 @@ class AppSettings(BaseSettings):
         if v > 10 * 1024 * 1024:
             raise ValueError("event_log_max_jsonl_line_bytes unreasonably large (max 10 MiB)")
         return v
-
-    # --- Provider helpers ---
-
-    def get_provider(self, model: str) -> LLMProvider:
-        """识别 LLM 提供商"""
-        m = model.lower()
-        if any(s in m for s in ("openai", "gpt-")):
-            return LLMProvider.OPENAI
-        if any(s in m for s in ("anthropic", "claude")):
-            return LLMProvider.ANTHROPIC
-        if "deepseek" in m:
-            return LLMProvider.DEEPSEEK
-        if any(s in m for s in ("google", "gemini")):
-            return LLMProvider.GOOGLE
-        if any(s in m for s in ("zhipu", "glm-")):
-            return LLMProvider.ZHIPU
-        if "yunshu" in m:
-            return LLMProvider.YUNSHU
-        if "xiaomi_mimo" in m:
-            return LLMProvider.XIAOMI
-        return LLMProvider.OTHER
-
-    def get_provider_cache_config(self, model: str) -> ProviderCacheConfig:
-        """获取特定模型的缓存配置"""
-        provider = self.get_provider(model)
-        return PROVIDER_CACHE_CONFIGS.get(provider, PROVIDER_CACHE_CONFIGS[LLMProvider.OTHER])
 
     def validate_for_sandbox(self) -> None:
         """Sandbox 模式启动前校验，缺少必要配置时立即抛出 RuntimeError。"""

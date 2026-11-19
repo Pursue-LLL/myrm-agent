@@ -273,9 +273,10 @@ const AttachList: React.FC<AttachListProps> = ({
       }
       try {
         const dataUrl = await blobToDataUrl(blob);
+        // The annotated pixels are no longer the media-library item, so the attachment stops pointing at it.
         const updatedFiles = files.map((f) =>
           f.fileName === editingFile.fileName
-            ? { ...f, fileUrl: dataUrl, fileExtension: 'png', status: 'ready' as const }
+            ? { ...f, mediaId: undefined, fileUrl: dataUrl, fileExtension: 'png', status: 'ready' as const }
             : f,
         );
         setFiles(updatedFiles);

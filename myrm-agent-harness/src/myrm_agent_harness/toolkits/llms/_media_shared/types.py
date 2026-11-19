@@ -1,7 +1,6 @@
 """Shared data types for media generation capabilities and normalization.
 
 [OUTPUT]
-- MediaTaskState: Common task lifecycle states for media generation
 - ModeCapabilities: Per-mode capability declaration (aspect ratios, sizes, durations)
 - ProviderModeCapabilities: All three modes for a provider (generate/i2v/v2v)
 - NormalizationRecord: Record of a parameter that was normalized to fit provider limits
@@ -14,17 +13,6 @@ Defines the contract between provider capability declarations and the normalizat
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
-
-
-class MediaTaskState(StrEnum):
-    """Common task lifecycle states for async media generation."""
-
-    QUEUED = "queued"
-    GENERATING = "generating"
-    DOWNLOADING = "downloading"
-    COMPLETED = "completed"
-    FAILED = "failed"
 
 
 @dataclass(frozen=True, slots=True)

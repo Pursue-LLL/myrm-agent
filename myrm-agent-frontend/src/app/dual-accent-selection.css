@@ -1,0 +1,8 @@
+html[data-myrm-theme-dual-accent='true'] ::selection {
+  background: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
+  color: var(--foreground);
+}
+
+.dark[data-myrm-theme-dual-accent='true'] ::selection {
+  background: color-mix(in srgb, var(--primary) 60%, var(--accent-warm));
+}

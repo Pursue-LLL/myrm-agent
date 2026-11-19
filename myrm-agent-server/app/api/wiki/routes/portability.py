@@ -12,16 +12,13 @@ Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀�
 import asyncio
 import logging
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
 from app.services.wiki import MemoryToWikiArchiver
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

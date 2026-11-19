@@ -2,15 +2,16 @@
 
 [INPUT]
 - executors.models::AsyncProcessProtocol (POS: subprocess handle protocol)
+- utils.os_compat::kill_process_group, kill_spawned_group, SIGKILL (POS: cross-platform process-group control)
 
 [OUTPUT]
 - try_spawn_background_pty: Spawn with merged stdout/stderr on a PTY master fd
 
 [POS]
-PTY adapter for interactive CLIs (npm create, python input()). Skipped when
-sandbox wrapping is active or on non-POSIX hosts; callers fall back to PIPE.
-The master read side reports the Linux EIO hang-up as a clean end of stream so
-output still buffered when the child exits is never discarded.
+POSIX PTY spawn adapter for interactive CLIs (npm create, python input()); skipped when an OS sandbox wraps the
+command or on non-POSIX hosts, where callers fall back to PIPE. A job that exits at once keeps its output (the Linux
+EIO hang-up reads as a clean end of stream; the slave descriptor is released on a thread of its own once the reader is
+attached), and a spawn that fails or is cancelled once the child runs stops the child's process group.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import errno
 import logging
 import os
 import signal
+import threading
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
@@ -28,6 +30,7 @@ from typing import Any
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
 )
+from myrm_agent_harness.utils import os_compat
 
 logger = logging.getLogger(__name__)
 
@@ -95,13 +98,9 @@ class _PtyProcessWrapper(AsyncProcessProtocol):
         return await self._proc.wait()
 
     def terminate(self) -> None:
-        from myrm_agent_harness.utils import os_compat
-
         os_compat.kill_process_group(self._proc.pid, signal.SIGTERM)
 
     def kill(self) -> None:
-        from myrm_agent_harness.utils import os_compat
-
         os_compat.kill_process_group(self._proc.pid, os_compat.SIGKILL)
 
 
@@ -129,8 +128,17 @@ async def _connect_pty_reader(master_fd: int) -> tuple[asyncio.StreamReader, asy
     reader = asyncio.StreamReader(limit=_STREAM_LIMIT_BYTES)
     protocol = _PtyReaderProtocol(reader)
     read_file = os.fdopen(master_fd, "rb", buffering=0)
-    transport, _ = await loop.connect_read_pipe(lambda: protocol, read_file)
+    try:
+        transport, _ = await loop.connect_read_pipe(lambda: protocol, read_file)
+    except BaseException:
+        read_file.close()
+        raise
     return reader, transport, read_file
+
+
+def _close_quietly(fd: int) -> None:
+    with suppress(OSError):
+        os.close(fd)
 
 
 async def try_spawn_background_pty(
@@ -150,42 +158,49 @@ async def try_spawn_background_pty(
         logger.debug("PTY openpty unavailable: %s", exc)
         return None
 
-    read_transport: asyncio.BaseTransport | None = None
-    read_file: object | None = None
-    proc: asyncio.subprocess.Process | None = None
-
+    master_open = slave_open = True
     try:
         kwargs = dict(process_group_kwargs)
         kwargs.setdefault("limit", _STREAM_LIMIT_BYTES)
         if os.name != "nt" and preexec_fn is not None:
             kwargs["preexec_fn"] = preexec_fn
 
-        proc = await asyncio.create_subprocess_exec(
-            *full_cmd_array,
-            stdin=slave_fd,
-            stdout=slave_fd,
-            stderr=slave_fd,
-            cwd=str(effective_cwd) if effective_cwd else None,
-            env=env,
-            **kwargs,
-        )
-    except OSError as exc:
-        logger.warning("PTY subprocess spawn failed: %s", exc)
-        with suppress(OSError):
-            os.close(master_fd)
-        with suppress(OSError):
-            os.close(slave_fd)
-        return None
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *full_cmd_array,
+                stdin=slave_fd,
+                stdout=slave_fd,
+                stderr=slave_fd,
+                cwd=str(effective_cwd) if effective_cwd else None,
+                env=env,
+                **kwargs,
+            )
+        except OSError as exc:
+            logger.warning("PTY subprocess spawn failed: %s", exc)
+            return None
+
+        # The file object that the reader wraps around the master owns that descriptor from here on.
+        master_open = False
+        try:
+            stdout_reader, read_transport, read_file = await _connect_pty_reader(master_fd)
+            # A child that has already finished leaves this process holding the last descriptor of the slave. Closing it
+            # then waits until the master's reader has taken what the child wrote, and macOS discards that output when
+            # the wait runs out. The reader runs on this loop, so the close must not block it. A thread of its own does
+            # the close, not the shared default executor: a spawn must never wait for a worker that a busy executor
+            # holds.
+            threading.Thread(target=_close_quietly, args=(slave_fd,), name="pty-slave-close", daemon=True).start()
+            slave_open = False
+        except BaseException:
+            # The job runs and no wrapper owns it yet, so nothing would ever stop it. The hang-up of the master that
+            # closes with the reader does not reach a job that ignores SIGHUP, as one started with ``nohup`` does.
+            os_compat.kill_spawned_group(proc.pid)
+            raise
     finally:
-        with suppress(OSError):
-            os.close(slave_fd)
+        if master_open:
+            _close_quietly(master_fd)
+        if slave_open:
+            _close_quietly(slave_fd)
 
-    if proc is None:
-        with suppress(OSError):
-            os.close(master_fd)
-        return None
-
-    stdout_reader, read_transport, read_file = await _connect_pty_reader(master_fd)
     logger.info(" [LocalExecutor] Background PTY spawn pid=%s", proc.pid)
     return _PtyProcessWrapper(
         proc,

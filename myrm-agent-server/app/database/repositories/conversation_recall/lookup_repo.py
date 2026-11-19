@@ -1,11 +1,13 @@
 """Conversation Recall visibility lookup repository.
 
 [INPUT]
-- app.database.repositories.conversation_recall.sql::filter_sql (POS: Conversation Recall SQL 契约层)
+- app.database.repositories.conversation_recall.sql::filter_sql, visible_document_sql (POS: Conversation Recall SQL 契约层)
 - sqlalchemy.ext.asyncio::AsyncSession (POS: async database session)
 
 [OUTPUT]
-ConversationRecallLookupRepository: Read-only prior-chat document lookup and visibility-checked message window queries.
+ConversationRecallLookupRepository: Read-only prior-chat document lookup, visibility-checked message window queries,
+    and lookup of the stored text a search snippet was cut from, which a chat the model may not read does not give.
+WindowContext: Stored text around a snippet window, with the offset where the window starts in it.
 
 [POS]
 Conversation Recall 可见性查找仓储。为 Server 召回服务按统一 scope/exclusion 策略补齐可核验证据。
@@ -18,7 +20,7 @@ from dataclasses import dataclass
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.repositories.conversation_recall.sql import filter_sql
+from app.database.repositories.conversation_recall.sql import filter_sql, visible_document_sql
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +40,36 @@ class ExpandedSegmentRow:
     message_id: str
     role: str
     segment_text: str
+
+
+@dataclass(frozen=True, slots=True)
+class WindowContext:
+    """Stored text around a snippet window, with the offset where the window starts in it."""
+
+    text: str
+    offset: int
+
+
+# The stored texts an FTS5 snippet is cut from, in the order they are tried: the message itself, then the chat
+# transcript (a window can span messages), then the latest message the chat is listed by. A window inside the
+# title or the summary is found in memory by the caller. Identifiers are constants, never caller input.
+_WINDOW_SOURCES = (
+    ("conversation_recall_segments", "segment_text", "chat_id = :chat_id AND message_id = :message_id"),
+    ("conversation_recall_documents", "searchable_text", "chat_id = :chat_id"),
+    ("conversation_recall_documents", "snippet", "chat_id = :chat_id"),
+)
+# Scope and agent filters were applied by the search that ranked the hit. Whether the chat is excluded or incognito is
+# state a user can flip after that, so visibility is checked again here, for every source alike.
+_WINDOW_CONTEXT_SQL = """
+    SELECT substr({column}, MAX(1, instr({column}, :window) - :radius), :span) AS context,
+           instr({column}, :window) - MAX(1, instr({column}, :window) - :radius) AS window_offset
+    FROM {table}
+    WHERE {scope}
+      AND EXISTS (SELECT 1 FROM conversation_recall_documents v WHERE v.chat_id = {table}.chat_id AND {visible})
+      AND instr({column}, :window) > 0
+    LIMIT 1
+"""
+_VISIBLE_DOCUMENT = visible_document_sql("v")
 
 
 class ConversationRecallLookupRepository:
@@ -111,8 +143,7 @@ class ConversationRecallLookupRepository:
                         SELECT d.chat_id AS chat_id
                         FROM conversation_recall_documents d
                         WHERE d.chat_id = :chat_id
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                     ),
                     before_rows AS (
                         SELECT s.message_id, s.role, s.segment_text, s.sent_at
@@ -160,3 +191,34 @@ class ConversationRecallLookupRepository:
             )
             for row in rows
         ]
+
+    @staticmethod
+    async def fetch_window_context(
+        db: AsyncSession,
+        *,
+        chat_id: str,
+        message_id: str | None,
+        window: str,
+        radius: int,
+    ) -> WindowContext | None:
+        """The stored text holding ``window`` verbatim, or None if none does or the model may not read the chat.
+
+        The text starts ``radius`` chars before the window (at the start of the stored text if that comes first) and runs
+        for the window's length plus ``2 * radius`` chars. The substring search and the cut both run in SQLite, so a long
+        transcript never leaves the database whole.
+        """
+        # Without a message id there is no segment to look in.
+        sources = _WINDOW_SOURCES if message_id is not None else _WINDOW_SOURCES[1:]
+        params: dict[str, str | int | None] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "window": window,
+            "radius": radius,
+            "span": len(window) + 2 * radius,
+        }
+        for table, column, scope in sources:
+            statement = text(_WINDOW_CONTEXT_SQL.format(table=table, column=column, scope=scope, visible=_VISIBLE_DOCUMENT))
+            row = (await db.execute(statement, params)).mappings().first()
+            if row is not None:
+                return WindowContext(text=str(row["context"]), offset=int(row["window_offset"]))
+        return None

@@ -27,6 +27,7 @@ from myrm_agent_harness.toolkits.memory import (
 )
 
 from app.services.memory.imports.import_adapter_utils import (
+    DEFAULT_RULE_TRIGGER,
     build_metadata,
     build_result,
     iso_or_now,
@@ -110,9 +111,8 @@ def _parse_rules(rules: list[object]) -> list[dict[str, object]]:
         items.append(
             {
                 "content": (f"{name}\n{content}".strip() if name != "TRAE rule" else content),
-                "trigger": (f"When working on project: {name}" if scope != "user" else "When working on any project"),
+                "trigger": (f"When working on project: {name}" if scope != "user" else DEFAULT_RULE_TRIGGER),
                 "action": content[:500],
-                "trigger_keywords": [tag for tag in [scope or None, "trae_rule"] if tag],
                 "created_at": iso_or_now(rule.get("created_at")),
                 "metadata": build_metadata("trae", rule, ("name", "scope", "source")),
             }

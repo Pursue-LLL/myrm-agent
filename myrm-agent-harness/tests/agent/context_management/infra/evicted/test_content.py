@@ -15,6 +15,7 @@ from myrm_agent_harness.agent.context_management.infra.evicted import (
     persist_evicted_content,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
+from tests.support.windows_text_mode import emulate_windows_text_mode
 
 
 def test_cap_content_for_storage_under_limit() -> None:
@@ -274,9 +275,26 @@ def test_write_evicted_content_sync_success(tmp_path) -> None:
         chat_id_var.reset(c_tok)
 
 
-def test_write_evicted_content_sync_oserror(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_write_evicted_content_sync_stores_the_text_byte_for_byte(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The file holds the text whose characters and lines were counted, also where text mode translates newlines."""
+    from myrm_agent_harness.agent.context_management.infra.evicted import (
+        write_evicted_content_sync,
+    )
+
+    emulate_windows_text_mode(monkeypatch)
+    w_tok = workspace_root_var.set(str(tmp_path))
+    c_tok = chat_id_var.set("chat_sync_bytes")
+    try:
+        body = "crlf\r\nlone\rcr\nunix\ncafé\n"
+        result = write_evicted_content_sync(body, "output")
+        assert result.rel_path is not None
+        assert (tmp_path / result.rel_path).read_bytes() == body.encode("utf-8")
+    finally:
+        workspace_root_var.reset(w_tok)
+        chat_id_var.reset(c_tok)
+
+
+def test_write_evicted_content_sync_oserror(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     from myrm_agent_harness.agent.context_management.infra.evicted import (
         write_evicted_content_sync,
     )
@@ -285,7 +303,7 @@ def test_write_evicted_content_sync_oserror(
     c_tok = chat_id_var.set("chat_oserror")
     try:
         monkeypatch.setattr(
-            "myrm_agent_harness.agent.context_management.infra.evicted.content.Path.write_text",
+            "myrm_agent_harness.agent.context_management.infra.evicted.content.Path.write_bytes",
             lambda *_a, **_k: (_ for _ in ()).throw(OSError("disk full")),
         )
         result = write_evicted_content_sync("payload", "output")
@@ -302,9 +320,7 @@ async def test_persist_evicted_content_without_session_context() -> None:
 
 
 @pytest.mark.asyncio
-async def test_persist_evicted_content_oserror(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_persist_evicted_content_oserror(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     w_tok = workspace_root_var.set(str(tmp_path))
     c_tok = chat_id_var.set("chat_async_oserror")
     try:

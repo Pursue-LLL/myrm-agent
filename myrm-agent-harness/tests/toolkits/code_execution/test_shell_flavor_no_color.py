@@ -7,6 +7,7 @@ import subprocess
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.session.shell_flavor import BashFlavor
+from tests.toolkits.code_execution._session_helpers import split_bash_wrapper
 
 
 def _bash_roundtrip(value: str) -> str:
@@ -135,16 +136,17 @@ class TestBashFlavorNoColor:
         flavor = BashFlavor()
         wrapped = flavor.build_wrapped_command("echo hi", "EX", "END", "$?")
 
-        assert wrapped.startswith('trap \'echo "EX"$?; echo "END"\' EXIT\n{\necho hi\n')
-        assert "__myrm_rc__=$?" in wrapped
-        assert "}\necho 'EX'" in wrapped
-        assert "\necho 'END'\n" in wrapped
+        before, block, after = split_bash_wrapper(wrapped)
+
+        assert before == ['trap \'echo "EX"$?; echo "END"\' EXIT']
+        assert block == ["echo hi", "__myrm_rc__=$?"]
+        assert after == ["echo 'EX'\"$__myrm_rc__\"", "echo 'END'"]
 
     def test_wrapped_command_single_line_variant(self) -> None:
         """A single-line command still round-trips through the wrapper."""
         flavor = BashFlavor()
         wrapped = flavor.build_wrapped_command("echo a; echo b", "EX", "END", "$?")
-        assert "{\necho a; echo b\n__myrm_rc__=$?\n}\n" in wrapped
+        assert split_bash_wrapper(wrapped)[1] == ["echo a; echo b", "__myrm_rc__=$?"]
 
 
 class TestPowerShellFlavor:

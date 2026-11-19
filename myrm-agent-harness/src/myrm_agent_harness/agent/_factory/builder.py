@@ -37,11 +37,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.skill_agent import SkillAgent
     from myrm_agent_harness.agent.skills import SkillMetadata
     from myrm_agent_harness.agent.types import AgentRuntimeSpec
-    from myrm_agent_harness.backends.secrets.protocols import AgentSecretBackend
     from myrm_agent_harness.backends.skills.creation_protocols import SkillWriteBackend
-    from myrm_agent_harness.backends.skills.market_protocols import (
-        SkillMarketBackend,
-    )
     from myrm_agent_harness.backends.skills.protocols import (
         SkillBackend as SkillBackendProtocol,
     )
@@ -69,9 +65,7 @@ async def create_skill_agent(
     executor: CodeExecutor | None = None,
     storage_backend: StorageProvider | None = None,
     skill_backend: SkillBackendProtocol | None = None,
-    market_backend: SkillMarketBackend | None = None,
     write_backend: SkillWriteBackend | None = None,
-    secret_backend: AgentSecretBackend | None = None,
     memory_manager: MemoryManager | None = None,
     enable_memory_auto_extraction: bool = True,
     extraction_llm: BaseChatModel | None = None,
@@ -106,9 +100,6 @@ async def create_skill_agent(
     enable_answer_tool: bool = False,
     enable_planning: bool = False,
     task_workspace_root: str | None = None,
-    available_tool_names: frozenset[str] | None = None,
-    available_tool_groups: frozenset[str] | None = None,
-    library_skill_names: frozenset[str] | None = None,
 ) -> SkillAgent:
     """Create a SkillAgent instance (framework assembly entry)."""
     from myrm_agent_harness.runtime.install_guard.probe import assert_distribution_ready
@@ -338,6 +329,7 @@ async def create_skill_agent(
         prompt_locale=spec.prompt_locale or spec.locale,
         channel_name=spec.channel_name,
         security_config=spec.security_config,
+        no_builtin_tools=spec.no_builtin_tools,
         engine_params=engine_params,
     )
 
@@ -412,9 +404,7 @@ async def create_skill_agent(
         executor=executor,
         storage_backend=storage_backend,
         skill_backend=final_skill_backend,
-        market_backend=market_backend,
         write_backend=final_write_backend,
-        secret_backend=secret_backend,
         memory_manager=memory_manager,
         enable_memory_auto_extraction=enable_memory_auto_extraction,
         extraction_llm=extraction_llm,
@@ -437,6 +427,7 @@ async def create_skill_agent(
         default_skill_instances=default_skill_instances,
         global_env=global_env,
         on_skill_review_ready=on_skill_review_ready,
+        model_resolver=model_resolver,
         wiki_base_dir=wiki_base_dir,
         wiki_public_dirs=wiki_public_dirs,
         wiki_public_dir_labels=wiki_public_dir_labels,
@@ -453,5 +444,4 @@ async def create_skill_agent(
         or (spec.workspace_binding.root_path if spec.workspace_binding else None),
         available_tool_names=(frozenset(spec.allowed_tools) if spec.allowed_tools else None),
         available_tool_groups=frozenset(spec.tool_groups) if spec.tool_groups else None,
-        library_skill_names=library_skill_names,
     )

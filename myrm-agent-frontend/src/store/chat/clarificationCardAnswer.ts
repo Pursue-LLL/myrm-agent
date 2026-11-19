@@ -7,8 +7,8 @@
  *
  * [OUTPUT]
  * - settleClarificationCard: mark the card answered and keep how it was answered
- * - answerClarificationWithResume: close the card, send the resumed answer, reopen the card if the server never took it,
- *   hand the answer to the composer if someone else settled the card first
+ * - answerClarificationWithResume: close the card, send the resumed answer to the pause the card was announced for,
+ *   reopen the card if the server never took it, hand the answer to the composer if someone else settled the card first
  *
  * [POS]
  * Answer flow of the clarification card. A resume request streams the whole resumed run, and the composer stays taken
@@ -48,6 +48,15 @@ export function settleClarificationCard(messageId: string, record: HitlAnswerRec
   });
 }
 
+// The answer settles the pause the card was announced for and no later one. Only an object can carry the id; a card the
+// server stored without one sends its answer unaddressed.
+function addressTo(interruptId: string | undefined, value: unknown): unknown {
+  if (!interruptId || typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return value;
+  }
+  return { ...value, interruptId };
+}
+
 // Appends, so whatever the user already typed in the composer survives.
 function handBackToComposer(text: string): void {
   if (!text) {
@@ -65,8 +74,9 @@ function reopenClarificationCard(messageId: string): void {
 }
 
 /**
- * Rethrows whatever `sendResume` throws so the caller reports it. A card the resumed run has replaced or settled since
- * is left alone: only the exact card closed here is reopened or rewritten.
+ * `sendResume` gets the answer addressed to the card's pause; the card's own record keeps the answer without the
+ * address. Rethrows whatever `sendResume` throws so the caller reports it. A card the resumed run has replaced or
+ * settled since is left alone: only the exact card closed here is reopened or rewritten.
  * - Refused resume: the card comes back carrying what the user wrote (`draft`).
  * - Already settled by someone else (the timeout or another device): the card stays closed and says it was already
  *   handled, and the answer that came too late goes to the composer so it can still be sent as a message.
@@ -75,14 +85,14 @@ function reopenClarificationCard(messageId: string): void {
 export async function answerClarificationWithResume(
   messageId: string,
   answer: { value: unknown; draft: ClarificationDraft },
-  sendResume: () => Promise<unknown>,
+  sendResume: (resumeValue: unknown) => Promise<unknown>,
 ): Promise<void> {
   clearClarificationDraft(messageId);
   settleClarificationCard(messageId, { by: 'user', value: answer.value });
   const closedCard = findCard(messageId);
   const isStillClosedCard = () => closedCard !== undefined && findCard(messageId) === closedCard;
   try {
-    await sendResume();
+    await sendResume(addressTo(closedCard?.interruptId, answer.value));
   } catch (error) {
     if (error instanceof ApprovalAlreadyResolvedError) {
       handBackToComposer(clarificationAnswerAsText(answer.value, closedCard?.form));

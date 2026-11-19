@@ -70,7 +70,7 @@ async def test_request_binds_the_token_agents_manager(
     ):
         try:
             await setup_mcp_endpoint(app)
-            response = TestClient(app).post(
+            response = TestClient(app, base_url="http://localhost:8080").post(  # the MCP guards need a loopback Host with a port
                 "/mcp",
                 headers={"Authorization": "Bearer token", "Content-Type": "application/json"},
                 json=_LIST_TOOLS,

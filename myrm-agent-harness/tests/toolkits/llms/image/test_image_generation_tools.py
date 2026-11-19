@@ -1,4 +1,4 @@
-"""Tests for ImageGenerationTools: generate, edit, list, SSRF validation."""
+"""Tests for ImageGenerationTools: edit, model listing and the result shape."""
 
 from __future__ import annotations
 
@@ -16,106 +16,66 @@ from myrm_agent_harness.toolkits.llms.image.models import (
     ImageGenerationConfig,
     ImageResult,
 )
+from myrm_agent_harness.toolkits.llms.image.types import BUILTIN_PROFILES
 from myrm_agent_harness.toolkits.llms.transport.images import GeneratedImage
 
-
-class TestGenerateImage:
-    @pytest.mark.asyncio()
-    async def test_successful_generation(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3")
-        tools = ImageGenerationTools(config)
-
-        with patch("myrm_agent_harness.toolkits.llms.image.generator.agenerate_images", new_callable=AsyncMock) as mock:
-            mock.return_value = [GeneratedImage(url="https://example.com/img.png", revised_prompt="revised")]
-            result_str = await tools.generate_image("a cat")
-
-        result = json.loads(result_str)
-        assert "image_url" in result
-        assert result["model"] == "dall-e-3"
-
-    @pytest.mark.asyncio()
-    async def test_empty_prompt_rejected(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3")
-        tools = ImageGenerationTools(config)
-
-        result_str = await tools.generate_image("")
-        result = json.loads(result_str)
-        assert "error" in result
-        assert "empty" in result["error"].lower()
-
-    @pytest.mark.asyncio()
-    async def test_reference_urls_passed_to_generator(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3")
-        tools = ImageGenerationTools(config)
-        mock_result = ImageResult(
-            url="https://example.com/img.png",
-            b64_json=None,
-            revised_prompt=None,
-            model="dall-e-3",
-        )
-
-        with patch.object(
-            tools._generator,
-            "generate",
-            new_callable=AsyncMock,
-            return_value=mock_result,
-        ) as mock_gen:
-            await tools.generate_image(
-                "a cat",
-                reference_image_urls=["https://example.com/ref.png"],
-            )
-
-        mock_gen.assert_awaited_once()
-        assert mock_gen.await_args.kwargs["reference_image_urls"] == ["https://example.com/ref.png"]
-
-    @pytest.mark.asyncio()
-    async def test_generation_error_handled(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3", max_retries=0)
-        tools = ImageGenerationTools(config)
-
-        with patch("myrm_agent_harness.toolkits.llms.image.generator.agenerate_images", new_callable=AsyncMock) as mock:
-            mock.side_effect = RuntimeError("API error")
-            result_str = await tools.generate_image("test")
-
-        result = json.loads(result_str)
-        assert "error" in result
+_MODEL = "gpt-image-2.6-sunburst"
+_EDIT = "myrm_agent_harness.toolkits.llms.image.generator.aedit_images"
 
 
 class TestEditImage:
     @pytest.mark.asyncio()
-    async def test_edit_not_supported(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3")
-        tools = ImageGenerationTools(config)
+    async def test_a_model_without_edit_support_is_refused(self) -> None:
+        tools = ImageGenerationTools(ImageGenerationConfig(model="flux/schnell"))
 
-        result_str = await tools.edit_image(b"png-bytes", "edit it")
-        result = json.loads(result_str)
-        assert "error" in result
+        result = json.loads(await tools.edit_image(b"png-bytes", "edit it"))
+
         assert "not support" in result["error"].lower()
 
     @pytest.mark.asyncio()
-    async def test_edit_success(self) -> None:
-        config = ImageGenerationConfig(model="gpt-image-1")
-        tools = ImageGenerationTools(config)
+    async def test_edit_returns_the_generation_result_shape(self) -> None:
+        tools = ImageGenerationTools(ImageGenerationConfig(model=_MODEL))
 
-        with patch("myrm_agent_harness.toolkits.llms.image.generator.aedit_images", new_callable=AsyncMock) as mock:
+        with patch(_EDIT, new_callable=AsyncMock) as mock:
             mock.return_value = [GeneratedImage(url="https://example.com/img.png", revised_prompt="revised")]
-            result_str = await tools.edit_image(b"png-bytes", "edit it")
+            result = json.loads(await tools.edit_image(b"png-bytes", "edit it"))
 
-        result = json.loads(result_str)
-        assert "image_url" in result
+        assert result["images"] == [{"url": "https://example.com/img.png", "mime_type": "image/png"}]
+        assert result["model"] == _MODEL
+        assert result["prompt"] == "revised"
+
+    @pytest.mark.asyncio()
+    async def test_the_quality_asked_for_reaches_the_provider(self) -> None:
+        tools = ImageGenerationTools(ImageGenerationConfig(model=_MODEL))
+
+        with patch(
+            _EDIT, new_callable=AsyncMock, return_value=[GeneratedImage(url="https://example.com/i.png")]
+        ) as mock:
+            await tools.edit_image(b"png-bytes", "edit it", quality="high")
+
+        assert mock.await_args.kwargs["quality"] == "high"
+
+    @pytest.mark.asyncio()
+    async def test_a_failed_edit_is_reported_as_an_error(self) -> None:
+        tools = ImageGenerationTools(ImageGenerationConfig(model=_MODEL, max_retries=0))
+
+        with patch(_EDIT, new_callable=AsyncMock, side_effect=RuntimeError("API error")):
+            result = json.loads(await tools.edit_image(b"png-bytes", "edit it"))
+
+        assert "error" in result
+        assert "images" not in result
 
 
 class TestListModels:
-    def test_list_models(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3", fallback_models=["dall-e-2"])
+    def test_every_catalog_entry_is_listed(self) -> None:
+        config = ImageGenerationConfig(model=_MODEL, fallback_models=["gpt-image-2.6-flare"])
         tools = ImageGenerationTools(config)
 
-        result_str = tools.list_models()
-        result = json.loads(result_str)
-        assert "models" in result
-        assert len(result["models"]) >= 7
-        assert result["active_model"] == "dall-e-3"
-        assert result["fallback_models"] == ["dall-e-2"]
+        result = json.loads(tools.list_models())
+
+        assert len(result["models"]) >= len(BUILTIN_PROFILES)
+        assert result["active_model"] == _MODEL
+        assert result["fallback_models"] == ["gpt-image-2.6-flare"]
 
 
 class TestFormatResult:
@@ -124,48 +84,35 @@ class TestFormatResult:
             url="https://example.com/img.png",
             b64_json=None,
             revised_prompt="revised",
-            model="dall-e-3",
+            model=_MODEL,
             latency_ms=1500.0,
         )
-        output = json.loads(_format_result(result))
-        assert output["image_url"] == "https://example.com/img.png"
-        assert output["model"] == "dall-e-3"
-        assert output["revised_prompt"] == "revised"
+        output = json.loads(_format_result(result, "original"))
+        assert output["images"] == [{"url": "https://example.com/img.png", "mime_type": "image/png"}]
+        assert output["model"] == _MODEL
+        assert output["prompt"] == "revised"
         assert output["latency_ms"] == 1500
 
-    def test_persisted_url_preferred(self) -> None:
+    def test_the_stored_reference_replaces_the_provider_url(self) -> None:
         result = ImageResult(
             url="https://temp.com/img.png",
             b64_json=None,
             revised_prompt=None,
-            model="dall-e-3",
-            persisted_url="https://storage.com/img.png",
+            model=_MODEL,
+            persisted_ref="media://abc123",
+            mime_type="image/webp",
         )
-        output = json.loads(_format_result(result))
-        assert output["image_url"] == "https://storage.com/img.png"
+        output = json.loads(_format_result(result, "original"))
+        assert output["images"] == [{"url": "media://abc123", "mime_type": "image/webp"}]
+        assert output["prompt"] == "original"
 
     def test_failover_attempts_included(self) -> None:
         result = ImageResult(
             url="https://x.com/img.png",
             b64_json=None,
             revised_prompt=None,
-            model="dall-e-2",
-            attempts=[FailoverAttempt(model="dall-e-3", error="failed", latency_ms=100)],
+            model="gpt-image-2.6-flare",
+            attempts=[FailoverAttempt(model=_MODEL, error="failed", latency_ms=100)],
         )
-        output = json.loads(_format_result(result))
-        assert "failover_attempts" in output
-        assert output["failover_attempts"][0]["model"] == "dall-e-3"
-
-
-class TestToolMetadata:
-    def test_tool_name(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3")
-        tools = ImageGenerationTools(config)
-        assert tools.tool_name == "image_tool"
-
-    def test_tool_description_contains_reference(self) -> None:
-        config = ImageGenerationConfig(model="dall-e-3")
-        tools = ImageGenerationTools(config)
-        desc = tools.tool_description
-        assert "reference_image_urls" in desc
-        assert "dall-e-3" in desc
+        output = json.loads(_format_result(result, "original"))
+        assert output["failover_attempts"] == [{"model": _MODEL, "error": "failed"}]

@@ -6,7 +6,8 @@
  * - SessionMapGraph from ./SessionMapGraph
  * - AgentFleetCockpit from ./AgentFleetCockpit
  * - SessionContextJumpModal from ./SessionContextJumpModal
- * - Translation strings from 'sessionMap' namespace
+ * - Translation strings from 'sessionMap' namespace; 'emptyState' for the load-failure and empty-list states
+ * - EmptyState, Button from @/components/primitives
  * - UTILITY_PANEL_EVENTS.sessionMap ('myrm:open-session-map') dispatched by the nav rail's Tools menu
  *
  * [OUTPUT]
@@ -18,9 +19,11 @@
  * Strict typing: Zero `any`. File length < 360 lines. Zero native emoji.
  */
 
-import { useState, useEffect, useCallback, useId } from 'react';
+import { useState, useEffect, useCallback, useId, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconActivity, IconX, IconFolder } from '@/components/features/icons/PremiumIcons';
+import { Button } from '@/components/primitives/button';
+import { EmptyState } from '@/components/primitives/empty-state';
 import {
   fetchSessionMapProjects,
   fetchFleetCockpitSummary,
@@ -36,12 +39,15 @@ import { UTILITY_PANEL_EVENTS } from '@/lib/utilityPanelEvents';
 
 export function SessionMapTrigger() {
   const t = useTranslations('sessionMap');
+  const tState = useTranslations('emptyState');
   const dialogTitleId = useId();
 
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [clusters, setClusters] = useState<ProjectCluster[]>([]);
   const [summary, setSummary] = useState<FleetCockpitSummary | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // Nothing has been fetched before the first open, so the empty state must not show ahead of the first load.
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadFailed, setLoadFailed] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<AgentState | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [viewMode, setViewMode] = useState<'topology' | 'list'>('topology');
@@ -51,22 +57,37 @@ export function SessionMapTrigger() {
   const [selectedProject, setSelectedProject] = useState<ProjectCluster | null>(null);
   const [isJumpModalOpen, setIsJumpModalOpen] = useState<boolean>(false);
 
+  // Only the newest request may publish its outcome, so a slow response for an older filter cannot overwrite the data
+  // (or the error state) of the filter the user is looking at.
+  const latestRequestId = useRef(0);
+
   // Load topology and cockpit summary data
   const loadData = useCallback(async (filter?: AgentState) => {
+    const requestId = ++latestRequestId.current;
+    const isLatest = () => requestId === latestRequestId.current;
     setIsLoading(true);
     try {
       const [projData, sumData] = await Promise.all([fetchSessionMapProjects(filter), fetchFleetCockpitSummary()]);
+      if (!isLatest()) {
+        return;
+      }
       setClusters(projData);
       setSummary(sumData);
+      setLoadFailed(false);
     } catch {
-      // Graceful fallback
+      if (isLatest()) {
+        setLoadFailed(true);
+      }
     } finally {
-      setIsLoading(false);
+      if (isLatest()) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     if (isOpen) {
+      // oxlint-disable-next-line react/set-state-in-effect -- opening the panel or changing the filter starts a backend fetch; the loading flag mirrors that in-flight request
       loadData(activeFilter);
     }
   }, [isOpen, activeFilter, loadData]);
@@ -160,6 +181,19 @@ export function SessionMapTrigger() {
                 <div className="w-full h-80 flex items-center justify-center text-xs text-muted-foreground">
                   {t('loadingTopology')}
                 </div>
+              ) : loadFailed ? (
+                <EmptyState
+                  variant="error"
+                  title={tState('loadFailed')}
+                  description={tState('loadFailedDesc')}
+                  action={
+                    <Button variant="outline" size="sm" onClick={() => void loadData(activeFilter)}>
+                      {tState('retry')}
+                    </Button>
+                  }
+                />
+              ) : clusters.length === 0 ? (
+                <EmptyState title={tState('defaultTitle')} description={tState('defaultDescription')} />
               ) : viewMode === 'topology' ? (
                 <SessionMapGraph
                   clusters={clusters}
@@ -180,9 +214,9 @@ export function SessionMapTrigger() {
                         <div className="flex items-center gap-2 font-semibold text-sm">
                           <IconFolder className="w-4 h-4 text-primary" />
                           <span>{proj.name}</span>
-                          <span className="text-xs font-mono text-muted-foreground">
-                            ({proj.workspace_path || 'default'})
-                          </span>
+                          {proj.workspace_path && (
+                            <span className="text-xs font-mono text-muted-foreground">({proj.workspace_path})</span>
+                          )}
                         </div>
                         <span className="text-xs font-mono text-muted-foreground">{proj.sessions.length} sessions</span>
                       </div>

@@ -315,7 +315,6 @@ def test_import_session_webui_modal_and_resume_chrome_e2e() -> None:
             f"""(async () => {{
                 return await window.__MYRM_E2E_CHAT__.sendChatMessage({query_escaped}, {{
                     preserveActionMode: true,
-                    waitForStreamCompletion: true,
                 }});
             }})()""",
             timeout_sec=60.0,

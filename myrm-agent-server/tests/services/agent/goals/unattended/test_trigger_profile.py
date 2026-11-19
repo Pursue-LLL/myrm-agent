@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
+from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.goals.unattended.trigger import (
     GoalStreamAgentContext,
     _resolve_goal_stream_agent_context,
@@ -18,12 +21,13 @@ from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
 
 
 @pytest.mark.asyncio
-async def test_resolve_goal_stream_agent_context_applies_ko_formal_suffix() -> None:
+async def test_resolve_goal_stream_agent_context_ignores_retired_reply_policy_key() -> None:
+    """An agent whose parameters still hold a ``response_locale_policy`` key keeps its prompt as saved."""
     chat = MagicMock()
-    chat.agent_id = "builtin-ko-office"
+    chat.agent_id = "agent-saved"
 
     profile = ResolvedAgentProfile(
-        agent_id="builtin-ko-office",
+        agent_id="agent-saved",
         skill_ids=("skill-a",),
         mcp_ids=(),
         enabled_builtin_tools=("web_search",),
@@ -53,16 +57,13 @@ async def test_resolve_goal_stream_agent_context_applies_ko_formal_suffix() -> N
         ctx = await _resolve_goal_stream_agent_context("chat-session-1")
 
     assert ctx == GoalStreamAgentContext(
-        agent_id="builtin-ko-office",
-        user_instructions=ctx.user_instructions,
+        agent_id="agent-saved",
+        user_instructions="Office assistant base prompt",
         subagent_ids=None,
         agent_skill_ids=["skill-a"],
         enabled_builtin_tools=["web_search"],
     )
-    assert ctx.user_instructions is not None
-    assert ctx.user_instructions.startswith("Office assistant base prompt")
-    assert "합니다" in ctx.user_instructions
-    mock_resolver.resolve.assert_awaited_once_with("builtin-ko-office")
+    mock_resolver.resolve.assert_awaited_once_with("agent-saved")
 
 
 @pytest.mark.asyncio
@@ -129,15 +130,15 @@ async def test_resolve_goal_stream_agent_context_no_chat_agent() -> None:
 async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -> None:
     """Full trigger path: resolved profile fields must reach GeneralAgentParams."""
     goal = Goal(
-        goal_id="g-ko",
-        session_id="chat-ko-1",
-        objective="Continue with formal Korean",
+        goal_id="g-profile",
+        session_id="chat-profile-1",
+        objective="Continue with the saved profile",
         status=GoalStatus.ACTIVE,
         budget=GoalBudget(max_turns=5),
     )
     agent_ctx = GoalStreamAgentContext(
-        agent_id="builtin-ko-office",
-        user_instructions="Base prompt\n\n[formal suffix with 합니다]",
+        agent_id="agent-saved",
+        user_instructions="Base prompt",
         subagent_ids=None,
         agent_skill_ids=["skill-a"],
         enabled_builtin_tools=["web_search", "structured_clarify"],
@@ -174,7 +175,7 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
                 providers_dict={},
                 retrieval_dict={},
                 security_config_dict={"yolo_mode_enabled": True},
-                personal_settings_dict={"locale": "ko-KR"},
+                personal_settings_dict={"locale": "en"},
                 search_cfg=None,
                 search_is_user_configured=False,
             ),
@@ -214,17 +215,15 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
             return_value=[],
         ),
     ):
-        await trigger_goal_stream("chat-ko-1", goal)
+        await trigger_goal_stream("chat-profile-1", goal)
         await asyncio.sleep(0.05)
 
-    assert captured.get("agent_id") == "builtin-ko-office"
-    assert captured.get("chat_id") == "chat-ko-1"
-    assert captured.get("query") == "Continue with formal Korean"
+    assert captured.get("agent_id") == "agent-saved"
+    assert captured.get("chat_id") == "chat-profile-1"
+    assert captured.get("query") == "Continue with the saved profile"
     assert captured.get("agent_skill_ids") == ["skill-a"]
     assert captured.get("subagent_ids") is None
-    instructions = captured.get("user_instructions")
-    assert isinstance(instructions, str)
-    assert "합니다" in instructions
+    assert captured.get("user_instructions") == "Base prompt"
     assert captured.get("unattended_mode") is True
     assert captured.get("web_search_profile_enabled") is True
     assert captured.get("enable_structured_clarify") is True
@@ -238,8 +237,8 @@ async def test_trigger_goal_stream_injects_profile_into_general_agent_params() -
 
 
 @pytest.mark.asyncio
-async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> None:
-    """GoalProvider must reach the stream via extra_context; enable_memory follows user switch."""
+async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch(tmp_path: Path) -> None:
+    """The session's registered GoalProvider must reach the stream via extra_context; enable_memory follows user switch."""
     goal = Goal(
         goal_id="g-provider",
         session_id="chat-provider-1",
@@ -247,7 +246,6 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
         status=GoalStatus.ACTIVE,
         budget=GoalBudget(max_turns=5),
     )
-    provider = AsyncMock()
     agent_ctx = GoalStreamAgentContext(
         agent_id=None,
         user_instructions=None,
@@ -258,9 +256,11 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
     )
     captured_params: dict[str, object] = {}
     stream_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    registered_in_stream: list[object] = []
 
     async def capturing_stream(*_args: object, **_kwargs: object) -> AsyncGenerator[object, None]:
         stream_calls.append((_args, _kwargs))
+        registered_in_stream.append(GoalRegistry.get_provider("chat-provider-1"))
         if False:
             yield None
 
@@ -328,8 +328,9 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
             new_callable=AsyncMock,
             return_value=["skills/prebuilt/off"],
         ),
+        patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))),
     ):
-        await trigger_goal_stream("chat-provider-1", goal, provider=provider)
+        await trigger_goal_stream("chat-provider-1", goal)
         await asyncio.sleep(0.05)
 
     assert captured_params.get("enable_memory") is True  # enableMemory=True → enabled
@@ -337,7 +338,9 @@ async def test_trigger_goal_stream_injects_goal_provider_and_memory_switch() -> 
     _, stream_kwargs = stream_calls[0]
     extra_context = stream_kwargs.get("extra_context")
     assert isinstance(extra_context, dict)
-    assert extra_context["goal_provider"] is provider
+    assert registered_in_stream[0] is not None
+    assert extra_context["goal_provider"] is registered_in_stream[0]
+    assert GoalRegistry.get_provider("chat-provider-1") is None
     assert extra_context["execution_mode"] == "pooled"
     assert extra_context["disabled_skill_roots"] == ["skills/prebuilt/off"]
 

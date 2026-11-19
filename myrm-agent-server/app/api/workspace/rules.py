@@ -34,9 +34,9 @@ class WorkspaceRulesResponse(BaseModel):
 async def get_workspace_rules() -> WorkspaceRulesResponse:
     """Return currently discovered workspace rule files.
 
-    Scans the active workspace root for project-level rule files
-    (AGENTS.md, CLAUDE.md, .myrm/rules/*.md, .cursor/rules/*.mdc)
-    and returns metadata about each.
+    Scans the active workspace root for the project-level rule files that
+    ``scan_workspace_rules`` discovers and returns each file's path, source,
+    size, truncation flag and content.
     """
     from myrm_agent_harness.agent.workspace_rules.scanner import (
         scan_workspace_rules,

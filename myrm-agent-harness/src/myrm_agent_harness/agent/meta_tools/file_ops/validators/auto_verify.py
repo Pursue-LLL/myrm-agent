@@ -1,25 +1,27 @@
 """Smart Auto-Verify — 编辑后自动类型诊断反馈
 
-当 Agent 未提供 verify_command 时，框架根据文件扩展名自动推断并执行
-对应的 CLI linter（如 pyright/tsc/go vet），将诊断结果以软报告形式
-附加到工具返回值中，Agent 可据此自主修复。
+每次代码编辑后，框架根据文件扩展名自动推断并执行对应的 CLI linter
+（目前只有 pyright，用于 .py），将诊断结果以软报告形式附加到工具返回值中，
+Agent 可据此自主修复。
 
 设计原则：
 - 软报告：不回滚文件，仅附加诊断信息到返回值
 - 容错：linter 不可用/超时/失败均静默跳过
 - 增量过滤：仅报告与编辑行范围相关的 Error 级别诊断
 - 会话级缓存：避免重复探测 linter 可用性
+- 只登记能自己找到工程配置、输出又能解析的 linter：单文件 tsc 忽略 tsconfig，
+  go vet 与 cargo check 的输出没有对应的解析，cargo check 还会执行工作区的 build.rs
 
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: CLI command executor)
-- core.verify_runner::workspace_command_context (POS: runs a check command from the workspace root)
+- toolkits.code_execution.executors.models::ExecutionContext (POS: How a command is run: directory, workspace root, timeout)
 
 [OUTPUT]
 - run_auto_verify: 主入口函数，执行自动诊断并返回格式化结果
 
 [POS]
-Smart Auto-Verify. Infers and runs CLI linters after file edits when Agent
-does not provide explicit verify_command. Provides soft diagnostic feedback.
+Smart Auto-Verify. Runs pyright from the workspace root after every Python
+edit and appends soft diagnostic feedback to the tool result.
 """
 
 from __future__ import annotations
@@ -31,7 +33,7 @@ import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ..core.verify_runner import workspace_command_context
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
@@ -55,22 +57,6 @@ LINTER_REGISTRY: dict[str, LinterConfig] = {
         command_template="pyright --outputjson {path}",
         detect_cmd="pyright",
     ),
-    ".ts": LinterConfig(
-        command_template="tsc --noEmit --pretty false --skipLibCheck {path}",
-        detect_cmd="tsc",
-    ),
-    ".tsx": LinterConfig(
-        command_template="tsc --noEmit --pretty false --skipLibCheck {path}",
-        detect_cmd="tsc",
-    ),
-    ".go": LinterConfig(
-        command_template="go vet {path}",
-        detect_cmd="go",
-    ),
-    ".rs": LinterConfig(
-        command_template="cargo check --message-format=short 2>&1",
-        detect_cmd="cargo",
-    ),
 }
 
 _linter_availability_cache: dict[str, bool] = {}
@@ -81,12 +67,33 @@ def _reset_cache() -> None:
     _linter_availability_cache.clear()
 
 
+def _workspace_root(executor: CodeExecutor) -> str | None:
+    try:
+        return executor.workspace_path
+    except RuntimeError:
+        return None
+
+
+def _workspace_command_context(executor: CodeExecutor, command: str, timeout: int) -> ExecutionContext:
+    """Context that runs ``command`` from the workspace root, whatever directory the shell is in.
+
+    A relative ``work_dir`` would resolve against the host process and leave the executor's current workspace
+    pointing at it, so the root is given as the abstract ``/workspace`` plus the root the executor is bound to.
+    """
+    return ExecutionContext(
+        code=command,
+        enter_work_dir=True,
+        workspace_root=_workspace_root(executor),
+        timeout=timeout,
+    )
+
+
 async def _check_linter_available(executor: CodeExecutor, detect_cmd: str) -> bool:
     """Check if a linter binary is available via `which`."""
     if detect_cmd in _linter_availability_cache:
         return _linter_availability_cache[detect_cmd]
 
-    ctx = workspace_command_context(executor, f"which {detect_cmd}", timeout=5)
+    ctx = _workspace_command_context(executor, f"which {detect_cmd}", timeout=5)
     try:
         result = await executor.execute_bash(ctx)
         available = bool(result.success)
@@ -119,7 +126,7 @@ def _parse_pyright_output(raw: str) -> list[Diagnostic]:
     try:
         data = json_mod.loads(raw)
     except (json_mod.JSONDecodeError, ValueError):
-        return _parse_generic_output(raw)
+        return _parse_pyright_text_output(raw)
 
     diagnostics: list[Diagnostic] = []
     for diag in data.get("generalDiagnostics", []):
@@ -139,38 +146,21 @@ def _parse_pyright_output(raw: str) -> list[Diagnostic]:
     return diagnostics
 
 
-_GENERIC_DIAG_PATTERN = re.compile(r"^(.+?)\((\d+),(\d+)\):\s*(error)\s+\w+:\s*(.+)$", re.MULTILINE)
-_GENERIC_DIAG_PATTERN_COLON = re.compile(r"^(.+?):(\d+):(\d+)\s*[-–]\s*(error):\s*(.+)$", re.MULTILINE)
+_PYRIGHT_TEXT_DIAG_PATTERN = re.compile(r"^(.+?):(\d+):(\d+)\s*[-–]\s*(error):\s*(.+)$", re.MULTILINE)
 
 
-def _parse_generic_output(raw: str) -> list[Diagnostic]:
-    """Parse generic linter output (tsc/go vet style)."""
-    diagnostics: list[Diagnostic] = []
-
-    for m in _GENERIC_DIAG_PATTERN.finditer(raw):
-        diagnostics.append(
-            Diagnostic(
-                file=m.group(1).strip(),
-                line=int(m.group(2)),
-                col=int(m.group(3)),
-                severity=m.group(4).lower(),
-                message=m.group(5).strip(),
-            )
+def _parse_pyright_text_output(raw: str) -> list[Diagnostic]:
+    """Parse pyright's plain-text diagnostics (``file:line:col - error: message``)."""
+    return [
+        Diagnostic(
+            file=m.group(1).strip(),
+            line=int(m.group(2)),
+            col=int(m.group(3)),
+            severity=m.group(4).lower(),
+            message=m.group(5).strip(),
         )
-
-    if not diagnostics:
-        for m in _GENERIC_DIAG_PATTERN_COLON.finditer(raw):
-            diagnostics.append(
-                Diagnostic(
-                    file=m.group(1).strip(),
-                    line=int(m.group(2)),
-                    col=int(m.group(3)),
-                    severity=m.group(4).lower(),
-                    message=m.group(5).strip(),
-                )
-            )
-
-    return diagnostics
+        for m in _PYRIGHT_TEXT_DIAG_PATTERN.finditer(raw)
+    ]
 
 
 def _filter_diagnostics(
@@ -239,7 +229,7 @@ async def run_auto_verify(
         return None
 
     cmd = config.command_template.format(path=file_path)
-    ctx = workspace_command_context(executor, cmd, timeout=AUTO_VERIFY_TIMEOUT_SECONDS)
+    ctx = _workspace_command_context(executor, cmd, timeout=AUTO_VERIFY_TIMEOUT_SECONDS)
 
     try:
         result = await asyncio.wait_for(
@@ -254,10 +244,7 @@ async def run_auto_verify(
     if not raw_output or result.success:
         return None
 
-    if ext == ".py":
-        diagnostics = _parse_pyright_output(raw_output)
-    else:
-        diagnostics = _parse_generic_output(raw_output)
+    diagnostics = _parse_pyright_output(raw_output)
 
     if not diagnostics:
         return None

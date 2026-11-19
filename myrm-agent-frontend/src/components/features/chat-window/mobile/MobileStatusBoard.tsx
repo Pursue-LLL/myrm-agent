@@ -10,6 +10,7 @@ import { ArrowLeft, Square, Activity, MessageCircleQuestion } from 'lucide-react
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 
+import { isLocalDevHost } from '@/components/dev/localDevHost';
 import { scheduleMobilePairRefresh } from '@/lib/mobileRemote';
 import { toast } from '@/lib/utils/toast';
 import { useE2EEStatus } from '@/lib/e2ee/useE2EEStatus';
@@ -101,11 +102,8 @@ export default function MobileStatusBoard({ chatId }: { chatId: string }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1') {
+    // The production literal lets a build drop this E2E hook; isLocalDevHost keeps it to loopback hosts.
+    if (process.env.NODE_ENV === 'production' || !isLocalDevHost()) {
       return;
     }
     window.__MYRM_E2E_MOBILE_CC__ = {

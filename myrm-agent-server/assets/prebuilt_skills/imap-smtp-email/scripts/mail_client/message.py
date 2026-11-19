@@ -7,7 +7,7 @@
 - decode_header: RFC 2047 header text as a plain string, spaced as RFC 2047 §6.2 reads it; a malformed encoded word is
   returned as written
 - message_summary: uid, from, to, subject, date and message id of one message, each a plain string even when the header
-  holds raw 8-bit bytes
+  holds raw 8-bit bytes, and ``reply_to`` when a reply would go to other addresses than the sender's
 - ascii_msg_ids: the ids of a Message-ID or References value that a header can carry; one with raw 8-bit bytes is left out
 - attachment_filename: decoded file name of an attachment part from Content-Disposition or Content-Type, raw 8-bit or not;
   ``attachment`` when it names none, an encoded word that decodes to nothing included
@@ -180,18 +180,27 @@ def attachment_bytes(part: email.message.Message) -> bytes | None:
         return None
 
 
-def reply_recipients(original: email.message.Message) -> str:
-    """The addresses a reply to *original* goes to, comma separated: all of its Reply-To, or all of its From when Reply-To
-    holds none; empty if neither does.
+def _addresses(original: email.message.Message, header: str) -> list[str]:
+    """Every address *header* of *original* holds, in order.
 
     ``parseaddr`` reads one address and returns none for a list, so the header is read with ``getaddresses``, which also
     takes the ``Header`` object the parser returns for a value with raw 8-bit bytes.
     """
+    return [address for _, address in email.utils.getaddresses([original.get(header, "")]) if address]
+
+
+def _reply_addresses(original: email.message.Message) -> list[str]:
+    """All of the Reply-To addresses of *original*, or all of its From addresses when Reply-To holds none."""
     for header in ("Reply-To", "From"):
-        addresses = [address for _, address in email.utils.getaddresses([original.get(header, "")]) if address]
+        addresses = _addresses(original, header)
         if addresses:
-            return ", ".join(addresses)
-    return ""
+            return addresses
+    return []
+
+
+def reply_recipients(original: email.message.Message) -> str:
+    """The addresses a reply to *original* goes to, comma separated; empty if neither Reply-To nor From holds one."""
+    return ", ".join(_reply_addresses(original))
 
 
 def _parse_date(raw: str | None) -> str:
@@ -206,7 +215,7 @@ def _parse_date(raw: str | None) -> str:
 
 def message_summary(msg: email.message.Message, uid: int) -> dict[str, object]:
     # str() because a header value with raw 8-bit bytes is a Header object, which json.dumps cannot write.
-    return {
+    summary: dict[str, object] = {
         "uid": uid,
         "from": decode_header(msg.get("From", "")),
         "to": decode_header(msg.get("To", "")),
@@ -214,6 +223,12 @@ def message_summary(msg: email.message.Message, uid: int) -> dict[str, object]:
         "date": _parse_date(str(msg.get("Date", ""))),
         "message_id": str(msg.get("Message-ID", "")),
     }
+    # ``reply`` answers Reply-To, not From: a listing that named only the sender would let a reply be confirmed for one
+    # address and sent to another, so the summary says where it goes whenever that is not the sender.
+    replies = _reply_addresses(msg)
+    if {address.lower() for address in replies} != {address.lower() for address in _addresses(msg, "From")}:
+        summary["reply_to"] = ", ".join(replies)
+    return summary
 
 
 def extract_body(msg: email.message.Message) -> str:

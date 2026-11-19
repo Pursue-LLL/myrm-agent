@@ -1,9 +1,9 @@
 """Tests for LocalFileOpsMixin destructive-action hook payloads.
 
-Ensures write/append/delete hooks carry the current chat session id so the
-server-side SnapshotInterceptor can create workspace snapshots for file
-operations (not only bash). Without a bound chat context the session_id is
-None and the hook stays inert.
+Every mutation (the four write variants and delete) reports its target to the execution interceptor before it
+happens, carrying the current chat session id so the server-side SnapshotInterceptor can create workspace
+snapshots for file operations (not only bash). Without a bound chat context the session_id is None and the hook
+stays inert. A mutation a protection rule refuses is neither reported nor performed.
 """
 
 from __future__ import annotations
@@ -21,13 +21,21 @@ from myrm_agent_harness.toolkits.code_execution.executors.local._file_ops import
     LocalFileOpsMixin,
 )
 
+# Every mutation of the mixin: its arguments and the action type it reports.
+_MUTATIONS: dict[str, tuple[tuple[object, ...], str]] = {
+    "write_file": (("a.txt", "text"), "file_write"),
+    "write_file_bytes": (("a.txt", b"bytes"), "file_write"),
+    "write_file_atomic": (("a.txt", "text"), "file_write"),
+    "write_file_bytes_atomic": (("a.txt", b"bytes"), "file_write"),
+    "delete_file": (("a.txt",), "file_delete"),
+}
+
 
 class _TestOps(LocalFileOpsMixin):
     """Concrete mixin host backed by a temp workspace."""
 
     def __init__(self, root: Path) -> None:
         self._root = root
-        self._readonly_paths: list[str] = []
         self._current_workspace: Path | None = None
 
     async def resolve_path(self, path: str) -> str:
@@ -41,6 +49,13 @@ class _TestOps(LocalFileOpsMixin):
         return str(self._root)
 
 
+class _RefusingOps(_TestOps):
+    """A host whose write guard refuses every path."""
+
+    def _guard_write(self, resolved_path: str) -> None:
+        raise PermissionError(f"Write denied: '{resolved_path}'")
+
+
 def _hook_patch():
     return patch(
         "myrm_agent_harness.toolkits.code_execution.executors.local._file_ops.trigger_destructive_action_hook",
@@ -49,61 +64,51 @@ def _hook_patch():
 
 
 @pytest.mark.asyncio
-async def test_write_file_hook_payload_includes_session_id(tmp_path: Path) -> None:
+@pytest.mark.parametrize("operation", _MUTATIONS)
+async def test_every_mutation_reports_its_target_before_it_happens(tmp_path: Path, operation: str) -> None:
+    args, action_type = _MUTATIONS[operation]
+    target = tmp_path / "a.txt"
+    target.write_bytes(b"old")
+    on_disk_at_report: list[bytes] = []
     token = set_current_chat_id("chat-abc")
     try:
-        ops = _TestOps(tmp_path)
         with _hook_patch() as hook:
-            await ops.write_file("a.txt", "hello")
-
-        hook.assert_awaited_once()
-        kwargs = hook.call_args.kwargs
-        assert kwargs["action_type"] == "file_write"
-        assert kwargs["payload"]["session_id"] == "chat-abc"
-        assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "hello"
+            hook.side_effect = lambda **_: on_disk_at_report.append(target.read_bytes())
+            await getattr(_TestOps(tmp_path), operation)(*args)
     finally:
         reset_current_chat_id(token)
 
-
-@pytest.mark.asyncio
-async def test_append_file_hook_payload_includes_session_id(tmp_path: Path) -> None:
-    token = set_current_chat_id("chat-xyz")
-    try:
-        ops = _TestOps(tmp_path)
-        with _hook_patch() as hook:
-            await ops.append_file("log.txt", "line\n")
-
-        kwargs = hook.call_args.kwargs
-        assert kwargs["action_type"] == "file_append"
-        assert kwargs["payload"]["session_id"] == "chat-xyz"
-    finally:
-        reset_current_chat_id(token)
-
-
-@pytest.mark.asyncio
-async def test_delete_file_hook_payload_includes_session_id(tmp_path: Path) -> None:
-    token = set_current_chat_id("chat-del")
-    try:
-        target = tmp_path / "gone.txt"
-        target.write_text("x", encoding="utf-8")
-        ops = _TestOps(tmp_path)
-        with _hook_patch() as hook:
-            await ops.delete_file("gone.txt")
-
-        kwargs = hook.call_args.kwargs
-        assert kwargs["action_type"] == "file_delete"
-        assert kwargs["payload"]["session_id"] == "chat-del"
-        assert not target.exists()
-    finally:
-        reset_current_chat_id(token)
-
-
-@pytest.mark.asyncio
-async def test_write_file_hook_payload_none_session_outside_agent(tmp_path: Path) -> None:
-    """Outside an agent turn no chat id is bound and the hook stays inert."""
-    ops = _TestOps(tmp_path)
-    with _hook_patch() as hook:
-        await ops.write_file("a.txt", "hello")
-
+    hook.assert_awaited_once()
     kwargs = hook.call_args.kwargs
-    assert kwargs["payload"].get("session_id") is None
+    assert kwargs["workspace_path"] == str(tmp_path)
+    assert kwargs["action_type"] == action_type
+    assert kwargs["payload"] == {"path": str(target), "session_id": "chat-abc"}
+    assert on_disk_at_report == [b"old"]
+    assert target.exists() == (action_type == "file_write")
+    if target.exists():
+        assert target.read_bytes() != b"old"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", _MUTATIONS)
+async def test_outside_an_agent_turn_the_report_carries_no_session(tmp_path: Path, operation: str) -> None:
+    """Outside an agent turn no chat id is bound and the hook stays inert."""
+    args, _ = _MUTATIONS[operation]
+    (tmp_path / "a.txt").write_bytes(b"old")
+    with _hook_patch() as hook:
+        await getattr(_TestOps(tmp_path), operation)(*args)
+
+    assert hook.call_args.kwargs["payload"]["session_id"] is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", _MUTATIONS)
+async def test_a_refused_mutation_is_neither_reported_nor_performed(tmp_path: Path, operation: str) -> None:
+    args, _ = _MUTATIONS[operation]
+    target = tmp_path / "a.txt"
+    target.write_bytes(b"old")
+    with _hook_patch() as hook, pytest.raises(PermissionError):
+        await getattr(_RefusingOps(tmp_path), operation)(*args)
+
+    hook.assert_not_awaited()
+    assert target.read_bytes() == b"old"

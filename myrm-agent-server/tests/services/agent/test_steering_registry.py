@@ -24,11 +24,23 @@ class TestSteeringRegistry:
     def test_unregister(self) -> None:
         token = SteeringToken()
         SteeringRegistry.register("chat-1", token)
-        SteeringRegistry.unregister("chat-1")
+        SteeringRegistry.unregister("chat-1", token)
         assert not SteeringRegistry.has_active("chat-1")
 
     def test_unregister_nonexistent_is_safe(self) -> None:
-        SteeringRegistry.unregister("no-such-chat")
+        SteeringRegistry.unregister("no-such-chat", SteeringToken())
+
+    def test_unregister_leaves_the_token_of_a_turn_that_started_after(self) -> None:
+        """The turn that ends late gives back its own token only; the newer turn keeps taking steers."""
+        ended, newer = SteeringToken(), SteeringToken()
+        SteeringRegistry.register("chat-late", ended)
+        SteeringRegistry.register("chat-late", newer)
+
+        SteeringRegistry.unregister("chat-late", ended)
+
+        assert SteeringRegistry.get_token("chat-late") is newer
+        assert SteeringRegistry.steer("chat-late", "still reaches the running turn")
+        assert newer.has_pending
 
     def test_steer_queues_message(self) -> None:
         token = SteeringToken()
@@ -57,7 +69,7 @@ class TestSteeringRegistry:
             SteeringRegistry.register(chat_id, token)
             ok = SteeringRegistry.steer(chat_id, f"msg-{chat_id}")
             results.append(ok)
-            SteeringRegistry.unregister(chat_id)
+            SteeringRegistry.unregister(chat_id, token)
 
         threads = [threading.Thread(target=worker, args=(f"c-{i}",)) for i in range(6)]
         for t in threads:
@@ -109,7 +121,7 @@ class TestSteeringRegistry:
         token = SteeringToken()
         SteeringRegistry.register("chat-lc", token)
         assert SteeringRegistry.steer("chat-lc", "msg1")
-        SteeringRegistry.unregister("chat-lc")
+        SteeringRegistry.unregister("chat-lc", token)
         assert not SteeringRegistry.steer("chat-lc", "msg2")
         assert token.has_pending  # msg1 still in queue
 

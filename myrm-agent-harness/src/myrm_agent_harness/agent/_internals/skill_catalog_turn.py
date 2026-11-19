@@ -15,7 +15,10 @@
 Turn-prep seam between ``agent_runtime.run_agent_loop`` and the catalog delivery module. Two
 fingerprints keep two concerns apart: the rendered catalog hash (read from the thread) decides
 whether an update message is due, the bound-set fingerprint (kept on the agent) decides whether the
-``skill_search`` index must be rebuilt.
+``skill_search`` index must be rebuilt. ``no_builtin_tools`` is the gate for both: the catalog sends the
+model to the built-in ``skill_select_tool`` and ``skill_search_tool``, so an agent running with it gets neither
+the catalog nor the index, even when a host tool shares one of those names; the turn receipt still lists its
+bound skills.
 """
 
 from __future__ import annotations
@@ -53,9 +56,11 @@ CatalogAction = Literal["none", "skipped", "baseline", "update", "unchanged"]
 class CatalogDelivery:
     """Outcome of the catalog step of a turn.
 
-    ``skipped``: the bound skills could not be loaded, nothing was delivered and the thread's
-    last-delivered catalog stands. ``tools_changed``: mounting or removing ``skill_search_tool``
-    changed the tool array, which invalidates the provider cache of the whole prefix.
+    ``none``: the turn has no catalog step (no skill backend, no new message, or an agent running
+    with ``no_builtin_tools``). ``skipped``: the bound skills could not be loaded, nothing was
+    delivered and the thread's last-delivered catalog stands. ``tools_changed``: mounting or
+    removing ``skill_search_tool`` changed the tool array, which invalidates the provider cache of
+    the whole prefix.
     """
 
     action: CatalogAction
@@ -74,6 +79,16 @@ def _skill_agent_with_backend(agent_state: BaseAgent) -> SkillAgent | None:
     if isinstance(agent_state, SkillAgent) and agent_state.skill_backend is not None:
         return agent_state
     return None
+
+
+def _model_can_load_skills(skill_agent: SkillAgent) -> bool:
+    """Whether the framework gives the model its skill-loading path: the catalog and the tools it names.
+
+    The catalog sends the model to the built-in ``skill_select_tool`` and ``skill_search_tool``, which an agent
+    running with ``no_builtin_tools`` does not get. The switch decides, not the tools the model is bound to: a
+    host tool that shares one of those names does not bring the catalog back.
+    """
+    return not skill_agent.config.no_builtin_tools
 
 
 def _bound_set_fingerprint(skills: list[SkillMetadata]) -> str:
@@ -170,7 +185,8 @@ async def deliver_bound_skills_catalog(
     A rebuilt conversation (``append`` / ``replace``) gets the baseline on its first HumanMessage.
     A continued thread keeps the baseline it has and gets an update on the new HumanMessage when the
     rendered catalog drifted from what the thread last delivered. A failed skill load delivers
-    nothing: the thread's last-delivered catalog stands and the next turn tries again.
+    nothing: the thread's last-delivered catalog stands and the next turn tries again. An agent
+    running with ``no_builtin_tools`` is delivered nothing either.
     """
     skill_agent = _skill_agent_with_backend(agent_state)
     if skill_agent is None:
@@ -186,6 +202,8 @@ async def deliver_bound_skills_catalog(
         return CatalogDelivery(action="skipped")
 
     set_bound_skills_receipt(bound_skills)
+    if not _model_can_load_skills(skill_agent):
+        return CatalogDelivery(action="none")
     tools_changed = _sync_skill_search_index(skill_agent, bound_skills)
 
     if history.mode == "continue":
@@ -205,10 +223,10 @@ async def deliver_bound_skills_catalog(
 
 
 async def sync_bound_skills_for_resume(agent_state: BaseAgent) -> None:
-    """Refresh the bound-skills receipt and ``skill_search`` index before a HITL resume.
+    """Refresh the bound-skills receipt and the ``skill_search`` index before a HITL resume.
 
     The thread's messages are left alone: a bind-list drift during the pause reaches the model
-    as an update on the next new message.
+    as an update on the next new message. An agent running with ``no_builtin_tools`` has no index to refresh.
     """
     skill_agent = _skill_agent_with_backend(agent_state)
     if skill_agent is None:
@@ -221,7 +239,8 @@ async def sync_bound_skills_for_resume(agent_state: BaseAgent) -> None:
         return
 
     set_bound_skills_receipt(bound_skills)
-    _sync_skill_search_index(skill_agent, bound_skills)
+    if _model_can_load_skills(skill_agent):
+        _sync_skill_search_index(skill_agent, bound_skills)
 
 
 __all__ = [

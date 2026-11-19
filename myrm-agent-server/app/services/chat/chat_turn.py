@@ -61,8 +61,6 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         await sync_workspace_todos_for_active_branch(chat_id)
 
-    _sync_todos_after_rewind = _sync_todos_for_active_branch
-
     @staticmethod
     async def _sync_usage_after_mutation(chat_id: str) -> None:
         """Rebuild the Chat.total_* usage cache after message mutations.

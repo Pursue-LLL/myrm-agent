@@ -12,6 +12,12 @@ import pytest
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.skill_agent import SkillAgent
+from myrm_agent_harness.agent.types import AgentRuntimeConfig
+from myrm_agent_harness.toolkits.wiki.wiki_tool_descriptions import (
+    resolve_wiki_apply_description,
+    resolve_wiki_ingest_description,
+    resolve_wiki_query_description,
+)
 
 
 @pytest.fixture
@@ -28,8 +34,9 @@ def _make_agent(
     mock_llm: AsyncMock,
     wiki_base_dir: Path | str | None = None,
     wiki_search_fn: Callable[..., object] | None = None,
+    config: AgentRuntimeConfig | None = None,
 ) -> SkillAgent:
-    return SkillAgent(llm=mock_llm, wiki_base_dir=wiki_base_dir, wiki_search_fn=wiki_search_fn)
+    return SkillAgent(llm=mock_llm, wiki_base_dir=wiki_base_dir, wiki_search_fn=wiki_search_fn, config=config)
 
 
 class TestCreateWikiTools:
@@ -71,6 +78,29 @@ class TestCreateWikiTools:
 
         assert len(tools) == 3
         assert agent._wiki_search_fn is mock_search
+
+    @pytest.mark.parametrize(
+        ("config", "locale"),
+        [
+            pytest.param(None, "en", id="no-config"),
+            pytest.param(AgentRuntimeConfig(locale="zh-CN"), "zh-CN", id="ui-locale"),
+            pytest.param(AgentRuntimeConfig(prompt_locale="zh-TW"), "zh-TW", id="prompt-locale"),
+            pytest.param(
+                AgentRuntimeConfig(prompt_locale="en", locale="zh-CN"), "en", id="prompt-locale-outranks-ui-locale"
+            ),
+        ],
+    )
+    def test_descriptions_follow_the_prompt_locale(
+        self, mock_llm: AsyncMock, wiki_dir: Path, config: AgentRuntimeConfig | None, locale: str
+    ) -> None:
+        agent = _make_agent(mock_llm, wiki_base_dir=wiki_dir, config=config)
+
+        # The tool framework trims the text's trailing newline.
+        assert {tool.name: tool.description for tool in agent._create_wiki_tools()} == {
+            "wiki_ingest_tool": resolve_wiki_ingest_description(locale).strip(),
+            "wiki_query_tool": resolve_wiki_query_description(locale).strip(),
+            "wiki_apply_tool": resolve_wiki_apply_description(locale).strip(),
+        }
 
     def test_handles_import_error_gracefully(self, mock_llm: AsyncMock, wiki_dir: Path) -> None:
         agent = _make_agent(mock_llm, wiki_base_dir=wiki_dir)

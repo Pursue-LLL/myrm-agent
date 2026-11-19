@@ -33,6 +33,8 @@ from myrm_agent_harness.toolkits.memory.types import IntegrationMemory
 logger = logging.getLogger(__name__)
 
 _LABEL_PREFIX = "IntTree"
+_TREE_EDGE_TYPES = ["HAS_PROVIDER", "HAS_ACCOUNT", "HAS_CATEGORY", "HAS_LEAF"]
+_TREE_MAX_DEPTH = 10
 
 
 def _label(kind: IntegrationNodeKind) -> str:
@@ -128,11 +130,8 @@ class IntegrationTreeManager:
 
     async def get_tree_structure(self, tree_id: str) -> list[GraphNode]:
         """Return all nodes reachable from the tree root (BFS via causal chain)."""
-        node_ids = await self._gs.get_causal_chain(
-            tree_id, depth=10, relation_types=["HAS_PROVIDER", "HAS_ACCOUNT", "HAS_CATEGORY", "HAS_LEAF"]
-        )
         nodes: list[GraphNode] = []
-        for nid in node_ids:
+        for nid in await self._descendant_ids(tree_id):
             node = await self._gs.get_node(nid)
             if node:
                 nodes.append(node)
@@ -146,8 +145,15 @@ class IntegrationTreeManager:
                 tree.root_summary = summary
 
     async def remove_tree(self, tree_id: str) -> int:
-        """Delete an entire tree and all its graph nodes."""
-        deleted = await self._gs.delete_subgraph(tree_id)
+        """Delete an entire tree and all its graph nodes.
+
+        ``delete_subgraph`` removes one node together with its edges, so the descendants are collected while the
+        edges leading to them still exist and every node is deleted explicitly, the root last.
+        """
+        node_ids = [*await self._descendant_ids(tree_id), tree_id]
+        deleted = 0
+        for node_id in node_ids:
+            deleted += await self._gs.delete_subgraph(node_id)
         self._trees = {k: v for k, v in self._trees.items() if v.id != tree_id}
         return deleted
 
@@ -158,6 +164,9 @@ class IntegrationTreeManager:
         return list(self._trees.values())
 
     # ── Internal helpers ─────────────────────────────────────────────
+
+    async def _descendant_ids(self, tree_id: str) -> list[str]:
+        return await self._gs.get_causal_chain(tree_id, depth=_TREE_MAX_DEPTH, relation_types=_TREE_EDGE_TYPES)
 
     async def _resolve_parent(self, tree: IntegrationTree, memory: IntegrationMemory) -> str:
         """Determine the parent node for a new leaf, creating intermediate nodes as needed."""

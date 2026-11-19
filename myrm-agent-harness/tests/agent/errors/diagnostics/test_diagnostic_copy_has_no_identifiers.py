@@ -17,15 +17,15 @@ import pytest
 
 from myrm_agent_harness.agent.errors.diagnostics.i18n import manager as manager_module
 
-_LOCALES = ("en", "zh-CN", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh-CN")
 _LOCALES_DIR = Path(manager_module.__file__).parent / "locales"
 _COPY_SUFFIXES = ("_user_message", "_resolution_steps", "_wait_step")
 
-# ASCII-only boundaries: ja/zh text puts an identifier right next to CJK characters.
+# ASCII-only boundaries: zh text puts an identifier right next to CJK characters.
 _SNAKE_CASE = re.compile(r"(?<![A-Za-z0-9_])[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+(?![A-Za-z0-9_])")
 _CONFIG_CLASS = re.compile(r"(?<![A-Za-z0-9])[A-Za-z]*Config(?![A-Za-z0-9])")
 _PLACEHOLDER = re.compile(r"\{[^{}]*\}")
-_LIBRARY_WORDS = ("litellm", "debug", "调试", "調試", "除錯", "偵錯", "デバッグ", "디버그")
+_LIBRARY_WORDS = ("litellm", "debug", "调试")
 
 
 def _copy_lines(locale: str) -> Iterator[tuple[str, str]]:
@@ -52,7 +52,7 @@ def test_catalog_copy_names_no_configuration_identifier(locale: str) -> None:
 
 
 def test_the_scan_sees_identifiers_next_to_cjk_text_and_ignores_placeholders() -> None:
-    assert _identifiers("LLMConfigのbase_url設定を確認してください") == ["base_url", "LLMConfig"]
+    assert _identifiers("请检查LLMConfig的base_url设置") == ["base_url", "LLMConfig"]
     assert _identifiers("Verify the address: {base_url_display}") == []
     assert _identifiers("Or set environment variable MYRM_TLS_STRICT=0") == ["MYRM_TLS_STRICT"]
     assert _identifiers("Enable debug logging") == ["debug"]

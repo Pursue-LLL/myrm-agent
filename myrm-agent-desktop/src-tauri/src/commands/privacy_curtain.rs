@@ -9,12 +9,15 @@
 //! - tauri AppHandle (POS: 窗口/事件/app data 目录)
 //! - utils::screen_lock (POS: 锁屏检测/回锁)
 //! - commands::privacy_curtain_state (POS: 帷幕状态桥，curtain_state.json 的 Tauri 侧唯一读写入口)
+//! - commands::privacy_curtain_state_changes (POS: 状态的具名迁移：手动拉起 / 交还租约 / 物理输入)
+//! - commands::privacy_curtain_transition (POS: 拉起 / 收起帷幕时窗口与状态的固定顺序及其失败收敛)
 //! - commands::privacy_curtain_page (POS: 看板页面内容与承载它的自定义协议 URL)
 //! - commands::privacy_curtain_presentation (POS: 跨 Space / 菜单栏覆盖的平台呈现层)
 //!
 //! [OUTPUT]
-//! - show/hide/active/set_texts/report_physical_input IPC
+//! - show/hide/active/set_texts/report_physical_input IPC（状态读不到或没写进去时 show/hide/active 返回 Err）
 //! - curtain:state-changed 事件（由 privacy_curtain_state 在 active 变化时广播，设置页订阅回显）
+//! - audit_result（动作结果入审计，watcher 共用）
 //! - relock_outstanding_lease（壳退出前租约仍未交还时的兜底回锁，由 app/lifecycle.rs 调用）
 //! - is_curtain_label（窗口 label 是否属于帷幕；app/setup.rs 据此豁免应用级窗口策略）
 //! - spawn_privacy_curtain_watcher（见 privacy_curtain_watcher.rs）
@@ -22,6 +25,8 @@
 //! [POS]
 //! 帷幕是唯一视觉事实源：watcher 只按锁屏态+auto_engaged/pending 标记流转，
 //! 手动帷幕（auto_engaged=false）不受 watcher 干涉，仅显式命令收起。
+//! 状态文件读不到或没写进去时从不拿默认值顶替：拉起撤销刚落地的窗口，收起把「补记状态」
+//! 留给下个 tick（自动）或用户重试（手动），租约位保持置位（安全方向）。
 //! 输入感知=点击可靠（未聚焦窗口收不到键盘，锁屏态键盘落在登录窗无害），
 //! 如实以看板文案告知"交互即锁定"。Linux 不支持帷幕（fail-fast），
 //! Windows <2004 WDA 失败时降级为不拉帷幕（由 Lock-Screen Guardian 兜底）。
@@ -35,7 +40,10 @@ use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 
 use crate::commands::privacy_curtain_page::{self as page, CurtainTexts};
 use crate::commands::privacy_curtain_presentation as presentation;
-use crate::commands::privacy_curtain_state::{mutate_state, read_state};
+use crate::commands::privacy_curtain_state::{mutate_state, try_read_state, CurtainState};
+use crate::commands::privacy_curtain_transition::{
+    raise_curtain, record_release, state_unavailable,
+};
 use crate::utils::screen_lock;
 
 const CURTAIN_LABEL_PREFIX: &str = "privacy-curtain-";
@@ -57,6 +65,14 @@ pub(crate) fn log_audit(action: &str, success: bool, reason: &str) {
         reason,
         now_ms()
     );
+}
+
+/// 把一次动作的结果记入审计：成功记 `ok_reason`，失败记错误本身。
+pub(crate) fn audit_result(action: &str, ok_reason: &str, result: &Result<(), String>) {
+    match result {
+        Ok(()) => log_audit(action, true, ok_reason),
+        Err(reason) => log_audit(action, false, reason),
+    }
 }
 
 /// 呈现层（激活策略 / 窗口层级）失败不影响帷幕的遮蔽职责：记审计后继续。
@@ -202,32 +218,36 @@ pub fn show_privacy_curtain(app: AppHandle, texts: Option<CurtainTexts>) -> Resu
     if let Some(texts) = texts {
         page::set_texts(texts);
     }
-    deploy_curtain_windows(&app)?;
-    mutate_state(&app, |state| {
-        state.active = true;
-        state.auto_engaged = false;
-        state.last_physical_input_ms = now_ms();
-    });
-    log_audit("show", true, "manual engage");
-    Ok(())
+    // 对已在的帷幕重建失败时不能把它撤掉（遮蔽优先）：只撤销本次新建的窗口。
+    let already_up = !curtain_windows(&app).is_empty();
+    let raised = raise_curtain(
+        || deploy_curtain_windows(&app),
+        || mutate_state(&app, |state| state.engage_manually(now_ms())),
+        || {
+            if !already_up {
+                close_curtain_windows(&app);
+            }
+        },
+    );
+    audit_result("show", "manual engage", &raised);
+    raised
 }
 
 /// 收起帷幕（托盘/设置页入口）。手动帷幕只能经此命令收起，watcher 不会替它收起。
 #[tauri::command]
 pub fn hide_privacy_curtain(app: AppHandle) -> Result<(), String> {
     close_curtain_windows(&app);
-    mutate_state(&app, |state| {
-        state.active = false;
-        state.auto_engaged = false;
-    });
-    log_audit("hide", true, "manual release");
-    Ok(())
+    let released = record_release(&app);
+    audit_result("hide", "manual release", &released);
+    released
 }
 
-/// 查询帷幕是否拉起（前端看板/设置页状态回显）。
+/// 查询帷幕是否拉起（前端看板/设置页状态回显）。状态读不到时报错而不是谎称「未拉起」。
 #[tauri::command]
 pub fn privacy_curtain_active(app: AppHandle) -> Result<bool, String> {
-    Ok(read_state(&app).active)
+    try_read_state(&app)
+        .map(|state| state.active)
+        .ok_or_else(state_unavailable)
 }
 
 /// 前端按当前 locale 注入看板文案缓存（watcher 自动拉起时无前端调用方在场）。
@@ -251,18 +271,28 @@ async fn relock_and_release_lease(
     .await
     .map_err(|error| error.to_string())?;
     log_audit(action, locked.is_ok(), reason);
-    if locked.is_ok() {
-        mutate_state(app, |state| {
-            state.pending_auto_unlock = false;
-        });
+    if locked.is_err() {
+        return Ok(());
     }
+    // 清位没成功就保持置位（帷幕继续遮蔽，安全方向）：下一次帷幕上的输入或 server 自己的交还会再清。
+    let cleared = mutate_state(app, CurtainState::release_lease);
+    log_audit("lease_clear", cleared, reason);
     Ok(())
 }
 
 /// 壳退出前的兜底回锁：帷幕窗口随进程消失，租约位此时若仍置位，说明 server 没来得及
 /// （停机预算内）或没能（被强杀 / 回锁失败）把屏幕交还成已锁状态，桌面会就此无人看管地裸露。
 pub(crate) async fn relock_outstanding_lease(app: &AppHandle) {
-    if !read_state(app).pending_auto_unlock {
+    let Some(state) = try_read_state(app) else {
+        // 读不到就不知道租约是否仍置位：不凭空锁屏打断用户，只留下审计。
+        log_audit(
+            "relock_on_exit",
+            false,
+            "curtain state unreadable at shell exit",
+        );
+        return;
+    };
+    if !state.pending_auto_unlock {
         return;
     }
     if let Err(reason) =
@@ -276,11 +306,10 @@ pub(crate) async fn relock_outstanding_lease(app: &AppHandle) {
 /// 帷幕输入不穿透到底层窗口，路过者交互唯一效果就是加固锁屏。
 #[tauri::command]
 pub async fn curtain_report_physical_input(app: AppHandle, source: String) -> Result<(), String> {
-    mutate_state(&app, |state| {
-        state.last_physical_input_ms = now_ms();
-    });
-    log_audit("physical_input", true, &source);
+    let recorded = mutate_state(&app, |state| state.record_physical_input(now_ms()));
+    log_audit("physical_input", recorded, &source);
 
+    // 基准没记下也要回锁：帷幕上的输入下一次会再次上报，而回锁是加固锁屏的安全动作。
     relock_and_release_lease(&app, "relock_on_input", "curtain input guard").await
 }
 

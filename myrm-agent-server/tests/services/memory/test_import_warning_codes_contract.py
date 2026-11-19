@@ -8,7 +8,7 @@ payloads, ``warnings.append/extend`` calls and ``warning``/``refusal`` helper
 arguments. Archive-restore and rollback codes belong to their own review
 surfaces and therefore stay out of this vocabulary.
 A new code that is not declared in ``app.schemas.memory.import_warning_codes``
-fails here, which is what keeps the six-language copy mapping complete.
+fails here, which is what keeps the two-language copy mapping complete.
 """
 
 from __future__ import annotations

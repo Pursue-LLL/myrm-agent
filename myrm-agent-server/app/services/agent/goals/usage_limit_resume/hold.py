@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.api.hooks::ProviderWindowHint (POS: provider-stated retry boundary)
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: session GoalProvider)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: the session's goal provider: the running turn's, else storage-backed)
 - app.services.agent.goals.usage_limit_resume.daemon (POS: armed wake set, ownership stamp)
 - app.services.agent.goals.usage_limit_resume.notify (POS: user notification)
 
@@ -36,7 +36,7 @@ def build_goal_hold_callback() -> Callable[[Goal, ProviderWindowHint], Awaitable
         if goal.status is not GoalStatus.WAIT:
             await publish_goal_usage_limit_notification(goal.session_id, goal.goal_id, "paused")
             return
-        provider = GoalRegistry.get_or_create_provider(goal.session_id)
+        provider = GoalRegistry.resolve_provider(goal.session_id)
         await provider.update_metadata(goal.goal_id, {WAKE_OWNER_KEY: WAKE_OWNER})
         get_usage_limit_wake_daemon().arm(goal.session_id, hint.reset_at)
         await publish_goal_usage_limit_notification(goal.session_id, goal.goal_id, "wait")

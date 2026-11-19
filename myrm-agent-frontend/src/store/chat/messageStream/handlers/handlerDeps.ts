@@ -38,6 +38,7 @@ export {
 } from '../../memoryCitationUtils';
 export { default as useArtifactPortalStore } from '@/store/useArtifactPortalStore';
 export { default as useToolApprovalStore } from '@/store/useToolApprovalStore';
+export { useMessageQueueStore } from '@/store/chat/useMessageQueueStore';
 export { default as useToolsSnapshotStore } from '@/store/useToolsSnapshotStore';
 export { useChatStore };
 export { default as useConfigStore } from '@/store/useConfigStore';

@@ -1,16 +1,14 @@
-"""A catalog without a Traditional bundle answers a Traditional Chinese request in Simplified Chinese, not English.
+"""Without a Traditional bundle, a Traditional Chinese request is answered in Simplified Chinese, not English.
 
-A host that points ``MYRM_LOCALES_DIR`` at its own bundles may ship none for ``zh-TW``. The locale chain then reads
-``zh-CN``, so a Traditional Chinese system (``LANG=zh_TW.UTF-8``) still reads Chinese diagnostics.
+The locale chain of ``zh-TW`` reads ``zh-CN``, so a Traditional Chinese system (``LANG=zh_TW.UTF-8``) still reads
+Chinese diagnostics. A host that registers its own ``zh-TW`` bundle is read first.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
 import pytest
 
-from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic, recovery_actions
+from myrm_agent_harness.agent.errors.diagnostics import LLMErrorDiagnostic
 from myrm_agent_harness.agent.errors.diagnostics.cooldown_hint import format_cooldown_hint
 from myrm_agent_harness.agent.errors.diagnostics.i18n import LocaleManager, get_locale_manager
 from myrm_agent_harness.agent.errors.diagnostics.recovery_actions import build_recovery_actions
@@ -19,12 +17,8 @@ _TRADITIONAL = ["zh-TW", "zh_TW", "zh-HK", "zh-Hant", "zh-Hant-TW"]
 
 
 @pytest.fixture
-def manager(monkeypatch: pytest.MonkeyPatch) -> Iterator[LocaleManager]:
-    """The diagnostics catalog as a host without Traditional Chinese texts or button labels sees it."""
-    manager = get_locale_manager()
-    monkeypatch.delitem(manager._translations, "zh-TW")
-    monkeypatch.delitem(recovery_actions._LABELS_I18N, "zh-TW")
-    yield manager
+def manager() -> LocaleManager:
+    return get_locale_manager()
 
 
 @pytest.mark.parametrize("locale", _TRADITIONAL)
@@ -69,16 +63,12 @@ def test_a_host_bundle_for_traditional_chinese_is_used_and_the_rest_stays_simpli
     )
 
 
-def test_other_languages_still_fall_back_to_english_only(manager: LocaleManager) -> None:
+def test_other_languages_fall_back_to_english_only(manager: LocaleManager) -> None:
     assert manager.translate("rate_limit", "user_message", "fr") == manager.translate(
         "rate_limit", "user_message", "en"
     )
-    assert manager.translate("rate_limit", "user_message", "ja") != manager.translate(
-        "rate_limit", "user_message", "en"
-    )
 
 
-@pytest.mark.usefixtures("manager")
 @pytest.mark.parametrize("locale", _TRADITIONAL)
 def test_the_cooldown_sentence_is_spoken_in_simplified_chinese(locale: str) -> None:
     sentence = format_cooldown_hint(90_000, locale)
@@ -87,13 +77,11 @@ def test_the_cooldown_sentence_is_spoken_in_simplified_chinese(locale: str) -> N
     assert sentence != format_cooldown_hint(90_000, "en")
 
 
-@pytest.mark.usefixtures("manager")
 @pytest.mark.parametrize("locale", _TRADITIONAL)
 def test_the_recovery_buttons_are_labelled_in_simplified_chinese(locale: str) -> None:
     assert build_recovery_actions("api_key", locale) == build_recovery_actions("api_key", "zh-CN")
 
 
-@pytest.mark.usefixtures("manager")
 def test_a_diagnosis_for_a_traditional_chinese_user_is_chinese() -> None:
     result = LLMErrorDiagnostic.diagnose(Exception("429 too many requests"), locale="zh-TW")
 

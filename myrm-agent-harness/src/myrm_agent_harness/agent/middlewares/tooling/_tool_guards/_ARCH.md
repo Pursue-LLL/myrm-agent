@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `__init__.py` | 门面 | 导出 `PreCallResult` / `run_pre_call_guards` / `run_post_call_guards` | ✅ |
 | `shared.py` | 核心 | 循环守卫 STATUS 事件、`PreCallResult` 状态载体 | ✅ |
-| `pre_call.py` | 核心 | 急停、熔断、循环、回合预算、steering、信任与 PII 检查 | ✅ |
+| `pre_call.py` | 核心 | 急停、熔断、循环、回合预算、steering、信任与 PII 检查；调用不存在的工具时，只有本次运行绑定了 `skill_select_tool`，错误里才附带指向它的技能提示 | ✅ |
 | `post_call.py` | 核心 | 预算截断、投毒检测、污点、hook 校验与循环记录 | ✅ |
 
 ## 依赖关系

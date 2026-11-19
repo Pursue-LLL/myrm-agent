@@ -14,7 +14,7 @@ Storage layout (single shared store, git objects deduplicated across projects):
             info/exclude                — default excludes (shared)
 
 [INPUT]
-shadow_git_maintenance::ShadowGitMaintenance (POS: Maintenance mixin for pruning, repair, workspace validation.)
+shadow_git_maintenance::ShadowGitMaintenance (POS: Maintenance mixin for first-use setup, pruning, repair, workspace validation.)
 infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
@@ -59,14 +59,6 @@ _MAX_SNAPSHOTS_PER_PROJECT = 50
 
 _COMMIT_ID_RE = re.compile(r"^[0-9a-f]{40}$")
 
-DEFAULT_EXCLUDES = (
-    "node_modules/\n.venv/\nvenv/\nenv/\n__pycache__/\n.cache/\n.pytest_cache/\n"
-    ".mypy_cache/\n.ruff_cache/\ndist/\nbuild/\ntarget/\nout/\n.next/\n.nuxt/\n"
-    ".git/\n.hg/\n.svn/\n.DS_Store\nThumbs.db\n.myrm/\n.agent/\n"
-    "*.sqlite\n*.sqlite3\n*.db\n*.mp4\n*.mov\n*.avi\n*.zip\n*.tar.gz\n*.tar.bz2\n"
-    "*.7z\n*.rar\n*.jar\n*.war\n*.pyc\n*.pyo\n.idea/\n.vscode/\n*.log\n"
-)
-
 
 def _project_hash(working_dir: str) -> str:
     """Deterministic per-project hash from absolute path."""
@@ -106,38 +98,7 @@ class ShadowGitSnapshotStore(ShadowGitMaintenance):
         self._projects_dir = _PROJECTS_DIR
         self._indexes_dir = _INDEXES_DIR
         self._initialized = False
-
-    async def _ensure_initialized(self) -> None:
-        if self._initialized:
-            return
-
-        self._git_dir.mkdir(parents=True, exist_ok=True)
-
-        head_file = self._git_dir / "HEAD"
-        if not head_file.exists() or head_file.stat().st_size == 0:
-            await self._init_bare_repo()
-
-        self._initialized = True
-
-    async def _init_bare_repo(self) -> None:
-        """Initialize the shared bare repo with proper excludes."""
-        init_env = os.environ.copy()
-        for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
-            init_env.pop(k, None)
-        init_env["GIT_CONFIG_GLOBAL"] = os.devnull
-        init_env["GIT_CONFIG_SYSTEM"] = os.devnull
-        await self._run_cmd("git", "init", "--bare", str(self._git_dir), env=init_env)
-
-        await self._git_in_store("config", "gc.auto", "0")
-        await self._git_in_store("config", "user.name", "Myrm Snapshot")
-        await self._git_in_store("config", "user.email", "snapshot@myrm.local")
-
-        exclude_dir = self._git_dir / "info"
-        exclude_dir.mkdir(parents=True, exist_ok=True)
-        (exclude_dir / "exclude").write_text(DEFAULT_EXCLUDES)
-
-        (self._git_dir / _INDEXES_DIR).mkdir(exist_ok=True)
-        (self._git_dir / _PROJECTS_DIR).mkdir(exist_ok=True)
+        self._init_lock = asyncio.Lock()
 
     def _project_ref(self, proj_hash: str) -> str:
         return f"{_REFS_PREFIX}/{proj_hash}"

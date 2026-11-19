@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import Tooltip from '@/components/features/settings/Tooltip';
 import { toast } from '@/hooks/shared/useToast';
 import { isTauriRuntime } from '@/lib/deploy-mode';
-import { selectFiles, toStoreFile, getFileService } from '@/services/file-service';
+import { selectFiles, toStoreFile, getFileService, uploadPickedImages } from '@/services/file-service';
 import { incognitoUploadOptions } from '@/services/incognitoUploadOptions';
 import { computeFileHash, isImageFile, isVideoFile, isAudioFile, getFileExtension } from '@/lib/utils/fileUtils';
 import useProviderStore from '@/store/useProviderStore';
@@ -90,8 +90,20 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: SetFil
         return;
       }
 
-      // 转换为 store 格式并添加
-      const storeFiles = selectedFiles.map(toStoreFile);
+      // 选图只拿到本机路径，服务器没有这张图：图片也上传一份，模型才有可传给图像工具的工作区路径（视觉仍读本地原文件）
+      let attachable = selectedFiles;
+      try {
+        resetUploadController();
+        attachable = await uploadPickedImages(selectedFiles, incognitoUploadOptions(), getUploadSignal());
+      } catch (error) {
+        console.error('Image upload failed:', error);
+        toast({
+          title: t('uploadFailed'),
+          description: error instanceof Error ? error.message : t('uploadFailedRetry'),
+        });
+      }
+
+      const storeFiles = attachable.map(toStoreFile);
       setFiles((previous) => [...previous, ...storeFiles]);
     } catch (error) {
       console.error('File selection failed:', error);
@@ -246,6 +258,9 @@ const AttachButton = ({ files, setFiles }: { files: FileType[]; setFiles: SetFil
               'bg-background dark:bg-muted/60',
               'transition duration-200',
               'hover:bg-border dark:hover:bg-muted/80 text-foreground/70 hover:text-foreground',
+              // Phones: the button stays 32px; the invisible `after:` box lifts the touch target to 44×44, reaching left
+              // into free space and only 2px right, where the send button sits 4px away.
+              'relative max-sm:after:absolute max-sm:after:-inset-y-1.5 max-sm:after:-left-2.5 max-sm:after:-right-0.5',
             )}
           >
             {!isTauriRuntime() && (

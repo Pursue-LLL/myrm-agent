@@ -124,11 +124,17 @@ class _TrackedEngine(FetchEngine):
     built: ClassVar[list[FetchEngine]] = []
 
     def __init__(
-        self, *, use_raw_markdown: bool, allow_private_networks: bool, session_vault: SessionVault | None
+        self,
+        *,
+        use_raw_markdown: bool,
+        allow_private_networks: bool,
+        network_blocklist: tuple[str, ...],
+        session_vault: SessionVault | None,
     ) -> None:
         super().__init__(
             use_raw_markdown=use_raw_markdown,
             allow_private_networks=allow_private_networks,
+            network_blocklist=network_blocklist,
             session_vault=session_vault,
         )
         self.built.append(self)

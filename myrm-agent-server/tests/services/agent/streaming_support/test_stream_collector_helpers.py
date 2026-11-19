@@ -137,6 +137,23 @@ def test_a_clarification_with_nothing_to_ask_is_not_saved(event: dict[str, objec
     assert collect_clarification_required(event) is None
 
 
+def test_a_clarification_keeps_the_id_of_the_pause_it_was_announced_for() -> None:
+    saved = collect_clarification_required({"interruptId": "int-1", "data": {"question": "q"}})
+
+    assert saved == {"answered": False, "question": "q", "interruptId": "int-1"}
+
+
+@pytest.mark.parametrize("interrupt_id", [None, "", 7])
+def test_a_clarification_announced_without_a_usable_id_keeps_none(interrupt_id: object) -> None:
+    saved = collect_clarification_required({"interruptId": interrupt_id, "data": {"question": "q"}})
+
+    assert saved == {"answered": False, "question": "q"}
+
+
+def test_an_id_alone_does_not_make_a_clarification_worth_saving() -> None:
+    assert collect_clarification_required({"interruptId": "int-1", "data": {}}) is None
+
+
 def test_a_waiting_plan_is_saved_with_its_items_cost_and_goal() -> None:
     saved = collect_plan_confirmation_status(
         {

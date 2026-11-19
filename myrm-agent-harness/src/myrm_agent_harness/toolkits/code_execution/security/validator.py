@@ -17,7 +17,6 @@ this validator provides defense-in-depth for the local code executor.
 - validate_module / is_module_allowed: Python module import checks.
 - validate_command / is_command_allowed: Bash command checks (threat analysis, path and host allow-lists).
 - validate_path / is_path_allowed: File path access checks.
-- validate_path_component / is_path_component_safe: Path component (user_id, chat_id) traversal checks.
 
 [POS]
 Unified security validator for code execution.
@@ -138,6 +137,10 @@ _PATH_PATTERN = re.compile(
     re.VERBOSE,
 )
 
+# The one device file the path guard lets through by name: writes to it are dropped and reads return EOF, so
+# a redirect such as ``cmd > /dev/null 2>&1`` or ``cmd < /dev/null`` neither exposes nor changes anything.
+_DISCARD_DEVICE = Path("/dev/null")
+
 
 def _get_allowed_paths(
     workspace_path: Path | None = None,
@@ -151,6 +154,7 @@ def _get_allowed_paths(
     3. /workspace (container-isolated)
     4. /tmp (temporary files)
     5. The context root in effect, so an agent reading its own offloaded context is not blocked
+    6. /dev/null, the sink and empty source of shell redirections (no other device file)
 
     Args:
         workspace_path: Current session workspace directory.
@@ -171,8 +175,25 @@ def _get_allowed_paths(
     allowed.append(Path("/workspace"))
     allowed.append(Path("/tmp"))
     allowed.append(Path(get_context_root()))
+    allowed.append(_DISCARD_DEVICE)
 
     return allowed
+
+
+def _is_inside(resolved: Path, allowed: Path, spelled: Path) -> bool:
+    """Whether ``resolved``, where ``spelled`` leads, lies inside the ``allowed`` root.
+
+    The discard device is allowed by name: ``/dev/stdin`` resolves to it whenever the process's stdin is
+    /dev/null, and letting that alias through would make the verdict depend on how the process was started
+    instead of on the path the command names.
+    """
+    if allowed == _DISCARD_DEVICE and spelled.name != _DISCARD_DEVICE.name:
+        return False
+    try:
+        resolved.relative_to(allowed.resolve())
+    except ValueError:
+        return False
+    return True
 
 
 def _is_path_allowed(path_str: str, allowed_paths: list[Path]) -> bool:
@@ -200,15 +221,7 @@ def _is_path_allowed(path_str: str, allowed_paths: list[Path]) -> bool:
             return True
 
         resolved = path.resolve()
-
-        for allowed in allowed_paths:
-            try:
-                resolved.relative_to(allowed.resolve())
-                return True
-            except ValueError:
-                continue
-
-        return False
+        return any(_is_inside(resolved, allowed, path) for allowed in allowed_paths)
     except Exception:
         return False
 
@@ -393,13 +406,8 @@ def validate_path(
     try:
         abs_path = path_obj.resolve()
 
-        for allowed in allowed_dirs:
-            allowed_resolved = allowed.resolve()
-            try:
-                abs_path.relative_to(allowed_resolved)
-                return ValidationResult(is_safe=True)
-            except ValueError:
-                continue
+        if any(_is_inside(abs_path, allowed, path_obj) for allowed in allowed_dirs):
+            return ValidationResult(is_safe=True)
     except (OSError, RuntimeError, ValueError) as e:
         return ValidationResult(
             is_safe=False,
@@ -419,88 +427,12 @@ def is_path_allowed(path: str | Path, mode: str = "read") -> bool:
     return validate_path(path, mode=mode).is_safe
 
 
-# ============================================================
-# Path component validation (for user_id, chat_id, etc.)
-# ============================================================
-
-
-def validate_path_component(component: str, component_name: str = "path component") -> ValidationResult:
-    """Validate a path component for safety (user_id, chat_id, workspace_id, etc.).
-
-    Prevents path traversal attacks and filesystem restriction bypass.
-
-    Args:
-        component: Path component to validate.
-        component_name: Component name for error messages.
-
-    Returns:
-        ValidationResult with validation outcome.
-
-    Rules:
-    - Only alphanumeric, hyphen (-), underscore (_) allowed
-    - No path separators (/, \\)
-    - No path traversal (..)
-    - Cannot start with dot (hidden files)
-    - Length: 1-255 characters
-    """
-    if not component:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: empty value",
-            blocked_item=component,
-        )
-
-    if len(component) > 255:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: exceeds maximum length (255 characters)",
-            blocked_item=component,
-        )
-
-    if component.startswith("."):
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: cannot start with '.'",
-            blocked_item=component,
-        )
-
-    if ".." in component:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: contains path traversal pattern '..'",
-            blocked_item=component,
-        )
-
-    if "/" in component or "\\" in component:
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: contains path separator",
-            blocked_item=component,
-        )
-
-    if not re.match(r"^[a-zA-Z0-9_-]+$", component):
-        return ValidationResult(
-            is_safe=False,
-            reason=f"Invalid {component_name}: contains invalid characters (only alphanumeric, '-', '_' allowed)",
-            blocked_item=component,
-        )
-
-    return ValidationResult(is_safe=True)
-
-
-def is_path_component_safe(component: str, component_name: str = "path component") -> bool:
-    """Check if a path component is safe (convenience wrapper)."""
-    return validate_path_component(component, component_name).is_safe
-
-
 __all__ = [
     "ValidationResult",
     "is_command_allowed",
     "is_module_allowed",
     "is_path_allowed",
-    "is_path_component_safe",
     "validate_command",
     "validate_module",
     "validate_path",
-    "validate_path_component",
 ]

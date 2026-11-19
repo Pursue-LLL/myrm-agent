@@ -20,7 +20,7 @@
  * 自己产出 HTML 文档的源码：内联 `<style>`，或直接拼 `<!DOCTYPE html>` / `<html>`。
  *
  * 注意：React 组件的 `<style jsx>`（styled-jsx）渲染进 Next 的主文档，不算独立文档——主文档的
- * `globals.css` 守卫已经覆盖它，所以 `.tsx` / `.jsx` 不参与“拼文档”判定。
+ * `base.css` 的守卫已经覆盖它，所以 `.tsx` / `.jsx` 不参与“拼文档”判定。
  */
 const EMITS_HTML = /<style[\s>]|<html[\s>]|<!DOCTYPE html>/i;
 /**
@@ -35,8 +35,9 @@ const HAS_GUARD = /prefers-reduced-motion/;
 /**
  * 守卫必须落到通用选择器上，而不是只关掉一两个具名动画。
  *
- * 为什么单独判：文件里只要出现 `prefers-reduced-motion` 就算通过的话，`globals.css` 里那两处
- * 只管 `.animate-node-pulse` 与品牌按钮的窄补丁也能满足它——而真正的缺口正是“其余动画没人管”。
+ * 为什么单独判：文件里只要出现 `prefers-reduced-motion` 就算通过的话，全局样式里那两处
+ * 只管 `.animate-node-pulse`（`component-styles.css`）与品牌按钮（`brand.css`）的窄补丁也能满足它——
+ * 而真正的缺口正是“其余动画没人管”。
  * 允许换行与任意空白。
  */
 const UNIVERSAL_GUARD = /\*\s*,\s*\*::before\s*,\s*\*::after\s*\{/;
@@ -45,7 +46,7 @@ const UNIVERSAL_GUARD = /\*\s*,\s*\*::before\s*,\s*\*::after\s*\{/;
 const STYLESHEET_EXTENSIONS = new Set(['.css']);
 /**
  * 可能自拼 HTML 文档的源码扩展名。刻意不含 `.tsx` / `.jsx`：React 组件的样式最终渲染进 Next
- * 主文档，由 `globals.css` 的守卫覆盖，不需要自带。
+ * 主文档，由 `base.css` 的守卫覆盖，不需要自带。
  */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.mjs', '.js', '.rs', '.py', '.html']);
 
@@ -107,7 +108,7 @@ export function findUnguardedMotionSurface(path: string, source: string): Reduce
     return undefined;
   }
   // 被主文档 @import 的样式表由主文档的守卫统一覆盖，不属于“独立文档”。
-  if (isStylesheet && isImportedIntoMainDocument(path, production)) {
+  if (isStylesheet && isImportedIntoMainDocument(path)) {
     return undefined;
   }
   // 守卫要“真的兜住全部动画”：既出现在 reduce 媒体查询里，又落在通用选择器上。
@@ -128,15 +129,22 @@ export const ALLOWED_WITHOUT_GUARD: Readonly<Record<string, string>> = {
 };
 
 /**
- * 被主文档样式表 `@import` 的样式表：它们不是独立文档，编译后并进 Next 的主文档，
- * 由 `globals.css` 的守卫统一覆盖，不需要（也不应）各自再带一份。
+ * 被主文档样式表 `globals.css` `@import` 的样式表：它们不是独立文档，编译后并进 Next 的主文档，
+ * 由 `base.css` 里的通用选择器守卫统一覆盖，不需要（也不应）各自再带一份。
  *
  * 为什么需要单独排除：这类文件同样是 `.css` 且可能带 `transition:`，只按「样式表 + 带动画」
- * 判定会把它们误报成漏守卫的独立文档。
+ * 判定会把它们误报成漏守卫的独立文档。只登记带动画的分片（不带动画的不会被判定）；`globals.css`
+ * 新增带动画的分片时在此补一行，漏登记会让门禁失败而不是静默放过。
  */
 const MAIN_STYLESHEET_IMPORTERS = new Set([
   'myrm-agent-frontend/src/app/mermaid.css',
   'myrm-agent-frontend/src/app/focus-ring.css',
+  'myrm-agent-frontend/src/app/tailwind-theme.css',
+  'myrm-agent-frontend/src/app/animations.css',
+  'myrm-agent-frontend/src/app/component-styles.css',
+  'myrm-agent-frontend/src/app/companion.css',
+  'myrm-agent-frontend/src/app/brand.css',
+  'myrm-agent-frontend/src/app/markdown-table.css',
 ]);
 
 function isImportedIntoMainDocument(path: string): boolean {

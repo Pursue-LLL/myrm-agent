@@ -55,7 +55,7 @@ What about the day after?
 
 - The sender is `sender_name`, else `sender_id`, else "someone".
 - The quote is cut at 500 characters (`_REPLY_CONTENT_MAX_LEN`) and ends in `...`.
-- Sender and quote both pass `sanitize` (content boundary), so quoted text cannot inject instructions.
+- Sender and quote both pass `sanitize` (content boundary): structural role markers are stripped and forged boundary markers are neutralized. Instructions written in plain language are kept, and the quote gets no random boundary or safety notice.
 - The attachment hint states how many attachments the quoted message had.
 - Group context and the delivery banner wrap the result.
 

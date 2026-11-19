@@ -258,7 +258,7 @@ class TestAgentBuiltinToolsCRUD:
         assert any("unknown" in str(item.get("msg", "")).lower() for item in detail)
 
     def test_builtin_preset_tools_match_initializer_spec(self, auth_headers: dict[str, str]) -> None:
-        """Gallery SSOT: visible built-in agents expose canonical tool matrices."""
+        """The agent list shows every visible built-in agent with its initializer tool matrix and omits hidden ones."""
         from app.services.agent.builtin_specs.builtin_initializer import _BUILTIN_AGENTS
         from app.services.agent.builtin_specs.builtin_tool_ids import normalize_enabled_builtin_tools
         from app.services.features.product_surface import HIDDEN_BUILTIN_AGENT_IDS
@@ -277,14 +277,17 @@ class TestAgentBuiltinToolsCRUD:
         for spec in visible_specs:
             assert normalize_enabled_builtin_tools(api_by_id[spec.id]) == list(spec.enabled_builtin_tools or ())
 
-        for hidden_id in HIDDEN_BUILTIN_AGENT_IDS:
+        assert not HIDDEN_BUILTIN_AGENT_IDS & {item["id"] for item in items}
+
+        # A retired preset has no spec, so only the hidden ids that still ship one exist in a fresh database.
+        hidden_specs = [spec for spec in _BUILTIN_AGENTS if spec.id in HIDDEN_BUILTIN_AGENT_IDS]
+        for hidden_spec in hidden_specs:
             hidden_resp = _e2e_request(
                 "GET",
-                f"{BASE_URL}/api/v1/user-agents/{hidden_id}",
+                f"{BASE_URL}/api/v1/user-agents/{hidden_spec.id}",
                 headers=auth_headers,
             )
             assert hidden_resp.status_code == 200
-            hidden_spec = next(spec for spec in _BUILTIN_AGENTS if spec.id == hidden_id)
             hidden_tools = hidden_resp.json()["data"]["enabled_builtin_tools"]
             assert normalize_enabled_builtin_tools(hidden_tools) == list(hidden_spec.enabled_builtin_tools or ())
 

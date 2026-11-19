@@ -2,7 +2,7 @@
 
 [INPUT]
 - app.channels.routing.router::AgentRouter (real router over a stub bus)
-- app.channels.i18n locale catalog (en, zh-CN, ja)
+- app.channels.i18n locale catalog (en, zh-CN)
 
 [OUTPUT]
 - Tests that the four replies of the ``/delegate`` flow (missing task, quota reached, receipt, steering injected)
@@ -80,7 +80,6 @@ async def _consume_one(rig: _Rig, msg: InboundMessage) -> None:
     [
         ("en", "Add the task after the delegate command"),
         ("zh-CN", "请在委派指令后附带具体任务内容"),
-        ("ja", "委任コマンドの後に具体的なタスク内容を付けてください"),
     ],
 )
 async def test_a_delegate_command_without_a_task_is_answered_in_the_senders_language(
@@ -97,7 +96,6 @@ async def test_a_delegate_command_without_a_task_is_answered_in_the_senders_lang
     [
         ("en", "2 background tasks are already running"),
         ("zh-CN", "当前已有 2 个后台长任务正在执行中"),
-        ("ja", "バックグラウンドタスクがすでに 2 件実行中"),
     ],
 )
 async def test_the_quota_reply_states_the_real_limit_in_the_senders_language(rig: _Rig, locale: str, expected: str) -> None:
@@ -162,7 +160,6 @@ async def test_the_chinese_receipt_names_the_task_and_what_happens_next(rig: _Ri
     [
         ("en", "Your extra guidance was passed to background task `[t-1]`"),
         ("zh-CN", "已将补充指引动态注入后台任务 `[t-1]`"),
-        ("ja", "追加の指示をバックグラウンドタスク `[t-1]` に反映しました"),
     ],
 )
 async def test_steering_a_delegated_task_is_acknowledged_in_the_senders_language(

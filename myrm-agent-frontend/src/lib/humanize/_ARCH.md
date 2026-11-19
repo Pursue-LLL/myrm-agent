@@ -19,7 +19,7 @@ Single frontend module that turns raw `tool_name` + args into human-readable one
 
 ## i18n
 
-Namespace: `humanize.*` in all six locales (`en`, `zh`, `zh-TW`, `ja`, `ko`, `de`).
+Namespace: `humanize.*` in both locales (`en`, `zh`).
 
 Subtrees: `progress`, `approval`, `ask`, `scope`, `fallback`.
 

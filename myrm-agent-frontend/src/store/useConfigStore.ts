@@ -18,6 +18,7 @@ import {
   DEFAULT_SEARCH_SERVICES,
 } from '@/services/config';
 import { dropNullFields, normalizePersonalSettings } from '@/services/config/configNormalizer';
+import { isE2eBlockedKey } from '@/services/config/e2eSearchSyncGate';
 import { invalidateSearxngProbeCache } from '@/services/searxngProbe';
 import * as mcpManager from './config/mcp';
 import * as searchServiceManager from './config/searchService';
@@ -496,7 +497,7 @@ const useConfigStore = create<ConfigState>()((set, get) => ({
       });
 
       syncManager.subscribe('searchServices', (_key, value) => {
-        if (typeof window !== 'undefined' && window.__MYRM_E2E_BLOCK_SEARCH_SYNC__) {
+        if (isE2eBlockedKey('searchServices')) {
           return;
         }
         const v = value as SearchServicesConfigValue;

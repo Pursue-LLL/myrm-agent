@@ -26,8 +26,10 @@ def force_invalid_model_llm_error(invalid_model: str) -> Iterator[None]:
     def _mock_fallback(providers_dict: object | None = None) -> ModelConfig:
         return ModelConfig(model=invalid_model, api_key="sk-invalid-test-key", base_url=None)
 
+    # The stream imports the function from the package at call time, so the package attribute is the one to replace;
+    # replacing the module that defines it is not seen there, and the stream would run on the real default model.
     with patch(
-        "app.core.channel_bridge.model_resolver.resolve._fallback_model_from_providers",
+        "app.core.channel_bridge.model_resolver._fallback_model_from_providers",
         side_effect=_mock_fallback,
     ):
         yield

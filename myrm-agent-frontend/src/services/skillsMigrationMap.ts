@@ -9,7 +9,7 @@
  * - getWorkBuddyMigrationInfo: 获取特定技能的迁移对标与增强细节
  *
  * [POS]
- * 技能市场与模板市场迁移中心服务层。帮助从 WorkBuddy 或通用 ERP 迁移的用户无缝找到对标技能与最佳实践。
+ * 技能市场迁移中心服务层。帮助从 WorkBuddy 或通用 ERP 迁移的用户无缝找到对标技能与最佳实践。
  */
 
 export interface WorkBuddySkillMigrationItem {

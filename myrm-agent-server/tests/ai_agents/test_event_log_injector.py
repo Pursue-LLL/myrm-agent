@@ -40,7 +40,7 @@ def test_voice_realtime_session_id_resolution() -> None:
     assert sid_none == "voice:realtime:2026-10-13"
     assert is_safe_session_id(sid_none)
 
-    # 硬编码的旧固定字面量被替换为分片
+    # 固定字面量 "realtime-tool" 解析为按日期分片的会话 ID
     sid_literal = resolve_voice_realtime_session_id("realtime-tool", run_date=target_date)
     assert sid_literal == "voice:realtime:2026-10-13"
     assert is_safe_session_id(sid_literal)

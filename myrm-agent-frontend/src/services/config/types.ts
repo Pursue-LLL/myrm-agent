@@ -164,14 +164,12 @@ export interface PrivacyRoutingSecretConfigValue {
   localApiKey: string;
 }
 
-export type ImageGenerationProvider = 'openai' | 'gemini' | 'stability';
-export type VideoGenerationProvider = 'openai' | 'gemini' | 'qwen' | 'minimax' | 'xai' | 'fal' | 'volcengine';
+export type VideoGenerationProvider = 'gemini' | 'qwen' | 'minimax' | 'xai' | 'fal' | 'volcengine';
 
 export interface ImageGenerationConfig {
   model: string;
   fallbackModels: string[];
   defaultSize: string;
-  defaultQuality: string;
   timeoutSeconds: number;
   maxRetries: number;
 }

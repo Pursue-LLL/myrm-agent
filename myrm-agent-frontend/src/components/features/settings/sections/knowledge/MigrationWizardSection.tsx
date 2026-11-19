@@ -2,6 +2,8 @@
 
 /**
  * [INPUT]
+ * ./useMigrationScan (POS: scan and ZIP upload of the sources to import from)
+ * ./useMigrationDeepLink (POS: ?source= auto-preview)
  * @/services/migrationDiscovery (POS: external assistant auto-discovery client)
  * @/services/memory/archive (POS: memory import dry-run / confirm / rollback client)
  *
@@ -15,23 +17,18 @@
  * When URL contains ?source=<id>, auto-starts preview after scan for that source.
  */
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 import {
-  canDeepLinkMigrationSource,
-  discoverMigrationSources,
-  registerMigrationSourceManifest,
   resolveMigrationImportSource,
   importMigrationSecrets,
   invalidateDiscoveryCache,
-  uploadMigrationZip,
   PASTED_MEMORY_COMPETITOR_ID,
   PASTED_MEMORY_IMPORT_SOURCE,
   type ExternalSource,
-  type DiscoveryResponse,
+  type SecretsImportResponse,
 } from '@/services/migrationDiscovery';
 import {
   confirmImportMemories,
@@ -50,8 +47,9 @@ import useAgentStore from '@/store/useAgentStore';
 import { PreviewStep } from './memory-migration-wizard/PreviewStep';
 import { ResultStep } from './memory-migration-wizard/ResultStep';
 import { ScanStep } from './memory-migration-wizard/ScanStep';
-
-type WizardStep = 'scan' | 'preview' | 'result';
+import type { WizardStep } from './memory-migration-wizard/wizardShared';
+import { useMigrationDeepLink } from './useMigrationDeepLink';
+import { useMigrationScan } from './useMigrationScan';
 
 interface MigrationWizardSectionProps {
   onMigrationComplete?: () => void;
@@ -59,14 +57,9 @@ interface MigrationWizardSectionProps {
 
 const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSectionProps) => {
   const t = useTranslations('memory.migrationWizard');
-  const searchParams = useSearchParams();
-  const deepLinkSourceId = searchParams.get('source')?.trim().toLowerCase() ?? '';
-  const deepLinkPreviewAttemptedRef = useRef(false);
+  const { discovery, scanning, uploading, handleScan, handleUpload } = useMigrationScan(t);
 
   const [step, setStep] = useState<WizardStep>('scan');
-  const [scanning, setScanning] = useState(false);
-  const [discovery, setDiscovery] = useState<DiscoveryResponse | null>(null);
-
   const [selectedSource, setSelectedSource] = useState<ExternalSource | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<MemoryImportDryRunResponse | null>(null);
@@ -82,57 +75,13 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
   const [importResult, setImportResult] = useState<MemoryImportConfirmResponse | null>(null);
   const [skillSubmitResult, setSkillSubmitResult] = useState<SkillMigrationSubmitResponse | null>(null);
   const [skillSubmitFailed, setSkillSubmitFailed] = useState(false);
-  const [secretsImportMessage, setSecretsImportMessage] = useState<string | null>(null);
+  const [secretsImport, setSecretsImport] = useState<SecretsImportResponse | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
   const [retryingSkills, setRetryingSkills] = useState(false);
   const [workspaceBindCandidates, setWorkspaceBindCandidates] = useState<MigrationWorkspaceBindCandidate[]>([]);
   const [pasteText, setPasteText] = useState('');
   const [pasteModelExtraction, setPasteModelExtraction] = useState(false);
   const [pasting, setPasting] = useState(false);
-
-  const handleScan = useCallback(
-    async (force = false) => {
-      setScanning(true);
-      try {
-        if (force) {
-          invalidateDiscoveryCache();
-        }
-        const result = await discoverMigrationSources(force);
-        registerMigrationSourceManifest(result.source_manifest, {
-          authoritative: result.source_manifest_authoritative,
-        });
-        setDiscovery(result);
-      } catch {
-        toast.error(t('scanFailed'));
-      } finally {
-        setScanning(false);
-      }
-    },
-    [t],
-  );
-
-  const [uploading, setUploading] = useState(false);
-
-  const handleUpload = useCallback(
-    async (file: File) => {
-      setUploading(true);
-      try {
-        const result = await uploadMigrationZip(file);
-        registerMigrationSourceManifest(result.source_manifest, {
-          authoritative: result.source_manifest_authoritative,
-        });
-        setDiscovery(result);
-        if (result.sources.length === 0) {
-          toast.info(t('cloudUploadEmpty'));
-        }
-      } catch {
-        toast.error(t('cloudUploadFailed'));
-      } finally {
-        setUploading(false);
-      }
-    },
-    [t],
-  );
 
   useEffect(() => {
     void handleScan();
@@ -174,38 +123,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     [includeEpisodic, targetAgentId, t],
   );
 
-  useEffect(() => {
-    if (
-      !deepLinkSourceId ||
-      !discovery ||
-      scanning ||
-      previewing ||
-      step !== 'scan' ||
-      deepLinkPreviewAttemptedRef.current
-    ) {
-      return;
-    }
-
-    if (!canDeepLinkMigrationSource(deepLinkSourceId)) {
-      deepLinkPreviewAttemptedRef.current = true;
-      toast.error(t('deepLinkSourceInvalid'));
-      return;
-    }
-
-    const matched = discovery.sources.find((source) => source.competitor.toLowerCase() === deepLinkSourceId);
-    if (!matched) {
-      deepLinkPreviewAttemptedRef.current = true;
-      toast.error(t('deepLinkSourceNotFound'));
-      return;
-    }
-
-    deepLinkPreviewAttemptedRef.current = true;
-    void handlePreview(matched).then((ok) => {
-      if (!ok) {
-        deepLinkPreviewAttemptedRef.current = false;
-      }
-    });
-  }, [deepLinkSourceId, discovery, scanning, previewing, step, handlePreview, t]);
+  useMigrationDeepLink({ discovery, scanning, previewing, step, onPreview: handlePreview, t });
 
   const submitPendingSkills = useCallback(
     async (pendingSkills: MemoryImportPendingSkill[], bindAgentId: string | null | undefined) => {
@@ -250,6 +168,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         memory_count_estimate: 0,
         skill_count: 0,
         has_api_keys: false,
+        can_import_secrets: false,
       };
       setSelectedSource(pastedSource);
       setDryRunResult(result);
@@ -268,7 +187,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     }
     setImporting(true);
     setSkillSubmitFailed(false);
-    setSecretsImportMessage(null);
+    setSecretsImport(null);
     try {
       const result = await confirmImportMemories(dryRunResult.dry_run_id, true, importSessions);
       setImportResult(result);
@@ -287,13 +206,13 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         setSkillSubmitResult(null);
       }
 
-      if (importSecrets && selectedSource.has_api_keys) {
+      if (importSecrets && selectedSource.can_import_secrets) {
         try {
           const secretsResult = await importMigrationSecrets(selectedSource.competitor, selectedSource.root);
-          setSecretsImportMessage(secretsResult.message);
+          setSecretsImport(secretsResult);
           if (secretsResult.imported_keys.length > 0) {
             toast.success(t('secretsImportSuccess', { count: secretsResult.imported_keys.length }));
-          } else if ((secretsResult.skipped_keys?.length ?? 0) > 0) {
+          } else if (secretsResult.skipped_keys.length > 0) {
             toast.warning(t('secretsImportPartialSkip'));
           }
         } catch {
@@ -380,7 +299,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
       setImportResult(null);
       setSkillSubmitResult(null);
       setSkillSubmitFailed(false);
-      setSecretsImportMessage(null);
+      setSecretsImport(null);
       void handleScan(true);
     } catch {
       toast.error(t('rollbackFailed'));
@@ -396,7 +315,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
     setSelectedSource(null);
     setSkillSubmitResult(null);
     setSkillSubmitFailed(false);
-    setSecretsImportMessage(null);
+    setSecretsImport(null);
     setImportSecrets(false);
   }, []);
 
@@ -445,7 +364,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
           result={importResult}
           skillSubmitResult={skillSubmitResult}
           skillSubmitFailed={skillSubmitFailed}
-          secretsImportMessage={secretsImportMessage}
+          secretsImport={secretsImport}
           rollingBack={rollingBack}
           onRollback={handleRollback}
           onRetrySkillSubmit={handleRetrySkillSubmit}

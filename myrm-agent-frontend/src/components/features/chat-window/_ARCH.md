@@ -171,7 +171,7 @@
 | `ToolApprovalExpiryWatcher.tsx` | 组件/模块 | 工具审批过期 watcher：到期按 `timeoutBehavior` 自动应答（同一批次的成员一并送达），应答确已送达才提示（每个批次一条）；没送达则卡片保留、由 hook 报错 | ✅ |
 | `WorkspaceDirPicker.tsx` | 组件 | 会话工作目录的唯一入口，渲染在输入框与操作栏之间的一行（桌面与手机同一位置）：未绑定时显示「会话目录」并说明只在该会话目录内工作，已绑定显示紧凑路径；Popover 内路径输入+Enter 导航、子目录过滤（>8 项）、最近使用 LRU 5（`lib/directoryBrowseRecent.ts`：弹层打开时才读存储，存储拒绝写入不影响选目录；Windows 路径按 `\` 紧凑显示）、返回上级按钮有名称、Tauri 桌面端原生 OS picker（`@tauri-apps/plugin-dialog`）、一键初始化办公目录（只创建缺失目录）；选目录先写入本地 store 再 PATCH，会话尚未落库时 404 视为成功（目录随首条消息提交），服务端拒绝的目录按原因提示并回滚本地状态 | ✅ |
 | `EvidenceStageHUD.tsx` | 组件 | "Evidence Before Claims" 执行阶段 HUD：Prepared/Executing/Observed/Verified 四态派生流转与证据快照抽屉；步骤错误/警告按 `getDisplayStatus` 派生（用户拒绝、审批超时记为警告阶段）；证据卡的结果与责任方用界面语言的词（`getStatusLabelKey`、`faultSides`），拒绝类调用写「用户已拒绝 / 审批超时」而不是状态码 | ✅ |
-| `goals/` | 目录 | Goal 控制面与 DAG 可视化 | 见下表 |
+| `goals/` | 目录 | Goal 控制面 | 见下表 |
 | `mobile/` | 目录 | 移动端 Command Center 壳层与状态面板（MobileStatusBoard 等） | 见 [mobile/_ARCH.md](mobile/_ARCH.md) |
 | `catchup/` | 目录 | 会话 catch-up 收件箱 UI（`GET /catchup` 列出用户离开期间有动静的会话，在场水位线由 `hooks/chat/usePresenceReadMark` 盖章） | 见 [catchup/_ARCH.md](catchup/_ARCH.md) |
 | `virtual-message-list/` | 目录 | 虚拟化消息列表（`@tanstack/react-virtual` 高度缓存） | 见 [virtual-message-list/_ARCH.md](virtual-message-list/_ARCH.md) |
@@ -261,7 +261,6 @@
 | `__tests__/RealTimeCostAndCacheHud.test.tsx` | 测试 | 算力胶囊 HUD 单元测试：就绪态、整段会话累计与 K/M 缩写、缓存读取低于门限的普通态、门限达成/累计达成/服务端标记三种绿色高亮与节省额（不足 1 美分取四位小数，其余三位）、命中率取累计值，以及单价浮层拿到所选或默认模型                                                                                                   | ✅    |
 | `__tests__/InputHistoryPopup.test.tsx` | 测试 | 输入历史弹窗：listbox 名称、条目单行预览与完整 tooltip、选中态、同一时刻的条目不撞 key、时间边界（刚刚/分钟/小时/昨天/天/日期）与按界面语言排版、悬停与按下回报、点击外部关闭（只在打开期间监听）、活动项滚入视野 | ✅ |
 | `question-nav/`                              | 子包 | 长会话用户提问智能视口穿梭导航器与多轮 Prompt 索引大纲抽屉（Item 43 P0，详见 `question-nav/_ARCH.md`）                                                                              | ✅    |
-| `structured-asking/`                         | 子包 | 全端结构化提问卡片组件、单选/多选/快捷键操作与跳过决策控制（Item 47 P0，详见 `structured-asking/_ARCH.md`）                                                                         | ✅    |
 | `streaming-markdown/`                        | 子包 | 高帧率增量流式 Markdown 渲染器、RAF 动态节流与极端高吞吐防掉帧虚拟化引擎（Item 79 P0，详见 `streaming-markdown/_ARCH.md`）                                                          | ✅    |
 | `thinking-permission/`                       | 子包 | 可调节思考推理预算滑块、Thinking 深度折叠呈现与三档权限自动化模式即时换挡器（Item 81 P0，详见 `thinking-permission/_ARCH.md`）                                                      | ✅    |
 | `digital-self/`                              | 子包 | 数字分身拟人化语气草拟回复、同事上下文对齐与外部出站发送绝对确认安全门禁（Item 82 P0，详见 `digital-self/_ARCH.md`）                                                                | ✅    |

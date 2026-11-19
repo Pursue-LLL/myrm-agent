@@ -18,7 +18,7 @@ inject neither, preserving current behavior for all other argument names.
 - SafeStructuredTool: StructuredTool subclass with reserved-name-safe ``_run``/``_arun``
 
 [POS]
-MCP/OpenAPI tool construction. Framework-level fix for the langchain-core
+MCP/OpenAPI tool construction. Framework-level handling of the langchain-core
 ``config``/``run_manager`` parameter-name collision.
 """
 

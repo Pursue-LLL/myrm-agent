@@ -6,6 +6,7 @@ import json
 import os
 import time
 import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -37,6 +38,14 @@ def _event_types(events: list[dict[str, object]]) -> list[str]:
     return sorted({str(event.get("type")) for event in events if event.get("type") is not None})
 
 
+def _interrupt_id(clarify_events: list[dict[str, object]]) -> str:
+    """The pause the card was announced for: the page addresses every answer to it."""
+    interrupt_id = clarify_events[0].get("interruptId")
+    assert isinstance(interrupt_id, str)
+    assert interrupt_id
+    return interrupt_id
+
+
 @pytest.mark.e2e
 @pytest.mark.skipif(
     not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
@@ -44,7 +53,7 @@ def _event_types(events: list[dict[str, object]]) -> list[str]:
 )
 def test_agent_stream_structured_clarify_interrupt_and_resume(
     client: TestClient,
-    mock_load_user_configs: pytest.AsyncMock,
+    mock_load_user_configs: AsyncMock,
 ) -> None:
     """Real agent-stream: ask_question_tool must emit clarification_required and complete after resume."""
     configs = mock_load_user_configs.return_value
@@ -107,8 +116,7 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
             break
 
     assert clarify_events, (
-        "Expected clarification_required after ask_question_tool (2 attempts); "
-        f"event_types={sorted({e.get('type') for e in initial_events if isinstance(e.get('type'), str)})}"
+        f"Expected clarification_required after ask_question_tool (2 attempts); event_types={_event_types(initial_events)}"
     )
 
     clarify_data = clarify_events[0].get("data")
@@ -131,7 +139,7 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
         "agentConfig": {
             "enabledBuiltinTools": ["structured_clarify"],
         },
-        "resumeValue": resume_answer,
+        "resumeValue": {**resume_answer, "interruptId": _interrupt_id(clarify_events)},
     }
     resume_events: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0) as response:
@@ -162,11 +170,11 @@ def test_agent_stream_structured_clarify_interrupt_and_resume(
     not os.environ.get("LITE_API_KEY") and not os.environ.get("BASIC_API_KEY"),
     reason="E2E test requires LITE_API_KEY or BASIC_API_KEY",
 )
-def test_agent_stream_structured_clarify_skip_empty_resume(
+def test_agent_stream_structured_clarify_skip_resume(
     client: TestClient,
-    mock_load_user_configs: pytest.AsyncMock,
+    mock_load_user_configs: AsyncMock,
 ) -> None:
-    """Real agent-stream: empty resumeValue {} must resume like Skip (B-package fix)."""
+    """Real agent-stream: a skip addressed to the pause (what the Skip button sends) resumes the agent."""
     configs = mock_load_user_configs.return_value
     configs.security_config_dict = {
         **(configs.security_config_dict or {}),
@@ -236,7 +244,7 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
         "agentConfig": {
             "enabledBuiltinTools": ["structured_clarify"],
         },
-        "resumeValue": {},
+        "resumeValue": {"interruptId": _interrupt_id(clarify_events)},
     }
     resume_events: list[dict[str, object]] = []
     with client.stream("POST", "/api/v1/agents/agent-stream", json=resume_payload, timeout=180.0) as response:
@@ -258,7 +266,7 @@ def test_agent_stream_structured_clarify_skip_empty_resume(
     assert resume_events, "Skip resume stream should return events"
     resume_types = _event_types(resume_events)
     assert "error" not in resume_types, f"resume stream errored: {resume_types}"
-    assert resume_types != ["clarification_required"], f"resumeValue {{}} did not progress past clarify interrupt: {resume_types}"
+    assert "clarification_required" not in resume_types, f"skip did not progress past the clarify interrupt: {resume_types}"
+    # A run that merely ends (bare message_end) is what a skip reaching nobody looks like: continuation means text.
     final_text = _message_text(resume_events)
-    completed = "DONE-SKIPPED" in final_text.upper() or "DONE" in final_text.upper() or "message_end" in resume_types
-    assert completed, f"Expected agent to continue after empty resumeValue; types={resume_types}, final_text={final_text[:300]!r}"
+    assert final_text.strip(), f"Expected agent to continue after the skip; types={resume_types}"

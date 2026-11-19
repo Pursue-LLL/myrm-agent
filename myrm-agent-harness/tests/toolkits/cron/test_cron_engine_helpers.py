@@ -2,19 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from myrm_agent_harness.toolkits.cron.engine import helpers
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     BACKOFF_SCHEDULE_MS,
     _ensure_utc,
     classify_transient_error,
-    compute_stagger_offset_s,
     error_backoff_ms,
     extract_telemetry,
     is_past_misfire_grace,
-    is_top_of_hour_cron,
+    next_slot_or_retry,
     pre_execution_check,
     resolve_failure_alert,
     resolve_stagger_ms,
@@ -81,31 +82,6 @@ class TestStagger:
 
     def test_interval_no_stagger(self) -> None:
         assert resolve_stagger_ms(_job(schedule=_SCHED_INTERVAL)) == 0
-
-
-class TestIsTopOfHourCron:
-    def test_top_of_hour(self) -> None:
-        assert is_top_of_hour_cron("0 * * * *") is True
-
-    def test_specific_hour(self) -> None:
-        assert is_top_of_hour_cron("0 9 * * *") is False
-
-    def test_non_zero_minute(self) -> None:
-        assert is_top_of_hour_cron("30 * * * *") is False
-
-    def test_short_expr(self) -> None:
-        assert is_top_of_hour_cron("0 *") is False
-
-
-class TestComputeStaggerOffsetS:
-    def test_explicit(self) -> None:
-        assert compute_stagger_offset_s(10_000, None) == 10.0
-
-    def test_auto_top_of_hour(self) -> None:
-        assert compute_stagger_offset_s(None, "0 * * * *") == 300.0
-
-    def test_no_stagger(self) -> None:
-        assert compute_stagger_offset_s(None, "30 * * * *") == 0.0
 
 
 class TestPreExecutionCheck:
@@ -254,3 +230,34 @@ class TestExtractTelemetry:
         model, p, _c, _t = extract_telemetry(result)
         assert model == "gpt-4"
         assert p is None
+
+
+class TestNextSlotOrRetry:
+    def test_a_computable_schedule_is_booked_at_its_next_slot(self) -> None:
+        assert next_slot_or_retry(_job(), _NOW) == _NOW + timedelta(hours=1)
+
+    @pytest.mark.parametrize(
+        "schedule",
+        [
+            Schedule(kind=ScheduleKind.CRON, expr="not a cron"),
+            Schedule(kind=ScheduleKind.CRON, expr="0 0 31 2 *"),
+            Schedule(kind=ScheduleKind.CRON, expr="0 * * * *", tz="Mars/Olympus"),
+        ],
+        ids=["unparseable", "no such date", "unknown timezone"],
+    )
+    def test_a_schedule_that_cannot_be_computed_is_booked_a_minute_ahead_with_a_warning(
+        self, schedule: Schedule, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+            slot = next_slot_or_retry(_job(schedule=schedule), _NOW)
+
+        assert slot == _NOW + timedelta(minutes=1)
+        assert [record.levelno for record in caplog.records] == [logging.WARNING]
+        assert "j1" in caplog.records[0].getMessage()
+
+    def test_a_schedule_without_a_further_slot_is_still_booked_a_minute_ahead(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(helpers, "next_eligible_run", lambda job, now: None)
+
+        assert next_slot_or_retry(_job(), _NOW) == _NOW + timedelta(minutes=1)

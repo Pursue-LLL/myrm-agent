@@ -1,7 +1,7 @@
 """
 [INPUT] models.base::Base (POS: ORM 模型基类)
-[OUTPUT] CronJobModel: 定时任务(含 triggers JSON), CronRunModel: 任务执行记录(含 trigger_source), MonitorStateModel: 增量监控状态
-[POS] 定时任务域模型。管理 Cron 任务定义、执行记录和增量监控状态。
+[OUTPUT] CronJobModel: 定时任务(含 triggers JSON), CronRunModel: 任务执行记录(含 trigger_source), MonitorStateModel: 增量监控状态, CronInflightModel: 在飞运行标记
+[POS] 定时任务域模型。管理 Cron 任务定义、执行记录、增量监控状态和进程存活期间的在飞运行标记。
 """
 
 from datetime import datetime
@@ -105,8 +105,6 @@ class CronRunModel(Base):
     delivery_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     metadata_json: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
-    integrity_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    prev_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -135,3 +133,16 @@ class MonitorStateModel(Base):
     last_failure_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_reset_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_reset_reason: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+
+class CronInflightModel(Base):
+    """Marker of a job whose run is in flight.
+
+    The row outlives a process that dies under its run, which is how the next start learns of the run. It has no
+    foreign key to ``cron_jobs``: the marker belongs to the run, and a run goes on after its job is deleted.
+    """
+
+    __tablename__ = "cron_inflight"
+
+    job_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

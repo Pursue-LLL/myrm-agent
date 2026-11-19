@@ -34,7 +34,6 @@ from app.services.approvals.registry import ApprovalRegistry
     [
         ("en", "Knowledge update suggested from a gap in past conversations: Prometheus Alertmanager Webhook"),
         ("zh-CN", "会话盲点知识转正建议: Prometheus Alertmanager Webhook"),
-        ("ja", "過去の会話で見つかった知識の不足を補う更新の提案: Prometheus Alertmanager Webhook"),
     ],
 )
 async def test_harvest_session_blind_spots_creates_approval(app: FastAPI, locale: str, expected_reason: str) -> None:

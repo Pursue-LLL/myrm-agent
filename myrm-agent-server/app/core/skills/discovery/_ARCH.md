@@ -16,7 +16,7 @@
 | `mount.py` | 安装/更新后 catalog enable 入口：`maybe_mount_after_install`/`resolve_mount_skill_id`/`DEFAULT_MOUNT_AGENT_ID`，触发 `SKILL_POOL_UPDATED` 广播，返回 `SkillMountResult`。 |
 | `autoupdate.py` | 上游版本检测与更新检查：`get_update_checker`。 |
 | `market_install_flow.py` | 外部市场安装统一编排：clawhub registry、replace 快照、`app.core.skills.audit`、mount；adopt 由 HTTP/chat 适配层调用。 |
-| `agent_market_install.py` | Chat `skill_market_tool` 适配层：委托 `market_install_flow`。 |
+| `agent_market_install.py` | Chat `skill_market_tool` 适配层：`AgentSessionSkillMarketBackend` 实现 harness 的 `SkillMarketBackend`（`search` 解包 `market_service` 的命中，`install` 委托 `market_install_flow` 并在挂载后采纳），`install_from_url_for_agent_session` 是 URL 安装回调。聊天里的市场工具只有 `search` / `install` / `install_from_url` 三个动作；卸载走 Discover 页的 HTTP 路由（卸载后移出启用列表与各 Agent 白名单、记审计、广播技能池更新），聊天里按名删除用 `skill_manage` 的 `delete`。 |
 | `replace_install.py` | 市场安装/更新的替换快照编排：先为已安装技能创建回滚快照，再走 `market_service` 隔离安装；`market_install_with_replace_snapshot` / `market_install_from_url_with_replace_snapshot` 供 discovery 安装、URL 安装与 autoupdate 复用。 |
 
 ---

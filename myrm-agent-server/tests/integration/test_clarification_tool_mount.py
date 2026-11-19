@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
+from langchain_core.tools import BaseTool
 
 from app.ai_agents.agents import AgentFactory, GeneralAgentParams
+from app.ai_agents.general_agent import ask_question_result
 from app.ai_agents.general_agent.tool_setup import (
     ToolSetupMixin,
     _should_mount_ask_question_tool,
@@ -43,6 +46,14 @@ def _make_mixin(**overrides: object) -> ToolSetupMixin:
     for key, value in defaults.items():
         setattr(mixin, key, value)
     return mixin
+
+
+def _mounted_ask_tool(**overrides: object) -> BaseTool:
+    tools: list[object] = []
+    _make_mixin(**overrides)._setup_clarification_tools(tools)
+    tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
+    assert isinstance(tool, BaseTool)
+    return tool
 
 
 def test_should_mount_predicate_matrix() -> None:
@@ -93,31 +104,15 @@ def test_ask_question_tool_locale_resolution() -> None:
         ASK_QUESTION_TOOL_DESCRIPTION_ZH,
     )
 
-    # Chinese locale
-    mixin_zh = _make_mixin(locale="zh-CN")
-    tools_zh: list[object] = []
-    mixin_zh._setup_clarification_tools(tools_zh)
-    tool_zh = next(tool for tool in tools_zh if getattr(tool, "name", None) == "ask_question_tool")
-    assert tool_zh.description == ASK_QUESTION_TOOL_DESCRIPTION_ZH
-
-    # English / default locale
-    mixin_en = _make_mixin(locale="en-US")
-    tools_en: list[object] = []
-    mixin_en._setup_clarification_tools(tools_en)
-    tool_en = next(tool for tool in tools_en if getattr(tool, "name", None) == "ask_question_tool")
-    assert tool_en.description == ASK_QUESTION_TOOL_DESCRIPTION_EN
+    assert _mounted_ask_tool(locale="zh-CN").description == ASK_QUESTION_TOOL_DESCRIPTION_ZH
+    assert _mounted_ask_tool(locale="en-US").description == ASK_QUESTION_TOOL_DESCRIPTION_EN
 
 
 def test_ask_question_tool_schema_uses_requires_confirmation() -> None:
     """Mounted tool must expose requires_confirmation (not legacy clarification_type)."""
     from myrm_agent_harness.agent.meta_tools.clarification.ask_question import AskQuestionInput
 
-    mixin = _make_mixin()
-    tools: list[object] = []
-    mixin._setup_clarification_tools(tools)
-
-    ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
-    assert ask_tool.args_schema is AskQuestionInput
+    assert _mounted_ask_tool().args_schema is AskQuestionInput
 
     properties = AskQuestionInput.model_json_schema()["properties"]
     assert "requires_confirmation" in properties
@@ -176,12 +171,11 @@ _SIGN_OFF_QUESTIONS: list[dict[str, object]] = [
 
 async def _resume_ask_question(response: object, *, requires_confirmation: bool) -> str:
     """Run the mounted tool as the agent does and resume its interrupt with ``response``."""
-    mixin = _make_mixin()
-    tools: list[object] = []
-    mixin._setup_clarification_tools(tools)
-    ask_tool = next(tool for tool in tools if getattr(tool, "name", None) == "ask_question_tool")
+    ask_tool = _mounted_ask_tool()
     with patch("langgraph.types.interrupt", return_value=response):
-        return await ask_tool.ainvoke({"questions": _SIGN_OFF_QUESTIONS, "requires_confirmation": requires_confirmation})
+        result = await ask_tool.ainvoke({"questions": _SIGN_OFF_QUESTIONS, "requires_confirmation": requires_confirmation})
+    assert isinstance(result, str)
+    return result
 
 
 @pytest.mark.parametrize("no_answer", [{}, None])
@@ -200,9 +194,44 @@ async def test_unanswered_plain_clarification_still_continues_on_best_judgment(n
     assert "NOT approved" not in result
 
 
+@pytest.mark.parametrize("no_answer", [{}, None])
+async def test_unanswered_plain_clarification_does_not_count_silence_as_approval(no_answer: object) -> None:
+    """The model may carry on, but what waited on the answer and cannot be taken back or seen outside the chat must not run."""
+    result = await _resume_ask_question(no_answer, requires_confirmation=False)
+
+    assert "silence is not approval" in result
+    assert "irreversible or externally visible" in result
+    assert "NOT approved" not in result
+
+
 async def test_answered_sign_off_form_returns_the_answer_unchanged() -> None:
     answer = {"proceed": ["keep"]}
 
     result = await _resume_ask_question(answer, requires_confirmation=True)
 
     assert json.loads(result) == answer
+
+
+def _silence_records(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [record for record in caplog.records if record.name == ask_question_result.logger.name]
+
+
+@pytest.mark.parametrize("requires_confirmation", [False, True])
+async def test_a_silent_resume_is_logged_with_the_flag_and_not_with_the_form(
+    caplog: pytest.LogCaptureFixture, requires_confirmation: bool
+) -> None:
+    """The line is how the frequency of skipped and timed-out questions is counted: one per silence, nothing the user wrote."""
+    with caplog.at_level(logging.INFO, logger=ask_question_result.logger.name):
+        await _resume_ask_question({}, requires_confirmation=requires_confirmation)
+
+    [record] = _silence_records(caplog)
+    assert record.levelno == logging.INFO
+    assert f"requires_confirmation={requires_confirmation}" in record.getMessage()
+    assert "Delete the production database?" not in caplog.text
+
+
+async def test_an_answered_question_is_not_logged_as_silence(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.INFO, logger=ask_question_result.logger.name):
+        await _resume_ask_question({"proceed": ["keep"]}, requires_confirmation=True)
+
+    assert _silence_records(caplog) == []

@@ -7,6 +7,7 @@ tears (`database disk image is malformed`).
 [INPUT]
 - source_path: Path to corrupted SQLite database.
 - output_path: Path where the clean recovered database will be created.
+- sqlite_salvage_schema::classify_schema_objects (POS: which ``sqlite_master`` entries are replayed and which are shadow tables)
 
 [OUTPUT]
 - SalvageResult: Structured execution summary with row counts, skipped corrupted
@@ -31,19 +32,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from myrm_agent_harness.infra.sqlite_salvage_schema import SchemaObjects, classify_schema_objects
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CHUNK_SIZE = 500
-_FTS_SHADOW_SUFFIXES = (
-    "_data",
-    "_idx",
-    "_content",
-    "_docsize",
-    "_config",
-    "_segments",
-    "_segdir",
-    "_stat",
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -336,38 +329,14 @@ class SQLiteRowidSalvageEngine:
         finally:
             source_conn.close()
 
-    def _extract_schemas(
-        self, conn: sqlite3.Connection
-    ) -> tuple[dict[str, str], dict[str, str], dict[str, str], dict[str, str]]:
-        """Extracts standard tables, virtual tables, secondary indexes, and views."""
-        tables: dict[str, str] = {}
-        virtual_tables: dict[str, str] = {}
-        indexes: dict[str, str] = {}
-        views: dict[str, str] = {}
+    def _extract_schemas(self, conn: sqlite3.Connection) -> SchemaObjects:
+        """Reads ``sqlite_master`` and sorts it into tables, virtual tables, secondary indexes and views."""
         try:
-            cursor = conn.execute("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%';")
-            for row in cursor.fetchall():
-                obj_type: str = str(row[0]).lower()
-                name: str = str(row[1])
-                sql: str | None = row[2]
-
-                if any(name.endswith(suffix) for suffix in _FTS_SHADOW_SUFFIXES):
-                    continue
-
-                if obj_type == "table":
-                    if sql and "VIRTUAL" in sql.upper():
-                        virtual_tables[name] = sql
-                    elif sql:
-                        tables[name] = sql
-                elif obj_type == "index":
-                    # Only user-defined secondary indexes with valid SQL (skip autoindexes)
-                    if sql and not name.startswith("sqlite_autoindex_"):
-                        indexes[name] = sql
-                elif obj_type == "view" and sql:
-                    views[name] = sql
+            rows = conn.execute("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%';").fetchall()
         except sqlite3.Error as exc:
             logger.warning("Error reading sqlite_master: %s", exc)
-        return tables, virtual_tables, indexes, views
+            return {}, {}, {}, {}
+        return classify_schema_objects(rows)
 
     def _salvage_table(
         self,

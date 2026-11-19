@@ -3,7 +3,7 @@
 [OUTPUT]
 - ModelProfile: Capability boundary for an image generation model
 - BUILTIN_PROFILES: Pre-registered profiles for common models
-- get_profile / register_profile: Lookup and custom registration
+- get_profile / register_profile / list_profiles / editable_model_names: Lookup and custom registration
 
 [POS]
 Defines the capability schema for image generation models.
@@ -28,7 +28,6 @@ class ModelProfile:
 
     name: str
     api_key_provider: str = "openai"
-    max_count: int = 1
     supports_edit: bool = False
     max_input_images: int = 0
     allowed_sizes: frozenset[str] = frozenset()
@@ -41,7 +40,6 @@ class ModelProfile:
         d: dict[str, object] = {
             "name": self.name,
             "api_key_provider": self.api_key_provider,
-            "max_count": self.max_count,
             "supports_edit": self.supports_edit,
             "max_prompt_length": self.max_prompt_length,
         }
@@ -60,40 +58,26 @@ class ModelProfile:
 # Built-in profiles
 # ---------------------------------------------------------------------------
 
-_DALLE3_SIZES = frozenset({"1024x1024", "1024x1792", "1792x1024"})
-_DALLE2_SIZES = frozenset({"256x256", "512x512", "1024x1024"})
-_GPT_IMAGE_SIZES = frozenset({"1024x1024", "1024x1536", "1536x1024", "auto"})
-
 BUILTIN_PROFILES: dict[str, ModelProfile] = {
-    "dall-e-3": ModelProfile(
-        name="dall-e-3",
-        max_count=1,
-        allowed_sizes=_DALLE3_SIZES,
-        max_prompt_length=4000,
-        allowed_output_formats=frozenset({"png"}),
-    ),
-    "dall-e-2": ModelProfile(
-        name="dall-e-2",
-        max_count=10,
+    # Sizes are open: any WIDTHxHEIGHT with both sides divisible by 16 is accepted, so there is no closed list to check.
+    # Input images stay at 1 because the transport uploads a single ``image[]`` part.
+    "gpt-image-2.6-sunburst": ModelProfile(
+        name="gpt-image-2.6-sunburst",
         supports_edit=True,
         max_input_images=1,
-        allowed_sizes=_DALLE2_SIZES,
-        max_prompt_length=1000,
-        allowed_output_formats=frozenset({"png"}),
+        max_prompt_length=32000,
+        allowed_output_formats=frozenset({"png", "jpeg", "webp"}),
     ),
-    "gpt-image-1": ModelProfile(
-        name="gpt-image-1",
-        max_count=1,
+    "gpt-image-2.6-flare": ModelProfile(
+        name="gpt-image-2.6-flare",
         supports_edit=True,
         max_input_images=1,
-        allowed_sizes=_GPT_IMAGE_SIZES,
         max_prompt_length=32000,
         allowed_output_formats=frozenset({"png", "jpeg", "webp"}),
     ),
     "gemini/imagen-3.0-generate-002": ModelProfile(
         name="gemini/imagen-3.0-generate-002",
         api_key_provider="gemini",
-        max_count=4,
         allowed_sizes=frozenset(),
         allowed_aspect_ratios=frozenset({"1:1", "3:4", "4:3", "9:16", "16:9"}),
         max_prompt_length=5000,
@@ -102,7 +86,6 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
     "flux/schnell": ModelProfile(
         name="flux/schnell",
         api_key_provider="together_ai",
-        max_count=1,
         allowed_sizes=frozenset(),
         max_prompt_length=2048,
         allowed_output_formats=frozenset({"png", "jpeg"}),
@@ -110,7 +93,6 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
     "flux/pro": ModelProfile(
         name="flux/pro",
         api_key_provider="together_ai",
-        max_count=1,
         allowed_sizes=frozenset(),
         max_prompt_length=2048,
         allowed_output_formats=frozenset({"png", "jpeg"}),
@@ -118,7 +100,6 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
     "stability/stable-diffusion-xl": ModelProfile(
         name="stability/stable-diffusion-xl",
         api_key_provider="stability",
-        max_count=4,
         allowed_sizes=frozenset({"1024x1024", "1152x896", "896x1152"}),
         max_prompt_length=2000,
         allowed_output_formats=frozenset({"png"}),
@@ -126,7 +107,6 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
     "xai/grok-imagine-image": ModelProfile(
         name="xai/grok-imagine-image",
         api_key_provider="xai",
-        max_count=1,
         allowed_sizes=frozenset(),
         max_prompt_length=4000,
         allowed_output_formats=frozenset({"png", "jpeg"}),
@@ -134,7 +114,6 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
     "xai/grok-imagine-image-quality": ModelProfile(
         name="xai/grok-imagine-image-quality",
         api_key_provider="xai",
-        max_count=1,
         allowed_sizes=frozenset(),
         max_prompt_length=4000,
         allowed_output_formats=frozenset({"png", "jpeg"}),
@@ -161,3 +140,8 @@ def get_profile(model: str) -> ModelProfile | None:
 def list_profiles() -> list[ModelProfile]:
     """Return all registered profiles, sorted by name."""
     return sorted(_registry.values(), key=lambda p: p.name)
+
+
+def editable_model_names() -> list[str]:
+    """Names of the registered models that edit an input image, sorted."""
+    return [p.name for p in list_profiles() if p.supports_edit]

@@ -1,7 +1,7 @@
 """Async task management system.
 
 Generic async job queue: task models and SQLite persistence.
-Domain payloads (image/video/audio) live in ``toolkits/llms/media_task_types.py``.
+The media job type ids live in ``toolkits/llms/media_task_types.py``; payloads are plain dicts here.
 The worker loop is implemented in ``myrm-agent-server/app/tasks/worker.py``.
 
 [INPUT]

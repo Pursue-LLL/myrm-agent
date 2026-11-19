@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
     FileReadInput,
@@ -105,23 +106,23 @@ class TestFileReadPreIODevicesAndUnicode:
     @pytest.mark.asyncio
     async def test_blocked_device_interception(self) -> None:
         tool = create_file_read_tool()
-        config = {"configurable": {"context": {}}}
+        config: RunnableConfig = {"configurable": {"context": {}}}
 
         # POSIX device
         with pytest.raises(ToolError, match="Access to device path is blocked"):
             await tool.ainvoke({"paths": ["/dev/zero"]}, config=config)
 
     @pytest.mark.asyncio
-    async def test_windows_reserved_names_are_blocked_on_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.parametrize("argument", ["CON", "aux.json", "CON:", "NUL:stream", "COM1:5-9"])
+    async def test_windows_reserved_names_are_blocked_on_windows(
+        self, argument: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(filesystem_module, "_IS_WINDOWS", True)
         tool = create_file_read_tool()
-        config = {"configurable": {"context": {}}}
+        config: RunnableConfig = {"configurable": {"context": {}}}
 
         with pytest.raises(ToolError, match="Access to device path is blocked"):
-            await tool.ainvoke({"paths": ["CON"]}, config=config)
-
-        with pytest.raises(ToolError, match="Access to device path is blocked"):
-            await tool.ainvoke({"paths": ["aux.json"]}, config=config)
+            await tool.ainvoke({"paths": [argument]}, config=config)
 
     @pytest.mark.asyncio
     async def test_unicode_path_auto_healing(self, tmp_path: Path) -> None:
@@ -133,7 +134,7 @@ class TestFileReadPreIODevicesAndUnicode:
         token = workspace_root_var.set(str(workspace))
         try:
             tool = create_file_read_tool()
-            config = {"configurable": {"context": {"workspace_root": str(workspace)}}}
+            config: RunnableConfig = {"configurable": {"context": {"workspace_root": str(workspace)}}}
 
             with patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool.process_text_paths",
@@ -189,8 +190,8 @@ class TestDocumentReaderMultimodalAndMagicBytes:
             supports_vision=True,
         )
         assert len(blocks) == 3
-        assert "**Plot Output 1** (image/png)" in blocks[0]["text"]
-        assert "Notebook Plot: cell 1, output 1" in blocks[1]["text"]
+        assert "**Plot Output 1** (image/png)" in str(blocks[0].get("text", ""))
+        assert "Notebook Plot: cell 1, output 1" in str(blocks[1].get("text", ""))
         assert blocks[2]["type"] in ("image", "image_url")
         b64 = blocks[2].get("base64") or blocks[2].get("data")
         assert b64 == fake_b64

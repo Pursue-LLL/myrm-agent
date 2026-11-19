@@ -132,27 +132,27 @@ def test_wiki_url_ingestion_reaches_the_network_only_through_the_fetch_engine() 
     assert "myrm_agent_harness.toolkits.web_fetch" in _imported_modules(wiki / "source_loader.py")
 
 
-def test_image_reference_download_uses_secure_get() -> None:
-    """Image reference URL download must use secure_get."""
-    generator = _HARNESS_SRC / "toolkits" / "llms" / "image" / "generator.py"
-    source = generator.read_text(encoding="utf-8")
-    start = source.index("async def _download_reference_images")
-    next_def = source.find("\nasync def ", start + 1)
-    next_sync = source.find("\ndef ", start + 1)
-    candidates = [x for x in (next_def, next_sync) if x != -1]
-    end = min(candidates) if candidates else len(source)
-    body = source[start:end]
-    assert "secure_get" in body
-    assert "create_httpx_client" not in body
+def _function_source(path: Path, name: str) -> str:
+    """Source text of the function called ``name`` in ``path``."""
+    source = path.read_text(encoding="utf-8")
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == name:
+            segment = ast.get_source_segment(source, node)
+            assert segment is not None
+            return segment
+    raise AssertionError(f"{path.name} defines no function {name}")
 
 
-def test_video_media_resolve_uses_secure_get() -> None:
-    """Video/image input URL resolution must use secure_get."""
-    engine = _HARNESS_SRC / "toolkits" / "llms" / "video" / "video_engine.py"
-    source = engine.read_text(encoding="utf-8")
-    start = source.index("async def _resolve_media_sources")
-    next_def = source.find("\nasync def ", start + 1)
-    end = next_def if next_def != -1 else len(source)
-    body = source[start:end]
+def test_media_input_urls_are_fetched_through_secure_get() -> None:
+    """Image and video reference URLs are read by the unified resolver; its fetch must go through secure_get."""
+    resolver = _HARNESS_SRC / "toolkits" / "llms" / "media_inputs.py"
+    assert "secure_get" in _function_source(resolver, "_fetch")
+    assert "create_httpx_client" not in resolver.read_text(encoding="utf-8")
+
+
+def test_image_result_download_uses_secure_get() -> None:
+    """The image a provider answers with by URL is downloaded through secure_get."""
+    models = _HARNESS_SRC / "toolkits" / "llms" / "image" / "models.py"
+    body = _function_source(models, "_download_url")
     assert "secure_get" in body
     assert "create_httpx_client" not in body

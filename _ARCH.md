@@ -15,6 +15,7 @@ MIT 开源仓库，包含 `myrm-agent-harness`（Agent 执行引擎框架，同�
 | `SECURITY.md` | 漏洞报告策略 |
 | `ARCHITECTURE.md` | 仓库边界、三部署模式、文档索引 |
 | `.pre-commit-config.yaml` | harness 门禁钩子（边界、工具注册、分形文档、_ARCH 清单、行数上限、测试断言；仅暂存 `myrm-agent-harness/` 文件时触发） |
+| `.dockerignore` | 服务端镜像（`myrm-agent-server/Dockerfile`、`myrm-agent-server/docker/Dockerfile.official`）的构建上下文过滤：按名称排除任意层级的 `__pycache__`、`node_modules`、`.env`、`.env.*`（含已跟踪的 `.env.example`；Docker 不读 `.gitignore`，规则不看 git 是否跟踪）；前端镜像另有 `myrm-agent-frontend/Dockerfile.dockerignore` |
 | `_ARCH.md` | 本文件：子目录职责表 |
 
 ## 目录清单
@@ -32,7 +33,7 @@ MIT 开源仓库，包含 `myrm-agent-harness`（Agent 执行引擎框架，同�
 
 ## 模块依赖
 
-- **Python / harness**：`myrm-agent-harness/` 与 server 同仓。`myrm-agent-server/pyproject.toml` 以 `[tool.uv.sources]` 把 harness 声明为 in-repo editable path source，`uv.lock` 解析到同一提交（`myrm setup` → `uv sync`）；`myrm dev` 要求 venv 指向仓库内 harness 源码（否则 exit 1，见 [scripts/_ARCH.md](scripts/_ARCH.md)）。harness 发布到 PyPI 由 `harness-v*` tag 触发 `.github/workflows/harness-publish.yml`
+- **Python / harness**：`myrm-agent-harness/` 与 server 同仓。`myrm-agent-server/pyproject.toml` 以 `[tool.uv.sources]` 把 harness 声明为 in-repo editable path source，`uv.lock` 解析到同一提交（`myrm setup` → `uv sync`）；`myrm start` 要求 venv 指向仓库内 harness 源码（否则 exit 1，见 [scripts/_ARCH.md](scripts/_ARCH.md)）。harness 发布到 PyPI 由 `harness-v*` tag 触发 `.github/workflows/harness-publish.yml`
 - **前端**：`myrm-agent-frontend/package.json` + `bun.lock`
 
 子模块详述（架构文档优先于子包 README）：

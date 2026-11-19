@@ -1,8 +1,11 @@
 """Allow-always write-back for an approved call.
 
 [INPUT]
-- agent.security.command_allowlist_pattern::extract_shell_command (POS: shell command identity for the allowlist)
+- agent.security.command_rules::command_text, launch_command (POS: the text a command-bearing tool runs, and the command a call starts)
 - agent.security.path_security::is_protected_instruction_file (POS: persona instruction files are never allow-always)
+- agent.security.tool_registry::resolve_permission_type (POS: the permission type a tool call asks for)
+- toolkits.code_execution.security.protected_instruction_command::protected_instruction_mutation_target (POS: whether a command writes a protected instruction file)
+- toolkits.code_execution.security.shell_command_analyzer::is_integration_mutation_command (POS: whether a command mutates an integration)
 - .helpers::add_to_allowlist_if_needed (POS: the allowlist write)
 
 [OUTPUT]
@@ -17,40 +20,33 @@ list that decides what may be remembered reads in one place.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from langchain_core.messages import ToolCall
 
 from myrm_agent_harness.agent.security.approval_flow import DEFAULT_USER_ID
-from myrm_agent_harness.agent.security.command_allowlist_pattern import (
-    extract_shell_command,
-)
+from myrm_agent_harness.agent.security.command_rules import command_text, launch_command
 from myrm_agent_harness.agent.security.path_security import (
     is_protected_instruction_file,
 )
+from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
 
 from .helpers import add_to_allowlist_if_needed
 
 logger = logging.getLogger(__name__)
 
 
-def _integration_mutation_blocks_allow_always(tool_call: ToolCall | dict[str, object]) -> bool:
-    raw_args = tool_call.get("args", {})
+def _command_of(tool_call: ToolCall | dict[str, object]) -> str:
+    """The text the call runs; empty for a tool that runs no command."""
+    raw_args = tool_call.get("args") or tool_call.get("arguments") or {}
     if not isinstance(raw_args, dict):
-        return False
-    shell_cmd = str(raw_args.get("command", "") or raw_args.get("code", "")).strip()
-    if not shell_cmd:
-        return False
-    from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
-        is_integration_mutation_command,
-    )
-
-    return is_integration_mutation_command(shell_cmd)
+        return ""
+    permission = resolve_permission_type(str(tool_call.get("name", "")), raw_args)
+    return command_text(permission, raw_args)
 
 
 def should_block_allow_always(
     tool_call: ToolCall | dict[str, object],
-    extra_ctx: dict[str, Any] | None,
+    extra_ctx: dict[str, object] | None,
 ) -> bool:
     """Unified guard: returns True when allowAlways must be blocked."""
     from myrm_agent_harness.agent.middlewares._session_context import (
@@ -80,21 +76,22 @@ def should_block_allow_always(
         if p and is_protected_instruction_file(p):
             return True
 
-        cmd = str(raw_args.get("command", "") or raw_args.get("code", "")).strip()
-        if cmd:
-            from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
-                is_protected_instruction_mutation_command,
-            )
+    command = _command_of(tool_call)
+    if not command:
+        return False
+    from myrm_agent_harness.toolkits.code_execution.security.protected_instruction_command import (
+        protected_instruction_mutation_target,
+    )
+    from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
+        is_integration_mutation_command,
+    )
 
-            if is_protected_instruction_mutation_command(cmd):
-                return True
-
-    return _integration_mutation_blocks_allow_always(tool_call)
+    return protected_instruction_mutation_target(command) is not None or is_integration_mutation_command(command)
 
 
 async def try_add_to_allowlist(
     tool_call: ToolCall | dict[str, object],
-    extra_ctx: dict[str, Any] | None,
+    extra_ctx: dict[str, object] | None,
     allow_always: bool | dict[str, bool],
     permission_type: str,
     allowlist_tool_name: str,
@@ -122,14 +119,13 @@ async def try_add_to_allowlist(
     agent_id = get_agent_id() or None
     session_id = get_approval_session() or None
     tool_args = tool_call.get("args", {})
-    shell_command = extract_shell_command(tool_args if isinstance(tool_args, dict) else None)
     await add_to_allowlist_if_needed(
         allow_always,
         user_id,
         permission_type,
         allowlist_tool_name,
         args_hashes.get(idx),
-        tool_command=shell_command,
+        tool_command=launch_command(permission_type, tool_args if isinstance(tool_args, dict) else None),
         agent_id=agent_id,
         ttl_seconds=ttl_seconds,
         session_id=session_id,

@@ -11,7 +11,7 @@ WebUI 辅助服务：二维码/URL 组装、Open Graph 链接预览抓取，以�
 | 文件 | 职责 |
 |------|------|
 | `qrcode.py` | 二维码与访问 URL |
-| `og_metadata.py` | Open Graph 元数据抓取（内存 LRU），服务端代理绕过浏览器 CORS |
+| `og_metadata.py` | Open Graph 元数据抓取，服务端代理绕过浏览器 CORS。经 harness `secure_get` 发起：只连被校验过的公网地址，重定向逐跳校验、最多 3 跳；运营方写进 `MYRM_ALLOWED_INTERNAL_HOSTS` 的主机是唯一例外，任何部署模式都一样（调用方与代理是不同的主体，局域网客户端也能打到这个端点）。响应流式读取，读满 64 KiB 即停；整个交换有 10 秒期限，因为读超时每收到一个字节就重新计时。任何失败（含被拒的地址）都只返回 `{"url": url}`，端点不区分「被拒」与「连不上」。结果（含失败）进 256 条、1 小时的 LRU 缓存 |
 | `admin_store.py` | `~/.myrm/webui/admin.json` 管理员凭据 |
 | `passwords.py` | scrypt 密码哈希 |
 | `temp_token.py` | 首次 setup 临时令牌（含 `WEBUI_SETUP_TOKEN`） |

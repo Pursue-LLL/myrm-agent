@@ -38,7 +38,8 @@ Goal-based autonomous loop engine. Enables agents to pursue long-running objecti
 | manager_queue_mixin.py | 核心 | Subgoal/queue/stash 操作 mixin | ✅ |
 | finalizer.py | 核心 | GoalFinalizer SSOT — 统一 COMPLETE 过渡；tool 路径 deferred terminal | ✅ |
 | steering_prompts.py | 核心 | Goal 运行时 steering prompt 模板 | ✅ |
-| storage.py | 核心 | SQLite 持久化、队列索引、`list_latest_goal_sessions`（启动 orphan WAIT 扫描） | ✅ |
+| storage.py | 核心 | 基于 StorageProvider 键值的目标持久化：目标、active/latest 会话索引、stash（返回类型 `StashRecord`）、队列索引（委托 `queue_index.py`）、`list_latest_goal_sessions`（启动 orphan WAIT 扫描）；会话索引读不出来（键缺失除外）时按「没有目标」、队列读不出来时按「空队列」降级，并对同一会话同一索引每 10 分钟 WARNING 一次（节流按 `GoalStorage` 实例计：会话级长生命周期的提供者上生效，每个请求现建的管理器各自的首次读取都会点名） | ✅ |
+| queue_index.py | 核心 | 单个会话的目标队列（`goals_queue/{session_id}` 一份 JSON 列表）：入队、移除、重排都是按会话串行的读-改-写（进程内锁，无人使用即释放）；读不出来的队列抛错而不被空队列覆盖写回，内容不是 JSON 列表时记 ERROR 并按空队列读，下一次写入修复 | ✅ |
 | goal_prompt_prefixes.py | Core | `GOAL_CONTINUATION_PREFIX` / `GOAL_WRAPUP_PREFIX` SSOT | ✅ |
 | continuation.py | 核心 | guard chain → ContinuationDecision；WAIT 早退；tool-complete deferred 解析；白名单 background bash 自动 enter_wait；Sandbox Boundary HITL (step 6.5a)；delegates drift to continuation_drift；delegates checkpoint to continuation_checkpoint | ✅ |
 | continuation_checkpoint.py | 核心 | Per-Todo Checkpoint (step 6.5c) — 检测新完成的 todo 并 PAUSE Goal 等待用户确认，produce checkpoint_pause verdict | ✅ |

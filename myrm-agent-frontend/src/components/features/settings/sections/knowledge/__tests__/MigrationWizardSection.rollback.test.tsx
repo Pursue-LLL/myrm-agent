@@ -47,6 +47,7 @@ const source: ExternalSource = {
   memory_count_estimate: 1,
   skill_count: 0,
   has_api_keys: false,
+  can_import_secrets: false,
 };
 vi.mock('../memory-migration-wizard/ScanStep', () => ({
   ScanStep: ({ onPreview }: { onPreview: (source: ExternalSource) => void }) => (

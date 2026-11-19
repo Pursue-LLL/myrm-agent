@@ -2,77 +2,29 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
-from types import TracebackType
-from typing import Self
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
-from apscheduler.triggers.interval import IntervalTrigger
 
 from app.lifecycle import schedulers
+from tests.support.recording_scheduler import RecordingScheduler
 
 
-class _RecordingScheduler:
-    registered: list[tuple[str, Callable[[], object], IntervalTrigger]] = []
-    ready = asyncio.Event()
-    started = False
+async def test_the_hourly_backup_check_is_registered_a_few_minutes_after_boot(maintenance_schedules: RecordingScheduler) -> None:
+    before = maintenance_schedules.created_at
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None) -> None:
-        return None
-
-    async def add_schedule(self, func: Callable[[], object], trigger: IntervalTrigger, *, id: str) -> None:  # noqa: A002
-        type(self).registered.append((id, func, trigger))
-        if id == "instance_auto_backup":
-            type(self).ready.set()
-
-    async def start_in_background(self) -> None:
-        type(self).started = True
-
-
-@pytest.fixture
-def recording(monkeypatch: pytest.MonkeyPatch) -> Iterator[type[_RecordingScheduler]]:
-    _RecordingScheduler.registered = []
-    _RecordingScheduler.ready = asyncio.Event()
-    _RecordingScheduler.started = False
-    monkeypatch.setattr("apscheduler.AsyncScheduler", _RecordingScheduler)
-    yield _RecordingScheduler
-    task = schedulers.maintenance._db_maintenance_scheduler_task
-    if task is not None:
-        task.cancel()
-    monkeypatch.setattr(schedulers.maintenance, "_db_maintenance_scheduler_task", None)
-    monkeypatch.setattr(schedulers.maintenance, "_db_maintenance_scheduler", None)
-
-
-async def test_the_hourly_backup_check_is_registered_a_few_minutes_after_boot(recording: type[_RecordingScheduler]) -> None:
-    before = datetime.now(UTC)
-
-    await schedulers.start_db_maintenance_scheduler()
-    await asyncio.wait_for(recording.ready.wait(), timeout=10)
-
-    by_id = {job_id: (func, trigger) for job_id, func, trigger in recording.registered}
-    func, trigger = by_id["instance_auto_backup"]
+    func, trigger = maintenance_schedules.registered["instance_auto_backup"]
     assert func is schedulers._instance_auto_backup_job
     assert trigger.minutes == 60
     assert before + timedelta(minutes=4) < trigger.start_time < before + timedelta(minutes=6)
-    assert {"db_maintenance", "incognito_cleanup"} <= by_id.keys()  # the neighbours are untouched
-    # APScheduler only runs schedules after an explicit start; registering alone leaves them dead.
-    assert recording.started
+    assert {"db_maintenance", "incognito_cleanup"} <= maintenance_schedules.registered.keys()  # the neighbours are untouched
 
 
-async def test_the_first_database_maintenance_pass_waits_past_the_first_screen(recording: type[_RecordingScheduler]) -> None:
-    before = datetime.now(UTC)
+async def test_the_first_database_maintenance_pass_waits_past_the_first_screen(maintenance_schedules: RecordingScheduler) -> None:
+    before = maintenance_schedules.created_at
 
-    await schedulers.start_db_maintenance_scheduler()
-    await asyncio.wait_for(recording.ready.wait(), timeout=10)  # instance_auto_backup registers after db_maintenance
-
-    by_id = {job_id: (func, trigger) for job_id, func, trigger in recording.registered}
-    func, trigger = by_id["db_maintenance"]
+    func, trigger = maintenance_schedules.registered["db_maintenance"]
     assert func is schedulers._db_maintenance_job
     assert trigger.hours == 6
     assert before + timedelta(minutes=2) < trigger.start_time < before + timedelta(minutes=4)

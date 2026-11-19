@@ -2,16 +2,18 @@
 
 [INPUT]
 - transport.profile::resolve_route (POS: provider, bare model id and endpoint of one call)
+- transport.gateways::gateway_of (POS: which documented third-party gateway an endpoint host belongs to)
 
 [OUTPUT]
-- ReasoningRoute: provider profile id, bare lowercase model id, first-party endpoint flag, OpenAI-shaped body flag
+- ReasoningRoute: provider profile id, bare lowercase model id, first-party endpoint flag, OpenAI-shaped body flag,
+  documented gateway of the endpoint
 - resolve_reasoning_route(): the ReasoningRoute of a model id, or None when no provider can be resolved
 
 [POS]
 The leading segment of a model id (``openai/``, ``azure/``) names the wire protocol a call speaks, not the model
 family: SiliconFlow, OpenCode Go, NVIDIA and custom endpoints reach their own models through the ``openai/``
 segment. Reasoning-parameter rules therefore read the bare model id together with whether the endpoint is the
-provider's own, the same facts the wire router uses.
+provider's own and which documented gateway it is, the same facts the wire router uses.
 """
 
 from __future__ import annotations
@@ -19,6 +21,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from myrm_agent_harness.toolkits.llms.transport import UnsupportedProviderError, resolve_route
+from myrm_agent_harness.toolkits.llms.transport.gateways import Gateway, gateway_of
 
 _OPENAI_BODY_WIRES = frozenset({"openai_chat", "azure_openai"})
 
@@ -31,6 +34,7 @@ class ReasoningRoute:
     model: str
     first_party: bool
     openai_body: bool
+    gateway: Gateway | None = None
 
 
 def resolve_reasoning_route(
@@ -48,4 +52,5 @@ def resolve_reasoning_route(
         model=route.model.lower(),
         first_party=route.base_url == route.profile.base_url,
         openai_body=route.profile.wire in _OPENAI_BODY_WIRES,
+        gateway=gateway_of(route.base_url),
     )

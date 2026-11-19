@@ -1,19 +1,19 @@
 """Video generation module — multi-provider video generation with failover.
 
 Provides a unified interface for generating videos from text prompts or
-reference images (T2V and I2V modes) across multiple providers
-(OpenAI Sora, Google Veo, Qwen, MiniMax). Includes pluggable task
-persistence, client-side idempotency, and ordered failover.
+reference images and videos (T2V, I2V and V2V modes) across multiple providers
+(Google Veo, Qwen, MiniMax, xAI, fal, Volcengine). Generation runs as asynchronous tasks
+with ordered failover and fail-closed persistence.
 
 Quick start:
     from myrm_agent_harness.toolkits.llms.video import (
         VideoGenerationConfig,
-        VideoGenerationTools,
+        VideoGenerator,
+        get_registry,
     )
 
     config = VideoGenerationConfig(provider="gemini", model="veo-3.1-fast-generate-preview")
-    tools = VideoGenerationTools(config)
-    result = await tools.execute(action="generate", prompt="A sunset over the ocean")
+    result = await VideoGenerator(config, get_registry()).generate("A sunset over the ocean")
 """
 
 from .async_video_engine import AsyncVideoGenerationTools
@@ -25,8 +25,6 @@ from .models import (
     ModerationBlockedError,
     OverrideIgnored,
     ProviderCapabilities,
-    TaskState,
-    TaskStatus,
     VideoAsset,
     VideoGenerationConfig,
     VideoGenerationError,
@@ -34,22 +32,17 @@ from .models import (
     VideoResult,
 )
 from .providers import ProviderRegistry, VideoGenerationProvider, get_registry
-from .task_store import FileVideoTaskStore, InMemoryVideoTaskStore, VideoTaskStore
 from .video_engine import VideoGenerationTools
 
 __all__ = [
     "AsyncVideoGenerationTools",
     "FailoverAttempt",
-    "FileVideoTaskStore",
-    "InMemoryVideoTaskStore",
     "MediaCallback",
     "MediaMeta",
     "ModerationBlockedError",
     "OverrideIgnored",
     "ProviderCapabilities",
     "ProviderRegistry",
-    "TaskState",
-    "TaskStatus",
     "VideoAsset",
     "VideoGenerationConfig",
     "VideoGenerationError",
@@ -58,6 +51,5 @@ __all__ = [
     "VideoGenerator",
     "VideoResolution",
     "VideoResult",
-    "VideoTaskStore",
     "get_registry",
 ]

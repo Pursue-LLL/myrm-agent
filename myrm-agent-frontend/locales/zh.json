@@ -936,10 +936,6 @@
       "title": "允许被其他智能体发现并委派",
       "description": "开启后，其他智能体在自动组队时可发现并调用此智能体。关闭后，此智能体不会被自动组队发现，但你仍可通过 @ 显式指定它。"
     },
-    "formalKoreanReplies": {
-      "title": "正式韩语回复（합니다体）",
-      "description": "回复使用适合商务邮件、会议纪要与办公场景的韩语敬语（합니다体）。"
-    },
     "openapi": {
       "title": "OpenAPI 服务",
       "subtitle": "通过 OpenAPI 规范零代码接入 REST API 工具",
@@ -1184,7 +1180,10 @@
         "imageMissing": "图片生成：当前图片模型对应的服务商未配置 API Key",
         "videoMissing": "视频生成：当前视频服务商未配置 API Key",
         "ttsMissing": "语音合成：当前 TTS 服务商未配置 API Key",
-        "hint": "未配置凭证时，运行时不会挂载对应媒体工具。请在设置中配置（图片/视频见模型服务；TTS 见渠道 > 语音）。",
+        "imageNotSelected": "图片生成：尚未选择图片模型",
+        "videoNotSelected": "视频生成：尚未选择视频服务商和模型",
+        "ttsNotSelected": "语音合成：尚未选择 TTS 服务商、模型和音色",
+        "hint": "选好模型并配置对应服务商的 API Key 后，智能体才会获得媒体工具。请在设置中选择模型并配置密钥。",
         "openSettings": "打开设置",
         "recheck": "重新检查"
       },
@@ -1829,7 +1828,7 @@
       "title": "配置加载失败",
       "description": "无法连接到服务，请检查后端是否正常运行后重试。",
       "retry": "重试",
-      "hintUnreachable": "后端未响应。请运行 myrm dev 或 myrm start，并确认 .env.local 含 API_PORT=8080。",
+      "hintUnreachable": "后端未响应。请运行 myrm start，并确认 .env.local 含 API_PORT=8080。",
       "hintSplitDev": "后端已就绪 http://{host}:{port}。请运行 myrm start，或 bun run dev 后打开 http://localhost:3000（API_PORT={proxyPort}）",
       "hintStandalone": "后端已就绪 http://{host}:{port}。请运行 myrm start，或设置 .env.local 的 API_PORT={proxyPort}"
     },
@@ -2077,9 +2076,7 @@
       "createdMessage": {
         "bash": "执行命令前已创建快照，保护您的代码",
         "file_write": "写入文件前已创建快照，保护您的代码",
-        "file_append": "追加文件前已创建快照，保护您的代码",
         "file_delete": "删除文件前已创建快照，保护您的代码",
-        "patch_file": "修改文件前已创建快照，保护您的代码",
         "unknown": "已创建工作区快照，保护您的代码"
       }
     },
@@ -2722,6 +2719,7 @@
         "queue": "正在执行... Ctrl/⌘+Enter 排队跟进"
       },
       "pausedStopped": "你已停止回复，队列已暂停。",
+      "steeringReturned": "任务在读到你的指令之前就结束了，已将指令放入队列。",
       "resume": "继续发送",
       "retry": "重试",
       "attachments": "{count} 个附件",
@@ -3477,9 +3475,6 @@
     "handoffSuccessDescription": "已从 v{fromVersion} 升级至 v{version}，即刻体验最新功能。",
     "handoffFailureTitle": "应用更新未能生效",
     "handoffFailureDescription": "目标版本 v{targetVersion} 未能完成替换，当前仍运行在 v{currentVersion}。请检查权限或稍后重试。",
-    "pwaNewVersion": "发现新版本",
-    "pwaDescription": "应用已在后台更新完毕，点击刷新以体验最新功能。",
-    "pwaRefresh": "立即刷新",
     "pwaInstallApp": "安装应用",
     "pwaInstallTitle": "安装为桌面应用",
     "viewDetails": "查看详情"
@@ -3816,9 +3811,7 @@
     "to": "截止",
     "clearTimeFilter": "清除",
     "citeToComposer": "引用到输入框",
-    "citeSameChat": "该结果来自当前会话，无需引用",
-    "fuzzyMatchBadge": "降级匹配",
-    "fuzzyMatchBadgeTooltip": "精确分词无结果，已自动切换泛化扩展匹配"
+    "citeSameChat": "该结果来自当前会话，无需引用"
   },
   "images": {
     "search": "搜索图片",
@@ -5512,7 +5505,7 @@
       "skillsSubmitFailed": "记忆已导入，但技能提交审核失败，请稍后在上方审核队列手动处理",
       "secretsImportSuccess": "已导入 {count} 个 API Key 到模型服务商配置",
       "secretsImportFailed": "API Key 导入失败，请在模型服务商设置中手动填写",
-      "secretsImportPartialSkip": "部分 API Key 未能匹配到服务商槽位，请在模型设置中补全",
+      "secretsImportPartialSkip": "没有导入任何 API Key，需要手动配置的密钥已列在结果页",
       "rollbackSuccess": "回滚完成",
       "rollbackFailed": "回滚失败",
       "sourceCard": {
@@ -5542,7 +5535,7 @@
           "userMdTarget": "行为强规则与人设指令 (Procedural Rules)",
           "userMdDesc": "全量置顶注入，享最高行为权威，受保护指令写审批防线护航",
           "memoryMdTarget": "长期事实与情景知识库 (Semantic / Episodic)",
-          "memoryMdDesc": "物理隔离只读上下文，wrap_untrusted 防注入边界阻断越权",
+          "memoryMdDesc": "导入为语义记忆；召回时先脱敏凭据，并标注为不可信数据",
           "sessionSearchTarget": "原生 SQLite FTS5 对话检索",
           "sessionSearchDesc": "本地毫秒级全文精准回溯，0 外部中间件依赖",
           "externalMcpTarget": "渐进式披露与安全沙箱工具体系",
@@ -5577,8 +5570,7 @@
           "agent_config_manual": "Agent 配置",
           "no_importable_data": "可导入数据",
           "cron_lane": "定时任务（Cron）",
-          "kanban_not_migrated": "看板任务",
-          "credential_pool_migration": "凭据池迁移"
+          "kanban_not_migrated": "看板任务"
         },
         "pendingSkillsHint": "检测到 {count} 个技能，确认导入后将提交审核队列",
         "mcpServersTitle": "检测到 MCP 服务",
@@ -5589,7 +5581,8 @@
         "mcpKeepaliveIgnored": "源配置保活值不适用于当前连接类型或低于 5 秒，已按规则忽略",
         "instructionLargeWarning": "指令内容约 {count} 字符，导入后可能增加每轮 Token 消耗，请确认是否需要精简 SOUL/规则",
         "hermesEconomyHint": "Hermes 迁移将使用「知识工作助手」预设（搜索、文件、任务、记忆），并自动启用 Smart Routing；辅助模型会写入模型设置。",
-        "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。导入密钥前请先在模型设置中创建服务商，或确认导入后将自动创建对应槽位",
+        "providersMissingHint": "检测到外部助手 API Key，但尚未配置模型服务商。请先在设置中添加模型服务商",
+        "providersMissingImportableHint": "检测到外部助手 API Key，但尚未配置模型服务商。请先在设置中添加，或勾选下方的密钥导入，按检测到的密钥自动创建（提供多个区域端点的服务商仍需在设置中添加，以便选择区域）",
         "configureProvidersLink": "打开模型服务商设置",
         "backupHint": "建议在导入前导出当前记忆备份（可回滚恢复）",
         "exportBackup": "导出备份",
@@ -5616,11 +5609,6 @@
           "invalid_schedule": "计划无效或不支持",
           "prompt_injection": "提示词未通过安全扫描",
           "unsupported_job_type": "不支持的任务类型"
-        },
-        "tokenEconomics": {
-          "title": "每轮 Token 用量对比",
-          "description": "检测到 {count} 个技能 — 以下是每轮对话 Token 开销对比",
-          "savings": "节省 {percent}%"
         },
         "sessionsTitle": "会话车道 — 检测到 {count} 个历史会话",
         "resumptionReady": "可直接续聊",
@@ -5655,6 +5643,7 @@
           "skill_pending": "{count} 个技能待审",
           "skill_none": "无技能",
           "credential_opt_in": "检测到 API Key（可选导入）",
+          "credential_manual": "检测到 API Key，请在模型服务商设置中手动填写",
           "credential_no_providers": "检测到 API Key，但未配置模型服务商",
           "credential_none": "未检测到 API Key",
           "cron_importable": "{importable} 个定时任务将以暂停状态导入{skipped, plural, =0 {} other {，另有 # 个跳过}}",
@@ -5672,6 +5661,8 @@
         "sessionsImported": "已导入 {count} 个历史会话，已挂载初始上下文",
         "resumeChat": "立即前往会话续聊",
         "skillsSubmitted": "{count} 个技能已提交审核",
+        "secretsNeedEndpoint": "未自动创建 {names} 对应的服务商：这些服务商提供多个区域端点。请在模型服务设置中添加该服务商、选择区域后再填入密钥。",
+        "secretsUnsupported": "以下密钥没有对应的模型服务商，未导入：{names}。如有需要请手动填写。",
         "nextStepsWithSkills": "请在上方审核队列批准技能；MCP 与渠道请在设置中手动补配",
         "nextStepsMemoryOnly": "MCP 与渠道请在设置中手动补配",
         "nextStepsPartialFailure": "记忆已导入；技能提交失败，请手动添加或重试",
@@ -6344,11 +6335,11 @@
     "title": "工件",
     "empty": "暂无工件资产",
     "emptyDesc": "智能体在对话中生成的报告、图表、代码将自动归档在此",
-    "select_prompt": "选择左侧工件查看不可变时间线",
+    "select_prompt": "选择左侧工件查看版本时间线",
     "no_desc": "无描述",
-    "version_history": "版本时间线（不可篡改）",
-    "tamper_free": "防篡改校验通过",
-    "corrupted": "文件已被篡改！",
+    "version_history": "版本时间线",
+    "integrity_ok": "完整性校验通过",
+    "integrity_failed": "完整性校验未通过",
     "verifying": "校验中...",
     "verify_hash": "验证完整性",
     "loading_versions": "加载版本中...",
@@ -7162,10 +7153,6 @@
     "retry": "重试",
     "executionStepsBadge": "执行步骤",
     "loadMore": "加载更多",
-    "timeJustNow": "刚刚",
-    "timeMinutesAgo": "{count} 分钟前",
-    "timeHoursAgo": "{count} 小时前",
-    "timeDaysAgo": "{count} 天前",
     "executionSteps": "执行步骤",
     "stopReasonTitle": "停止原因",
     "stopReasonIterationLimit": "达到迭代上限",
@@ -7216,6 +7203,7 @@
     "statsError": "有错误",
     "triggerSuccess": "任务「{name}」已触发执行",
     "triggerFail": "触发失败",
+    "triggerAlreadyRunning": "任务「{name}」正在运行",
     "pauseSuccess": "任务「{name}」已暂停",
     "resumeSuccess": "任务「{name}」已恢复",
     "resumeBlocked": "无法恢复（已过期或达到上限）",
@@ -7268,6 +7256,10 @@
     "skippedCreditExhausted": "Work Units 已耗尽，本次运行已跳过。",
     "skippedPreflight": "预检探针已跳过本次运行。",
     "skippedNoContent": "没有需要汇报的内容，本次运行已跳过。",
+    "skippedCooldown": "距上次运行仍在冷却期内，本次运行已跳过。",
+    "skippedOutsideHours": "不在该任务设定的活跃时段内，本次运行已跳过。",
+    "skippedUntrustedWorkflow": "工作流任务不会响应他人发来的消息，本次运行已跳过。",
+    "skippedMemoryPressure": "系统内存不足，本次运行已跳过，稍后会再次尝试。",
     "circuitBreakTitle": "死循环主动熔断保护",
     "circuitBreakDesc": "智能体在无人值守执行时遭遇相同连续错误，系统已切断执行链并阻止后续重试，防止无谓烧钱。",
     "runError": "失败",
@@ -7346,11 +7338,8 @@
       "ttl_expired": "TTL 过期"
     },
     "capabilitiesLabel": "能力围栏",
-    "capabilitiesDesc": "声明此任务允许使用的工具能力，未选择则使用全部能力",
-    "capabilitiesAllHint": "未限制（使用全部能力）",
-    "failClosedHint": "定时任务默认拒绝危险操作。请在下方配置能力围栏，或在智能体安全设置中启用 YOLO 模式。",
-    "capabilitiesUpdated": "能力围栏已更新",
-    "capabilitiesCleared": "能力围栏已清除",
+    "capabilitiesDesc": "选择此任务可以自行完成的事。定时运行期间没有人能即时批准，没选的能力会被直接拒绝。即使选了相关能力，无人值守的运行仍会拦下触及受保护文件的步骤，以及看起来像付款、Google Workspace 写入、读过凭据文件后向外发送数据的步骤（打开「域名白名单」内站点的网页不算在内）。",
+    "capabilitiesAllHint": "未选择：仅能读取文件、搜索和打开网页",
     "toolsAllowedLabel": "内置工具范围",
     "toolsAllowedDesc": "限制任务运行时挂载的内置工具，与绑定的智能体配置求交。留空表示不额外限制。",
     "toolsAllowedAllHint": "不限制（仅受智能体配置约束）",
@@ -7358,7 +7347,7 @@
     "capPreset": {
       "research": "研究",
       "devops": "运维",
-      "full": "全部能力"
+      "readOnly": "仅读取"
     },
     "toolPreset": {
       "webOnly": "仅联网",
@@ -7383,7 +7372,7 @@
     "verificationError": "复核异常",
     "verificationSummary": "交付复核",
     "verificationRunOkReviewFailed": "任务已完成，交付复核未通过 — 展开查看详情。",
-    "blockedHint": "如果希望该任务执行这些操作，请在任务设置中调整「能力围栏」或「允许的路径」。",
+    "blockedHint": "超出「能力围栏」或「允许的路径」的步骤，可在任务设置中放开。无论怎样设置，无人值守的运行仍会拦下触及受保护文件的步骤，以及看起来像付款、Google Workspace 写入、读过凭据文件后向外发送数据的步骤（打开「域名白名单」内站点的网页不算在内）。",
     "connectorDegradedBadge": "连接器异常",
     "connectorFixSuggestion": "排障建议",
     "connectorHealthStatus": "连接器健康",
@@ -7477,7 +7466,7 @@
     "sessionTargetSelectChat": "选择要绑定的对话...",
     "threadAutomationTooltip": "线程自动化 — 每次执行回到此对话",
     "failureAlertLabel": "失败告警",
-    "failureAlertDesc": "连续失败达到阈值后发送告警",
+    "failureAlertDesc": "连续失败达到阈值后发送告警；导致任务被自动暂停的那次失败会立即告警。",
     "failureAlertAfter": "失败次数阈值",
     "failureAlertCooldown": "告警冷却时间（秒）",
     "failureAlertUpdated": "失败告警已更新",
@@ -7642,6 +7631,8 @@
     "triggerSourceWebhook": "Webhook",
     "triggerSourceSystem": "系统",
     "triggerSourceManual": "手动",
+    "triggerSourceRecovery": "重启恢复",
+    "triggerSourceShutdown": "应用关闭",
     "schedulerStatus": {
       "running": "调度器运行中",
       "degraded": "调度器异常",
@@ -9517,9 +9508,9 @@
     "title": "工具执行审批",
     "spendProtection": {
       "title": "金融交易支出保护",
-      "description": "智能体正在请求外部资金支出，参数完整性已由密码学封签保护。",
+      "description": "智能体正在请求外部资金支出，请核对金额后再批准。",
       "amount": "支出金额",
-      "tamperProtected": "SHA-256 防篡改保护"
+      "actionBound": "已锁定本笔支出"
     },
     "batchTitle": "批量审批 ({count} 个工具)",
     "batchHighRisk": {
@@ -9994,7 +9985,6 @@
   "imageGen": {
     "generated": "已生成",
     "download": "下载",
-    "regenerate": "重新生成",
     "editThisImage": "编辑此图",
     "editPromptPrefix": "请修改上面生成的图片：",
     "referenceImages": "参考图",
@@ -10488,7 +10478,6 @@
     "trigger": {
       "write_file": "写入文件",
       "delete_file": "删除文件",
-      "patch_file": "更新文件",
       "execute_terminal": "终端命令",
       "manual": "手动",
       "pre_rollback": "恢复前"
@@ -10696,11 +10685,7 @@
       "applyFailed": "应用失败",
       "sourceDraft": "草稿成长",
       "sourceEvolution": "进化审核",
-      "growthType": "类型：{type}",
-      "today": "今天",
-      "yesterday": "昨天",
-      "daysAgo": "{count}天前",
-      "weeksAgo": "{count}周前"
+      "growthType": "类型：{type}"
     },
     "empty": {
       "title": "开始和 Agent 对话",
@@ -11927,7 +11912,9 @@
     "retryTask": "重试任务",
     "retrying": "重试中...",
     "cancelled": "任务已取消",
-    "videoCompletedFallback": "视频已完成，可在工件面板查看输出。",
+    "expired": "任务记录已过期，生成的文件仍保存在媒体库中。",
+    "openLibrary": "打开媒体库",
+    "resultUnavailable": "无法在此处显示该结果，请到媒体库中查看文件。",
     "videoUnsupported": "当前浏览器不支持视频播放。",
     "alternateLabel": "备用 {index}",
     "providerLabel": "提供商",
@@ -12457,7 +12444,7 @@
         "skills": "本地技能",
         "rules": "工作区规则",
         "hasMyrmConfig": "包含 .myrm 项目配置",
-        "repoCommands": "此文件夹希望免确认运行的命令",
+        "repoCommands": "此文件夹希望免确认运行的命令（含其后附带的任何参数）",
         "restrictedHint": "若选择「不信任并关联」，该文件夹内的本地技能、规则与 MCP 服务将保持禁用，可在设置中稍后改为信任。",
         "cancel": "取消",
         "restrict": "不信任并关联",
@@ -12477,9 +12464,9 @@
       "restrictedTitle": "受限模式",
       "restrictedMessage": "{path} 尚未受信任，其中的技能、规则和本地工具已被关闭。",
       "pendingTitle": "命令待你确认",
-      "pendingMessage": "{path} 列出了无需每次确认即可运行的命令，在你允许之前不会生效。",
+      "pendingMessage": "{path} 列出了无需每次确认即可运行的命令（含其后附带的任何参数），在你允许之前不会生效。",
       "pendingList": "等待你确认",
-      "commandsOnTrust": "信任此文件夹后，以下命令将无需确认直接运行",
+      "commandsOnTrust": "信任此文件夹后，以下命令（含其后附带的任何参数）将无需确认直接运行",
       "turnedOffTitle": "信任此文件夹之前保持关闭",
       "itemSkills": "{count} 个本地技能",
       "itemRules": "{count} 条工作区规则",
@@ -14031,17 +14018,6 @@
     "sandboxIframeTitle": "交互式原型画布",
     "submitShortcutHint": "⌘+Enter 提交"
   },
-  "structuredAsking": {
-    "skippedBadge": "已跳过",
-    "answeredBadge": "已完成决策",
-    "recommended": "推荐",
-    "textSlotPlaceholder": "请输入补充说明或具体数值...",
-    "skipControl": "跳过 (由智能体决策)",
-    "confirmSelection": "确认选择",
-    "skippedExplanation": "用户已跳过此问题，交由智能体按最优策略自动处理。",
-    "userChoseLabel": "已选择",
-    "noneSelected": "无"
-  },
   "dataDashboard": {
     "defaultSubtitle": "由 Myrm 自主可视化引擎生成",
     "copySummary": "复制指标摘要",
@@ -14323,10 +14299,10 @@
       "lockedUseDoctorUnavailable": "未检测",
       "lockedUseDoctorWarn": "需注意",
       "lockedUseDoctorFail": "不可用",
-      "lockedUseDoctorBadgeNotMac": "需 macOS 桌面应用",
+      "lockedUseDoctorBadgeNotMac": "仅桌面应用",
       "lockedUseDoctorBadgeAwayOn": "离席模式已开启",
       "lockedUseDoctorBadgeBridgeReady": "壳已连接",
-      "lockedUseDoctorDetailNotMac": "离席模式与防窥帷幕需在 macOS 上使用 Myrm 桌面应用。",
+      "lockedUseDoctorDetailNotMac": "离席模式需在 macOS 上使用 Myrm 桌面应用；防窥帷幕在 macOS 与 Windows 桌面应用上可用。",
       "lockedUseDoctorDetailAwayOff": "桌面壳已就绪。需要无人值守时在上方开启 Locked Use，Agent 会在帷幕下代解锁。",
       "lockedUseDoctorDetailBridgeMissing": "请在本机启动 Myrm 桌面应用，以便离席模式与桌面壳协同。",
       "lockedUseDoctorDetailShellUnavailable": "请重启 Myrm 桌面应用，并在设置中检查离席模式与防窥帷幕。",
@@ -15171,7 +15147,7 @@
       "approvalTimeoutDesc": "等待用户审批的秒数，超时后自动处理。",
       "seconds": "秒",
       "timeoutBehavior": "超时行为",
-      "timeoutBehaviorDesc": "审批超时后的处理方式。「拒绝」将拒绝工具调用；「允许」将自动批准。",
+      "timeoutBehaviorDesc": "审批超时后的处理方式。「拒绝」将拒绝工具调用；「允许」将自动批准，但只能由你本人批准的操作一律拒绝：付款、不可逆的对外动作、破坏性命令，以及对受保护指令文件、git 钩子和 git 配置的修改。",
       "timeoutDeny": "拒绝",
       "timeoutAllow": "允许",
       "rulesTitle": "权限规则",
@@ -15351,7 +15327,7 @@
           "title": "推荐使用场景",
           "case1": "本地开发与调试",
           "case2": "CI/CD 自动化流水线",
-          "case3": "定时任务与批量处理",
+          "case3": "批量处理与长时间运行的任务",
           "case4": "高信任度环境中的 AI 行为"
         }
       },
@@ -15403,8 +15379,9 @@
       },
       "trustedFolders": {
         "title": "受信任文件夹",
-        "description": "关联项目工作区时您明确信任的文件夹。撤销信任后，该文件夹内的本地技能、规则与 MCP 服务将被禁用。",
+        "description": "关联项目工作区时您明确信任的文件夹。撤销信任后，该文件夹内的本地技能、规则与 MCP 服务将被禁用，其列出的命令也将恢复为需要确认。",
         "totalEntries": "共 {count} 个文件夹",
+        "commands": "免确认运行的命令（含其后附带的任何参数）",
         "refresh": "刷新",
         "loading": "加载中…",
         "empty": "暂无受信任文件夹",
@@ -15418,11 +15395,11 @@
         },
         "notice": {
           "title": "文件夹信任说明",
-          "description": "信任仅作用于仓库本地旁路能力。终端与文件权限仍遵循您的安全策略。"
+          "description": "信任会启用文件夹内的本地技能、规则与 MCP 服务，并让它列出的命令免确认运行。其余终端命令与文件权限仍遵循您的安全策略。"
         },
         "revokeConfirm": {
           "title": "撤销文件夹信任？",
-          "description": "下次运行时将禁用 {path} 中的本地技能、规则与 MCP 服务。",
+          "description": "下次运行时将禁用 {path} 中的本地技能、规则与 MCP 服务，其列出的命令也将恢复为需要确认。",
           "cancel": "取消",
           "confirm": "撤销信任"
         }
@@ -15822,7 +15799,10 @@
       "ttsModel": "模型",
       "ttsVoice": "音色",
       "ttsDoubaoKeyHint": "Doubao-TTS 使用复合格式凭据 \"appid:access_token\"（火山引擎控制台：语音技术 → 应用详情）。",
-      "ttsProbeSlowHint": "Seed-Audio 为生成式模型，测试会合成一段短音频，约需 1-2 分钟。"
+      "ttsProbeSlowHint": "Seed-Audio 为生成式模型，测试会合成一段短音频，约需 1-2 分钟。",
+      "selectPlaceholder": "请选择",
+      "reselectPlaceholder": "请重新选择",
+      "ttsSelectionSaveFailed": "保存选择失败"
     },
     "acp": {
       "title": "ACP 编程助手",
@@ -18823,11 +18803,7 @@
     "languageChannelSyncDesc": "同步应用于 Web 界面与 IM 渠道命令（/help、/goal、/status 等）。",
     "languageOptions": {
       "chinese": "中文",
-      "chineseTraditional": "繁體中文",
-      "english": "英文",
-      "japanese": "日本語",
-      "korean": "한국어",
-      "german": "Deutsch"
+      "english": "英文"
     },
     "theme": "选择你喜欢的主题",
     "themeOptions": {
@@ -19161,7 +19137,6 @@
     "currentSearchService": "当前搜索服务",
     "builtInDefault": "本地",
     "searxngFreeLocal": "SearXNG（免费本地）",
-    "duckduckgoFree": "DuckDuckGo（免费云端）",
     "modelPlaceholder": "提供商/模型名（如：openai/gpt-4, anthropic/claude-3-opus-20240229）",
     "apiKeyPlaceholder": "输入您的 API 密钥",
     "baseUrlPlaceholder": "提供商的API地址或自定义地址 (内置常见提供商地址无需填写)",
@@ -21115,33 +21090,33 @@
       "criticalPauseActive": "已触发审批暂停"
     },
     "commerceBudget": {
-      "title": "自主微支付与消费保险箱",
-      "description": "智能体受控微预算自主支付与商户白名单消费保险箱，消灭琐碎小额打扰",
-      "dailyCap": "每日自主消费上限",
-      "dailyCapDesc": "每天允许智能体自主支出的最高总额",
+      "title": "消费额度闸",
+      "description": "单笔与每日上限、商户域名白名单、一键冻结。额度闸不持有卡号。YOLO 模式、「始终允许」和智能意图守护都不会放行付款类工具调用；在你看着的对话里，每一笔都要等你批准。",
+      "dailyCap": "每日消费上限",
+      "dailyCapDesc": "额度闸每天最多接受的预占总额",
       "perActionCap": "单笔支付限额",
       "perActionCapDesc": "单次微支付操作允许扣减的最高金额（建议 ≤ $2.00）",
       "todaySpent": "今日已消费",
       "activeReserved": "并发预占额度",
       "remainingBudget": "剩余可用预算",
       "emergencyFreeze": "一键紧急冻结",
-      "emergencyFreezeDesc": "触发后物理阻断智能体的一切自主支付操作，强制转入人工审批",
+      "emergencyFreezeDesc": "冻结期间，额度闸拒绝所有新的预占，直到你解除冻结",
       "frozenStatus": "已紧急冻结",
-      "activeStatus": "保险箱运行中",
+      "activeStatus": "额度闸运行中",
       "allowedMerchants": "受信任商户白名单",
-      "allowedMerchantsDesc": "仅允许向白名单内的商户域名（支持通配符如 *.openai.com）发起自主扣款",
+      "allowedMerchantsDesc": "仅接受白名单内商户域名（支持通配符如 *.openai.com）的预占",
       "addMerchant": "添加商户",
       "addMerchantPlaceholder": "输入商户域名（如 namesilo.com）",
       "save": "保存设置",
-      "savedSuccess": "消费保险箱设置已成功更新",
-      "ledgerTitle": "自主消费防篡改账本流水",
-      "ledgerDesc": "基于 HMAC 链式加密签名的可信审计记录",
-      "noEntries": "暂无自主消费流水记录",
+      "savedSuccess": "消费额度设置已成功更新",
+      "ledgerTitle": "消费账本流水",
+      "ledgerDesc": "每笔预占与核销的流水记录；已核销条目附 SHA-256 条目哈希（仅作记录，读取时不校验）",
+      "noEntries": "暂无消费流水记录",
       "merchant": "商户",
       "amount": "金额",
       "status": "状态",
       "time": "时间",
-      "verifiedReceipt": "HMAC 防篡改签名已验证",
+      "verifiedReceipt": "已记录条目哈希",
       "entryHashLabel": "条目哈希：",
       "entryHashPending": "待生成 / 不适用",
       "idempotencyKeyLabel": "幂等键："
@@ -22113,11 +22088,11 @@
     "noChanges": "无更改"
   },
   "commerceReceipt": {
-    "statusCommitted": "已支付并核验",
+    "statusCommitted": "已核销",
     "statusReserved": "已预留",
-    "statusRefunded": "已退款",
+    "statusRefunded": "已释放",
     "statusRejected": "已拦截",
-    "hashVerified": "账本哈希已通过 HMAC 校验"
+    "hashVerified": "已记录账本条目哈希"
   },
   "evidencePack": {
     "modalTitle": "项目实战六步经验向导",

@@ -38,8 +38,9 @@ class TestMediaConfigRequest(BaseModel):
     """Request to test media generation configuration connectivity."""
 
     media_type: str  # "image", "video", or "tts"
-    provider: str = "openai"
+    provider: str = ""
     model: str = ""
+    voice: str = ""
 
     class Config:
         alias_generator = to_camel
@@ -111,7 +112,7 @@ async def _probe_endpoint(url: str, headers: dict[str, str], timeout: float) -> 
         return False, "Connection failed"
 
 
-async def _probe_volcengine_tts(api_key: str, model: str) -> tuple[bool, str]:
+async def _probe_volcengine_tts(api_key: str, model: str, voice: str) -> tuple[bool, str]:
     """Real-synthesis probe: OpenSpeech has no free auth endpoint, so verify a tiny utterance.
 
     Seed-Audio is generative and slow (120s budget); Doubao-TTS is a fast codec pipeline (20s).
@@ -120,10 +121,10 @@ async def _probe_volcengine_tts(api_key: str, model: str) -> tuple[bool, str]:
 
     is_seed = "seed" in model.lower()
     probe_text = "请用自然清晰的普通话朗读：「你好。」朗读完毕后自然结束。" if is_seed else "测"
-    effective_model = model or ("seed-audio-1.0" if is_seed else "doubao-tts")
     config = TTSConfig(
         provider="volcengine",
-        model=effective_model,
+        model=model,
+        voice=voice,
         api_key=SecretStr(api_key),
     )
     try:
@@ -145,7 +146,9 @@ async def test_media_config(
     providers_dict, voice_dict = await _load_credentials()
 
     if request.media_type == "image":
-        key_provider = _resolve_image_api_key_provider(request.model or "dall-e-3")
+        if not request.model:
+            return error_response(message="Select an image model before testing")
+        key_provider = _resolve_image_api_key_provider(request.model)
         api_key = _find_provider_api_key(providers_dict, key_provider)
         if not api_key:
             return error_response(message=f"No API key found for provider '{key_provider}' in your settings")
@@ -160,6 +163,8 @@ async def test_media_config(
         return error_response(message=message)
 
     if request.media_type == "video":
+        if not request.provider:
+            return error_response(message="Select a video provider before testing")
         api_key = _find_provider_api_key(providers_dict, request.provider)
         if not api_key:
             return error_response(message=f"No API key found for provider '{request.provider}' in your settings")
@@ -171,10 +176,9 @@ async def test_media_config(
             if not provider:
                 return error_response(message=f"Provider '{request.provider}' not supported")
 
-            default_model = getattr(provider, "default_model", "sora")
             config = VideoGenerationConfig(
                 provider=request.provider,
-                model=request.model or default_model,
+                model=request.model or provider.default_model,
                 api_key=SecretStr(api_key),
             )
 
@@ -192,8 +196,10 @@ async def test_media_config(
 
     if request.media_type == "tts":
         # Credential chain: voice settings first, then the provider table.
-        voice_provider = str(voice_dict.get("ttsProvider", "openai")) if voice_dict else "openai"
+        voice_provider = str(voice_dict.get("ttsProvider", "") or "") if voice_dict else ""
         tts_provider = request.provider or voice_provider
+        if not tts_provider:
+            return error_response(message="Select a TTS provider before testing")
         tts_api_key = ""
         if voice_dict:
             tts_api_key = str(voice_dict.get("ttsApiKey", "") or "").strip()
@@ -205,16 +211,16 @@ async def test_media_config(
         tts_model = request.model
         if not tts_model and voice_dict:
             tts_model = str(voice_dict.get("ttsModel", "") or "")
-            # OpenAI default from voice settings only applies to OpenAI probes.
-            if tts_provider != "openai" and tts_model == "tts-1":
-                tts_model = ""
 
         if tts_provider == "volcengine":
+            tts_voice = request.voice or (str(voice_dict.get("ttsVoice", "") or "") if voice_dict else "")
+            if not tts_model or not tts_voice:
+                return error_response(message="Select a TTS model and voice before testing")
             is_seed = "seed" in tts_model.lower()
             timeout_budget = 130.0 if is_seed else 25.0
             try:
                 async with asyncio.timeout(timeout_budget):
-                    ok, message = await _probe_volcengine_tts(tts_api_key, tts_model)
+                    ok, message = await _probe_volcengine_tts(tts_api_key, tts_model, tts_voice)
             except TimeoutError:
                 return error_response(message="Speech synthesis timed out")
             if ok:
@@ -259,7 +265,7 @@ async def media_provider_status() -> JSONResponse:
             provider = registry.get(pid)
             if provider:
                 try:
-                    config = VideoGenerationConfig(provider=pid, api_key=SecretStr(api_key))
+                    config = VideoGenerationConfig(provider=pid, model=provider.default_model, api_key=SecretStr(api_key))
                     async with asyncio.timeout(10):
                         healthy = await provider.health_check(config)
                 except Exception:

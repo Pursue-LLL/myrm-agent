@@ -39,6 +39,9 @@ permission_denied =  Permission denied: `/{ $cmd }` requires admin access.
 usage_steer = Usage: `/steer <new instruction>`
 steering_applied = Steering applied: _{ $preview }_
 steer_requester_only = Only the person who started this run can steer it.
+steering_unread =
+    The run ended before it could read your instruction, so it was not applied. Send it again if you still need it:
+    { $instructions }
 usage_queue = Usage: `/queue <task description>`
 queue_queued = Queued. Will execute after the current task completes.
 queue_immediate = No active task — executing immediately.
@@ -84,7 +87,6 @@ goal_wait =
     Use `/goal unwait` to resume.
 goal_unwait = Goal resumed from wait: **{ $objective }**
 goal_not_waiting = Goal is not in wait state.
-goal_wait_not_supported = Wait is not supported in this environment.
 goal_resumed = Goal resumed: **{ $objective }**
 goal_cleared = Goal cleared: **{ $objective }**
 goal_cannot_resume = Cannot resume goal in '{ $status }' state.
@@ -187,6 +189,8 @@ cron_notice_expired_message =
     It reached its end time, so it was paused automatically.
 cron_notice_max_fires_message =
     It has run { $max_fires } times, which is its limit, so it was paused automatically.
+cron_notice_failure_message =
+    It hit a problem it could not recover from, so it was paused automatically. Check its run history, then resume it.
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }
@@ -377,7 +381,6 @@ cmd_quota = Show your daily message quota and usage status
 cmd_help = Show available commands
 cmd_memo = Deconstruct voice memo or meeting transcript into minutes, tasks, and memory
 cmd_review-week = Synthesize weekly voice memos, meeting notes, and kanban blockers into an executive digest
-cmd_design-image = Synthesize commercial-grade images using structured Prompt-as-Code atomic visual schemas
 cat_Session = Session
 cat_Configuration = Configuration
 cat_Topic = Topic
@@ -429,7 +432,6 @@ cmd_memory = Review pending memory writes (approve/reject)
 cmd_learn = Teach the agent a new skill from a URL, file, or conversation
 cat_Memory = Memory
 cat_Skills = Skills
-cat_Creation = Creation
 cat_Productivity = Productivity
 learn_not_configured = ℹ Skill learning is not configured in this environment.
 learn_failed = ❌ Failed to build the learning prompt. Please try again.

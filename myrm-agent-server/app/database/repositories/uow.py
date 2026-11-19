@@ -206,8 +206,12 @@ class BoundChatRepository:
         offset: int,
         since: datetime | None,
         until: datetime | None,
+        *,
+        raw_query: str,
     ) -> tuple[list[MessageFtsSearchRow], int]:
-        return await ChatRepository.search_messages_fts(self.session, safe_query, limit, offset, since, until)
+        return await ChatRepository.search_messages_fts(
+            self.session, safe_query, limit, offset, since, until, raw_query=raw_query
+        )
 
     async def get_last_user_message(self, chat_id: str) -> MessageDTO | None:
         return await ChatRepository.get_last_user_message(self.session, chat_id)

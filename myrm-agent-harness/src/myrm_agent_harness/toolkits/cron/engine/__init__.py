@@ -1,7 +1,7 @@
 """Cron scheduling engine internals.
 
 Contains the core scheduling loop, job executor, startup recovery,
-cron expression parser, integrity verification, and shared helpers.
+cron expression parser, and shared helpers.
 """
 
 from myrm_agent_harness.toolkits.cron.engine.fingerprint import (

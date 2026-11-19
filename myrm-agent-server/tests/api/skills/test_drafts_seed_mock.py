@@ -1,4 +1,15 @@
+import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+from app.api.skills.test_fixtures import router as fixtures_router
+
+
+@pytest.fixture
+def client(app: FastAPI) -> TestClient:
+    """The shared skills test app plus the dev-only fixtures router, which the seed route belongs to."""
+    app.include_router(fixtures_router, prefix="/api/v1/skills")
+    return TestClient(app)
 
 
 class TestDraftsSeedMock:

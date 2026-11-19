@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.goals.storage::GoalStorage (POS: latest goal lookup)
 - myrm_agent_harness.api.hooks (POS: orphaned job ledger via get_background_job_store)
+- app.services.agent.params.workspace_resolve::chat_id_from_session_id (POS: the chat a harness session key belongs to)
 - app.services.agent.goals.unattended::publish_goal_needs_review_notification (POS: SSE)
 
 [OUTPUT]
@@ -10,7 +11,8 @@
 
 [POS]
 Server startup companion to pause_orphaned_active_goals — symmetric handling for WAIT barrier.
-Must run after init_background_job_store() reconcile.
+Must run after init_background_job_store() reconcile. The job ledger holds the session key of the run that
+started each job while goals are stored under the chat, so the ledger is matched to goals by chat.
 """
 
 from __future__ import annotations
@@ -21,6 +23,8 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 
+from app.services.agent.params.workspace_resolve import chat_id_from_session_id
+
 if TYPE_CHECKING:
     from myrm_agent_harness.api.hooks import BackgroundJobRecord
 
@@ -29,14 +33,14 @@ logger = logging.getLogger(__name__)
 _REVIEW_REASON = "Background job lost after server restart — re-run the command to continue"
 
 
-def _orphaned_jobs_by_session_job_id(
+def _orphaned_jobs_by_chat_job_id(
     records: tuple[BackgroundJobRecord, ...],
 ) -> dict[tuple[str, str], BackgroundJobRecord]:
     indexed: dict[tuple[str, str], BackgroundJobRecord] = {}
     for record in records:
         if record.status != "orphaned" or not record.job_id:
             continue
-        indexed[(record.session_id, record.job_id)] = record
+        indexed[(chat_id_from_session_id(record.session_id), record.job_id)] = record
     return indexed
 
 
@@ -55,7 +59,7 @@ def find_goals_to_release_from_orphaned_jobs(
     orphaned_jobs: tuple[BackgroundJobRecord, ...],
 ) -> tuple[str, ...]:
     """Return goal_ids that should exit WAIT because their background job was orphaned."""
-    orphaned_index = _orphaned_jobs_by_session_job_id(orphaned_jobs)
+    orphaned_index = _orphaned_jobs_by_chat_job_id(orphaned_jobs)
     if not orphaned_index:
         return ()
 

@@ -2,12 +2,21 @@
 
 [INPUT]
 - toolkits.memory.manager::MemoryManager (POS: Memory store orchestrator)
+- toolkits.memory.types::ClaimMemory, MemorySearchResult, MemoryType, SemanticMemory (POS: single facade of memory enums, records and search results)
+- toolkits.memory.domain_types::infer_domain_and_category (POS: memory domain ontology and categorization heuristics)
 - toolkits.memory.conversation_search.types::ConversationSearchRequest (POS: Conversation search request DTO)
+- toolkits.memory.agent_surface.memory_citations::cited_memory_ref, emit_cited_memory_ids (POS: cited_memory_ids SSE bridge for recalled memories)
+- toolkits.memory.agent_surface.memory_recall_budget::MAX_RECALL_OUTPUT_CHARS, budget_recall_line, line_cost, normalize_recall_limit (POS: recall output budget guardrails)
+- toolkits.memory.agent_surface.memory_recall_formatting::finalize_recall_tool_output, format_drill_down_output, memory_age_label, channel_label, is_stale, parse_time_bound (POS: recall sanitize SSOT, line labels, since/until bounds and the by-id read-back output)
 - toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply (POS: the reply to a search that finds nothing)
+- toolkits.memory.agent_surface.memory_search_policy::MemorySearchBackends (POS: corpus ACL with the optional wiki and sessions backends)
+- toolkits.memory.agent_surface.tool_result_sources::pack_tool_result_with_sources (POS: pack/unpack metadata.sources for corpus results)
 - toolkits.memory.conversation_search.format_output::format_conversation_search_response (POS: renders sessions hits and the empty-result reply, window note included)
+- toolkits.wiki.retrieval.source_citations::build_wiki_query_sources (POS: shared citation builder of the wiki query tool and the wiki corpus)
+- utils.context_format::wrap_with_external_sources_tag (POS: security boundary around external source text)
 
 [OUTPUT]
-- search_memory_corpus, search_wiki_corpus, search_sessions_corpus: Corpus-specific recall execution.
+- search_memory_corpus, search_wiki_corpus, search_sessions_corpus, drill_down_single_memory: Corpus-specific recall execution and by-id single-memory drill-down.
 
 [POS]
 Runtime execution layer for memory_search_tool corpus routing and formatting; an empty search explains rule matching and names the explicit time window it ran under.
@@ -34,20 +43,15 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget impor
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
     RECALL_DRIFT_DEFENSE_FOOTER,
+    channel_label,
     finalize_recall_tool_output,
+    format_drill_down_output,
     format_recall_source_error_suffix,
+    is_stale,
     memory_age_label,
+    parse_time_bound,
     recall_drift_defense_footer_chars,
     recall_preamble_overhead_chars,
-)
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
-    channel_label as _channel_label,
-)
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
-    is_stale as _is_stale,
-)
-from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
-    parse_time_bound as _parse_time_bound,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result import no_result_reply
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy import MemorySearchBackends
@@ -113,8 +117,8 @@ async def search_memory_corpus(
     domain: str | None = None,
 ) -> str:
     """Search long-term memory corpus (includes active session buffer)."""
-    parsed_since = _parse_time_bound(since)
-    parsed_until = _parse_time_bound(until)
+    parsed_since = parse_time_bound(since)
+    parsed_until = parse_time_bound(until)
     recall_limit = normalize_recall_limit(limit)
     types: list[MemoryType] | None = None
     if categories:
@@ -188,7 +192,7 @@ async def search_memory_corpus(
         )
         effective_time = max(memory.created_at, memory.updated_at)
         age = memory_age_label(effective_time)
-        provenance = _channel_label(memory.scope.channel_id)
+        provenance = channel_label(memory.scope.channel_id)
         prefix = f"{provenance}[{cat}] (id: {memory.id}, score: {result.score:.2f}, {age}) "
         suffix = ""
         if isinstance(memory, ClaimMemory):
@@ -204,7 +208,7 @@ async def search_memory_corpus(
             MemoryType.SEMANTIC,
             MemoryType.EPISODIC,
             MemoryType.CLAIM,
-        ) and _is_stale(effective_time):
+        ) and is_stale(effective_time):
             if _CODE_PATH_PATTERN.search(memory.content):
                 suffix += (
                     "\n[CRITICAL: Outdated memory referencing potential paths. "
@@ -370,27 +374,4 @@ async def drill_down_single_memory(
     memory = await manager.get_memory(clean_id)
     if memory is None:
         return f"Memory with id '{clean_id}' not found."
-
-    effective_time = max(memory.created_at, memory.updated_at)
-    age = memory_age_label(effective_time)
-    provenance = _channel_label(memory.scope.channel_id)
-    mem_type = getattr(memory, "memory_type", "memory")
-    mem_type_val = str(getattr(mem_type, "value", mem_type))
-    domain = getattr(memory, "domain", "user")
-    domain_val = str(getattr(domain, "value", domain))
-    cat = getattr(memory, "domain_category", "")
-
-    header = f"{provenance}[{mem_type_val}] (id: {memory.id}, domain: {domain_val}/{cat}, age: {age})"
-    if detail_level == "overview":
-        overview = getattr(memory, "overview_l1", "") or (memory.content[:250] if hasattr(memory, "content") else "")
-        return f"{header}\n[L1 Overview]\n{overview}\n\n[Drill-down]: Call memory_search_tool(memory_id='{memory.id}', detail_level='full') for full verbatim context."
-
-    full_content = getattr(memory, "content", "")
-    metadata_repr = ""
-    if hasattr(memory, "metadata") and memory.metadata:
-        metadata_repr = f"\nMetadata: {memory.metadata}"
-    evidence_repr = ""
-    if hasattr(memory, "evidence") and memory.evidence:
-        evidence_repr = f"\nEvidence: {[e.source_id for e in memory.evidence]}"
-
-    return f"{header}\n[L2 Verbatim Full Content]\n{full_content}{metadata_repr}{evidence_repr}"
+    return format_drill_down_output(memory, detail_level=detail_level)

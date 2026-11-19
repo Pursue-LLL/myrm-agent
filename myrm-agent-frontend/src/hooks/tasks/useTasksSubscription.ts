@@ -3,19 +3,23 @@
  * - @/services/taskEventStream::{subscribeTaskUpdateEvents,isTaskUpdateEventStreamOpen} (POS: multiplexed task SSE fan-out)
  *
  * [OUTPUT]
- * - useTasksSubscription / useTaskSubscription: Chat task card realtime state
+ * - useTasksSubscription: Chat task card realtime state for several tasks
+ * - useTaskSubscription: The same for one task; `undefined` while loading, `null` once the server confirmed the task no longer exists
  *
  * [POS]
  * Chat-side task SSE subscriber. Shares one browser EventSource with Panel, tray, and global media notify via taskEventStream.
  * Raises no notifications: useGlobalMediaTaskNotifications is the single owner of terminal media task notifications.
+ * A task is reported missing only by a snapshot that came back without it, never by a failed request, so a flaky
+ * network cannot turn a live task into an expired one.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Task } from '@/store/tasks/types';
 import { isTaskUpdateEventStreamOpen, subscribeTaskUpdateEvents } from '@/services/taskEventStream';
 
-export function useTasksSubscription(task_ids: string[]) {
+function useTaskSnapshots(task_ids: string[]): { tasks: Map<string, Task>; missing: ReadonlySet<string> } {
   const [tasks, setTasks] = useState<Map<string, Task>>(new Map());
+  const [missing, setMissing] = useState<ReadonlySet<string>>(new Set());
 
   const stableIds = useMemo(() => task_ids.join(','), [task_ids]);
 
@@ -32,6 +36,14 @@ export function useTasksSubscription(task_ids: string[]) {
       setTasks((prev) => {
         const next = new Map(prev);
         next.set(task.task_id, task);
+        return next;
+      });
+      setMissing((prev) => {
+        if (!prev.has(task.task_id)) {
+          return prev;
+        }
+        const next = new Set(prev);
+        next.delete(task.task_id);
         return next;
       });
     };
@@ -64,6 +76,7 @@ export function useTasksSubscription(task_ids: string[]) {
           tasksMap.set(task.task_id, task);
         }
         setTasks(tasksMap);
+        setMissing(new Set(ids.filter((id) => !tasksMap.has(id))));
       } catch (error) {
         console.error('Failed to poll tasks:', error);
       }
@@ -108,10 +121,14 @@ export function useTasksSubscription(task_ids: string[]) {
     };
   }, [stableIds]);
 
-  return tasks;
+  return { tasks, missing };
 }
 
-export function useTaskSubscription(task_id: string) {
-  const tasks = useTasksSubscription([task_id]);
-  return tasks.get(task_id);
+export function useTasksSubscription(task_ids: string[]) {
+  return useTaskSnapshots(task_ids).tasks;
+}
+
+export function useTaskSubscription(task_id: string): Task | null | undefined {
+  const { tasks, missing } = useTaskSnapshots([task_id]);
+  return tasks.get(task_id) ?? (missing.has(task_id) ? null : undefined);
 }

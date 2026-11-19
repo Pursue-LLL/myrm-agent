@@ -32,7 +32,7 @@ from contextlib import asynccontextmanager
 from contextvars import ContextVar, copy_context
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Literal, ParamSpec, Protocol, TypeVar, overload, runtime_checkable
+from typing import Literal, ParamSpec, Protocol, TypeVar, cast, overload, runtime_checkable
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +55,7 @@ class Capability:
 CapabilitySet = frozenset[Capability]
 
 DEFAULT_CAPABILITIES: CapabilitySet = frozenset({Capability("*", "*")})
+type InjectionPolicy = Literal["log_only", "fail_closed"]
 
 
 class PermissionAction(StrEnum):
@@ -425,13 +426,15 @@ class SecurityConfig:
     transcript_window_size: int = 20
     plan_confirm_enabled: bool = False
     command_denylist: tuple[str, ...] = ()
-    injection_policy: Literal["log_only", "fail_closed"] = "log_only"
+    injection_policy: InjectionPolicy = "log_only"
     dangerous_intent_policy: Literal["log_only", "fail_closed", "hitl"] = "hitl"
     yolo_mode_enabled: bool = False
     yolo_mode_enabled_at: float | None = None
     yolo_mode_timeout: int | None = None
     classify_all_shell_in_auto_mode: bool = False
-    is_sandbox: bool = False
+    # A scheduled job's config. No person can answer an approval ask in such a run, nor in the agents it delegates
+    # to (they inherit this object), so the job's declared capabilities answer instead of a pause.
+    is_cron: bool = False
 
     # ------------------------------------------------------------------
     # Factory methods — pre-built profiles for common security postures
@@ -470,7 +473,6 @@ class SecurityConfig:
             PermissionRule("invoke_external_agent", "*", PermissionAction.DENY),
         )
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=read_only_rules,
             path_policy=PathPolicy(
                 access_roots=access_roots_from_paths(allowed_roots),
@@ -506,7 +508,6 @@ class SecurityConfig:
             PermissionRule("invoke_external_agent", "*", PermissionAction.ASK),
         )
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=workspace_rules,
             path_policy=PathPolicy(
                 access_roots=access_roots_from_paths(allowed_roots),
@@ -523,7 +524,6 @@ class SecurityConfig:
         """
         full_rules: PermissionRuleset = (PermissionRule("*", "*", PermissionAction.ALLOW),)
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=full_rules,
             yolo_mode_enabled=True,
         )
@@ -546,9 +546,7 @@ class SecurityConfig:
             PermissionRule("invoke_external_agent", "*", PermissionAction.DENY),
         )
         return cls(
-            capabilities=frozenset({Capability("*", "*")}),
             ruleset=remote_rules,
-            yolo_mode_enabled=False,
         )
 
 
@@ -623,11 +621,11 @@ def propagate_user_credentials(fn: Callable[_P, _R]) -> Callable[_P, _R]:  # noq
         async def async_wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _R:
             token_ctx = user_credentials_ctx.set(credentials)
             try:
-                return await fn(*args, **kwargs)  # type: ignore[no-any-return]
+                return cast("_R", await fn(*args, **kwargs))
             finally:
                 user_credentials_ctx.reset(token_ctx)
 
-        return async_wrapper  # type: ignore[return-value]
+        return cast("Callable[_P, _R]", async_wrapper)
 
     ctx = copy_context()
 

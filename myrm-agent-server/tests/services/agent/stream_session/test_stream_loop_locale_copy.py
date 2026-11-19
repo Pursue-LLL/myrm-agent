@@ -21,13 +21,11 @@ from app.services.agent.stream_session.stream_loop import (
         ("zh", "zh"),
         ("en", "en"),
         ("en-US", "en"),
-        ("ja", "en"),
+        ("fr", "en"),
         (None, "en"),
     ],
 )
-def test_stream_locale_resolves_chinese_and_falls_back_to_english(
-    locale: str | None, expected: str
-) -> None:
+def test_stream_locale_resolves_chinese_and_falls_back_to_english(locale: str | None, expected: str) -> None:
     assert _stream_locale(locale) == expected
 
 

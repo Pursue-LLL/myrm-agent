@@ -30,7 +30,6 @@ class TestIncrementalIntegration:
         store.save_monitor_state = AsyncMock()
         store.save_run = AsyncMock()
         store.save_job = AsyncMock()
-        store.get_latest_integrity_hash = AsyncMock(return_value=None)
         return store
 
     @pytest.fixture
@@ -316,7 +315,6 @@ class TestIncrementalIntegration:
         mock_store.save_monitor_state = AsyncMock(side_effect=lambda state: storage.update({state.job_id: state}))
         mock_store.save_run = AsyncMock()
         mock_store.update_job_runtime_state = AsyncMock()
-        mock_store.get_latest_integrity_hash = AsyncMock(return_value=None)
         mock_store.save_job = AsyncMock()
 
         executor = JobExecutor(mock_store, mock_delivery)

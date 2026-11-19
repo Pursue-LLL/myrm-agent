@@ -38,9 +38,6 @@ from myrm_agent_harness.utils.mime_types import detect_image_mime, extension_for
 
 _OPENAI_WIRES: Final = frozenset({"openai_chat", "azure_openai"})
 _NON_OPENAI_IMAGE_PROVIDERS: Final = frozenset({"stability", "minimax_image"})
-# DALL-E 3 is the only OpenAI image model with a `style` option; the other image models take none.
-_STYLE_MODEL: Final = "dall-e-3"
-
 # Model names the settings offer that name a model family instead of a provider-qualified id.
 _ALIASES: Final = {
     "flux/schnell": "together_ai/black-forest-labs/FLUX.1-schnell",
@@ -129,29 +126,26 @@ def _nonempty(images: list[GeneratedImage], provider: str) -> list[GeneratedImag
 # --- OpenAI family -------------------------------------------------------------------------------------------
 
 
-def _openai_generation(
-    route: Route, prompt: str, size: str, quality: str | None, style: str | None, n: int, timeout: float
-) -> PreparedRequest:
+def _openai_generation(route: Route, prompt: str, size: str, quality: str | None, timeout: float) -> PreparedRequest:
     url, query, headers = openai_endpoint(route, split_params({}), "/images/generations")
-    body: dict[str, object] = {"prompt": prompt, "n": n, "size": size}
+    body: dict[str, object] = {"prompt": prompt, "size": size}  # no `n`: one request, one image
     if route.profile.wire != "azure_openai":  # an Azure deployment is addressed by the URL
         body["model"] = route.model
     if quality:
         body["quality"] = quality
-    if style and route.model == _STYLE_MODEL:
-        body["style"] = style
     return PreparedRequest(provider=route.profile.id, url=url, headers=headers, body=body, timeout=timeout, query=query)
 
 
 def _openai_edit(
-    route: Route, image: bytes, prompt: str, mask: bytes | None, size: str, n: int, timeout: float
+    route: Route, image: bytes, prompt: str, mask: bytes | None, size: str, quality: str | None, timeout: float
 ) -> PreparedRequest:
     url, query, headers = openai_endpoint(route, split_params({}), "/images/edits")
-    form = {"prompt": prompt, "n": str(n), "size": size}
+    form = {"prompt": prompt, "size": size}
     if route.profile.wire != "azure_openai":
         form["model"] = route.model
-    # dall-e-2 takes a single `image`; the GPT image models take a list under `image[]`.
-    files: dict[str, FilePart] = {"image" if route.model == "dall-e-2" else "image[]": _upload("image", image)}
+    if quality:
+        form["quality"] = quality
+    files: dict[str, FilePart] = {"image[]": _upload("image", image)}  # the GPT image models take a list of inputs
     if mask is not None:
         files["mask"] = _upload("mask", mask)
     return PreparedRequest(
@@ -201,7 +195,7 @@ def _gemini_image_size(width: int, height: int) -> str:
     return "4K"
 
 
-def _gemini_request(route: Route, prompt: str, size: str, n: int, timeout: float) -> PreparedRequest:
+def _gemini_request(route: Route, prompt: str, size: str, timeout: float) -> PreparedRequest:
     ratio = _nearest_ratio(size, _GEMINI_RATIOS)
     dims = _dimensions(size)
     # 1K is every model's default, and Imagen 3 does not document the field: send it only when it changes the output.
@@ -216,13 +210,13 @@ def _gemini_request(route: Route, prompt: str, size: str, n: int, timeout: float
             image_config["aspectRatio"] = ratio
         if image_size and "2.5-flash" not in route.model:  # 2.5 Flash Image has a fixed output size
             image_config["imageSize"] = image_size
-        config: dict[str, object] = {"response_modalities": ["IMAGE", "TEXT"], "candidateCount": n}
+        config: dict[str, object] = {"response_modalities": ["IMAGE", "TEXT"]}
         if image_config:
             config["imageConfig"] = image_config
         body: dict[str, object] = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": config}
         url = f"{base}:generateContent"
     else:
-        parameters: dict[str, object] = {"sampleCount": n}
+        parameters: dict[str, object] = {"sampleCount": 1}  # Imagen returns several images unless told otherwise
         if ratio:
             parameters["aspectRatio"] = ratio
         if image_size:
@@ -289,7 +283,7 @@ def _parse_stability(payload: dict[str, object]) -> list[GeneratedImage]:
 # --- MiniMax image-01 ----------------------------------------------------------------------------------------
 
 
-def _minimax_request(route: Route, prompt: str, size: str, n: int, timeout: float) -> PreparedRequest:
+def _minimax_request(route: Route, prompt: str, size: str, timeout: float) -> PreparedRequest:
     ratio = size if size in _MINIMAX_RATIOS else _MINIMAX_SIZES.get(size, "1:1")
     body: dict[str, object] = {
         "model": route.model,
@@ -297,8 +291,6 @@ def _minimax_request(route: Route, prompt: str, size: str, n: int, timeout: floa
         "aspect_ratio": ratio,
         "response_format": "url",
     }
-    if n > 1:
-        body["n"] = n
     headers = {"Authorization": f"Bearer {route.api_key}"} if route.api_key else {}
     return PreparedRequest(
         provider="minimax_image",
@@ -337,25 +329,23 @@ async def agenerate_images(
     *,
     size: str,
     quality: str | None,
-    style: str | None,
-    n: int,
     api_key: str | None,
     api_base: str | None,
     timeout: float,
 ) -> list[GeneratedImage]:
-    """The images one text-to-image call returns (at least one)."""
+    """The images one text-to-image call returns (at least one); callers use the first."""
     route = _route(model, api_key, api_base)
     provider = route.profile.id
     # Stability and MiniMax profiles carry the default wire, so their own shapes are matched first.
     if provider == "stability":
         return _parse_stability(await asend_json(_stability_request(route, prompt, size, timeout)))
     if provider == "minimax_image":
-        return _parse_minimax(await asend_json(_minimax_request(route, prompt, size, n, timeout)))
+        return _parse_minimax(await asend_json(_minimax_request(route, prompt, size, timeout)))
     if route.profile.wire in _OPENAI_WIRES:
-        payload = await asend_json(_openai_generation(route, prompt, size, quality, style, n, timeout))
+        payload = await asend_json(_openai_generation(route, prompt, size, quality, timeout))
         return _parse_openai(payload, provider)
     if route.profile.wire == "gemini":
-        payload = await asend_json(_gemini_request(route, prompt, size, n, timeout))
+        payload = await asend_json(_gemini_request(route, prompt, size, timeout))
         return _parse_gemini(payload, route.model)
     raise UnsupportedProviderError(f"Provider '{provider}' has no image generation endpoint")
 
@@ -367,7 +357,7 @@ async def aedit_images(
     *,
     mask: bytes | None,
     size: str,
-    n: int,
+    quality: str | None,
     api_key: str | None,
     api_base: str | None,
     timeout: float,
@@ -376,5 +366,5 @@ async def aedit_images(
     route = _route(model, api_key, api_base)
     if route.profile.wire not in _OPENAI_WIRES or route.profile.id in _NON_OPENAI_IMAGE_PROVIDERS:
         raise UnsupportedProviderError(f"Provider '{route.profile.id}' has no image editing endpoint")
-    payload = await asend_json(_openai_edit(route, image, prompt, mask, size, n, timeout))
+    payload = await asend_json(_openai_edit(route, image, prompt, mask, size, quality, timeout))
     return _parse_openai(payload, route.profile.id)

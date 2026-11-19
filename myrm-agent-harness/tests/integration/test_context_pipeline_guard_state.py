@@ -110,7 +110,7 @@ async def test_a_file_read_before_a_saving_stays_open_for_editing_after_it(loop_
     await _model_call_with_saving()
 
     assert guard.require_read_before_write("/w/app.py") is None
-    assert guard.require_full_read_before_edit("/w/app.py") is None
+    assert guard.require_version_match("/w/app.py", "x = 1\n") is None
 
 
 @pytest.mark.asyncio

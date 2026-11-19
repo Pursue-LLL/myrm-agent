@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - ChatSessionReservation: reserve before persist, transfer to stream, release on early exit
-- release_unstreamed_reservation: clear a reservation the stream never took over
+- release_unstreamed_reservation: clear the reservation of one turn, by its message id, that the stream never took over
 
 [POS]
 Orchestrator helper for idempotent agent-stream session locking without leaking gateway state.
@@ -53,11 +53,17 @@ class ChatSessionReservation:
         self._active = False
 
 
-def release_unstreamed_reservation(chat_id: str, *, was_resume: bool) -> None:
-    """Release a reservation that never reached ``execute_stream``.
+def release_unstreamed_reservation(chat_id: str, *, message_id: str, was_resume: bool) -> None:
+    """Release the reservation the turn ``message_id`` made, when it never reached ``execute_stream``.
+
+    The gateway gives a chat back when a stream ends, before that turn's teardown runs, so the chat's next message can
+    already hold a reservation by the time this runs; that one belongs to its own turn and stays.
 
     A resume that never reached the graph left its interrupt unanswered, so the interrupt is
     reopened for a manual answer instead of staying claimed by the request that failed.
     """
-    if get_agent_gateway().release_if_reserved_only(chat_id) and was_resume:
+    gateway = get_agent_gateway()
+    if gateway.get_active_message_id(chat_id) != message_id:
+        return
+    if gateway.release_if_reserved_only(chat_id) and was_resume:
         ApprovalTimeoutScheduler.get().reopen(chat_id)

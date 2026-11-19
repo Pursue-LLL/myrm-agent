@@ -34,7 +34,7 @@ from myrm_agent_harness.core.security.redact import (
 
 logger = logging.getLogger(__name__)
 
-# A key whose last word is ``command`` or ``cmd`` (``command``, ``verify_command``, ``rerun_cmd``) holds a command line.
+# A key whose last word is ``command`` or ``cmd`` (``command``, ``test_command``, ``rerun_cmd``) holds a command line.
 _COMMAND_KEY = re.compile(r"(?:^|_)(?:command|cmd)$")
 # A key whose last word is ``id`` or ``ids`` (``id``, ``tool_call_id``, ``request-id``, ``toolCallIds``) holds identifiers:
 # a camel-case word needs its capital, so ``valid`` and ``android`` are not identifier fields.

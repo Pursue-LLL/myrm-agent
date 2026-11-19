@@ -40,7 +40,10 @@ vi.mock('@/store/useProviderStore', async () => {
   return { default: useProviderStore };
 });
 vi.mock('@/hooks/shared/useToast', () => ({ toast: { success: vi.fn(), error: kit.error } }));
-vi.mock('@/lib/utils/media', () => ({ providerHasActiveApiKey: () => false }));
+vi.mock('@/lib/utils/media', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/utils/media')>()),
+  providerHasActiveApiKey: () => false,
+}));
 // The shared failure view probes the backend on its own; only its retry hand-off matters here.
 vi.mock('@/components/features/app-shell/config-load-error', () => ({
   ConfigLoadError: ({ onRetry }: { onRetry: () => void }) => (
@@ -109,6 +112,7 @@ describe('TtsGenerationSection while the stored settings load', () => {
 
     expect(container.querySelectorAll('.animate-pulse')).toHaveLength(3);
     expect(screen.queryByRole('button', { name: /OpenAI TTS/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Select…' })).toBeNull();
     expect(screen.queryByPlaceholderText('Enter API Key')).toBeNull();
 
     await act(async () => pending.resolve(storedVoice()));
@@ -141,6 +145,7 @@ describe('TtsGenerationSection when the stored settings cannot be read', () => {
 
     expect(reloadButton()).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /OpenAI TTS/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Select…' })).toBeNull();
     expect(screen.queryByPlaceholderText('Enter API Key')).toBeNull();
     expect(puts()).toHaveLength(0);
     // The card shows the failure itself, so the read is silent: a global notice would add a retry that cannot reach it.

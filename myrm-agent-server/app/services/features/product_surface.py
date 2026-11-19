@@ -13,10 +13,14 @@ HIDDEN_BUILTIN_AGENT_IDS / HIDDEN_PREBUILT_TEMPLATE_IDS / REMOVED_FEATURE_OVERRI
 
 from __future__ import annotations
 
+# Hidden preset ids stay out of every agent list. ``builtin-ko-office`` has no preset spec; the id stays hidden so a
+# database row that still holds it is never listed, and chat requests that name it resolve to the general agent on
+# the client.
 HIDDEN_BUILTIN_AGENT_IDS: frozenset[str] = frozenset(
     {
         "builtin-researcher",
         "builtin-deep-search",
+        "builtin-ko-office",
     }
 )
 

@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 # (a relative name assembled at runtime is invisible to it), and the lazy import keeps a missing optional
 # dependency of one provider from breaking the others.
 _BUILTIN_PROVIDERS: Final = (
-    "myrm_agent_harness.toolkits.llms.video.providers.openai_provider:OpenAISoraProvider",
     "myrm_agent_harness.toolkits.llms.video.providers.google_provider:GoogleVeoProvider",
     "myrm_agent_harness.toolkits.llms.video.providers.qwen_provider:QwenVideoProvider",
     "myrm_agent_harness.toolkits.llms.video.providers.minimax_provider:MiniMaxVideoProvider",

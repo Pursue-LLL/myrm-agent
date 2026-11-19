@@ -19,6 +19,7 @@ from .base import ToolSetupBaseMixin
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory import MemoryManager
+    from myrm_agent_harness.toolkits.wiki.core.types import QueryResult
 
     from app.core.memory.adapters.types import ResolvedContextBinding
 
@@ -89,15 +90,6 @@ class MemoryToolsMixin(ToolSetupBaseMixin):
                 MemorySearchPolicy,
             )
 
-            from app.core.agent.tool_description_locale import (
-                resolve_tool_description_locale,
-            )
-
-            tool_description_locale = resolve_tool_description_locale(
-                agent_locale=getattr(self, "prompt_locale", None) or getattr(self, "locale", None),
-                channel=getattr(self, "channel_name", None),
-            )
-
             is_external_channel = bool(getattr(self, "channel_name", None) and getattr(self, "channel_name", None) != "web_chat")
             search_policy = MemorySearchPolicy(
                 allow_wiki=bool(self.enable_wiki and not self.incognito_mode),
@@ -113,7 +105,7 @@ class MemoryToolsMixin(ToolSetupBaseMixin):
                 lite_llm = self._lite_llm
                 wiki_structure = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)._structure
 
-                async def _query_wiki(question: str):
+                async def _query_wiki(question: str) -> QueryResult:
                     archiver = get_wiki_archiver(lite_llm, manager, agent_id=self.agent_id)
                     return await archiver.query_wiki(question)
 
@@ -138,7 +130,7 @@ class MemoryToolsMixin(ToolSetupBaseMixin):
                 manager,
                 search_policy=search_policy,
                 search_backends=search_backends,
-                description_locale=tool_description_locale,
+                description_locale=self._tool_description_locale(),
             )
             # Memory tools are high frequency for a personal assistant, keep them in tools
             tools.extend(memory_tools)

@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - `@/lib/backend-health` (`fetchBackendHealth`, `BackendHealthPayload`)
- * - `#locales/en.json` / `zh.json` (`common.configLoadError` — api 层 SSOT；de/ja/ko 回退 en，Banner 仍走 next-intl 全语言）
+ * - `#locales/en.json` / `zh.json` (`common.configLoadError` — api 层 SSOT；非中文浏览器语言用 en，Banner 仍走 next-intl)
  *
  * [OUTPUT]
  * - `BOOT_SCREEN_STORAGE_KEY` / `isBootProfileCompleted`: Boot profile SSOT (localStorage)

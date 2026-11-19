@@ -35,7 +35,7 @@ WIKI_INGEST_DESCRIPTION_ZH = """将文档录入 Wiki 知识库（支持网页 UR
 - 网页 URL：抓取并转换为 Markdown
 - 本地文件路径：文本/Markdown 或自动解析的二进制文档（PDF、DOCX、XLSX、PPTX）
 - 纯文本内容：直接保存为 Markdown 文档
-自动解析并加入知识库编译索引队列。
+自动解析并加入知识库编译队列。
 """
 
 WIKI_QUERY_DESCRIPTION_EN = """Query the Wiki knowledge base.
@@ -69,7 +69,7 @@ Do not use whole-page rewrites; pick the smallest op that fits:
 
 WIKI_APPLY_DESCRIPTION_ZH = """对 Wiki 概念页面应用结构化更新。
 
-保护受管区域（核心事实 Compiled Truth、时间线 Timeline、元数据 frontmatter）。
+保护受管区域（核心事实 Compiled Truth、时间线 Timeline、frontmatter 里的 claims）。
 通过本工具写入的内容会进入待审箱等待人工审核，批准后才发布；请告知用户
 笔记处于待审状态，而非已发布。
 请勿全量重写整个页面，按需选择最轻量的操作：

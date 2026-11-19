@@ -47,8 +47,8 @@ _SETTINGS_SHELL_STATE = """(() => {
 _DOMAIN_SKILLS_CARD_JS = """(() => {
   const text = document.body?.innerText || '';
   const hasXCom = /X \\(Twitter\\)/.test(text);
-  const hasDomainSkills = /Domain Skills|域技能|ドメインスキル|도메인 기술/.test(text);
-  const hasBuiltinBadge = /builtin|内置|Built-in|ビルトイン|기본 제공/.test(text);
+  const hasDomainSkills = /Domain Skills|域技能/.test(text);
+  const hasBuiltinBadge = /builtin|内置|Built-in/.test(text);
   const hasXDomain = /x\\.com|twitter\\.com/.test(text);
   return {
     ready: hasXCom && hasDomainSkills,

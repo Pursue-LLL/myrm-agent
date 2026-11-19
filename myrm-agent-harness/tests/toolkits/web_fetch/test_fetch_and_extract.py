@@ -29,6 +29,7 @@ def retrieval_calls(monkeypatch: pytest.MonkeyPatch) -> list[_Call]:
         top_k: int = 10,
         use_raw_markdown: bool = False,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
     ) -> tuple[list[dict[str, object]], str, str | None]:
         calls.append({"urls": urls, "allow_private_networks": allow_private_networks})
         return result

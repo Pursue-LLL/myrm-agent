@@ -45,15 +45,9 @@ class BrowserToolsMixin(ToolSetupBaseMixin):
                 BrowserSession,
                 DomainAllowlist,
             )
-            from myrm_agent_harness.toolkits.browser.pool import (
-                ContextType,
-                get_global_browser_pool,
-            )
+            from myrm_agent_harness.toolkits.browser.pool import ContextType
 
-            from app.config.browser import (
-                get_browser_launch_options,
-                get_browser_pool_config,
-            )
+            from app.config.browser import get_configured_browser_pool
             from app.config.deploy_mode import is_local_mode
             from app.core.security.browser_vault import (
                 get_agent_session_vault,
@@ -61,10 +55,7 @@ class BrowserToolsMixin(ToolSetupBaseMixin):
             )
             from app.platform_utils.workspace_root import get_workspace_root
 
-            pool = get_global_browser_pool(
-                config=get_browser_pool_config(),
-                launch_options=get_browser_launch_options(),
-            )
+            pool = get_configured_browser_pool()
             if self.agent_id and self.agent_id != "default":
                 self._session_vault = get_agent_session_vault(self.agent_id)
             else:
@@ -73,19 +64,7 @@ class BrowserToolsMixin(ToolSetupBaseMixin):
             domain_allowlist = None
             domain_blocklist = None
             # BrowserSession is created before BaseAgent init (self.agent is still None).
-            # Resolve merged network policy the same way SecurityPolicyExtension does.
-            from myrm_agent_harness.agent.security.channel_presets import (
-                build_channel_security_config,
-            )
-
-            merged_security = build_channel_security_config(
-                self.channel_name,
-                self.security_config_raw,
-                agent_security_raw=self.agent_security_raw,
-                declared_capabilities=self.declared_capabilities,
-                declared_allowed_roots=self.declared_allowed_roots,
-                local_mode=is_local_mode(),
-            )
+            merged_security = self._merged_security_config()
             if merged_security.network_allowlist:
                 domain_allowlist = DomainAllowlist.from_strings(merged_security.network_allowlist)
             if merged_security.network_blocklist:

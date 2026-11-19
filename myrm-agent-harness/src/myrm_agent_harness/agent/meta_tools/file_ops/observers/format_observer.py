@@ -3,15 +3,24 @@
 Integrated with CLI Tool Discovery to detect available formatters at startup.
 Uses a timeout-guarded subprocess call with graceful failure handling.
 
+A formatter that loads code the workspace declares (prettier runs ``prettier.config.js`` and local plugins, ``mix
+format`` runs ``.formatter.exs``) runs only in a workspace the user trusts: the agent's sandbox can write those files
+without an approval, so formatting after the write would run them on the host.
+
 [INPUT]
-- (none)
+- observers.base::FileOperationObserver (POS: Provides FileOperationObserver.)
+- utils.vault_scope::is_vault_markdown_path (POS: Scope detection for vault write guards — no server imports.)
+- toolkits.code_execution.executors.base::get_executor (POS: Code executor base classes.)
+- toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
+- agent.security.workspace_trust.provider::resolve_workspace_trust_level (POS: Harness-side indirection so agent runs resolve trust without importing server code.)
+- agent.security.workspace_trust.gate::blocks_workspace_side_channels (POS: Pure predicate layer of the workspace_trust gate; no persistence and no server calls.)
 
 [OUTPUT]
-- FormatterRule: Maps file extensions to a formatter command.
-- FormatObserver: Runs the matching code formatter after every file create/modify.
+- FormatterRule: Maps file extensions to a formatter command and says whether the formatter loads code the workspace declares.
+- FormatObserver: Runs the matching code formatter after every file create/modify; one that loads workspace code is skipped unless the workspace is trusted.
 
 [POS]
-Auto-format observer — runs code formatters after AI file edits.
+Auto-format observer — runs code formatters after AI file edits, those that load workspace code only in trusted workspaces.
 """
 
 from __future__ import annotations
@@ -21,10 +30,14 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
 from .base import FileOperationObserver
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +48,15 @@ FORMAT_TIMEOUT_SECONDS: float = 10.0
 class FormatterRule:
     """Maps file extensions to a formatter command.
 
-    cmd_template uses {path} as placeholder for the target file.
+    cmd_template uses {path} as placeholder for the target file. ``loads_workspace_code`` marks a formatter that
+    runs code the workspace declares (config programs, plugins) and so needs a trusted workspace; a formatter that
+    reads only declarative config stays unmarked.
     """
 
     extensions: frozenset[str]
     bin_name: str
     args_template: tuple[str, ...]
+    loads_workspace_code: bool = False
 
     def build_cmd(self, file_path: str) -> list[str]:
         return [self.bin_name] + [a.replace("{path}", file_path) for a in self.args_template]
@@ -87,6 +103,7 @@ FORMATTER_RULES: tuple[FormatterRule, ...] = (
         ),
         bin_name="prettier",
         args_template=("--write", "--log-level", "silent", "{path}"),
+        loads_workspace_code=True,
     ),
     FormatterRule(extensions=frozenset({".dart"}), bin_name="dart", args_template=("format", "{path}")),
     FormatterRule(
@@ -105,7 +122,12 @@ FORMATTER_RULES: tuple[FormatterRule, ...] = (
         args_template=("-i", "{path}"),
     ),
     FormatterRule(extensions=frozenset({".zig"}), bin_name="zig", args_template=("fmt", "{path}")),
-    FormatterRule(extensions=frozenset({".ex", ".exs"}), bin_name="mix", args_template=("format", "{path}")),
+    FormatterRule(
+        extensions=frozenset({".ex", ".exs"}),
+        bin_name="mix",
+        args_template=("format", "{path}"),
+        loads_workspace_code=True,
+    ),
 )
 
 
@@ -170,6 +192,22 @@ def _which(name: str) -> str | None:
     return shutil.which(name)
 
 
+def _workspace_is_trusted(executor: CodeExecutor | None) -> bool:
+    """Whether the user trusts the folder the executor works in; with no executor there is no folder to ask about.
+
+    The level is looked up by the workspace root in the process-wide trust registry, not read from the run's
+    ContextVar: LangGraph runs a tool body in a task that may not see the variable bound when the run started, and a
+    trusted folder would then count as restricted and silently stop being formatted.
+    """
+    if executor is None:
+        return False
+
+    from myrm_agent_harness.agent.security.workspace_trust.gate import blocks_workspace_side_channels
+    from myrm_agent_harness.agent.security.workspace_trust.provider import resolve_workspace_trust_level
+
+    return not blocks_workspace_side_channels(resolve_workspace_trust_level(executor.workspace_path))
+
+
 _cache = _FormatterCache()
 
 
@@ -207,6 +245,14 @@ class FormatObserver(FileOperationObserver):
         from myrm_agent_harness.toolkits.code_execution.executors.base import get_executor
 
         executor = get_executor()
+
+        if rule.loads_workspace_code and not _workspace_is_trusted(executor):
+            logger.debug(
+                "Skipping %s for %s: it loads code the workspace declares and the workspace is not trusted",
+                rule.bin_name,
+                path,
+            )
+            return
 
         # If we have an executor, resolve the path to the workspace
         actual_path = path

@@ -169,8 +169,8 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
                 const text = (t.textContent || '').trim();
                 return (
                   t.getAttribute('value') === 'installed' ||
-                  /^(Installed|已安装|已安裝)(\\d*)$/.test(text) ||
-                  /Installed|已安装|已安裝/.test(text)
+                  /^(Installed|已安装)(\\d*)$/.test(text) ||
+                  /Installed|已安装/.test(text)
                 );
               });
               if (!tab) return { ok: false, err: 'installed-tab-not-found' };
@@ -196,14 +196,14 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             local_paths_btn_js = """(() => {
               let btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
               const text = document.body?.innerText || '';
-              const hasLocalPathsTitle = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(text);
+              const hasLocalPathsTitle = /Local Skill Paths|本地技能路径|本地技能目录/i.test(text);
               if (!btn && !hasLocalPathsTitle) {
                 const tab = Array.from(document.querySelectorAll('[role="tab"]')).find((t) => {
                   const tText = (t.textContent || '').trim();
                   return (
                     t.getAttribute('value') === 'installed' ||
-                    /^(Installed|已安装|已安裝)(\\d*)$/.test(tText) ||
-                    /Installed|已安装|已安裝/.test(tText)
+                    /^(Installed|已安装)(\\d*)$/.test(tText) ||
+                    /Installed|已安装/.test(tText)
                   );
                 });
                 if (tab) {
@@ -225,7 +225,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
               }
               btn = document.querySelector('[data-testid="local-skill-paths-trigger"]');
               const textAfter = document.body?.innerText || '';
-              const hasTitleAfter = /Local Skill Paths|本地技能路径|本地技能目录|ローカルスキルパス|로컬 스킬 경로/i.test(textAfter);
+              const hasTitleAfter = /Local Skill Paths|本地技能路径|本地技能目录/i.test(textAfter);
               return {
                 ready: !!btn || hasTitleAfter,
                 hasBtn: !!btn,
@@ -301,10 +301,10 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             # 10. Verify LocalSkillPathScanPreviewBeforeAdoptDialog opens with detected skill name
             dialog_ready_js = """(() => {
               const body = document.body?.innerText || '';
-              const hasDialogTitle = /Preview & Adopt|预览并采纳|プレビューと採用/i.test(body);
+              const hasDialogTitle = /Preview & Adopt|预览并采纳/i.test(body);
               const hasSkill = /custom-math-skill/.test(body);
               const hasAdoptBtn = Array.from(document.querySelectorAll('button')).some(b =>
-                /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
+                /Adopt & Add Path|采纳并添加路径/i.test(b.textContent || '')
               );
               return {
                 ready: hasDialogTitle || hasSkill || hasAdoptBtn,
@@ -325,7 +325,7 @@ def test_chrome_ui_local_skill_paths_preview_and_adopt() -> None:
             confirm_adopt_js = """(() => {
               const adoptBtn = document.querySelector('[data-testid="preview-adopt-confirm-btn"]') ||
                 Array.from(document.querySelectorAll('button')).find(b =>
-                  /Adopt & Add Path|采纳并添加路径|追加して採用/i.test(b.textContent || '')
+                  /Adopt & Add Path|采纳并添加路径/i.test(b.textContent || '')
                 );
               if (adoptBtn) {
                 adoptBtn.click();

@@ -1,20 +1,23 @@
-"""文件处理工具
-
-提供文件操作相关的工具函数。
+"""The ``path:START-END`` argument of the file tools: the file it names and the lines it asks for.
 
 [INPUT]
-- (none)
+- core.security.tool_registry::READ_RANGE_PATTERN (POS: the one grammar of a path argument's ``:START-END`` line range)
+- core.operation_context::ViewRange (POS: View line range for partial reads)
+- utils.path_utils::resolve_file_id_path (POS: resolves an ``@file_id`` to its path)
 
 [OUTPUT]
-- parse_path_with_range: 解析路径字符串，提取文件路径与合法正整数行号范围
+- parse_path_with_range: the file path and the validated line range (positive numbers, ordered) of a path argument
 
 [POS]
-Provides parse_path_with_range with positive line numbers and ordered range validation.
+The validated reading of a path argument's range. Only a trailing ``:START-END`` or ``:START-`` is a range; every
+other colon, such as a drive letter or the one in ``notes:v2.md``, belongs to the file name. The grammar is the one
+the permission verdict strips ranges with (``strip_read_range``), so the file read is the file judged.
 """
 
 from __future__ import annotations
 
-from ..constants import PATH_RANGE_PATTERN
+from myrm_agent_harness.core.security.tool_registry import READ_RANGE_PATTERN
+
 from ..core.operation_context import ViewRange
 from .path_utils import resolve_file_id_path
 
@@ -34,7 +37,7 @@ def parse_path_with_range(path_str: str) -> tuple[str, ViewRange | None]:
     Raises:
         ValueError: 当行号为非正整数（< 1）或结束行号小于起始行号时抛出明确异常。
     """
-    match = PATH_RANGE_PATTERN.match(path_str)
+    match = READ_RANGE_PATTERN.match(path_str)
     if match:
         file_path = match.group(1)
         start = int(match.group(2))

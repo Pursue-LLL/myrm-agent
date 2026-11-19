@@ -6,7 +6,7 @@ Business-layer Run Observer + Session Advisor. Side Q&A does not enter the main 
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `run_digest_store.py` | 核心 | Process-local RunDigest SSOT；stream progress + approval pending 同步；SSE `run_digest_updated`；`terminal_failures()` 只读列出最近一次运行以 error/cancelled 结束的 chat（Catchup 收件箱据此发现未落库回复的失败回合；进程重启即遗忘） | ✅ |
+| `run_digest_store.py` | 核心 | Process-local RunDigest SSOT；stream progress + approval pending 同步；SSE `run_digest_updated`；`begin_run` 返回运行句柄 `RunSession`，`end_run(run=...)` 只在该句柄仍是 chat 当前运行时才结束并返回 True（迟到的回合不会结束下一回合的运行，也不会重复结束自己的运行；不带句柄时结束当前运行）；没有运行时由审批单独建出的会话（`approval_only`）没有回合会结束它，待审计数归零即删除并发布 idle（前端 chip 隐藏），期间收到进度上报则转为运行会话；`terminal_failures()` 只读列出最近一次运行以 error/cancelled 结束的 chat（Catchup 收件箱据此发现未落库回复的失败回合；进程重启即遗忘） | ✅ |
 | `advisor_service.py` | 核心 | Tier-0 状态 regex + Tier-1 lite/default 模型只读问答（`load_llm_from_model_config`，wire-aware）；`Accept-Language` → locale | ✅ |
 | `advisor_thread_store.py` | 辅助 | 旁路线程内存存储（每 chat 最多 50 条） | ✅ |
 
@@ -14,5 +14,5 @@ Business-layer Run Observer + Session Advisor. Side Q&A does not enter the main 
 
 - Harness DTO：`myrm_agent_harness.agent.streaming.run_digest` (POS: 纯 reducer，无 I/O)
 - Stream hook：`app/services/agent/streaming_support/stream_collector/state.py::_sync_run_digest`
-- Approval hook：`app/services/approvals/registry.py::_sync_copilot_pending`
+- Approval hook：`app/services/approvals/registry.py::_sync_copilot_pending`（创建、处理与 TTL 清理后调用）
 - API：`app/api/chats/chat/copilot.py`

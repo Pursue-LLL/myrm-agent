@@ -121,7 +121,6 @@ async def test_a_job_blocked_slot_after_slot_stays_active_without_failures(budge
     """End to end: the executor records each blocked slot as skipped, so no failure ever adds up to an auto-pause."""
     job = _job(max_retries=2)
     store = AsyncMock()
-    store.get_latest_integrity_hash = AsyncMock(return_value=None)
     store.get_job = AsyncMock(return_value=job)
     executor = JobExecutor(store=store, delivery=AsyncMock())
 

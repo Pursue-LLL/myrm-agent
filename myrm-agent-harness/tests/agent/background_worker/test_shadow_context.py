@@ -53,6 +53,15 @@ class _RecordingExecutor(CodeExecutor):
         self.writes.append(path)
 
 
+def _delegating_inner(workspace: str) -> AsyncMock:
+    """A wrapped executor that resolves paths inside ``workspace`` and records the calls made on it."""
+    inner = AsyncMock(spec=CodeExecutor)
+    inner.config = None
+    inner.workspace_path = workspace
+    inner.resolve_path = AsyncMock(side_effect=lambda path: str(Path(workspace) / path.removeprefix("./")))
+    return inner
+
+
 @pytest.fixture
 def workspace(tmp_path: Path) -> str:
     ws = tmp_path / "workspace"
@@ -91,6 +100,16 @@ class TestShadowExecutorMiddleware:
             await shadow_executor._exec_bash("echo hi")
 
     @pytest.mark.asyncio
+    async def test_blocks_background_processes(self, workspace: str) -> None:
+        inner = _delegating_inner(workspace)
+        shadow = ShadowExecutorMiddleware(inner)
+
+        with pytest.raises(PermissionError, match="Background processes are blocked"):
+            await shadow.spawn_background_process(ExecutionContext(code="sleep 1", work_dir=workspace))
+
+        inner.spawn_background_process.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_allows_context_sidecar_writes(
         self, shadow_executor: ShadowExecutorMiddleware, inner_executor: _RecordingExecutor, workspace: str
     ) -> None:
@@ -114,17 +133,32 @@ class TestShadowExecutorMiddleware:
 
     @pytest.mark.asyncio
     async def test_delegates_allowed_writes_to_inner(self, workspace: str) -> None:
-        inner = AsyncMock(spec=CodeExecutor)
-        inner.config = None
-        inner.workspace_path = workspace
-        inner.resolve_path = AsyncMock(side_effect=lambda path: str(Path(workspace) / path.removeprefix("./")))
-        inner.write_file = AsyncMock()
+        inner = _delegating_inner(workspace)
         shadow = ShadowExecutorMiddleware(inner)
 
         relative = ".context/skills/demo/SKILL.md"
         await shadow.write_file(relative, "body")
 
         inner.write_file.assert_awaited_once_with(relative, "body")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("operation", "content"),
+        [("write_file_atomic", "text"), ("write_file_bytes_atomic", b"bytes")],
+    )
+    async def test_atomic_writes_follow_the_write_policy(
+        self, workspace: str, operation: str, content: str | bytes
+    ) -> None:
+        inner = _delegating_inner(workspace)
+        shadow = ShadowExecutorMiddleware(inner)
+        allowed = ".context/skills/demo/SKILL.md"
+
+        await getattr(shadow, operation)(allowed, content)
+        getattr(inner, operation).assert_awaited_once_with(allowed, content)
+
+        with pytest.raises(PermissionError, match="Write access"):
+            await getattr(shadow, operation)("src/main.py", content)
+        getattr(inner, operation).assert_awaited_once()
 
     @pytest.mark.parametrize(
         ("relative", "allowed"),
@@ -170,6 +204,19 @@ class TestRestrictedShadowContext:
             assert get_executor() is inner_executor
         finally:
             reset_executor(executor_token)
+
+    @pytest.mark.asyncio
+    async def test_entering_keeps_the_session_executors_counters(self, inner_executor: _RecordingExecutor) -> None:
+        """The skill-review pre-screener reads the session executor's counters after background work ran."""
+        inner_executor.metrics.record(ExecutionResult(success=False), "bash")
+        executor_token = set_executor(inner_executor)
+        try:
+            async with restricted_shadow_context():
+                pass
+        finally:
+            reset_executor(executor_token)
+
+        assert (inner_executor.metrics.total_executions, inner_executor.metrics.total_failures) == (1, 1)
 
     @pytest.mark.asyncio
     async def test_suppress_logs_flag(self) -> None:

@@ -21,21 +21,22 @@
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 任务类型和 worker 导出 | — |
-| `worker.py` | 核心 | 任务 worker：按 `priority DESC, created_at ASC` 认领已到期（`next_retry_at` 为空或已过）的 `pending` 任务，最多 `max_concurrency` 个在途 run（单个 `asyncio.Task` 注册表），任一 run 结束即唤醒补位而非等整批；认领、终态写入都是对当前状态的 compare-and-set（`update_task_if_status`），先到的终态为准——用户取消后迟到的结果不会覆盖 `cancelled`；`abort(task_id)` 取消在途 run（由取消方写 `cancelled` 行）；`start()` 先把上一进程遗留的 `running` 任务置 `failed`（`interrupted`，transient，可重试），`stop()` 取消在途 run 并同样标记 `interrupted`；超时/失败/成功/取消指标与 duration 指标；通过 `on_status_change` 回调发布 `running/failed/succeeded` 事件到 SSE 流 | ✅ |
+| `worker.py` | 核心 | 任务 worker：按 `priority DESC, created_at ASC` 认领已到期（`next_retry_at` 为空或已过）的 `pending` 任务，最多 `max_concurrency` 个在途 run（单个 `asyncio.Task` 注册表），任一 run 结束即唤醒补位而非等整批；认领、终态写入都是对当前状态的 compare-and-set（`update_task_if_status`），先到的终态为准——用户取消后迟到的结果不会覆盖 `cancelled`；`abort(task_id)` 取消在途 run（由取消方写 `cancelled` 行）；执行器的失败按异常类名归类：`ValidationError` / `AuthenticationError` / `PermissionError` / `NotFoundError` / `MediaInputError` 是 permanent（卡片不给重试），其余（含 `MediaFetchError`，即网络、存储或下载来源暂时故障）是 transient（卡片给重试）；`start()` 先把上一进程遗留的 `running` 任务置 `failed`（`interrupted`，transient，可重试），`stop()` 取消在途 run 并同样标记 `interrupted`；超时/失败/成功/取消指标与 duration 指标；通过 `on_status_change` 回调发布 `running/failed/succeeded` 事件到 SSE 流 | ✅ |
 | `events.py` | 核心 | TaskEventBus：内存 pub/sub 事件总线，SSE 订阅者实时接收 task_update 事件；订阅队列满时有界淘汰最旧事件并投递 `sync_required` 最新事件，避免持续积压导致全量失真；`queue_full` warning 按时间窗节流并携带 suppressed 计数，避免日志风暴 | ✅ |
-| `metrics.py` | 辅助 | 任务指标采集（task lifecycle + event bus emitted/dropped/replaced） | — |
+| `metrics.py` | 辅助 | 任务 Prometheus 指标：任务结局计数（succeeded/failed/cancelled/timeout）、执行耗时直方图、事件总线 emitted/dropped/replaced 计数，以及 worker 与事件总线共用的尽力而为记录器 `safe_counter_inc` / `safe_histogram_observe`（指标故障——标签与声明不一致、客户端缺失——只记 debug 日志，不会让任务结算失败，也不会把健康订阅者踢出事件总线）；只声明有写入方的指标 | ✅ |
 | `cleanup.py` | 辅助 | 任务清理（`_db_maintenance_job` 每 6h 调用） | — |
-| `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含 media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
-| `video_config_resolver.py` | 核心 | 从 task payload 快照还原 `VideoGenerationConfig`（含 fallback / media callback）；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
+| `image_config_resolver.py` | 核心 | 从 task payload 快照还原 `ImageGenerationConfig`（含落库回调）；快照缺 `model` 直接报错，不补默认模型；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
+| `video_config_resolver.py` | 核心 | 从 task payload 快照还原 `VideoGenerationConfig`（含 fallback / 落库回调）；快照缺 `provider` / `model` 直接报错，不补默认；密钥经 `task_payload_crypto` 在 persist 前加密 | ✅ |
+| `payload_values.py` | 辅助 | 任务载荷（JSON 快照）里松散类型取值的带类型读取：`optional_str` / `str_list` / `optional_int` / `optional_bool`，解析器与执行器共用 | ✅ |
 | `task_payload_crypto.py` | 核心 | persist 前递归 seal `api_key` / `gateway_config.auth_token`（含 `fallback_configs`）；worker resolver open 阶段优先当前 key、可用时回退 `CONFIG_ENCRYPTION_KEY_FALLBACKS`/legacy key 解密并剥离明文遗留值 | ✅ |
-| `serializer.py` | 辅助 | 媒体任务队列 Task 模型统一状态序列化器（供 LLM 媒体工具与任务状态查询使用） | ✅ |
+| `serializer.py` | 辅助 | 媒体任务队列 Task 模型统一状态序列化器（供 LLM 媒体工具与任务状态查询使用）；失败任务追加顶层 `next_step` 处置指引（只在 `status` 的动态结果里，不进稳定前缀） | ✅ |
 | `executors/` | 子模块 | 具体任务执行器 | — |
 
 ## 子模块
 
 | 模块 | 职责 |
 |------|------|
-| `executors/` | 图片/视频生成等具体任务执行器（实现 harness `AsyncTaskExecutor`） |
+| `executors/` | 图片/视频生成执行器（实现 harness `AsyncTaskExecutor`）：经统一解析器解析参考文件，返回已落库产物的 `media://` 引用，产物未落库则任务失败 |
 
 ## Key Dependencies
 

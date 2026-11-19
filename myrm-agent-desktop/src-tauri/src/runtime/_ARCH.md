@@ -27,13 +27,13 @@ Tauri 主进程内的 Sidecar 与系统运行时层：Python/Next.js 进程生�
 | `node_runtime.rs` | 核心 | 随包 Node.js 运行时的定位：`tauri.conf.json#bundle.externalBin` 的 `binaries/myrm-node` 落地在主程序可执行文件同级（macOS `Contents/MacOS/`、Windows 安装目录、AppImage `usr/bin/`；开发构建里 `tauri-build` 复制到 `target/<profile>/`），缺失或 0 字节时返回带取包指引的错误，**不回退到 PATH 里的 `node`**（Finder / 开始菜单启动的应用拿不到用户 shell 的 PATH，回退会把打包缺陷藏到用户机器上才暴露）。名称与 `scripts/fetch_node_runtime.py`、`tauri.conf.json` 的一致性由 `tests/architecture/test_desktop_node_runtime.py` 守住 | ✅ |
 | `nextjs_frontend.rs` | 核心 | Next.js Standalone 进程（Tauri 启动时始终自启），由 `node_runtime` 定位的随包 Node.js 启动；`stop_frontend` 仅供 `app/lifecycle.rs` 在停机时内部调用，不是 IPC 命令 | — |
 | `watchdog.rs` | 核心 | 后端崩溃/假死/句柄压力监控与指数退避重启（进程在但 `/health` 连续失败、或 `/health/pressure` 的 fd_count ≥ 8192 时先杀树再重启；stop_backend_monitors 停挂，支持 wake_notify 快速快检） | ✅ |
-| `frontend_watchdog.rs` | 核心 | Next.js 前端崩溃/假死看护：10s 健康检查、连续 3 次无响应判定、5/15/60s 退避、5 分钟 3 次上限；发出 frontend-crash / frontend-restarted / frontend-crash-loop 并同步托盘状态 | ✅ |
+| `frontend_watchdog.rs` | 核心 | Next.js 前端崩溃/假死看护：10s 健康检查、连续 3 次无响应判定、5/15/60s 退避、5 分钟 3 次上限；发出 frontend-crash / frontend-restarted / frontend-crash-loop 并同步托盘状态；重启成功后把主窗口导航回 `ProductOrigin::standalone_root` | ✅ |
 | `wake.rs` | 核心 | 系统休眠唤醒侦测器（单调时钟时间跃迁 + 原生通知）与两阶段自愈协调器（cancel 走 watch channel，停挂不丢消息） | ✅ |
 | `remote_follow.rs` | 核心 | Remote 跟随标记文件（`remote_follow.json` 布尔意图）；`get/switch_remote_follow` IPC（切换唯一入口：切 remote 优雅停本地后端、切回本地重启并重挂监控；编排成功才落 flag——失败零 flag 副作用，flag 与真实进程态永不不一致；完成后广播 `app:connections-changed`）；setup 期 defer 判定 | ✅ |
 | `update_safety.rs` | 核心 | Updater 签名安全态只读查询（`get_updater_safety` IPC，四态稳定字符串；校验逻辑零触碰） | ✅ |
 | `setup_token.rs` | 核心 | WebUI Remote Setup Token IPC | — |
 | `port.rs` | 工具 | 端口占用检测 | — |
-| `product_origin.rs` | 核心 | 产品页来源：发布版是 `http://127.0.0.1:<webui_port>`（端口取启动期配置，运行期不变），开发版取 `build.devUrl`（主窗口直连它，子窗口须同源，否则浏览器存储各成一套）。`exact_origin()` 给 ACL 的 Remote 能力一个无通配的精确来源，`page_url()` 构造子窗口页面地址——路径段与查询值一律百分号编码，动态值（如会话 ID）出不了各自的位置。`app/setup.rs` 构造并 `manage`，宠物浮层与会话窗口经 `State` 取用 | ✅ |
+| `product_origin.rs` | 核心 | 产品页来源：发布版是 `http://127.0.0.1:<webui_port>`（端口取启动期配置，运行期不变），开发版取 `build.devUrl`（主窗口直连它，子窗口须同源，否则浏览器存储各成一套）。`exact_origin()` 给 ACL 的 Remote 能力一个无通配的精确来源，`page_url()` 构造子窗口页面地址——路径段与查询值一律百分号编码，动态值（如会话 ID）出不了各自的位置；`standalone_root(port)` 是 Next standalone 的首页地址，`app/setup.rs` 在 Next 应答后、`frontend_watchdog.rs` 在重启 Next 后都用它导航主窗口。`app/setup.rs` 构造并 `manage`，宠物浮层与会话窗口经 `State` 取用 | ✅ |
 | `survivor_diag.rs` | 核心 | 端口幸存者跨平台命令行与路径诊断、安全 Re-kill 自愈回收与 TCP 释放确认 | ✅ |
 | `process_registry/` | 核心 | 桌面受管进程注册中心（多 Sidecar 全生命周期追踪） | ✅ |
 | `inline_input.rs` | 核心 | Inline Input 全局快捷键与 paste_back | ✅ |

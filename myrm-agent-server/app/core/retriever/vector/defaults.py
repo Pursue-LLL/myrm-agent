@@ -7,19 +7,26 @@ app.config.system_status (POS: 全局系统状态单例)
 
 [OUTPUT]
 get_default_vector_store_config: Embedded Qdrant config from settings.database.qdrant_path
-create_default_vector_store: Convenience factory using default config; flags an in-memory fallback in system_status
+create_default_vector_store: Convenience factory using default config; flags an in-memory fallback in system_status. It
+    returns the Qdrant store itself, so callers that need the memory protocol's methods (``ensure_collection``) see them.
 
 [POS]
 业务层向量存储默认配置。路径来自 ``MYRM_DATA_DIR`` 派生的 ``settings.database.qdrant_path``。
 """
 
-import os
+from __future__ import annotations
 
-from myrm_agent_harness.toolkits.vector import VectorStore, VectorStoreConfig
+import os
+from typing import TYPE_CHECKING
+
+from myrm_agent_harness.toolkits.vector import VectorStoreConfig
 from myrm_agent_harness.toolkits.vector.config import DeploymentMode
 
 from app.config.settings import settings
 from app.config.system_status import system_status
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.vector.qdrant import QdrantVectorStore
 
 
 def get_default_vector_store_config() -> VectorStoreConfig:
@@ -31,7 +38,7 @@ def get_default_vector_store_config() -> VectorStoreConfig:
     )
 
 
-async def create_default_vector_store() -> VectorStore:
+async def create_default_vector_store() -> QdrantVectorStore:
     """Create vector store using default config.
 
     The embedded store is a single-writer database: the harness holds an OS file lock on the

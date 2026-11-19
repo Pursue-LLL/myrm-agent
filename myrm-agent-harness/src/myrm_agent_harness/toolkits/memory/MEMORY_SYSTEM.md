@@ -398,7 +398,7 @@ _decision_latency.record(latency_ms, {"use_dual": use_dual})
 
 读取路径：`MemoryContextMiddleware` 注入时采用指令层级。用户存储的记忆（Profile / Rules / 工作状态 / 工具指引）封装在 `<user_memory_context>` 的 **SystemMessage** 中，每个存储值先过 `defang_markup()`，存储值既关不掉记忆块，也开不出自己的高权限块。已学习的事实不进块，由模型经 `memory_search_tool` 检索。
 
-**工具 recall 路径**（`memory_search_tool` corpus=memory/sessions、MCP `memory_recall` / `memory_list`）：每条 recalled body 经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认调用），SemanticMemory 的 `source_error` 后缀经 `format_recall_source_error_suffix()` 同 SSOT，整段 tool 结果前缀静态 untrusted 提示 `finalize_recall_tool_output()`。与 middleware 注入路径互补，不重复 random `wrap_untrusted` 信封（保留 ToolMessage token 效率与 Prompt Cache 友好）。
+**工具 recall 路径**（`memory_search_tool` corpus=memory/sessions 与按 id 取回、MCP `memory_recall` / `memory_list`）：每条 recalled body 经 `sanitize_recalled_content()`（`redact_sensitive_text` → `sanitize`；`budget_recall_line` 默认调用），SemanticMemory 的 `source_error` 后缀经 `format_recall_source_error_suffix()` 同 SSOT，按 id 取回的概览或全文（含 metadata 与 evidence 行）由 `format_drill_down_output()` 过同一 SSOT，整段 tool 结果前缀静态 untrusted 提示 `finalize_recall_tool_output()`。长度截断一律发生在脱敏之后：按 id 概览的兜底先脱敏整段再取前 250 字符；会话命中的标题经同一 SSOT；片段与摘要先取「可见上限加向后看」的有界窗口、按原样（含换行）脱敏，丢弃窗口尾部一段，再折叠空白并截到上限，被截断点或窗口边缘切开的凭据不会留下半截，行首锚定的规则也不会因折叠成一行而失效；宿主交来的片段是不转义、不带高亮标记的纯文本，宿主自己从长文本里切窗口时同样先脱敏后切，脱敏的是窗口及其前后足以容下一个完整凭据的一段原文（契约见 `ConversationSearchHit.snippet`）。与 middleware 注入路径互补，不重复 random `wrap_untrusted` 信封（保留 ToolMessage token 效率与 Prompt Cache 友好）。
 
 **工具 save ack 路径**（`memory_save_tool` / MCP `memory_store` preference 成功回执）：经 `format_preference_save_ack()`，同样 `sanitize_recalled_content()`，避免 write scan 已 redact 存库但 ToolMessage 仍 echo 明文凭据。
 
@@ -778,9 +778,11 @@ result = await extractor.extract(messages=messages)
 
 > 正则只能看到用户措辞的一个片段，无法区分「长期偏好」与「仅当前任务的指令」，也保留不了否定极性，因此不作为规则来源。`ToolRulePriority` 只决定遗忘/归档的耐久度，不决定注入位置：所有规则（含 Agent 自存的指令）统一进入 stable 层的同一个 `Behavioral Rules` 段（`priority=3`）；段内不按来源或措辞分组，措辞只在预算裁剪时决定哪些规则被钉住（见下）。
 
-> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序），`/memory approve all` 之后规则的先后仍是提案的先后；同文的重复提案不另排一条，而是把待审的那条提到队列最前、带上重复提案的日期，所以偏好先改成 B、再改回 A、批准都留到最后时，A 仍排在 B 之上。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
+> 规则的先后就是它们的优先级：段内先排用户锁定的规则（`is_user_locked`），其后新的在前。存储层按 `created_at DESC, id DESC` 读出规则，`_internal/storage_context.py` 用稳定排序把锁定的提到前面；块的 Scope Boundary 在块里有规则时补一句「规则冲突时遵循排在前面的一条」，所以用户改过的偏好排在它替换的旧规则之上。审批队列保留提案的创建时间：`create_rule` 沿用规则携带的 `created_at` 并统一转成 UTC 存储（SQLite 按文本排序，混用时区会错序；没有偏移的时间按 UTC 读，不随宿主机时区变；晚于此刻的时间按此刻存，导入记录里错的时钟压不过用户之后说的偏好），`/memory approve all` 之后规则的先后仍是提案的先后；同文的重复提案不另排一条，而是把待审的那条提到队列最前、带上重复提案的日期，所以偏好先改成 B、再改回 A、批准都留到最后时，A 仍排在 B 之上。动作文本含禁止词的规则（英文 `never` / `forbidden` / `prohibited` / `do not`，按独立单词匹配：`whenever`、`nevertheless` 不算，紧挨字母、数字、下划线的标识符和以连字符连成的复合词（`NEVER_EXPIRE`、`never-ending`、`non-prohibited`）也不算，因为这类普通规则被当成禁令会让模型读到相反的意思，紧挨中文或标点的照常算；中文 `禁止` / `严禁` / `不得`，`不得不`、`不得已` 不算）在预算裁剪时被**钉住**（`BudgetedSection.pinned`）：渲染器先给钉住的条目预留预算，其余规则按顺序放入，放不下时丢的是排在最后的未钉住规则，所以规则很多时禁止类规则最后才被丢；段落整体仍受优先级约束，可被更高优先级的段落挤掉。禁止类规则与其它规则同样以 `When: … → Do: …` 渲染，没有单独的段落或前缀。该约束只是**提示词层约束**，不对工具调用做拦截：记忆规则的措辞是自然语言，无法可靠地还原成可匹配的参数模式，且规则渲染发生在模型调用节点，拦截发生在工具节点，ContextVar 不跨 LangGraph 节点传递。需要硬拦截的约束走安全引擎（`core/security/types.py` 的 `SecurityConfig` 求值顺序：`command_denylist`、路径策略、权限规则）。
 
 > 规则没有整数优先级：规则表、`add_rule`、`memory_save_tool` 与 MCP `memory_store` 的参数、Markdown 导出行都不含这个字段，先后只由锁定与创建时间决定。库里还留有 `procedural_rules.priority` 列时，打开库会把它删掉（`relational/_schema.py`，只进不退：仍读写该列的旧版本能打开这个库，但读取、新建、修改规则都报缺少 `priority` 列）；导入时忽略导出文件里的 `priority` 字段。
+
+> 规则也没有触发关键词字段：规则表、`add_rule`、各导入器与导出行都不含它，规则靠触发文本与动作文本被找到（`search_rules` 匹配 `trigger_text` 与 `action_text`）。库里还留有 `procedural_rules.trigger_keywords` 列时，打开库会把它与 `priority` 一并删掉（只进不退：仍读写该列的旧版本能打开这个库，但读取、新建、修改规则都报缺少 `trigger_keywords` 列）；导入时忽略导出文件和审批队列里旧提案携带的 `trigger_keywords`，MCP `memory_store` 收到多余的 `rule_keywords` 参数时忽略它，规则照常存下。
 
 | 级别 | 来源 | 生命周期 |
 |------|------|---------|
@@ -953,7 +955,7 @@ System: `<data_boundary_rules>`（SecurityBoundary，state 追加合并，落在
 | 机制                       | 触发时机                      | 行为                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | -------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **自动提取（Dual-track）** | `SkillAgent.run()` 结束时     | **Compressed Track**：LLM提取Semantic/EpisodicMemory（压缩）；**Verbatim Track**（`enable_verbatim=True` 显式开启，**默认关闭**）：当前一轮 exchange pair 存储为ConversationMemory（无LLM，lossless，绕过待审批队列）。需开启 `enable_memory_auto_extraction=True`（**默认True**，frontend UI toggle可配置）。可选：Task Digest（`enable_task_digest=True`），独立模型降本（`extraction_llm`）。Quality filter：跳过trivial conversations（<=3 messages且reply<100 chars），除非检测到correction signals |
-| **三层智能去重**           | `store_batch()`               | Hash（完全相同）→ Vector（相似度分段）→ 早期锁保护 → LLM（语义关系判断），支持 DUPLICATE/UPDATE_REPLACE/UPDATE_MERGE/NEW 决策，避免冗余 LLM 调用（需传递 `dedup_llm`）。`import_memories(skip_duplicates=False)` 以 `skip_dedup` 绕过整条去重，逐条写入                                                                                                                                                                                                                                                                                              |
+| **三层智能去重**           | `store_batch()`               | Hash（完全相同）→ Vector（相似度分段）→ 早期锁保护 → LLM（语义关系判断），支持 DUPLICATE/UPDATE_REPLACE/UPDATE_MERGE/NEW 决策，避免冗余 LLM 调用（需传递 `dedup_llm`）。`import_memories` 默认另对规则去重（写入层从不对规则去重）：规则与这个管理器读得到的全部规则（含停用、已归档）以及同批靠前的条目比对，触发条件、动作（各去首尾空白、折叠空白、忽略大小写）和工具范围都相同就不写，避免重复导入把过时规则的新副本排到用户后来表态的偏好之前；`import_memories(skip_duplicates=False)` 以 `skip_dedup` 绕过整条去重（含规则这一步），逐条写入                                                                                                                                                                                                                                                                                              |
 | **循环触发巩固**           | `_cleanup_session()` 会话结束时 | 后台异步：将会话摘要 embedding 存入专用 recurrence buffer collection（每行记录所属用户、写入 scope 与来源对话，检测只读本用户本 scope 的行）；若同话题出现 ≥k 次（cosine≥0.7），触发 LLM 精炼生成高质量长期记忆，该记忆记录全部来源对话。重要性旁路：健康/安全/凭证类信息立即巩固。配置：`RecurrenceConfig`（`similarity_threshold`、`recurrence_k`、`buffer_capacity`、`importance_preemption`） |
 | **定期遗忘**               | 每 N 次 `end_session()`       | 扫描低保留分数记忆并删除；`relation_count` 通过向量邻居数（sim>0.8）近似计算，仅对 Semantic 集合，零额外写入                                                                                                                                                                                                                                                                                                                                                        |
 | **访问计数**               | `search()` 返回后             | 异步将 `access_count` 加一并写入 `last_accessed_at`（fire-and-forget），两者随记忆持久化，只服务生命周期、不参与检索排序：遗忘的「近 7 日使用过」保护与 `access` 评分项、陈旧性复审的排除、健康度的新鲜度与忽视检测都读取它；稠密集合重读已存点位后只改这两项（不动内容与 `updated_at`，召回后已被删除的点位不会写回），无 embedding 模式的 BM25 镜像是唯一副本，直接写回命中文档                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -1162,38 +1164,6 @@ rating_new = rating_old + alpha * (normalized - rating_old)
 
 ---
 
-## 二十一、本地优先文件即记忆与双向增量同步引擎 (File-as-Memory Local-First Sync)
-
-构建面向桌面端、单机开发者与沙箱持久卷的人类可读 Markdown 记忆存储与双向透明同步体系：
-
-- **目录拓扑与文件即记忆规范（`FileMemoryTopology`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
-  - `MEMORY.md`：存放全局核心偏好、编码规范与身份画像；在会话中作为高稳定性系统级上下文注入，保持服务端 KV Cache 前缀稳定；
-  - `memory/daily/YYYY-MM-DD.md`：存放日常任务情景事件与执行笔记，按日期分片存储，便于人类使用任意纯文本编辑器直接查看与修改；
-  - `memory/archive/`：长期归档与历史记忆冷备。
-- **宽容 Markdown 容错流式解析器（`LenientMarkdownParser`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.parser`；
-  - 纯状态机单遍流式扫描，零重量级三方依赖；
-  - 宽容剥离 YAML Frontmatter 头，并精确维护 1-based 物理起始与结束行号（`line_start`, `line_end`）；
-  - 自动识别 Markdown 多级标题语义，推断记忆条目分类（RULE, PREFERENCE, EPISODIC, PROCEDURAL, GENERAL）并生成确定性 SHA-256 内容指纹。
-- **物理文件安全存储与极速保鲜探针（`FileMemoryStore`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.store`；
-  - **原子落盘保障（`write_atomic`）**：通过同目录独立临时文件结合 `os.fsync` 与操作系统原子重命名原语 `os.replace` 写入，彻底免疫多进程并发写时文件损坏或半截断；
-  - **微秒级保鲜探针（`get_file_freshness`）**：基于 `os.stat` 探测文件纳秒修改时间戳与体积，单次探测耗时实测 $<0.05\text{ms}$，在会话入口拦截无外部变更时零额外磁盘读取与解析开销；
-  - **按天笔记追加（`append_daily_note`）**：提供格式规范的日常事件日志原子追加。
-- **双向增量同步引擎（`FileMemorySyncEngine`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.sync`；
-  - **会话前惰性检查（`check_and_sync_on_ingress`）**：在用户会话进入前自动检测外部人工对 `MEMORY.md` 的编辑，识别新增或修改段落，并向底层 `MemoryManager` 增量写入条目（带 `file:` 来源与 `cat:` 类别标签）；
-  - **会话中事件原子沉淀（`persist_episodic_note`）**：Agent 在执行复杂多步骤任务后，将所得情景经验原子追加至磁盘 `memory/daily/`，并同步索引至底层向量库。
-- **溯源锚点（`FileMemoryEntry.to_anchor()`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.file_sync.models`；
-  - 生成 `[source: MEMORY.md#L15-L18]` 形式的标准物理溯源标签（单行条目折叠为 `#L15`）；管理器没有 `add_knowledge` 时，同步引擎经 `store` 入库并把该标签写入元数据的 `anchor` 字段。
-- **开箱即用装配工厂（`setup_local_file_memory_sync`）**：
-  - 核心位置：`myrm_agent_harness.toolkits.memory.setup`；
-  - 一键完成目录拓扑初始化、文件存储层与双向同步引擎绑定，无缝支持 Local、Desktop 与 Sandbox 独立持久化卷环境。
-
----
-
 ## 二十二、三域九类认知拓扑与 L0/L1/L2 渐进式披露 (Domain Mesh & Progressive Drill-down)
 
 全量召回长期记忆会浪费 Token 并稀释模型注意力，因此记忆条目带域归属与三层详略，由检索工具按需展开：
@@ -1207,7 +1177,7 @@ rating_new = rating_old + alpha * (normalized - rating_old)
   - `infer_domain_and_category` 按记忆类型、事件类型与偏好类型启发式归类，`BaseMemory.domain` / `domain_category`（`types/base.py`）持久化该归属。
 - **L0/L1/L2 渐进式披露**：
   - 字段位于 `BaseMemory`（`types/base.py`）：`summary_l0`（L0 语义锚点，缺省取正文前 120 字）、`overview_l1`（L1 结构化概览）、`content`（L2 完整原文）；
-  - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py`）；
+  - 检索工具 `memory_search_tool` 的 `detail_level` 默认为 `overview`：命中项渲染 L1 概览并附按 ID 展开的提示，`detail_level='full'` 按 `memory_id` 取回完整原文（`agent_surface/memory_search_execution.py` 取回，`memory_recall_formatting.py` 的 `format_drill_down_output` 输出，同样经 recall sanitize 与静态 untrusted 前言）；
 - **持久化与注入（生产路径）**：`setup.create_local_memory_manager` 使用 `SQLiteRelationalStore` + Qdrant；注入块的预算见 `memory_context_budget.render_budgeted_sections`；画像字符水位见 `profile_notes/watermark_governor`；写入去重与冲突/取代见 `strategies/deduplicator.SmartDeduplicator`（含 `strategies/merger.DeterministicThreeStateMerger`）与向量 metadata `superseded`（检索过滤见 `_internal/search_service`）。
 - **服务端接口与前端双端自适应可视化闭环**：
   - Server 端（`app/api/memory/operations/domain_mesh.py`，前缀 `/domain-mesh`）提供强类型 REST 路由：`GET /overview`（三域统计与 L0/L1 预览）、`GET /drill-down/{memory_id}`（按需提取 L2 原文）；

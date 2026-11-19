@@ -84,9 +84,6 @@ class TestDiagnosticResultSerialization:
         test_cases = [
             ("en", "en"),
             ("zh-CN", "zh-CN"),
-            ("ja", "ja"),
-            ("ko", "ko"),
-            ("de", "de"),
         ]
 
         for request_locale, expected_locale in test_cases:

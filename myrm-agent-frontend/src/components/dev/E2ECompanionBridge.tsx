@@ -4,25 +4,20 @@
  * [INPUT]
  * - @/store/useCompanionStore (POS: pet palette + doctor expand pending)
  * - @/store/useFeatureGateStore (POS: companion_mode feature gate)
+ * - @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫)
  *
  * [OUTPUT]
  * - E2ECompanionBridge: localhost dev-only `window.__MYRM_E2E_COMPANION__` for CDP Chrome E2E
  *
  * [POS]
  * App shell dev bridge for companion health-check UI signoff (non-terminal-user feature).
+ * AppLayout renders it only in non-production builds.
  */
 import { useLayoutEffect } from 'react';
 
+import { isLocalDevHost } from '@/components/dev/localDevHost';
 import useCompanionStore from '@/store/useCompanionStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
-
-function isLocalDevHost(): boolean {
-  if (typeof window === 'undefined') {
-    return false;
-  }
-  const host = window.location.hostname;
-  return host === '127.0.0.1' || host === 'localhost';
-}
 
 function enableCompanionModeForE2e(): void {
   const gate = useFeatureGateStore.getState();

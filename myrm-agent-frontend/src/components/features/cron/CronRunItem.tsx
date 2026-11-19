@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import CronRunBlockedActions from './CronRunBlockedActions';
 import CronRunSteps from './CronRunSteps';
-import { formatDuration, formatTime, skipReasonLabelKey } from './cron-utils';
+import { formatDuration, formatTime, skipReasonLabelKey, triggerSourceLabelKey } from './cron-utils';
 
 interface CronRunItemProps {
   run: CronRun;
@@ -31,6 +31,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const hasContent = !!(run.output || run.error) || blockedCount > 0;
   const skipLabelKey = isSkipped ? skipReasonLabelKey(run.output) : undefined;
   const displayOutput = skipLabelKey ? t(skipLabelKey) : run.output;
+  const sourceLabelKey = run.trigger_source ? triggerSourceLabelKey(run.trigger_source) : undefined;
   const verification = run.metadata?.verification;
   const monitorContractError = run.metadata?.monitor_contract_error;
   const monitorContractErrorLabel =
@@ -129,7 +130,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
           {run.trigger_source && run.trigger_source !== 'cron' && (
             <span className="inline-flex items-center gap-0.5 text-[10px] text-cyan-600 dark:text-cyan-400 bg-cyan-500/10 rounded px-1 py-0.5">
               <Zap className="h-2.5 w-2.5" />
-              {run.trigger_source}
+              {sourceLabelKey ? t(sourceLabelKey) : run.trigger_source}
             </span>
           )}
 

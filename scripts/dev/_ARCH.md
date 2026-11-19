@@ -2,7 +2,7 @@
 
 ## 架构概述
 
-本地开发启动脚本。由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm dev` / `myrm start`）。
+本地开发启动脚本。`setup` / `start` 由根 `scripts/myrm` / `myrm.ps1` 分发调用，不直接暴露给终端用户（用户使用 `myrm setup` / `myrm start`）；仅后端的 `dev.sh` 不在 Unix 用户命令里，由开发者 CLI `./myrm-dev dev` 调用，运行时命名空间是 `shared`（:28080，不是用户栈的 :8080；Windows 的 `myrm.ps1 dev` 分发 `dev.ps1`，固定 :8080）。
 
 **职责边界**：本目录只放 **栈启动/守门**、**MCP Chrome UI E2E 胶水** 与 **ChromeAgent 的消费侧**（`_ARCH.md` 文件表内条目）。ChromeAgent 本体（`:9410` 服务、`chrome-agent` CLI、代理源码与测试）是机器级服务，在独立项目中维护，由它安装与升级（`chrome-agent upgrade`）；本仓只经 `chrome-agent` CLI（`lib/chrome_agent_cli.sh` 定位）和 `:9410` 端点使用它，不含其运行时源码。可重复的 API/契约验证一律在 `myrm-agent-server/tests/`（`./myrm-dev test` / `./myrm-dev test -m chrome_e2e`），禁止在此新增「半 pytest」一次性联调脚本。**Dev Gate 基建 pytest 唯一根**在维护者 monorepo 的 `scripts/dev/tests/`（不在本仓内）。
 
@@ -30,13 +30,13 @@
 | `verify-frontend-dev-pause-gate.sh` | Unix | frontend dev pause 集成验收：dev-stack SKIP · warm_ui `paused_skip` · `dev.ts` refuse · 暂停期裸 `bunx next dev` 由 pause gate 拦下（断言只认 `paused`，不让下一条的拒绝顶替）且退出后端口空闲 · clear-pause · 无暂停的裸 `bunx next dev` 被 `dev-supervision-gate.ts` 拒绝（`not started by`）且不留监听（`FRONTEND_PAUSE_GATE_OK/FAIL`）；脚本在自己的 namespace / state dir / 端口（`:13099`）下运行，裸启动用独立 dist 目录 `.next-isolated-<namespace>`（被误放行时也不碰共享 dev 栈的 `.next-dev`），paused 回收不会碰共享 dev 栈或用户栈 |
 | `runtime-drift.sh` | Unix | 机械校验 `runtimeId` 未漂移（`--expect`；exit 2 = `RUNTIME_DRIFT`） |
 | `wave-e2e-lease.sh` | Unix | `./myrm-dev test -m chrome_e2e` LIVE_AGENT/READ 租约；最后一个 lease 释放时原子关闭 Wave |
-| `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 monorepo `scripts/dev/ready.sh` 与 `scripts/dev/isolated_runtime/reaper.py`（reaper.py:102 直调）、本仓 `lib/e2e_core/stack_mutation_policy.py` / `lib/chrome_e2e/gates/lease_gate.py` 调用 |
+| `wave.sh` | Unix | Wave orchestrator CLI 入口（open/close/status、lease acquire/release、STACK_WRITE gate）；委托 `python -m wave_orchestrator.cli`；被 monorepo `scripts/dev/ready.sh` 与 `scripts/dev/isolated_runtime/cleanup.py`（释放 Wave 租约时直调）、本仓 `lib/e2e_core/stack_mutation_policy.py` / `lib/chrome_e2e/gates/lease_gate.py` 调用 |
 | `wave_orchestrator/` | Unix | Immutable test wave + READ lease + reset 门禁；见 [wave_orchestrator/_ARCH.md](wave_orchestrator/_ARCH.md) |
 | `chrome-e2e-preflight.sh` | Unix | 本体留全局配置、少量共用函数（`fail`/`ok` 等）与各文件的 `source` 顺序，其余函数与步骤拆在 `lib/chrome_e2e_preflight/*.sh`（见 [lib/_ARCH.md](lib/_ARCH.md)）；首 Agent 完整 reconcile/client_hot；检查服务、专用 Chrome :9333、CDP 和 Browser Orchestrator；formal E2E 使用 `ensure-browser-orchestrator.sh` 单实例 daemon，输出 `CHROME_E2E_HEALTH_JSON`；`_mux_owned_pids` 只认命令行为 `cdmcp-mux-autoconnect` 的 `daemon.pid`（pid 被回收则忽略）；诊断 mux 只在 `MYRM_CHROME_MCP_DIAGNOSTIC=1` 下显式使用 |
 | `desktop-tcc-recover.sh` | Unix | macOS desktop E2E 授权链恢复：探针 `/webui/desktop/permissions`，AX 缺失时仅 TERM **本栈启动的**端口 owner（环境戳校验；owner 不是本栈启动的则 `TCC_FAIL` 且不动它）并经 `_start_backend_bg` 从当前已授权 shell 冷启（幂等：AX 已授权则零动作）；被 desktop approval runner 中途哨兵指引引用 |
 | `chrome-e2e-model-seed.mjs` | Bun | 新对话 UI E2E 前置：无 defaultModel 时从 `.env.test` 写入 providers |
 | `chrome-e2e-seed-providers.mjs` | Bun | seed 逻辑模块（local 模式免 WebUI 登录；已有 default 时幂等 reconcile `BASIC_MODEL` + `LITE_MODEL` provider catalog、`liteModel.primary` 与 **`apiUrl`/`apiKey`/`name`**，避免复用私池数据库后缺少 openai-like provider 或仍指向旧 gateway） |
-| `wave-resource-lease.sh` | Unix | `./myrm` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
+| `wave-resource-lease.sh` | Unix | `./myrm-dev` E2E 脚本 RESOURCE_WRITE/GLOBAL_WRITE 租约 + release 自动 ledger 清理 |
 | `subagent-dashboard-e2e-auth.mjs` | 双平台 | P2c E2E 共享 WebUI login + authenticated fetch |
 | `subagent-dashboard-e2e-prepare.mjs` | 双平台 | P2c prepare：seed、创建 chat、`registerWaveLedger`、SSE delegate → JSON |
 | `moa-overlay-e2e-prepare.mjs` | 双平台 | MoA overlay prepare：临时 Agent（`moa_overlay`）、PATCH `active-moa-preset`、`agent-stream` 带 `active_moa_preset_id`、断言 SSE `moa_overlay_active` + `moa_ref_done` → JSON；Env：`E2E_API_BASE` / `E2E_UI_BASE` / `E2E_MOA_PRESET_ID` |

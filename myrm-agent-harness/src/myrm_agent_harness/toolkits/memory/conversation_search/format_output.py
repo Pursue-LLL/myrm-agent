@@ -132,7 +132,7 @@ async def format_conversation_search_response(
 
 
 def format_conversation_hit(index: int, hit: ConversationSearchHit, *, is_expanded: bool = False) -> str:
-    title = hit.title or "Untitled conversation"
+    title = sanitize_recalled_content(hit.title or "Untitled conversation")
     when = format_time(hit.updated_at or hit.created_at)
     header = f"{index}. {title} (conversation_id: {hit.conversation_id}, score: {hit.score:.2f}, source: {hit.source}"
     if hit.message_id:
@@ -175,18 +175,32 @@ def source_ref(hit: ConversationSearchHit, *, is_expanded: bool = False) -> dict
     return {key: value for key, value in ref.items() if value is not None}
 
 
+# A multi-line secret is only masked when the redactor sees it whole, so the text is redacted with this much raw
+# lookahead past the visible limit before it is cut. The rest is never read, so the cost does not grow with the text.
+_REDACT_LOOKAHEAD_CHARS = 16_000
+# The window edge can cut a secret as well, leaving its start unmasked at the end of the redacted window. That stretch
+# is dropped unseen. It is longer than a PEM RSA-8192 private key (about 6.5k chars); a block longer than the guard can
+# still leave its start visible.
+_WINDOW_EDGE_GUARD_CHARS = 8_000
+
+
 def _safe_bounded(text: str, max_chars: int) -> str:
-    bounded_text = bounded(text, max_chars)
-    if not bounded_text:
-        return ""
-    return sanitize_recalled_content(bounded_text)
+    """Redact a bounded window of the text, collapse its whitespace, then cut it to ``max_chars``.
 
-
-def bounded(text: str, max_chars: int) -> str:
-    value = " ".join(text.split())
-    if len(value) <= max_chars:
-        return value
-    return f"{value[:max_chars].rstrip()}..."
+    Redaction reads the text as stored, line breaks included, because some patterns are anchored to a line. The cut
+    follows redaction, so a credential it would split is already masked. Truncation is decided on the redacted
+    length: a block that redaction shrinks below the limit is shown whole.
+    """
+    window = text[: max_chars + _REDACT_LOOKAHEAD_CHARS]
+    safe = sanitize_recalled_content(window)
+    truncated = len(window) != len(text)
+    if truncated:
+        safe = safe[:-_WINDOW_EDGE_GUARD_CHARS]
+    safe = " ".join(safe.split())
+    clipped = safe[:max_chars]
+    if truncated or len(clipped) != len(safe):
+        return f"{clipped.rstrip()}..."
+    return safe
 
 
 def format_time(value: datetime | None) -> str:

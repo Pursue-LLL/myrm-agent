@@ -107,105 +107,6 @@ class TestLocaleComprehensive:
 
                 assert error_found, "Expected error event but none received"
 
-    def test_japanese_locale(self, client: TestClient) -> None:
-        """Test Japanese locale propagation"""
-        message_id = str(uuid.uuid4())
-        chat_id = str(uuid.uuid4())
-
-        request_body = {
-            "query": "日本語テスト",
-            "message_id": message_id,
-            "chat_id": chat_id,
-            "action_mode": "fast",
-            "model_selection": get_model_selection(),
-            "timezone": "Asia/Tokyo",
-            "locale": "ja",
-        }
-
-        print("\n=== Test Japanese Locale ===")
-
-        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
-            assert response.status_code == 200
-            event_count = 0
-            for line in response.iter_lines():
-                if line and line.startswith("data: "):
-                    try:
-                        data = json.loads(line[6:])
-                        event_count += 1
-                        if data.get("type") == "message_end":
-                            break
-                    except json.JSONDecodeError:
-                        continue
-
-            assert event_count > 0
-            print(f"✓ Japanese locale accepted, {event_count} events received")
-
-    def test_korean_locale(self, client: TestClient) -> None:
-        """Test Korean locale propagation"""
-        message_id = str(uuid.uuid4())
-        chat_id = str(uuid.uuid4())
-
-        request_body = {
-            "query": "한국어 테스트",
-            "message_id": message_id,
-            "chat_id": chat_id,
-            "action_mode": "fast",
-            "model_selection": get_model_selection(),
-            "timezone": "Asia/Seoul",
-            "locale": "ko",
-        }
-
-        print("\n=== Test Korean Locale ===")
-
-        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
-            assert response.status_code == 200
-            event_count = 0
-            for line in response.iter_lines():
-                if line and line.startswith("data: "):
-                    try:
-                        data = json.loads(line[6:])
-                        event_count += 1
-                        if data.get("type") == "message_end":
-                            break
-                    except json.JSONDecodeError:
-                        continue
-
-            assert event_count > 0
-            print(f"✓ Korean locale accepted, {event_count} events received")
-
-    def test_german_locale(self, client: TestClient) -> None:
-        """Test German locale propagation"""
-        message_id = str(uuid.uuid4())
-        chat_id = str(uuid.uuid4())
-
-        request_body = {
-            "query": "Deutsche Test",
-            "message_id": message_id,
-            "chat_id": chat_id,
-            "action_mode": "fast",
-            "model_selection": get_model_selection(),
-            "timezone": "Europe/Berlin",
-            "locale": "de",
-        }
-
-        print("\n=== Test German Locale ===")
-
-        with client.stream("POST", "/api/v1/agents/agent-stream", json=request_body) as response:
-            assert response.status_code == 200
-            event_count = 0
-            for line in response.iter_lines():
-                if line and line.startswith("data: "):
-                    try:
-                        data = json.loads(line[6:])
-                        event_count += 1
-                        if data.get("type") == "message_end":
-                            break
-                    except json.JSONDecodeError:
-                        continue
-
-            assert event_count > 0
-            print(f"✓ German locale accepted, {event_count} events received")
-
     def test_unsupported_locale_fallback(self, client: TestClient) -> None:
         """Test unsupported locale falls back to English"""
         message_id = str(uuid.uuid4())
@@ -351,9 +252,6 @@ if __name__ == "__main__":
     print("Running comprehensive locale tests...")
     test_instance.test_real_llm_error_with_chinese_locale(test_client)
     test_instance.test_real_llm_error_with_english_locale(test_client)
-    test_instance.test_japanese_locale(test_client)
-    test_instance.test_korean_locale(test_client)
-    test_instance.test_german_locale(test_client)
     test_instance.test_unsupported_locale_fallback(test_client)
     test_instance.test_empty_locale(test_client)
     test_instance.test_very_long_locale_string(test_client)

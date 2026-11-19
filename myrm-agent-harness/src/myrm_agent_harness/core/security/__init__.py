@@ -47,7 +47,6 @@ from myrm_agent_harness.core.security.remote_ops_ledger import (
 from myrm_agent_harness.core.security.spend_governance import (
     DEFAULT_SPEND_SALT,
     SpendPolicy,
-    SpendReceipt,
     compute_action_digest,
     compute_script_content_hash,
     extract_script_file_target,
@@ -73,7 +72,6 @@ __all__ = [
     "RemoteOpsActionRecord",
     "SemanticsCategory",
     "SpendPolicy",
-    "SpendReceipt",
     "compute_action_digest",
     "compute_action_fingerprint",
     "derive_recovery_hint",

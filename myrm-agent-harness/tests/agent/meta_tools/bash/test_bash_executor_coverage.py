@@ -378,7 +378,6 @@ async def test_spawn_background_registers_process() -> None:
     executor = _mock_code_executor()
     proc = MagicMock()
     executor.spawn_background_process = AsyncMock(return_value=proc)
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
     fake_info = MagicMock(pid=4242, command="sleep 1", status="running")
@@ -682,7 +681,6 @@ async def test_spawn_background_strips_fence_and_handles_quota() -> None:
     proc = MagicMock()
     proc.kill = MagicMock()
     executor.spawn_background_process = AsyncMock(return_value=proc)
-    executor.bind_workspace = MagicMock()
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
 

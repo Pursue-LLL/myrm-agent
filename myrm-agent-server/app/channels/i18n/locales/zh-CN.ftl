@@ -39,6 +39,9 @@ permission_denied =  权限不足：`/{ $cmd }` 需要管理员权限。
 usage_steer = 用法：`/steer <新指令>`
 steering_applied = 指令已应用：_{ $preview }_
 steer_requester_only = 只有发起本次运行的人才能调整它。
+steering_unread =
+    本次运行在读到你的指令之前就结束了，该指令未被应用。如仍需要，请重新发送：
+    { $instructions }
 usage_queue = 用法：`/queue <任务描述>`
 queue_queued = 已排队，将在当前任务完成后执行。
 queue_immediate = 当前没有运行中的任务 — 立即执行。
@@ -84,7 +87,6 @@ goal_wait =
     使用 `/goal unwait` 恢复。
 goal_unwait = 目标已从等待恢复：**{ $objective }**
 goal_not_waiting = 目标未处于等待状态。
-goal_wait_not_supported = 当前环境不支持等待模式。
 goal_resumed = 目标已恢复：**{ $objective }**
 goal_cleared = 目标已清除：**{ $objective }**
 goal_cannot_resume = 无法恢复处于「{ $status }」状态的目标。
@@ -187,6 +189,8 @@ cron_notice_expired_message =
     已到结束时间，已自动暂停。
 cron_notice_max_fires_message =
     已执行 { $max_fires } 次，达到执行次数上限，已自动暂停。
+cron_notice_failure_message =
+    遇到无法自行恢复的问题，已自动暂停。请查看运行历史，处理后再恢复。
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }
@@ -377,7 +381,6 @@ cmd_quota = 查看当前每日对话额度与使用状态
 cmd_help = 显示可用命令
 cmd_memo = 把语音备忘或会议记录拆解为纪要、待办与记忆
 cmd_review-week = 把本周语音备忘、会议笔记与看板阻塞项综合成管理层周报
-cmd_design-image = 用结构化的 Prompt-as-Code 原子视觉模式合成商业级图片
 cat_Session = 会话
 cat_Configuration = 配置
 cat_Topic = 话题
@@ -429,7 +432,6 @@ cmd_memory = 查看并审批待确认的记忆写入
 cmd_learn = 从 URL、文件或对话中教 Agent 学习新技能
 cat_Memory = 记忆
 cat_Skills = 技能
-cat_Creation = 创作
 cat_Productivity = 效率
 learn_not_configured = ℹ 当前环境未配置技能学习功能。
 learn_failed = ❌ 构建学习提示失败，请重试。

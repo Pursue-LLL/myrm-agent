@@ -110,7 +110,7 @@ _SELECT_PATTERN_SCOPE_JS = """(async () => {
       const options = Array.from(document.querySelectorAll('[role="option"]'));
       patternOption =
         options.find((opt) =>
-          /Similar Commands|相似命令|類似コマンド|유사 명령|Ähnliche Befehle/.test(opt.textContent || ''),
+          /Similar Commands|相似命令/.test(opt.textContent || ''),
         ) || null;
     }
     if (patternOption) {
@@ -150,7 +150,7 @@ _SELECT_DURATION_JS = """(async () => {
     if (!option) {
       const options = Array.from(document.querySelectorAll('[role="option"]'));
       option =
-        options.find((opt) => /1 Hour|1 小时|1時間|1시간/.test(opt.textContent || '')) || null;
+        options.find((opt) => /1 Hour|1 小时/.test(opt.textContent || '')) || null;
     }
     if (option) {
       option.click();

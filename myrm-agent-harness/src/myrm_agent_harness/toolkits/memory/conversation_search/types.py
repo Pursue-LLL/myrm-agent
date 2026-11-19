@@ -9,6 +9,7 @@ ConversationSourceRef: UI-safe source reference for one recalled conversation.
 ConversationSearchHit: one conversation-level recall result.
 ConversationIndexCoverage: index coverage and backfill metrics DTO.
 ConversationSearchResponse: provider response envelope.
+MAX_CONVERSATION_SEARCH_LIMIT, MAX_SNIPPET_CHARS, MAX_EXPANDED_SNIPPET_CHARS, MAX_SUMMARY_CHARS, MAX_TOOL_OUTPUT_CHARS: request and output size limits of conversation recall (result cap, snippet, expanded snippet, summary and tool-output budgets).
 
 [POS]
 Conversation recall type definitions. Provides storage-agnostic DTOs for exact snippets, precomputed summaries,
@@ -37,7 +38,10 @@ ConversationSourceType = Literal["conversation_history"]
 
 
 class ConversationSourceRef(BaseModel):
-    """UI-safe source reference for a recalled conversation."""
+    """UI-safe source reference for a recalled conversation.
+
+    ``snippet`` is display text, which the host may escape and highlight; it never goes into the model's context.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -93,7 +97,12 @@ class ConversationSearchRequest(BaseModel):
 
 
 class ConversationSearchHit(BaseModel):
-    """One conversation-level recall hit."""
+    """One conversation-level recall hit.
+
+    ``snippet`` is plain text: no HTML escaping and no highlight markup. A provider that cuts it out of a longer text
+    redacts the stretch around the cut first, long enough to hold a whole credential, because a credential the cut
+    splits no longer matches the redactor's patterns; the formatter redacts it again before it applies its own limit.
+    """
 
     model_config = ConfigDict(extra="forbid")
 

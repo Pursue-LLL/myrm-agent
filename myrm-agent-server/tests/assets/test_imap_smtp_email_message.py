@@ -15,7 +15,9 @@ trace, so a single such message would blind ``check``, ``search``, ``read`` and 
   body that does decode changes, when whitespace between encoded words is kept or dropped other than as RFC 2047 says,
   when a message id with raw UTF-8 bytes is not left out of the ids a threading header takes, or when an attachment is
   not named by its ``Content-Disposition`` or, failing that, its ``Content-Type``, or when an attached message is written out
-  through the stock header folding, which on some interpreters cuts a header at a vertical tab or a file separator
+  through the stock header folding, which on some interpreters cuts a header at a vertical tab or a file separator, or
+  when a summary leaves out the addresses a reply goes to although they are not the sender's, or lists them when the
+  reply goes to the sender
 
 [POS]
 Message-decoding test of the prebuilt skill script, next to ``test_imap_smtp_email_commands.py``, which covers the
@@ -96,6 +98,57 @@ def test_a_summary_of_a_message_with_a_malformed_subject_still_lists_it(message:
     assert summary["uid"] == 7
     assert summary["from"] == "eve@example.test"
     assert summary["subject"] == "=?utf-8?b?A?="
+
+
+def _parse(headers: dict[str, str]) -> email.message.Message:
+    fields = {"From": "eve@example.test", "Subject": "invoice", **headers}
+    return email.message_from_bytes("".join(f"{name}: {value}\r\n" for name, value in fields.items()).encode() + b"\r\nbody\r\n")
+
+
+@pytest.mark.parametrize(
+    ("headers", "reply_to"),
+    [
+        pytest.param({"Reply-To": "attacker@evil.test"}, "attacker@evil.test", id="another-domain"),
+        pytest.param(
+            {"Reply-To": "Ann <ann@other.test>, bob@other.test"}, "ann@other.test, bob@other.test", id="several-addresses"
+        ),
+        pytest.param({"Reply-To": "发票 <attacker@evil.test>"}, "attacker@evil.test", id="a-name-with-raw-utf-8-bytes"),
+        pytest.param({"From": "a@x.test, b@y.test", "Reply-To": "c@z.test"}, "c@z.test", id="wins-over-several-from-addresses"),
+        pytest.param(
+            {"Reply-To": "eve@example.test, attacker@evil.test"},
+            "eve@example.test, attacker@evil.test",
+            id="the-sender-and-another",
+        ),
+    ],
+)
+def test_a_summary_names_where_a_reply_goes_when_that_is_not_the_sender(
+    message: ModuleType, headers: dict[str, str], reply_to: str
+) -> None:
+    """``reply`` answers every ``Reply-To`` address, so the listing the user confirms a reply from has to show them."""
+    parsed = _parse(headers)
+
+    summary = message.message_summary(parsed, 7)
+
+    assert summary["reply_to"] == reply_to
+    assert summary["reply_to"] == message.reply_recipients(parsed)
+    assert json.loads(json.dumps(summary, ensure_ascii=False))["reply_to"] == reply_to
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [
+        pytest.param({}, id="no-reply-to"),
+        pytest.param({"Reply-To": "eve@example.test"}, id="the-sender"),
+        pytest.param({"Reply-To": "EVE@Example.Test"}, id="the-sender-in-other-case"),
+        pytest.param({"Reply-To": "Eve Smith <eve@example.test>"}, id="the-sender-with-a-name"),
+        pytest.param({"Reply-To": ""}, id="empty"),
+        pytest.param({"Reply-To": "<>"}, id="no-address"),
+    ],
+)
+def test_a_summary_leaves_reply_to_out_when_a_reply_goes_to_the_sender(message: ModuleType, headers: dict[str, str]) -> None:
+    summary = message.message_summary(_parse(headers), 7)
+
+    assert "reply_to" not in summary
 
 
 @pytest.mark.parametrize(

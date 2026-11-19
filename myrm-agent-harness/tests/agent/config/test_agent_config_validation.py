@@ -95,21 +95,3 @@ def test_default_values():
     assert config.timeout_seconds is None
     assert config.system_prompt is None
     assert config.enable_artifacts is False
-
-
-def test_from_env_backward_compatibility():
-    """测试 from_env() 向后兼容性"""
-    import os
-
-    os.environ["MYRM_MODEL_NAME"] = "gpt-4"
-    os.environ["MYRM_API_KEY"] = "test-key"
-    os.environ["MYRM_RECURSION_LIMIT"] = "100"
-
-    try:
-        config = AgentConfig.from_env()
-        assert config.llm.model == "gpt-4"
-        assert config.recursion_limit == 100
-    finally:
-        del os.environ["MYRM_MODEL_NAME"]
-        del os.environ["MYRM_API_KEY"]
-        del os.environ["MYRM_RECURSION_LIMIT"]

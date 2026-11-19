@@ -82,23 +82,28 @@ class BaseAgentParams(BaseModel):
 
 
 class ImageGenerationParams(BaseModel):
-    """Image generation configuration passed from frontend/config."""
+    """Image generation configuration passed from frontend/config.
 
-    model: str = "dall-e-3"
+    ``model`` is whatever the user picked; ``None`` means nothing is picked and no model is assumed.
+    """
+
+    model: str | None = None
     api_key: str | None = None
     fallback_models: list[str] = Field(default_factory=list)
     default_size: str = "1024x1024"
-    default_quality: str = "standard"
     timeout_seconds: int = 120
     max_retries: int = 1
     gateway_config: dict[str, object] | None = None
 
 
 class VideoGenerationParams(BaseModel):
-    """Video generation configuration passed from frontend/config."""
+    """Video generation configuration passed from frontend/config.
 
-    provider: str = "openai"
-    model: str = "sora"
+    ``provider`` and ``model`` are what the user picked; ``None`` means nothing is picked and none is assumed.
+    """
+
+    provider: str | None = None
+    model: str | None = None
     api_key: str | None = None
     fallback_providers: list[dict[str, str]] = Field(default_factory=list)
     timeout_seconds: int = 300
@@ -110,11 +115,14 @@ class VideoGenerationParams(BaseModel):
 
 
 class TTSParams(BaseModel):
-    """TTS configuration passed from frontend/config."""
+    """TTS configuration passed from frontend/config.
 
-    provider: str = "openai"
-    model: str = "tts-1"
-    voice: str = "alloy"
+    ``provider``, ``model`` and ``voice`` are what the user picked; ``None`` means nothing is picked and none is assumed.
+    """
+
+    provider: str | None = None
+    model: str | None = None
+    voice: str | None = None
     api_key: str | None = None
     timeout_seconds: int = 60
     max_retries: int = 1
@@ -212,7 +220,6 @@ class GeneralAgentParams(BaseAgentParams):
     # Optional dedicated session ID for event logs (e.g. cron:job-id:YYYY-MM-DD); fallbacks to chat_id if None
     event_log_session_id: str | None = None
     locale: str | None = None
-    prompt_locale: str | None = None
     max_iterations: int | None = None
     memory_policy: AgentMemoryPolicy | None = None
     memory_recall_mode: RecallMode = RecallMode.HYBRID

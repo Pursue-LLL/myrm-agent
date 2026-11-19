@@ -1,31 +1,27 @@
 """[INPUT]
-- myrm_agent_harness.toolkits.llms.tts.tts_engine::AsyncTTSEngine (POS: TTS synthesis engine)
+- myrm_agent_harness.toolkits.llms.tts.generator::AsyncTTSEngine (POS: TTS synthesis engine)
+- myrm_agent_harness.toolkits.llms.tts.models::TTSConfig (POS: TTS engine config)
 
 [OUTPUT]
 - create_tts_tool(): LangChain BaseTool adapter for text-to-speech
 
 [POS]
-LangChain adapter for harness AsyncTTSEngine (product layer).
+LangChain adapter for harness AsyncTTSEngine (product layer). The engine stores the audio before it answers, and the
+result carries the audio's ``media://`` reference: the call reports success only with a stored reference.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable
-from typing import Any
 
 from langchain_core.callbacks import CallbackManagerForToolRun
 from langchain_core.tools import BaseTool
-from myrm_agent_harness.core.artifacts.constants import ArtifactType
 from myrm_agent_harness.toolkits.llms.tts.generator import AsyncTTSEngine
 from myrm_agent_harness.toolkits.llms.tts.models import TTSConfig
 from pydantic import BaseModel, Field, PrivateAttr
 
 logger = logging.getLogger(__name__)
-
-ArtifactPushFn = Callable[[str, str, ArtifactType, str], None]
-
 
 MAX_TTS_TEXT_LENGTH = 1500
 
@@ -48,6 +44,10 @@ class TTSInput(BaseModel):
     )
 
 
+def _error(message: str) -> str:
+    return json.dumps({"status": "error", "error": message}, ensure_ascii=False)
+
+
 class TTSTool(BaseTool):
     """Tool for generating speech from text."""
 
@@ -55,24 +55,16 @@ class TTSTool(BaseTool):
     description: str = (
         "Generate natural spoken speech (audio) from text. "
         "Use this when the user asks to read something out loud, synthesize voice narration, or generate a voice message. "
-        "Returns a persistent audio URL and an audio artifact."
+        "The audio appears in the chat by itself, so never repeat its media:// address in your reply."
     )
     args_schema: type[BaseModel] = TTSInput
 
     config: TTSConfig = Field(exclude=True)
     _engine: AsyncTTSEngine = PrivateAttr()
-    _on_artifact_created: ArtifactPushFn | None = PrivateAttr(default=None)
 
-    def __init__(
-        self,
-        config: TTSConfig,
-        *,
-        on_artifact_created: ArtifactPushFn | None = None,
-        **kwargs: Any,
-    ) -> None:
-        super().__init__(config=config, **kwargs)
+    def __init__(self, config: TTSConfig) -> None:
+        super().__init__(config=config)
         self._engine = AsyncTTSEngine(config)
-        self._on_artifact_created = on_artifact_created
 
     def _run(
         self,
@@ -91,80 +83,38 @@ class TTSTool(BaseTool):
         """Asynchronously generate speech."""
         cleaned_text = text.strip()
         if not cleaned_text:
-            return json.dumps(
-                {"status": "error", "error": "Text content cannot be empty."},
-                ensure_ascii=False,
-            )
+            return _error("Text content cannot be empty.")
 
         if len(cleaned_text) > MAX_TTS_TEXT_LENGTH:
-            return json.dumps(
-                {
-                    "status": "error",
-                    "error": (
-                        f"Text length ({len(cleaned_text)} characters) exceeds the safe single-turn limit "
-                        f"of {MAX_TTS_TEXT_LENGTH} characters. Please summarize or chunk the text into smaller segments."
-                    ),
-                },
-                ensure_ascii=False,
+            return _error(
+                f"Text length ({len(cleaned_text)} characters) exceeds the safe single-turn limit "
+                f"of {MAX_TTS_TEXT_LENGTH} characters. Please summarize or chunk the text into smaller segments."
             )
 
         try:
             # Clamp style directives: Seed-Audio wraps them into a bounded text prompt.
             effective_style = (style or "").strip()[:200] or None
             result = await self._engine.generate(cleaned_text, style=effective_style)
-
-            out: dict[str, object] = {
-                "status": "success",
-                "provider": result.provider,
-                "model": result.model,
-                "latency_ms": round(result.latency_ms),
-            }
-            if result.duration_seconds is not None:
-                out["duration_seconds"] = round(result.duration_seconds, 1)
-            if result.persisted_url:
-                out["audio_url"] = result.persisted_url
-                out["message"] = (
-                    f"Successfully generated audio. URL: {result.persisted_url}"
-                )
-                self._push_artifact(result)
-            else:
-                out["message"] = (
-                    "Successfully generated audio, but failed to persist to URL."
-                )
-
-            return json.dumps(out, ensure_ascii=False)
         except Exception as e:
             logger.error("TTS generation failed: %s", e)
-            return json.dumps(
-                {"status": "error", "error": f"TTS generation failed: {e}"},
-                ensure_ascii=False,
-            )
+            return _error(f"TTS generation failed: {e}")
 
-    def _push_artifact(self, result: Any) -> None:
-        """Notify caller about the generated artifact via callback."""
-        if not self._on_artifact_created:
-            return
-        url = result.persisted_url
-        if not url:
-            return
-        from myrm_agent_harness.utils.mime_types import extension_for_mime
+        if not result.persisted_ref:
+            return _error("TTS generation failed: the audio was not stored")
 
-        ext = extension_for_mime(result.mime_type)
-        try:
-            self._on_artifact_created(
-                f"generated_{result.model}.{ext}",
-                url,
-                ArtifactType.AUDIO,
-                result.mime_type,
-            )
-        except Exception as exc:
-            logger.debug("Artifact push callback failed: %s", exc)
+        out: dict[str, object] = {
+            "status": "success",
+            "provider": result.provider,
+            "model": result.model,
+            "latency_ms": round(result.latency_ms),
+            "audio_url": result.persisted_ref,
+            "message": "Audio generated; it appears in the chat for the user to play.",
+        }
+        if result.duration_seconds is not None:
+            out["duration_seconds"] = round(result.duration_seconds, 1)
+        return json.dumps(out, ensure_ascii=False)
 
 
-def create_tts_tool(
-    config: TTSConfig,
-    *,
-    on_artifact_created: ArtifactPushFn | None = None,
-) -> TTSTool:
+def create_tts_tool(config: TTSConfig) -> TTSTool:
     """Wrap an AsyncTTSEngine config as a LangChain tool named ``tts_generate``."""
-    return TTSTool(config, on_artifact_created=on_artifact_created)
+    return TTSTool(config)

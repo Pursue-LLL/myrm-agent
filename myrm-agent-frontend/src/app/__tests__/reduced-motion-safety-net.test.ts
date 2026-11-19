@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * src/app/globals.css 全文。
+ * src/app/base.css 全文。
  * [OUTPUT]
  * Vitest: 全局 prefers-reduced-motion 兜底存在，且用的是「瞬时收尾」而不是「直接移除动画」的写法。
  * [POS]
@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+const BASE_CSS = readFileSync(resolve(process.cwd(), 'src/app/base.css'), 'utf8');
 
 /** 取出 `@media (prefers-reduced-motion: reduce)` 中命中通用选择器的那一段声明。 */
 function universalReducedMotionBlock(css: string): string | undefined {
@@ -21,7 +21,7 @@ function universalReducedMotionBlock(css: string): string | undefined {
 }
 
 describe('global prefers-reduced-motion safety net', () => {
-  const block = universalReducedMotionBlock(GLOBALS_CSS);
+  const block = universalReducedMotionBlock(BASE_CSS);
 
   it('runs on the universal selector, so no component animation can escape it', () => {
     expect(block).toBeDefined();

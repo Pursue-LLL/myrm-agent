@@ -196,7 +196,6 @@ def _kickoff_fast_search_js(prompt: str) -> str:
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const result = await bridge.sendChatMessage({json.dumps(prompt)}, {{
     baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
   return {{ ...result, usersBefore, chatId: bridge.turnSnapshot?.().chatId ?? result.chatId ?? null, streamRequestMessageId: bridge.debugProviderState?.()?.streamRequestMessageId ?? null }};
@@ -226,7 +225,6 @@ def _kickoff_fast_search_with_prep_js(search_depth: str, prompt: str) -> str:
   const usersBefore = bridge.turnSnapshot?.().userCount ?? 0;
   const result = await bridge.sendChatMessage({json.dumps(prompt)}, {{
     baselineUserCount: usersBefore,
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
   return {{
@@ -721,11 +719,12 @@ def _kickoff_debug_user_hint(kickoff: dict[str, object]) -> int:
 
 
 def _kickoff_api_verify_budget_sec(kickoff: dict[str, object]) -> float:
-    """Allow API persistence lag after sendTurnSealed while keeping API user-row hard anchor."""
+    """Time allowed for the REST re-read of the API user row of a kickoff."""
     debug = kickoff.get("debug")
     streaming = isinstance(debug, dict) and debug.get("streaming") is True
     ui_users = _kickoff_debug_user_hint(kickoff)
-    # E2EChatBridge live profile seals on uiProgress && (apiOk || streaming) — see sendTurnSealed.
+    # observeTurn seals only with UI progress and an API-side user row; the budgets below
+    # bound the REST re-read of that row.
     if kickoff.get("ok") is True and streaming:
         return 180.0
     if kickoff.get("ok") is True and ui_users >= 1:

@@ -76,7 +76,7 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 | `test_discord_stop_voice.py` | 停止时的语音离开：真实 `VoiceConnectionState`（只替换网络），覆盖网关永远不确认、某个公会在等待之前就卡住、网关正常确认、`stop()` 在等待中被取消四种情形；前两种在限时内返回，所有公会的套接字都已释放；另钉住语音离开上限小于网关停止上限 |
 | `test_discord_voice_manager_lifetime.py` | 语音管理器的生命周期：第二次 READY 沿用管理器及其会话（`stop()` 仍断开该会话一次）；被取消的 `stop()` 之后重启得到新管理器 |
 | `test_discord_voice_command_admission.py` | `/voice` 命令的发送者准入：命令先于判定应答（defer）、所有回复走 followup；被拒绝的调用者三个子命令都只收到仅自己可见的拒绝回复，不加入、不离开、不回报状态；判定未接线时拒绝所有人；所有者三个子命令照常；判定收到的消息字段（发送者、频道、群聊，不带 `user_id`）；拒绝记带频道的 WARNING；`join` / `leave` 另需所有者，未列为只读的动作同样（被准入的非所有者收到专用提示、不加入不离开，`status` 不受影响；所有者判定未接线时拒绝；被拒绝准入的调用者不再被问是否所有者；所有者判定收到的消息字段；真实路由器与策略下所有者、协作成员、启用群聊里未配对的成员三类调用者三个子命令各自的结果） |
-| `test_discord_voice_command_replies.py` | `/voice` 命令的回复：每条回复取自渠道目录，按调用者的 Discord 语言渲染（`en-US` / `en-GB` 为英文，`zh-CN` / `zh-TW` / `ja` 为本地化，未收录的语言回退英文，频道名原样保留）；覆盖语音未启用、私聊、未给频道、加入成功与失败、离开（含重连中的会话）、状态、拒绝；没有会话时 `leave` 回复不在语音频道，且不调用离开 |
+| `test_discord_voice_command_replies.py` | `/voice` 命令的回复：每条回复取自渠道目录，按调用者的 Discord 语言渲染（`en-US` / `en-GB` 为英文，`zh-CN` 与 `zh-TW` 为中文，未收录的语言回退英文，频道名原样保留）；覆盖语音未启用、私聊、未给频道、加入成功与失败、离开（含重连中的会话）、状态、拒绝；没有会话时 `leave` 回复不在语音频道，且不调用离开 |
 | `test_discord_sender_identity.py` | 适配器接真实总线、路由器与解析器（存储为内存替身，配对替身按 `SqlPairingStore.resolve` 的规则按渠道名与发送者查询并给出身份：管理员为 `sandbox`，其余为 `paired_member_{渠道}_{发送者}`）：陌生人的私聊、按钮点击与语音转写不产生回合；已配对成员以 `paired_member_` 身份被栅栏；所有者以所有者身份运行；未配对的说话人不被转写，已配对成员与所有者被转写；`/voice` 在已启用频道对未配对成员放行、在未启用频道对陌生人拒绝、对所有者放行、私聊里对陌生人拒绝；历史回填不带 `user_id` |
 | `gateway_testkit.py` | 构造不联网的 `DiscordChannel` 与网关客户端替身（生命周期、语音命令、身份三组测试共用） |
 | `test_discord_allowed_mentions.py` | 网关客户端的提及策略：discord.py 实际发出的 `allowed_mentions` 载荷只放行用户与回复引用，不含 everyone、角色 |

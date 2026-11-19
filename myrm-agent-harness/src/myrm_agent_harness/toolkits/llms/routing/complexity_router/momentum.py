@@ -12,7 +12,6 @@ complexity_router 子包的一部分；由 __init__.py 聚合导出。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.llms.routing.complexity_router.scoring import (
     _MOMENTUM_LONG_THRESHOLD,
@@ -21,9 +20,6 @@ from myrm_agent_harness.toolkits.llms.routing.complexity_router.scoring import (
     _TIER_SCORES,
 )
 from myrm_agent_harness.toolkits.llms.routing.complexity_router.types import RoutingTier
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

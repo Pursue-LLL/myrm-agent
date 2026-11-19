@@ -7,13 +7,20 @@
 - app.services.agent.stream_session.turn_end (POS: compaction drain, run digest close and lifecycle event, shared with the end of a timer-resumed turn)
 - app.services.agent.stream_session.turn_capability_terminal (POS: records the completed or failed terminal state of a turn that carries capability telemetry)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle, unregistered when the turn ends)
+- app.services.agent.steering::SteeringRegistry (POS: registry of the steering tokens of running turns; the turn gives back the token it registered)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: registry of the goal providers of running turns; the turn gives back the provider it registered)
+- myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: key under which a stored card remembers the pause it was announced for)
 
 [OUTPUT]
-- finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt and release the turn's session state
+- finalize_agent_stream_session: persist the turn, record its terminal state, arm the HITL timeout of a pending interrupt, remove the replay marker the turn wrote and release the turn's session state
+- release_unfinished_turn: tear down a turn whose stream never reached finalize (safety net of the turn body); a stopped turn takes the replay marker it wrote with it
+- release_turn_registrations: give back the Stop handle, steering token and goal provider a turn registered, each by the handle the turn holds
 - assistant_turn_payload: the content and extra data a collector's turn is stored with (shared with the persistence of a timer-resumed turn)
 
 [POS]
-Teardown half of the stream pipeline: runs once per turn after the chunk generator ends, however it ended.
+Teardown half of the stream pipeline: finalize runs once per turn after the chunk generator ends, however it ended; the
+exits that skip the generator (a Stop while the turn is queued behind its project, a failure in setup or in the pump)
+are torn down by release_unfinished_turn, called from the turn body's finally.
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ import logging
 from contextvars import Token
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY
 from myrm_agent_harness.agent.streaming.run_digest import RunDigestPhase
 from myrm_agent_harness.core.security.types import EphemeralUserCredential, user_credentials_ctx
 from myrm_agent_harness.utils.runtime.cancellation import (
@@ -65,31 +73,38 @@ from app.services.agent.streaming_support.sse_helpers import (
 )
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.goals.protocols import GoalProvider
+    from myrm_agent_harness.utils.runtime.steering import SteeringToken
+
     from app.services.agent.stream_session.lazy_session_gate import PendingSessionDraft
     from app.services.agent.streaming_support.stream_collector import StreamContentCollector
 
 logger = logging.getLogger(__name__)
 
 
-def _collector_has_unanswered_clarification(session: AgentStreamSession) -> bool:
+def _unanswered_clarification(session: AgentStreamSession) -> dict[str, object] | None:
+    """The clarification card the turn's collector holds while nobody has answered it."""
     extra = session.collector.extra_data
     if not isinstance(extra, dict):
-        return False
+        return None
     clarification = extra.get("clarification")
-    if not isinstance(clarification, dict):
-        return False
-    return clarification.get("answered") is False
+    if not isinstance(clarification, dict) or clarification.get("answered") is not False:
+        return None
+    return clarification
 
 
-def _clarification_timeout_needed(
-    session: AgentStreamSession,
-    clarification: ClarificationTimeoutHolder,
-) -> bool:
+def _pending_clarification_interrupt_id(session: AgentStreamSession) -> str | None:
+    """The id of the pause the unanswered card was announced for; None when the card carries no usable id."""
+    card = _unanswered_clarification(session)
+    interrupt_id = card.get(INTERRUPT_ID_KEY) if card else None
+    return interrupt_id if isinstance(interrupt_id, str) and interrupt_id else None
+
+
+def _stopped_at_clarification(session: AgentStreamSession, clarification: ClarificationTimeoutHolder) -> bool:
+    """Whether the turn ends at a clarification card nobody has answered."""
     if clarification.pending:
         return True
-    if session.request.chat_id is None:
-        return False
-    return _collector_has_unanswered_clarification(session)
+    return session.request.chat_id is not None and _unanswered_clarification(session) is not None
 
 
 async def _settle_session_draft(session: AgentStreamSession) -> PendingSessionDraft | None:
@@ -197,42 +212,70 @@ async def _persist_assistant_turn(session: AgentStreamSession, draft: PendingSes
 
 
 async def _clear_turn_marker(session: AgentStreamSession) -> None:
-    """Clear the crash auto-continue marker on normal completion (best-effort)."""
-    if session.request.chat_id:
-        try:
-            await _clear_interrupted_turn_marker(session.request.chat_id)
-        except Exception as marker_exc:
-            logger.debug("Turn marker cleanup skipped: %s", marker_exc)
+    """Remove the replay marker this turn wrote, and only that one (best-effort).
+
+    The chat's next turn replaces the marker with its own row, which a turn that ends late must leave in place; a turn
+    that wrote none (a resume) has nothing to remove.
+    """
+    chat_id = session.request.chat_id
+    if not chat_id or session.turn_marker_id is None:
+        return
+    try:
+        await _clear_interrupted_turn_marker(chat_id, marker_id=session.turn_marker_id)
+    except Exception as exc:
+        logger.warning("Replay marker of a turn was not cleared: chat_id=%s, error=%s", chat_id, exc)
 
 
-def _arm_pending_interrupt_timeout(
-    session: AgentStreamSession,
-    approval: ApprovalTimeoutHolder,
-    clarification_pending: bool,
-) -> None:
+def _arm_pending_interrupt_timeout(session: AgentStreamSession, approval: ApprovalTimeoutHolder) -> None:
     """Arm the timer of the interrupt the turn stopped at, or reopen one that has none."""
     if session.request.chat_id:
         arm_interrupt_timeout(
             session.request.chat_id,
             session.params,
             approval_timeout=approval.value,
-            clarification_pending=clarification_pending,
+            clarification_interrupt_id=_pending_clarification_interrupt_id(session),
             awaiting_answer=session.collector.has_pending_hitl_replay(),
         )
 
 
-def _release_turn_state(session: AgentStreamSession) -> None:
-    """Flush the compaction telemetry and drop what the turn registered: Stop handle, steering and goal."""
-    enqueue_context_compaction_telemetry(session.request.chat_id)
-    clear_context_task_metrics(session.request.chat_id)
-    target_msg_id = getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None)
-    if target_msg_id:
-        CancellationRegistry.unregister(target_msg_id)
-    if session.request.chat_id:
-        SteeringRegistry.unregister(session.request.chat_id)
+def release_turn_registrations(
+    *,
+    chat_id: str | None,
+    message_id: str | None,
+    steering_token: SteeringToken | None,
+    goal_provider: GoalProvider | None,
+) -> None:
+    """Give back what a turn registered for itself: its Stop handle, its steering token and its goal provider.
+
+    The steering token and the goal provider go back by the handle the turn holds, so a turn that ends late leaves the
+    entries of the chat's next turn alone.
+    """
+    if message_id:
+        CancellationRegistry.unregister(message_id)
+    if not chat_id:
+        return
+    if steering_token is not None:
+        SteeringRegistry.unregister(chat_id, steering_token)
+    if goal_provider is not None:
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        GoalRegistry.unregister(session.request.chat_id)
+        GoalRegistry.unregister(chat_id, goal_provider)
+
+
+def _release_session_registrations(session: AgentStreamSession) -> None:
+    release_turn_registrations(
+        chat_id=session.request.chat_id,
+        message_id=getattr(session.params, "message_id", None) or getattr(session.request, "message_id", None),
+        steering_token=session.steering_token,
+        goal_provider=session.goal_provider,
+    )
+
+
+def _release_turn_state(session: AgentStreamSession) -> None:
+    """Flush the compaction telemetry and give back what the turn registered."""
+    enqueue_context_compaction_telemetry(session.request.chat_id)
+    clear_context_task_metrics(session.request.chat_id)
+    _release_session_registrations(session)
 
 
 async def _record_turn_capability_terminal(session: AgentStreamSession) -> None:
@@ -261,6 +304,7 @@ def _close_run_digest(session: AgentStreamSession) -> None:
             agent_id=getattr(session.request, "agent_id", None),
             was_cancelled=session.cancel_token.is_cancelled,
             had_fatal_error=session.had_fatal_error,
+            run=session.digest_run,
         )
 
 
@@ -286,17 +330,13 @@ async def finalize_agent_stream_session(
         live_readiness_status=session.migration_live_readiness_status,
     )
 
-    clarification_sched_needed = _clarification_timeout_needed(session, clarification)
+    stopped_at_clarification = _stopped_at_clarification(session, clarification)
 
-    _arm_pending_interrupt_timeout(session, approval, clarification_sched_needed)
+    _arm_pending_interrupt_timeout(session, approval)
     schedule_compaction_drain(session.request.chat_id)
     _release_turn_state(session)
 
-    pending_hitl = bool(
-        clarification_sched_needed
-        or (approval.value and not clarification_sched_needed)
-        or session.collector.has_pending_hitl_replay()
-    )
+    pending_hitl = bool(stopped_at_clarification or approval.value or session.collector.has_pending_hitl_replay())
     await commit_turn_history_sync(session, pending_hitl=pending_hitl)
     if not pending_hitl:
         await _record_turn_capability_terminal(session)
@@ -309,10 +349,38 @@ async def finalize_agent_stream_session(
     else:
         _close_run_digest(session)
         session.collector.cleanup()
+    session.torn_down = True
 
 
-async def _clear_interrupted_turn_marker(chat_id: str) -> None:
-    """Remove the write-ahead marker after a turn completes normally."""
+async def release_unfinished_turn(session: AgentStreamSession) -> None:
+    """Tear down a turn whose stream never reached finalize, so that it leaves nothing registered behind.
+
+    Finalize ends a turn that ran. A turn also leaves the turn body without it when a Stop lands while the turn waits
+    behind its project's lock (the pump swallows the cancel and returns), when setup or the pump fails, or when the
+    task is cancelled. This gives back the registrations and closes the run the way finalize does. A turn the user
+    stopped ends as cancelled and takes its replay marker with it; any other turn that ends here did not complete, and
+    its marker stays for the crash replay.
+    """
+    if session.torn_down:
+        return
+    chat_id = session.request.chat_id
+    _release_session_registrations(session)
+    session.collector.cleanup()
+    stopped = session.cancel_token.is_cancelled
+    if not stopped:
+        session.had_fatal_error = True
+    if session.digest_run is not None:
+        try:
+            _close_run_digest(session)
+        except Exception as exc:
+            logger.warning("Run digest of an unfinished turn was not closed: chat_id=%s, error=%s", chat_id, exc)
+    if stopped:
+        await _clear_turn_marker(session)
+    session.torn_down = True
+
+
+async def _clear_interrupted_turn_marker(chat_id: str, *, marker_id: str) -> None:
+    """Remove the write-ahead marker row `marker_id` of the chat, so the marker of the chat's next turn stays."""
     from sqlalchemy import delete
 
     from app.database.models.chat import InterruptedTurnMarker
@@ -320,5 +388,10 @@ async def _clear_interrupted_turn_marker(chat_id: str) -> None:
 
     factory = get_session_factory()
     async with factory() as db:
-        await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == chat_id))
+        await db.execute(
+            delete(InterruptedTurnMarker).where(
+                InterruptedTurnMarker.chat_id == chat_id,
+                InterruptedTurnMarker.id == marker_id,
+            )
+        )
         await db.commit()

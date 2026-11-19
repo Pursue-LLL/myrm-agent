@@ -286,16 +286,6 @@ SYSTEM_COMMANDS: tuple[CommandDef, ...] = (
         args_pattern="[timeframe|focus-area]",
     ),
     CommandDef(
-        name="design-image",
-        description="Synthesize commercial-grade images using structured Prompt-as-Code atomic visual schemas",
-        kind=CommandKind.SKILL,
-        aliases=("image-design", "prompt-image", "style-image"),
-        category="Creation",
-        skill_ids=("image-style-synthesizer",),
-        parse_args=True,
-        args_pattern="<prompt|brief>",
-    ),
-    CommandDef(
         name="status",
         description="Show current session status (tokens, model, agent state)",
         action=CommandAction.STATUS,

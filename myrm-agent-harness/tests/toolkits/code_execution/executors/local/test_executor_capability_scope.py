@@ -11,6 +11,7 @@ import asyncio
 import shutil
 import tempfile
 from collections.abc import AsyncIterator
+from contextlib import AbstractContextManager
 from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -59,7 +60,7 @@ def _context(workspace: Path, code: str) -> ExecutionContext:
     )
 
 
-def _writer_scope(workspace: Path):
+def _writer_scope(workspace: Path) -> AbstractContextManager[None]:
     handle = derive_spawn_capability(
         parent_agent=SimpleNamespace(_last_context={"workspace_path": str(workspace)}),
         agent_type="worker",
@@ -149,8 +150,6 @@ async def test_native_file_operations_are_denied_without_write(executor: LocalEx
             await executor.write_file(str(workspace / "evil.txt"), "tamper")
         with pytest.raises(CapabilityDeniedError):
             await executor.delete_file(str(workspace / "report.txt"))
-        with pytest.raises(CapabilityDeniedError):
-            await executor.mkdir(str(workspace / "evil_dir"))
 
     assert sorted(path.name for path in workspace.iterdir()) == ["report.txt"]
 

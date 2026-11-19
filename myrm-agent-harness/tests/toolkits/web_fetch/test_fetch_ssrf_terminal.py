@@ -7,7 +7,6 @@ a rejected URL that reaches one of them would be fetched there without the HTTP 
 
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -45,12 +44,6 @@ def _engine(*, allow_private_networks: bool) -> tuple[FetchEngine, _Tiers]:
     engine._browser_fetcher.fetch = tiers.browser  # type: ignore[method-assign]
     engine._stealth_fetcher.fetch = tiers.stealth  # type: ignore[method-assign]
     return engine, tiers
-
-
-@pytest.fixture(autouse=True)
-def _offline_http3() -> Iterator[None]:
-    with patch.object(HttpFetcher, "_can_use_http3_lane", AsyncMock(return_value=False)):
-        yield
 
 
 @pytest.mark.asyncio
@@ -241,38 +234,3 @@ class TestStealthTier:
 
         assert doc is None
         assert not tiers.browser.await_count
-
-
-@pytest.mark.asyncio
-async def test_pinned_host_header_does_not_follow_the_request_to_the_next_hop(
-    install_fake_scrapling: AsyncMock,
-) -> None:
-    """Hop one is pinned to an address (Host: its name); hop two is allowlisted and needs no pin."""
-
-    def _response(status: int, location: str | None, url: str) -> MagicMock:
-        response = MagicMock()
-        response.status = status
-        response.headers = {"Location": location} if location else {"content-type": "text/html"}
-        response.body = ("<article><p>" + "x" * 300 + "</p></article>").encode()
-        response.encoding = "utf-8"
-        response.url = url
-        return response
-
-    install_fake_scrapling.side_effect = [
-        _response(302, "http://127.0.0.1:9/next", "http://8.8.8.8/start"),
-        _response(200, None, "http://127.0.0.1:9/next"),
-    ]
-
-    result = await HttpFetcher()._fetch_with_redirects(
-        "http://8.8.8.8/start",
-        headers={},
-        cookie_jar=None,
-        enable_ssrf_shield=True,
-        allowed_hosts=["127.0.0.1"],
-        use_http3=False,
-    )
-
-    assert result is not None
-    first, second = (call.kwargs.get("headers", {}) for call in install_fake_scrapling.await_args_list)
-    assert first == {"Host": "8.8.8.8"}
-    assert "Host" not in second

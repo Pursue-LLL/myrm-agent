@@ -99,6 +99,38 @@ async def test_a_file_of_the_servers_own_storage_is_staged(directory: Path, monk
         assert Path(staged.paths[0]).read_bytes() == JPEG
 
 
+async def test_a_generated_artifact_is_staged_through_its_media_reference(
+    directory: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def read(media_id: str) -> bytes:
+        assert media_id == "media_abc"
+        return PNG
+
+    monkeypatch.setattr(images, "read_media_reference", read)
+
+    async with stage_images([_png_block("media://media_abc")], directory=directory) as staged:
+        assert Path(staged.paths[0]).suffix == ".png"
+        assert Path(staged.paths[0]).read_bytes() == PNG
+
+
+@pytest.mark.parametrize("error", [LookupError("no record"), FileNotFoundError("file gone")])
+async def test_a_media_reference_that_holds_nothing_stays_as_it_was(
+    directory: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, error: Exception
+) -> None:
+    async def read(media_id: str) -> bytes:
+        raise error
+
+    monkeypatch.setattr(images, "read_media_reference", read)
+    block = _png_block("media://media_gone")
+
+    with caplog.at_level(logging.WARNING, logger=images.logger.name):
+        async with stage_images([block], directory=directory) as staged:
+            assert staged.paths == []
+            assert staged.query == [block]
+
+    assert "reason=not_in_storage" in caplog.text
+
+
 async def test_an_external_address_is_never_fetched(directory: Path, caplog: pytest.LogCaptureFixture) -> None:
     block = _png_block("https://example.com/cat.png")
 

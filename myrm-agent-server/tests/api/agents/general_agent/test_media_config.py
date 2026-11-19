@@ -132,3 +132,59 @@ def test_test_media_config_degrades_when_configs_unreadable(client: TestClient) 
     data = resp.json()
     assert data["success"] is False
     assert "No API key found for provider 'fal'" in data["message"]
+
+
+def test_test_media_config_image_requires_a_selected_model(client: TestClient) -> None:
+    """No model is guessed for the probe: an unselected image model is reported as such."""
+    with _user_configs():
+        resp = client.post("/api/v1/agents/test-media-config", json={"mediaType": "image"})
+
+    data = resp.json()
+    assert data["success"] is False
+    assert data["message"] == "Select an image model before testing"
+
+
+def test_test_media_config_video_requires_a_selected_provider(client: TestClient) -> None:
+    with _user_configs():
+        resp = client.post("/api/v1/agents/test-media-config", json={"mediaType": "video"})
+
+    data = resp.json()
+    assert data["success"] is False
+    assert data["message"] == "Select a video provider before testing"
+
+
+def test_test_media_config_tts_requires_a_selected_provider(client: TestClient) -> None:
+    with _user_configs():
+        resp = client.post("/api/v1/agents/test-media-config", json={"mediaType": "tts"})
+
+    data = resp.json()
+    assert data["success"] is False
+    assert data["message"] == "Select a TTS provider before testing"
+
+
+def test_test_media_config_volcengine_needs_model_and_voice(client: TestClient) -> None:
+    """The synthesis probe uses the user's own model and voice; it never substitutes ones of its own."""
+    with _user_configs(voice={"ttsProvider": "volcengine", "ttsApiKey": "voice-key", "ttsModel": "doubao-tts"}):
+        resp = client.post("/api/v1/agents/test-media-config", json={"mediaType": "tts", "provider": "volcengine"})
+
+    data = resp.json()
+    assert data["success"] is False
+    assert data["message"] == "Select a TTS model and voice before testing"
+
+
+def test_test_media_config_volcengine_probe_uses_the_configured_voice(client: TestClient) -> None:
+    with (
+        _user_configs(voice={"ttsProvider": "volcengine", "ttsApiKey": "voice-key", "ttsModel": "doubao-tts"}),
+        patch(
+            "app.api.agents.general_agent.media_config._probe_volcengine_tts",
+            new_callable=AsyncMock,
+            return_value=(True, "Speech synthesis successful"),
+        ) as probe,
+    ):
+        resp = client.post(
+            "/api/v1/agents/test-media-config",
+            json={"mediaType": "tts", "provider": "volcengine", "voice": "zh_female_x"},
+        )
+
+    assert resp.json()["data"]["status"] == "ok"
+    assert probe.await_args.args == ("voice-key", "doubao-tts", "zh_female_x")

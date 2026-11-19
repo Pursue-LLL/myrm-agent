@@ -39,10 +39,12 @@ from myrm_agent_harness.agent.security.types import (
     PermissionAction,
     SecurityConfig,
 )
+from myrm_agent_harness.toolkits.code_execution.security.protected_instruction_command import (
+    protected_instruction_mutation_target,
+)
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     ThreatLevel,
     analyze_command,
-    is_protected_instruction_mutation_command,
 )
 
 
@@ -154,7 +156,7 @@ async def test_protected_instruction_files_task_flow_e2e() -> None:
         ]
 
         for shell_cmd in shell_payloads:
-            assert is_protected_instruction_mutation_command(shell_cmd) is True
+            assert protected_instruction_mutation_target(shell_cmd) is not None
             threats = analyze_command(shell_cmd)
             escalate_threats = [t for t in threats if t.level == ThreatLevel.ESCALATE]
             assert any(t.category == "protected_instruction_mutation" for t in escalate_threats), (
@@ -163,7 +165,7 @@ async def test_protected_instruction_files_task_flow_e2e() -> None:
 
             # Shell call tool object
             shell_tool_call = {
-                "name": "bash",
+                "name": "bash_code_execute_tool",
                 "args": {"command": shell_cmd},
             }
             assert (

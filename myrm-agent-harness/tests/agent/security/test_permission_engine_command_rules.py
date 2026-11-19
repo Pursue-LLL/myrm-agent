@@ -44,7 +44,12 @@ class TestResolveTarget:
 
     def test_process_input_is_the_target_of_the_process_permission(self) -> None:
         assert _resolve_target("shell_exec", {"data": "yes"}) == "yes"
-        assert _resolve_target("shell_exec", {"command": "ls", "data": "yes"}) == "ls"
+        assert _resolve_target("shell_exec", {"command": "ls", "data": "yes"}) == "yes"
+
+    def test_only_the_argument_the_tool_runs_is_the_target(self) -> None:
+        assert _resolve_target("code_interpreter", {"command": "ls", "data": "yes"}) == "ls"
+        assert _resolve_target("code_interpreter", {"data": "yes"}) == "*"
+        assert _resolve_target("shell_exec", {"command": "ls"}) == "*"
 
     @pytest.mark.parametrize("tool_input", [{}, {"command": ""}, {"command": "  "}])
     def test_no_command_matches_only_wildcard_rules(self, tool_input: dict[str, object]) -> None:

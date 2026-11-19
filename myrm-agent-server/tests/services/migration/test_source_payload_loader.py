@@ -21,6 +21,7 @@ from app.services.migration.source.source_payload_loader import (
     load_source_payload,
     sweep_stale_migration_uploads,
 )
+from app.services.migration.source.source_payload_split import extract_memory_payload
 
 
 @pytest.fixture()
@@ -76,13 +77,14 @@ class TestCompetitorPayloadLoader:
         assert isinstance(loaded.get("skills"), list)
         assert len(loaded["skills"]) == 1
 
-    def test_load_hermes_auth_json_credential_pool(self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_hermes_auth_json_contributes_only_provider_names(
+        self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(
             "app.services.migration.source.source_payload_loader.is_local_mode",
             lambda: True,
         )
-        auth_file = hermes_fixture / "auth.json"
-        auth_file.write_text(
+        (hermes_fixture / "auth.json").write_text(
             json.dumps(
                 {
                     "credential_pool": {
@@ -93,6 +95,7 @@ class TestCompetitorPayloadLoader:
                         "openai": "least_used",
                         "anthropic": "round_robin",
                     },
+                    "providers": {"nous": {"access_token": "oauth-secret"}},
                 }
             ),
             encoding="utf-8",
@@ -100,18 +103,61 @@ class TestCompetitorPayloadLoader:
         loaded = load_source_payload(
             {"competitor": "hermes", "root": str(hermes_fixture), "files": []},
         )
-        assert "hermes_auth" in loaded
-        assert "credential_pool" in loaded
-        assert loaded["credential_pool"] == {
-            "openai": ["sk-key-1", "sk-key-2"],
-            "anthropic": ["sk-ant-1"],
-        }
-        assert loaded["credential_pool_strategies"] == {
-            "openai": "least_used",
-            "anthropic": "round_robin",
-        }
+
+        # The credential store is never imported, so nothing it holds may travel in the payload
+        # the review session and the memory adapter receive.
+        assert {"hermes_auth", "credential_pool", "credential_pool_strategies"}.isdisjoint(loaded)
+        assert loaded["env_keys"] == [
+            {"name": "OPENAI_API_KEY", "source": "auth"},
+            {"name": "ANTHROPIC_API_KEY", "source": "auth"},
+        ]
+        serialized = json.dumps([loaded, extract_memory_payload(loaded, include_episodic=True)])
+        for secret in ("sk-key-1", "sk-key-2", "sk-ant-1", "oauth-secret"):
+            assert secret not in serialized
+
         coverage = build_coverage_items(loaded)
-        assert any(row["key"] == "credential_pool" and row["status"] == "ready" for row in coverage)
+        assert {"key": "api_keys", "status": "manual", "label": "api_keys_manual"} in coverage
+        assert "credential_pool" not in {row["key"] for row in coverage}
+
+    def test_hermes_login_only_auth_json_adds_no_key_names_or_coverage_row(
+        self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        (hermes_fixture / "auth.json").write_text(
+            json.dumps({"providers": {"nous": {"access_token": "oauth-secret"}}}),
+            encoding="utf-8",
+        )
+        loaded = load_source_payload(
+            {"competitor": "hermes", "root": str(hermes_fixture), "files": []},
+        )
+
+        assert "hermes_auth" not in loaded
+        assert "env_keys" not in loaded
+        assert "oauth-secret" not in json.dumps(loaded)
+        assert {"api_keys", "credential_pool"}.isdisjoint({row["key"] for row in build_coverage_items(loaded)})
+
+    def test_hermes_key_names_say_whether_the_import_can_read_them(
+        self, hermes_fixture: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "app.services.migration.source.source_payload_loader.is_local_mode",
+            lambda: True,
+        )
+        (hermes_fixture / ".env").write_text("OPENAI_API_KEY=sk-env\n", encoding="utf-8")
+        (hermes_fixture / "auth.json").write_text(
+            json.dumps({"credential_pool": {"openai": ["sk-pool"], "anthropic": ["sk-ant-pool"]}}),
+            encoding="utf-8",
+        )
+        loaded = load_source_payload(
+            {"competitor": "hermes", "root": str(hermes_fixture), "files": []},
+        )
+        assert loaded["env_keys"] == [
+            {"name": "OPENAI_API_KEY", "source": "env"},
+            {"name": "ANTHROPIC_API_KEY", "source": "auth"},
+        ]
 
     def test_load_openclaw(self, openclaw_fixture: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(

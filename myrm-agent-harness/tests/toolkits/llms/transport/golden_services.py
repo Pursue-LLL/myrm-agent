@@ -13,8 +13,8 @@
 [POS]
 Library-agnostic capture of the four service paths, through the same public classes the product calls. The committed
 ``golden_services_baseline.json`` was recorded by running this module against the baseline client library (litellm
-1.97.0) at commit b218e6f1d7; the golden test replays the matrix on the transport and diffs requests and results.
-Nothing here imports the client library, so the same module runs against either stack.
+1.97.0); its ``_meta`` names the commit each case was recorded at. The golden test replays the matrix on the transport
+and diffs requests and results. Nothing here imports the client library, so the same module runs against either stack.
 """
 
 from __future__ import annotations
@@ -73,8 +73,6 @@ RERANK: dict[str, tuple[str, tuple[bool, ...]]] = {
 }
 RERANK_SCENARIOS = ("top_k", "all")
 IMAGE: dict[str, tuple[str, tuple[bool, ...]]] = {
-    "dall_e_3": ("dall-e-3", _BOTH),
-    "dall_e_2": ("dall-e-2", _BOTH),
     "gpt_image_1": ("gpt-image-1", _BOTH),
     "openai_gpt_image": ("openai/gpt-image-1", _BOTH),
     "gemini_imagen": ("gemini/imagen-3.0-generate-002", _BOTH),
@@ -86,7 +84,7 @@ IMAGE: dict[str, tuple[str, tuple[bool, ...]]] = {
     "azure": ("azure/dall-e-3", _CUSTOM),
     "openai_compat": ("openai/some-image-model", _CUSTOM),
 }
-IMAGE_SCENARIOS = ("generate", "generate_many", "edit", "edit_mask", "gateway", "bad_key", "server_error")
+IMAGE_SCENARIOS = ("generate", "edit", "edit_mask", "gateway", "bad_key", "server_error")
 SEARCH: dict[str, tuple[bool, ...]] = {
     "perplexity": _BOTH,
     "tavily": _BOTH,
@@ -150,8 +148,6 @@ async def _image(model: str, with_base: bool, scenario: str, answer: Answerer) -
         answer.status = 500
     if scenario.startswith("edit"):
         result = await generator.edit(_PNG, "make it blue", mask=_PNG if scenario == "edit_mask" else None)
-    elif scenario == "generate_many":
-        result = await generator.generate("a cat", size="1024x1024", quality="hd", style="vivid", n=2)
     else:
         result = await generator.generate("a cat")
     return {

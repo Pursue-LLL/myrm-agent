@@ -3,13 +3,16 @@
 Verifies get_meta_tools + sync_discover_capability_tool and SkillAgent._build_tools
 expose skill_search_tool and skill_market_tool with mutual cross-references.
 Key path uses real ToolRegistry and stub protocol backends (no MagicMock on registry wiring).
+The market tool reaches the agent the way a product mounts it: as a user tool.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from unittest.mock import AsyncMock
 
 import pytest
+from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent.meta_tools import get_meta_tools
 from myrm_agent_harness.agent.meta_tools.discover_capability.discover_capability_tool import (
@@ -20,7 +23,8 @@ from myrm_agent_harness.agent.meta_tools.skills.market.skill_market_tool import 
     create_skill_market_tool,
 )
 from myrm_agent_harness.agent.skill_agent import SkillAgent
-from myrm_agent_harness.agent.tool_management.registry import ToolRegistry, ToolSource
+from myrm_agent_harness.agent.tool_management import ToolRegistry, ToolSource
+from myrm_agent_harness.backends.skills.market_protocols import SkillInstallResult, SkillSearchResult
 from myrm_agent_harness.backends.skills.types import SkillMetadata
 
 _DISCOVER_TOOL = "skill_search_tool"
@@ -46,15 +50,21 @@ class _StubSkillBackend:
     async def get_skill_resources(self, skill_name: str, path: str) -> bytes:
         return b""
 
+    async def list_skill_resources(self, skill_name: str) -> list[str]:
+        return []
+
 
 class _StubMarketBackend:
-    """Minimal discovery backend so skill_market_tool mounts Turn1 eager."""
+    """Minimal market backend: skill_market_tool only has to mount, no test here runs a market action."""
 
-    async def install_from_url(self, url: str, user_id: str) -> dict[str, object]:
-        return {"url": url, "user_id": user_id}
+    async def search(self, query: str, limit: int = 10) -> list[SkillSearchResult]:
+        return []
 
-    async def uninstall(self, skill_id: str, user_id: str) -> dict[str, object]:
-        return {"skill_id": skill_id, "user_id": user_id}
+    async def install(self, skill_id: str, source: str, user_id: str) -> SkillInstallResult:
+        return SkillInstallResult(success=True, skill_id=skill_id)
+
+    async def install_from_url(self, url: str, user_id: str) -> SkillInstallResult:
+        return SkillInstallResult(success=True)
 
 
 def _sample_skill() -> SkillMetadata:
@@ -85,11 +95,10 @@ def _skills_for_search_mount() -> list[SkillMetadata]:
     return skills
 
 
-def _tool_description_by_name(tools: list[object], name: str) -> str:
-    tool = next(t for t in tools if getattr(t, "name", None) == name)
-    description = getattr(tool, "description", None)
-    assert isinstance(description, str) and description.strip()
-    return description
+def _tool_description_by_name(tools: Sequence[BaseTool], name: str) -> str:
+    tool = next(t for t in tools if t.name == name)
+    assert tool.description.strip()
+    return tool.description
 
 
 def _assert_mutual_boundary(descriptions: tuple[str, str]) -> None:
@@ -100,16 +109,8 @@ def _assert_mutual_boundary(descriptions: tuple[str, str]) -> None:
     assert "bound" in marketplace_description.lower()
 
 
-def _mount_market_tool(
-    market_backend: _StubMarketBackend,
-) -> object:
-    install_url_fn = getattr(market_backend, "install_from_url", None)
-    uninstall_fn = getattr(market_backend, "uninstall", None)
-    return create_skill_market_tool(
-        market_backend,
-        install_from_url_fn=install_url_fn,
-        uninstall_fn=uninstall_fn,
-    )
+def _mount_market_tool(market_backend: _StubMarketBackend) -> BaseTool:
+    return create_skill_market_tool(market_backend, install_from_url_fn=market_backend.install_from_url)
 
 
 @pytest.mark.integration
@@ -153,7 +154,7 @@ async def test_skill_agent_build_tools_wires_boundary_descriptions() -> None:
     agent = SkillAgent(
         llm=AsyncMock(),
         skill_backend=_StubSkillBackend(skills),
-        market_backend=_StubMarketBackend(),
+        tools=[_mount_market_tool(_StubMarketBackend())],
         file_access_mode=FileAccessMode.NONE,
         enable_shell_tools=False,
         enable_answer_tool=False,
@@ -318,7 +319,7 @@ _SELECT_TOOL = "skill_select_tool"
 @pytest.mark.asyncio
 async def test_skill_select_static_description_and_catalog_delivery_wiring() -> None:
     """get_meta_tools static skill_select + SkillAgent stream catalog reinject (no tool XML)."""
-    from langchain_core.messages import HumanMessage
+    from langchain_core.messages import BaseMessage, HumanMessage
 
     from myrm_agent_harness.agent._internals._agent_build import _weave_dynamic_schemas
     from myrm_agent_harness.agent._internals.skill_catalog_turn import (
@@ -349,7 +350,7 @@ async def test_skill_select_static_description_and_catalog_delivery_wiring() -> 
     assert "hidden_count" not in description
 
     agent = SkillAgent(llm=AsyncMock(), skill_backend=_StubSkillBackend(skills))
-    messages = [HumanMessage(content="plan a PR review")]
+    messages: list[BaseMessage] = [HumanMessage(content="plan a PR review")]
     await deliver_bound_skills_catalog(messages, agent, TurnHistory(mode="replace"))
 
     first = messages[0]

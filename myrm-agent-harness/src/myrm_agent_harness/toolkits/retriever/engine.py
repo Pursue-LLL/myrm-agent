@@ -210,6 +210,7 @@ class RetrieverManager:
         top_k: int = 10,
         use_raw_markdown: bool = False,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
     ) -> tuple[list[dict[str, object]], str, str | None]:
         """Crawl webpages and retrieve relevant content snippets
 
@@ -221,6 +222,7 @@ class RetrieverManager:
             top_k: Maximum document chunks to return
             use_raw_markdown: Whether to use raw markdown format
             allow_private_networks: Skip SSRF private-IP blocking (local mode).
+            network_blocklist: Hosts (exact or ``*.`` wildcard) the crawl must never read, redirect hops included.
 
         Returns:
             (metadata list, formatted context, error info)
@@ -237,6 +239,7 @@ class RetrieverManager:
             engine = FetchEngine(
                 use_raw_markdown=use_raw_markdown,
                 allow_private_networks=allow_private_networks,
+                network_blocklist=network_blocklist,
                 session_vault=web_fetch_tools._http_fetcher._session_vault,
             )
             success_results, failed_results = await engine.crawl_many(urls)

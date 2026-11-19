@@ -4,19 +4,20 @@
 
 **平台文件 I/O 抽象层**（选文件、读 DataURL、`StoreFile` 互转）。与同级 `../file.ts`（HTTP 上传与 PDF/文档解析 API）职责分离，勿混用导入路径。
 
-| 模块                      | 职责                                                           |
-| ------------------------- | -------------------------------------------------------------- |
+| 模块                      | 职责                                                                                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `file.ts`（上级）         | `uploadFiles`、进度回调、`UploadOptions`（无痕会话绑定，经 `FileService.uploadFiles` 第四个参数透传）、`extractPdfContent` 等 **server API** |
-| `file-service/`（本目录） | Tauri 本地 FS vs Sandbox HTTP 的 **FileService 策略**          |
+| `file-service/`（本目录） | Tauri 本地 FS vs Sandbox HTTP 的 **FileService 策略**                                                                                        |
 
 ## 文件清单
 
-| 文件         | 职责                                                                            |
-| ------------ | ------------------------------------------------------------------------------- |
-| `index.ts`   | `getFileService()` 单例；`selectFiles` / `readFileAsDataURL` 门面               |
-| `types.ts`   | `FileService`、`StoreFile`、`FileReference`；复用 `file.ts` 的 `UploadProgress` |
-| `tauri.ts`   | 桌面端原生对话框与 FS 读                                                        |
-| `sandbox.ts` | Web/Sandbox：委托 `file.ts` 上传 API                                            |
+| 文件                    | 职责                                                                                                                                                                                                     |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`              | `getFileService()` 单例；`selectFiles` / `readFileAsDataURL` / `uploadPickedImages` 门面                                                                                                                 |
+| `types.ts`              | `FileService`、`StoreFile`、`FileReference`；复用 `file.ts` 的 `UploadProgress`                                                                                                                          |
+| `tauri.ts`              | 桌面端原生对话框与 FS 读                                                                                                                                                                                 |
+| `sandbox.ts`            | Web/Sandbox：委托 `file.ts` 上传 API                                                                                                                                                                     |
+| `uploadPickedImages.ts` | 桌面选中的本地图片上传到服务端并保留本地路径（模型只能通过上传得到的工作区副本编辑图片）；读取字节由门面注入，磁盘访问只发生在平台文件服务里；服务端没有保留全部图片时抛错，调用方不会把部分上传当成全部 |
 
 ## 依赖
 

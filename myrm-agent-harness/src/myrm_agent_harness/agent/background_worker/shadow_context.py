@@ -1,7 +1,7 @@
 """Shadow Agent bulkhead isolation for background / review workloads.
 
 Enforces execution-layer isolation via ContextVar-scoped executor wrapping:
-- Blocks Python and Bash execution (no shell escape hatch).
+- Blocks Python, Bash and background-process execution (no shell escape hatch).
 - Restricts file mutations to skill/memory sidecar paths.
 - Marks the async context as a shadow agent so approval middleware auto-denies.
 
@@ -20,7 +20,6 @@ Execution-layer bulkhead isolation for background shadow workloads.
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from contextvars import ContextVar, Token
 from pathlib import Path
@@ -43,6 +42,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
+    from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -97,9 +97,8 @@ class ShadowExecutorMiddleware(CodeExecutorMiddleware):
     async def execute_bash(self, context: ExecutionContext) -> ExecutionResult:
         raise PermissionError("Bash execution is blocked in shadow context.")
 
-    async def execute_bash_stream(self, context: ExecutionContext) -> AsyncIterator[str]:
-        raise PermissionError("Bash execution is blocked in shadow context.")
-        yield ""  # pragma: no cover — satisfies async generator typing
+    async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:
+        raise PermissionError("Background processes are blocked in shadow context.")
 
     async def write_file(self, path: str, content: str) -> None:
         await self._assert_write_allowed(path)
@@ -117,17 +116,9 @@ class ShadowExecutorMiddleware(CodeExecutorMiddleware):
         await self._assert_write_allowed(path)
         await self.inner.write_file_bytes_atomic(path, content)
 
-    async def append_file(self, path: str, content: str) -> None:
-        await self._assert_write_allowed(path)
-        await self.inner.append_file(path, content)
-
     async def delete_file(self, path: str) -> None:
         await self._assert_write_allowed(path)
         await self.inner.delete_file(path)
-
-    async def mkdir(self, path: str) -> None:
-        await self._assert_write_allowed(path)
-        await self.inner.mkdir(path)
 
     async def _exec_bash(self, command: str) -> ExecutionResult:
         raise PermissionError("Bash execution is blocked in shadow context.")

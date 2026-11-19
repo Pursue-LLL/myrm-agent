@@ -38,6 +38,13 @@ def stops_at_a_card() -> Iterator[list[bool]]:
 
 
 @pytest.fixture
+def stops_at_a_clarification() -> Iterator[list[bool]]:
+    """Whether the stand-in agent stream of ``resumed_run`` ends at a clarification card of its own (empty: it does not)."""
+    flag: list[bool] = []
+    yield flag
+
+
+@pytest.fixture
 def stored_history() -> AsyncMock:
     """The chat's stored history as the history loader hands it to the timer run (empty unless a test fills it)."""
     return AsyncMock(return_value=[])
@@ -64,6 +71,7 @@ def armed_timer() -> MagicMock:
 @pytest.fixture
 def resumed_run(
     stops_at_a_card: list[bool],
+    stops_at_a_clarification: list[bool],
     stored_history: AsyncMock,
     received_params: list[object],
     registered_runs: list[StreamContentCollector | None],
@@ -83,6 +91,13 @@ def resumed_run(
                 "type": "tool_approval_request",
                 "messageId": "msg-1",
                 "data": {"actionRequests": [], "extensions": {"timeout": {"seconds": 45, "behavior": "allow"}}},
+            }
+        if stops_at_a_clarification:
+            yield {
+                "type": "clarification_required",
+                "messageId": "msg-1",
+                "interruptId": "interrupt-next",
+                "data": {"type": "ask_question", "form": {"questions": []}},
             }
 
     with (

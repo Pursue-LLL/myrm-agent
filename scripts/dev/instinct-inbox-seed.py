@@ -30,7 +30,7 @@ def seed_via_http(api_base: str = DEFAULT_API_BASE) -> dict[str, object]:
 async def seed_direct() -> None:
     server_root = _AGENT_ROOT / "myrm-agent-server"
     sys.path.insert(0, str(server_root))
-    from app.api.skills.drafts import seed_mock_drafts_for_e2e
+    from app.api.skills.test_fixtures import seed_mock_drafts_for_e2e
     from app.database.connection import init_database
 
     await init_database()
@@ -64,7 +64,7 @@ def main() -> None:
         raise SystemExit(1) from exc
     except urllib.error.URLError as exc:
         print(
-            f"Backend not reachable at {args.api_base}. Start ./myrm dev first.",
+            f"Backend not reachable at {args.api_base}. Start ./myrm-dev dev first.",
             file=sys.stderr,
         )
         raise SystemExit(1) from exc

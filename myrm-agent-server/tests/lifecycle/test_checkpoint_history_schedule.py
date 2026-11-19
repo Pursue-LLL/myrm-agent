@@ -2,68 +2,25 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
-from types import TracebackType
-from typing import Self
+from datetime import timedelta
 from unittest.mock import AsyncMock
 
 import pytest
-from apscheduler.triggers.interval import IntervalTrigger
 
 from app.lifecycle import schedulers
+from tests.support.recording_scheduler import RecordingScheduler
 
 _JOB_ID = "checkpoint_history_prune"
 
 
-class _RecordingScheduler:
-    registered: dict[str, tuple[Callable[[], object], IntervalTrigger]] = {}
-    ready = asyncio.Event()
-    started = False
+async def test_the_prune_runs_every_six_hours_starting_after_the_boot_burst(maintenance_schedules: RecordingScheduler) -> None:
+    before = maintenance_schedules.created_at
 
-    async def __aenter__(self) -> Self:
-        return self
-
-    async def __aexit__(self, exc_type: type[BaseException] | None, exc: BaseException | None, tb: TracebackType | None) -> None:
-        return None
-
-    async def add_schedule(self, func: Callable[[], object], trigger: IntervalTrigger, *, id: str) -> None:  # noqa: A002
-        type(self).registered[id] = (func, trigger)
-        if id == _JOB_ID:
-            type(self).ready.set()
-
-    async def start_in_background(self) -> None:
-        type(self).started = True
-
-
-@pytest.fixture
-def recording(monkeypatch: pytest.MonkeyPatch) -> Iterator[type[_RecordingScheduler]]:
-    _RecordingScheduler.registered = {}
-    _RecordingScheduler.ready = asyncio.Event()
-    _RecordingScheduler.started = False
-    monkeypatch.setattr("apscheduler.AsyncScheduler", _RecordingScheduler)
-    yield _RecordingScheduler
-    task = schedulers.maintenance._db_maintenance_scheduler_task
-    if task is not None:
-        task.cancel()
-    monkeypatch.setattr(schedulers.maintenance, "_db_maintenance_scheduler_task", None)
-    monkeypatch.setattr(schedulers.maintenance, "_db_maintenance_scheduler", None)
-
-
-async def test_the_prune_runs_every_six_hours_starting_after_the_boot_burst(recording: type[_RecordingScheduler]) -> None:
-    before = datetime.now(UTC)
-
-    await schedulers.start_db_maintenance_scheduler()
-    await asyncio.wait_for(recording.ready.wait(), timeout=10)
-
-    func, trigger = recording.registered[_JOB_ID]
+    func, trigger = maintenance_schedules.registered[_JOB_ID]
     assert func is schedulers._checkpoint_history_prune_job
     assert trigger.hours == 6
     assert before + timedelta(minutes=9) < trigger.start_time < before + timedelta(minutes=11)
-    assert {"db_maintenance", "incognito_cleanup"} <= recording.registered.keys()  # the neighbours are untouched
-    # APScheduler only runs schedules after an explicit start; registering alone leaves them dead.
-    assert recording.started
+    assert {"db_maintenance", "incognito_cleanup"} <= maintenance_schedules.registered.keys()  # the neighbours are untouched
 
 
 async def test_the_job_delegates_to_the_service(monkeypatch: pytest.MonkeyPatch) -> None:

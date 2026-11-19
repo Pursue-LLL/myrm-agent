@@ -12,12 +12,8 @@ channel_bridge 配置解析包的子模块；由 __init__.py 聚合导出。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from app.channels.types import SessionPolicy, SessionResetMode
-
-if TYPE_CHECKING:
-    pass
 
 logger = logging.getLogger(__name__)
 

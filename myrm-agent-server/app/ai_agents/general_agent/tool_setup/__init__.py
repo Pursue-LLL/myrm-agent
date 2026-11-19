@@ -13,7 +13,6 @@
 
 from app.ai_agents.general_agent.tool_setup.common import (
     _configured_media_api_key,
-    _get_artifact_push_fn,
     _is_media_credential_configured,
     _media_gateway_configured,
     _should_mount_ask_question_tool,
@@ -24,7 +23,6 @@ from app.ai_agents.general_agent.tool_setup.mixin import ToolSetupMixin
 __all__ = [
     "ToolSetupMixin",
     "_configured_media_api_key",
-    "_get_artifact_push_fn",
     "_is_media_credential_configured",
     "_media_gateway_configured",
     "_should_mount_ask_question_tool",

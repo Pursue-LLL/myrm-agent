@@ -21,7 +21,7 @@ import { isModelAvailable, resolveActiveModelConfig } from '@/lib/model-binding'
 import { resolveSmartRouting } from '@/lib/model-routing';
 import { showI18nToast } from '@/services/i18nToastService';
 import type { ActionMode, AgentConfig, ModelSelection } from '@/store/chat/types';
-import { hasUsableProviderAuth, normalizeApiUrl, supportsProviderNoAuth } from '@/store/config/providerTypes';
+import { hasUsableProviderAuth, supportsProviderNoAuth } from '@/store/config/providerTypes';
 import useProviderStore from '../useProviderStore';
 
 /**
@@ -75,7 +75,7 @@ export const getModelSelection = (actionMode: ActionMode, agentConfig: AgentConf
   return {
     providerId: selection.providerId,
     model: selection.model,
-    baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
+    baseUrl: provider.apiUrl || undefined,
     modelKwargs: mergedKwargs,
     supportsVision: modelInfo?.supports_vision ?? false,
     credentialPoolStrategy: activeKeyCount > 1 ? provider.credentialPoolStrategy : undefined,
@@ -114,7 +114,7 @@ const resolveSelectionToModelSelection = (
   return {
     providerId: selection.providerId,
     model: selection.model,
-    baseUrl: normalizeApiUrl(provider.apiUrl) || undefined,
+    baseUrl: provider.apiUrl || undefined,
     modelKwargs: Object.keys(mergedKwargs).length > 0 ? mergedKwargs : undefined,
     supportsVision: modelInfo?.supports_vision ?? false,
   };

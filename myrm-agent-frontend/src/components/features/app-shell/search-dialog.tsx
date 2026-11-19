@@ -6,6 +6,7 @@ import { Search, X, Loader2, MessageSquare, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
 import { searchChatHistory, type SearchResult } from '@/services/chat';
 import useChatStore from '@/store/useChatStore';
@@ -240,6 +241,7 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
             <input
               ref={inputRef}
               type="text"
+              maxLength={HISTORY_SEARCH_MAX_LENGTH}
               data-search-input
               value={query}
               onChange={handleChange}
@@ -348,15 +350,6 @@ export function SearchDialog({ open, onOpenChange, onPick, className, children }
                         <span className="truncate">{item.chat_title || t('chat.newChat')}</span>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        {item.is_relaxed && (
-                          <span
-                            data-testid="relaxed-badge"
-                            title={t('search.fuzzyMatchBadgeTooltip')}
-                            className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border border-amber-500/30 bg-amber-500/10 text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300"
-                          >
-                            {t('search.fuzzyMatchBadge')}
-                          </span>
-                        )}
                         <button
                           type="button"
                           data-cite-to-composer

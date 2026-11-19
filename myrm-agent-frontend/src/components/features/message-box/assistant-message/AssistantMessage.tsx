@@ -52,7 +52,7 @@ import WorkflowSuggestionCard from '../WorkflowSuggestionCard';
 import WorkflowTemplateSaveCard from '../WorkflowTemplateSaveCard';
 import { AssistantRunOutputs } from './AssistantRunOutputs';
 import { CompletionStatusNotice } from './CompletionStatusNotice';
-import { closeUnbalancedReasoningTags, parseAsyncTaskResponse, parseTtsAudioResponse } from './messagePayloads';
+import { closeUnbalancedReasoningTags } from './messagePayloads';
 import { useAssistantMessageActions } from './useAssistantMessageActions';
 import { useReasoningAutoCollapse } from './useReasoningAutoCollapse';
 
@@ -114,12 +114,6 @@ export function AssistantMessage({
     hasKbEvidence: hasKbEvidenceOnCurrentMessage,
   });
 
-  // 检测是否为异步任务响应（如图片生成）
-  const taskResponse = useMemo(() => parseAsyncTaskResponse(message.content), [message.content]);
-
-  // 检测是否为 tts_generate 同步成功响应（就地播放而非裸 JSON 渲染）
-  const ttsAudioResponse = useMemo(() => parseTtsAudioResponse(message.content), [message.content]);
-
   // A marker in this answer names a source of this message first, then the nearest earlier message that has that number.
   const citationSources = useMemo(
     () => buildCitationSources(messages.slice(0, messageIndex), message.sources ?? []),
@@ -135,189 +129,185 @@ export function AssistantMessage({
           isLast={isLast}
           chatId={chatId}
           approvalPending={approvalPending}
-          taskResponse={taskResponse}
-          ttsAudioResponse={ttsAudioResponse}
         />
 
         {/* 回复 */}
-        {!taskResponse && !ttsAudioResponse && (
-          <div className="flex flex-col space-y-2">
-            <div className="flex flex-row items-center justify-between">
-              <div className="flex flex-row items-center space-x-2">
-                <Disc3
-                  className={cn(
-                    'text-black dark:text-white',
-                    // 只在生成答案步骤且正在加载时旋转
-                    isLast &&
-                      loading &&
-                      (() => {
-                        const lastStepKey =
-                          message.progressSteps?.[message.progressSteps.length - 1]?.step_key?.toLowerCase() || '';
-                        return lastStepKey.includes('generating') || lastStepKey.includes('answer');
-                      })()
-                      ? 'animate-spin'
-                      : 'animate-none',
-                  )}
-                  size={20}
-                />
-                <h3 className="text-gray-800 dark:text-gray-100 font-medium text-lg">{t('answer')}</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {message.routingSpecialty && (
-                  <ModelSpecialtyChip specialty={message.routingSpecialty} modelName={message.modelName} />
+        <div className="flex flex-col space-y-2">
+          <div className="flex flex-row items-center justify-between">
+            <div className="flex flex-row items-center space-x-2">
+              <Disc3
+                className={cn(
+                  'text-black dark:text-white',
+                  // 只在生成答案步骤且正在加载时旋转
+                  isLast &&
+                    loading &&
+                    (() => {
+                      const lastStepKey =
+                        message.progressSteps?.[message.progressSteps.length - 1]?.step_key?.toLowerCase() || '';
+                      return lastStepKey.includes('generating') || lastStepKey.includes('answer');
+                    })()
+                    ? 'animate-spin'
+                    : 'animate-none',
                 )}
-                {message.deliverableTier && !(isLast && loading) && (
-                  <DeliverableTierBadge data={message.deliverableTier} />
-                )}
-              </div>
+                size={20}
+              />
+              <h3 className="text-gray-800 dark:text-gray-100 font-medium text-lg">{t('answer')}</h3>
             </div>
-
-            {/* Reasoning display */}
-            {message.reasoning && reasoningDisplayMode !== 'off' && (
-              <ReasoningProcessAccordion
-                message={message}
-                isLast={isLast}
-                loading={loading}
-                isExpanded={isReasoningExpanded}
-                onToggle={toggleReasoning}
-                displayMode={reasoningDisplayMode}
-              />
-            )}
-
-            {/* TTFT indicator — visible only during pre-first-token blank period */}
-            {isLast && loading && !parsedMessage && (!message.reasoning || reasoningDisplayMode === 'off') && (
-              <WaitingTtftIndicator />
-            )}
-
-            {message.workflowSuggestion && (
-              <WorkflowSuggestionCard messageId={message.messageId} status={message.workflowSuggestion.status} />
-            )}
-
-            <MessageToc
-              content={parsedMessage}
-              messageId={message.messageId}
-              isStreaming={isLast && loading}
-              containerRef={markdownRef as RefObject<HTMLElement>}
-            />
-
-            <div
-              ref={markdownRef}
-              data-message-id={message.messageId}
-              className={cn('transition-opacity duration-200', message.isFadingOut ? 'opacity-0' : 'opacity-100')}
-            >
-              <MarkdownContent
-                content={parsedMessage}
-                sources={citationSources}
-                messageId={message.messageId}
-                isStreaming={isLast && loading}
-                chatId={chatId}
-                messageArtifacts={message.artifacts}
-                workspaceDir={workspaceDir}
-              />
-              {/* 流式输出动画 - 渐进变深的三个圆点，每个延迟 0.2s 形成波浪效果 */}
-              {isLast && loading && parsedMessage && !message.isFadingOut && (
-                <span className="inline-flex items-center ml-1.5 gap-0.5 align-middle" aria-label="Loading">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-[pulse_1s_ease-in-out_infinite]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent-warm/70 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
-                </span>
+            <div className="flex items-center gap-2">
+              {message.routingSpecialty && (
+                <ModelSpecialtyChip specialty={message.routingSpecialty} modelName={message.modelName} />
+              )}
+              {message.deliverableTier && !(isLast && loading) && (
+                <DeliverableTierBadge data={message.deliverableTier} />
               )}
             </div>
-
-            <QuoteToolbar state={quoteState} onDismiss={dismissQuote} />
-
-            {/* Clarification 输入（Composer takeover 时由 MessageInput 承载） */}
-            {message.clarification && !hideInlineClarification && (
-              <ClarificationInput
-                messageId={message.messageId}
-                answered={message.clarification.answered}
-                options={message.clarification.options}
-                allowMultiple={message.clarification.allowMultiple}
-                answerRecord={message.clarification.answerRecord}
-                title={message.clarification.title}
-                form={message.clarification.form}
-              />
-            )}
-
-            {message.planConfirmation && (
-              <PlanConfirmationCard
-                messageId={message.messageId}
-                plan={message.planConfirmation.plan}
-                status={message.planConfirmation.status}
-                planItems={message.planConfirmation.planItems}
-                goal={message.planConfirmation.goal}
-                source={message.planConfirmation.source}
-                spawnCount={message.planConfirmation.spawnCount}
-                estimatedCostUsd={message.planConfirmation.estimatedCostUsd}
-                remainingBudgetUsd={message.planConfirmation.remainingBudgetUsd}
-                costStatus={message.planConfirmation.costStatus}
-              />
-            )}
-
-            {message.humanGate && (
-              <HumanGateCard
-                messageId={message.messageId}
-                question={message.humanGate.question}
-                options={message.humanGate.options}
-                timeoutSeconds={message.humanGate.timeoutSeconds}
-                defaultAction={message.humanGate.defaultAction}
-                status={message.humanGate.status}
-                answer={message.humanGate.answer}
-                timedOut={message.humanGate.timedOut}
-              />
-            )}
-
-            <WaterDropCostView
-              usage={message.usage}
-              tokenEconomics={message.tokenEconomics}
-              costUsd={message.costUsd}
-              isStreaming={isLast && loading}
-            />
-
-            <MemoryInsightPanel
-              chatId={chatId}
-              isLast={isLast}
-              isStreaming={isLast && loading}
-              messageCreatedAtMs={resolveMessageCreatedAtMs(message.createdAt)}
-              memoryBrief={message.memoryBrief}
-              memoryBriefStatus={message.memoryBriefStatus}
-              memoryBudget={message.memoryBudget}
-              citations={message.citations}
-            />
-
-            <MessageActionBar
-              message={message}
-              messageIndex={messageIndex}
-              loading={loading}
-              isLast={isLast}
-              isLastTurnAnswer={isLastTurnAnswer}
-              chatId={chatId}
-              enableEvalLab={enableEvalLab}
-              markdownRef={markdownRef}
-              onCancel={handleCancel}
-              onRegenerate={handleRegenerate}
-            />
-
-            {/* 文件修改失败警告 */}
-            {!(isLast && loading) && message.fileMutationFailures && message.fileMutationFailures.length > 0 && (
-              <FileMutationWarning failures={message.fileMutationFailures} />
-            )}
-
-            {/* 自动暂存的未落盘交付物草案通知条 */}
-            {!(isLast && loading) && message.stagedArtifacts && message.stagedArtifacts.length > 0 && (
-              <StagedArtifactsNotice stagedArtifacts={message.stagedArtifacts} />
-            )}
-
-            {!(isLast && loading) && chatId && message.role === 'assistant' && (
-              <WorkflowTemplateSaveCard message={message} chatId={chatId} />
-            )}
-
-            <CompletionStatusNotice status={message.completionStatus} streaming={isLast && loading} />
-
-            {/* 建议 */}
-            {isLast && <Suggestions message={message} loading={loading} />}
           </div>
-        )}
+
+          {/* Reasoning display */}
+          {message.reasoning && reasoningDisplayMode !== 'off' && (
+            <ReasoningProcessAccordion
+              message={message}
+              isLast={isLast}
+              loading={loading}
+              isExpanded={isReasoningExpanded}
+              onToggle={toggleReasoning}
+              displayMode={reasoningDisplayMode}
+            />
+          )}
+
+          {/* TTFT indicator — visible only during pre-first-token blank period */}
+          {isLast && loading && !parsedMessage && (!message.reasoning || reasoningDisplayMode === 'off') && (
+            <WaitingTtftIndicator />
+          )}
+
+          {message.workflowSuggestion && (
+            <WorkflowSuggestionCard messageId={message.messageId} status={message.workflowSuggestion.status} />
+          )}
+
+          <MessageToc
+            content={parsedMessage}
+            messageId={message.messageId}
+            isStreaming={isLast && loading}
+            containerRef={markdownRef as RefObject<HTMLElement>}
+          />
+
+          <div
+            ref={markdownRef}
+            data-message-id={message.messageId}
+            className={cn('transition-opacity duration-200', message.isFadingOut ? 'opacity-0' : 'opacity-100')}
+          >
+            <MarkdownContent
+              content={parsedMessage}
+              sources={citationSources}
+              messageId={message.messageId}
+              isStreaming={isLast && loading}
+              chatId={chatId}
+              messageArtifacts={message.artifacts}
+              workspaceDir={workspaceDir}
+            />
+            {/* 流式输出动画 - 渐进变深的三个圆点，每个延迟 0.2s 形成波浪效果 */}
+            {isLast && loading && parsedMessage && !message.isFadingOut && (
+              <span className="inline-flex items-center ml-1.5 gap-0.5 align-middle" aria-label="Loading">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-[pulse_1s_ease-in-out_infinite]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-[pulse_1s_ease-in-out_0.2s_infinite]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-warm/70 animate-[pulse_1s_ease-in-out_0.4s_infinite]" />
+              </span>
+            )}
+          </div>
+
+          <QuoteToolbar state={quoteState} onDismiss={dismissQuote} />
+
+          {/* Clarification 输入（Composer takeover 时由 MessageInput 承载） */}
+          {message.clarification && !hideInlineClarification && (
+            <ClarificationInput
+              messageId={message.messageId}
+              answered={message.clarification.answered}
+              options={message.clarification.options}
+              allowMultiple={message.clarification.allowMultiple}
+              answerRecord={message.clarification.answerRecord}
+              title={message.clarification.title}
+              form={message.clarification.form}
+            />
+          )}
+
+          {message.planConfirmation && (
+            <PlanConfirmationCard
+              messageId={message.messageId}
+              plan={message.planConfirmation.plan}
+              status={message.planConfirmation.status}
+              planItems={message.planConfirmation.planItems}
+              goal={message.planConfirmation.goal}
+              source={message.planConfirmation.source}
+              spawnCount={message.planConfirmation.spawnCount}
+              estimatedCostUsd={message.planConfirmation.estimatedCostUsd}
+              remainingBudgetUsd={message.planConfirmation.remainingBudgetUsd}
+              costStatus={message.planConfirmation.costStatus}
+            />
+          )}
+
+          {message.humanGate && (
+            <HumanGateCard
+              messageId={message.messageId}
+              question={message.humanGate.question}
+              options={message.humanGate.options}
+              timeoutSeconds={message.humanGate.timeoutSeconds}
+              defaultAction={message.humanGate.defaultAction}
+              status={message.humanGate.status}
+              answer={message.humanGate.answer}
+              timedOut={message.humanGate.timedOut}
+            />
+          )}
+
+          <WaterDropCostView
+            usage={message.usage}
+            tokenEconomics={message.tokenEconomics}
+            costUsd={message.costUsd}
+            isStreaming={isLast && loading}
+          />
+
+          <MemoryInsightPanel
+            chatId={chatId}
+            isLast={isLast}
+            isStreaming={isLast && loading}
+            messageCreatedAtMs={resolveMessageCreatedAtMs(message.createdAt)}
+            memoryBrief={message.memoryBrief}
+            memoryBriefStatus={message.memoryBriefStatus}
+            memoryBudget={message.memoryBudget}
+            citations={message.citations}
+          />
+
+          <MessageActionBar
+            message={message}
+            messageIndex={messageIndex}
+            loading={loading}
+            isLast={isLast}
+            isLastTurnAnswer={isLastTurnAnswer}
+            chatId={chatId}
+            enableEvalLab={enableEvalLab}
+            markdownRef={markdownRef}
+            onCancel={handleCancel}
+            onRegenerate={handleRegenerate}
+          />
+
+          {/* 文件修改失败警告 */}
+          {!(isLast && loading) && message.fileMutationFailures && message.fileMutationFailures.length > 0 && (
+            <FileMutationWarning failures={message.fileMutationFailures} />
+          )}
+
+          {/* 自动暂存的未落盘交付物草案通知条 */}
+          {!(isLast && loading) && message.stagedArtifacts && message.stagedArtifacts.length > 0 && (
+            <StagedArtifactsNotice stagedArtifacts={message.stagedArtifacts} />
+          )}
+
+          {!(isLast && loading) && chatId && message.role === 'assistant' && (
+            <WorkflowTemplateSaveCard message={message} chatId={chatId} />
+          )}
+
+          <CompletionStatusNotice status={message.completionStatus} streaming={isLast && loading} />
+
+          {/* 建议 */}
+          {isLast && <Suggestions message={message} loading={loading} />}
+        </div>
       </div>
     </div>
   );

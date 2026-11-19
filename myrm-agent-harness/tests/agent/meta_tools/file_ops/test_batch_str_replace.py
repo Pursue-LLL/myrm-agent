@@ -6,6 +6,7 @@ import pytest
 
 from myrm_agent_harness.agent.meta_tools.file_ops.core.batch_str_replace import (
     MAX_EDITS_PER_CALL,
+    EditMatchError,
     apply_batch_str_replace,
     check_non_overlapping_edits,
     compute_batch_edit_line_range,
@@ -33,8 +34,9 @@ def test_apply_batch_second_edit_fails_no_partial_apply_in_memory() -> None:
         StrReplaceEdit(old_str="keep", new_str="changed"),
         StrReplaceEdit(old_str="missing", new_str="x"),
     )
-    with pytest.raises(ValueError, match="Edit 2"):
+    with pytest.raises(EditMatchError, match="Edit 2") as failure:
         apply_batch_str_replace(content, edits)
+    assert failure.value.kind == "not_found"
 
 
 def test_overlap_rejected_on_original_content() -> None:
@@ -43,8 +45,9 @@ def test_overlap_rejected_on_original_content() -> None:
         StrReplaceEdit(old_str="abc", new_str="1"),
         StrReplaceEdit(old_str="bcd", new_str="2"),
     )
-    with pytest.raises(ValueError, match="overlap"):
+    with pytest.raises(EditMatchError, match="overlap") as failure:
         check_non_overlapping_edits(content, edits)
+    assert failure.value.kind == "overlap"
 
 
 def test_max_edits_limit() -> None:
@@ -64,8 +67,9 @@ def test_validate_empty_edits() -> None:
 
 
 def test_find_exclusive_span_multiple_matches() -> None:
-    with pytest.raises(ValueError, match="Found 2 matches"):
+    with pytest.raises(EditMatchError, match="Found 2 matches") as failure:
         apply_batch_str_replace("aa", (StrReplaceEdit(old_str="a", new_str="b"),))
+    assert failure.value.kind == "ambiguous"
 
 
 def test_compute_batch_edit_line_range_empty() -> None:
@@ -92,8 +96,9 @@ def test_apply_rejects_duplicate_after_prior_edit_expands_match() -> None:
         StrReplaceEdit(old_str="MARKER", new_str="aa"),
         StrReplaceEdit(old_str="a", new_str="x"),
     )
-    with pytest.raises(ValueError, match="Edit 2: found 2 matches"):
+    with pytest.raises(EditMatchError, match="Edit 2: found 2 matches") as failure:
         apply_batch_str_replace(content, edits)
+    assert failure.value.kind == "ambiguous"
 
 
 def test_fuzzy_apply_success() -> None:

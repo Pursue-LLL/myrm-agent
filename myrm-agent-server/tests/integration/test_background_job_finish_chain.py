@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,7 @@ from myrm_agent_harness.toolkits.code_execution.workspace.storage_root_bind impo
     bind_workspace_storage_root,
 )
 
+from app.database.dto import MessageDTO
 from app.database.models.chat import Chat
 from app.platform_utils import get_session_factory
 from app.services.agent.background_job.background_job_finish_handler import (
@@ -79,6 +81,32 @@ async def _create_chat(chat_id: str) -> None:
             )
         )
         await db.commit()
+
+
+# A healthy run returns as soon as the message is written; only a message that never arrives spends all of it.
+_FINISH_MESSAGE_TIMEOUT_S = 10.0
+
+
+async def _finish_messages(chat_id: str) -> list[MessageDTO]:
+    chat = await ChatService.get_chat_by_id(chat_id)
+    assert chat is not None
+    return [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
+
+
+async def _wait_for_finish_messages(chat_id: str) -> list[MessageDTO]:
+    """The finish messages once the first one is written.
+
+    The registry reports the exit before the handler has written anything, and how long that write takes depends on the
+    machine, so a fixed sleep reads too early on a slow one. A duplicate would be written right behind the first
+    message, hence the short wait before the final read.
+    """
+    deadline = time.monotonic() + _FINISH_MESSAGE_TIMEOUT_S
+    while not await _finish_messages(chat_id):
+        if time.monotonic() >= deadline:
+            pytest.fail(f"No finish message was written within {_FINISH_MESSAGE_TIMEOUT_S:.0f}s")
+        await asyncio.sleep(0.05)
+    await asyncio.sleep(0.1)
+    return await _finish_messages(chat_id)
 
 
 @pytest.fixture(autouse=True)
@@ -159,11 +187,7 @@ async def test_background_exit_persists_finish_message_to_chat(tmp_path: Path) -
     else:
         pytest.fail("Background process did not exit in time")
 
-    await asyncio.sleep(0.1)
-
-    chat = await ChatService.get_chat_by_id(chat_id)
-    assert chat is not None
-    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
+    bg_messages = await _wait_for_finish_messages(chat_id)
     assert len(bg_messages) == 1
     assert (
         str(pid) in bg_messages[0].content or "completed" in bg_messages[0].content.lower() or "已完成" in bg_messages[0].content
@@ -223,10 +247,7 @@ async def test_background_killed_does_not_persist_finish_message(
     await get_background_registry().kill(pid, force=True)
     await asyncio.sleep(0.2)
 
-    chat = await ChatService.get_chat_by_id(chat_id)
-    assert chat is not None
-    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
-    assert bg_messages == []
+    assert await _finish_messages(chat_id) == []
 
 
 @pytest.mark.integration
@@ -285,10 +306,7 @@ async def test_background_nonzero_exit_persists_finish_message(tmp_path: Path) -
     else:
         pytest.fail("Background process did not exit with code 2")
 
-    await asyncio.sleep(0.1)
-    chat = await ChatService.get_chat_by_id(chat_id)
-    assert chat is not None
-    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
+    bg_messages = await _wait_for_finish_messages(chat_id)
     assert len(bg_messages) == 1
     assert bg_messages[0].extra_data.get("exit_code") == 2
 
@@ -351,8 +369,4 @@ async def test_kill_session_jobs_clears_spawn_and_skips_chat(tmp_path: Path) -> 
     await asyncio.sleep(0.2)
 
     assert get_session_spawn_tool_names(chat_id) == frozenset()
-
-    chat = await ChatService.get_chat_by_id(chat_id)
-    assert chat is not None
-    bg_messages = [m for m in chat.messages if m.extra_data and m.extra_data.get("background_job") is True]
-    assert bg_messages == []
+    assert await _finish_messages(chat_id) == []

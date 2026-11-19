@@ -9,13 +9,12 @@ import {
   ApiKeyConfig,
   CredentialPoolStrategy,
   getRoutedModelName,
-  BUILT_IN_PROVIDER_INFO,
   hasActiveApiKey,
   hasUsableProviderAuth,
-  normalizeApiUrl,
   resolveProviderApiKeyForRequests,
   resolveCustomProviderTypeInfo,
 } from '@/store/config/providerTypes';
+import { BUILT_IN_PROVIDER_INFO } from '@/store/config/providerCatalog';
 import ApiKeyManager from './ApiKeyManager';
 import ModelCheckbox from './ModelCheckbox';
 import ApiUrlSelector from './ApiUrlSelector';
@@ -78,7 +77,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
       return checkModelReachability({
         model: modelFullName,
         api_key: apiKey,
-        base_url: normalizeApiUrl(provider.apiUrl) || null,
+        base_url: provider.apiUrl || null,
         egress_proxy: provider.egressProxy?.trim() || null,
         model_kwargs: {},
       });
@@ -118,7 +117,7 @@ const ProviderConfig = memo<ProviderConfigProps>(({ provider, onChange, onValida
     const result = await checkModelReachability({
       model: modelFullName,
       api_key: requestApiKey,
-      base_url: normalizeApiUrl(provider.apiUrl) || null,
+      base_url: provider.apiUrl || null,
       egress_proxy: provider.egressProxy?.trim() || null,
       model_kwargs: {},
     });

@@ -122,7 +122,6 @@ class MemoryBuildersMixin:
         trigger: str,
         action: str,
         *,
-        trigger_keywords: list[str] | None = None,
         source: RuleSource = RuleSource.USER_EXTRACTED,
         source_chat_id: str | None = None,
     ) -> ProceduralMemory:
@@ -131,7 +130,6 @@ class MemoryBuildersMixin:
             content=content,
             trigger=trigger,
             action=instruction,
-            trigger_keywords=trigger_keywords or [],
             source=source,
             source_chat_id=source_chat_id,
             scope=self._scope.model_copy(deep=True),

@@ -25,10 +25,6 @@ _FRONTEND_LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-fronte
 _FRONTEND_FILES = {
     "en": "en.json",
     "zh-CN": "zh.json",
-    "zh-TW": "zh-TW.json",
-    "ja": "ja.json",
-    "ko": "ko.json",
-    "de": "de.json",
 }
 
 _PATH_SEPARATOR = re.compile(r"\s[>→]\s")
@@ -52,12 +48,7 @@ _QUOTES: tuple[_Quote, ...] = (
     _Quote("api_key_resolution_steps", (_MODEL_SERVICE,)),
     _Quote("format_error_generic_resolution_steps", (_MODEL_SERVICE,)),
     _Quote("format_error_model_resolution_steps", (_MODEL_SERVICE,)),
-    # The German, Japanese and Korean rate-limit steps carry no fallback-model step.
-    _Quote(
-        "rate_limit_resolution_steps",
-        (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel"),
-        locales=("en", "zh-CN", "zh-TW"),
-    ),
+    _Quote("rate_limit_resolution_steps", (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel")),
     _Quote("overloaded_resolution_steps", (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel")),
     _Quote("response_format_error_resolution_steps", (_MODEL_SERVICE, "menu.defaultModel", "defaultModel.fallbackModel")),
     _Quote("tls_certificate_resolution_steps", _TLS_COMPAT),

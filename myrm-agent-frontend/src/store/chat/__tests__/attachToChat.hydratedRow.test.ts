@@ -42,7 +42,7 @@ function sse(events: object[]): Response {
   return new Response(body, { headers: { 'Content-Type': 'text/event-stream' } });
 }
 
-function hydratedRows(): Message[] {
+function hydratedRows(metadata: Record<string, unknown> = {}): Message[] {
   return parseMessages([
     { messageId: 'u-1', chatId: CHAT_ID, role: 'user', content: 'write the list', createdAt: new Date() },
     {
@@ -51,7 +51,7 @@ function hydratedRows(): Message[] {
       role: 'assistant',
       content: "I'll run that command now.",
       createdAt: new Date(),
-      metadata: { request_message_id: REQUEST_ID },
+      metadata: { request_message_id: REQUEST_ID, ...metadata },
     },
   ] as unknown as Message[]);
 }
@@ -154,5 +154,48 @@ describe('attachToChat after a reload that hydrated the transcript from the DB',
     await new Promise((resolve) => setTimeout(resolve, 600));
 
     expect(assistantRows().map((row) => row.content)).toEqual(['hi', 'one\ntwo']);
+  });
+
+  describe('media generated before the page attached', () => {
+    const image = { kind: 'image', task_id: 'img-1' };
+    const speech = { kind: 'tts', media: 'media://media_a', model: 'voice-1' };
+
+    async function attachWithSnapshot(data: Record<string, unknown>): Promise<Message | undefined> {
+      vi.mocked(fetchWithTimeout).mockResolvedValue(
+        sse([
+          {
+            type: 'catchup_snapshot',
+            messageId: REQUEST_ID,
+            data: { content: 'here it is\n', reasoning: '', progress_steps: [], sources: [], ...data },
+          },
+          { type: 'message_end', messageId: REQUEST_ID, completion_status: 'completed' },
+        ]),
+      );
+      await attachToChat(CHAT_ID, actions, useChatStore.getState);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      return assistantRows()[0];
+    }
+
+    it('shows the cards the snapshot registers and drops entries that are not media', async () => {
+      const row = await attachWithSnapshot({ media_generated: [image, speech, { kind: 'image' }] });
+
+      expect(row?.metadata?.media_generated).toEqual([image, speech]);
+    });
+
+    it('lists a card once when the snapshot repeats media the page already showed', async () => {
+      useChatStore.setState({ messages: hydratedRows({ media_generated: [image] }) });
+
+      const row = await attachWithSnapshot({ media_generated: [image, speech] });
+
+      expect(row?.metadata?.media_generated).toEqual([image, speech]);
+    });
+
+    it('keeps the cards already shown when the snapshot registers none', async () => {
+      useChatStore.setState({ messages: hydratedRows({ media_generated: [image] }) });
+
+      const row = await attachWithSnapshot({ media_generated: [] });
+
+      expect(row?.metadata?.media_generated).toEqual([image]);
+    });
   });
 });

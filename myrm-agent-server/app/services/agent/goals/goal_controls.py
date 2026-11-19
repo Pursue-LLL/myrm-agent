@@ -139,6 +139,4 @@ async def continue_resumed_goal(session_id: str, provider: GoalProvider, goal_id
     goal = await provider.get_goal(goal_id)
     if goal is None or goal.status is not GoalStatus.ACTIVE:
         return False
-    return await trigger_goal_stream_with_failure_policy(
-        session_id, goal, provider, on_failure="needs_human_review", context="goal resume"
-    )
+    return await trigger_goal_stream_with_failure_policy(session_id, goal, context="goal resume")

@@ -5,7 +5,7 @@ platform::PlatformInfo (POS: OS detection and shell path resolution)
 
 [OUTPUT]
 ShellFlavor: ABC for platform-specific shell command formatting; applies a command's ``CommandEnv`` around it.
-BashFlavor: Bash/POSIX shell driver with ulimit init, exit() interceptor, and block-rc command wrapping.
+BashFlavor: Bash/POSIX shell driver with ulimit init, exit() interceptor, and block-rc command wrapping whose stdin is /dev/null.
 PowerShellFlavor: Windows PowerShell driver with UTF-8 encoding, Progress suppression, exit() interceptor, and dual exit code normalization.
 WindowsFlavor: Legacy Windows cmd driver.
 get_flavor: Factory returning the appropriate flavor for the platform.
@@ -143,6 +143,11 @@ class BashFlavor(ShellFlavor):
         # The command's variables are exported inside the block, so the command sees them in the persistent shell
         # itself. The scoped ones are unset after the end marker rather than inside the block: ``exit`` leaves the
         # block early, and nothing after the markers can change the exit code the caller reads.
+        #
+        # The block's stdin is /dev/null, not the session's pipe. That pipe carries the marker commands that follow
+        # the block, and a command that reads its stdin would take them and leave the shell without a boundary.
+        # Input a command names itself (a pipe, a heredoc, ``< file``) still reaches it; only the inherited stdin is
+        # empty. The marker commands sit outside the block, so the shell still reads them from the pipe.
         clean_command = command.rstrip("\r\n")
         if env is not None and env.cwd is not None:
             # A subshell keeps the directory change from reaching later commands; chained, so a directory that
@@ -153,7 +158,7 @@ class BashFlavor(ShellFlavor):
             f'trap \'echo "{exit_marker}"$?; echo "{end_marker}"\' EXIT\n'
             "{\n" + "".join(f"{line}\n" for line in set_lines) + f"{clean_command}\n"
             f"__myrm_rc__={exit_code_var}\n"
-            "}\n"
+            "} </dev/null\n"
             f"echo '{exit_marker}'\"$__myrm_rc__\"\n"
             f"echo '{end_marker}'\n" + "".join(f"{line}\n" for line in unset_lines)
         )

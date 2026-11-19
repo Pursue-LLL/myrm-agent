@@ -5,14 +5,17 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
 
 from app.ai_agents.general_agent.mount_resolver import ResolvedMountPlan
 from app.core.skills.creation.version_persisting_backend import VersionPersistingSkillWriteBackend
 from app.core.skills.marketplace.market_service import market_service
+from app.services.agent.goals.goal_registry import GoalRegistry
 from tests.ai_agents.general_agent.builder_wiring_testkit import (
     BASE_TOOLS,
     BUILDER,
@@ -202,12 +205,17 @@ class TestExternalAgents:
 
 
 class TestGoals:
+    @pytest.fixture(autouse=True)
+    def _language_comes_from_the_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An operator's ``MYRM_LOCALE`` must not decide which language the goal tool is described in."""
+        monkeypatch.delenv("MYRM_LOCALE", raising=False)
+
     def _provider(self, harness: BuilderHarness, *, active_goal: object) -> tuple[MagicMock, MagicMock]:
         """The chat's goal provider and the harness factory of the goal tools it is handed to."""
         provider = MagicMock(name="goal_provider")
         provider.get_active_goal = AsyncMock(return_value=active_goal)
         create_tools = MagicMock(return_value=[SimpleNamespace(name="complete_goal_tool")])
-        harness.patch("app.services.agent.goals.goal_registry.GoalRegistry.get_provider", lambda _chat_id: provider)
+        harness.patch("app.services.agent.goals.goal_registry.GoalRegistry.resolve_provider", lambda _chat_id: provider)
         harness.patch("myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools.create_goal_tools", create_tools)
         return provider, create_tools
 
@@ -217,9 +225,27 @@ class TestGoals:
         handed = await harness.build(harness.wrapper(enable_planning=False))
 
         provider.get_active_goal.assert_awaited_once_with(CHAT_ID)
-        create_tools.assert_called_once_with(provider, CHAT_ID)
+        create_tools.assert_called_once_with(provider, CHAT_ID, locale="en")
         assert handed["enable_planning"] is True
         assert "complete_goal_tool" in allowed_tools(handed)
+
+    @pytest.mark.parametrize(
+        ("params", "described_in"),
+        [
+            pytest.param({"locale": "zh-CN"}, "zh-CN", id="chinese-session"),
+            pytest.param({"channel_name": "feishu"}, "zh-CN", id="im-channel-without-a-session-language"),
+            pytest.param({"locale": "en", "channel_name": "feishu"}, "en", id="english-session-on-an-im-channel"),
+            pytest.param({}, "en", id="no-language-at-all"),
+        ],
+    )
+    async def test_the_goal_tool_is_described_in_the_language_of_the_session(
+        self, harness: BuilderHarness, params: dict[str, str], described_in: str
+    ) -> None:
+        provider, create_tools = self._provider(harness, active_goal=SimpleNamespace(id="goal-1"))
+
+        await harness.build(harness.wrapper(enable_planning=False, **params))
+
+        create_tools.assert_called_once_with(provider, CHAT_ID, locale=described_in)
 
     async def test_a_provider_with_no_active_goal_changes_nothing(self, harness: BuilderHarness) -> None:
         _, create_tools = self._provider(harness, active_goal=None)
@@ -230,9 +256,29 @@ class TestGoals:
         assert handed["enable_planning"] is False
         assert "complete_goal_tool" not in allowed_tools(handed)
 
-    async def test_without_a_goal_provider_the_agents_own_planning_choice_stands(self, harness: BuilderHarness) -> None:
-        harness.patch("app.services.agent.goals.goal_registry.GoalRegistry.get_provider", lambda _chat_id: None)
+    @pytest.fixture
+    def stored_goals(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Real storage behind the real registry: what an earlier turn left there is what the next build sees."""
+        monkeypatch.setattr("app.platform_utils.get_storage_provider", lambda: LocalStorageBackend(str(tmp_path)))
 
+    @pytest.mark.usefixtures("stored_goals")
+    async def test_a_stored_active_goal_mounts_the_goal_tools_though_no_turn_registered_a_provider(
+        self, harness: BuilderHarness
+    ) -> None:
+        """A chat whose goal an earlier turn left running builds with the goal tools though no turn of it is registered."""
+        await GoalRegistry.resolve_provider(CHAT_ID).create_goal(CHAT_ID, "Ship the report")
+        assert GoalRegistry.get_provider(CHAT_ID) is None
+
+        handed = await harness.build(harness.wrapper(enable_planning=False))
+
+        assert handed["enable_planning"] is True
+        assert "complete_goal_tool" in allowed_tools(handed)
+        assert GoalRegistry.get_provider(CHAT_ID) is None
+
+    @pytest.mark.usefixtures("stored_goals")
+    async def test_a_chat_without_a_goal_keeps_the_agents_own_planning_choice(self, harness: BuilderHarness) -> None:
         handed = await harness.build(harness.wrapper(enable_planning=True))
 
         assert handed["enable_planning"] is True
+        assert "complete_goal_tool" not in allowed_tools(handed)
+        assert GoalRegistry.get_provider(CHAT_ID) is None

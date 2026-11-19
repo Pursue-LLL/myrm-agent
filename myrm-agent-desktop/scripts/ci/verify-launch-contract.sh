@@ -27,14 +27,57 @@ fi
 grep -q 'api_port: backend.port' "$CONFIG" \
   || fail "FrontendConfig.api_port must follow BackendConfig.port"
 
-grep -q 'load_system_config' "$SHELL_HTML" \
-  || fail "frontend-shell must read webui port via load_system_config"
-
 grep -q 'frontend-start-failed' "$SHELL_HTML" \
   || fail "frontend-shell must handle frontend-start-failed"
 
 grep -q 'backend-start-failed' "$SHELL_HTML" \
   || fail "frontend-shell must handle backend-start-failed"
+
+# The shell page ships its copy in zh and en. A key missing from one language renders as "undefined"
+# there, and a key nothing uses is copy nobody sees.
+python3 - "$SHELL_HTML" <<'PY' || fail "frontend-shell copy must define the same keys in zh and en and use every one"
+import json
+import re
+import sys
+
+page = open(sys.argv[1], encoding="utf-8").read()
+block = re.search(r'<script type="application/json" id="shell-copy">(.*?)</script>', page, re.S)
+if block is None:
+    sys.exit("no #shell-copy block")
+copy = json.loads(block.group(1))
+if set(copy) != {"zh", "en"}:
+    sys.exit(f"languages must be exactly zh and en, got {sorted(copy)}")
+zh, en = set(copy["zh"]), set(copy["en"])
+used = set(re.findall(r'data-i18n="([^"]+)"', page)) | set(re.findall(r'\bt\("([^"]+)"\)', page))
+problems = {
+    "in one language only": sorted(zh ^ en),
+    "used but undefined": sorted(used - zh),
+    "defined but unused": sorted(zh - used),
+    "empty": sorted(f"{lang}.{key}" for lang, entries in copy.items() for key, text in entries.items() if not text.strip()),
+}
+failed = {name: keys for name, keys in problems.items() if keys}
+if failed:
+    sys.exit(str(failed))
+PY
+
+# WKWebView on macOS ignores the bare user-select, and before Safari 18 backdrop-filter needs the
+# -webkit- spelling too (the bundle runs down to macOS 10.15). The shell page has no prefixing build
+# step, so a bare declaration silently does nothing there: every one must directly follow its
+# -webkit- twin with the same value.
+python3 - "$SHELL_HTML" <<'PY' || fail "frontend-shell must write user-select and backdrop-filter right after their -webkit- twin"
+import re
+import sys
+
+page = open(sys.argv[1], encoding="utf-8").read()
+unpaired = []
+for prop in ("user-select", "backdrop-filter"):
+    for declaration in re.finditer(rf"(?<![\w-]){prop}\s*:\s*([^;]+);", page):
+        twin = rf"-webkit-{prop}\s*:\s*{re.escape(declaration.group(1))};\s*$"
+        if re.search(twin, page[: declaration.start()]) is None:
+            unpaired.append(f"{prop}: {declaration.group(1)}")
+if unpaired:
+    sys.exit(f"missing -webkit- twin: {unpaired}")
+PY
 
 grep -q '"withGlobalTauri": true' "$TAURI_CONF" \
   || fail "tauri.conf.json must enable withGlobalTauri for frontend-shell IPC"

@@ -4,6 +4,7 @@
 app.services.migration.instruction_writer (POS: 指令车道写入)
 app.services.memory.imports.import_ledger (POS: 导入账本)
 app.services.memory.operations.crud.import_flows.side_effects (POS: 导入后副作用)
+app.core.channel_bridge.config_cache::invalidate_user_configs_cache (POS: drops the cached user configs after a settings write)
 
 [OUTPUT]
 InstructionLaneOutcome: the applied instruction result plus the counts and
@@ -11,7 +12,7 @@ rollback metadata that the confirm response and ledger need.
 
 [POS]
 First write lane of the confirm phase. Kept apart from the handler so the order of
-writes (instructions -> MCP -> model -> ledger) stays readable and testable.
+writes (instructions -> MCP -> model -> cache drop -> ledger) stays readable and testable.
 """
 
 from __future__ import annotations
@@ -93,6 +94,7 @@ async def apply_instruction_lane(
 ) -> InstructionLaneOutcome:
     """Write instructions, MCP configs and model migration, then record the rollback facts."""
 
+    from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.services.memory.imports.import_ledger import MemoryImportLedgerService
     from app.services.memory.operations.crud.import_flows.side_effects import (
         _apply_model_migration,
@@ -126,6 +128,9 @@ async def apply_instruction_lane(
             model_migration_data,
             target_agent_id=instruction_result.target_agent_id,
         )
+
+    # The lanes above changed settings rows; the user-config cache must not keep serving the old ones.
+    invalidate_user_configs_cache()
 
     rollback_record = instruction_rollback_record_from_apply(
         instruction_result,

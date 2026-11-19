@@ -22,8 +22,6 @@ from urllib.parse import parse_qsl
 from .golden_allowed_types import AllowedDiff
 
 _IMAGE_OPENAI_SDK = (
-    "image/dall_e_2",
-    "image/dall_e_3",
     "image/gpt_image_1",
     "image/openai_gpt_image",
     "image/openai_compat",
@@ -56,6 +54,10 @@ def _same_params(*ignore: str) -> Callable[..., bool]:
 
 def _old_is(text: str) -> Callable[..., bool]:
     return lambda diff: text in str(diff.old)
+
+
+def _old_equals(*values: object) -> Callable[..., bool]:
+    return lambda diff: diff.old in values
 
 
 def _counts(old: int, new: int) -> Callable[..., bool]:
@@ -153,20 +155,22 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     # --- image generation and edit --------------------------------------------------------------------------------
     AllowedDiff(
-        "image-style-only-dall-e-3",
-        "`style` is an option of DALL-E 3 only; the baseline library forwarded it to Together and xAI models that "
-        "have no such option.",
+        "image-one-image-per-request",
+        "One call produces one image, so the request carries no image count; the baseline library sent `n: 1` "
+        "(a string in the multipart edit form).",
         "-",
-        r"/body/style",
-        providers=("image/together_flux", "image/xai"),
+        r"/body/n",
+        providers=(*_IMAGE_OPENAI_SDK, "image/azure"),
+        when=_old_equals(1, "1"),
     ),
     AllowedDiff(
-        "minimax-image-count",
-        "The baseline provider code was written to send `n` but litellm never delivered it, so asking for several "
-        "images produced one; the transport sends `n`.",
-        "+",
-        r"/body/n",
-        providers=("image/minimax",),
+        "image-quality-only-when-requested",
+        "The baseline library sent the configured default `quality: standard`, which is not a value GPT image models "
+        "accept; the transport sends `quality` only when the caller asks for one.",
+        "-",
+        r"/body/quality",
+        providers=(*_IMAGE_OPENAI_SDK, "image/azure"),
+        when=_old_equals("standard"),
     ),
     AllowedDiff(
         "imagen-default-size",
@@ -190,7 +194,7 @@ SERVICE_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "image-edit-refused-before-sending",
-        "Image edit is offered for DALL-E 2 and GPT Image 1 only (`supports_edit`). For Gemini Imagen and Stability the "
+        "Image edit is offered for the GPT Image models only (`supports_edit`). For Gemini Imagen and Stability the "
         "baseline library sent a request and then failed (IndexError, 'model isn't mapped'); the transport refuses "
         "before sending. Same failure kind (ImageGenerationError), one request fewer.",
         "count",

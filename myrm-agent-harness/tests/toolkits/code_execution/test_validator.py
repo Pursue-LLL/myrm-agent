@@ -15,11 +15,9 @@ from myrm_agent_harness.toolkits.code_execution.security.validator import (
     is_command_allowed,
     is_module_allowed,
     is_path_allowed,
-    is_path_component_safe,
     validate_command,
     validate_module,
     validate_path,
-    validate_path_component,
 )
 
 # ---------------------------------------------------------------------------
@@ -246,6 +244,63 @@ class TestValidateCommand:
         assert is_command_allowed("rm -rf /") is False
 
 
+class TestDevNullRedirects:
+    """A redirect to or from ``/dev/null`` passes however it is spaced; any other system path or device file written
+    as a word of its own is blocked."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "ls >/dev/null",
+            "ls 2>/dev/null",
+            "ls > /dev/null",
+            "ls 2> /dev/null",
+            "ls >> /dev/null",
+            "cmd > /dev/null 2>&1",
+            "cat < /dev/null",
+            "python3 check.py > /dev/null && echo ok",
+        ],
+    )
+    def test_redirect_to_or_from_dev_null_is_allowed(self, command: str, tmp_path: Path) -> None:
+        assert validate_command(command, workspace_path=tmp_path).is_safe is True
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "ls /etc",
+            "cat /dev/zero",
+            "cat /dev/tty",
+            "cat < /dev/stdin",
+            "ls > /dev/null.bak",
+            "cat /dev/null/../zero",
+        ],
+    )
+    def test_other_system_paths_and_devices_stay_blocked(self, command: str, tmp_path: Path) -> None:
+        result = validate_command(command, workspace_path=tmp_path)
+        assert result.is_safe is False
+        assert "Only current session workspace is accessible" in (result.reason or "")
+
+    def test_a_name_that_resolves_to_dev_null_is_not_dev_null(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``/dev/stdin`` resolves to ``/dev/null`` whenever the process's stdin is ``/dev/null``, as a CI step's is.
+
+        The verdict is about the name the command uses, so it must not depend on how the test process was started.
+        """
+        real_resolve = Path.resolve
+
+        def stdin_is_dev_null(self: Path, strict: bool = False) -> Path:
+            return Path("/dev/null") if str(self) == "/dev/stdin" else real_resolve(self, strict=strict)
+
+        monkeypatch.setattr(Path, "resolve", stdin_is_dev_null)
+
+        result = validate_command("cat < /dev/stdin", workspace_path=tmp_path)
+        assert result.is_safe is False
+        assert "Only current session workspace is accessible" in (result.reason or "")
+        assert validate_path("/dev/stdin").is_safe is False
+        assert validate_path("/dev/null").is_safe is True
+
+
 # ---------------------------------------------------------------------------
 # validate_path
 # ---------------------------------------------------------------------------
@@ -274,53 +329,6 @@ class TestValidatePath:
 
     def test_is_path_allowed_convenience(self) -> None:
         assert is_path_allowed("file.txt") is True
-
-
-# ---------------------------------------------------------------------------
-# validate_path_component
-# ---------------------------------------------------------------------------
-
-
-class TestValidatePathComponent:
-    def test_valid_component(self) -> None:
-        result = validate_path_component("user-123")
-        assert result.is_safe is True
-
-    def test_empty_component(self) -> None:
-        result = validate_path_component("")
-        assert result.is_safe is False
-
-    def test_too_long(self) -> None:
-        result = validate_path_component("a" * 256)
-        assert result.is_safe is False
-
-    def test_starts_with_dot(self) -> None:
-        result = validate_path_component(".hidden")
-        assert result.is_safe is False
-
-    def test_contains_dotdot(self) -> None:
-        result = validate_path_component("foo..bar")
-        assert result.is_safe is False
-
-    def test_contains_slash(self) -> None:
-        result = validate_path_component("foo/bar")
-        assert result.is_safe is False
-
-    def test_contains_backslash(self) -> None:
-        result = validate_path_component("foo\\bar")
-        assert result.is_safe is False
-
-    def test_special_chars(self) -> None:
-        result = validate_path_component("foo@bar")
-        assert result.is_safe is False
-
-    def test_alphanumeric_hyphen_underscore(self) -> None:
-        result = validate_path_component("valid_user-name123")
-        assert result.is_safe is True
-
-    def test_is_path_component_safe_convenience(self) -> None:
-        assert is_path_component_safe("abc123") is True
-        assert is_path_component_safe("") is False
 
 
 # ---------------------------------------------------------------------------

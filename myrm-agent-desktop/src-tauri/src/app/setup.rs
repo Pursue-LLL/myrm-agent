@@ -143,10 +143,10 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     let backend_start_state = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
     let backend_start_state_for_frontend = backend_start_state.clone();
     // The WebView is ours (Next on a dedicated loopback port); its API layer already
-    // gates business requests on backend readiness. Navigate as soon as the frontend
-    // answers so the user sees the app in <1s instead of waiting out the Python cold
-    // start behind a static splash. A backend that fails to start surfaces through the
-    // frontend's readiness banner / Tauri failure events.
+    // gates business requests on backend readiness, so the UI does not wait out the
+    // Python cold start behind the static shell. The only wait is the short grace below
+    // that lets a fast backend failure keep the shell's error modal. A backend that
+    // fails to start sends the window back to the shell with the reason (failure arm below).
     tauri::async_runtime::spawn(async move {
         if runtime::is_remote_follow_deferred(&backend_app) {
             println!("🌐 Remote follow active, local backend stays deferred");
@@ -182,8 +182,9 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
     });
 
     tauri::async_runtime::spawn(async move {
-        // Release WebView loads frontend-shell → polls Next standalone; always start Next.
-        // enable_webui_mode only affects backend bind/port (see BackendConfig), not UI startup.
+        // Release WebView loads frontend-shell first; once Next answers, Rust navigates the
+        // main window to it. Next always starts: enable_webui_mode only affects backend
+        // bind/port (see BackendConfig), not UI startup.
         println!("🌐 Starting Next.js Server...");
 
         let frontend_state = app_handle.state::<NextJSFrontend>();
@@ -196,7 +197,7 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                 runtime::spawn_frontend_monitor(&app_handle, monitor_config);
                 // A fast failure (port owned by a foreign process) must keep the shell's
                 // error modal; a normal cold start is still "starting" after 2s and
-                // navigates so the user sees the app immediately.
+                // navigates without waiting for the backend.
                 let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
                 loop {
                     match backend_start_state_for_frontend.load(std::sync::atomic::Ordering::SeqCst)
@@ -210,16 +211,10 @@ pub fn on_setup(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> 
                         _ => tokio::time::sleep(std::time::Duration::from_millis(100)).await,
                     }
                 }
-                let target = format!("http://127.0.0.1:{frontend_port}/");
-                match target.parse::<tauri::Url>() {
-                    Ok(url) => {
-                        if let Some(window) = app_handle.get_webview_window("main") {
-                            if let Err(e) = window.navigate(url) {
-                                eprintln!("❌ Failed to navigate main window: {}", e);
-                            }
-                        }
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    if let Err(e) = window.navigate(ProductOrigin::standalone_root(frontend_port)) {
+                        eprintln!("❌ Failed to navigate main window: {}", e);
                     }
-                    Err(e) => eprintln!("❌ Invalid frontend URL {}: {}", target, e),
                 }
             }
             Err(e) => {

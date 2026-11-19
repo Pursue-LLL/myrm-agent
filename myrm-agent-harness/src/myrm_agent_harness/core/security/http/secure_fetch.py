@@ -7,8 +7,9 @@
 
 [OUTPUT]
 - secure_get / secure_request: SSRF-safe HTTP with manual redirect loop
-- resolve_secure_http_target: pinned target for streaming callers
-- ContentTooLargeError: raised when a response body exceeds max_content_length
+- resolve_secure_http_target: pinned target for streaming callers (SecureHttpTarget: request URL, headers, and the
+  TLS server name of a pinned HTTPS hop in ``extensions``)
+- ContentTooLargeError: raised when a response body exceeds max_content_length (unless the caller asks to truncate)
 - DEFAULT_MAX_CONTENT_LENGTH: secure-by-default response body cap (20 MB)
 - parse_allowed_internal_hosts: the MYRM_ALLOWED_INTERNAL_HOSTS entries in canonical spelling
 
@@ -46,12 +47,21 @@ _METHODS_WITH_BODY = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 @dataclass(frozen=True, slots=True)
 class SecureHttpTarget:
-    """Final hop of a redirect chain, ready for streaming or follow-up requests."""
+    """Final hop of a redirect chain, ready for streaming or follow-up requests.
+
+    A caller sends ``request_url`` with ``headers`` and ``extensions``: a pinned HTTPS hop is dialed at an IP literal,
+    and only ``extensions`` carries the host name the TLS handshake and the certificate check need.
+    """
 
     logical_url: str
     request_url: str
     headers: dict[str, str]
     method: str
+
+    @property
+    def extensions(self) -> dict[str, object]:
+        """httpx request extensions that name the logical host in the TLS handshake of a pinned HTTPS hop."""
+        return _https_pin_extensions(self.request_url, self.headers)
 
 
 class ContentTooLargeError(Exception):
@@ -217,12 +227,16 @@ async def secure_request(
     enable_ssrf_shield: bool | None = None,
     max_redirects: int = DEFAULT_MAX_REDIRECTS,
     max_content_length: int | None = DEFAULT_MAX_CONTENT_LENGTH,
+    truncate: bool = False,
 ) -> httpx.Response:
     """Execute an HTTP request with SSRF shield and manual redirect handling.
 
     The response body is streamed and aborted as soon as it exceeds
     ``max_content_length`` (secure-by-default cap of 20 MB), so oversized
     responses never fully load into memory. Pass ``None`` to disable the cap.
+
+    With ``truncate`` a body over the cap is not an error: the first ``max_content_length`` bytes are kept and the
+    stream is abandoned, so the rest is never received (for callers that need only the start of a page).
     """
     shield_enabled = is_ssrf_shield_enabled() if enable_ssrf_shield is None else enable_ssrf_shield
     allowed_hosts = parse_allowed_internal_hosts() if allowed_internal_hosts is None else allowed_internal_hosts
@@ -288,16 +302,24 @@ async def secure_request(
         await response.aread()
     else:
         declared_length = response.headers.get("Content-Length")
-        if declared_length is not None and declared_length.isdigit() and int(declared_length) > max_content_length:
+        if (
+            not truncate
+            and declared_length is not None
+            and declared_length.isdigit()
+            and int(declared_length) > max_content_length
+        ):
             await response.aclose()
             raise ContentTooLargeError(f"Response body exceeds {max_content_length} byte limit")
         chunks: list[bytes] = []
         total = 0
         async for chunk in response.aiter_bytes():
+            if total + len(chunk) > max_content_length:
+                if not truncate:
+                    await response.aclose()
+                    raise ContentTooLargeError(f"Response body exceeds {max_content_length} byte limit")
+                chunks.append(chunk[: max_content_length - total])
+                break
             total += len(chunk)
-            if total > max_content_length:
-                await response.aclose()
-                raise ContentTooLargeError(f"Response body exceeds {max_content_length} byte limit")
             chunks.append(chunk)
         # httpx leaves `_content` unset on streamed responses; backfill it so
         # callers can read `.content`/`.json()` after the size-capped read.
@@ -316,6 +338,7 @@ async def secure_get(
     enable_ssrf_shield: bool | None = None,
     max_redirects: int = DEFAULT_MAX_REDIRECTS,
     max_content_length: int | None = DEFAULT_MAX_CONTENT_LENGTH,
+    truncate: bool = False,
 ) -> httpx.Response:
     """Perform a GET request with SSRF shield and manual redirect handling."""
     async with create_httpx_client(timeout=timeout, follow_redirects=False) as client:
@@ -329,6 +352,7 @@ async def secure_get(
             enable_ssrf_shield=enable_ssrf_shield,
             max_redirects=max_redirects,
             max_content_length=max_content_length,
+            truncate=truncate,
         )
 
 

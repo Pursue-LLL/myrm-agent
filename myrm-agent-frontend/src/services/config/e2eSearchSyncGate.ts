@@ -8,13 +8,17 @@
  * withoutBlockedSearchChanges: the change list with frozen search writes removed.
  *
  * [POS]
- * Test-harness switch consulted by `ConfigSyncManager` so an E2E run's search configuration never reaches the backend
- * or its subscribers. Inert unless the E2E bridge sets the flag.
+ * Test-harness switch consulted by `ConfigSyncManager` and `useConfigStore` so an E2E run's search configuration never
+ * reaches the backend or its subscribers. Inert unless the E2E bridge sets the flag; a production build never reads it.
  */
 import type { ConfigChange, ConfigKey } from './types';
 
 function isE2eSearchSyncBlocked(): boolean {
-  return typeof window !== 'undefined' && Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__);
+  return (
+    process.env.NODE_ENV !== 'production' &&
+    typeof window !== 'undefined' &&
+    Boolean(window.__MYRM_E2E_BLOCK_SEARCH_SYNC__)
+  );
 }
 
 export function isE2eBlockedKey(key: ConfigKey): boolean {

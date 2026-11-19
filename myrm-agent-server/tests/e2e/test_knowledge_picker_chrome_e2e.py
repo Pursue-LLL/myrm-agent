@@ -296,7 +296,6 @@ def test_knowledge_picker_popover_chrome_e2e() -> None:
                 return {{ ok: false, err: 'no-bridge-send' }};
               }}
               return await bridge.sendChatMessage({json.dumps(kb_task_prompt)}, {{
-                waitForStreamCompletion: false,
                 preserveActionMode: true,
               }});
             }})()""",

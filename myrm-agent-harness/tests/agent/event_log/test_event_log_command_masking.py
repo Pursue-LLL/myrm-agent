@@ -24,7 +24,7 @@ def _args(key: str, command: str) -> dict[str, object]:
     return {"tool_name": "bash_code_execute_tool", "status": "started", "args": {key: command}}
 
 
-@pytest.mark.parametrize("key", ["command", "verify_command", "rerun_cmd", "cmd"])
+@pytest.mark.parametrize("key", ["command", "test_command", "rerun_cmd", "cmd"])
 def test_a_string_under_a_command_key_is_masked(key: str) -> None:
     sanitized = sanitize_event_data(_args(key, f"tool --key {_VALUE}"))
 

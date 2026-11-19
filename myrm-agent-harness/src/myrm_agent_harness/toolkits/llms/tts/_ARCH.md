@@ -12,8 +12,8 @@ connect directly.
 
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
-| `models.py` | Config | `TTSConfig`, `TTSResult`, `MediaMeta`, `MediaCallback` | — |
-| `generator.py` | Core | `AsyncTTSEngine` — HTTP + gateway failover | ✅ |
+| `models.py` | Config | `TTSConfig` (provider, model and voice are required), `TTSResult`, `MediaMeta`, `MediaCallback`, `SUPPORTED_TTS_PROVIDERS` | — |
+| `generator.py` | Core | `AsyncTTSEngine` — HTTP + gateway failover; stores the audio once through the media callback (fail-closed, never retried) | ✅ |
 | `volcengine.py` | Core | Volcengine speech request build + response parse (Doubao-TTS v1 / Seed-Audio v3) | ✅ |
 | `__init__.py` | Package | Generic engine exports | — |
 

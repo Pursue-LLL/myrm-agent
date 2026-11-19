@@ -13,7 +13,7 @@
 Business-layer helper so every agent entrypoint (Web, IM, Cron, Kanban, Eval, Wakeup,
 Goal stream, timeout auto-resume, offline recovery, OpenAI-compatible API, voice)
 passes the same runtime context keys to the harness, including disabled skill path filtering
-and the user_id that harness skill tools (skill_manage, skill_market install/uninstall) require.
+and the user_id that harness skill tools (skill_manage, skill_market install) require.
 It also awaits the lazy server-tool bootstrap so no entrypoint can build an agent against a
 half-registered tool-layer registry.
 """

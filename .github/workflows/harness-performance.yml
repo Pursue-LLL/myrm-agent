@@ -1,7 +1,19 @@
 name: Harness performance regression
 
+# A pull request runs every check. A push to main runs only the import-set test: the benchmark thresholds and the
+# wall-clock tests measure a shared runner's clock, so on a push, which can no longer be amended, they would turn red
+# on noise as readily as on a slowdown. The import-set test fails only when a module that has to stay unloaded gets
+# loaded; without it, that regression reaches main unseen through any commit pushed without a pull request.
 on:
   pull_request:
+    paths:
+      - 'myrm-agent-harness/src/myrm_agent_harness/**/*.py'
+      - 'myrm-agent-harness/pyproject.toml'
+      - 'myrm-agent-harness/benchmarks/**'
+      - '.github/workflows/harness-performance.yml'
+  push:
+    branches:
+      - main
     paths:
       - 'myrm-agent-harness/src/myrm_agent_harness/**/*.py'
       - 'myrm-agent-harness/pyproject.toml'
@@ -43,17 +55,23 @@ jobs:
       - name: Install dependencies
         run: uv sync --python 3.13 --locked --extra all --group dev
 
+      - name: Run import-set regression tests
+        run: uv run --no-sync pytest tests/performance/test_lazy_loading_comprehensive.py -m performance -n0 -q --tb=short
+
       - name: Run startup performance benchmarks
+        if: github.event_name == 'pull_request'
         run: uv run --no-sync pytest benchmarks/bench_startup_performance.py -v --benchmark-only
 
-      - name: Run performance regression tests
-        run: uv run --no-sync pytest tests/performance/ -m performance -n0 -q --tb=short
+      - name: Run wall-clock regression tests
+        if: github.event_name == 'pull_request'
+        run: uv run --no-sync pytest tests/performance/ -m performance -n0 -q --tb=short --ignore=tests/performance/test_lazy_loading_comprehensive.py
 
       - name: Run boundary detection benchmark
+        if: github.event_name == 'pull_request'
         run: uv run --no-sync python benchmarks/bench_boundary_detection.py --check-regression benchmarks/baseline_boundary.json
 
       - name: Upload benchmark results
-        if: always()
+        if: ${{ always() && github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: benchmark-results

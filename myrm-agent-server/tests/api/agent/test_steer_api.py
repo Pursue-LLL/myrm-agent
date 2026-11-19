@@ -90,7 +90,7 @@ class TestSteerEndpoint:
     def test_steer_after_unregister_returns_404(self, client: TestClient) -> None:
         token = SteeringToken()
         SteeringRegistry.register("chat-unreg", token)
-        SteeringRegistry.unregister("chat-unreg")
+        SteeringRegistry.unregister("chat-unreg", token)
 
         resp = client.post(
             "/api/v1/agents/chats/chat-unreg/steer",
@@ -247,5 +247,3 @@ class TestSteerEndpoint:
         msgs = token.activate()
         assert len(msgs) == 1
         assert msgs == ["Option A"]
-
-

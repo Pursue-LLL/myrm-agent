@@ -20,9 +20,9 @@
 | `LocalPathsConfig.tsx`                                          | 组件 | 本地技能扫描路径配置                                                                                                                                                                                                                                          | ✅    |
 | `LocalSkillPathScanPreviewBeforeAdoptDialog.tsx`                | 组件 | 本地技能路径预检与采纳对话框（安全门禁阻断、受控免责放行二次确认、全选联动与路径采纳）                                                                                                                                                                        | ✅    |
 | `LocalSkillPreviewCard.tsx`                                     | 辅助 | 本地技能预览卡片（整张卡是包着复选框的 `label`：点卡片任意处等于点复选框，键盘走复选框；三级安全评分徽章、门禁阻断提示、受控免责解锁状态、违规审计明细折叠展开；违规类别与严重度经 `useScanRiskText` 本地化）                                                                                                                       | ✅    |
-| `__tests__/CuratorSections.test.tsx` | 测试 | 诊断与历史区块在六个语言下按真实文案渲染的回归：无开发标识符、无缺失键、英文复数、被绑定技能只留重置并显示原因、处理中锁定所有行的动作、零变化运行说明被豁免数量（没有豁免时仍显示「无需更改」） | ✅ |
+| `__tests__/CuratorSections.test.tsx` | 测试 | 诊断与历史区块在中英两种语言下按真实文案渲染的回归：无开发标识符、无缺失键、英文复数、被绑定技能只留重置并显示原因、处理中锁定所有行的动作、零变化运行说明被豁免数量（没有豁免时仍显示「无需更改」） | ✅ |
 | `__tests__/CuratorSettingsPanel.test.tsx` | 测试 | 面板的诊断发现展示、统一保存栏（有改动才出现、关闭时仍能保存、越界值夹紧后才发送、合并设置展开时仍只有一个保存按钮），以及每个开关与数字输入都能按名称找到、阈值说明随输入框一起被朗读 | ✅ |
-| `__tests__/EvolutionStrategyConfig.test.tsx` | 测试 | 六个语言下按真实文案渲染：选择器只显示简称与对应提示行、可访问名称取标题、未知存储值按平衡展示、选中的策略提交给 store | ✅ |
+| `__tests__/EvolutionStrategyConfig.test.tsx` | 测试 | 中英两种语言下按真实文案渲染：选择器只显示简称与对应提示行、可访问名称取标题、未知存储值按平衡展示、选中的策略提交给 store | ✅ |
 | `__tests__/useCuratorDiagnostics.test.tsx` | 测试 | 技能医生 hook：按需加载与失败置空、治理成功后重拉并通知、被拒时显示服务端原因且不重拉、处理中忽略第二次调用、请求失败时提示且忙碌标记只落在执行中的技能 | ✅ |
 | `__tests__/useCuratorHistory.test.tsx` | 测试 | 历史 hook：展开前不请求、首次展开取最近 10 次并在再次展开时复用、仅展开时刷新、请求失败显示空历史 | ✅ |
 | `__tests__/CuratorNumberInput.test.tsx` | 测试 | 阈值输入的提交规则：范围内即时提交，低于下限失焦夹紧，高于上限失焦夹紧，整数字段四舍五入，清空回退到上次提交的值，小数步长保留小数，外部值变化时跟随 | ✅ |
@@ -88,4 +88,5 @@
 ## 依赖
 
 - `@/store/*`、`@/services/*`、`@/components/primitives/*`
+- `@/components/dev/localDevHost::isLocalDevHost`：`SkillDiscoverTab` 的 E2E 钩子 `window.__MYRM_E2E_SKILLS_DISCOVER__` 只在非生产构建的本地开发主机上挂
 - 父模块 [`features/_ARCH.md`](../_ARCH.md)

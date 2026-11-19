@@ -68,6 +68,11 @@ describe('CronRunItem', () => {
     ['credit_exhausted', 'skippedCreditExhausted'],
     ['pre-flight-condition', 'skippedPreflight'],
     ['no-content', 'skippedNoContent'],
+    ['cooldown_active', 'skippedCooldown'],
+    ['outside_active_hours', 'skippedOutsideHours'],
+    ['untrusted-workflow', 'skippedUntrustedWorkflow'],
+    ['memory_pressure:critical', 'skippedMemoryPressure'],
+    ['memory_pressure:emergency', 'skippedMemoryPressure'],
   ])('shows a localized label instead of the raw skip code %s', (code, labelKey) => {
     const skippedRun: CronRun = { ...baseRun, id: 'run-sk-1', status: 'skipped', output: code };
 
@@ -77,12 +82,39 @@ describe('CronRunItem', () => {
     expect(screen.queryByText(code)).toBeNull();
   });
 
-  it.each(['memory_pressure:critical', 'constructor'])('keeps showing the skip output %s verbatim', (output) => {
+  it.each(['made-up-code', 'constructor'])('keeps showing the skip output %s verbatim', (output) => {
     const skippedRun: CronRun = { ...baseRun, id: 'run-sk-2', status: 'skipped', output };
 
     render(<CronRunItem run={skippedRun} isLast={false} />);
 
     expect(screen.getByText(output)).toBeInTheDocument();
+  });
+
+  it.each([
+    ['event', 'triggerSourceEvent'],
+    ['webhook', 'triggerSourceWebhook'],
+    ['system_event', 'triggerSourceSystem'],
+    ['manual', 'triggerSourceManual'],
+    ['recovery', 'triggerSourceRecovery'],
+    ['shutdown', 'triggerSourceShutdown'],
+  ])('names the source %s of a run with its label', (source, labelKey) => {
+    render(<CronRunItem run={{ ...baseRun, trigger_source: source }} isLast={false} />);
+
+    expect(screen.getByText(labelKey)).toBeInTheDocument();
+    expect(screen.queryByText(source)).toBeNull();
+  });
+
+  it('shows no source badge for a run its own schedule started', () => {
+    render(<CronRunItem run={{ ...baseRun, trigger_source: 'cron' }} isLast={false} />);
+
+    expect(screen.queryByText('triggerSourceCron')).toBeNull();
+    expect(screen.queryByText('cron')).toBeNull();
+  });
+
+  it('keeps showing a source it has no label for verbatim', () => {
+    render(<CronRunItem run={{ ...baseRun, trigger_source: 'made-up-source' }} isLast={false} />);
+
+    expect(screen.getByText('made-up-source')).toBeInTheDocument();
   });
 
   it('does not turn the output of a run that is not skipped into a label', () => {

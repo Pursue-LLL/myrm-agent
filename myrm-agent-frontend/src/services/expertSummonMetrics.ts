@@ -14,10 +14,9 @@ import { ApiError, apiRequest } from '@/lib/api';
 import { BACKEND_UNREACHABLE_CODE } from '@/lib/local-backend-dev';
 import type { ExpertTemplateKind } from '@/services/templateDiscovery';
 
-export type ExpertSummonMetricSurface =
-  'template_market' | 'flow_pad_inline' | 'empty_chat_featured' | 'message_input_plus' | 'mobile_hub_chip';
+export type ExpertSummonMetricSurface = 'flow_pad_inline' | 'message_input_plus' | 'mobile_hub_chip';
 export type ExpertSummonMetricTrigger =
-  'template_card' | 'use_case_chip' | 'route_menu' | 'featured_chip' | 'plus_popover_card' | 'mobile_chip';
+  'template_card' | 'use_case_chip' | 'route_menu' | 'plus_popover_card' | 'mobile_chip';
 export type ExpertSummonMetricEventType =
   | 'surface_viewed'
   | 'search_used'
@@ -27,9 +26,6 @@ export type ExpertSummonMetricEventType =
   | 'route_applied'
   | 'route_apply_failed'
   | 'first_message_sent'
-  | 'council_phase_completed'
-  | 'council_consensus_reached'
-  | 'expert_rebuttal_effective'
   | 'dropped_report';
 export type ExpertSummonFailureReason = 'network_error' | 'route_apply_failed' | 'server_error' | 'unknown_error';
 
@@ -82,13 +78,7 @@ const MAX_CONTEXT_KEY_LENGTH = 128;
 const MAX_PENDING_DROPPED_EVENTS = 1_000;
 const DEFAULT_CONTEXT_KEY = 'global';
 const DROPPED_BUFFER_STORAGE_KEY = 'expertSummonDroppedBufferV1';
-const SUMMON_SURFACES: ExpertSummonMetricSurface[] = [
-  'template_market',
-  'flow_pad_inline',
-  'empty_chat_featured',
-  'message_input_plus',
-  'mobile_hub_chip',
-];
+const SUMMON_SURFACES: ExpertSummonMetricSurface[] = ['flow_pad_inline', 'message_input_plus', 'mobile_hub_chip'];
 
 let pendingDroppedEventsBySurface = loadDroppedBufferFromStorage();
 let postQueue: Promise<void> = Promise.resolve();
@@ -115,9 +105,7 @@ function totalPendingDroppedEvents(): number {
 
 function createEmptyDroppedBuffer(): Record<ExpertSummonMetricSurface, number> {
   return {
-    template_market: 0,
     flow_pad_inline: 0,
-    empty_chat_featured: 0,
     message_input_plus: 0,
     mobile_hub_chip: 0,
   };
@@ -229,11 +217,6 @@ interface SummonEventOptions {
   templateKind?: ExpertTemplateKind;
   fromSearch?: boolean;
   usedUseCase?: boolean;
-}
-
-interface CouncilEventOptions {
-  contextKey?: string;
-  templateKind?: ExpertTemplateKind;
 }
 
 interface SimpleEventOptions extends SummonEventOptions {
@@ -357,30 +340,6 @@ export function recordExpertSummonFirstMessageSent(
   options?: SummonEventOptions,
 ): void {
   enqueueSimpleEvent('first_message_sent', surface, { ...options, trigger });
-}
-
-export function recordExpertCouncilPhaseCompleted(
-  surface: ExpertSummonMetricSurface,
-  trigger: ExpertSummonMetricTrigger,
-  options?: CouncilEventOptions,
-): void {
-  enqueueSimpleEvent('council_phase_completed', surface, { ...options, trigger });
-}
-
-export function recordExpertCouncilConsensusReached(
-  surface: ExpertSummonMetricSurface,
-  trigger: ExpertSummonMetricTrigger,
-  options?: CouncilEventOptions,
-): void {
-  enqueueSimpleEvent('council_consensus_reached', surface, { ...options, trigger });
-}
-
-export function recordExpertRebuttalEffective(
-  surface: ExpertSummonMetricSurface,
-  trigger: ExpertSummonMetricTrigger,
-  options?: CouncilEventOptions,
-): void {
-  enqueueSimpleEvent('expert_rebuttal_effective', surface, { ...options, trigger });
 }
 
 export async function getExpertSummonSummary(days: number = 30): Promise<ExpertSummonSummary> {

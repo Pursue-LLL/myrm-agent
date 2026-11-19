@@ -175,11 +175,12 @@ async def test_brief_is_prewarmed_for_memory_turns_without_an_embedding(enable_m
 
 async def _leave_chat_with_active_goal(chat_id: str) -> None:
     """Persist an ACTIVE goal and drop the provider, as the end of a turn leaves a chat that has a goal."""
-    await GoalRegistry.get_or_create_provider(chat_id).create_goal(
+    turn_provider = GoalRegistry.register(chat_id)
+    await turn_provider.create_goal(
         session_id=chat_id,
         objective="ship the weekly report",
     )
-    GoalRegistry.unregister(chat_id)
+    GoalRegistry.unregister(chat_id, turn_provider)
 
 
 @pytest.mark.asyncio

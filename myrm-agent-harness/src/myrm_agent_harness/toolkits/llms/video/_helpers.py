@@ -11,6 +11,8 @@ Used by generator.py for retry logic, error formatting, and content validation.
 
 from __future__ import annotations
 
+from myrm_agent_harness.utils.mime_types import is_video_content
+
 from .models import VideoGenerationError
 
 _ERROR_MSG_MAX_LEN = 500
@@ -24,13 +26,6 @@ _NON_RETRYABLE_NAMES = frozenset(
         "ValueError",
     }
 )
-
-_VIDEO_MAGIC_BYTES: tuple[tuple[bytes, int, bytes | None], ...] = (
-    (b"ftyp", 4, None),
-    (b"\x1a\x45\xdf\xa3", 0, None),
-    (b"RIFF", 0, b"AVI "),
-)
-_MIN_VIDEO_BYTES = 12
 
 
 def is_retryable(exc: Exception) -> bool:
@@ -51,16 +46,9 @@ def validate_video_content(
     model_id: str,
 ) -> None:
     """Validate video data via magic bytes to catch non-video responses."""
-    if len(data) < _MIN_VIDEO_BYTES:
+    if not is_video_content(data):
+        head_hex = data[:16].hex(" ")
         raise VideoGenerationError(
-            f"Response too small ({len(data)} bytes) from {provider_id}/{model_id}, likely not a valid video"
+            f"Invalid video content from {provider_id}/{model_id}: {len(data)} bytes, "
+            f"unrecognized format (header: {head_hex})"
         )
-    for signature, offset, extra_check in _VIDEO_MAGIC_BYTES:
-        if data[offset : offset + len(signature)] == signature and (
-            extra_check is None or data[8 : 8 + len(extra_check)] == extra_check
-        ):
-            return
-    head_hex = data[:16].hex(" ")
-    raise VideoGenerationError(
-        f"Invalid video content from {provider_id}/{model_id}: unrecognized format (header: {head_hex})"
-    )

@@ -2,17 +2,17 @@
 
 ## 架构概述
 
-Pure functions for Web Push **click-through routing** in the Service Worker. No React, no fetch — shared SSOT for `src/app/sw.ts` (esbuild bundle via `scripts/build-sw-src.mjs`).
+Pure functions for Web Push **click-through routing** in the Service Worker. No React, no fetch — shared SSOT for `src/app/sw.ts` (bundled into `public/sw.js` by `bun run build:sw`).
 
 HTTP subscription client: `services/web-push.ts`. React lifecycle: `hooks/pwa/usePushSubscription.ts`.
 
 ## 文件清单
 
-| 文件                                       | 地位 | 职责                                                                  | I/O/P |
-| ------------------------------------------ | ---- | --------------------------------------------------------------------- | ----- |
-| `pushTargetUrl.ts`                         | 核心 | Sanitize push payload URLs; resolve focus vs navigate on open clients | ✅    |
-| `__tests__/pushTargetUrl.test.ts`          | 测试 | Unit tests for routing helpers                                        | —     |
-| `__tests__/pushTargetUrl.swImport.test.ts` | 测试 | Asserts `sw.ts` imports shared helpers + `client.navigate`            | —     |
+| 文件                              | 地位 | 职责                                                                                                                       | I/O/P |
+| --------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `pushTargetUrl.ts`                | 核心 | Sanitize push payload URLs; resolve focus vs navigate on open clients                                                      | ✅    |
+| `__tests__/pushTargetUrl.test.ts` | 测试 | Unit tests for routing helpers                                                                                             | —     |
+| `__tests__/serviceWorker.test.ts` | 测试 | `sw.ts` against a stubbed worker scope: install/activate takeover and cache purge, push display, click focus/navigate/open | —     |
 
 ## 模块依赖
 

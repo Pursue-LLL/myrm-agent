@@ -7,6 +7,7 @@ refresh events.
 [INPUT]
 - myrm_agent_harness.backends.skills.scanning::ScanSeverity, compute_scan_summary, scan_skill_content (POS: 技能内容安全扫描)
 - app.database.connection::get_session (POS: 数据库连接管理)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 - app.services.approvals.registry::ApprovalRegistry (POS: 统一的拦截审批注册与唤醒中枢)
 - app.services.skills.experience_ledger::record_skill_growth_event (POS: 学习资产事件账本)
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
@@ -36,6 +37,7 @@ from myrm_agent_harness.backends.skills.scanning import (
 )
 
 from app.database.connection import get_session
+from app.database.factory import acquire_write_lock
 from app.database.models.approval import ApprovalRecord
 from app.services.approvals.registry import ApprovalRegistry
 from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
@@ -312,6 +314,8 @@ async def persist_skill_draft_record(
 
     if record and reviewed_at is not None and approval_status != "PENDING":
         async with get_session() as db:
+            # Read-then-write: the draft was applied before this stamp, so a lost race must not drop it.
+            await acquire_write_lock(db)
             persisted = await db.get(type(record), record.id)
             if persisted is not None:
                 persisted.resolved_at = reviewed_at

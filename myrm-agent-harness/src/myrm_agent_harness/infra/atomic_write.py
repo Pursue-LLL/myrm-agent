@@ -4,6 +4,7 @@ Writes content to a file via tmpfile + fsync + atomic rename, ensuring:
 - No partial/truncated files on process crash
 - No data loss on power failure (fsync flushes to disk)
 - No name collision under concurrent processes (mkstemp)
+- Text lands byte-for-byte as UTF-8: no newline translation on any platform
 
 Usage::
 
@@ -41,22 +42,25 @@ def atomic_write(
 
     Args:
         path: Target file path.
-        content: Text (str) or binary (bytes) content to write.
+        content: Text (str) or binary (bytes) content to write. Text is encoded as UTF-8 and stored verbatim, so
+            the file holds exactly ``content.encode("utf-8")`` on every platform.
         mode: File permission bits (default 0o600). Pass None to skip chmod.
     """
+    # Bytes in every case: a text-mode file writes "\n" as "\r\n" on Windows, so the file would no longer hold the
+    # bytes the caller hashed, measured or counted lines of.
+    data = content.encode("utf-8") if isinstance(content, str) else content
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
 
-    is_text = isinstance(content, str)
     fd = -1
     tmp_path: str | None = None
 
     try:
         fd, tmp_path = tempfile.mkstemp(dir=target.parent, prefix=".atomic_")
 
-        with os.fdopen(fd, "w" if is_text else "wb", **({"encoding": "utf-8"} if is_text else {})) as f:
+        with os.fdopen(fd, "wb") as f:
             fd = -1  # fdopen takes ownership
-            f.write(content)
+            f.write(data)
             f.flush()
             os.fsync(f.fileno())
 

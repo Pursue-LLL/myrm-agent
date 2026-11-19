@@ -5,11 +5,13 @@
 - utils.closest_lines::find_closest_lines (POS: "Did you mean?" hint for a text that was not found)
 - core.file_conflict_guard::compute_edit_line_range (POS: Edit line range calculator)
 - core.operation_context::StrReplaceEdit (POS: Single edit payload)
-- utils.line_endings::detect_line_ending, normalize_line_endings (POS: CRLF/LF preservation)
+- utils.line_endings::detect_line_ending, normalize_line_endings (POS: Line-ending rules shared by the edit pipeline and the view)
 
 [OUTPUT]
 - apply_batch_str_replace: In-memory sequential batch apply
 - validate_edits_batch, check_non_overlapping_edits, compute_batch_edit_line_range
+- EditMatchError, EditFailureKind: an edit whose old_str cannot be applied (not found, matches more than once,
+  overlaps another edit), with the kind the tool maps to a hint
 
 [POS]
 Batch str-replace engine. Applies up to MAX_EDITS edits in one in-memory pass before a single disk write.
@@ -19,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
+from typing import Literal
 
 from myrm_agent_harness.utils.closest_lines import find_closest_lines
 from myrm_agent_harness.utils.fuzzy_match import CONTENT_PRESERVING_MIN_CONFIDENCE, fuzzy_replace
@@ -29,6 +32,20 @@ from .operation_context import StrReplaceEdit
 logger = logging.getLogger(__name__)
 
 MAX_EDITS_PER_CALL = 20
+
+type EditFailureKind = Literal["not_found", "ambiguous", "overlap"]
+
+
+class EditMatchError(ValueError):
+    """An edit whose ``old_str`` cannot be applied to the file as it stands; ``kind`` says why.
+
+    The tool picks the hint it gives the model from ``kind``, so the wording of the message can change without
+    taking the hint with it.
+    """
+
+    def __init__(self, kind: EditFailureKind, message: str) -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 def validate_edits_batch(edits: Sequence[StrReplaceEdit]) -> None:
@@ -48,7 +65,9 @@ def _find_exclusive_span(content: str, old_str: str) -> tuple[int, int] | None:
         return None
     count = content.count(old_str)
     if count > 1:
-        raise ValueError(f"Found {count} matches. Please provide more context to make the match unique.")
+        raise EditMatchError(
+            "ambiguous", f"Found {count} matches. Please provide more context to make the match unique."
+        )
     return idx, idx + len(old_str)
 
 
@@ -62,9 +81,10 @@ def check_non_overlapping_edits(content: str, edits: Sequence[StrReplaceEdit]) -
         start, end = span
         for j, (prev_start, prev_end) in enumerate(ranges):
             if not (end <= prev_start or start >= prev_end):
-                raise ValueError(
+                raise EditMatchError(
+                    "overlap",
                     f"Edits {j + 1} and {i + 1} overlap in the original file; "
-                    "merge into one edit or reorder so regions are disjoint."
+                    "merge into one edit or reorder so regions are disjoint.",
                 )
         ranges.append((start, end))
 
@@ -127,8 +147,9 @@ def apply_batch_str_replace(content: str, edits: Sequence[StrReplaceEdit]) -> tu
         if edit.old_str in current:
             count = current.count(edit.old_str)
             if count > 1:
-                raise ValueError(
-                    f"Edit {index}: found {count} matches. Please provide more context to make the match unique."
+                raise EditMatchError(
+                    "ambiguous",
+                    f"Edit {index}: found {count} matches. Please provide more context to make the match unique.",
                 )
             current = current.replace(edit.old_str, edit.new_str, 1)
             strategies.append("exact")
@@ -155,7 +176,7 @@ def apply_batch_str_replace(content: str, edits: Sequence[StrReplaceEdit]) -> tu
         hint = find_closest_lines(edit.old_str, current)
         if hint:
             err_msg += hint
-        raise ValueError(err_msg)
+        raise EditMatchError("not_found", err_msg)
 
     if original_eol:
         current = normalize_line_endings(current, original_eol)
@@ -164,6 +185,8 @@ def apply_batch_str_replace(content: str, edits: Sequence[StrReplaceEdit]) -> tu
 
 __all__ = [
     "MAX_EDITS_PER_CALL",
+    "EditFailureKind",
+    "EditMatchError",
     "apply_batch_str_replace",
     "check_non_overlapping_edits",
     "compute_batch_edit_line_range",

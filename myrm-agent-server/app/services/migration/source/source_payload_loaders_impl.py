@@ -30,6 +30,7 @@ from .._loader_utils import (
     read_yaml,
     serialize_transcript,
 )
+from ..env_secrets import KEY_FROM_AUTH
 
 _FRONTMATTER_BOUNDARY = "\n---"
 _CLAUDE_MEMORY_INDEX_NAME = "MEMORY.md"
@@ -94,10 +95,10 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
     if auth_path:
         auth_data = read_json(auth_path)
         if isinstance(auth_data, dict):
-            result["hermes_auth"] = auth_data
+            # The credential store is never imported, so only the provider names leave this block:
+            # the payload feeds the review session and the memory adapter, and key values must not.
             pool_data = auth_data.get("credential_pool") or auth_data.get("credential_pools")
             if isinstance(pool_data, dict):
-                result["credential_pool"] = pool_data
                 raw_env_keys = result.get("env_keys")
                 existing_env_keys: list[dict[str, str]] = (
                     [item for item in raw_env_keys if isinstance(item, dict)] if isinstance(raw_env_keys, list) else []
@@ -107,12 +108,9 @@ def load_hermes(root: Path, file_paths: list[str]) -> dict[str, object]:
                     norm = str(prov).strip().upper()
                     key_name = f"{norm}_API_KEY"
                     if key_name not in existing_names:
-                        existing_env_keys.append({"name": key_name})
+                        existing_env_keys.append({"name": key_name, "source": KEY_FROM_AUTH})
                         existing_names.add(key_name)
                 result["env_keys"] = existing_env_keys
-            strategies = auth_data.get("credential_pool_strategies") or auth_data.get("pool_strategies")
-            if isinstance(strategies, dict):
-                result["credential_pool_strategies"] = strategies
 
     from myrm_agent_harness.runtime.context.transcripts import HermesTranscriptParser
 
@@ -315,6 +313,18 @@ def load_gbrain(root: Path, file_paths: list[str]) -> dict[str, object]:
     return {"gbrain_pages": pages, "_source": "gbrain"}
 
 
-from .._loaders_claude import load_claude, load_claude_auto_memory  # noqa: E402, F401
-from .._loaders_openclaw import load_openclaw  # noqa: E402, F401
-from .._loaders_pi import load_pi  # noqa: E402, F401
+from .._loaders_claude import load_claude, load_claude_auto_memory  # noqa: E402
+from .._loaders_openclaw import load_openclaw  # noqa: E402
+from .._loaders_pi import load_pi  # noqa: E402
+
+__all__ = [
+    "load_chatgpt",
+    "load_claude",
+    "load_claude_auto_memory",
+    "load_codex",
+    "load_gbrain",
+    "load_hermes",
+    "load_openclaw",
+    "load_pi",
+    "load_plur",
+]

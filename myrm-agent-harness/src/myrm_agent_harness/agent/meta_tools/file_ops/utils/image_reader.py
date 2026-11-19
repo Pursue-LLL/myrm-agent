@@ -6,9 +6,10 @@
 设计原则：
 - 支持 vision 的模型：返回 [文本描述, 图片内容块]（provider-agnostic）
 - 不支持 vision 的模型：返回纯文本描述（文件名、大小、格式）
-- <= 5MB：原始 base64 直传（零损失；Claude 直连 10MiB 上限安全，5MiB 类 provider 由发送时压缩或失败兜底处理）
-- 5-20MB：Reactive Compress — 压缩到 max_dimension=4096 后传给模型
-- > 20MB：降级为纯文本描述
+- 原图 <= 3MiB（Base64 后约 4MiB，在安全包络内）且长宽均 <= 4096px：原始 base64 直传（零损失）
+- 其余：按「尺寸阶梯 4096/2048/1024px × 质量阶梯 0.95-0.20」压缩成 JPEG，取第一个不超过 3MiB 的结果（阶梯用尽则取最后一档）；
+  描述文本给出原图与附图的尺寸和缩放比，供视觉模型反算坐标
+- 文件 > 50MB、压缩失败、压缩后仍 > 20MB：降级为纯文本描述
 
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
@@ -41,12 +42,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_INLINE_THRESHOLD = 5 * 1024 * 1024
 _TARGET_PAYLOAD_THRESHOLD = 3 * 1024 * 1024  # 3MiB raw (inflates to ~4MiB in Base64 safe envelope)
 _QUALITY_LADDER: tuple[float, ...] = (0.95, 0.80, 0.60, 0.40, 0.20)
 _DIMENSION_LADDER: tuple[int, ...] = (4096, 2048, 1024)
 _REACTIVE_MAX_DIMENSION = 4096
-_REACTIVE_QUALITY = 0.8
 
 
 def is_image_path(path: str) -> bool:
@@ -195,12 +194,6 @@ def _ladder_compress(raw_bytes: bytes) -> tuple[bytes, tuple[int, int] | None] |
     if best_candidate is not None:
         return best_candidate, best_dim
     return None
-
-
-def _reactive_compress(raw_bytes: bytes) -> bytes | None:
-    """Legacy helper fallback for backwards compatibility."""
-    res = _ladder_compress(raw_bytes)
-    return res[0] if res else None
 
 
 def _format_size(size_bytes: int) -> str:

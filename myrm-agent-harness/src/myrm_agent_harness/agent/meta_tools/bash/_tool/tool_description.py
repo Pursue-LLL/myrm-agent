@@ -9,13 +9,13 @@ Kept apart from ``bash_code_execute_tool.py`` so the tool factory stays focused 
 - DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE: Default English locale constant ("en")
 - TOOL_DESCRIPTION_EN: English tool description SSOT
 - TOOL_DESCRIPTION_ZH: Chinese tool description SSOT
-- TOOL_DESCRIPTION: Backward compatibility alias to Chinese description
 - resolve_bash_code_execute_tool_description(): Locale-aware resolver
 
 [POS]
 Prompt content displayed to the LLM. Defines the contract for calling
-``bash_code_execute_tool``: capabilities, merge/OBSERVATION rules, native-tool routing,
-background job stdin/eviction hints, output format, and prohibitions.
+``bash_code_execute_tool``: capabilities with the rule for interactive programs, merge/OBSERVATION rules,
+native-tool routing, what a call leaves for the next one, background job stdin/eviction hints, output format,
+and prohibitions.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ TOOL_DESCRIPTION_ZH: Final[str] = """
 
 ## 能力
 
-1. **Shell 命令**:执行 shell 命令(mv/cp/rm、包管理、构建测试、git、curl 等)。必须使用非交互参数（如 `-y`、`--yes`、`git commit -m "..."`），严禁等待交互式输入。
+1. **Shell 命令**:执行 shell 命令(mv/cp/rm、包管理、构建测试、git、curl 等)。必须使用非交互参数（如 `-y`、`--yes`、`git commit -m "..."`）:前台命令里的交互提示无法应答。确需应答的交互式程序,用 `run_in_background` 启动,再经 `bash_process_tool` 应答。
 2. **执行脚本**:运行已存在的脚本文件(python script.py / bash script.sh)。
 3. **执行 Python 代码**:**直接将 Python 源码作为 command 传入**（支持原生多行代码，无需压缩或转义）。
    - 预装三方库:pandas, numpy, scipy, matplotlib, seaborn;Python 标准库(json, datetime, re 等)均可用。
@@ -106,10 +106,10 @@ asyncio.run(main())
 
 - 命令与 Python 代码中的路径优先写 ``/workspace/...``(默认工作目录)。
 
-### Python 无状态,Bash 持久化
+### 状态
 
 - **Python**:每次执行独立进程,变量/import/函数**不保持**。**优先合并到单次代码执行中**;确需跨轮持久化 → 写 ``/workspace/...`` 中间 JSON(``json.dump/load`` 或 ``file_write_tool``);**禁止**大 payload 进 ``[RESULT]``/``[OBSERVATION]``。
-- **Bash**:当前会话跨轮持久保持(按 chat session 隔离),环境变量/工作目录/Shell 函数**始终生效**。
+- **Bash**:每次调用都当作全新开始,`cd`、`export`、Shell 函数不保证跨调用保留。需要时合并到一次调用(`cd 目录 && 命令`),或把中间数据写入文件。
 
 ## 严格禁止
 
@@ -142,7 +142,7 @@ Execute Shell commands or Python code to solve problems accurately and efficient
 
 ## Capabilities
 
-1. **Shell commands**: Execute shell commands (mv/cp/rm, package management, build & test, git, curl, etc.). Always pass non-interactive flags (`-y`, `--yes`, `git commit -m "..."`). Never block for interactive stdin.
+1. **Shell commands**: Execute shell commands (mv/cp/rm, package management, build & test, git, curl, etc.). Always pass non-interactive flags (`-y`, `--yes`, `git commit -m "..."`): an interactive prompt in a foreground command cannot be answered. To answer an interactive program, start it with `run_in_background` and reply through `bash_process_tool`.
 2. **Execute scripts**: Run existing script files (`python script.py` / `bash script.sh`).
 3. **Execute Python code**: **Pass Python source code directly as `command`** (supports raw multi-line scripts without escaping or compression).
    - Pre-installed libraries: pandas, numpy, scipy, matplotlib, seaborn; Python standard library (json, datetime, re, etc.) are available.
@@ -195,9 +195,9 @@ Skill/async invocations must be awaited. Use `async def main(): ...` + `asyncio.
 ### Paths
 Prefer `/workspace/...` (default working directory) in commands and Python code.
 
-### Python is Stateless, Bash is Persistent
+### State
 - **Python**: Each execution runs in an independent process; variables and imports do not persist. **Prefer combining operations into a single execution**; for cross-turn persistence, write intermediate JSON under `/workspace/...` (`json.dump/load` or `file_write_tool`). Never put large payloads into `[RESULT]` or `[OBSERVATION]`.
-- **Bash**: Persistent across turns within the current session (isolated per chat session); environment variables, working directory, and shell functions remain active.
+- **Bash**: Treat every call as a fresh start: `cd`, `export`, and shell functions are not guaranteed to carry over. Combine steps in one call (`cd dir && command`), or write intermediate data to a file.
 
 ## Prohibitions
 - Do NOT add unnecessary explanatory comments; output clean, executable code only.
@@ -218,9 +218,6 @@ When output/wait returns `waiting_for_input=true`, check `input_wait_hint` and r
 Background scripts can emit `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'` (or `{"current": 3, "total": 10}`) to automatically update UI progress bars without LLM turns. Use `MYRM_CHECKPOINT {"message": "..."}` for checkpoints.
 """.strip()
 
-# Backward-compatible alias for existing imports expecting Chinese constant
-TOOL_DESCRIPTION: Final[str] = TOOL_DESCRIPTION_ZH
-
 
 def resolve_bash_code_execute_tool_description(
     locale: str | None = DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE,
@@ -236,7 +233,6 @@ def resolve_bash_code_execute_tool_description(
 
 __all__ = [
     "DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE",
-    "TOOL_DESCRIPTION",
     "TOOL_DESCRIPTION_EN",
     "TOOL_DESCRIPTION_ZH",
     "resolve_bash_code_execute_tool_description",

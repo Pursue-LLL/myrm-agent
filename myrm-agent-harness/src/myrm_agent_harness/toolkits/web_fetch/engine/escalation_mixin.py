@@ -2,6 +2,9 @@
 
 [POS]
 Mixin: remote fetch escalation after local L1-L3 exhaustion; bilibili cookie loader.
+A remote provider follows redirects on its own servers, so the network blocklist can only be judged on the URL it
+reports back; a provider that reports a listed host ends the fetch for every provider, since the redirect chain
+belongs to the URL, not to the provider.
 """
 
 from __future__ import annotations
@@ -11,7 +14,10 @@ from typing import TYPE_CHECKING
 
 from langchain_core.documents import Document
 
+from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
+
 from ..fetchers.protocols import FetcherType, FetchResult
+from ..fetchers.target_guard import assert_not_blocklisted
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
@@ -59,6 +65,12 @@ class FetchEngineEscalationMixin:
 
             if escalation_result is None or not escalation_result.content.strip():
                 continue
+
+            try:
+                assert_not_blocklisted(escalation_result.url or url, self._network_blocklist)
+            except SSRFSecurityError:
+                web_fetch_escalation_metrics.record_failure()
+                raise
 
             doc: Document | None
             if escalation_result.is_markdown:

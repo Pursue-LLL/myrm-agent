@@ -328,6 +328,99 @@ describe('useTasksSubscription', () => {
     expect(MockEventSource.instances).toHaveLength(1);
   });
 
+  describe('useTaskSubscription: a task the server no longer has', () => {
+    const settle = async () => {
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+    };
+
+    it('stays loading until a snapshot has answered', async () => {
+      const { useTaskSubscription } = await import('../useTasksSubscription');
+      mockFetch.mockImplementation(() => new Promise<Response>(() => {}));
+
+      const { result } = renderHook(() => useTaskSubscription('task-pending'));
+      await settle();
+
+      expect(result.current).toBeUndefined();
+    });
+
+    it('reports null once a snapshot came back without it', async () => {
+      const { useTaskSubscription } = await import('../useTasksSubscription');
+      pollTasks = [];
+
+      const { result } = renderHook(() => useTaskSubscription('task-pruned'));
+      await settle();
+
+      expect(result.current).toBeNull();
+    });
+
+    it('returns the task while the snapshot has it', async () => {
+      const { useTaskSubscription } = await import('../useTasksSubscription');
+      pollTasks = [createTask('task-live', 'running')];
+
+      const { result } = renderHook(() => useTaskSubscription('task-live'));
+      await settle();
+
+      expect(result.current?.task_id).toBe('task-live');
+    });
+
+    it('does not call a task expired because a snapshot request failed', async () => {
+      const { useTaskSubscription } = await import('../useTasksSubscription');
+      mockFetch.mockImplementation(async () => ({ ok: false, json: async () => ({}) }) as Response);
+
+      const { result } = renderHook(() => useTaskSubscription('task-flaky'));
+      await settle();
+
+      expect(result.current).toBeUndefined();
+    });
+
+    it('does not call a task expired because the network threw', async () => {
+      const { useTaskSubscription } = await import('../useTasksSubscription');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetch.mockImplementation(async () => {
+        throw new Error('offline');
+      });
+
+      const { result } = renderHook(() => useTaskSubscription('task-offline'));
+      await settle();
+
+      expect(result.current).toBeUndefined();
+      consoleError.mockRestore();
+    });
+
+    it('turns a task that was reported missing into the task as soon as it shows up', async () => {
+      const { useTaskSubscription } = await import('../useTasksSubscription');
+      pollTasks = [];
+      taskById.set('task-late', createTask('task-late', 'running', { progress: 10 }));
+
+      const { result } = renderHook(() => useTaskSubscription('task-late'));
+      await settle();
+      expect(result.current).toBeNull();
+
+      await act(async () => {
+        MockEventSource.instances[0].emit('task_update', { task_id: 'task-late' });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(result.current?.progress).toBe(10);
+    });
+
+    it('does not call the other subscribed ids expired when only one of them is gone', async () => {
+      const { useTasksSubscription } = await import('../useTasksSubscription');
+      pollTasks = [createTask('task-kept', 'succeeded')];
+
+      const { result } = renderHook(() => useTasksSubscription(['task-kept', 'task-gone']));
+      await settle();
+
+      expect(result.current.has('task-kept')).toBe(true);
+      expect(result.current.has('task-gone')).toBe(false);
+    });
+  });
+
   it('useTaskSubscription returns single task', async () => {
     const { useTaskSubscription } = await import('../useTasksSubscription');
 

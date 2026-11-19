@@ -1,32 +1,48 @@
-"""[INPUT]
-- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig (POS: Cron job domain types.)
+"""Scheduling, alert, and error helpers for the cron engine.
+
+All public functions are pure (no I/O besides log lines) and safe to call from any context.
+
+[INPUT]
+- toolkits.cron.engine.parser::compute_next_run (POS: next-run calculation)
+- toolkits.cron.types::ActiveHours, CronJob, CronNotice, CronNoticeKind, FailureAlertConfig, RunStatus, Schedule, ScheduleKind (POS: Cron job domain types.)
 
 [OUTPUT]
 - resolve_stagger_ms: Compute the effective stagger delay for a job.
-- is_top_of_hour_cron: Return True if *expression* fires at minute-0 every hour.
-- compute_stagger_offset_s: Return the stagger upper-bound in seconds for a given schedule.
 - is_within_active_hours: Return True if *now* falls within the active window, or if no window is set.
-- is_stale_run: Detect a zombie task whose execution was interrupted by an unclean shutdown.
+- is_past_misfire_grace: Return True if the job has missed its fire window beyond the grace period.
+- is_in_error_backoff: Return True if the job is still inside the backoff window of its last failure (startup recovery).
+- pre_execution_check: The skip reason of the guards a due job meets (expiry, fire limit, cooldown), or None; expiry and fire limit also pause the job.
+- next_eligible_run: The slot to book as a job's next run, with cooldown, 60 s floor and active window applied.
+- next_slot_or_retry: The slot to book for a recurring job, or a minute ahead when its schedule cannot be computed.
 - auto_pause_notice: The notice for a pre-execution verdict that paused the job.
+- run_status_of: The status a run's record and its job's last status carry.
+- resolve_failure_alert: Merge the per-job and the global failure-alert config; None when alerts are off.
+- should_send_failure_alert: Whether the failure threshold and the cooldown let an alert fire now.
+- classify_transient_error: The transient kind an error text shows, or None for a permanent or unrecognised error.
+- error_backoff_ms, BACKOFF_SCHEDULE_MS: The retry delay for a failure count, on a 30 s to 60 min schedule.
+- extract_telemetry: The model name and token usage in a run result's metadata.
 
 [POS]
-Pure engine helpers: stagger resolution, schedule-window and backoff checks, the pre-execution guards with the
-notice an automatic pause raises, failure-alert resolution and telemetry extraction.
+Pure engine helpers: stagger resolution, schedule-window and misfire checks, the next slot to book, the pre-execution
+guards with the notice an automatic pause raises, the status a run carries, failure-alert resolution, error
+classification with its backoff schedule, and telemetry extraction.
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from zoneinfo import ZoneInfo
 
-from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, FailureAlertConfig
-
-"""Scheduling, alert, and error helpers for the cron engine.
-
-All public functions are pure (no I/O) and safe to call from any context.
-"""
-
+from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
+from myrm_agent_harness.toolkits.cron.types import (
+    CronNotice,
+    CronNoticeKind,
+    FailureAlertConfig,
+    RunStatus,
+    ScheduleKind,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.types import (
@@ -34,11 +50,21 @@ if TYPE_CHECKING:
         CronJob,
         FailureAlertConfig,
         JobResult,
+        Schedule,
         TransientErrorKind,
     )
 
+logger = logging.getLogger(__name__)
+
 _DEFAULT_TOP_OF_HOUR_STAGGER_MS = 5 * 60 * 1000
-_STALE_MARGIN_S = 60
+# Candidates examined while looking for a slot inside the active window; a window that no slot of the schedule
+# reaches (a daily 09:30 job restricted to the evening) must not loop forever.
+_MAX_SLOT_SCAN = 2000
+# The slot is booked before the run starts, so nothing paces a schedule that can fire faster than once a minute
+# (an interval, or a cron with a seconds field) except this floor.
+_MIN_RECURRING_GAP_S = 60
+# A schedule that cannot be computed is booked again this far ahead; the closing write of a run counts the failure.
+_SCHEDULE_ERROR_RETRY_S = 60
 
 # ---------------------------------------------------------------------------
 # UTC normalisation
@@ -64,8 +90,6 @@ def resolve_stagger_ms(job: CronJob) -> int:
     fire at minute-0 (e.g. ``0 * * * *``, ``0 9 * * *``) get a 5-minute
     random window to avoid thundering-herd in multi-user Sandbox scenarios.
     """
-    from myrm_agent_harness.toolkits.cron.types import ScheduleKind
-
     sched = job.schedule
     if sched.stagger_ms is not None:
         return max(0, sched.stagger_ms)
@@ -77,32 +101,6 @@ def resolve_stagger_ms(job: CronJob) -> int:
     if minute_field == "0":
         return _DEFAULT_TOP_OF_HOUR_STAGGER_MS
     return 0
-
-
-def is_top_of_hour_cron(expression: str) -> bool:
-    """Return True if *expression* fires at minute-0 every hour.
-
-    Matches patterns like ``0 * * * *`` or ``0 9 * * *`` where the minute
-    field is exactly ``0`` and the hour field contains ``*``.
-    """
-    parts = expression.strip().split()
-    if len(parts) < 5:
-        return False
-    return parts[0] == "0" and "*" in parts[1]
-
-
-def compute_stagger_offset_s(schedule_stagger_ms: int | None, expr: str | None) -> float:
-    """Return the stagger upper-bound in seconds for a given schedule.
-
-    - Explicit ``stagger_ms > 0`` -> use that value.
-    - ``stagger_ms is None`` + top-of-hour cron -> 5-minute default.
-    - Otherwise -> 0 (exact timing).
-    """
-    if schedule_stagger_ms is not None:
-        return max(0, schedule_stagger_ms) / 1000.0
-    if expr and is_top_of_hour_cron(expr):
-        return _DEFAULT_TOP_OF_HOUR_STAGGER_MS / 1000.0
-    return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -144,20 +142,6 @@ def is_within_active_hours(ah: ActiveHours | None, *, now: datetime | None = Non
 # ---------------------------------------------------------------------------
 # Pre-execution checks & state detection
 # ---------------------------------------------------------------------------
-
-
-def is_stale_run(job: CronJob, now: datetime) -> bool:
-    """Detect a zombie task whose execution was interrupted by an unclean shutdown.
-
-    A run is stale when the job is ACTIVE with no next_run_at (claimed for
-    execution) and enough time has elapsed for the timeout + safety margin.
-    """
-    if job.next_run_at is not None or job.last_run_at is None:
-        return False
-    deadline = _ensure_utc(job.last_run_at) + timedelta(
-        seconds=job.timeout_seconds + _STALE_MARGIN_S,
-    )
-    return now > deadline
 
 
 def is_past_misfire_grace(job: CronJob, now: datetime) -> bool:
@@ -206,6 +190,54 @@ def pre_execution_check(job: CronJob, now: datetime) -> str | None:
     return None
 
 
+def _can_fire_within_a_minute(schedule: Schedule) -> bool:
+    """An interval, or a cron whose field count is not the minute-aligned five."""
+    return schedule.kind == ScheduleKind.INTERVAL or len((schedule.expr or "").split()) != 5
+
+
+def next_eligible_run(job: CronJob, after: datetime, *, last_run_at: datetime | None = None) -> datetime | None:
+    """The slot to book as a job's next regular run: the first one after ``after`` that clears the cooldown and
+    the floor and lies in the active window.
+
+    Create, resume, schedule edits, run closing, skipped runs and recovery all book through this function, so a
+    booked slot is one the dispatch guards accept. A one-shot names its own instant and nothing moves it.
+    ``last_run_at`` stands in for the stored one when the closing write has not saved it yet. A 5-field cron is
+    minute-aligned, so the floor is not applied to it: flooring against a run's finish time would skip slots.
+    When no slot inside the window turns up within ``_MAX_SLOT_SCAN`` candidates, the last candidate comes back
+    and the dispatch guards record it as skipped and book again.
+    """
+    if job.schedule.kind == ScheduleKind.ONCE:
+        return compute_next_run(job.schedule, _ensure_utc(after))
+    earliest = _ensure_utc(after)
+    last = last_run_at or job.last_run_at
+    if job.cooldown_seconds > 0 and last:
+        earliest = max(earliest, _ensure_utc(last) + timedelta(seconds=job.cooldown_seconds))
+    candidate = compute_next_run(job.schedule, earliest)
+    if candidate is not None and _can_fire_within_a_minute(job.schedule):
+        floor = earliest + timedelta(seconds=_MIN_RECURRING_GAP_S)
+        if candidate < floor:
+            candidate = floor if job.schedule.kind == ScheduleKind.INTERVAL else compute_next_run(job.schedule, floor)
+    for _ in range(_MAX_SLOT_SCAN):
+        if candidate is None or is_within_active_hours(job.active_hours, now=candidate):
+            return candidate
+        candidate = compute_next_run(job.schedule, candidate)
+    return candidate
+
+
+def next_slot_or_retry(job: CronJob, now: datetime) -> datetime:
+    """The slot to book for a recurring job; one whose schedule cannot be computed is booked a minute ahead.
+
+    Booking must never fail for the schedule's sake: the job keeps a next run time, and the closing write of its
+    next run computes the slot again and counts the failure toward auto-pause.
+    """
+    try:
+        slot = next_eligible_run(job, now)
+    except Exception as exc:
+        logger.warning("Job %s: schedule compute error (%s), will retry in %ds", job.id, exc, _SCHEDULE_ERROR_RETRY_S)
+        slot = None
+    return slot if slot is not None else now + timedelta(seconds=_SCHEDULE_ERROR_RETRY_S)
+
+
 def auto_pause_notice(job: CronJob, skip_reason: str) -> CronNotice | None:
     """The notice for a ``pre_execution_check`` verdict that paused the job; None for a verdict that did not."""
     if skip_reason == "expired":
@@ -213,6 +245,13 @@ def auto_pause_notice(job: CronJob, skip_reason: str) -> CronNotice | None:
     if skip_reason == "max_fires_reached":
         return CronNotice(kind=CronNoticeKind.JOB_MAX_FIRES_REACHED, job_name=job.name, max_fires=job.max_fires)
     return None
+
+
+def run_status_of(result: JobResult) -> RunStatus:
+    """The status a run's record and its job's ``last_status`` carry: a circuit break outranks a plain failure."""
+    if result.circuit_broken:
+        return RunStatus.CIRCUIT_BREAK
+    return RunStatus.OK if result.success else RunStatus.ERROR
 
 
 # ---------------------------------------------------------------------------

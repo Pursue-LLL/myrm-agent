@@ -48,11 +48,11 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
     ),
     AllowedDiff(
         "lm-studio-default-endpoint",
-        "LM Studio and Yunshu without an api_base were sent to api.openai.com with the caller's key; the default is "
-        "their own server.",
+        "LM Studio without an api_base was sent to api.openai.com with the caller's key; the default is its own "
+        "server.",
         "~",
         r"/url",
-        providers=("lm_studio", "yunshu"),
+        providers=("lm_studio",),
         when=contains("old", "api.openai.com"),
     ),
     AllowedDiff(
@@ -74,15 +74,6 @@ DEFECT_RULES: tuple[AllowedDiff, ...] = (
         providers=("minimax",),
         scenarios=("defaults",),
         when=lambda diff: (diff.old, diff.new) == (8192, 16384),
-    ),
-    AllowedDiff(
-        "yunshu-output-limit",
-        "`max_tokens` is capped at the model's catalog output limit (16384 for gpt-4o-mini); the baseline library found "
-        "no catalog entry under the `yunshu/` prefix and sent 32768, which the model would refuse.",
-        "~",
-        r"/body/max_tokens",
-        providers=("yunshu",),
-        scenarios=("reasoning_high", "reasoning_tools"),
     ),
     AllowedDiff(
         "anthropic-extra-body-nested",

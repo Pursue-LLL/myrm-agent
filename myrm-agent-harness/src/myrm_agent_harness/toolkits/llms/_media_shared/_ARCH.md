@@ -13,4 +13,4 @@ Provider mode-capability types and the normalization engine that video generatio
 
 ## Key Dependencies
 
-- Standard library and this package only.
+- `types.py` and `normalization.py` use the standard library only.

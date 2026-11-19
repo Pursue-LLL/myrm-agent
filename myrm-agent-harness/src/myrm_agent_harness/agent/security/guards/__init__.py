@@ -22,7 +22,6 @@ from .taint_tracker import (
 from .untrusted_ingress_fence import (
     DISALLOWED_UNTRUSTED_PERMISSIONS,
     DISALLOWED_UNTRUSTED_TOOLS,
-    filter_untrusted_ingress_tools,
     is_tool_allowed_under_untrusted_ingress,
     is_untrusted_ingress_active,
     reset_untrusted_ingress,
@@ -35,7 +34,6 @@ __all__ = [
     "DISALLOWED_UNTRUSTED_TOOLS",
     "TaintLabel",
     "TaintTracker",
-    "filter_untrusted_ingress_tools",
     "get_taint_tracker",
     "is_tool_allowed_under_untrusted_ingress",
     "is_untrusted_ingress_active",

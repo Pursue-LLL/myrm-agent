@@ -306,8 +306,8 @@ _frontend_liveness_probe_seconds() {
 # parallel Next compile may flap HTTP 000 immediately after ensure OK — require warm streak.
 _frontend_post_heal_warm_streak_ok() {
   # The cap must cover a cold Next compile. Reading it from dev_gate.contract —
-  # the same SSOT the preflight passes down — removes the duplicated magic number
-  # that previously defaulted to 60s and starved a 72s+ cold compile.
+  # the same SSOT the preflight passes down — keeps a single number instead of a
+  # duplicated 60s default that would starve a 72s+ cold compile.
   local max_sec="${MYRM_UI_HEAL_POST_ENSURE_MAX_SEC:-}"
   if [[ ! "${max_sec}" =~ ^[0-9]+$ || "${max_sec}" -le 0 ]]; then
     max_sec="$("${PREFLIGHT_PY:-python3}" -c "

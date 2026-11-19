@@ -161,6 +161,7 @@ async def test_shell_escalation_interactive_smart_denied() -> None:
     assert len(pending) == 1
 
     _idx, _tc, _perm_type, reason, extra_ctx = pending[0]
+    assert extra_ctx is not None
     assert extra_ctx.get("smart_denied") is True
     assert "Exfiltration attempt" in extra_ctx.get("reviewer_reason", "")
     assert "recommends denial" in reason
@@ -196,6 +197,7 @@ async def test_yolo_mode_socially_irreversible_gate() -> None:
     assert len(pending) == 2
 
     for _, _, _, reason, extra_ctx in pending:
+        assert extra_ctx is not None
         assert extra_ctx.get("socially_irreversible") is True
         assert extra_ctx.get("high_risk") is True
         assert extra_ctx.get("hide_allow_always") is True
@@ -216,7 +218,7 @@ async def test_auto_mode_suspended_propagates_to_review_config() -> None:
     tool_call = _make_shell_call("python run_migration.py")
 
     with patch(
-        "myrm_agent_harness.agent.middlewares.approval.batch_processor.decide.is_threshold_breached",
+        "myrm_agent_harness.agent.middlewares.approval.batch_processor.decide.hitl.is_threshold_breached",
         return_value=ThresholdBreach.CONSECUTIVE,
     ):
         _approved, _denied, pending = await evaluate_tool_batch(
@@ -231,6 +233,7 @@ async def test_auto_mode_suspended_propagates_to_review_config() -> None:
 
     assert len(pending) == 1
     _, _, _, _, extra_ctx = pending[0]
+    assert extra_ctx is not None
     assert extra_ctx.get("auto_mode_suspended") == ThresholdBreach.CONSECUTIVE.value
     assert extra_ctx.get("high_risk") is True
 
@@ -253,7 +256,7 @@ async def test_auto_mode_suspended_propagates_to_review_config() -> None:
 
 def testshould_block_allow_always_for_hardened_flags() -> None:
     """should_block_allow_always returns True for socially_irreversible, irreversible_destructive, and auto_mode_suspended."""
-    tool_call = {"name": "bash", "args": {"command": "git push"}}
+    tool_call = {"name": "bash_code_execute_tool", "args": {"command": "git push"}}
 
     assert should_block_allow_always(tool_call, {"socially_irreversible": True}) is True
     assert should_block_allow_always(tool_call, {"irreversible_destructive": True}) is True
@@ -284,6 +287,7 @@ async def test_yolo_mode_destructive_irreversible_gate() -> None:
     idx, tc, _perm_type, reason, extra_ctx = pending[0]
     assert idx == 0
     assert tc["id"] == "tc_rm"
+    assert extra_ctx is not None
     assert extra_ctx.get("irreversible_destructive") is True
     assert extra_ctx.get("hide_allow_always") is True
     assert extra_ctx.get("high_risk") is True

@@ -40,8 +40,10 @@ jobs:
       - name: Set up Python
         run: uv python install 3.13
 
-      - name: Install dependencies
-        run: uv sync --python 3.13 --locked --dev
+      # The architecture tests import every lazily exported name and every name the harness takes from LangChain,
+      # and the packages behind them (rank_bm25, acp, langchain_text_splitters) ship as optional extras.
+      - name: Install dependencies (all extras)
+        run: uv sync --python 3.13 --locked --extra all --group dev
 
       - name: Run boundary check (full scan)
         run: uv run --no-sync python scripts/boundary_check.py

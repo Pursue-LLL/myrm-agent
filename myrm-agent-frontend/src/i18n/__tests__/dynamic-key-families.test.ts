@@ -3,7 +3,7 @@
  *
  * `verify:i18n-references` resolves only literal keys, and `verify:i18n` only compares the locale files with each
  * other, so a `t(variable)` whose value no locale holds shows the person the raw key path. Each family below
- * names the code that decides the key and checks every value it can take against all six locales.
+ * names the code that decides the key and checks every value it can take against both locales.
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';

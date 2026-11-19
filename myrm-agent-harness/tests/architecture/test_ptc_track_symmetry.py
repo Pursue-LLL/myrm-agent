@@ -5,9 +5,9 @@
 - Track 1 (MCP)：``agent/skills/mcp/ipc_proxy.py`` + ``client_templates.py``
 - Track 2 (DW)：``toolkits/code_execution/ptc/rpc_server.py`` + ``stub_generator.py``
 
-历史上两轨多次各自漂移（鉴权、权限、预算、平台回退都是分别补的），因为没有任何
-机制强制它们保持一致。``test_ptc.py::TestPtcRpcTransportSecurity`` 的 docstring
-写了「Track 2 must be authenticated like Track 1」，但只覆盖了 token 与权限。
+两轨的鉴权、权限、预算、平台回退各自独立实现，没有机制强制它们保持一致就会各自漂移。
+``test_ptc.py::TestPtcRpcTransportSecurity`` 的 docstring 写了「Track 2 must be
+authenticated like Track 1」，但只覆盖了 token 与权限。
 
 这个模块把「对称」变成可执行的断言。它只读代码、不参与运行时，所以没有任何运行
 成本；它的价值是让「只改了一轨」在 CI 里直接变红，而不是等用户在某个平台上撞到。

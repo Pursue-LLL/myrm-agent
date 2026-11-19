@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -85,10 +85,8 @@ async def turns() -> AsyncIterator[_Turns]:
 
 
 @pytest.fixture
-def session_id() -> Iterator[str]:
-    sid = f"goal-real-gateway-{uuid.uuid4().hex[:8]}"
-    yield sid
-    GoalRegistry.unregister(sid)
+def session_id() -> str:
+    return f"goal-real-gateway-{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture
@@ -108,7 +106,7 @@ async def api(tmp_path: Path, goal_stream_trigger: AsyncMock) -> AsyncIterator[h
 
 
 async def _active_goal(session_id: str) -> Goal:
-    return await GoalRegistry.get_or_create_provider(session_id).create_goal(session_id, "Ship the report")
+    return await GoalRegistry.register(session_id).create_goal(session_id, "Ship the report")
 
 
 @pytest.mark.parametrize("chat_turn", [False, True], ids=["tokenless_turn", "chat_turn"])
@@ -187,7 +185,7 @@ async def test_resume_is_refused_while_a_server_started_turn_is_still_stopping(
 
     assert pause.status_code == 200
     assert resume.status_code == 409
-    stored = await GoalRegistry.get_or_create_provider(session_id).get_goal(goal.goal_id)
+    stored = await GoalRegistry.resolve_provider(session_id).get_goal(goal.goal_id)
     assert stored is not None
     assert stored.status is GoalStatus.PAUSED
     goal_stream_trigger.assert_not_awaited()

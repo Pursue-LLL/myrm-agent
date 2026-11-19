@@ -1,15 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { CronJob } from '@/services/cron.types';
 
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import zh from '../../../../../locales/zh.json';
 
-const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const locales = { en, zh } as const;
 
 /** Keys the editor asks the `cron` namespace for, so the locale check follows the toggles it really renders. */
 const requestedCronKeys = new Set<string>();
@@ -61,6 +57,38 @@ describe('CapabilityEditor capability toggles', () => {
     for (const id of devops) {
       const toggle = screen.getByRole('button', { name: lookupCopy(en.cron, `capability.${id}`) });
       expect(toggle, id).toHaveAttribute('aria-pressed', 'true');
+    }
+  });
+
+  it('says what a run with nothing chosen can still do, and only while nothing is chosen', () => {
+    const { rerender } = render(<CapabilityEditor job={jobWithCapabilities([])} onUpdated={vi.fn()} />);
+    expect(screen.getByText(en.cron.capabilitiesAllHint)).toBeInTheDocument();
+
+    rerender(<CapabilityEditor job={jobWithCapabilities(['shell_exec'])} onUpdated={vi.fn()} />);
+    expect(screen.queryByText(en.cron.capabilitiesAllHint)).not.toBeInTheDocument();
+  });
+
+  it('clears every chosen capability when the read-only preset is picked', () => {
+    render(<CapabilityEditor job={jobWithCapabilities(['shell_exec', 'file_write'])} onUpdated={vi.fn()} />);
+    expect(screen.queryByText(en.cron.capabilitiesAllHint)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: en.cron.capPreset.readOnly }));
+
+    expect(screen.getByText(en.cron.capabilitiesAllHint)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: en.cron.capability.shell_exec })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    );
+  });
+
+  it.each(Object.entries(locales))('labels every preset the editor offers in %s', (_locale, messages) => {
+    requestedCronKeys.clear();
+    render(<CapabilityEditor job={jobWithCapabilities([])} onUpdated={vi.fn()} />);
+
+    const presetKeys = [...requestedCronKeys].filter((key) => /^(capPreset|toolPreset)\./.test(key));
+    expect(presetKeys).toContain('capPreset.readOnly');
+    for (const key of presetKeys) {
+      expect(lookupCopy(messages.cron, key), key).not.toBe(key);
     }
   });
 

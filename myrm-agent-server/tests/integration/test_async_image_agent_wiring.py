@@ -57,7 +57,7 @@ async def test_general_agent_image_tool_enqueues_task_with_chat_and_agent_ids(
         enable_web_search=False,
         chat_id="chat-wiring-int",
         agent_id="agent-wiring-int",
-        image_generation_params=ImageGenerationParams(model="flux-pro", api_key="sk-wiring-int"),
+        image_generation_params=ImageGenerationParams(model="gpt-image-2.6-sunburst", api_key="sk-wiring-int"),
     )
     agent._task_user_id = "user-wiring-int"
 
@@ -75,12 +75,13 @@ async def test_general_agent_image_tool_enqueues_task_with_chat_and_agent_ids(
         }
     )
     payload = json.loads(str(raw))
-    assert payload.get("task_id")
-    assert payload.get("status") == "pending"
+    (started,) = payload["tasks"]
+    assert started["task_type"] == "image_generate"
+    assert started["status"] == "pending"
 
-    task = await image_task_store.get_task(str(payload["task_id"]))
+    task = await image_task_store.get_task(started["task_id"])
     assert task is not None
-    assert task.payload["model"] == "flux-pro"
+    assert task.payload["model"] == "gpt-image-2.6-sunburst"
     assert "api_key" not in task.payload
     assert isinstance(task.payload.get("api_key_enc"), str)
     assert task.payload["chat_id"] == "chat-wiring-int"

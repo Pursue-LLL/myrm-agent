@@ -13,8 +13,8 @@
     "dev:clean": "bun run scripts/dev.ts --clean",
     "cleanup": "bun run scripts/cleanup.ts",
     "i18n:split": "node scripts/split-locale-namespaces.mjs",
-    "build:sw-inject": "node scripts/build-sw-src.mjs",
-    "build": "bun run i18n:split && next build && bun run build:sw-inject && NODE_ENV=production bunx serwist inject-manifest serwist.config.ts && node scripts/verify-sw-push.mjs && rm -f package-lock.json",
+    "build:sw": "esbuild src/app/sw.ts --bundle --minify --format=iife --target=es2022 --outfile=public/sw.js",
+    "build": "bun run i18n:split && bun run build:sw && next build && rm -f package-lock.json",
     "build:tauri": "bun run i18n:split && BUILD_MODE=tauri next build",
     "prestart": "bun run i18n:split",
     "start": "next start",
@@ -41,8 +41,9 @@
     "verify:hardcoded-copy": "bun scripts/check-hardcoded-copy.mjs",
     "verify:icu-syntax": "bun scripts/check-icu-syntax.mjs",
     "verify:intl-options": "bun scripts/check-ignored-intl-options.mjs",
+    "verify:e2e-channel": "bun scripts/check-e2e-channel.mjs",
     "verify:provider-icons": "vitest run src/components/features/settings/model-service/__tests__/",
-    "pretest": "bun run i18n:split && bun scripts/generate-simplified-glyphs.mjs --check && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
+    "pretest": "bun run i18n:split && bun run verify:i18n && bun run verify:stable-mocks && bun run verify:provider-icons"
   },
   "dependencies": {
     "@aiden0z/pptx-renderer": "^1.4.0",
@@ -76,9 +77,6 @@
     "@radix-ui/react-toggle-group": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.4.1",
     "@radix-ui/react-visually-hidden": "^1.2.13",
-    "@serwist/next": "^9.5.13",
-    "@serwist/precaching": "^9.5.13",
-    "@serwist/sw": "^9.5.13",
     "@tanstack/react-virtual": "^3.14.26",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-clipboard-manager": "^2.5.0",
@@ -136,7 +134,6 @@
     "remark-github-markdown-alerts": "^1.2.2",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
-    "serwist": "^9.5.13",
     "sonner": "^2.0.8",
     "swr": "^2.5.1",
     "tailwind-merge": "^3.7.0",
@@ -156,7 +153,6 @@
   "devDependencies": {
     "@formatjs/icu-messageformat-parser": "^3.5.22",
     "@next/bundle-analyzer": "^16.4.5",
-    "@serwist/cli": "^9.5.13",
     "@tailwindcss/postcss": "^4.3.4",
     "@tailwindcss/typography": "^0.5.20",
     "@testing-library/dom": "^10.4.2",
@@ -174,7 +170,6 @@
     "esbuild": "^0.28.2",
     "jsdom": "^31.0.0",
     "micromark-util-types": "^2.0.2",
-    "opencc-js": "^1.4.2",
     "oxc-parser": "0.152.0",
     "oxlint": "^1.91.0",
     "prettier": "^3.9.10",
@@ -185,8 +180,7 @@
   },
   "overrides": {
     "dompurify": "^3.4.17",
-    "postcss-selector-parser": "^6.1.5",
-    "zod": "^4.6.7"
+    "postcss-selector-parser": "^6.1.5"
   },
   "packageManager": "bun@1.2.21",
   "trustedDependencies": [

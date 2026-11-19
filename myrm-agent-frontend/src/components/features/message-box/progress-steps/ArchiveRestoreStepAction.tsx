@@ -2,6 +2,7 @@
  * [INPUT]
  * - @/store/useChatStore::useChatStore (POS: 聊天状态总线)
  * - @/store/chat/types::ArchiveRestoreAction (POS: Chat state and SSE event type definitions)
+ * - @/lib/chat/focusMessageInput::focusMessageInput (POS: Cursor placement in the message box)
  *
  * [OUTPUT]
  * - ArchiveRestoreStepAction: inline restore-and-continue control for archive_restore_blocked progress steps.
@@ -15,6 +16,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import useChatStore from '@/store/useChatStore';
 import type { ArchiveRestoreAction, ArchiveRestoreBlockPayload, ArchiveRestoreRangeHint } from '@/store/chat/types';
+import { focusMessageInput } from '@/lib/chat/focusMessageInput';
 import { cn } from '@/lib/utils/classnameUtils';
 
 type ArchiveRestoreStepActionProps = {
@@ -46,16 +48,6 @@ const formatContentFeature = (feature: NonNullable<ArchiveRestoreBlockPayload['c
   const values = feature.values.slice(0, 3).join(', ');
   const countLabel = feature.count > 0 ? ` (${formatNumber(feature.count)})` : '';
   return values ? `${label}${countLabel}: ${values}` : `${label}${countLabel}`;
-};
-
-const focusMessageInput = () => {
-  window.setTimeout(() => {
-    const inputElement = document.querySelector('textarea');
-    if (inputElement instanceof HTMLTextAreaElement) {
-      inputElement.focus();
-      inputElement.setSelectionRange(inputElement.value.length, inputElement.value.length);
-    }
-  }, 50);
 };
 
 export const ArchiveRestoreStepAction = ({ actions, block }: ArchiveRestoreStepActionProps) => {

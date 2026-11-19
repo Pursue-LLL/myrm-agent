@@ -8,7 +8,7 @@
 - POST /manifest: pre-bind disclosure payload, including the hash a TRUSTED decision must echo and the declared
   command prefixes still waiting for the user's approval
 - POST /decide: persist TRUSTED / RESTRICTED decision; TRUSTED must carry the hash of the manifest the user saw
-- GET /: list trusted folders
+- GET /: list trusted folders, each with the command prefixes the user approved when trusting it
 - DELETE /: revoke or remove entry
 
 [POS]
@@ -22,7 +22,11 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from myrm_agent_harness.agent.security.workspace_trust.manifest import manifest_hash
-from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustLevel
+from myrm_agent_harness.agent.security.workspace_trust.types import (
+    WorkspaceTrustEntry,
+    WorkspaceTrustLevel,
+    WorkspaceTrustManifest,
+)
 from pydantic import BaseModel, Field
 
 from app.core.utils.errors import not_found_error, validation_error
@@ -43,8 +47,6 @@ class DecideRequest(BaseModel):
 
 
 def _manifest_to_dict(manifest: object) -> dict[str, object]:
-    from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustManifest
-
     if not isinstance(manifest, WorkspaceTrustManifest):
         return {}
     requires_trust = bool(
@@ -71,8 +73,6 @@ def _manifest_to_dict(manifest: object) -> dict[str, object]:
 
 
 def _entry_to_dict(entry: object) -> dict[str, object]:
-    from myrm_agent_harness.agent.security.workspace_trust.types import WorkspaceTrustEntry
-
     if not isinstance(entry, WorkspaceTrustEntry):
         return {}
     return {
@@ -80,6 +80,7 @@ def _entry_to_dict(entry: object) -> dict[str, object]:
         "level": entry.level.value,
         "decided_at": entry.decided_at,
         "manifest_hash": entry.manifest_hash,
+        "disclosed_command_prefixes": list(entry.disclosed_command_prefixes),
     }
 
 

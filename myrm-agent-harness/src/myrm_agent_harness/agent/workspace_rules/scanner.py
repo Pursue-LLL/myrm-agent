@@ -4,12 +4,14 @@ Scans the workspace directory for project-level rule files and loads
 their content with security scanning and size truncation.
 
 Supported file types:
-- Root-level: AGENTS.md, CLAUDE.md, SOUL.md, MEMORY.md, .cursorrules, .clinerules, .myrm.md, .hermes.md, HERMES.md, .windsurfrules
-- Directory-based: .myrm/rules/*.md, .cursor/rules/*.mdc, .claude/CLAUDE.md, .github/copilot-instructions.md
+- Root-level: the names in _RULE_FILENAMES, highest priority first
+- Directory-based: the rule directories _MYRM_RULES_DIR, _CURSOR_RULES_DIR and
+  _TRAE_RULES_DIR (always read), and the fallback files _CLAUDE_SUBDIR_FILE and
+  _COPILOT_INSTRUCTIONS_FILE (read only when the directory has no non-empty root file)
 
-All discovered rule files are loaded and concatenated — multiple
-rule files can coexist (e.g. .myrm/rules/coding.md + AGENTS.md +
-.cursor/rules/style.mdc).
+Per directory, the first matching root file wins (_RULE_FILENAMES order);
+the rule directories, ADR records and KNOWN_ISSUES.md load alongside it
+(e.g. .myrm/rules/coding.md + AGENTS.md + .cursor/rules/style.mdc).
 
 Discovery traverses upward from workspace_root toward the git root
 to find rule files in parent directories (max 5 levels).
@@ -22,14 +24,13 @@ to find rule files in parent directories (max 5 levels).
 - agent.workspace_rules.adr_scanner::scan_adr_rules (POS: Living architecture decision record scanner and MADR status filter)
 
 [OUTPUT]
-- scan_workspace_rules(): Discover and load all rule files, returns list[RuleFile]
+- scan_workspace_rules(): Discover and load rule files (first root match + rule dirs), returns list[RuleFile]
 - RuleFile: Dataclass holding path, content, source type, blocked flag; display_name is its file name as prompt text
 
 [POS]
-Workspace rule file scanner. Discovers project-level context files
-(AGENTS.md, CLAUDE.md, SOUL.md, MEMORY.md, .cursorrules, .clinerules,
-.myrm.md, .hermes.md, HERMES.md, .windsurfrules, .myrm/rules/*.md,
-.cursor/rules/*.mdc, .claude/CLAUDE.md, .github/copilot-instructions.md),
+Workspace rule file scanner. Discovers project-level context files (the root
+names and directories listed under "Supported file types", plus ADR records
+and KNOWN_ISSUES.md),
 performs security scanning, YAML frontmatter stripping, and returns
 loaded content for middleware injection. Blocked files (injection
 detected, outside the workspace, or too large to read) return a
@@ -277,8 +278,10 @@ def _scan_rules_subdir(
 def _scan_directory(directory: Path, guard: RuleReadGuard) -> list[RuleFile]:
     """Scan a single directory for rule files.
 
-    Uses First-Match-Wins for global rule files to prevent conflicts,
-    but always loads specific rule directories (.myrm/rules, .cursor/rules).
+    Uses First-Match-Wins for global rule files to prevent conflicts, but always
+    loads the rule directories (_MYRM_RULES_DIR, _CURSOR_RULES_DIR, _TRAE_RULES_DIR),
+    ADR records and KNOWN_ISSUES.md. The fallback files load only when the directory
+    has no non-empty root file.
     """
     results: list[RuleFile] = []
     seen_inodes: set[tuple[int, int]] = set()
@@ -317,7 +320,7 @@ def _scan_directory(directory: Path, guard: RuleReadGuard) -> list[RuleFile]:
                     results.append(rule)
                     return results  # Stop after finding the highest priority global file
 
-    # 3. Check fallback subdirectories if no global file was found
+    # 5. Check fallback files if no global file was found
     for subdir_file in (_CLAUDE_SUBDIR_FILE, _COPILOT_INSTRUCTIONS_FILE):
         filepath = directory / subdir_file
         if filepath.is_file():

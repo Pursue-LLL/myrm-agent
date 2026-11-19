@@ -1,4 +1,4 @@
-"""What ``build_general_agent`` hands the harness besides tools: skills, MCP servers, workspace, user and guards.
+"""What ``build_general_agent`` hands the harness besides tools: skills, MCP servers, workspace, language, user and guards.
 
 ``builder_wiring_testkit`` says what is real and what is stood in for.
 """
@@ -14,7 +14,7 @@ from myrm_agent_harness.agent.security import CredentialTrack
 
 from app.ai_agents.extensions import SubagentManagementExtension
 from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
-from tests.ai_agents.general_agent.builder_wiring_testkit import BUILDER, CHAT_ID, BuilderHarness, mcp_server
+from tests.ai_agents.general_agent.builder_wiring_testkit import BUILDER, CHAT_ID, BuilderHarness, mcp_server, spec_of
 
 
 @pytest.fixture
@@ -40,38 +40,6 @@ class TestSkillRuntime:
 
         assert handed["trusted_skill_ids"] is None
         assert handed["skill_env_map"] is None
-
-    async def test_the_library_names_come_from_the_skill_backend(self, harness: BuilderHarness) -> None:
-        harness.skill_backend.list_skills.return_value = [
-            SimpleNamespace(name="alpha", storage_skill_id="id-alpha"),
-            SimpleNamespace(name="beta", storage_skill_id=None),
-        ]
-
-        handed = await harness.build(harness.wrapper())
-
-        assert handed["library_skill_names"] == frozenset({"alpha", "beta"})
-
-    async def test_an_unreadable_skill_library_costs_the_gap_hints_not_the_agent(
-        self, harness: BuilderHarness, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        harness.skill_backend.list_skills.side_effect = RuntimeError("library offline")
-
-        with caplog.at_level(logging.WARNING, logger=BUILDER):
-            handed = await harness.build(harness.wrapper())
-
-        assert handed["library_skill_names"] == frozenset()
-        assert "Failed to load skill library names for gap detection (non-blocking): library offline" in caplog.text
-
-    async def test_a_build_without_a_skill_backend_has_no_library_names_and_no_complaint(
-        self, harness: BuilderHarness, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        harness.skill_runtime.skill_backend = None
-
-        with caplog.at_level(logging.WARNING, logger=BUILDER):
-            handed = await harness.build(harness.wrapper())
-
-        assert handed["library_skill_names"] == frozenset()
-        assert "Failed to load skill library names" not in caplog.text
 
     async def test_no_skill_backend_means_no_default_instances_and_no_complaint(
         self, harness: BuilderHarness, caplog: pytest.LogCaptureFixture
@@ -169,7 +137,7 @@ class TestMcpServers:
         prepare.assert_awaited_once_with("agent-1", configured)
         handlers.build_vault.assert_called_once_with("/work/space")
         handlers.build_elicitation.assert_called_once_with(agent_id="agent-1", chat_id=CHAT_ID)
-        servers = handed["spec"].mcp_servers
+        servers = spec_of(handed).mcp_servers
         assert [server.name for server in servers] == ["files", "search"]
         assert all(server.oversized_result_handler is handlers.vault for server in servers)
         assert all(server.elicitation_handler is handlers.elicitation for server in servers)
@@ -185,7 +153,7 @@ class TestMcpServers:
         prepare.assert_not_awaited()  # no agent to prepare them for
         handlers.build_vault.assert_not_called()
         handlers.build_elicitation.assert_called_once_with(agent_id="default", chat_id=CHAT_ID)
-        (server,) = handed["spec"].mcp_servers
+        (server,) = spec_of(handed).mcp_servers
         assert server.oversized_result_handler is None
         assert server.elicitation_handler is handlers.elicitation
 
@@ -200,7 +168,7 @@ class TestMcpServers:
         with caplog.at_level(logging.WARNING, logger=BUILDER):
             handed = await harness.build(harness.wrapper(agent_id="agent-1", mcp_cfg=[mcp_server("files")]))
 
-        assert [server.name for server in handed["spec"].mcp_servers] == ["files"]
+        assert [server.name for server in spec_of(handed).mcp_servers] == ["files"]
         assert "Failed to prepare MCP configs for agent agent-1: vault locked" in caplog.text
 
     async def test_an_agent_without_servers_builds_none_of_it(self, harness: BuilderHarness, handlers: SimpleNamespace) -> None:
@@ -212,22 +180,38 @@ class TestMcpServers:
         prepare.assert_not_awaited()
         handlers.build_vault.assert_not_called()
         handlers.build_elicitation.assert_not_called()
-        assert handed["spec"].mcp_servers == []
+        assert spec_of(handed).mcp_servers == []
 
 
 class TestWorkspace:
     async def test_the_first_allowed_root_becomes_the_agents_workspace(self, harness: BuilderHarness) -> None:
         handed = await harness.build(harness.wrapper(declared_allowed_roots=("/work/space", "/other")))
 
-        binding = handed["spec"].workspace_binding
+        binding = spec_of(handed).workspace_binding
+        assert binding is not None
         assert (binding.mode, binding.root_path, binding.chat_id) == ("chat", "/work/space", CHAT_ID)
         assert handed["task_workspace_root"] == "/work/space"
 
     async def test_an_agent_without_allowed_roots_has_no_workspace(self, harness: BuilderHarness) -> None:
         handed = await harness.build(harness.wrapper())
 
-        assert handed["spec"].workspace_binding is None
+        assert spec_of(handed).workspace_binding is None
         assert handed["task_workspace_root"] is None
+
+
+class TestSessionLanguage:
+    @pytest.mark.parametrize("locale", ["zh-CN", "en", None])
+    async def test_the_runtime_spec_and_the_system_prompt_carry_the_sessions_language(
+        self, harness: BuilderHarness, locale: str | None
+    ) -> None:
+        build_prompt = MagicMock(return_value="system prompt")
+        harness.patch(f"{BUILDER}.build_system_prompt", build_prompt)
+
+        handed = await harness.build(harness.wrapper(locale=locale))
+
+        spec = spec_of(handed)
+        assert (spec.locale, spec.prompt_locale) == (locale, locale)
+        assert build_prompt.call_args.kwargs["prompt_locale"] == locale
 
 
 class TestHandOff:
@@ -263,7 +247,7 @@ class TestHandOff:
     ) -> None:
         harness.patch(f"{BUILDER}._should_enable_subagent_tools", lambda: False)
 
-        with caplog.at_level(logging.WARNING, logger=BUILDER):
+        with caplog.at_level(logging.INFO, logger=BUILDER):
             await harness.build(harness.wrapper(subagent_ids=["explore"]))
 
         registered = [call.args[0] for call in harness.agent.register_extension.call_args_list]

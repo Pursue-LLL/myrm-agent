@@ -9,7 +9,7 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports secure fetch and redirect guard APIs. | — |
 | redirect_guard.py | Core | Outbound HTTP redirect sensitive header protection. `extract_origin` (default port 80/443 normalization), `is_same_origin`, `is_sensitive_header` (standard RFC keys + wildcard regex), `strip_sensitive_headers_on_redirect` (purges credentials on cross-origin redirect and blocks HTTPS->HTTP downgrade), and `create_mcp_redirect_guard_event_hooks` (httpx/httpx2 client hooks for MCP transports). | ✅ |
-| secure_fetch.py | Core | DNS-pinned HTTP with manual redirect loop (`secure_get`, `secure_request`, `resolve_secure_http_target`) and integrated cross-origin sensitive header stripping (`strip_sensitive_headers_on_redirect`). `secure_get`/`secure_request` accept `max_content_length` to abort oversized bodies mid-stream (`ContentTooLargeError`); defaults to `DEFAULT_MAX_CONTENT_LENGTH` (20 MB) unless `None` is passed to disable. `parse_allowed_internal_hosts` reads `MYRM_ALLOWED_INTERNAL_HOSTS` in canonical spelling, the form the SSRF guard compares hosts in; an entry that names no host stays as written and exempts nothing. | ✅ |
+| secure_fetch.py | Core | DNS-pinned HTTP with manual redirect loop (`secure_get`, `secure_request`, `resolve_secure_http_target`) and integrated cross-origin sensitive header stripping (`strip_sensitive_headers_on_redirect`). `secure_get`/`secure_request` accept `max_content_length` to abort oversized bodies mid-stream (`ContentTooLargeError`); defaults to `DEFAULT_MAX_CONTENT_LENGTH` (20 MB) unless `None` is passed to disable. With `truncate=True` a body over the cap is cut at the cap and the stream abandoned instead of raising, for callers that need only the start of a page. `resolve_secure_http_target` returns a `SecureHttpTarget` for callers that stream the final hop themselves: its `extensions` carry the TLS server name of a pinned HTTPS hop (dialed at an IP literal) and go to httpx with `request_url` and `headers`, else the certificate is checked against the IP. `parse_allowed_internal_hosts` reads `MYRM_ALLOWED_INTERNAL_HOSTS` in canonical spelling, the form the SSRF guard compares hosts in; an entry that names no host stays as written and exempts nothing. | ✅ |
 
 ## Key Dependencies
 
@@ -25,14 +25,15 @@ SSRF-protected outbound HTTP primitives shared by harness toolkits, agent pipeli
 - `toolkits/cron/delivery.py`
 - `toolkits/openapi_bridge/spec_parser.py`, `http_executor.py`
 - `toolkits/wiki/pipeline/ingress/asset_store.py`
-- `toolkits/llms/image/generator.py`, `models.py` (reference/result URL downloads)
-- `toolkits/llms/video/video_engine.py` (`_resolve_media_sources` HTTP branch)
+- `toolkits/llms/image/models.py` (result URL download)
+- `toolkits/llms/media_inputs.py` (http(s) references of the unified media input resolver)
 - `toolkits/llms/video/providers/google_provider.py`, `minimax_provider.py`, `qwen_provider.py` (API result download URLs)
-- `myrm-agent-server/app/ai_agents/media_tools/image_agent_tool.py`
 - `myrm-agent-server/app/channels/media/image_enrichment.py`
+- `myrm-agent-server/app/channels/media/ssrf_target.py` (the streamed target of `MediaDownloader`)
 - `myrm-agent-server/app/channels/providers/feishu/sdk/client.py` (`download_url`)
 - `myrm-agent-server/app/api/integrations/llms/` (model discovery)
 - `myrm-agent-server/app/services/kanban/kanban_attach_handler.py`
+- `myrm-agent-server/app/services/webui/og_metadata.py` (link preview fetch, `truncate=True`)
 
 Browser Playwright navigation uses `toolkits/browser/navigation/ssrf_guard.py` (`async_pin_url`, not httpx).
-`toolkits/web_fetch/fetchers/target_guard.py` (`FetchTargetGuard`) is the per-hop policy of the web_fetch HTTP and stealth tiers, judged in the canonical spelling of each hop URL: `async_pin_url` under the cloud policy (the HTTP tier requests the resolved address and, when that request fails, the canonical name, which resolves again), host classification under local mode (the literal host plus loopback / link-local / metadata DNS answers). The HTTP tier requests every hop, the entry URL included, in the spelling it judged (`FetchTargetGuard.canonical_url`).
+`toolkits/web_fetch/fetchers/target_guard.py` (`FetchTargetGuard`) is the per-hop policy of the web_fetch HTTP and stealth tiers, judged in the canonical spelling of each hop URL: `async_vetted_addresses` under the cloud policy (the HTTP tier connects only to those addresses while the URL keeps the host name, `toolkits/web_fetch/fetchers/connection_pin.py`), host classification under local mode (the literal host plus loopback / link-local / metadata DNS answers; the addresses a name was judged on are the ones it is dialed at). The HTTP tier requests every hop, the entry URL included, in the spelling it judged (`FetchTargetGuard.canonical_url`). The same guard judges the user's network blocklist on every hop before it is requested (`assert_not_blocklisted`), whether or not the SSRF shield is on.

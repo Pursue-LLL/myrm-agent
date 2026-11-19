@@ -83,10 +83,9 @@ class Stack:
         return await self.manager.create_job("job", JobType.AGENT, schedule, prompt="old prompt", **options)
 
     async def dispatch(self, job: CronJob) -> None:
-        """What the timer does: read the due job, claim it, hand the snapshot to the scheduler."""
+        """What the timer does once the due job is booked: read it and hand the snapshot to the scheduler."""
         snapshot = await self.store.get_job(job.id)
-        await self.store.claim_due([job.id])
-        await self.scheduler._execute_and_persist(snapshot)
+        await self.scheduler._dispatch(snapshot)
 
     async def stored(self, job: CronJob) -> CronJob:
         found = await self.store.get_job(job.id)
@@ -126,9 +125,15 @@ async def _leave_alone() -> None:
     return None
 
 
-async def _wait_until_parked_on_the_slot(stack: Stack, job: CronJob) -> None:
+async def _let_the_run_park_on_the_slot() -> None:
+    """A launched run reaches the semaphore within a few loop passes; the yields make it wait there rather than be late."""
+    for _ in range(20):
+        await asyncio.sleep(0)
+
+
+async def _wait_until_the_run_closes(stack: Stack, job: CronJob) -> None:
     async with asyncio.timeout(5):
-        while job.id not in stack.scheduler._active_jobs:
+        while stack.scheduler._in_flight[job.id]:
             await asyncio.sleep(0)
 
 
@@ -282,11 +287,12 @@ async def test_a_pause_while_queued_for_a_slot_stops_the_run(stack: Stack) -> No
     slot = stack.scheduler._global_sem
     await slot.acquire()  # the scheduler's only concurrency slot is busy
 
-    dispatched = asyncio.create_task(stack.dispatch(job))
-    await _wait_until_parked_on_the_slot(stack, job)
+    stack.scheduler._launch(await stack.stored(job))
+    await _let_the_run_park_on_the_slot()
+    assert stack.scheduler._in_flight[job.id] == 1
     await stack.pause(job)
     slot.release()
-    await dispatched
+    await _wait_until_the_run_closes(stack, job)
 
     stored = await stack.stored(job)
     assert stack.runner.seen_prompts == [] and stored.status == JobStatus.PAUSED and stored.fire_count == 0

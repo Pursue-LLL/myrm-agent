@@ -16,8 +16,6 @@ StreamContentCollector 的状态更新 mixin；只改内存状态，不读事件
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from myrm_agent_harness.agent.streaming.citation_audit import (
     audit_citation_markers,
     resolve_source_count_for_audit,
@@ -36,9 +34,6 @@ from app.services.agent.streaming_support.evicted_output import (
 
 from .base import StreamCollectorBase
 from .constants import _MAX_REASONING_CHARS
-
-if TYPE_CHECKING:
-    pass
 
 
 class StreamStateMixin(StreamCollectorBase):
@@ -221,6 +216,8 @@ class StreamStateMixin(StreamCollectorBase):
             result["deliverableTier"] = self._deliverable_tier
         if self._kanban_tasks_created:
             result["kanban_tasks_created"] = list(self._kanban_tasks_created)
+        if self._media_generated:
+            result["media_generated"] = list(self._media_generated)
         if self._cron_job_result is not None:
             result["cron_job_result"] = self._cron_job_result
         if self._file_mutation_failures:
@@ -293,4 +290,3 @@ def _sync_run_digest(collector: StreamCollectorBase) -> None:
     from app.services.copilot.run_digest_store import RunDigestStore
 
     RunDigestStore.update_from_progress(chat_id, collector._progress_steps)
-

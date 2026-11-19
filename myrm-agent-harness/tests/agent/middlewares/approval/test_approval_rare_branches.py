@@ -16,10 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.messages import AIMessage, ToolCall
 
-from myrm_agent_harness.agent.middlewares.approval._allow_always import (
-    _integration_mutation_blocks_allow_always,
-    should_block_allow_always,
-)
+from myrm_agent_harness.agent.middlewares.approval._allow_always import should_block_allow_always
 from myrm_agent_harness.agent.middlewares.approval._batch_decisions import (
     _edited_shell_edit_block_reason,
     apply_approval_decisions,
@@ -63,24 +60,32 @@ def _approval_rare_isolation() -> None:
 
 class TestIntegrationMutationBlock:
     def test_non_dict_args_returns_false(self) -> None:
-        assert _integration_mutation_blocks_allow_always({"args": "not-a-dict"}) is False
+        assert should_block_allow_always({"name": "bash_code_execute_tool", "args": "not-a-dict"}, None) is False
 
     def test_empty_command_returns_false(self) -> None:
-        assert _integration_mutation_blocks_allow_always({"args": {"command": "  "}}) is False
+        assert should_block_allow_always(_tc(args={"command": "  "}), None) is False
 
     def test_blocks_integration_mutation(self) -> None:
         with patch(
             "myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer.is_integration_mutation_command",
             return_value=True,
         ):
-            assert _integration_mutation_blocks_allow_always({"args": {"command": "git push"}}) is True
+            assert should_block_allow_always(_tc(args={"command": "git push"}), None) is True
 
     def test_allows_normal_command(self) -> None:
         with patch(
             "myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer.is_integration_mutation_command",
             return_value=False,
         ):
-            assert _integration_mutation_blocks_allow_always({"args": {"command": "ls"}}) is False
+            assert should_block_allow_always(_tc(args={"command": "ls"}), None) is False
+
+    def test_a_tool_that_runs_no_command_has_no_command_text_to_judge(self) -> None:
+        """A `command` argument of a tool that is not a shell tool is not shell text."""
+        with patch(
+            "myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer.is_integration_mutation_command",
+            return_value=True,
+        ):
+            assert should_block_allow_always(_tc(name="some_mcp_tool", args={"command": "git push"}), None) is False
 
 
 class TestShouldBlockAllowAlways:
@@ -138,7 +143,7 @@ class TestShouldBlockAllowAlways:
                 return_value=False,
             ),
         ):
-            assert should_block_allow_always({"args": {"command": "ls"}}, None) is False
+            assert should_block_allow_always(_tc(), None) is False
 
 
 class TestEditedShellEditBlockReasonNonShell:
@@ -809,6 +814,7 @@ class TestMiddlewareRareBranches:
         ) as fire_hook:
             await ToolApprovalMiddleware._fire_correction_hook(decisions, pending, "session-1")
 
+        assert fire_hook.await_args is not None
         (_event, payload) = fire_hook.await_args.args
         assert [c["tool_name"] for c in payload["corrections"]] == ["bash_code_execute_tool"]
 
@@ -974,9 +980,11 @@ async def test_irreversible_social_action_blocks_allowlist_bypass() -> None:
     assert len(auto_approved) == 0
     assert len(pending_approval) == 1
     assert pending_approval[0][1]["id"] == "tc_push_1"
-    assert pending_approval[0][4].get("hide_allow_always") is True
-    assert pending_approval[0][4].get("is_irreversible") is True
-    assert pending_approval[0][4].get("socially_irreversible") is True
+    card_context = pending_approval[0][4]
+    assert card_context is not None
+    assert card_context.get("hide_allow_always") is True
+    assert card_context.get("is_irreversible") is True
+    assert card_context.get("socially_irreversible") is True
 
 
 def test_session_scoped_denial_persistence() -> None:

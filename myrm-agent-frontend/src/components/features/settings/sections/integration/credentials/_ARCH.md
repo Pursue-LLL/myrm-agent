@@ -18,7 +18,7 @@
 | `CredentialsVaultPanel.tsx` | Vault 凭证列表                                                                                                         |
 | `CredentialsFilePanel.tsx`  | 文件凭证列表（大小、到期状态）与删除入口                                                                               |
 | `CredentialsOAuthPanel.tsx` | OAuth 集成卡片网格；可续期凭证不显示「到期时间」；凭证失效提示与「一键修复」按钮文案取自 `settings.credentials.oauth*` |
-| `CredentialsDialogs.tsx`    | Vault/OAuth 模态框与删除确认；xAI 设备码授权框的文案取自 `settings.credentials`（六语言）                              |
+| `CredentialsDialogs.tsx`    | Vault/OAuth 模态框与删除确认；xAI 设备码授权框的文案取自 `settings.credentials`（中英双语）                              |
 | `SSHVaultPanel.tsx`         | SSH 主机凭证资产列表、连通性探测与只读门禁控制台                                                                       |
 | `BreakGlassModal.tsx`       | 300s TTL 受保护变更窗口单次破窗紧急申请弹窗                                                                            |
 

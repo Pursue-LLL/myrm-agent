@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+from myrm_agent_harness.toolkits.llms.media_inputs import MediaFetchError, MediaInputError
 from myrm_agent_harness.toolkits.tasks import (
     ErrorRecoverability,
     SQLiteTaskStore,
@@ -165,7 +166,10 @@ async def test_success_settles_once_and_records_metrics(tmp_path: Path, monkeypa
     [
         (ConnectionError("provider unreachable"), ErrorRecoverability.TRANSIENT),
         (RuntimeError("anything unclassified"), ErrorRecoverability.TRANSIENT),
+        (ValueError("an untyped refusal stays retryable"), ErrorRecoverability.TRANSIENT),
         (PermissionError("provider rejected the key"), ErrorRecoverability.PERMANENT),
+        (MediaInputError("reference_image_urls: file not found"), ErrorRecoverability.PERMANENT),
+        (MediaFetchError("reference_image_urls: download failed (ReadTimeout)"), ErrorRecoverability.TRANSIENT),
     ],
 )
 async def test_executor_failure_is_final_and_classified(

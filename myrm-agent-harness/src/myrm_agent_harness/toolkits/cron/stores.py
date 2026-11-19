@@ -7,6 +7,7 @@ Thread-safe for asyncio (single event loop) via ``asyncio.Lock``.
 
 [INPUT]
 - infra.incremental.types::MonitorState (POS: Domain types for incremental monitoring.)
+- cron.run_status_filter::matching_run_statuses (POS: the stored statuses a run-history status filter selects)
 
 [OUTPUT]
 - InMemoryCronStore: CronStore backed by plain dicts — zero external dependencies.
@@ -22,11 +23,17 @@ from copy import deepcopy
 from datetime import UTC, datetime
 
 from myrm_agent_harness.infra.incremental.types import MonitorState
+from myrm_agent_harness.toolkits.cron.run_status_filter import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronRunRecord,
     JobStatus,
 )
+
+
+def _as_utc(moment: datetime) -> datetime:
+    """A timestamp without a zone is UTC by the store contract; a zoned one is converted."""
+    return moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
 
 
 class InMemoryCronStore:
@@ -40,6 +47,7 @@ class InMemoryCronStore:
         self._jobs: dict[str, CronJob] = {}
         self._runs: list[CronRunRecord] = []
         self._monitors: dict[str, MonitorState] = {}
+        self._running: dict[str, datetime] = {}
         self._lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -116,7 +124,8 @@ class InMemoryCronStore:
     async def save_job(self, job: CronJob) -> CronJob:
         async with self._lock:
             saved = deepcopy(job)
-            saved.updated_at = datetime.now(UTC)
+            if saved.id not in self._jobs:
+                saved.updated_at = datetime.now(UTC)
             self._jobs[saved.id] = saved
             return deepcopy(saved)
 
@@ -124,12 +133,33 @@ class InMemoryCronStore:
         async with self._lock:
             return self._jobs.pop(job_id, None) is not None
 
-    async def claim_due(self, job_ids: list[str]) -> None:
+    async def advance_next_run(self, job_id: str, *, next_run_at: datetime) -> bool:
         async with self._lock:
-            for jid in job_ids:
-                job = self._jobs.get(jid)
-                if job:
-                    job.next_run_at = None
+            job = self._jobs.get(job_id)
+            if job is None or job.status != JobStatus.ACTIVE or job.next_run_at is None:
+                return False
+            now = datetime.now(UTC)
+            if _as_utc(job.next_run_at) > now:
+                return False
+            job.next_run_at = _as_utc(next_run_at)
+            job.updated_at = now
+            return True
+
+    # ------------------------------------------------------------------
+    # In-flight markers
+    # ------------------------------------------------------------------
+
+    async def mark_running(self, job_id: str) -> None:
+        async with self._lock:
+            self._running[job_id] = datetime.now(UTC)
+
+    async def clear_running(self, job_id: str) -> None:
+        async with self._lock:
+            self._running.pop(job_id, None)
+
+    async def list_running(self) -> list[tuple[str, datetime]]:
+        async with self._lock:
+            return sorted(self._running.items(), key=lambda marker: (marker[1], marker[0]))
 
     # ------------------------------------------------------------------
     # Run records
@@ -153,7 +183,8 @@ class InMemoryCronStore:
         if job_id is not None:
             result = [r for r in result if r.job_id == job_id]
         if status:
-            result = [r for r in result if r.status == status]
+            wanted = matching_run_statuses(status)
+            result = [r for r in result if r.status in wanted]
 
         result.sort(key=lambda r: r.started_at, reverse=True)
         return result[offset : offset + limit]
@@ -169,26 +200,15 @@ class InMemoryCronStore:
             if job_id is not None:
                 runs = [r for r in runs if r.job_id == job_id]
             if status:
-                runs = [r for r in runs if r.status == status]
+                wanted = matching_run_statuses(status)
+                runs = [r for r in runs if r.status in wanted]
             return len(runs)
-
-    async def list_orphaned_active(self) -> list[CronJob]:
-        async with self._lock:
-            return [deepcopy(j) for j in self._jobs.values() if j.status == JobStatus.ACTIVE and j.next_run_at is None]
 
     async def purge_old_runs(self, before: datetime) -> int:
         async with self._lock:
             original = len(self._runs)
             self._runs = [r for r in self._runs if r.finished_at >= before]
             return original - len(self._runs)
-
-    async def get_latest_integrity_hash(self, job_id: str) -> str | None:
-        async with self._lock:
-            matching = [r for r in self._runs if r.job_id == job_id and r.integrity_hash]
-        if not matching:
-            return None
-        matching.sort(key=lambda r: r.started_at, reverse=True)
-        return matching[0].integrity_hash
 
     async def delete_job_cascade(self, job_id: str) -> bool:
         async with self._lock:

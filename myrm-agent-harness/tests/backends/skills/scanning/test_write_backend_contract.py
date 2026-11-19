@@ -13,12 +13,13 @@ from myrm_agent_harness.backends.skills.creation_protocols import (
     SkillResourceWriteResult,
     SkillSaveResult,
 )
-from myrm_agent_harness.backends.skills.scanning import ScanningSkillWriteBackend
+from myrm_agent_harness.backends.skills.scanning import ScanningSkillWriteBackend, scanning_write_backend
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
+    from myrm_agent_harness.backends.skills.scanning.scanner import ScanResult
 
 SKILL_MD = (
     '---\nname: release_notes\ndescription: "Draft release notes"\n---\n# Release notes\n1. Collect merged PRs.\n'
@@ -113,3 +114,21 @@ async def test_rejected_content_never_reaches_the_backend(tool: BaseTool, backen
 
     assert "Security scan rejected" in result
     assert backend.skills == {}
+
+
+@pytest.mark.asyncio
+async def test_resource_scan_is_told_the_file_suffix(backend: ProtocolBackend, monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[tuple[str, str]] = []
+    real = scanning_write_backend.scan_skill_content
+
+    def spy(skill_name: str, content: str, *, file_extension: str = "") -> ScanResult:
+        seen.append((skill_name, file_extension))
+        return real(skill_name, content, file_extension=file_extension)
+
+    monkeypatch.setattr(scanning_write_backend, "scan_skill_content", spy)
+    wrapper = ScanningSkillWriteBackend(inner=backend)
+
+    await wrapper.write_resource("demo", "references/guide.md", "Import the data from the export first.\n")
+    await wrapper.write_resource("demo", "scripts/Run.PY", "print(1)\n")
+
+    assert seen == [("demo/references/guide.md", ".md"), ("demo/scripts/Run.PY", ".py")]

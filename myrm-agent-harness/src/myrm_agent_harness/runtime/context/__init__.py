@@ -45,10 +45,7 @@ from myrm_agent_harness.runtime.context.transparent_reader import (
     read_context_file_sync,
 )
 from myrm_agent_harness.runtime.context.tree_state import (
-    COMPACTION_TODO_ANCHOR_KEY,
     TOOL_DETAILS_KEY,
-    create_compaction_todo_anchor,
-    extract_todo_store_from_payload,
     fold_branch_todo_state,
 )
 
@@ -76,10 +73,7 @@ __all__ = [
     "ToolOutputCompactor",
     "ClaudeTranscriptParser",
     "CodexTranscriptParser",
-    "COMPACTION_TODO_ANCHOR_KEY",
     "TOOL_DETAILS_KEY",
-    "create_compaction_todo_anchor",
-    "extract_todo_store_from_payload",
     "fold_branch_todo_state",
     "CompactionBudgetSettings",
     "ProviderUsageAnchor",

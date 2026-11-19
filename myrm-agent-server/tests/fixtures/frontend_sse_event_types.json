@@ -55,6 +55,7 @@
   "sources",
   "status",
   "steering",
+  "steering_unread",
   "subagent_completion",
   "subagent_log",
   "subagent_progress",

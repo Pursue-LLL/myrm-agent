@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { TooltipProvider } from '@/components/primitives/tooltip';
 import { duplicateCronJob, updateCronJob } from '@/services/cron';
@@ -243,5 +243,36 @@ describe('CronJobCard', () => {
     expect(screen.getByText('fireCountValue|2,5')).toBeInTheDocument();
     expect(screen.getByText('contextFromBadge|1')).toBeInTheDocument();
     expect(screen.getByText('web-search')).toBeInTheDocument();
+  });
+
+  describe('last run status', () => {
+    beforeAll(() => {
+      // The open tooltip measures its arrow.
+      vi.stubGlobal(
+        'ResizeObserver',
+        class {
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        },
+      );
+    });
+    afterAll(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it.each([
+      ['error', 'runError', 'text-rose-600'],
+      ['circuit_break', 'runCircuitBreak', 'text-rose-600'],
+      ['skipped', 'runSkipped', 'text-amber-600'],
+    ] as const)('tints a %s last run and names it in the tooltip', async (lastStatus, word, tint) => {
+      renderCard({ ...BASE_JOB, last_run_at: '2026-01-02T00:00:00Z', last_status: lastStatus });
+
+      const label = screen.getByText(/^lastRunLabel:/);
+      expect(label).toHaveClass(tint);
+      fireEvent.focus(label);
+
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(new RegExp(`^${word} · `));
+    });
   });
 });

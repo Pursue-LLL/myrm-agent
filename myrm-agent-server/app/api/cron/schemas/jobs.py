@@ -2,7 +2,7 @@
 - pydantic::BaseModel (POS: schema base)
 
 [OUTPUT]
-- CronJobCreate, CronJobUpdate, CronJobResponse, CronRunResponse, ChainBreakResponse, IntegrityVerifyResponse, CronJobsListResponse, CronRunsListResponse
+- CronJobCreate, CronJobUpdate, CronJobResponse, CronRunResponse, CronJobsListResponse, CronRunsListResponse
 
 [POS]
 Cron API schemas: cron job create/update, response and list models.
@@ -218,23 +218,7 @@ class CronRunResponse(BaseModel):
     delivery_status: str | None = None
     delivery_error: str | None = None
     metadata: dict[str, object] | None = None
-    integrity_hash: str | None = None
     job_name: str | None = None
-
-
-class ChainBreakResponse(BaseModel):
-    run_id: str
-    kind: str
-    expected: str
-    actual: str
-
-
-class IntegrityVerifyResponse(BaseModel):
-    job_id: str
-    total_runs: int
-    verified_runs: int
-    intact: bool
-    breaks: list[ChainBreakResponse]
 
 
 class CronJobsListResponse(BaseModel):

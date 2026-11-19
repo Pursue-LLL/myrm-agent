@@ -3,6 +3,7 @@
   "client_library": "litellm 1.97.0",
   "configuration": "production (LITELLM_LOCAL_MODEL_COST_MAP, drop_params, modify_params, custom providers registered; response cache off)",
   "matrix": "golden_shapes.py",
+  "pruned_cases": "none of the image cases of the retired dall-e models is in this baseline (their code paths are gone); every other case is as it was recorded",
   "recorded_at_commit": "dc1b5711db"
  },
  "chat/anthropic|basic|api": [
@@ -761,42 +762,6 @@
  "chat/xiaomi_mimo|basic|v1slash": [
   "/v1/chat/completions"
  ],
- "chat/yunshu|basic|api": [
-  "/api/chat/completions"
- ],
- "chat/yunshu|basic|api_chat": [
-  "/api/chat/chat/completions"
- ],
- "chat/yunshu|basic|bare": [
-  "/chat/completions"
- ],
- "chat/yunshu|basic|full_chat": [
-  "/v1/chat/completions/chat/completions"
- ],
- "chat/yunshu|basic|full_chat_gw": [
-  "/gw/v1/chat/completions/chat/completions"
- ],
- "chat/yunshu|basic|full_messages": [
-  "/v1/messages/chat/completions"
- ],
- "chat/yunshu|basic|gw": [
-  "/gw/chat/completions"
- ],
- "chat/yunshu|basic|gw_v1": [
-  "/gw/v1/chat/completions"
- ],
- "chat/yunshu|basic|slash": [
-  "/chat/completions"
- ],
- "chat/yunshu|basic|v1": [
-  "/v1/chat/completions"
- ],
- "chat/yunshu|basic|v1beta": [
-  "/v1beta/chat/completions"
- ],
- "chat/yunshu|basic|v1slash": [
-  "/v1/chat/completions"
- ],
  "chat/zai|basic|api": [
   "/api/chat/completions"
  ],
@@ -1147,90 +1112,6 @@
  ],
  "image/azure|generate|v1slash": [
   "/v1/openai/deployments/dall-e-3/images/generations?api-version=2025-02-01-preview"
- ],
- "image/dall_e_2|edit|bare": [
-  "/images/edits"
- ],
- "image/dall_e_2|edit|full_op": [
-  "/v1/images/generations/images/edits"
- ],
- "image/dall_e_2|edit|gw": [
-  "/gw/images/edits"
- ],
- "image/dall_e_2|edit|gw_v1": [
-  "/gw/v1/images/edits"
- ],
- "image/dall_e_2|edit|slash": [
-  "/images/edits"
- ],
- "image/dall_e_2|edit|v1": [
-  "/v1/images/edits"
- ],
- "image/dall_e_2|edit|v1slash": [
-  "/v1/images/edits"
- ],
- "image/dall_e_2|generate|bare": [
-  "/images/generations"
- ],
- "image/dall_e_2|generate|full_op": [
-  "/v1/images/generations/images/generations"
- ],
- "image/dall_e_2|generate|gw": [
-  "/gw/images/generations"
- ],
- "image/dall_e_2|generate|gw_v1": [
-  "/gw/v1/images/generations"
- ],
- "image/dall_e_2|generate|slash": [
-  "/images/generations"
- ],
- "image/dall_e_2|generate|v1": [
-  "/v1/images/generations"
- ],
- "image/dall_e_2|generate|v1slash": [
-  "/v1/images/generations"
- ],
- "image/dall_e_3|edit|bare": [
-  "/images/edits"
- ],
- "image/dall_e_3|edit|full_op": [
-  "/v1/images/generations/images/edits"
- ],
- "image/dall_e_3|edit|gw": [
-  "/gw/images/edits"
- ],
- "image/dall_e_3|edit|gw_v1": [
-  "/gw/v1/images/edits"
- ],
- "image/dall_e_3|edit|slash": [
-  "/images/edits"
- ],
- "image/dall_e_3|edit|v1": [
-  "/v1/images/edits"
- ],
- "image/dall_e_3|edit|v1slash": [
-  "/v1/images/edits"
- ],
- "image/dall_e_3|generate|bare": [
-  "/images/generations"
- ],
- "image/dall_e_3|generate|full_op": [
-  "/v1/images/generations/images/generations"
- ],
- "image/dall_e_3|generate|gw": [
-  "/gw/images/generations"
- ],
- "image/dall_e_3|generate|gw_v1": [
-  "/gw/v1/images/generations"
- ],
- "image/dall_e_3|generate|slash": [
-  "/images/generations"
- ],
- "image/dall_e_3|generate|v1": [
-  "/v1/images/generations"
- ],
- "image/dall_e_3|generate|v1slash": [
-  "/v1/images/generations"
  ],
  "image/flux|edit|bare": [],
  "image/flux|edit|full_op": [],

@@ -33,7 +33,7 @@ _SKILL_ID = "x-live-search"
 # after the first evaluate), then look for the x-live-search card block.
 _SKILL_CARD_JS = """(() => {
   const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
-  const installed = tabs.find((t) => /^(Installed|已安装|已安裝)(\\d*)$/.test((t.textContent || '').trim()));
+  const installed = tabs.find((t) => /^(Installed|已安装)(\\d*)$/.test((t.textContent || '').trim()));
   if (installed && installed.getAttribute('aria-selected') !== 'true') {
     const opts = {
       bubbles: true,

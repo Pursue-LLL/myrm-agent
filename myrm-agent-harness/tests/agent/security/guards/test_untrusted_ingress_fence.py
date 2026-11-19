@@ -13,7 +13,6 @@ from myrm_agent_harness.agent.security.guards.taint_tracker import (
 )
 from myrm_agent_harness.agent.security.guards.untrusted_ingress_fence import (
     DISALLOWED_UNTRUSTED_TOOLS,
-    filter_untrusted_ingress_tools,
     is_tool_allowed_under_untrusted_ingress,
     is_untrusted_ingress_active,
     reset_untrusted_ingress,
@@ -88,17 +87,10 @@ def test_is_tool_allowed_under_untrusted_ingress():
         assert is_tool_allowed_under_untrusted_ingress(tool)
 
 
-def test_filter_untrusted_ingress_tools_inactive():
-    tools = ["bash_code_execute_tool", "file_read_tool", "file_write_tool"]
-    # When inactive, all tools pass through
-    assert filter_untrusted_ingress_tools(tools) == tools
-
-
-def test_filter_untrusted_ingress_tools_active():
-    set_untrusted_ingress(True)
-    tools = ["bash_code_execute_tool", "file_read_tool", "file_write_tool", "grep_tool"]
-    filtered = filter_untrusted_ingress_tools(tools)
-    assert filtered == ["file_read_tool", "grep_tool"]
+def test_text_typed_into_a_running_process_is_blocked_under_untrusted_ingress():
+    """Stdin of a background shell runs commands as the bash tool does, so a guest turn must not reach it either."""
+    assert "bash_process_tool" in DISALLOWED_UNTRUSTED_TOOLS
+    assert not is_tool_allowed_under_untrusted_ingress("bash_process_tool")
 
 
 def test_taint_tracker_ingress_taint_and_sink_check():
@@ -111,7 +103,6 @@ def test_taint_tracker_ingress_taint_and_sink_check():
 
     # Sinks that must be blocked when UNTRUSTED_INGRESS taint is active
     assert tracker.check_sink("bash_code_execute_tool") is not None
-    assert tracker.check_sink("shell_exec") is not None
     assert tracker.check_sink("file_write_tool") is not None
     assert tracker.check_sink("file_edit_tool") is not None
 
@@ -200,19 +191,6 @@ def test_skill_manage_and_screen_capture_blocked_under_untrusted_ingress():
     ]
     for tool in tools:
         assert not is_tool_allowed_under_untrusted_ingress(tool), f"Tool {tool} should be blocked"
-
-
-def test_filter_untrusted_ingress_tools_strips_cross_modal_and_delegation():
-    """Verify filter_untrusted_ingress_tools removes desktop and subagent delegation tools."""
-    set_untrusted_ingress(True)
-    tools = [
-        "desktop_interact_tool",
-        "file_read_tool",
-        "delegate_task_tool",
-        "web_search_tool",
-    ]
-    filtered = filter_untrusted_ingress_tools(tools)
-    assert filtered == ["file_read_tool", "web_search_tool"]
 
 
 @pytest.mark.asyncio

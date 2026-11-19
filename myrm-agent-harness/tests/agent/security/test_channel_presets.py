@@ -384,23 +384,23 @@ class TestBuildChannelSecurityConfig:
     def test_qq_channel_denies_shell(self) -> None:
         """QQ channel must deny shell_exec via IM preset."""
         config = build_channel_security_config("qq")
-        action, _ = evaluate_tool_call("shell_exec", {"command": "echo hello"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "echo hello"}, config)
         assert action == PermissionAction.DENY
 
     def test_wechat_channel_denies_shell(self) -> None:
         config = build_channel_security_config("wechat")
-        action, _ = evaluate_tool_call("shell_exec", {"command": "ls"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "ls"}, config)
         assert action == PermissionAction.DENY
 
     def test_onebot_channel_denies_shell(self) -> None:
         config = build_channel_security_config("onebot")
-        action, _ = evaluate_tool_call("shell_exec", {"command": "pwd"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "pwd"}, config)
         assert action == PermissionAction.DENY
 
     def test_im_code_interpreter_requires_approval(self) -> None:
         """IM channels must ASK for code_interpreter through the full chain."""
         config = build_channel_security_config("telegram")
-        action, _ = evaluate_tool_call("code_interpreter", {"code": "print(1)"}, config)
+        action, _ = evaluate_tool_call("code_interpreter", {"command": "python3 -c 'print(1)'"}, config)
         assert action == PermissionAction.ASK
 
     def test_im_mcp_invoke_requires_approval(self) -> None:
@@ -415,7 +415,7 @@ class TestBuildChannelSecurityConfig:
             "telegram",
             user_config_raw={"permissions": {"shell_exec": "allow"}},
         )
-        action, _ = evaluate_tool_call("shell_exec", {"command": "rm -rf /"}, config)
+        action, _ = evaluate_tool_call("shell_exec", {"data": "rm -rf /"}, config)
         assert action == PermissionAction.DENY
 
     def test_user_and_agent_blocklist_union(self) -> None:

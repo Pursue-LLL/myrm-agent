@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -63,7 +64,7 @@ T = TypeVar("T")
 
 
 async def retry_with_policy(
-    func: callable[..., T],
+    func: Callable[..., Awaitable[T]],
     *args: object,
     policy: RetryPolicy,
     **kwargs: object,

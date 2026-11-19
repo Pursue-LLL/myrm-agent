@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * - ./useHistorySearch::HistorySearch (POS: 搜索框的开合与输入状态)
+ * - @/lib/constants/chat-history-search::HISTORY_SEARCH_MAX_LENGTH (POS: 聊天历史搜索框的长度上限，等于服务端对查询的上限)
  * - @/components/features/settings/sections/integration/channels/ChannelIcon (POS: 来源图标)
  *
  * [OUTPUT]
@@ -13,11 +14,13 @@
  * 搜索钮在搜索框打开或已有关键词时高亮；批量选择钮只在调用方允许时出现；搜索进行中输入框左侧换成转圈。
  * 点击目标：指针设备不小于 24px（WCAG 2.5.8），手机用手指尺寸（按钮 44px、芯片 40px）；
  * 来源多到一行放不下时芯片换行，右侧按钮贴着第一行，不缩小目标也不被挤出屏幕；
- * 手机上输入框用 16px 字号，避免 iOS 聚焦时整页被放大。
+ * 手机上输入框用 16px 字号，避免 iOS 聚焦时整页被放大；输入框最多容纳 `HISTORY_SEARCH_MAX_LENGTH` 个字符（服务端的关键词上限），
+ * 超出的键入与粘贴被浏览器截断。
  */
 import { ListChecks, Loader2, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import ChannelIcon from '@/components/features/settings/sections/integration/channels/ChannelIcon';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import { cn } from '@/lib/utils/classnameUtils';
 import type { HistorySearch } from './useHistorySearch';
 
@@ -128,6 +131,7 @@ export function ChatHistoryToolbar({
             <input
               ref={searchInputRef}
               type="text"
+              maxLength={HISTORY_SEARCH_MAX_LENGTH}
               value={localKeyword}
               onChange={(e) => handleSearchChange(e.target.value)}
               onKeyDown={(e) => {

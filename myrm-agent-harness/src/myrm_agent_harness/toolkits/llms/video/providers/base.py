@@ -67,7 +67,7 @@ class VideoGenerationProvider(ABC):
     @property
     @abstractmethod
     def display_name(self) -> str:
-        """Human-readable display name (e.g. 'OpenAI Sora')."""
+        """Human-readable display name (e.g. 'Google Veo')."""
 
     @property
     @abstractmethod
@@ -134,6 +134,11 @@ class ProviderRegistry:
 
     def get(self, provider_id: str) -> VideoGenerationProvider | None:
         return self._providers.get(provider_id)
+
+    def serves(self, provider_id: str, model_id: str) -> bool:
+        """True when ``provider_id`` is registered and lists ``model_id`` among its models."""
+        provider = self._providers.get(provider_id)
+        return provider is not None and any(model.id == model_id for model in provider.supported_models)
 
     def list_providers(self) -> list[dict[str, object]]:
         result: list[dict[str, object]] = []

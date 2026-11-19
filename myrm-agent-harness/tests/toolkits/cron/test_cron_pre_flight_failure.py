@@ -84,10 +84,9 @@ class Stack:
         )
 
     async def dispatch(self, job: CronJob) -> None:
-        """What the timer does for a due job: read it, claim it, hand the snapshot to the scheduler."""
+        """What the timer does for a due job once it is booked: read it and hand the snapshot to the scheduler."""
         snapshot = await self.store.get_job(job.id)
-        await self.store.claim_due([job.id])
-        await self.scheduler._execute_and_persist(snapshot)
+        await self.scheduler._dispatch(snapshot)
         await asyncio.sleep(0)  # the failure alert is sent from a task the executor starts
 
     async def stored(self, job: CronJob) -> CronJob:

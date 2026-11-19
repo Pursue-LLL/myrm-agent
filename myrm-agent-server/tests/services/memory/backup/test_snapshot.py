@@ -19,7 +19,13 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from myrm_agent_harness.toolkits.memory import MemoryManager, MemoryType
+from myrm_agent_harness.toolkits.memory import (
+    EpisodicMemory,
+    MemoryManager,
+    MemoryType,
+    ProceduralMemory,
+    SemanticMemory,
+)
 from myrm_agent_harness.toolkits.vector.qdrant.factory import clear_embedded_stores
 
 from app.services.memory.backup.snapshot import (
@@ -48,9 +54,9 @@ async def _seed(manager: MemoryManager) -> None:
 
 async def _content(manager: MemoryManager) -> dict[str, list[tuple[object, ...]]]:
     """What a user can observe per type, independent of generated ids and timestamps."""
-    semantic = await manager.list_memories(MemoryType.SEMANTIC, limit=100)
-    episodic = await manager.list_memories(MemoryType.EPISODIC, limit=100)
-    rules = await manager.list_memories(MemoryType.PROCEDURAL, limit=100)
+    semantic = [m for m in await manager.list_memories(MemoryType.SEMANTIC, limit=100) if isinstance(m, SemanticMemory)]
+    episodic = [m for m in await manager.list_memories(MemoryType.EPISODIC, limit=100) if isinstance(m, EpisodicMemory)]
+    rules = [m for m in await manager.list_memories(MemoryType.PROCEDURAL, limit=100) if isinstance(m, ProceduralMemory)]
     profile = await manager.list_memories(MemoryType.PROFILE, limit=100)
     return {
         "semantic": sorted((m.content, m.importance, m.pinned, tuple(m.tags)) for m in semantic),
@@ -141,6 +147,24 @@ async def test_merge_restore_keeps_existing_memories_and_never_duplicates(
         assert len(after_first_merge["semantic"]) == 3
         assert len(after_first_merge["procedural"]) == 2
         assert len(after_first_merge["episodic"]) == 1
+
+
+async def test_merge_restore_does_not_bring_back_a_rule_the_user_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async with (
+        offline_memory_manager(tmp_path / "source", monkeypatch) as source,
+        offline_memory_manager(tmp_path / "target", monkeypatch) as target,
+    ):
+        await source.add_rule("deploying", "run smoke tests first")
+        disabled = await target.add_rule("deploying", "run smoke tests first")
+        await target.update_memory(disabled.id, is_active=False)
+        snapshot = await capture_snapshot(source)
+
+        counts = await apply_snapshot(target, snapshot, replace=False)
+
+        assert counts == {"procedural": 0}
+        assert await target.list_memories(MemoryType.PROCEDURAL, limit=100) == []
 
 
 async def test_capture_fails_instead_of_returning_an_incomplete_snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

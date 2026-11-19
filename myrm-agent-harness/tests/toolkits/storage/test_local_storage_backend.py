@@ -5,7 +5,6 @@ Covers all 11 StorageProvider methods, path security, and errno handling.
 
 from __future__ import annotations
 
-import os
 import stat
 from pathlib import Path
 
@@ -35,7 +34,8 @@ class TestReadWrite:
     @pytest.mark.asyncio
     async def test_write_sets_permissions(self, storage: LocalStorageBackend) -> None:
         await storage.write("secret.txt", b"sensitive")
-        path = Path(storage.resolve_absolute_path("secret.txt"))
+        path = storage.local_path("secret.txt")
+        assert path is not None
         mode = stat.S_IMODE(path.stat().st_mode)
         assert mode == 0o600
 
@@ -206,11 +206,11 @@ class TestGetUrl:
             await storage.get_url("missing.txt")
 
 
-class TestResolveAbsolutePath:
-    def test_resolve_absolute_path(self, storage: LocalStorageBackend) -> None:
-        path = storage.resolve_absolute_path("some/file.txt")
-        assert os.path.isabs(path)
-        assert path.endswith("some/file.txt")
+class TestLocalPath:
+    def test_local_path_is_absolute_inside_root(self, storage: LocalStorageBackend, tmp_path: Path) -> None:
+        path = storage.local_path("some/file.txt")
+        assert path == tmp_path.resolve() / "some" / "file.txt"
+        assert path.is_absolute()
 
 
 class TestPathSecurity:
@@ -224,6 +224,6 @@ class TestPathSecurity:
         with pytest.raises(StorageError, match="Path traversal"):
             await storage.read("../../../tmp/evil")
 
-    def test_resolve_path_traversal_raises(self, storage: LocalStorageBackend) -> None:
+    def test_local_path_traversal_raises(self, storage: LocalStorageBackend) -> None:
         with pytest.raises(StorageError, match="Path traversal"):
-            storage.resolve_absolute_path("../../etc/passwd")
+            storage.local_path("../../etc/passwd")

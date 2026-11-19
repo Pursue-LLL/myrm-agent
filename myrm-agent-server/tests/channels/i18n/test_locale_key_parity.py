@@ -3,8 +3,8 @@
 The channel locale catalog is the single source of truth for every user-visible
 system message (busy acks, topic/workspace bindings, progress labels, deliverable
 notes). Missing keys silently degrade a locale to another language through the
-BCP 47 fallback chain, so a gap in e.g. `ja.ftl` shows English (or Simplified
-Chinese) to Japanese users.
+BCP 47 fallback chain, so a gap in e.g. `zh-CN.ftl` shows English to Chinese
+users.
 
 These guards enforce structural and behavioral consistency across all locale
 files:
@@ -210,7 +210,7 @@ def test_ftl_locales_have_no_orphaned_keys() -> None:
 
     A key that exists in every locale but is never called renders nothing — it
     is dead weight that still has to be maintained (translated, kept in sync)
-    across all four files.  ``cmd_*``/``cat_*`` are generated at runtime from
+    across both files.  ``cmd_*``/``cat_*`` are generated at runtime from
     ``SYSTEM_COMMANDS`` so they are validated through the registry in both
     directions: an orphaned ``cmd_*`` key (registered but never rendered) and
     a registered command missing its translation both break /help.  The same
@@ -288,6 +288,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "id": 1,
     "identity_label": "（identity）",
     "index": 0,
+    "instructions": "- narrow it to 2026",
     "items": 2,
     "job_name": "daily report",
     "last_activity": "now",

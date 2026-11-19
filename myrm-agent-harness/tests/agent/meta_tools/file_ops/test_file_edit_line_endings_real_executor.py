@@ -3,10 +3,14 @@
 Real chain: ``file_read_tool`` and ``file_edit_tool`` through a ``LocalExecutor`` on real files. The edit pipeline
 matches on LF text and writes the file's own endings back, but it can only do that if the read hands it the CRLF: a
 read that translated them away made it see an LF file, and the edit turned every CRLF line into LF.
+
+The view is the other side of that: whatever ends a line (CRLF, a bare CR or LF), the model is shown the lines of the
+text and can read a range of them.
 """
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -24,6 +28,7 @@ from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import Work
 # the form it leaves as it is, so the bytes asserted below are the same with or without a formatter installed.
 _CRLF = b"def a():\r\n    return 1\r\n\r\n\r\ndef b():\r\n    return 2\r\n"
 _LF = _CRLF.replace(b"\r\n", b"\n")
+_CR_ONLY = b"a1\rb2\rc3\r"
 
 
 @pytest.fixture
@@ -83,3 +88,47 @@ async def test_the_view_of_a_crlf_file_shows_plain_lines(workspace: Path) -> Non
     assert "2|    return 1\n" in whole
     assert "5|def b():\n" in ranged
     assert "6|    return 2\n" in ranged
+
+
+async def _read(path: str) -> str:
+    result = await create_file_read_tool().ainvoke({"paths": [path]}, config=RunnableConfig())
+    assert isinstance(result, str)
+    return result
+
+
+def _numbered_lines(read_result: str) -> list[str]:
+    """What the model is shown of a file: the numbered lines, without the wrapper (whose id differs on every read)."""
+    return [line for line in read_result.split("\n") if re.match(r" *\d+\|", line)]
+
+
+async def test_the_view_of_a_cr_only_file_shows_the_lines_of_the_same_text_with_lf(workspace: Path) -> None:
+    """A file with a bare ``\\r`` after every line is not one long line: it shows the lines an LF file shows."""
+    (workspace / "old_mac.txt").write_bytes(_CR_ONLY)
+    (workspace / "unix.txt").write_bytes(_CR_ONLY.replace(b"\r", b"\n"))
+
+    cr_only = await _read("old_mac.txt")
+    lf = await _read("unix.txt")
+
+    assert _numbered_lines(cr_only) == _numbered_lines(lf)
+    assert "2|b2\n" in cr_only
+    assert "(4 lines)" in cr_only
+    assert "\r" not in cr_only
+
+
+async def test_a_line_range_of_a_cr_only_file_finds_the_line(workspace: Path) -> None:
+    (workspace / "old_mac.txt").write_bytes(_CR_ONLY)
+
+    ranged = await _read("old_mac.txt:2-2")
+
+    assert "(lines 2-2 of 4)" in ranged
+    assert "2|b2\n" in ranged
+    assert "1|a1" not in ranged
+
+
+async def test_an_edit_of_a_cr_only_file_keeps_its_carriage_returns(workspace: Path) -> None:
+    """The view shows lines, but the edit and the integrity check work on the bytes of the file."""
+    (workspace / "old_mac.txt").write_bytes(_CR_ONLY)
+
+    await _edit_after_reading("old_mac.txt", "b2", "B2")
+
+    assert (workspace / "old_mac.txt").read_bytes() == _CR_ONLY.replace(b"b2", b"B2")

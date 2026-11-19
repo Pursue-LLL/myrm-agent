@@ -7,6 +7,7 @@ delivery channels, and trigger providers are injected by the application layer.
 Provides:
 - CronScheduler: precise timer-based scheduling engine with watchdog and stagger
 - CronManager: CRUD orchestration with validation and scheduler notification
+- CronManagerPort: the job operations the agent tools and the heartbeat call, satisfied by CronManager or a wrapper of it
 - Heartbeat: one-call enable/disable for periodic agent self-checks
 - ShellJobRunner: built-in runner for shell-type jobs
 - InMemoryCronStore: built-in in-memory store for development and testing
@@ -21,7 +22,9 @@ Provides:
 - cron.engine.scheduler::CronScheduler (POS: timer-based scheduling engine)
 - cron.heartbeat (POS: periodic agent self-check utilities)
 - cron.manager::CronManager (POS: cron CRUD orchestration layer)
+- cron.manager_port::CronManagerPort (POS: the manager operations the cron agent tools and the heartbeat call)
 - cron.protocols (POS: cron protocol definitions — store, runner, delivery, lock, trigger)
+- cron.run_status_filter::matching_run_statuses (POS: the stored statuses a run-history status filter selects)
 - cron.runners::ShellJobRunner (POS: built-in shell job runner)
 - cron.stores::InMemoryCronStore (POS: in-memory store for dev/test)
 - cron.situation (POS: Situation Report — pluggable context aggregator for heartbeat ticks)
@@ -30,9 +33,11 @@ Provides:
 
 [OUTPUT]
 - CronScheduler, CronManager: core scheduling components
+- CronManagerPort: the typing contract of the manager for tools, heartbeat and application wrappers
 - Heartbeat utilities: enable_heartbeat, disable_heartbeat, get_heartbeat_status, etc.
 - Protocols: CronStore, JobRunner, ResultDelivery, ConcurrencyLock, TriggerProvider, StreamListener
 - Notices: CronNotice, CronNoticeKind, CronNoticeCallback
+- Run history: matching_run_statuses (what a status filter selects: ``error`` includes circuit breaks)
 - Built-in implementations: ShellJobRunner, InMemoryCronStore, WebhookDelivery
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
@@ -71,6 +76,7 @@ from myrm_agent_harness.toolkits.cron.heartbeat import (
     get_heartbeat_status,
 )
 from myrm_agent_harness.toolkits.cron.manager import CronManager
+from myrm_agent_harness.toolkits.cron.manager_port import CronManagerPort
 from myrm_agent_harness.toolkits.cron.protocols import (
     ConcurrencyLock,
     CronNoticeCallback,
@@ -80,6 +86,7 @@ from myrm_agent_harness.toolkits.cron.protocols import (
     StreamListener,
     TriggerProvider,
 )
+from myrm_agent_harness.toolkits.cron.run_status_filter import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.runners import (
     NotificationRunner,
     RouterJobRunner,
@@ -118,6 +125,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobResult,
     JobStatus,
     JobType,
+    RunNowOutcome,
     RunStatus,
     Schedule,
     ScheduleKind,
@@ -140,6 +148,7 @@ __all__ = [
     "CronJob",
     "CronJobPatch",
     "CronManager",
+    "CronManagerPort",
     "CronNotice",
     "CronNoticeCallback",
     "CronNoticeKind",
@@ -160,6 +169,7 @@ __all__ = [
     "PollTrigger",
     "ResultDelivery",
     "RouterJobRunner",
+    "RunNowOutcome",
     "RunStatus",
     "Schedule",
     "ScheduleKind",
@@ -186,6 +196,7 @@ __all__ = [
     "generate_webhook_path",
     "generate_webhook_secret",
     "get_heartbeat_status",
+    "matching_run_statuses",
     "redact_connector_url",
     "resolve_cron_tool_description",
     "trigger_config_to_dict",

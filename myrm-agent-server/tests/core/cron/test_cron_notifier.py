@@ -1,7 +1,8 @@
 """``publish_cron_notice`` turns the cron engine's notices into the events the WebUI, voice and push channels read.
 
-The engine states facts only; the notifier owns severity, wording and language. The last tests run the real
-scheduler so a run outcome and an automatic pause both reach the event bus.
+The engine states facts only; the notifier owns severity, wording and language. The later tests run the real
+scheduler so a run outcome, an automatic pause and a run a crash cut short each reach the event bus, and show that
+the bus keeps them for a client that connects afterwards.
 """
 
 from __future__ import annotations
@@ -22,7 +23,7 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 from app.core.cron.notifier import publish_cron_notice
-from app.services.event.app_event_bus import AppEvent, AppEventType
+from app.services.event.app_event_bus import AppEvent, AppEventType, ServerEventBus
 
 _JOB = "Water the plants"
 
@@ -85,8 +86,15 @@ def _english(monkeypatch: pytest.MonkeyPatch) -> None:
             f"Scheduled task paused: {_JOB}",
             "It has run 3 times, which is its limit, so it was paused automatically.",
         ),
+        (
+            CronNotice(CronNoticeKind.JOB_PAUSED_BY_FAILURE, _JOB, chat_id="chat-1"),
+            "warning",
+            "cron_job_paused",
+            f"Scheduled task paused: {_JOB}",
+            "It hit a problem it could not recover from, so it was paused automatically. Check its run history, then resume it.",
+        ),
     ],
-    ids=["succeeded", "failed", "expired", "max-fires"],
+    ids=["succeeded", "failed", "expired", "max-fires", "paused-by-failure"],
 )
 async def test_each_notice_kind_reads_as_its_severity_title_and_message(
     bus: _RecordingBus, notice: CronNotice, level: str, event_kind: str, title: str, message: str
@@ -120,12 +128,10 @@ async def test_a_job_without_a_chat_publishes_an_empty_chat_id(bus: _RecordingBu
 
 
 @pytest.mark.parametrize(
-    ("locale", "title", "pause_title", "max_fires_message"),
+    ("locale", "title", "pause_title", "max_fires_message", "failure_message"),
     [
-        ("en", f"Reminder: {_JOB}", f"Scheduled task paused: {_JOB}", "It has run 3 times"),
-        ("zh-CN", f"提醒：{_JOB}", f"定时任务已暂停：{_JOB}", "已执行 3 次"),
-        ("zh-TW", f"提醒：{_JOB}", f"定時任務已暫停：{_JOB}", "已執行 3 次"),
-        ("ja", f"リマインダー：{_JOB}", f"スケジュールタスクを一時停止しました：{_JOB}", "上限の 3 回"),
+        ("en", f"Reminder: {_JOB}", f"Scheduled task paused: {_JOB}", "It has run 3 times", "could not recover from"),
+        ("zh-CN", f"提醒：{_JOB}", f"定时任务已暂停：{_JOB}", "已执行 3 次", "无法自行恢复"),
     ],
 )
 async def test_titles_and_messages_speak_the_users_language(
@@ -135,19 +141,23 @@ async def test_titles_and_messages_speak_the_users_language(
     title: str,
     pause_title: str,
     max_fires_message: str,
+    failure_message: str,
 ) -> None:
     _speak(monkeypatch, locale)
 
     await publish_cron_notice(CronNotice(CronNoticeKind.RUN_SUCCEEDED, _JOB, "x"))
     await publish_cron_notice(CronNotice(CronNoticeKind.JOB_MAX_FIRES_REACHED, _JOB, max_fires=3))
+    await publish_cron_notice(CronNotice(CronNoticeKind.JOB_PAUSED_BY_FAILURE, _JOB))
 
-    run, pause = (e.data for e in bus.notifications())
+    run, pause, failure_pause = (e.data for e in bus.notifications())
     assert run["title"] == title
     assert pause["title"] == pause_title
     assert max_fires_message in pause["message"]
+    assert failure_pause["title"] == pause_title
+    assert failure_message in failure_pause["message"]
 
 
-@pytest.mark.parametrize("locale", ["en", "zh-CN", "zh-TW", "ja"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 @pytest.mark.parametrize("kind", list(CronNoticeKind))
 async def test_every_notice_kind_reads_in_every_language(
     bus: _RecordingBus, monkeypatch: pytest.MonkeyPatch, kind: CronNoticeKind, locale: str
@@ -179,25 +189,33 @@ class _Runner:
 
 
 async def _fire(job: CronJob, runner: _Runner) -> CronJob:
-    """What the timer does for a due job, with the scheduler wired exactly as production wires it."""
+    """What the timer does for a booked due job, with the scheduler wired exactly as production wires it."""
     store = InMemoryCronStore()
     scheduler = CronScheduler(store, {JobType.AGENT: runner}, _Delivery(), config=CronConfig(), on_notice=publish_cron_notice)
     await store.save_job(job)
-    await store.claim_due([job.id])
     snapshot = await store.get_job(job.id)
     assert snapshot is not None
-    await scheduler._execute_and_persist(snapshot)
+    await scheduler._dispatch(snapshot)
     stored = await store.get_job(job.id)
     assert stored is not None
     return stored
 
 
-def _job(*, expires_at: datetime | None = None, max_fires: int | None = None, fire_count: int = 0) -> CronJob:
+_EVERY_HOUR = Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0)
+
+
+def _job(
+    *,
+    schedule: Schedule = _EVERY_HOUR,
+    expires_at: datetime | None = None,
+    max_fires: int | None = None,
+    fire_count: int = 0,
+) -> CronJob:
     return CronJob(
         id="job-1",
         name=_JOB,
         job_type=JobType.AGENT,
-        schedule=Schedule(kind=ScheduleKind.INTERVAL, interval_ms=3_600_000, stagger_ms=0),
+        schedule=schedule,
         prompt="prompt",
         chat_id="chat-9",
         expires_at=expires_at,
@@ -245,3 +263,61 @@ async def test_a_job_the_scheduler_pauses_by_itself_tells_the_user(bus: _Recordi
     assert notification.data["title"] == f"Scheduled task paused: {_JOB}"
     assert message in notification.data["message"]
     assert notification.data["meta_data"]["level"] == "warning"
+
+
+@pytest.mark.parametrize(
+    ("schedule", "result"),
+    [
+        (
+            Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(UTC) + timedelta(hours=1)),
+            JobResult(success=False, error="pump is dry"),
+        ),
+        (
+            _EVERY_HOUR,
+            JobResult(success=False, error="RUNAWAY_CIRCUIT_BREAKER: pump repeated 5 times", circuit_broken=True),
+        ),
+    ],
+    ids=["one-shot-fails", "loop-guard-trips"],
+)
+async def test_a_job_a_failure_pauses_tells_the_user_after_the_failed_run(
+    bus: _RecordingBus, schedule: Schedule, result: JobResult
+) -> None:
+    runner = _Runner()
+    runner.result = result
+
+    stored = await _fire(_job(schedule=schedule), runner)
+
+    assert stored.status == JobStatus.PAUSED
+    failed, paused = (e.data for e in bus.notifications())
+    assert failed["title"] == f"Scheduled task failed: {_JOB}"
+    assert paused["title"] == f"Scheduled task paused: {_JOB}"
+    assert "paused automatically" in paused["message"]
+    assert paused["meta_data"]["level"] == "warning"
+
+
+async def test_a_run_a_crash_cut_short_tells_the_user_when_the_server_next_starts(bus: _RecordingBus) -> None:
+    store = InMemoryCronStore()
+    await store.save_job(_job())
+    await store.mark_running("job-1")  # what a process that died under its run leaves behind
+    scheduler = CronScheduler(store, {JobType.AGENT: _Runner()}, _Delivery(), config=CronConfig(), on_notice=publish_cron_notice)
+
+    await scheduler.start()
+    await scheduler.stop()
+
+    (notification,) = bus.notifications()
+    assert notification.data["title"] == f"Scheduled task failed: {_JOB}"
+    assert notification.data["message"].startswith(f"[{_JOB}] Interrupted")
+    assert notification.data["meta_data"]["level"] == "error"
+    assert notification.data["meta_data"]["chat_id"] == "chat-9"
+
+
+async def test_a_notice_raised_before_any_client_connects_is_waiting_for_the_first_one(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Recovery speaks while the server starts, before the web UI has opened its event stream."""
+    real_bus = ServerEventBus()
+    monkeypatch.setattr("app.core.cron.notifier.get_event_bus", lambda: real_bus)
+
+    await publish_cron_notice(CronNotice(CronNoticeKind.RUN_FAILED, _JOB, f"[{_JOB}] Interrupted", "chat-1"))
+
+    late_client = real_bus.subscribe()
+    replayed = [late_client.get_nowait().event_type for _ in range(late_client.qsize())]
+    assert replayed == [AppEventType.CRON_UPDATED, AppEventType.SYSTEM_NOTIFICATION]

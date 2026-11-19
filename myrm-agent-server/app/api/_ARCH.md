@@ -9,8 +9,8 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
-| `dependencies.py` | 核心 | FastAPI 依赖注入统一入口 | ✅ |
-| `router.py` | 核心 | 全量子路由注册表 | — |
+| `dependencies.py` | 核心 | FastAPI 依赖注入统一入口；含路由器级守卫 `require_safe_path_ids`：任一路径参数在白名单外（含超过 255 位）一律 404，不触达存储 | ✅ |
+| `router.py` | 核心 | 全量子路由注册表。主界面加载时调用的 router（清单取自真实前端，见 `tests/startup/first_screen_requests.txt`）注册在表头段，健康探测与就绪闸门之前的请求排在最前：FastAPI 按注册顺序匹配并在首次匹配时构建途经的每个 router 的路由状态，所以首屏只构建这一段，其余 router 由启动预热在首屏之后构建；首屏开始调用新端点时，把它的 router 放进表头段并更新清单，两者由 `tests/startup/test_route_table_order.py` 互相核对 | — |
 
 ## 子模块导航（按域）
 
@@ -32,7 +32,7 @@ FastAPI HTTP/WebSocket 入口层。`router.py` 聚合子路由挂载到 `/api/v1
 | 供应商状态 | [providers/](providers/_ARCH.md) | LLM Provider 额度与余额健康探针端点 |
 | 配置 | [config/](config/_ARCH.md) · [features/](features/_ARCH.md) | Omni-Config、功能开关 |
 | 定时/任务 | [cron/](cron/_ARCH.md) · [tasks/](tasks/_ARCH.md) · [background_tasks/](background_tasks/_ARCH.md) | Cron、异步任务、后台 worker |
-| 语音/媒体 | [voice/](voice/_ARCH.md) · [stt/](stt/_ARCH.md) · [tts/](tts/_ARCH.md) · [media/](media/_ARCH.md) | 实时语音、STT/TTS、媒体生成 |
+| 语音/媒体 | [voice/](voice/_ARCH.md) · [stt/](stt/_ARCH.md) · [tts/](tts/_ARCH.md) · [media/](media/_ARCH.md) | 实时语音、STT/TTS、媒体库 |
 | 运维 | [health/](health/_ARCH.md) · [system/](system/_ARCH.md) · [statistics/](statistics/_ARCH.md) · [runs/](runs/_ARCH.md) | 健康检查、关机、统计、聚合运行历史 |
 | 浏览器录制 | [browser_recording/](browser_recording/_ARCH.md) | Browser Skill 录制向导 — WebSocket 控制 + Skill 生成 |
 | 浏览器会话 | [browser_sessions/](browser_sessions/_ARCH.md) | 已保存浏览器登录会话管理 — 列表/删除/清理过期 |

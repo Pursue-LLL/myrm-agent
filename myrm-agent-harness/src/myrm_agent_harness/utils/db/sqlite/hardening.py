@@ -17,6 +17,10 @@ database is already a WAL database.
 
 [OUTPUT]
 - harden_connection_sync / harden_connection_async: apply the profile, return the journal mode
+- connect_async: short-lived hardened connection as an async context manager
+- open_hardened_async: long-lived hardened connection, handed out only once its setup has finished
+- RollbackBeforeCloseConnection: the connection class of both, so a close never keeps a write lock
+- should_fallback_to_delete: the single decision for a WAL -> DELETE downgrade
 
 [POS]
 Core of the unified SQLite hardening factory. Depends on profile + integrity leaves.
@@ -26,8 +30,8 @@ from __future__ import annotations
 
 import logging
 import sqlite3
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Awaitable, Callable
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -181,6 +185,24 @@ async def _apply_journal_mode_async(conn: aiosqlite.Connection, profile: SQLiteP
         raise
 
 
+class RollbackBeforeCloseConnection(sqlite3.Connection):
+    """A connection that ends its transaction before it closes.
+
+    ``sqlite3_close_v2`` keeps a connection that still has an unfinished statement as a zombie, with its open
+    transaction (a write transaction's WAL write lock included), until that statement's cursor is garbage-collected.
+    A task cancelled between a statement's execute and the fetch of its ``RETURNING`` rows leaves exactly that, and
+    the frames of the cancelled task keep the cursor alive for as long as anything references the cancellation
+    exception: every other writer waits out its busy timeout meanwhile. Rolling back first releases the lock whether
+    or not a statement is left.
+    """
+
+    def close(self) -> None:
+        # Rolling back a connection that is already closed raises, and closing it twice is harmless.
+        with suppress(sqlite3.Error):
+            self.rollback()
+        super().close()
+
+
 @asynccontextmanager
 async def connect_async(
     db_path: str | Path,
@@ -190,6 +212,34 @@ async def connect_async(
     """Open + harden a short-lived aiosqlite connection, closing it on exit."""
     import aiosqlite
 
-    async with aiosqlite.connect(str(db_path)) as conn:
+    async with aiosqlite.connect(str(db_path), factory=RollbackBeforeCloseConnection) as conn:
         await harden_connection_async(conn, profile, db_path=Path(db_path), capabilities=capabilities)
         yield conn
+
+
+async def open_hardened_async(
+    db_path: str | Path,
+    profile: SQLiteProfile = DEFAULT,
+    *,
+    prepare: Callable[[aiosqlite.Connection], Awaitable[None]] | None = None,
+) -> aiosqlite.Connection:
+    """Open and harden a long-lived aiosqlite connection, run ``prepare`` on it, and return it ready to use.
+
+    A store that opens its connection lazily keeps the result, so the result must never be a half-built connection.
+    Any step that fails, and a caller that is cancelled in the middle, closes the connection before the error
+    propagates: the caller either gets a connection with its settings and tables or nothing at all. ``prepare`` is
+    where the store creates or migrates its schema.
+    """
+    import aiosqlite
+
+    conn = await aiosqlite.connect(str(db_path), factory=RollbackBeforeCloseConnection)
+    try:
+        await harden_connection_async(conn, profile, db_path=Path(db_path))
+        if prepare is not None:
+            await prepare(conn)
+    except BaseException:
+        # Cancellation is a BaseException; a failing close must not replace the error that ended the open.
+        with suppress(Exception):
+            await conn.close()
+        raise
+    return conn

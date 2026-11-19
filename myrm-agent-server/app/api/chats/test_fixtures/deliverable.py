@@ -165,7 +165,7 @@ async def seed_deliverable_bundle_goal_fixture() -> dict[str, object]:
         timezone,
     )
 
-    # 2. Setup Goal in GoalRegistry with COMPLETE status and 3 deliverables across categories
+    # 2. Store a COMPLETE goal with 3 deliverables across categories (no turn runs, so no provider is registered)
     from myrm_agent_harness.agent.goals.types import Goal, GoalStatus
 
     from app.services.agent.goals.goal_registry import GoalRegistry
@@ -186,7 +186,7 @@ async def seed_deliverable_bundle_goal_fixture() -> dict[str, object]:
         metadata={"deliverables": deliverables},
     )
 
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.resolve_provider(chat_id)
     if hasattr(provider, "_storage") and hasattr(provider._storage, "save_goal"):
         await provider._storage.save_goal(goal)
     if hasattr(provider, "_goals"):

@@ -7,7 +7,7 @@ import pytest
 from myrm_agent_harness.toolkits.llms.transport.profile import (
     PROFILES,
     UnsupportedProviderError,
-    normalize_base_url,
+    endpoint_of,
     resolve_route,
     speaks_openai_body,
 )
@@ -161,10 +161,10 @@ class TestEndpointFromEnvironment:
     ) -> None:
         monkeypatch.setenv(variable, "https://env.example")
         route = resolve_route(f"{provider}/some-model")
-        assert route.base_url == normalize_base_url(PROFILES[provider], "https://env.example")
+        assert route.base_url == endpoint_of(PROFILES[provider], "https://env.example").root
         assert route.base_url != PROFILES[provider].base_url
 
-    @pytest.mark.parametrize("provider", ["mistral", "xiaomi_mimo", "yunshu", "bedrock"])
+    @pytest.mark.parametrize("provider", ["mistral", "xiaomi_mimo", "bedrock"])
     def test_a_provider_without_endpoint_variables_ignores_the_ones_of_others(
         self, monkeypatch: pytest.MonkeyPatch, provider: str
     ) -> None:
@@ -177,7 +177,7 @@ class TestEndpointFromEnvironment:
     def test_an_explicit_endpoint_wins_over_the_variable(self, monkeypatch: pytest.MonkeyPatch, provider: str) -> None:
         monkeypatch.setenv(_ENDPOINT_ENV[provider][0], "https://env.example")
         route = resolve_route(f"{provider}/some-model", api_base="https://explicit.example")
-        assert route.base_url == normalize_base_url(PROFILES[provider], "https://explicit.example")
+        assert route.base_url == endpoint_of(PROFILES[provider], "https://explicit.example").root
 
     @pytest.mark.parametrize(
         "provider", [provider for provider, names in _ENDPOINT_ENV.items() if len(names) > 1], ids=str
@@ -250,7 +250,6 @@ _KEY_ENV: dict[str, tuple[str, ...]] = {
     "cohere_chat": ("COHERE_API_KEY", "CO_API_KEY"),
     "cerebras": ("CEREBRAS_API_KEY",),
     "xiaomi_mimo": ("XIAOMI_MIMO_API_KEY",),
-    "yunshu": ("YUNSHU_API_KEY",),
 }
 _KEY_CASES = [(provider, name) for provider, names in _KEY_ENV.items() for name in names]
 
@@ -283,7 +282,7 @@ class TestCredentialFromEnvironment:
         assert resolve_route(f"{provider}/some-model").api_key == _KEY_ENV[provider][0]
 
 
-class TestNormalizeBaseUrl:
+class TestEndpointOf:
     @pytest.mark.parametrize(
         ("provider", "given", "root"),
         [
@@ -322,11 +321,11 @@ class TestNormalizeBaseUrl:
     def test_a_full_endpoint_or_a_root_reduces_to_the_root_the_wire_extends(
         self, provider: str, given: str, root: str
     ) -> None:
-        assert normalize_base_url(PROFILES[provider], given) == root
+        assert endpoint_of(PROFILES[provider], given).root == root
 
-    def test_an_empty_value_means_no_override(self) -> None:
-        assert normalize_base_url(PROFILES["openai"], "") is None
-        assert normalize_base_url(PROFILES["openai"], None) is None
+    @pytest.mark.parametrize("empty", ["", "  ", None])
+    def test_an_empty_value_means_no_override(self, empty: str | None) -> None:
+        assert endpoint_of(PROFILES["openai"], empty) is None
 
 
 class TestSpeaksOpenAIBody:

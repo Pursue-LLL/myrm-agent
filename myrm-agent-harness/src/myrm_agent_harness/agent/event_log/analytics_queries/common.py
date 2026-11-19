@@ -12,12 +12,10 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import AsyncIterable
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 from ..types import StructuredEvent
 
-if TYPE_CHECKING:
-    pass
 
 async def _collect_events(result: object) -> list[StructuredEvent]:
     from collections.abc import Awaitable

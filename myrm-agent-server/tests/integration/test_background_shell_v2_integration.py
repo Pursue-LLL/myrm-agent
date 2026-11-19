@@ -7,6 +7,7 @@ import shlex
 import sys
 import time
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -39,17 +40,19 @@ from tests.integration.test_background_job_finish_chain import _make_local_execu
 from tests.integration.test_background_tasks_rest_api import (
     _build_rest_app,
     _spawn_background,
+    _stop_running_jobs,
 )
 
 
 @pytest.fixture(autouse=True)
-def _clear_registry() -> None:
+async def _clear_registry() -> AsyncIterator[None]:
     registry = get_background_registry()
-    registry._entries.clear()  # type: ignore[attr-defined]
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     yield
-    registry._entries.clear()  # type: ignore[attr-defined]
+    await _stop_running_jobs()
+    registry._entries.clear()
     reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 
@@ -71,7 +74,7 @@ def _session_config(chat_id: str, tmp_path: Path) -> dict[str, object]:
 _EVENT_WAIT_S = 30.0
 
 # The child prints one line and then stays silent until the test creates the gate file, so the test decides when it
-# exits instead of racing a sleep; the deadline only keeps a child from outliving an aborted test run.
+# exits; the deadline only keeps a child from outliving an aborted test run.
 _TICKER_SCRIPT = """\
 import pathlib
 import sys

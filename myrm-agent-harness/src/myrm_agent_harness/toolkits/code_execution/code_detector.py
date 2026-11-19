@@ -5,28 +5,71 @@ Detects whether user input is Python or Bash and extracts embedded Python from
 
 [INPUT]
 - python_extractor::extract_python_from_bash (POS: quote-aware Python extraction)
+- utils.text_utils::unwrap_markdown_fence (POS: text utilities; unwraps one Markdown fence around a command)
 
 [OUTPUT]
 - CodeType: Python vs Bash enum
 - CodeDetectionResult: detection outcome with extracted code
 - CodeTypeDetector: detector class
 - code_detector: module singleton
+- detect_for_execution: the route of a command as the bash tool takes it, with the Python to run
 - runs_as_python: whether the bash tool hands a command to the Python wrapper instead of a shell
 
 [POS]
 Pure code analysis with zero agent/ runtime dependencies. Lives in toolkits
-alongside python_extractor SSOT.
+alongside python_extractor SSOT. Text that is not a ``python -c`` command or a heredoc wrapper is routed by its
+syntax tree: it is Python when it parses and holds something a shell command line cannot be.
 """
 
 from __future__ import annotations
 
+import ast
 import re
+import warnings
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import ClassVar
 
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     extract_python_from_bash,
+)
+from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
+
+# Parsing is synchronous and runs on the event loop, so past this size the text is judged by its opening line alone.
+_MAX_PARSE_CHARS = 32_768
+
+# Parsing a shell command can make the compiler warn (``grep "\d+"`` holds an invalid Python escape). The router parses
+# under its own file name, so one process-wide filter silences exactly that and leaves every other warning alone.
+_ROUTER_FILENAME = "<command-router>"
+warnings.filterwarnings("ignore", category=SyntaxWarning, module=re.escape(_ROUTER_FILENAME))
+
+# Constructs a shell command line cannot contain: text that parses and holds one of them is Python.
+_PYTHON_ONLY_NODES: tuple[type[ast.AST], ...] = (
+    ast.Import,
+    ast.ImportFrom,
+    ast.FunctionDef,
+    ast.AsyncFunctionDef,
+    ast.ClassDef,
+    ast.For,
+    ast.AsyncFor,
+    ast.While,
+    ast.With,
+    ast.AsyncWith,
+    ast.Try,
+    ast.TryStar,
+    ast.If,
+    ast.AugAssign,
+    ast.AnnAssign,
+    ast.Delete,
+    ast.Raise,
+    ast.Assert,
+    ast.Await,
+    ast.Match,
+)
+
+# What text that does not parse may still open with to be Python: the interpreter then reports its SyntaxError,
+# which tells the model more than a shell's "command not found".
+_PYTHON_OPENING_RE = re.compile(
+    r"^(?:import\s+[A-Za-z_]|from\s+[A-Za-z_.]+\s+import\b|def\s+[A-Za-z_]|async\s+def\s|class\s+[A-Za-z_])"
 )
 
 
@@ -39,8 +82,51 @@ class CodeType(StrEnum):
 class CodeDetectionResult:
     code_type: CodeType
     extracted_code: str
-    is_async: bool = False
     detection_reason: str = ""
+
+
+def _first_code_line(text: str) -> str:
+    """The first line that is neither blank nor a comment, stripped."""
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return stripped
+    return ""
+
+
+def _parse(text: str) -> ast.Module | None:
+    """The syntax tree of ``text``, or ``None`` when it is too large or does not parse."""
+    if len(text) > _MAX_PARSE_CHARS:
+        return None
+    try:
+        return ast.parse(text, filename=_ROUTER_FILENAME)
+    except (SyntaxError, ValueError, RecursionError, MemoryError):
+        return None
+
+
+def _python_evidence(text: str) -> str | None:
+    """Why ``text`` is Python, or ``None`` when a shell should run it.
+
+    A shell command that parses as Python is mostly a bare word or an arithmetic-looking line (``ls``, ``ls -la``,
+    ``FOO=bar``), so parsing alone proves nothing: the text needs a construct a shell line cannot be. It is a pure
+    function of the text, because the executor, the permission preflight and the tool's guards each ask about the
+    same command and must get the same answer.
+    """
+    stripped = text.strip()
+    if not stripped:
+        return None
+    tree = _parse(stripped)
+    if tree is None:
+        return "python opening statement" if _PYTHON_OPENING_RE.match(_first_code_line(stripped)) else None
+    for node in ast.walk(tree):
+        if isinstance(node, _PYTHON_ONLY_NODES):
+            return f"python statement: {type(node).__name__}"
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call):
+            return "python call statement"
+        # Not any assignment: ``OUT=result.txt`` and ``FLAGS=-la`` parse as ones too, while a shell word cannot hold a call.
+        if isinstance(node, ast.Assign) and any(isinstance(inner, ast.Call) for inner in ast.walk(node.value)):
+            return "python assignment from a call"
+    return None
 
 
 class CodeTypeDetector:
@@ -49,35 +135,12 @@ class CodeTypeDetector:
     Detection order:
     1. ``python -c`` → Python (quote-aware extract, raw fallback on failure)
     2. ``extract_python_from_bash`` → heredoc / cat-heredoc / pure skill imports
-    3. ``await`` keyword → async Python
-    4. Multi-line Python syntax patterns
-    5. Default → Bash
+    3. The text parses and holds a construct a shell line cannot (an import, a ``def``, a loop, a call statement,
+       an assignment from a call, ``await``), or it does not parse but opens like Python → Python
+    4. Default → Bash
     """
 
     _RAW_PYTHON_C_RE = re.compile(r"python3?\s+-c\s+(.+)", re.DOTALL)
-
-    PYTHON_PATTERNS: ClassVar[list[tuple[str, str]]] = [
-        (r"^\s*def\s+\w+\s*\(", "function definition"),
-        (r"^\s*class\s+\w+", "class definition"),
-        (r"^\s*import\s+", "import statement"),
-        (r"^\s*from\s+\w+\s+import", "from import statement"),
-        (r"^\s*async\s+for\s+\w+\s+in\s+", "async for loop"),
-        (r"^\s*for\s+\w+\s+in\s+", "for loop"),
-        (r"^\s*async\s+with\s+.+:\s*$", "async with statement"),
-        (r"^\s*if\s+.+:\s*$", "if statement"),
-        (r"^\s*while\s+.+:\s*$", "while loop"),
-        (r"^\s*try:\s*$", "try statement"),
-        (r"^\s*except\s*.*:\s*$", "except statement"),
-        (r"^\s*with\s+.+:\s*$", "with statement"),
-        (r"print\s*\(", "print call"),
-        (r"\.append\s*\(", "list append"),
-        (r"\.get\s*\(", "dict get"),
-        (r"\s*=\s*\[", "list assignment"),
-        (r"\s*=\s*\{", "dict assignment"),
-        (r"asyncio\.run\s*\(", "asyncio.run"),
-    ]
-
-    MIN_LINES_FOR_MULTILINE_DETECTION = 3
 
     def detect(self, command: str) -> CodeDetectionResult:
         if self._is_python_command(command):
@@ -86,14 +149,11 @@ class CodeTypeDetector:
                 return CodeDetectionResult(
                     code_type=CodeType.PYTHON,
                     extracted_code=extracted,
-                    is_async=self._contains_async(extracted),
                     detection_reason="python -c command (extracted)",
                 )
-            raw_code = self._raw_extract_python_c(command)
             return CodeDetectionResult(
                 code_type=CodeType.PYTHON,
-                extracted_code=raw_code,
-                is_async=self._contains_async(raw_code),
+                extracted_code=self._raw_extract_python_c(command),
                 detection_reason="python -c command (raw fallback after quote extraction failed)",
             )
 
@@ -102,39 +162,22 @@ class CodeTypeDetector:
             return CodeDetectionResult(
                 code_type=CodeType.PYTHON,
                 extracted_code=embedded,
-                is_async=self._contains_async(embedded),
                 detection_reason="embedded python extracted from bash wrapper",
             )
 
-        if self._contains_async(command):
+        evidence = _python_evidence(command)
+        if evidence:
             return CodeDetectionResult(
                 code_type=CodeType.PYTHON,
                 extracted_code=command,
-                is_async=True,
-                detection_reason="contains async keyword (await/async for/async with)",
-            )
-
-        python_pattern = self._detect_python_pattern(command)
-        if python_pattern:
-            return CodeDetectionResult(
-                code_type=CodeType.PYTHON,
-                extracted_code=command,
-                is_async=False,
-                detection_reason=f"python syntax: {python_pattern}",
+                detection_reason=evidence,
             )
 
         return CodeDetectionResult(
             code_type=CodeType.BASH,
             extracted_code=command,
-            is_async=False,
             detection_reason="default to bash",
         )
-
-    def _contains_async(self, command: str) -> bool:
-        return bool(re.search(r"\b(await|async\s+for|async\s+with)\b", command))
-
-    def _contains_await(self, command: str) -> bool:
-        return self._contains_async(command)
 
     def _is_python_command(self, command: str) -> bool:
         return bool(re.search(r"python3?\s+-c", command))
@@ -152,39 +195,24 @@ class CodeTypeDetector:
             return rest[1:-1]
         return rest
 
-    def _detect_python_pattern(self, command: str) -> str | None:
-        lines = [
-            line.strip() for line in command.strip().split("\n") if line.strip() and not line.strip().startswith("#")
-        ]
-
-        if len(lines) <= self.MIN_LINES_FOR_MULTILINE_DETECTION:
-            return None
-
-        for pattern, name in self.PYTHON_PATTERNS:
-            if re.search(pattern, command, re.MULTILINE):
-                return name
-
-        return None
-
-    def is_python(self, command: str) -> bool:
-        return self.detect(command).code_type == CodeType.PYTHON
-
-    def is_bash(self, command: str) -> bool:
-        return self.detect(command).code_type == CodeType.BASH
-
 
 code_detector = CodeTypeDetector()
+
+
+def detect_for_execution(command: str) -> CodeDetectionResult:
+    """The route the bash tool gives ``command``: the executor strips it and unwraps one Markdown fence first.
+
+    A check that depends on the language of a command asks here, so a command is judged in the language it runs
+    in: Python wrapped in a fence is still Python.
+    """
+    return code_detector.detect(unwrap_markdown_fence(command.strip()))
 
 
 def runs_as_python(command: str, *, run_in_background: bool = False) -> bool:
     """Whether the bash tool hands ``command`` to the Python wrapper instead of a shell.
 
-    A background spawn is always ``sh -c``, whatever the text looks like. Otherwise the executor strips the
-    command, unwraps one Markdown fence and routes it by ``code_detector``; this repeats those steps, so a check
-    that only makes sense for shell syntax can stand down exactly when no shell reads the text.
+    A background spawn is always read by a shell, whatever the text looks like. Otherwise the route is
+    ``detect_for_execution``'s, so a check that only makes sense for shell syntax can stand down exactly when
+    no shell reads the text.
     """
-    if run_in_background:
-        return False
-    from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
-
-    return code_detector.is_python(unwrap_markdown_fence(command.strip()))
+    return not run_in_background and detect_for_execution(command).code_type == CodeType.PYTHON

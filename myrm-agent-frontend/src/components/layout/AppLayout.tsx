@@ -126,10 +126,12 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
       )}
 
       {layout.showMobileLayout && !layout.isSettingsPage && !layout.isRemoteSurface && (
+        // The box stays 36px; the invisible `after:` box lifts the touch target to 44×44 (5px per side: an absolutely
+        // positioned box is offset from the padding edge, so 4px beyond the box plus its 1px border).
         <button
           onClick={() => layout.setIsMobileSidebarOpen(true)}
           className={cn(
-            'fixed top-4 left-4 z-40 p-2 rounded-lg',
+            'fixed top-4 left-4 z-40 p-2 rounded-lg after:absolute after:-inset-[5px]',
             'bg-background/80 backdrop-blur-sm',
             'border border-border/50',
             'text-muted-foreground hover:text-foreground',
@@ -194,7 +196,7 @@ function AppLayout({ children, configReadinessDegraded = false, onRetryConfigRea
 
       <BudgetExceededDialog />
       <UpgradeNudgeDialog />
-      <E2ECompanionBridge />
+      {process.env.NODE_ENV !== 'production' && <E2ECompanionBridge />}
     </>
   );
 }

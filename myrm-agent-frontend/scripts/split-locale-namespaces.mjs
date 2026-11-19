@@ -11,7 +11,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const rootDir = resolve(__dirname, '..');
-const languages = ['zh', 'en', 'ja', 'ko', 'de', 'zh-TW'];
+const languages = ['zh', 'en'];
 const namespacesRoot = resolve(rootDir, 'locales/namespaces');
 const manifestPath = resolve(namespacesRoot, 'manifest.json');
 
@@ -101,10 +101,7 @@ function loadCanonicalSchema() {
 }
 
 function splitLocale(lang, canonicalNamespaces, canonicalSettingsSections) {
-  let sourcePath = resolve(rootDir, `locales/${lang}.json`);
-  if (!existsSync(sourcePath) && lang === 'zh-TW') {
-    sourcePath = resolve(rootDir, 'locales/zh.json');
-  }
+  const sourcePath = resolve(rootDir, `locales/${lang}.json`);
   let messages = tryParseJson(sourcePath);
   if (messages === null) {
     ensureMonolithLocales();
@@ -140,6 +137,9 @@ for (const lang of languages) {
   splitLocale(lang, namespaces, settingsSections);
   console.log(`split locale namespaces: ${lang}`);
 }
+
+// Directories of locales the app does not ship would otherwise linger in the build and the content version.
+pruneStale(namespacesRoot, new Set([...languages, 'manifest.json']));
 
 writeJson(manifestPath, {
   languages,

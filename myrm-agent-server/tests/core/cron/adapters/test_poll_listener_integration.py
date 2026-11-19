@@ -30,6 +30,11 @@ from app.core.cron.adapters.poll_listener import PollListenerManager
 _SSRF_OK = SSRFResult(safe=True, hostname="localhost", resolved_ips=("127.0.0.1",))
 
 
+def _poll_tasks() -> list[str]:
+    """Names of the live poll tasks; the manager names each one ``poll-<job id>``."""
+    return sorted(task.get_name() for task in asyncio.all_tasks() if task.get_name().startswith("poll-"))
+
+
 # ---------------------------------------------------------------------------
 # Fixtures: in-process aiohttp test server with configurable response
 # ---------------------------------------------------------------------------
@@ -271,10 +276,10 @@ class TestPollLifecycle:
                 PollTrigger(url=test_server.url(), interval_seconds=300),
                 on_event,
             )
-            assert "stop-test" in mgr.active_polls()
+            assert _poll_tasks() == ["poll-stop-test"]
 
             await mgr.stop_poll("stop-test")
-            assert "stop-test" not in mgr.active_polls()
+            assert _poll_tasks() == []
 
         await mgr.stop_all()
 
@@ -290,7 +295,7 @@ class TestPollLifecycle:
         ):
             await mgr.start_poll("restart", PollTrigger(url=url, interval_seconds=300), on_event)
             await mgr.start_poll("restart", PollTrigger(url=url, interval_seconds=300), on_event)
-            assert len(mgr.active_polls()) == 1
+            assert _poll_tasks() == ["poll-restart"]
 
         await mgr.stop_all()
 
@@ -367,7 +372,7 @@ class TestPollEdgeCases:
         """Stopping a poll that doesn't exist should not raise."""
         mgr = PollListenerManager()
         await mgr.stop_poll("nonexistent")
-        assert mgr.active_polls() == {}
+        assert _poll_tasks() == []
         await mgr.stop_all()
 
     @pytest.mark.asyncio

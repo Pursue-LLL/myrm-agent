@@ -34,12 +34,12 @@ describe('SpendProtectionBanner', () => {
     expect(screen.queryByText('toolApproval.spendProtection.amount:')).toBeNull();
   });
 
-  it('badges the approval as tamper protected only when it carries an action digest', () => {
+  it('badges the approval as locked to its action only when it carries an action digest', () => {
     const { rerender } = render(<SpendProtectionBanner spendConfig={{ amount: 1, currency: 'USD' }} />);
-    expect(screen.queryByText('toolApproval.spendProtection.tamperProtected')).toBeNull();
+    expect(screen.queryByText('toolApproval.spendProtection.actionBound')).toBeNull();
 
     rerender(<SpendProtectionBanner spendConfig={{ amount: 1, currency: 'USD', actionDigest: 'digest-1' }} />);
-    expect(screen.getByText('toolApproval.spendProtection.tamperProtected')).toBeDefined();
+    expect(screen.getByText('toolApproval.spendProtection.actionBound')).toBeDefined();
   });
 });
 

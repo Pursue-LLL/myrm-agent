@@ -1,4 +1,4 @@
-"""Tests for 3-layer image generation request validator."""
+"""Tests for the image edit request validator."""
 
 import pytest
 
@@ -12,7 +12,6 @@ from myrm_agent_harness.toolkits.llms.image.validator import (
 
 _EDIT_PROFILE = ModelProfile(
     name="test-edit",
-    max_count=4,
     supports_edit=True,
     max_input_images=1,
     allowed_sizes=frozenset({"1024x1024", "512x512"}),
@@ -21,7 +20,6 @@ _EDIT_PROFILE = ModelProfile(
 
 _GEN_ONLY_PROFILE = ModelProfile(
     name="test-gen-only",
-    max_count=1,
     supports_edit=False,
     allowed_sizes=frozenset({"1024x1024"}),
     allowed_aspect_ratios=frozenset({"16:9"}),
@@ -39,65 +37,47 @@ class TestL1Prompt:
 
     def test_empty_prompt(self, validator: ImageValidator) -> None:
         with pytest.raises(ValidationError, match="empty"):
-            validator.validate_generate("", profile=None)
+            validator.validate_edit("", profile=None)
 
     def test_whitespace_only_prompt(self, validator: ImageValidator) -> None:
         with pytest.raises(ValidationError, match="empty"):
-            validator.validate_generate("   ", profile=None)
+            validator.validate_edit("   ", profile=None)
 
     def test_prompt_too_long(self, validator: ImageValidator) -> None:
         with pytest.raises(ValidationError, match="exceeds maximum"):
-            validator.validate_generate("x" * 101, profile=_GEN_ONLY_PROFILE)
+            validator.validate_edit("x" * 101, profile=_EDIT_PROFILE)
 
     def test_prompt_within_limit(self, validator: ImageValidator) -> None:
-        validator.validate_generate("x" * 50, profile=_GEN_ONLY_PROFILE)
+        validator.validate_edit("x" * 100, profile=_EDIT_PROFILE)
 
     def test_control_characters(self, validator: ImageValidator) -> None:
         with pytest.raises(ValidationError, match="control characters"):
-            validator.validate_generate("hello\x00world", profile=None)
+            validator.validate_edit("hello\x00world", profile=None)
 
     def test_valid_prompt(self, validator: ImageValidator) -> None:
-        validator.validate_generate("A beautiful sunset over the ocean", profile=None)
+        validator.validate_edit("Make the sky a deep sunset orange", profile=None)
 
 
 class TestL2Capability:
     """L2: Capability validation."""
 
-    def test_count_exceeds_max(self, validator: ImageValidator) -> None:
-        with pytest.raises(ValidationError, match="supports max"):
-            validator.validate_generate("test", profile=_GEN_ONLY_PROFILE, n=5)
-
-    def test_invalid_size(self, validator: ImageValidator) -> None:
-        with pytest.raises(ValidationError, match="not supported"):
-            validator.validate_generate(
-                "test",
-                profile=_GEN_ONLY_PROFILE,
-                size="2048x2048",
-            )
-
-    def test_valid_size(self, validator: ImageValidator) -> None:
-        validator.validate_generate(
-            "test",
-            profile=_GEN_ONLY_PROFILE,
-            size="1024x1024",
-        )
-
-    def test_aspect_ratio_accepted(self, validator: ImageValidator) -> None:
-        validator.validate_generate(
-            "test",
-            profile=_GEN_ONLY_PROFILE,
-            size="16:9",
-        )
-
-    def test_edit_not_supported(self, validator: ImageValidator) -> None:
-        with pytest.raises(ValidationError, match="does not support"):
+    def test_a_model_without_edit_support_names_the_ones_that_have_it(self, validator: ImageValidator) -> None:
+        with pytest.raises(ValidationError, match=r"does not support image editing.*gpt-image-2\.6"):
             validator.validate_edit("test", profile=_GEN_ONLY_PROFILE)
 
     def test_edit_supported(self, validator: ImageValidator) -> None:
         validator.validate_edit("test", profile=_EDIT_PROFILE, size="1024x1024")
 
+    def test_invalid_size(self, validator: ImageValidator) -> None:
+        with pytest.raises(ValidationError, match="not supported"):
+            validator.validate_edit("test", profile=_EDIT_PROFILE, size="2048x2048")
+
+    def test_a_profile_without_a_size_list_accepts_any_size(self, validator: ImageValidator) -> None:
+        open_sizes = ModelProfile(name="open-sizes", supports_edit=True, max_input_images=1)
+        validator.validate_edit("test", profile=open_sizes, size="1536x1024")
+
     def test_no_profile_skips_capability(self, validator: ImageValidator) -> None:
-        validator.validate_generate("test", profile=None, n=100, size="any")
+        validator.validate_edit("test", profile=None, size="any")
 
 
 class TestL3Input:

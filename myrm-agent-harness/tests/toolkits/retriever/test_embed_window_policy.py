@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
 from myrm_agent_harness.toolkits.memory._internal.storage import _fit_text_for_embedding
+from myrm_agent_harness.toolkits.memory.protocols.vector import VectorStoreProtocol
 from myrm_agent_harness.toolkits.retriever.embedding.cloud_embedding import (
     CloudEmbedding,
 )
@@ -19,6 +22,7 @@ from myrm_agent_harness.toolkits.retriever.embedding.window_policy import (
 from myrm_agent_harness.toolkits.retriever.splitter.embed_budget import (
     split_for_embedding,
 )
+from myrm_agent_harness.toolkits.vector.base import VectorDocument
 from myrm_agent_harness.toolkits.wiki.retrieval.vector_chunks import (
     _validate_chunks_fit_window,
     collapse_vector_hits,
@@ -37,10 +41,11 @@ class TestEmbedWindowPolicy:
         policy = EmbedWindowPolicy.for_model("unknown-local-embed")
         assert policy.max_input_tokens == 512
 
-    def test_cloud_embedding_exposes_input_limit(self) -> None:
-        service = CloudEmbedding(model="text-embedding-3-small", api_key="test")
-        assert service.input_token_limit == 8191
-        assert resolve_embed_window_policy(service).max_input_tokens == 8191
+    @pytest.mark.parametrize(("model", "limit"), [("text-embedding-3-small", 8191), ("@cf/baai/bge-m3", 8192)])
+    def test_cloud_embedding_exposes_input_limit(self, model: str, limit: int) -> None:
+        service = CloudEmbedding(model=model, api_key="test")
+        assert service.input_token_limit == limit
+        assert resolve_embed_window_policy(service).max_input_tokens == limit
 
     def test_unknown_embedding_object_falls_back_to_default_window(self) -> None:
         # An embedding object exposing neither input_token_limit nor a _model must
@@ -119,11 +124,13 @@ class TestCjkWordpieceBudget:
         assert estimate_wordpiece_tokens("。！？") == 3
         assert estimate_wordpiece_tokens("hello，world") == 4  # 逗号 1 + 10 latin / 4
 
-    def test_bge_m3_large_window_uses_standard_margin(self) -> None:
+    @pytest.mark.parametrize("model", ["BAAI/bge-m3", "@cf/baai/bge-m3"])
+    def test_bge_m3_large_window_uses_standard_margin(self, model: str) -> None:
         # bge-m3 (XLM-R 250k) has measured char/token < 1 across zh/ja/ko/en, so its
         # character-count budget can use the standard 0.9 margin (7372 chars) without
-        # risking window overflow.
-        policy = EmbedWindowPolicy.for_model("BAAI/bge-m3")
+        # risking window overflow. Cloudflare Workers AI serves the same model as
+        # @cf/baai/bge-m3 and rejects longer input with "Sequence too long: N > 8192".
+        policy = EmbedWindowPolicy.for_model(model)
         assert policy.max_input_tokens == 8192
         assert policy.effective_chunk_budget == int(8192 * 0.9)
 
@@ -269,7 +276,7 @@ class TestSplitForEmbedding:
         assert split_for_embedding("", policy) == []
         assert split_for_embedding("   \n\t ", policy) == []
 
-    def test_text_chunker_empty_result_falls_back_to_source(self, monkeypatch) -> None:
+    def test_text_chunker_empty_result_falls_back_to_source(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # If TextChunker yields no docs (e.g. an unparseable input), the chunker
         # must fall back to the source text and still bound it to the budget, so
         # content is never dropped and never exceeds the provider window.
@@ -284,7 +291,7 @@ class TestSplitForEmbedding:
         monkeypatch.setattr(
             _embed_budget,
             "TextChunker",
-            lambda *a, **k: _EmptyChunker(),  # type: ignore[no-any-return]
+            lambda *a, **k: _EmptyChunker(),
         )
         policy = EmbedWindowPolicy.for_model("text-embedding-3-small")
         text = "long" * 40000  # ~40000 o200k tokens — over budget, so the chunker runs
@@ -427,7 +434,7 @@ class TestValidateChunksFitWindow:
 
 class _FakeVectorStore:
     def __init__(self) -> None:
-        self.upserted_docs: list[object] | None = None
+        self.upserted_docs: list[VectorDocument] | None = None
         self.delete_calls = 0
 
     async def delete_by_filter(self, collection_name: str, filt: dict[str, str]) -> None:
@@ -436,15 +443,24 @@ class _FakeVectorStore:
     async def delete(self, collection_name: str, ids: list[str]) -> None:
         self.delete_calls += 1
 
-    async def upsert(self, collection_name: str, docs: list[object]) -> None:
+    async def upsert(self, collection_name: str, docs: list[VectorDocument]) -> None:
         self.upserted_docs = docs
+
+
+def _as_store(store: _FakeVectorStore) -> VectorStoreProtocol:
+    """``upsert_text_vectors`` only calls upsert, delete and delete_by_filter, so the fake stands in for the whole store."""
+    return cast(VectorStoreProtocol, store)
 
 
 class _FakeEmbedding:
     _model = "BAAI/bge-large-zh-v1.5"  # wordpiece path exercises character chunking
+    dimension = 2
 
     def __init__(self) -> None:
         self.last_chunks: list[str] | None = None
+
+    async def embed(self, text: str) -> list[float]:
+        return [0.1, 0.2]
 
     async def embed_batch(self, chunks: list[str]) -> list[list[float]]:
         self.last_chunks = chunks
@@ -456,7 +472,7 @@ class TestUpsertTextVectors:
     async def test_empty_text_returns_zero(self) -> None:
         result = await upsert_text_vectors(
             embedding=_FakeEmbedding(),
-            vector=_FakeVectorStore(),
+            vector=_as_store(_FakeVectorStore()),
             collection_name="wiki_vectors",
             parent_key="Concept/A",
             text="   \n  ",
@@ -472,7 +488,7 @@ class TestUpsertTextVectors:
         text = "简短的中文知识条目内容。"
         result = await upsert_text_vectors(
             embedding=emb,
-            vector=vec,
+            vector=_as_store(vec),
             collection_name="wiki_vectors",
             parent_key="Concept/A",
             text=text,
@@ -483,9 +499,9 @@ class TestUpsertTextVectors:
         assert vec.upserted_docs is not None
         doc = vec.upserted_docs[0]
         assert doc.content == text
-        assert doc.metadata["parent_key"] == "Concept/A"  # type: ignore[index]
-        assert doc.metadata["chunk_index"] == 0  # type: ignore[index]
-        assert doc.metadata["chunk_count"] == 1  # type: ignore[index]
+        assert doc.metadata["parent_key"] == "Concept/A"
+        assert doc.metadata["chunk_index"] == 0
+        assert doc.metadata["chunk_count"] == 1
 
     @pytest.mark.asyncio
     async def test_wordpiece_long_text_multi_chunk_upsert(self) -> None:
@@ -497,7 +513,7 @@ class TestUpsertTextVectors:
         text = "深度检索质量保障机制的动态窗口预算测试。" * 60
         result = await upsert_text_vectors(
             embedding=emb,
-            vector=vec,
+            vector=_as_store(vec),
             collection_name="wiki_vectors",
             parent_key="Concept/A",
             text=text,
@@ -510,8 +526,8 @@ class TestUpsertTextVectors:
         assert vec.upserted_docs is not None
         assert len(vec.upserted_docs) == result
         for index, doc in enumerate(vec.upserted_docs):
-            assert doc.metadata["chunk_index"] == index  # type: ignore[index]
-            assert doc.metadata["chunk_count"] == result  # type: ignore[index]
+            assert doc.metadata["chunk_index"] == index
+            assert doc.metadata["chunk_count"] == result
 
     @pytest.mark.asyncio
     async def test_batch_size_mismatch_fails_loud(self) -> None:
@@ -522,7 +538,7 @@ class TestUpsertTextVectors:
         with pytest.raises(RuntimeError, match="batch size mismatch"):
             await upsert_text_vectors(
                 embedding=_BadEmbedding(),  # type: ignore[arg-type]
-                vector=_FakeVectorStore(),
+                vector=_as_store(_FakeVectorStore()),
                 collection_name="wiki_vectors",
                 parent_key="Concept/A",
                 text="Short wiki truth section.",

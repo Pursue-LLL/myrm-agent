@@ -93,10 +93,9 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_registry import GoalRegistry
 
         chat_id = await resolve_chat_id(msg)
-        provider = GoalRegistry.get_provider(chat_id) if chat_id else None
-        if chat_id is None or provider is None or not can_start_goal_turn(chat_id):
+        if not chat_id or not can_start_goal_turn(chat_id):
             return None
-        goal = await provider.get_latest_goal(chat_id)
+        goal = await GoalRegistry.resolve_provider(chat_id).get_latest_goal(chat_id)
         if goal is None or goal.status is not GoalStatus.ACTIVE:
             return None
         return await self.get_kickoff_message(msg, goal.objective)
@@ -115,7 +114,7 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_branch_stash import check_and_handle_branch_stash
 
         await check_and_handle_branch_stash(chat_id)
-        provider = GoalRegistry.get_or_create_provider(chat_id)
+        provider = GoalRegistry.resolve_provider(chat_id)
         source_meta: dict[str, object] = {
             "source_channel": msg.channel,
             "source_chat_id": msg.chat_id or msg.sender_id or "",
@@ -139,11 +138,7 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_goal_is_set")
-
-        goal = await provider.get_latest_goal(chat_id)
+        goal = await GoalRegistry.resolve_provider(chat_id).get_latest_goal(chat_id)
         if not goal:
             return get_text(msg, "no_goal_is_set")
 
@@ -156,10 +151,7 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_controls import stop_goal_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_active_goal_to_pause")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await provider.get_active_goal(chat_id)
         if not goal:
             return get_text(msg, "no_active_goal_to_pause")
@@ -177,16 +169,10 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_active_goal_to_pause")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await provider.get_active_goal(chat_id)
         if not goal:
             return get_text(msg, "no_active_goal_to_pause")
-
-        if not hasattr(provider, "enter_wait"):
-            return get_text(msg, "goal_wait_not_supported")
 
         wait_reason = reason.strip() or "Waiting for external process"
         await provider.enter_wait(goal.goal_id, reason=wait_reason)
@@ -198,16 +184,10 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_active_goal_to_pause")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await provider.get_latest_goal(chat_id)
         if not goal or goal.status != GoalStatus.WAIT:
             return get_text(msg, "goal_not_waiting")
-
-        if not hasattr(provider, "exit_wait"):
-            return get_text(msg, "goal_wait_not_supported")
 
         await provider.exit_wait(goal.goal_id)
         return get_text(msg, "goal_unwait", objective=goal.objective[:60])
@@ -224,13 +204,7 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            from myrm_agent_harness.agent.goals.manager import GoalManager
-
-            from app.platform_utils import get_storage_provider
-
-            provider = GoalManager(get_storage_provider())
+        provider = GoalRegistry.resolve_provider(chat_id)
 
         goal = await provider.get_latest_goal(chat_id)
         if not goal:
@@ -269,10 +243,7 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_controls import note_goal_resumed, wait_for_stopped_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_goal_to_resume")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await provider.get_latest_goal(chat_id)
         if not goal:
             return get_text(msg, "no_goal_to_resume")
@@ -296,10 +267,7 @@ class ChannelGoalCommandHandler:
         from app.services.agent.goals.goal_controls import select_cancellable_goal, stop_goal_turn
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_goal_to_clear")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await select_cancellable_goal(provider, chat_id)
         if not goal:
             return get_text(msg, "no_active_goal_to_clear")
@@ -314,10 +282,7 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_active_goal_set_first")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await provider.get_active_goal(chat_id)
         if not goal:
             return get_text(msg, "no_active_goal_budget")
@@ -344,10 +309,7 @@ class ChannelGoalCommandHandler:
 
         from app.services.agent.goals.goal_registry import GoalRegistry
 
-        provider = GoalRegistry.get_provider(chat_id)
-        if not provider:
-            return get_text(msg, "no_active_goal_set_first")
-
+        provider = GoalRegistry.resolve_provider(chat_id)
         goal = await provider.get_latest_goal(chat_id)
         if not goal:
             return get_text(msg, "no_active_goal_constraint")

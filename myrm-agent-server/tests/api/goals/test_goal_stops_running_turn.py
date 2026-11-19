@@ -18,10 +18,8 @@ _MESSAGE_ID = "message-in-flight"
 
 
 @pytest.fixture
-def session_id() -> Iterator[str]:
-    sid = f"goal-stop-{uuid.uuid4().hex[:8]}"
-    yield sid
-    GoalRegistry.unregister(sid)
+def session_id() -> str:
+    return f"goal-stop-{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture
@@ -38,7 +36,7 @@ def running_turn() -> Iterator[tuple[MagicMock, CancellationToken]]:
 
 
 async def _goal_in_status(sid: str, status: GoalStatus) -> None:
-    provider = GoalRegistry.get_or_create_provider(sid)
+    provider = GoalRegistry.register(sid)
     goal = await provider.create_goal(sid, "Ship the report")
     if status is not GoalStatus.ACTIVE:
         await provider.update_status(goal.goal_id, status)

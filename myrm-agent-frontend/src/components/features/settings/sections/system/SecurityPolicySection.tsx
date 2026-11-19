@@ -364,7 +364,7 @@ const SecurityPolicySection = memo(() => {
             <ul className="text-sm text-muted-foreground space-y-1 ml-6">
               <li>• {t('yoloMode.useCases.case1', { default: 'Local development and debugging' })}</li>
               <li>• {t('yoloMode.useCases.case2', { default: 'CI/CD automation pipelines' })}</li>
-              <li>• {t('yoloMode.useCases.case3', { default: 'Scheduled tasks and batch processing' })}</li>
+              <li>• {t('yoloMode.useCases.case3', { default: 'Batch processing and long-running tasks' })}</li>
               <li>
                 •{' '}
                 {t('yoloMode.useCases.case4', { default: 'Trusted environments with high confidence in AI behavior' })}

@@ -1,42 +1,47 @@
-"""Tests for goal WAIT resume after background bash job finish."""
+"""Goal WAIT resume after a background bash job finishes.
 
+The keys and registry state are the production ones: the harness reports the session key of the run that started the
+job (`chat_<chat id>`), the goal is stored under the chat id, and the finish arrives between turns, when no provider is
+registered.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterator
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from myrm_agent_harness.agent.goals.types import Goal, GoalBudget, GoalStatus
+from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
+from myrm_agent_harness.toolkits.storage.local import LocalStorageBackend
+
+from app.services.agent.goals.goal_registry import GoalRegistry
+from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
+from app.services.agent.params.workspace_resolve import chat_session_id
 
 _JOB_ID = "a" * 32
+_TRIGGER = "app.services.agent.goals.unattended.trigger_goal_stream_with_failure_policy"
+_TRIGGER_STREAM = "app.services.agent.goals.unattended.trigger.trigger_goal_stream"
+_NOTIFY = "app.services.agent.goals.unattended.failure.publish_goal_needs_review_notification"
 
 
-@pytest.mark.asyncio
-async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_stream():
-    from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
+@pytest.fixture(autouse=True)
+def storage(tmp_path: Path) -> Iterator[None]:
+    with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))):
+        yield
 
-    wait_goal = Goal(
-        goal_id="g1",
-        session_id="chat-1",
-        objective="Build",
-        status=GoalStatus.WAIT,
-        metadata={WAIT_ON_BACKGROUND_JOB_ID_KEY: _JOB_ID},
-        budget=GoalBudget(max_turns=5),
-    )
-    active_goal = Goal(
-        goal_id="g1",
-        session_id="chat-1",
-        objective="Build",
-        status=GoalStatus.ACTIVE,
-        budget=GoalBudget(max_turns=5),
-    )
-    provider = AsyncMock()
-    provider.get_latest_goal.return_value = wait_goal
-    provider.exit_wait.return_value = active_goal
-    provider.get_goal.return_value = active_goal
 
-    result = BackgroundJobFinishResult(
-        session_id="chat-1",
-        job_id=_JOB_ID,
+@pytest.fixture
+def chat_id(request: pytest.FixtureRequest) -> str:
+    return f"bg-wait-{request.node.name}"
+
+
+def _finished(chat_id: str, job_id: str = _JOB_ID) -> BackgroundJobFinishResult:
+    return BackgroundJobFinishResult(
+        session_id=chat_session_id(chat_id),
+        job_id=job_id,
         pid=4242,
         command="npm run build",
         status="exited",
@@ -44,119 +49,69 @@ async def test_maybe_resume_goal_after_background_job_exits_wait_and_triggers_st
         error_category=None,
     )
 
-    with (
-        patch(
-            "app.services.agent.goals.goal_registry.GoalRegistry.get_provider",
-            return_value=provider,
-        ),
-        patch(
-            "app.services.agent.goals.unattended.trigger_goal_stream_with_failure_policy",
-            new_callable=AsyncMock,
-            return_value=True,
-        ) as mock_trigger,
-    ):
-        resumed = await maybe_resume_goal_after_background_job(result)
+
+async def _goal_waiting_on(chat_id: str, job_id: str) -> str:
+    """A goal parked the way the harness parks one on a background job; returns its id."""
+    provider = GoalRegistry.resolve_provider(chat_id)
+    goal = await provider.create_goal(chat_id, "Build")
+    await provider.enter_wait(goal.goal_id, reason=f"Waiting for background job {job_id}")
+    await provider.update_metadata(goal.goal_id, {WAIT_ON_BACKGROUND_JOB_ID_KEY: job_id})
+    return goal.goal_id
+
+
+async def _status_of(chat_id: str, goal_id: str) -> GoalStatus:
+    goal = await GoalRegistry.resolve_provider(chat_id).get_goal(goal_id)
+    assert goal is not None
+    return goal.status
+
+
+@pytest.mark.asyncio
+async def test_a_finished_job_ends_the_wait_of_its_chats_goal_and_starts_its_turn(chat_id: str) -> None:
+    goal_id = await _goal_waiting_on(chat_id, _JOB_ID)
+
+    with patch(_TRIGGER, new_callable=AsyncMock, return_value=True) as trigger:
+        resumed = await maybe_resume_goal_after_background_job(_finished(chat_id))
 
     assert resumed is True
-    provider.exit_wait.assert_called_once_with("g1")
-    mock_trigger.assert_awaited_once_with(
-        "chat-1",
-        active_goal,
-        provider,
-        on_failure="needs_human_review",
-        context="background wait resume",
-    )
+    assert await _status_of(chat_id, goal_id) is GoalStatus.ACTIVE
+    trigger.assert_awaited_once()
+    session, goal = trigger.await_args.args
+    assert session == chat_id
+    assert goal.goal_id == goal_id
+    assert trigger.await_args.kwargs == {"context": "background wait resume"}
+    assert GoalRegistry.get_provider(chat_id) is None
 
 
 @pytest.mark.asyncio
-async def test_maybe_resume_goal_skips_unmatched_job_id():
-    from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
+async def test_a_job_the_goal_is_not_waiting_on_leaves_the_wait_alone(chat_id: str) -> None:
+    goal_id = await _goal_waiting_on(chat_id, "b" * 32)
 
-    goal = Goal(
-        goal_id="g1",
-        session_id="chat-1",
-        objective="Build",
-        status=GoalStatus.WAIT,
-        metadata={WAIT_ON_BACKGROUND_JOB_ID_KEY: "b" * 32},
-        budget=GoalBudget(max_turns=5),
-    )
-    provider = AsyncMock()
-    provider.get_latest_goal.return_value = goal
-
-    result = BackgroundJobFinishResult(
-        session_id="chat-1",
-        job_id=_JOB_ID,
-        pid=9999,
-        command="npm run build",
-        status="exited",
-        exit_code=0,
-        error_category=None,
-    )
-
-    with (
-        patch(
-            "app.services.agent.goals.goal_registry.GoalRegistry.get_provider",
-            return_value=provider,
-        ),
-        patch(
-            "app.services.agent.goals.unattended.trigger.trigger_goal_stream",
-            new_callable=AsyncMock,
-        ) as mock_trigger,
-    ):
-        resumed = await maybe_resume_goal_after_background_job(result)
+    with patch(_TRIGGER, new_callable=AsyncMock) as trigger:
+        resumed = await maybe_resume_goal_after_background_job(_finished(chat_id))
 
     assert resumed is False
-    provider.exit_wait.assert_not_called()
-    mock_trigger.assert_not_called()
+    assert await _status_of(chat_id, goal_id) is GoalStatus.WAIT
+    trigger.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_maybe_resume_goal_returns_false_when_stream_trigger_fails():
-    from app.services.agent.goals.goal_wait_background_resume import maybe_resume_goal_after_background_job
-
-    wait_goal = Goal(
-        goal_id="g1",
-        session_id="chat-1",
-        objective="Build",
-        status=GoalStatus.WAIT,
-        metadata={WAIT_ON_BACKGROUND_JOB_ID_KEY: _JOB_ID},
-        budget=GoalBudget(max_turns=5),
-    )
-    active_goal = Goal(
-        goal_id="g1",
-        session_id="chat-1",
-        objective="Build",
-        status=GoalStatus.ACTIVE,
-        budget=GoalBudget(max_turns=5),
-    )
-    provider = AsyncMock()
-    provider.get_latest_goal.return_value = wait_goal
-    provider.exit_wait.return_value = active_goal
-    provider.get_goal.return_value = active_goal
-
-    result = BackgroundJobFinishResult(
-        session_id="chat-1",
-        job_id=_JOB_ID,
-        pid=4242,
-        command="npm run build",
-        status="exited",
-        exit_code=0,
-        error_category=None,
-    )
-
-    with (
-        patch(
-            "app.services.agent.goals.goal_registry.GoalRegistry.get_provider",
-            return_value=provider,
-        ),
-        patch(
-            "app.services.agent.goals.unattended.trigger.trigger_goal_stream",
-            new_callable=AsyncMock,
-            side_effect=RuntimeError("stream failed"),
-        ),
-    ):
-        resumed = await maybe_resume_goal_after_background_job(result)
+async def test_a_job_of_a_chat_without_a_goal_is_ignored(chat_id: str) -> None:
+    with patch(_TRIGGER, new_callable=AsyncMock) as trigger:
+        resumed = await maybe_resume_goal_after_background_job(_finished(chat_id))
 
     assert resumed is False
-    provider.exit_wait.assert_called_once_with("g1")
-    provider.update_status.assert_called_once_with("g1", GoalStatus.NEEDS_HUMAN_REVIEW)
+    trigger.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_failed_start_of_the_resumed_turn_sends_the_goal_to_review(chat_id: str) -> None:
+    goal_id = await _goal_waiting_on(chat_id, _JOB_ID)
+
+    with (
+        patch(_TRIGGER_STREAM, new_callable=AsyncMock, side_effect=RuntimeError("stream failed")),
+        patch(_NOTIFY, new_callable=AsyncMock),
+    ):
+        resumed = await maybe_resume_goal_after_background_job(_finished(chat_id))
+
+    assert resumed is False
+    assert await _status_of(chat_id, goal_id) is GoalStatus.NEEDS_HUMAN_REVIEW

@@ -204,7 +204,7 @@ async def test_a_message_that_starts_no_turn_leaves_the_approval_open() -> None:
     router._pending_approvals.clear()
 
 
-@pytest.mark.parametrize("locale", ["en", "ja", "zh-CN", "zh-TW"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 def test_the_notice_exists_in_every_language_the_approval_can_be_asked_in(locale: str) -> None:
     notice = get_text(inbound_message(locale=locale), "approval_superseded")
 

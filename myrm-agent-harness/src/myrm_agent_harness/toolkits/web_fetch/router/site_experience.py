@@ -15,7 +15,8 @@ Architecture:
 - infra.data_dir::resolve_workspace_state_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- SiteExperience: Site experience for a single domain (includes `prefer_http3` for L1 QUIC routing)
+- PersistedSiteExperience: JSON shape of a stored SiteExperience
+- SiteExperience: Site experience for a single domain
 - SiteExperienceStore: Site experience store
 - get_global_site_experience_store: Get global site experience store (singleton)
 
@@ -31,7 +32,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Required, TypedDict
 
 from myrm_agent_harness.infra.data_dir import resolve_workspace_state_dir
 
@@ -54,6 +55,19 @@ def get_global_site_experience_store() -> SiteExperienceStore:
     return _global_site_experience_store
 
 
+class PersistedSiteExperience(TypedDict, total=False):
+    """JSON shape of a stored ``SiteExperience``; keys it does not list are ignored when loading."""
+
+    domain: Required[str]
+    platform_features: list[str]
+    url_patterns: dict[str, str]
+    known_traps: list[str]
+    successful_flows: list[str]
+    last_verified: str
+    verification_count: int
+    last_access: float
+
+
 @dataclass
 class SiteExperience:
     """Site experience for a single domain"""
@@ -63,12 +77,11 @@ class SiteExperience:
     url_patterns: dict[str, str] = field(default_factory=dict)
     known_traps: list[str] = field(default_factory=list)
     successful_flows: list[str] = field(default_factory=list)
-    prefer_http3: bool = False
     last_verified: str = ""
     verification_count: int = 0
     last_access: float = field(default_factory=time.time)
 
-    def to_dict(self) -> dict[str, str | int | float | list[str] | dict[str, str] | bool]:
+    def to_dict(self) -> PersistedSiteExperience:
         """Serialize to JSON-storable dict"""
         return {
             "domain": self.domain,
@@ -76,22 +89,20 @@ class SiteExperience:
             "url_patterns": self.url_patterns,
             "known_traps": self.known_traps,
             "successful_flows": self.successful_flows,
-            "prefer_http3": self.prefer_http3,
             "last_verified": self.last_verified,
             "verification_count": self.verification_count,
             "last_access": self.last_access,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, str | int | float | list[str] | dict[str, str] | bool]) -> SiteExperience:
-        """Deserialize from dict"""
+    def from_dict(cls, data: PersistedSiteExperience) -> SiteExperience:
+        """Deserialize from dict; keys this version does not know are ignored."""
         return cls(
             domain=str(data["domain"]),
             platform_features=list(data.get("platform_features", [])),
             url_patterns=dict(data.get("url_patterns", {})),
             known_traps=list(data.get("known_traps", [])),
             successful_flows=list(data.get("successful_flows", [])),
-            prefer_http3=bool(data.get("prefer_http3", False)),
             last_verified=str(data.get("last_verified", "")),
             verification_count=int(data.get("verification_count", 0)),
             last_access=float(data.get("last_access", time.time())),
@@ -271,27 +282,6 @@ class SiteExperienceStore:
 
         recent_failures = sum(metrics.get_recent_failures_count(ft, window_hours=24) for ft in FetcherType)
         return recent_failures >= _STALE_RECENT_FAILURE_THRESHOLD
-
-    def get_prefer_http3(self, domain: str) -> bool:
-        """Whether L1 should skip HTTP/2 and use HTTP/3 for this domain."""
-        domain = self._normalize_domain(domain)
-        with self._lock:
-            exp = self._experiences.get(domain)
-            return bool(exp and exp.prefer_http3)
-
-    def set_prefer_http3(self, domain: str, *, enabled: bool = True) -> None:
-        """Record domain-level HTTP/3 preference after a successful L1 QUIC fetch."""
-        domain = self._normalize_domain(domain)
-        with self._lock:
-            exp = self._experiences.get(domain)
-            if exp is None:
-                exp = SiteExperience(domain=domain)
-                self._experiences[domain] = exp
-                if len(self._experiences) > self._max_domains:
-                    self._evict_lru()
-            exp.prefer_http3 = enabled
-            exp.last_access = time.time()
-            self._dirty = True
 
     def save_experience(
         self,

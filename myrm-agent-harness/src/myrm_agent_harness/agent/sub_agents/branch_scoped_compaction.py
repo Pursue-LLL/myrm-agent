@@ -24,7 +24,6 @@ Harness subagent branch compaction merger. Pure deterministic heuristics, zero L
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.context_management.infra.schemas import StructuredSummary
 from myrm_agent_harness.agent.context_management.tracking.artifact_tracker import (
@@ -39,9 +38,6 @@ from myrm_agent_harness.agent.sub_agents.manager import (
 )
 from myrm_agent_harness.agent.sub_agents.session_tree import _session_id_candidates
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_agent_logger(__name__)
 

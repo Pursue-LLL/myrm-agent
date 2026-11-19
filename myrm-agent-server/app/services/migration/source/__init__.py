@@ -9,7 +9,7 @@
 - Aggregate facade re-exporting every public name of the ``source`` subpackage:
   - source_discovery: DiscoveredFile / ExternalSource / DiscoveryResult + discover_external_sources
   - source_manifest: migration source SSOT (display name, import map, discover/deep-link modes)
-  - source_probes: per-source filesystem probes (hermes/claude/openclaw/codex/pi)
+  - source_probes: per-source filesystem probes (hermes/claude/openclaw/codex/pi/plur)
   - source_payload_loader: load_source_payload / build_coverage_items / extract_pending_skills
   - source_payload_loaders_impl: base loaders (hermes/codex/claude/chatgpt/gbrain)
   - source_payload_split: instruction plan + memory payload extraction
@@ -19,7 +19,7 @@
 
 [POS]
 Server business layer. Single migration-source domain: every ``source_*`` module
-lives here so the closed source set (5 wizard-discovered + 2 ZIP-only) stays
+lives here so the closed source set (6 wizard-discovered + 2 ZIP-only) stays
 co-located with its loaders, probes and DTOs and can never drift apart.
 """
 
@@ -57,6 +57,7 @@ from app.services.migration.source.source_migration_types import (
 from app.services.migration.source.source_model_migrator import (
     AuxiliaryMigrationResult,
     extract_hermes_auxiliary_config,
+    extract_openclaw_default_model_config,
     migrate_hermes_auxiliary_models,
     migrate_openclaw_default_model,
 )
@@ -80,6 +81,7 @@ from app.services.migration.source.source_payload_split import (
     build_instruction_plan,
     extract_memory_payload,
     has_api_keys,
+    has_importable_keys,
 )
 from app.services.migration.source.source_probes import (
     discover_claude,
@@ -120,9 +122,11 @@ __all__ = [
     "discover_pi",
     "extract_hermes_auxiliary_config",
     "extract_memory_payload",
+    "extract_openclaw_default_model_config",
     "extract_pending_skills",
     "external_source_providers_configured",
     "has_api_keys",
+    "has_importable_keys",
     "import_external_source_secrets",
     "instruction_char_total",
     "is_source_discovery_payload",

@@ -12,6 +12,7 @@ Agent 会话的 SteeringToken，从而在运行时注入引导消息。
 与 CancellationRegistry（按 request_id 索引）形成对称设计。
 未注册 token（回合尚在启动或已结束），或 token 已被运行关闭（回合已走到收尾）时，
 steer/redirect 直接返回 False，消息的去留由调用方决定，注册表不做缓冲。
+登记归属于登记它的回合：只有该回合自己的 token 能归还登记，较早回合迟到的收尾不会删掉后一回合的登记。
 """
 
 import logging
@@ -42,11 +43,17 @@ class SteeringRegistry:
         logger.debug("Registered steering token: chat_id=%s", chat_id)
 
     @classmethod
-    def unregister(cls, chat_id: str) -> None:
-        """Remove a token when the agent stream ends."""
+    def unregister(cls, chat_id: str, token: SteeringToken) -> None:
+        """Give back the registration of `token` when its turn ends; an entry that is another turn's token stays.
+
+        A turn can end after the chat's next turn has registered (a teardown that runs late), and that teardown must
+        not take the steers away from the turn that runs.
+        """
         with cls._lock:
-            if cls._tokens.pop(chat_id, None):
-                logger.debug("Unregistered steering token: chat_id=%s", chat_id)
+            if cls._tokens.get(chat_id) is not token:
+                return
+            del cls._tokens[chat_id]
+        logger.debug("Unregistered steering token: chat_id=%s", chat_id)
 
     @classmethod
     def steer(cls, chat_id: str, message: str) -> bool:

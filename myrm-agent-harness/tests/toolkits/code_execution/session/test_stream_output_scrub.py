@@ -9,7 +9,7 @@ each read would be emitted at once if it were allowed to.
 from __future__ import annotations
 
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -20,6 +20,7 @@ from myrm_agent_harness.toolkits.code_execution.session.stream_output_processor 
     StreamOutputProcessor,
 )
 from tests.support.fake_secrets import openai_style_key
+from tests.toolkits.code_execution._session_helpers import captured_stdout_chunks
 
 _KEY = openai_style_key("ant-api03-Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv1Wx2Yz3")
 _KEY_BODY = "Kl6Mn7Op8Qr9St0Uv"
@@ -194,36 +195,17 @@ _SPLIT_KEY_COMMAND = f"printf 'token {_KEY[:24]}'; sleep 0.4; printf '{_KEY[24:]
 
 class TestRealShell:
     @pytest.mark.asyncio
-    async def test_execute_path_does_not_show_a_split_key(self) -> None:
+    async def test_the_live_output_does_not_show_a_split_key(self) -> None:
         session = LocalPersistentSession(_config())
         await session.start()
-        chunks: list[str] = []
-
-        async def capture(event_type: str, data: dict[str, str]) -> None:
-            if event_type == "tool_stdout_chunk":
-                chunks.append(data["chunk"])
-
         try:
-            with patch("myrm_agent_harness.utils.event_utils.dispatch_custom_event", side_effect=capture):
+            with captured_stdout_chunks() as chunks:
                 result = await session.execute(_SPLIT_KEY_COMMAND)
             assert result.success, result.error
         finally:
             await session.close()
 
         shown = "".join(chunks)
-        assert _KEY_BODY not in shown
-        assert "sk-ant" in shown
-        assert "end" in shown
-
-    @pytest.mark.asyncio
-    async def test_stream_path_does_not_show_a_split_key(self) -> None:
-        session = LocalPersistentSession(_config())
-        await session.start()
-        try:
-            shown = "".join([chunk async for chunk in session.execute_stream(_SPLIT_KEY_COMMAND)])
-        finally:
-            await session.close()
-
         assert _KEY_BODY not in shown
         assert "sk-ant" in shown
         assert "end" in shown

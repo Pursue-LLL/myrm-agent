@@ -77,11 +77,6 @@ _ACTION_TRANSLATIONS: dict[str, dict[str, dict[str, str]]] = {
     },
 }
 
-# Other languages fallback to English
-_ACTION_TRANSLATIONS["ja"] = _ACTION_TRANSLATIONS["en"]
-_ACTION_TRANSLATIONS["ko"] = _ACTION_TRANSLATIONS["en"]
-_ACTION_TRANSLATIONS["de"] = _ACTION_TRANSLATIONS["en"]
-
 # ============================================================================
 # Recovery Actions Generator
 # ============================================================================
@@ -99,7 +94,7 @@ def generate_recovery_actions(error_code: FailoverReason, locale: str = "en") ->
 
     Args:
         error_code: The standardized error code from Harness (FailoverReason).
-        locale: User's preferred language (e.g., 'en', 'zh-CN', 'ja').
+        locale: User's preferred language (e.g., 'en', 'zh-CN'); any other language reads English.
 
     Returns:
         A list of recovery action dictionaries: [{"id": str, "label": str, "url": str}, ...]

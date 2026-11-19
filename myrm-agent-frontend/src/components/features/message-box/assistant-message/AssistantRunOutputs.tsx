@@ -4,17 +4,17 @@
  * [INPUT]
  * @/store/chat/types::Message (POS: Chat message model)
  * ./messagePayloads (POS: Typed readers of the loosely typed message payload)
+ * ./GeneratedMediaCards (POS: Cards of the images, videos and speech the turn generated)
  * ../progress-steps/ProgressSteps (POS: Collapsible Task Steps tree)
  * @/components/features/chat-window/{ExecutionPhaseStepper,EvidenceStageHUD,CouncilResultCard,approval/VisualApprovalInlineSection} (POS: Turn-level run panels)
  * @/components/features/artifacts/{ArtifactsDisplay,ArtifactErrorBoundary} (POS: Generated artifacts and their render boundary)
- * @/components/features/task-card::{ImageTaskCard,VideoTaskCard} (POS: Async media task cards)
  *
  * [OUTPUT]
  * AssistantRunOutputs: Everything a turn produced besides the answer text, in the order it is shown above the answer.
  *
  * [POS]
  * Run outputs of one assistant message: analysis status, progress and phase, consensus and council panels, artifacts,
- * images, recordings, MCP apps, and the task / audio / scheduled-job / kanban cards. It renders into the column of
+ * images, recordings, MCP apps, and the generated-media / scheduled-job / kanban cards. It renders into the column of
  * the bubble as siblings of the answer block, so it returns a fragment and adds no wrapper of its own.
  */
 
@@ -26,7 +26,6 @@ import VisualApprovalInlineSection from '@/components/features/chat-window/appro
 import { CouncilResultCard } from '@/components/features/chat-window/CouncilResultCard';
 import { EvidenceStageHUD } from '@/components/features/chat-window/EvidenceStageHUD';
 import { ExecutionPhaseStepper } from '@/components/features/chat-window/ExecutionPhaseStepper';
-import { ImageTaskCard, VideoTaskCard } from '@/components/features/task-card';
 import ConsensusThinkingPanel from '../ConsensusThinkingPanel';
 import { CronJobSystemCard } from '../CronJobSystemCard';
 import { KanbanTaskCreatedCard } from '../KanbanTaskCreatedCard';
@@ -36,16 +35,15 @@ import { messageHasSkillManageUndo } from '../progress-steps/skillManageBatch';
 import SessionRecordingCard from '../SessionRecordingCard';
 import { SkillManageUndoHintCard } from '../SkillManageUndoHintCard';
 import ToolImageGallery from '../ToolImageGallery';
-import TtsAudioCard from '../TtsAudioCard';
+import { GeneratedMediaCards } from './GeneratedMediaCards';
 import {
   readCronJobResult,
   readKanbanTasksCreated,
   readMcpApps,
+  readMediaGenerated,
   readSessionRecording,
   readToolImages,
   resolveProgressSteps,
-  type AsyncTaskResponse,
-  type TtsAudioResponse,
 } from './messagePayloads';
 
 export function AssistantRunOutputs({
@@ -54,8 +52,6 @@ export function AssistantRunOutputs({
   isLast,
   chatId,
   approvalPending,
-  taskResponse,
-  ttsAudioResponse,
 }: {
   message: Message;
   loading: boolean;
@@ -63,10 +59,6 @@ export function AssistantRunOutputs({
   chatId: string | undefined;
   /** A tool approval is waiting on this message. */
   approvalPending: boolean;
-  /** The answer is an async task reply, shown as a task card instead of text. */
-  taskResponse: AsyncTaskResponse | null;
-  /** The answer is a text-to-speech reply, shown as an audio player instead of text. */
-  ttsAudioResponse: TtsAudioResponse | null;
 }) {
   const t = useTranslations('chat');
   const tProgress = useTranslations('progressSteps');
@@ -76,6 +68,7 @@ export function AssistantRunOutputs({
   const sessionRecording = readSessionRecording(message);
   const cronJobResult = readCronJobResult(message);
   const kanbanTasksCreated = readKanbanTasksCreated(message);
+  const mediaGenerated = readMediaGenerated(message);
 
   return (
     <>
@@ -151,22 +144,8 @@ export function AssistantRunOutputs({
         </ArtifactErrorBoundary>
       )}
 
-      {/* 异步任务卡片（如图片生成） */}
-      {taskResponse &&
-        (taskResponse.task_type === 'video_generate' ? (
-          <VideoTaskCard task_id={taskResponse.task_id} />
-        ) : (
-          <ImageTaskCard task_id={taskResponse.task_id} />
-        ))}
-
-      {/* TTS 语音合成结果：就地播放卡片 */}
-      {ttsAudioResponse && (
-        <TtsAudioCard
-          url={ttsAudioResponse.audio_url}
-          model={ttsAudioResponse.model}
-          durationSeconds={ttsAudioResponse.duration_seconds}
-        />
-      )}
+      {/* 生成的图像 / 视频 / 语音：由媒体工具登记，卡片不依赖模型回复文字 */}
+      {mediaGenerated.length > 0 && <GeneratedMediaCards entries={mediaGenerated} />}
 
       {/* 定时任务创建/更新卡片 */}
       {cronJobResult ? <CronJobSystemCard result={cronJobResult} /> : null}

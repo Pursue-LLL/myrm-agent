@@ -75,7 +75,9 @@ class VectorStoreProtocol(Protocol):
 
     async def ensure_collection(self, name: str, dimension: int, *, distance: str = "cosine") -> None: ...
 
-    async def create_collection(self, name: str, dimension: int, *, distance: str = "cosine") -> None: ...
+    async def create_collection(self, name: str, dimension: int, *, distance: str = "cosine") -> object:
+        """Create the collection; the memory system ignores the result (a backend may report whether it created one)."""
+        ...
 
     async def create_named_vector_collection(
         self, name: str, dimension: int, *, names: Sequence[str], distance: str = "cosine"
@@ -101,3 +103,4 @@ class VectorStoreProtocol(Protocol):
         ``:memory:`` fallback) return ``False`` so callers can surface the
         degraded mode instead of silently treating it as durable storage.
         """
+        ...

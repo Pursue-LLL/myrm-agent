@@ -8,7 +8,9 @@ app.services.agent.profile.profile_snapshot_service::ProfileSnapshotService (POS
 InstructionApplyResult with target_agent_id and rollback metadata.
 
 [POS]
-Instruction lane writer for external source migration. Does not use memory import adapters.
+Instruction lane writer for external source migration. Does not use memory import adapters. The global-instructions
+write and its rollback are recorded under ``MIGRATION_CONFIG_DEVICE_ID``; the rollback also drops the cached user
+configs, and the confirm lane does the same after its writes.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from app.services.agent.agent_service import AgentService
 from app.services.agent.profile.profile_snapshot_service import ProfileSnapshotService
 from app.services.config.service import config_service
 from app.services.migration.source.source_migration_types import (
+    MIGRATION_CONFIG_DEVICE_ID,
     InstructionApplyResult,
     InstructionRollbackRecord,
     MigrationWizardOptions,
@@ -225,10 +228,14 @@ async def rollback_instruction_plan(record: InstructionRollbackRecord) -> bool:
             restored = True
 
     if record.global_instructions_updated:
+        from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
+
         await config_service.set(
             "personalSettings",
             await _personal_settings_with_instructions(record.previous_global_instructions),
+            device_id=MIGRATION_CONFIG_DEVICE_ID,
         )
+        invalidate_user_configs_cache()
         restored = True
 
     for rule_path in record.written_rule_paths:
@@ -255,7 +262,7 @@ async def _replace_global_system_instructions(supplement: str, competitor: str) 
     merged = merge_migration_block(current, competitor, supplement)
     updated = dict(value)
     updated["systemInstructions"] = merged
-    await config_service.set("personalSettings", updated)
+    await config_service.set("personalSettings", updated, device_id=MIGRATION_CONFIG_DEVICE_ID)
     return current, True
 
 

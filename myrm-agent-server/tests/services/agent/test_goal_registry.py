@@ -355,16 +355,13 @@ class TestEvaluateSemantic:
 
 
 class TestGoalRegistry:
-    def test_singleton_per_session(self):
-        session_id = "test-registry-singleton"
+    def test_register_creates_a_server_goal_manager_that_get_provider_finds(self):
+        session_id = "test-registry-register"
         with patch("app.platform_utils.get_storage_provider", return_value=AsyncMock()):
-            provider1 = GoalRegistry.get_or_create_provider(session_id)
-            assert isinstance(provider1, ServerGoalManager)
+            provider = GoalRegistry.register(session_id)
 
-            provider2 = GoalRegistry.get_or_create_provider(session_id)
-            assert provider1 is provider2
-
-            GoalRegistry.unregister(session_id)
+            assert isinstance(provider, ServerGoalManager)
+            assert GoalRegistry.get_provider(session_id) is provider
 
     def test_get_provider_returns_none(self):
         assert GoalRegistry.get_provider("nonexistent-session") is None
@@ -372,8 +369,8 @@ class TestGoalRegistry:
     def test_unregister(self):
         session_id = "test-registry-unregister"
         with patch("app.platform_utils.get_storage_provider", return_value=AsyncMock()):
-            GoalRegistry.get_or_create_provider(session_id)
-            assert GoalRegistry.get_provider(session_id) is not None
+            provider = GoalRegistry.register(session_id)
+            assert GoalRegistry.get_provider(session_id) is provider
 
-            GoalRegistry.unregister(session_id)
+            GoalRegistry.unregister(session_id, provider)
             assert GoalRegistry.get_provider(session_id) is None

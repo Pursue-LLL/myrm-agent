@@ -7,10 +7,11 @@ RelationalStore handles Profile/Procedural/Pending, this handles preference face
 
 [INPUT]
 - memory.strategies.preference_stability::{PreferenceFacet, PreferenceCategory, PreferenceLifecycle, CueFamily} (POS: preference data models)
+- utils.db.sqlite::open_hardened_async (POS: public facade of the unified SQLite hardening factory)
 
 [OUTPUT]
 - PreferenceFacetStoreProtocol: Storage protocol for preference facets (upsert, find_by_id, find_by_key_value, lifecycle queries)
-- SQLitePreferenceFacetStore: aiosqlite-backed implementation with WAL mode and indexed lookups
+- SQLitePreferenceFacetStore: aiosqlite-backed implementation with WAL mode and indexed lookups; opens its connection on first use and keeps it only once it is hardened and its table exists
 
 [POS]
 Preference facet persistence layer. Stores preference metadata (key, value, category,
@@ -20,6 +21,7 @@ SemanticMemory via memory_ids for content retrieval.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from datetime import UTC, datetime
@@ -34,6 +36,7 @@ from myrm_agent_harness.toolkits.memory.strategies.preference_stability import (
     PreferenceFacet,
     PreferenceLifecycle,
 )
+from myrm_agent_harness.utils.db.sqlite import DEFAULT, open_hardened_async
 
 logger = logging.getLogger(__name__)
 
@@ -112,31 +115,32 @@ def _facet_from_row(row: aiosqlite.Row) -> PreferenceFacet:
     )
 
 
+async def _create_schema(conn: aiosqlite.Connection) -> None:
+    conn.row_factory = aiosqlite.Row
+    await conn.execute(_CREATE_TABLE_SQL)
+    for idx_sql in _CREATE_INDEX_SQL:
+        await conn.execute(idx_sql)
+    await conn.commit()
+
+
 class SQLitePreferenceFacetStore:
     """aiosqlite-backed preference facet store.
 
     Shares the same database directory as the main relational store
-    but uses a separate table for clean separation.
+    but uses a separate table for clean separation. The connection opens on first use and is kept only once it is
+    hardened and the table exists, so a failed or cancelled open leaves nothing behind.
     """
 
     def __init__(self, db_path: str) -> None:
         self._db_path = str(Path(db_path).expanduser().resolve())
         self._conn: aiosqlite.Connection | None = None
-        self._initialized = False
+        self._conn_lock = asyncio.Lock()
 
     async def _ensure_conn(self) -> aiosqlite.Connection:
         if self._conn is None:
-            self._conn = await aiosqlite.connect(self._db_path)
-            self._conn.row_factory = aiosqlite.Row
-            from myrm_agent_harness.utils.db.sqlite import DEFAULT, harden_connection_async
-
-            await harden_connection_async(self._conn, DEFAULT, db_path=Path(self._db_path))
-        if not self._initialized:
-            await self._conn.execute(_CREATE_TABLE_SQL)
-            for idx_sql in _CREATE_INDEX_SQL:
-                await self._conn.execute(idx_sql)
-            await self._conn.commit()
-            self._initialized = True
+            async with self._conn_lock:
+                if self._conn is None:
+                    self._conn = await open_hardened_async(self._db_path, DEFAULT, prepare=_create_schema)
         return self._conn
 
     async def upsert(self, facet: PreferenceFacet) -> None:
@@ -242,7 +246,10 @@ class SQLitePreferenceFacetStore:
         await conn.commit()
 
     async def close(self) -> None:
-        if self._conn is not None:
-            await self._conn.close()
-            self._conn = None
-            self._initialized = False
+        # Holding the lock makes a close that overlaps an open wait for it, so the connection that open publishes is
+        # closed too instead of outliving the store.
+        async with self._conn_lock:
+            connection = self._conn
+            if connection is not None:
+                await connection.close()
+                self._conn = None

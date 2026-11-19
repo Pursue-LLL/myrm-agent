@@ -4,6 +4,7 @@
 - myrm_agent_harness.toolkits.tasks::{Task, TaskStore, TaskStatus, TaskError, TaskFilters} (POS: Queue protocol + compare-and-set persistence contract)
 - app/tasks/executors/*::TaskExecutor impl (POS: Task-type specific execution capability)
 - TaskEventCallback (POS: Task status propagation bridge to SSE/event bus layer)
+- app/tasks/metrics.py::{safe_counter_inc, safe_histogram_observe, task_*} (POS: Prometheus instruments and best-effort recorders for the task subsystem)
 
 [OUTPUT]
 - TaskWorker: server-side async task consumer with a bounded in-flight set, timeout, abort, restart recovery and status callbacks.
@@ -31,6 +32,8 @@ from myrm_agent_harness.toolkits.tasks import (
 )
 
 from app.tasks.metrics import (
+    safe_counter_inc,
+    safe_histogram_observe,
     task_cancelled_total,
     task_duration_seconds,
     task_failed_total,
@@ -47,7 +50,11 @@ _STOP_GRACE_SECONDS = 5.0
 _SWEEP_BATCH_SIZE = 100
 _QUEUE_ORDER = "priority DESC, created_at ASC"
 
-_PERMANENT_ERROR_TYPES = frozenset({"ValidationError", "AuthenticationError", "PermissionError", "NotFoundError"})
+# Failures that asking again cannot fix. They are matched by exact class name, so a subclass that is not listed stays
+# retryable: MediaFetchError means the network, store or host failed this time, unlike its parent MediaInputError.
+_PERMANENT_ERROR_TYPES = frozenset(
+    {"ValidationError", "AuthenticationError", "PermissionError", "NotFoundError", "MediaInputError"}
+)
 
 
 class TaskExecutor(Protocol):
@@ -95,22 +102,6 @@ class TaskWorker:
         self._in_flight: dict[str, asyncio.Task[None]] = {}
         self._wake = asyncio.Event()
 
-    @staticmethod
-    def _safe_counter_inc(counter: object, **labels: str) -> None:
-        """Best-effort metric increment that never blocks task execution."""
-        try:
-            counter.labels(**labels).inc()  # type: ignore[attr-defined]
-        except Exception as exc:  # pragma: no cover - defensive metrics guard
-            logger.debug("Failed to increment task metric: %s", exc)
-
-    @staticmethod
-    def _safe_histogram_observe(histogram: object, value: float, **labels: str) -> None:
-        """Best-effort histogram observe that never blocks task execution."""
-        try:
-            histogram.labels(**labels).observe(value)  # type: ignore[attr-defined]
-        except Exception as exc:  # pragma: no cover - defensive metrics guard
-            logger.debug("Failed to observe task metric: %s", exc)
-
     def _observe_duration(self, task: Task, status: TaskStatus) -> None:
         """Record task execution duration when start time is available."""
         if task.started_at is None:
@@ -118,7 +109,7 @@ class TaskWorker:
         elapsed_seconds = (datetime.now(UTC) - task.started_at).total_seconds()
         if elapsed_seconds < 0:
             return
-        self._safe_histogram_observe(
+        safe_histogram_observe(
             task_duration_seconds,
             elapsed_seconds,
             task_type=task.task_type,
@@ -288,7 +279,7 @@ class TaskWorker:
         if settled is None:
             return
         await self._emit_event(settled, TaskStatus.SUCCEEDED)
-        self._safe_counter_inc(task_succeeded_total, task_type=task.task_type)
+        safe_counter_inc(task_succeeded_total, task_type=task.task_type)
         self._observe_duration(task, TaskStatus.SUCCEEDED)
         logger.info(f"Task {task.task_id} succeeded")
 
@@ -305,8 +296,8 @@ class TaskWorker:
             return
         await self._emit_event(settled, TaskStatus.FAILED, error)
         if timed_out:
-            self._safe_counter_inc(task_timeout_total, task_type=task.task_type)
-        self._safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
+            safe_counter_inc(task_timeout_total, task_type=task.task_type)
+        safe_counter_inc(task_failed_total, task_type=task.task_type, error_type=error.error_type)
         if observe_duration:
             self._observe_duration(task, TaskStatus.FAILED)
 
@@ -316,7 +307,7 @@ class TaskWorker:
         if not self._running:
             await self._settle_failed(task, _interrupted_error())
             return
-        self._safe_counter_inc(task_cancelled_total, task_type=task.task_type)
+        safe_counter_inc(task_cancelled_total, task_type=task.task_type)
         self._observe_duration(task, TaskStatus.CANCELLED)
 
     async def _fail_orphaned_running(self) -> None:

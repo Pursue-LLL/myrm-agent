@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * src/app/globals.css 全文。
+ * src/app/brand.css 全文。
  * [OUTPUT]
  * Vitest: 品牌浮起按钮规则不会覆盖 fixed / absolute / sticky 工具类设定的定位与层级。
  * [POS]
@@ -12,10 +12,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const GLOBALS_CSS = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
+const BRAND_CSS = readFileSync(resolve(process.cwd(), 'src/app/brand.css'), 'utf8');
 
 const POSITION_GUARD = ":where(:not([class*='fixed'], [class*='absolute'], [class*='sticky']))";
-const BRAND_ELEVATION_TRIGGER = /\.btn-brand-elevation|\.brand-gradient-bg|\.bg-primary\.text-(?:primary-foreground|white)/;
+const BRAND_ELEVATION_TRIGGER =
+  /\.btn-brand-elevation|\.brand-gradient-bg|\.bg-primary\.text-(?:primary-foreground|white)/;
 
 interface CssRule {
   selectors: string[];
@@ -53,7 +54,7 @@ function parseRules(css: string): CssRule[] {
 }
 
 const brandRulesDeclaring = (property: string) =>
-  parseRules(GLOBALS_CSS).filter(
+  parseRules(BRAND_CSS).filter(
     (rule) =>
       rule.selectors.some((selector) => BRAND_ELEVATION_TRIGGER.test(selector)) &&
       new RegExp(`(?:^|[;\\s])${property}\\s*:`).test(rule.body),

@@ -7,9 +7,10 @@ sync_uploaded_files_to_workspace: copy large uploaded files to workspace
 inject_uploaded_files_into_query: append file paths to the user query
 
 [POS]
-Uploaded-file workspace sync. Copies large attached files from StorageProvider
+Uploaded-file workspace sync. Copies attached files from StorageProvider
 to the agent workspace so code execution tools (bash, file_read) can access them.
-Only syncs files exceeding the inline context limit (100 KB).
+Syncs files exceeding the inline context limit (100 KB) and every image: the model sees an attached image as a
+content block with no name, so the workspace path is the only handle it can pass to ``image_tool`` to edit it.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ async def sync_uploaded_files_to_workspace(
 ) -> list[tuple[str, str]]:
     """Copy uploaded files from StorageProvider to ``{workspace_dir}/_uploaded/``.
 
-    Only copies files whose size exceeds *_SYNC_THRESHOLD_BYTES*.
+    Copies files whose size exceeds *_SYNC_THRESHOLD_BYTES* and every image, whatever its size.
     Returns a list of ``(filename, workspace_relative_path)`` tuples for
     successfully synced files.
     """
@@ -52,7 +53,7 @@ async def sync_uploaded_files_to_workspace(
                 logger.debug("Uploaded file %s not found, skipping sync", file_id)
                 continue
 
-            if file_meta.size <= _SYNC_THRESHOLD_BYTES:
+            if file_meta.size <= _SYNC_THRESHOLD_BYTES and not file_meta.content_type.startswith("image/"):
                 continue
 
             if total_bytes + file_meta.size > _MAX_SYNC_TOTAL_BYTES:

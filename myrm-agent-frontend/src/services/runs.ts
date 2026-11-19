@@ -1,7 +1,7 @@
 import { apiRequest } from '@/lib/api';
 
 export type RunSource = 'cron' | 'kanban' | 'background';
-export type RunStatus = 'running' | 'ok' | 'error' | 'skipped' | 'cancelled' | 'timed_out';
+export type RunStatus = 'running' | 'ok' | 'error' | 'skipped' | 'cancelled' | 'timed_out' | 'circuit_break';
 export type RunStopReasonCategory = 'limit' | 'cancelled' | 'error' | 'other';
 
 export interface RunStopReason {

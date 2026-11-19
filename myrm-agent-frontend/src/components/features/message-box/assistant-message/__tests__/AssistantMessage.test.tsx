@@ -176,14 +176,17 @@ describe('AssistantMessage', () => {
   it.each([
     ['an async task', '{"task_id":"t1"}'],
     ['a text-to-speech result', '{"status":"success","audio_url":"/a.mp3"}'],
-  ])('leaves the answer block out when the reply is %s', (_label, content) => {
-    renderBubble({ content });
+  ])(
+    'always shows the answer block: the reply is the model text, never swapped for a card when it is %s',
+    (_label, content) => {
+      renderBubble({ content });
 
-    expect(screen.getByTestId('run-outputs')).toBeTruthy();
-    expect(screen.queryByText('answer')).toBeNull();
-    expect(screen.queryByTestId('markdown')).toBeNull();
-    expect(screen.queryByTestId('action-bar')).toBeNull();
-  });
+      expect(screen.getByTestId('run-outputs')).toBeTruthy();
+      expect(screen.getByText('answer')).toBeTruthy();
+      expect(screen.getByTestId('markdown').textContent).toBe(content);
+      expect(screen.getByTestId('action-bar')).toBeTruthy();
+    },
+  );
 
   it('tells the run outputs whether an approval is waiting on this message only', () => {
     storeState.approvalQueue = [{ messageId: 'other' }];

@@ -57,7 +57,7 @@ def test_seo_weekly_audit_blueprint_registered() -> None:
     assert bp is not None
     assert bp.id == "seo_weekly_audit"
     assert bp.category == "marketing-growth"
-    assert "en" in bp.title and "zh" in bp.title and "ja" in bp.title
+    assert "en" in bp.title and "zh" in bp.title
     assert "target_url" in [s.name for s in bp.slots]
     assert "depth" in [s.name for s in bp.slots]
 
@@ -95,9 +95,9 @@ def test_seo_weekly_audit_blueprint_fill_invalid_depth() -> None:
         )
 
 
-def test_seo_weekly_audit_all_five_locales_fill_correctly() -> None:
-    """Verify seo_weekly_audit generates correct prompt and titles in all 5 supported locales."""
-    locales = ("en", "zh", "ja", "de", "ko")
+def test_seo_weekly_audit_every_ui_locale_fills_correctly() -> None:
+    """Verify seo_weekly_audit generates correct prompt and titles in every UI locale."""
+    locales = ("en", "zh")
     for loc in locales:
         res = fill_blueprint(
             "seo_weekly_audit",

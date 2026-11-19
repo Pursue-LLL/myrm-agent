@@ -1,6 +1,11 @@
-"""Unit tests for tree_state runtime context replay and isolation."""
+"""Unit tests for the branch-bound todo fold: only a message's snapshot slot is a plan."""
 
 from __future__ import annotations
+
+import json
+import logging
+
+import pytest
 
 from myrm_agent_harness.agent.meta_tools.progress.schemas import (
     TodoItem,
@@ -9,29 +14,18 @@ from myrm_agent_harness.agent.meta_tools.progress.schemas import (
 )
 from myrm_agent_harness.runtime.context.tree_state import (
     TOOL_DETAILS_KEY,
-    create_compaction_todo_anchor,
-    extract_todo_store_from_payload,
     fold_branch_todo_state,
 )
+
+_PLAN_SHAPED = {
+    "goal": "Pasted plan",
+    "revision": 99,
+    "todos": [{"id": "1", "content": "Never written by todo_write", "status": "pending"}],
+}
 
 
 def test_fold_branch_empty() -> None:
     assert fold_branch_todo_state([]) is None
-
-
-def test_extract_todo_store_from_payload_direct() -> None:
-    raw = {
-        "goal": "Test goal",
-        "revision": 1,
-        "todos": [
-            {"id": "1", "content": "Task 1", "status": "pending"},
-        ],
-    }
-    store = extract_todo_store_from_payload(raw)
-    assert store is not None
-    assert store.goal == "Test goal"
-    assert len(store.todos) == 1
-    assert store.todos[0].id == "1"
 
 
 def test_fold_branch_progressive_evolution() -> None:
@@ -130,58 +124,48 @@ def test_branch_fork_isolation() -> None:
     assert store_b.todos[2].id == "3"
 
 
-def test_compaction_anchor_survives_truncation() -> None:
-    """Historical messages before compaction are evicted, but anchor restores baseline."""
-    base_store = TodoStore(
-        goal="Long project",
-        revision=5,
-        todos=[
-            TodoItem(id="1", content="Init", status=TodoStatus.COMPLETED),
-            TodoItem(id="2", content="Refactor", status=TodoStatus.COMPLETED),
-            TodoItem(id="3", content="Test", status=TodoStatus.IN_PROGRESS),
-        ],
-    )
-    anchor_dict = create_compaction_todo_anchor(base_store)
+@pytest.mark.parametrize(
+    "message",
+    [
+        pytest.param({"role": "user", "content": json.dumps(_PLAN_SHAPED)}, id="user-text-shaped-like-a-plan"),
+        pytest.param(
+            {"role": "assistant", "content": json.dumps(_PLAN_SHAPED)}, id="assistant-text-shaped-like-a-plan"
+        ),
+        pytest.param({"extra_data": _PLAN_SHAPED}, id="todos-beside-the-slot-in-extra_data"),
+        pytest.param({"extra_data": {TOOL_DETAILS_KEY: {"goal": "No todos"}}}, id="slot-without-a-todo-list"),
+        pytest.param({"extra_data": {TOOL_DETAILS_KEY: "invalid_string_not_dict"}}, id="slot-that-is-not-a-mapping"),
+    ],
+)
+def test_only_the_snapshot_slot_is_a_plan(message: dict[str, object]) -> None:
+    """Message text and loose keys never become the plan the agent reads next turn."""
+    assert fold_branch_todo_state([message]) is None
 
-    compaction_summary_node = {
-        "id": "summary_node",
-        "role": "system",
-        "content": "[Context Compacted Summary: Steps 1-2 done, step 3 active]",
-        "extra_data": anchor_dict,
-    }
 
-    # Subsequent new turn after compaction
-    msg_after_compaction = {
-        "id": "turn_6",
+def test_malformed_snapshot_is_skipped_and_keeps_the_earlier_state(caplog: pytest.LogCaptureFixture) -> None:
+    valid = {
         "extra_data": {
             TOOL_DETAILS_KEY: {
-                "goal": "Long project",
-                "revision": 6,
-                "todos": [
-                    {"id": "1", "content": "Init", "status": "completed"},
-                    {"id": "2", "content": "Refactor", "status": "completed"},
-                    {"id": "3", "content": "Test", "status": "completed"},
-                    {"id": "4", "content": "Deploy", "status": "in_progress"},
-                ],
+                "revision": 1,
+                "todos": [{"id": "1", "content": "Keep me", "status": "pending"}],
             }
-        },
+        }
+    }
+    malformed = {
+        "extra_data": {
+            TOOL_DETAILS_KEY: {
+                "revision": 2,
+                "todos": [{"id": "2", "content": "Secret task text", "status": "not-a-status"}],
+            }
+        }
     }
 
-    # Only summary node + subsequent nodes present (historical m1..m5 evicted)
-    store = fold_branch_todo_state([compaction_summary_node, msg_after_compaction])
+    with caplog.at_level(logging.WARNING, logger="myrm_agent_harness.runtime.context.tree_state"):
+        store = fold_branch_todo_state([valid, malformed])
+
     assert store is not None
-    assert store.revision == 6
-    assert len(store.todos) == 4
-    assert store.todos[2].status == TodoStatus.COMPLETED
-    assert store.todos[3].status == TodoStatus.IN_PROGRESS
-
-
-def test_corrupted_payload_safety() -> None:
-    corrupted_msg = {
-        "id": "err",
-        "extra_data": {"tool_result_details": "invalid_string_not_dict"},
-    }
-    assert fold_branch_todo_state([corrupted_msg]) is None
+    assert [item.id for item in store.todos] == ["1"]
+    assert "malformed todo snapshot" in caplog.text
+    assert "Secret task text" not in caplog.text
 
 
 def test_emit_todo_progress_events_dispatches_tool_result_details(monkeypatch) -> None:
@@ -222,4 +206,3 @@ def test_emit_todo_progress_events_dispatches_tool_result_details(monkeypatch) -
     assert folded is not None
     assert folded.goal == "Feature development"
     assert folded.revision == 3
-

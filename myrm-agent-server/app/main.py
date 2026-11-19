@@ -15,6 +15,8 @@ OpenAPI schema（含 bearerAuth security scheme 和 API 认证说明）
 应用入口。创建 FastAPI 实例，注册路由和中间件，管理启动/关闭生命周期。
 支持三种运行模式（Desktop/WebUI Local/WebUI Remote），根据环境变量动态配置监听地址和端口。
 通过 _custom_openapi() 注入 bearerAuth security scheme，使 Swagger UI Authorize 按钮可用。
+`/health` 先于全部 include_router 注册：FastAPI 按注册顺序匹配，并在首次匹配时构建途经的每个 router 的路由状态，
+`/health` 排在最后会让第一次健康探测就构建整张路由表（见 app/api/router.py 的首屏路由段）。
 """
 
 from __future__ import annotations
@@ -81,6 +83,14 @@ install_custom_openapi(app)
 
 register_middlewares(app)
 
+
+# Registered before every router: FastAPI matches in registration order and builds the route state of each router a
+# request has to walk past, so a /health registered last would make the first poll build the whole table.
+@app.get("/health")
+async def health_check() -> str:
+    return "ok"
+
+
 app.include_router(api_router, prefix=settings.api_prefix)
 app.include_router(channel_ingress_router, prefix="/api")
 app.include_router(internal_agent_interrupt_router, prefix="/api")
@@ -102,11 +112,6 @@ app.add_exception_handler(Exception, general_exception_handler)
 # 必须在全部 include_router 之后：以已注册路由表为准，为以斜杠结尾的集合端点补齐「去斜杠」别名，
 # 避免经 Next 代理（尾斜杠被吃掉）后触发跨源 307，导致桌面端会话/项目列表加载失败。
 register_trailing_slash_aliases(app)
-
-
-@app.get("/health")
-async def health_check() -> str:
-    return "ok"
 
 
 if __name__ == "__main__":

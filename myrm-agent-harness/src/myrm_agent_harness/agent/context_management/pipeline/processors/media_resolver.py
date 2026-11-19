@@ -27,7 +27,7 @@ Positioned AFTER MediaFilterProcessor in the pipeline:
 - resolve_image_reference_to_data_url: shared SSRF-safe URL→data URL helper
 
 [POS]
-Media reference resolver. Converts StorageProvider URLs and local file paths
+Media reference resolver. Converts StorageProvider URLs, ``media://`` references and local file paths
 in image_url content items to base64 data URLs before LLM invocation.
 """
 
@@ -66,9 +66,13 @@ def _internal_api_origin() -> str:
 
 
 class FileContentReader(Protocol):
-    """Protocol for reading file content by ID (injected by business layer)."""
+    """Protocol for reading stored media bytes by key (injected by business layer).
 
-    async def __call__(self, file_id: str) -> bytes | None: ...
+    The key is an uploaded file id, or a whole ``media://<id>`` reference; the reader returns ``None`` when it
+    holds nothing for the key.
+    """
+
+    async def __call__(self, key: str, /) -> bytes | None: ...
 
 
 async def resolve_image_reference_to_data_url(
@@ -76,7 +80,10 @@ async def resolve_image_reference_to_data_url(
     *,
     file_content_reader: FileContentReader | None = None,
 ) -> str | None:
-    """Resolve HTTP, file, or /api/media image references to a base64 data URL."""
+    """Resolve HTTP, file, media:// or /api/media image references to a base64 data URL."""
+    if url.startswith("media://"):
+        return await _resolve_with_reader(url, file_content_reader)
+
     if url.startswith("file://"):
         return await asyncio.to_thread(_resolve_local_file, url[7:])
 
@@ -99,29 +106,34 @@ async def _resolve_api_file_path(
     if not match:
         return await _resolve_http(f"{_internal_api_origin()}{path}")
 
-    file_id = match.group(1)
-    if file_content_reader:
-        try:
-            data = await file_content_reader(file_id)
-            if data:
-                compressed = await asyncio.to_thread(_compress_for_send, data)
-                return _bytes_to_data_url(compressed, file_id)
-        except Exception as exc:
-            logger.debug(
-                "[MediaResolver] File reader failed for %s, falling back to HTTP: %s",
-                file_id,
-                exc,
-            )
-
+    resolved = await _resolve_with_reader(match.group(1), file_content_reader)
+    if resolved is not None:
+        return resolved
     return await _resolve_http(f"{_internal_api_origin()}{path}")
+
+
+async def _resolve_with_reader(key: str, reader: FileContentReader | None) -> str | None:
+    """The reader's bytes for ``key`` as a send-time data URL; ``None`` without a reader or when it has nothing."""
+    if reader is None:
+        return None
+    try:
+        data = await reader(key)
+    except Exception as exc:
+        logger.debug("[MediaResolver] File reader failed for %s: %s", key, exc)
+        return None
+    if not data:
+        return None
+    compressed = await asyncio.to_thread(_compress_for_send, data)
+    return _bytes_to_data_url(compressed, key)
 
 
 class MediaResolverProcessor(BaseProcessor):
     """Resolve non-base64 image URLs to base64 data URLs for LLM consumption.
 
-    Handles three URL schemes:
+    Handles four URL schemes:
     - HTTP(S): fetches via httpx (StorageProvider API endpoints)
     - file://: reads from local filesystem
+    - media://<id>: resolved via the injected reader (the business layer owns what the id means)
     - Relative API paths (/api/media/...): resolved via injected reader or HTTP fallback
 
     Positioned after MediaFilterProcessor so only surviving images are resolved.
@@ -150,7 +162,7 @@ class MediaResolverProcessor(BaseProcessor):
                 if not is_image_content_item(item):
                     continue
 
-                url = get_image_url(item)  # type: ignore[arg-type]
+                url = get_image_url(item)
                 if not url or is_base64_data_url(url):
                     continue
 

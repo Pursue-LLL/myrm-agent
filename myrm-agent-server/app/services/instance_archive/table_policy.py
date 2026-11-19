@@ -59,7 +59,7 @@ HOST_BOUND_TABLES: frozenset[str] = frozenset(
 SECRET_TABLES: frozenset[str] = frozenset({"agent_secrets", "vault_credentials"})
 
 # In-flight or link-style state that is meaningless (or unsafe to resume) on another host.
-EPHEMERAL_TABLES: frozenset[str] = frozenset({"artifact_share_records", "interrupted_turn_markers"})
+EPHEMERAL_TABLES: frozenset[str] = frozenset({"artifact_share_records", "interrupted_turn_markers", "cron_inflight"})
 
 # Rows keyed by user identity: carried only when the importing identity equals the exporting one.
 IDENTITY_TABLES: frozenset[str] = frozenset({"commitments", "skill_permission_usage_logs", "artifact_audit_logs"})

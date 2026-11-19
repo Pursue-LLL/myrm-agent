@@ -6,8 +6,9 @@
 - app.tasks.events::task_event_bus (POS: 任务状态事件总线)
 
 [OUTPUT]
+- ensure_task_store: SQLite 任务存储按首次使用打开，API 与 worker 共用同一实例
 - start_task_worker / stop_task_worker: 异步任务 worker 启停
-- get_task_store: API 依赖注入用 SQLite 任务存储
+- get_task_store: 已打开的任务存储（尚未打开时抛 RuntimeError，由调用方降级）
 - get_task_worker: API 依赖注入用运行中的 worker（未启动时为 None）
 
 [POS]
@@ -32,10 +33,27 @@ _task_worker_loop: asyncio.Task[None] | None = None
 _task_store_instance: SQLiteTaskStore | None = None
 
 
-def get_task_store() -> SQLiteTaskStore:
-    """Get task store instance (for API dependency injection)."""
+async def ensure_task_store() -> SQLiteTaskStore:
+    """Open the task store on first use and share that one instance.
+
+    The tasks API reads the store from the first request on, while the worker starts after the first screen has
+    loaded, so the store cannot wait for the worker.
+    """
+    global _task_store_instance
+    if _task_store_instance is not None:
+        return _task_store_instance
+    store = SQLiteTaskStore(db_path=str(Path(settings.database.state_dir) / "tasks.db"))
+    await store.initialize()
+    # A concurrent first caller may have finished while this one awaited; every caller must see one instance.
     if _task_store_instance is None:
-        msg = "Task store not initialized. Call start_task_worker() first."
+        _task_store_instance = store
+    return _task_store_instance
+
+
+def get_task_store() -> SQLiteTaskStore:
+    """Get the already opened task store; callers that can degrade (tools, maintenance) handle the RuntimeError."""
+    if _task_store_instance is None:
+        msg = "Task store not initialized. Await ensure_task_store() first."
         raise RuntimeError(msg)
     return _task_store_instance
 
@@ -81,13 +99,10 @@ async def _start_vault_gc() -> None:
 
 async def start_task_worker() -> TaskWorker:
     """Start task worker for async task execution."""
-    global _task_worker_instance, _task_worker_loop, _task_store_instance
+    global _task_worker_instance, _task_worker_loop
 
     try:
-        store_path = Path(settings.database.state_dir) / "tasks.db"
-        store = SQLiteTaskStore(db_path=str(store_path))
-        await store.initialize()
-        _task_store_instance = store
+        store = await ensure_task_store()
 
         from app.tasks.image_config_resolver import resolve_image_generation_config
         from app.tasks.video_config_resolver import resolve_video_generation_config
@@ -139,4 +154,4 @@ async def stop_task_worker() -> None:
             _task_worker_loop = None
 
 
-__all__ = ["start_task_worker", "stop_task_worker", "get_task_store", "get_task_worker"]
+__all__ = ["ensure_task_store", "start_task_worker", "stop_task_worker", "get_task_store", "get_task_worker"]

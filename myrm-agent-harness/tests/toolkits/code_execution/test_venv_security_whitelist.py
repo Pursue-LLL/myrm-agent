@@ -133,7 +133,7 @@ class TestValidateCommandWithVenvWhitelist:
         assert result.is_safe
 
     def test_without_additional_paths_venv_blocked(self, tmp_workspace: Path, tmp_venv: Path) -> None:
-        """Before the fix: venv paths are blocked without additional_paths."""
+        """Without additional_paths, venv paths are blocked."""
         python_path = str(tmp_venv / "bin" / "python")
         script = tmp_workspace / "run.py"
         script.touch()
@@ -199,11 +199,13 @@ class TestGetAllowedPaths:
         assert tmp_workspace.resolve() in paths
 
     def test_no_paths(self) -> None:
-        paths = _get_allowed_paths()
-        assert Path("/workspace") in paths
-        assert Path("/tmp") in paths
-        assert Path("/persistent/.context") in paths
-        assert len(paths) == 3
+        # Exact, so a root added to the list shows up here for review.
+        assert set(_get_allowed_paths()) == {
+            Path("/workspace"),
+            Path("/tmp"),
+            Path("/persistent/.context"),
+            Path("/dev/null"),
+        }
 
 
 class TestIsPathAllowed:

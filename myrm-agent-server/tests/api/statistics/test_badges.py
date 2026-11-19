@@ -2,25 +2,31 @@
 
 pendingApprovals combines goal-approval records with kanban IN_REVIEW tasks
 awaiting human review, so the badge reflects every human-gated decision.
+cronFailures counts every failed cron run of the last 24 hours: an error and a circuit break.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from myrm_agent_harness.toolkits.kanban.types import KanbanBoard, KanbanTask, TaskStatus
 
 from app.services.kanban import KanbanService
+from tests.support.cron_run_rows import FAILURES_IN_THE_LAST_DAY, seed_runs_with_two_recent_failures
 from tests.support.minimal_app import build_minimal_app
+from tests.support.policy_sqlite import policy_database
 
 _app = build_minimal_app("statistics")
 
 
 class TestNavBadges:
-    def test_badges_include_kanban_review(self, monkeypatch) -> None:
-        async def _fake_count(self, status: TaskStatus) -> int:
+    def test_badges_include_kanban_review(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def _fake_count(self: KanbanService, status: TaskStatus) -> int:
             return 3
 
         monkeypatch.setattr(KanbanService, "count_tasks_by_status", _fake_count)
@@ -32,7 +38,7 @@ class TestNavBadges:
         assert body["pendingApprovals"] == 3
         assert body["total"] == 3
 
-    def test_badges_survive_missing_kanban(self, monkeypatch) -> None:
+    def test_badges_survive_missing_kanban(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from sqlalchemy.exc import OperationalError
 
         from app.services.kanban.service_mixins import query_dispatcher_mixin as qdm
@@ -48,6 +54,27 @@ class TestNavBadges:
         assert resp.json()["data"]["pendingApprovals"] == 0
 
 
+class TestCronFailureBadge:
+    """Real SQL rows behind cronFailures: the badge and the failed run list share one definition of a failure."""
+
+    @pytest.mark.asyncio
+    async def test_counts_errors_and_circuit_breaks_of_the_last_day(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def no_review(self: KanbanService, status: TaskStatus) -> int:
+            return 0
+
+        monkeypatch.setattr(KanbanService, "count_tasks_by_status", no_review)
+
+        async with policy_database(tmp_path / "badges.db", monkeypatch):
+            await seed_runs_with_two_recent_failures()
+            async with AsyncClient(transport=ASGITransport(app=_app), base_url="http://test") as client:
+                response = await client.get("/api/v1/statistics/badges")
+
+        assert response.status_code == 200
+        assert response.json()["data"]["cronFailures"] == FAILURES_IN_THE_LAST_DAY
+
+
 class TestKanbanCountRealStore:
     """Real SQL store chain behind pendingApprovals.
 
@@ -57,7 +84,7 @@ class TestKanbanCountRealStore:
     """
 
     @pytest.fixture(autouse=True)
-    def _reset_singleton(self) -> None:
+    def _reset_singleton(self) -> Iterator[None]:
         KanbanService._instance = None
         yield
         KanbanService._instance = None

@@ -12,7 +12,7 @@ from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode
 from app.channels.types import ApprovalExpiry
 from app.core.channel_bridge.agent_executor.approval_card import build_approval_card
 
-_LOCALES = ["en", "ja", "zh-CN", "zh-TW"]
+_LOCALES = ["en", "zh-CN"]
 _SESSION = "telegram:dm:u1:e=2026-10-26"
 _ONE_TOOL: dict[str, object] = {
     "actionRequests": [{"action": "shell", "description": "run the build"}],

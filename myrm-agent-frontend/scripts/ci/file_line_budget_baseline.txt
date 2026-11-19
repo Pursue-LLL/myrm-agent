@@ -4,7 +4,6 @@ src/app/library/components/WikiGraph3D.tsx
 src/app/subscription/page.tsx
 src/components/agent/builtin-agent-i18n-data.ts
 src/components/billing/QuotaDisplay.tsx
-src/components/dev/E2EChatBridge.tsx
 src/components/features/app-shell/search-dialog.tsx
 src/components/features/artifacts/ArtifactCard.tsx
 src/components/features/artifacts/ArtifactPortal.tsx
@@ -48,7 +47,6 @@ src/components/features/message-box/TokenUsageDisplay.tsx
 src/components/features/message-box/progress-steps/renderers/EvictedOutputDrawer.tsx
 src/components/features/message-input-actions/AgentIndicator.tsx
 src/components/features/message-input-actions/GoalModeToggle.tsx
-src/components/features/runs/RunsHub.tsx
 src/components/features/settings/ConfigImportExport.tsx
 src/components/features/settings/SearchServiceEditDialog.tsx
 src/components/features/settings/SettingsMenu.tsx
@@ -69,7 +67,6 @@ src/components/features/settings/sections/integration/channels/useChannelsState.
 src/components/features/settings/sections/integration/credentials/CredentialsDialogs.tsx
 src/components/features/settings/sections/integration/integrations/IntegrationConnectDialog.test.tsx
 src/components/features/settings/sections/knowledge/MemoryGuardianCard.tsx
-src/components/features/settings/sections/knowledge/MigrationWizardSection.tsx
 src/components/features/settings/sections/knowledge/WikiDuplicateReviewPanel.tsx
 src/components/features/settings/sections/knowledge/wiki/useWikiConceptsList.ts
 src/components/features/settings/sections/system/AccessCard.tsx
@@ -124,7 +121,6 @@ src/store/builtinActions.ts
 src/store/chat/messageManagement.ts
 src/store/chat/messageStream/handlers/statusStreamProgressSteps.ts
 src/store/chat/types/agentStream/part1.ts
-src/store/config/providerTypes.ts
 src/store/memory/useMemoryStore.ts
 src/store/useArtifactPortalStore.ts
 src/store/useChatStore.ts

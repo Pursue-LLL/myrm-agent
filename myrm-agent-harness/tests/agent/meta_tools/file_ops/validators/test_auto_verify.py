@@ -12,8 +12,8 @@ from myrm_agent_harness.agent.meta_tools.file_ops.validators.auto_verify import 
     Diagnostic,
     _filter_diagnostics,
     _format_diagnostics,
-    _parse_generic_output,
     _parse_pyright_output,
+    _parse_pyright_text_output,
     _reset_cache,
     run_auto_verify,
 )
@@ -33,22 +33,9 @@ class TestLinterRegistry:
         assert ".py" in LINTER_REGISTRY
         assert "pyright" in LINTER_REGISTRY[".py"].command_template
 
-    def test_typescript_extension_registered(self):
-        assert ".ts" in LINTER_REGISTRY
-        assert "tsc" in LINTER_REGISTRY[".ts"].command_template
-        assert "--skipLibCheck" in LINTER_REGISTRY[".ts"].command_template
-
-    def test_tsx_extension_registered(self):
-        assert ".tsx" in LINTER_REGISTRY
-        assert LINTER_REGISTRY[".tsx"].detect_cmd == "tsc"
-
-    def test_go_extension_registered(self):
-        assert ".go" in LINTER_REGISTRY
-        assert "go vet" in LINTER_REGISTRY[".go"].command_template
-
-    def test_rust_extension_registered(self):
-        assert ".rs" in LINTER_REGISTRY
-        assert "cargo" in LINTER_REGISTRY[".rs"].detect_cmd
+    def test_only_python_is_registered(self):
+        """A per-file TypeScript, Go or Rust check is silent or reports phantom errors, so none is registered."""
+        assert set(LINTER_REGISTRY) == {".py"}
 
     def test_unsupported_extension(self):
         assert ".md" not in LINTER_REGISTRY
@@ -97,8 +84,8 @@ class TestParsePyrightOutput:
         assert len(result) == 1
         assert result[0].severity == "error"
 
-    def test_invalid_json_fallback_to_generic(self):
-        raw = "src/main.py(5,12): error TS2322: Type 'string' is not assignable"
+    def test_invalid_json_falls_back_to_text_output(self):
+        raw = "src/main.py:5:12 - error: Type 'str' is not assignable"
         result = _parse_pyright_output(raw)
         assert len(result) == 1
 
@@ -123,32 +110,29 @@ class TestParsePyrightOutput:
         assert result[0].file == ""
 
 
-class TestParseGenericOutput:
-    def test_tsc_format(self):
-        raw = "src/app.ts(10,5): error TS2322: Type 'string' is not assignable to type 'number'."
-        result = _parse_generic_output(raw)
-        assert len(result) == 1
-        assert result[0].file == "src/app.ts"
-        assert result[0].line == 10
-        assert result[0].col == 5
-        assert "not assignable" in result[0].message
-
-    def test_multiple_errors(self):
-        raw = "src/a.ts(1,1): error TS001: First error\nsrc/b.ts(2,3): error TS002: Second error\n"
-        result = _parse_generic_output(raw)
-        assert len(result) == 2
-
-    def test_colon_format(self):
+class TestParsePyrightTextOutput:
+    def test_text_format(self):
         raw = "src/main.py:5:12 - error: Cannot access attribute"
-        result = _parse_generic_output(raw)
+        result = _parse_pyright_text_output(raw)
         assert len(result) == 1
+        assert result[0].file == "src/main.py"
         assert result[0].line == 5
         assert result[0].col == 12
+        assert "Cannot access attribute" in result[0].message
+
+    def test_multiple_errors(self):
+        raw = "src/a.py:1:1 - error: First error\nsrc/b.py:2:3 - error: Second error\n"
+        result = _parse_pyright_text_output(raw)
+        assert len(result) == 2
 
     def test_ignores_non_error_lines(self):
         raw = "Compiling...\nDone. No errors found."
-        result = _parse_generic_output(raw)
+        result = _parse_pyright_text_output(raw)
         assert len(result) == 0
+
+    def test_tsc_style_lines_are_not_diagnostics(self):
+        raw = "src/app.ts(10,5): error TS2322: Type 'string' is not assignable to type 'number'."
+        assert _parse_pyright_text_output(raw) == []
 
 
 class TestFilterDiagnostics:
@@ -235,6 +219,14 @@ class TestRunAutoVerify:
     async def test_unsupported_extension_returns_none(self):
         executor = AsyncMock()
         result = await run_auto_verify(executor, "/workspace/readme.md")
+        assert result is None
+        executor.execute_bash.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name", ["a.ts", "a.tsx", "a.go", "a.rs", "a.js"])
+    async def test_languages_without_a_registered_linter_start_no_process(self, name):
+        executor = AsyncMock()
+        result = await run_auto_verify(executor, f"/workspace/{name}")
         assert result is None
         executor.execute_bash.assert_not_called()
 
@@ -342,8 +334,8 @@ class TestRunAutoVerify:
         assert "Far away" not in result
 
     @pytest.mark.asyncio
-    async def test_pyright_invalid_json_falls_back_to_generic(self):
-        """When pyright outputs non-JSON, fallback to generic parser."""
+    async def test_pyright_invalid_json_falls_back_to_text_output(self):
+        """When pyright outputs non-JSON, its text format is parsed instead."""
         executor = AsyncMock()
 
         which_result = AsyncMock()
@@ -351,7 +343,7 @@ class TestRunAutoVerify:
 
         lint_result = AsyncMock()
         lint_result.success = False
-        lint_result.stdout = "/workspace/main.py(5,3): error PY001: Undefined variable 'foo'"
+        lint_result.stdout = "/workspace/main.py:5:3 - error: Undefined variable 'foo'"
         lint_result.stderr = ""
 
         executor.execute_bash.side_effect = [which_result, lint_result]
@@ -393,10 +385,10 @@ class TestRunAutoVerify:
         which_result.success = False
         executor.execute_bash.return_value = which_result
 
-        result1 = await run_auto_verify(executor, "/workspace/a.go")
+        result1 = await run_auto_verify(executor, "/workspace/a.py")
         assert result1 is None
 
-        result2 = await run_auto_verify(executor, "/workspace/b.go")
+        result2 = await run_auto_verify(executor, "/workspace/b.py")
         assert result2 is None
 
         which_calls = [c for c in executor.execute_bash.call_args_list if "which" in str(c)]

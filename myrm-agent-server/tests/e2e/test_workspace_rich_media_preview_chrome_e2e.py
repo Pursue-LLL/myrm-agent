@@ -120,7 +120,7 @@ def _attach_chat_probe_js(chat_id: str) -> str:
 def _open_workspace_tab_js() -> str:
     return """(() => {
   const tab = Array.from(document.querySelectorAll('button')).find((b) =>
-    /Files|文件|檔案/.test(b.textContent || ''),
+    /Files|文件/.test(b.textContent || ''),
   );
   if (tab) tab.click();
   const store = window.__myrmChatStore?.getState?.() ?? null;
@@ -172,7 +172,7 @@ def _close_preview_js() -> str:
   const panel = document.querySelector('[data-testid="workspace-file-preview"]');
   if (!panel) return { ok: false };
   const btn = Array.from(panel.querySelectorAll('button')).find((b) =>
-    /Close|关闭|關閉/i.test(b.title || ''),
+    /Close|关闭/i.test(b.title || ''),
   );
   if (!btn) return { ok: false };
   btn.click();
@@ -230,7 +230,7 @@ def _svg_preview_ready_js() -> str:
     svgCount: panel ? panel.querySelectorAll('svg').length : 0,
     panelTextSample: innerText.slice(0, 240),
     hasSpinner: Boolean(panel?.querySelector('.animate-spin')),
-    hasError: /Failed to load|加载失败|載入失敗/.test(innerText),
+    hasError: /Failed to load|加载失败/.test(innerText),
   };
 })()"""
 
@@ -239,7 +239,7 @@ def _svg_large_preview_degraded_js() -> str:
     return """(() => {
   const panel = document.querySelector('[data-testid="workspace-file-preview"]');
   const txt = panel?.innerText || '';
-  const degraded = /Failed to load preview|预览加载失败|預覽載入失敗/.test(txt);
+  const degraded = /Failed to load preview|预览加载失败/.test(txt);
   return {
     ready: degraded,
     bodyLength: (document.body?.innerText || '').length,

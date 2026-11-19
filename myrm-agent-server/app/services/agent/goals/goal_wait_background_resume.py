@@ -2,7 +2,8 @@
 
 [INPUT]
 - myrm_agent_harness.api.hooks::BackgroundJobFinishResult (POS: harness finish payload)
-- app.services.agent.goals.goal_registry::GoalRegistry (POS: session GoalProvider lookup)
+- app.services.agent.params.workspace_resolve::chat_id_from_session_id (POS: the chat a harness session key belongs to)
+- app.services.agent.goals.goal_registry::GoalRegistry (POS: the chat's goal provider, storage-backed between turns)
 - app.services.agent.goals.unattended::trigger_goal_stream_with_failure_policy (POS: unattended headless stream + failure SSOT)
 
 [OUTPUT]
@@ -10,7 +11,9 @@
 
 [POS]
 Server-side companion to harness wait_background_bash auto-enter — closes the WAIT
-barrier when the tracked background job exits and resumes autonomous execution.
+barrier when the tracked background job exits and resumes autonomous execution. The harness reports the
+session key of the run that started the job while the goal is stored under the chat, and the job ends between
+turns, so the goal is looked up by chat through the registry's provider, which reads storage when no turn runs.
 """
 
 from __future__ import annotations
@@ -20,6 +23,8 @@ import logging
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.agent.goals.wait_background_bash import WAIT_ON_BACKGROUND_JOB_ID_KEY
 from myrm_agent_harness.api.hooks import BackgroundJobFinishResult
+
+from app.services.agent.params.workspace_resolve import chat_id_from_session_id
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +36,10 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
 
     from app.services.agent.goals.goal_registry import GoalRegistry
 
-    provider = GoalRegistry.get_provider(result.session_id)
-    if provider is None:
-        return False
+    chat_id = chat_id_from_session_id(result.session_id)
+    provider = GoalRegistry.resolve_provider(chat_id)
 
-    goal = await provider.get_latest_goal(result.session_id)
+    goal = await provider.get_latest_goal(chat_id)
     if goal is None or goal.status != GoalStatus.WAIT:
         return False
 
@@ -45,9 +49,6 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
 
     wait_job_id = str(wait_job_id_raw).strip()
     if not wait_job_id or wait_job_id != result.job_id:
-        return False
-
-    if not hasattr(provider, "exit_wait"):
         return False
 
     await provider.exit_wait(goal.goal_id)
@@ -68,13 +69,7 @@ async def maybe_resume_goal_after_background_job(result: BackgroundJobFinishResu
 
     from app.services.agent.goals.unattended import trigger_goal_stream_with_failure_policy
 
-    return await trigger_goal_stream_with_failure_policy(
-        result.session_id,
-        refreshed,
-        provider,
-        on_failure="needs_human_review",
-        context="background wait resume",
-    )
+    return await trigger_goal_stream_with_failure_policy(chat_id, refreshed, context="background wait resume")
 
 
 __all__ = ["maybe_resume_goal_after_background_job"]

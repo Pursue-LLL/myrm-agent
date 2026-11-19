@@ -363,4 +363,10 @@ describe('SharedContextPanel', () => {
     expect(await screen.findByText('Customer A asked us to include incident trend charts.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /history\.promote/ })).toBeDisabled();
   }, 15000);
+
+  it('stops typing and pasting in the history search box at the 200 characters the server accepts', async () => {
+    render(<SharedContextPanel />);
+
+    expect(await screen.findByPlaceholderText('history.searchPlaceholder')).toHaveAttribute('maxlength', '200');
+  });
 }, 30000);

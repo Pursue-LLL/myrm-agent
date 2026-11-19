@@ -114,18 +114,13 @@ async def test_a_rule_buffered_in_a_session_is_stored_with_one_wrapper_and_a_wra
 @pytest.mark.parametrize("manage", MANAGES)
 async def test_an_edit_of_a_rule_reaches_the_prompt(new_manager: NewManager, manage: Manage) -> None:
     manager = new_manager()
-    rule = await manager.add_rule(TRIGGER, ACTION, trigger_keywords=["deploy"])
+    rule = await manager.add_rule(TRIGGER, ACTION)
 
     reply = await manage(manager, {"action": "update", "memory_id": rule.id, "new_content": REWORDED})
 
     assert reply == f"Memory updated (ID: {rule.id})"
     kept = await stored_rule(manager, rule.id)
-    assert (kept.trigger, kept.action, kept.content, kept.trigger_keywords) == (
-        TRIGGER,
-        REWORDED,
-        f"When: {TRIGGER} → Do: {REWORDED}",
-        ["deploy"],
-    )
+    assert (kept.trigger, kept.action, kept.content) == (TRIGGER, REWORDED, f"When: {TRIGGER} → Do: {REWORDED}")
     assert await prompt_rules(manager) == [(TRIGGER, REWORDED)]
 
 

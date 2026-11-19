@@ -7,7 +7,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 
 type Messages = Record<string, unknown>;
 
-const LOCALES = ['zh', 'en', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LOCALES = ['zh', 'en'] as const;
 type Locale = (typeof LOCALES)[number];
 
 function isRecord(value: unknown): value is Messages {
@@ -188,7 +188,7 @@ describe('center page header subtitles', () => {
       const text = message(catalogs[locale], path);
 
       expect(text).not.toMatch(CJK_THEN_LATIN_SLASH);
-      if (locale === 'en' || locale === 'de') {
+      if (locale === 'en') {
         expect(text).not.toMatch(CJK);
       } else {
         expect(text).toMatch(CJK);

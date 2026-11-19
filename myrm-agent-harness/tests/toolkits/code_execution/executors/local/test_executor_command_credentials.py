@@ -19,7 +19,7 @@ from myrm_agent_harness.core.security.ephemeral_credentials import command_diges
 from myrm_agent_harness.core.security.types import EphemeralUserCredential, user_credentials_ctx
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionContext, ExecutionResult
 
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="drives a real bash shell")
 
@@ -65,7 +65,7 @@ async def _run(
     env: dict[str, str] | None = None,
     skill_env: dict[str, str] | None = None,
 ) -> str:
-    result = await executor.execute_bash(
+    result: ExecutionResult = await executor.execute_bash(
         ExecutionContext(
             code=command,
             session_id="one-conversation",
@@ -124,27 +124,6 @@ class TestUserCredentials:
                 "github-secret-1"
             )
             assert await _run(executor, tmp_path, _read_command("FEISHU_USER_ACCESS_TOKEN"), issuers=[]) == "NONE"
-
-    async def test_stream_path_delivers_credentials_to_a_running_shell(
-        self, executor: LocalExecutor, tmp_path: Path
-    ) -> None:
-        await _run(executor, tmp_path, "echo started")
-        with _credentials(_GITHUB):
-            chunks = [
-                chunk
-                async for chunk in executor.execute_bash_stream(
-                    ExecutionContext(
-                        code=_read_command("GITHUB_TOKEN"),
-                        session_id="one-conversation",
-                        work_dir=str(tmp_path),
-                        workspace_root=str(tmp_path),
-                        timeout=30,
-                    )
-                )
-            ]
-        assert _hex("github-secret-1") in "".join(chunks)
-        with _credentials():
-            assert await _run(executor, tmp_path, _read_command("GITHUB_TOKEN")) == "NONE"
 
 
 class TestEphemeralCredentials:
@@ -213,30 +192,6 @@ class TestEphemeralCredentials:
         assert credential_line == _hex("one-time-pw")
         assert path_line.endswith("/data.csv")
         assert not path_line.startswith("/workspace/")
-
-    async def test_stream_path_follows_the_approved_command_through_script_preparation(
-        self, executor: LocalExecutor, tmp_path: Path, approval_session: str
-    ) -> None:
-        issued = _read_command("DB_PASSWORD")
-        get_ephemeral_credential_store().store_credential(
-            approval_session, "DB_PASSWORD", "one-time-pw", expected_action_digest=command_digest(issued)
-        )
-
-        chunks = [
-            chunk
-            async for chunk in executor.execute_bash_stream(
-                ExecutionContext(
-                    code=f"export CI=1\n\n{issued}",
-                    original_code=issued,
-                    session_id="one-conversation",
-                    work_dir=str(tmp_path),
-                    workspace_root=str(tmp_path),
-                    timeout=30,
-                )
-            )
-        ]
-
-        assert _hex("one-time-pw") in "".join(chunks)
 
     async def test_credential_is_not_delivered_to_a_command_that_was_not_approved(
         self, executor: LocalExecutor, tmp_path: Path, approval_session: str
@@ -307,26 +262,6 @@ class TestSkillSecrets:
         self, executor: LocalExecutor, tmp_path: Path, name: str
     ) -> None:
         assert await _run(executor, tmp_path, _read_command(name), skill_env={name: "/tmp/planted"}) == "NONE"
-
-    async def test_stream_path_delivers_the_secret_to_its_skill_command(
-        self, executor: LocalExecutor, tmp_path: Path
-    ) -> None:
-        chunks = [
-            chunk
-            async for chunk in executor.execute_bash_stream(
-                ExecutionContext(
-                    code=_read_command("EMAIL_IMAP_PASSWORD"),
-                    session_id="one-conversation",
-                    work_dir=str(tmp_path),
-                    workspace_root=str(tmp_path),
-                    env=_SKILL_SETTINGS,
-                    skill_env=_SKILL_SETTINGS,
-                    timeout=30,
-                )
-            )
-        ]
-        assert _hex("skill-pw-1") in "".join(chunks)
-        assert await _run(executor, tmp_path, _read_command("EMAIL_IMAP_PASSWORD")) == "NONE"
 
     async def test_a_credential_issued_for_the_command_wins_over_the_skill_setting(
         self, executor: LocalExecutor, tmp_path: Path

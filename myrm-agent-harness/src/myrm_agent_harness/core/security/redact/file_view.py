@@ -5,11 +5,15 @@ as a string literal, so its text is redacted in source mode: the name-based assi
 carry a string literal, every value-shape pass runs everywhere. Any other file (``.env``, YAML, JSON, TOML, INI,
 shell, Markdown, a file of unknown type) is redacted in full, because a credential there is a bare assignment.
 
+The text a reader extracts from a media or document file is not the file's own lines. A notebook's raw lines are JSON
+(redacted in full, as grep shows them), but its extracted text is the code of its cells, so that is redacted as source.
+
 [INPUT]
 - engine::redact_sensitive_text (POS: redaction pipeline)
 
 [OUTPUT]
-- redact_file_text: the redacted text taken from one path
+- redact_file_text: the redacted text of a file's own lines
+- redact_extracted_text: the redacted text a media or document reader extracted from one path
 
 [POS]
 The per-file redaction step shared by the tools that show a file's text to the model (file_read_tool, grep_tool), so
@@ -31,8 +35,21 @@ _SOURCE_SUFFIXES = frozenset(
     }
 )  # fmt: skip
 
+# Documents whose extracted text is code: a notebook is read as the text of its cells.
+_CODE_DOCUMENT_SUFFIXES = frozenset({".ipynb"})
+
 
 def redact_file_text(path: str, text: str) -> str:
-    """Return ``text``, taken from the file at ``path`` (no ``:range`` suffix), with its secrets masked."""
+    """Return ``text``, the lines of the file at ``path`` (no ``:range`` suffix), with its secrets masked."""
     suffix = PurePosixPath(path).suffix.lower()
     return redact_sensitive_text(text, source_code=suffix in _SOURCE_SUFFIXES)
+
+
+def redact_extracted_text(path: str, text: str) -> str:
+    """Return ``text``, extracted by a media or document reader from the file at ``path``, with its secrets masked.
+
+    The text of a notebook's cells is code, so it is redacted as source; the text of any other file (Word, Excel,
+    slides, PDF, an image's description, a video's transcript) is prose or tables and is redacted in full.
+    """
+    suffix = PurePosixPath(path).suffix.lower()
+    return redact_sensitive_text(text, source_code=suffix in _CODE_DOCUMENT_SUFFIXES)

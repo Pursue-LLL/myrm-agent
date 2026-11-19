@@ -39,16 +39,16 @@ def sent(monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[Answer], list[Pr
     yield arm
 
 
-async def _generate(model: str, *, size: str = "1024x1024", n: int = 1, **overrides: object) -> list[GeneratedImage]:
-    params: dict[str, object] = {
-        "quality": "standard",
-        "style": None,
-        "api_key": "k",
-        "api_base": None,
-        "timeout": 30.0,
-    }
+async def _generate(model: str, *, size: str = "1024x1024", **overrides: object) -> list[GeneratedImage]:
+    params: dict[str, object] = {"quality": None, "api_key": "k", "api_base": None, "timeout": 30.0}
     params.update(overrides)
-    return await agenerate_images(model, "a cat", size=size, n=n, **params)  # type: ignore[arg-type]
+    return await agenerate_images(model, "a cat", size=size, **params)  # type: ignore[arg-type]
+
+
+async def _edit(image: bytes, *, model: str = "gpt-image-1", **overrides: object) -> list[GeneratedImage]:
+    params: dict[str, object] = {"mask": None, "quality": None, "api_key": "k", "api_base": None, "timeout": 30.0}
+    params.update(overrides)
+    return await aedit_images(model, image, "edit", size="1024x1024", **params)  # type: ignore[arg-type]
 
 
 _OPENAI_ANSWER: Answer = {
@@ -59,18 +59,16 @@ _OPENAI_ANSWER: Answer = {
 class TestOpenAIFamily:
     async def test_request_and_parse(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent(_OPENAI_ANSWER)
-        result = await _generate("dall-e-3", style="vivid")
+        result = await _generate("gpt-image-2.6-sunburst", quality="high")
 
         (request,) = requests
         assert request.url == "https://api.openai.com/v1/images/generations"
         assert request.headers["Authorization"] == "Bearer k"
         assert request.body == {
             "prompt": "a cat",
-            "n": 1,
             "size": "1024x1024",
-            "model": "dall-e-3",
-            "quality": "standard",
-            "style": "vivid",
+            "model": "gpt-image-2.6-sunburst",
+            "quality": "high",
         }
         assert request.timeout == 30.0
         assert result == [
@@ -78,20 +76,18 @@ class TestOpenAIFamily:
             GeneratedImage(b64_json="QUJD"),
         ]
 
-    async def test_quality_and_style_are_omitted_when_unset(
-        self, sent: Callable[[Answer], list[PreparedRequest]]
-    ) -> None:
+    async def test_quality_is_omitted_when_unset(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent(_OPENAI_ANSWER)
-        await _generate("gpt-image-1", quality=None)
-        assert set(requests[0].body or {}) == {"prompt", "n", "size", "model"}
+        await _generate("gpt-image-1")
+        assert set(requests[0].body or {}) == {"prompt", "size", "model"}
 
-    @pytest.mark.parametrize("model", ["gpt-image-1", "dall-e-2", "xai/grok-imagine-image"])
-    async def test_style_is_sent_to_dall_e_3_only(
+    @pytest.mark.parametrize("model", ["gpt-image-2.6-flare", "xai/grok-imagine-image", "flux/schnell"])
+    async def test_one_request_asks_for_one_image_and_no_style(
         self, sent: Callable[[Answer], list[PreparedRequest]], model: str
     ) -> None:
         requests = sent(_OPENAI_ANSWER)
-        await _generate(model, style="vivid")
-        assert "style" not in (requests[0].body or {})
+        await _generate(model, quality="low")
+        assert {"n", "style"}.isdisjoint(requests[0].body or {})
 
     @pytest.mark.parametrize(
         ("model", "url"),
@@ -123,7 +119,7 @@ class TestOpenAIFamily:
 
     async def test_full_endpoint_url_is_not_doubled(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent(_OPENAI_ANSWER)
-        await _generate("dall-e-3", api_base="https://gw.example/v1/images/generations")
+        await _generate("gpt-image-1", api_base="https://gw.example/v1/images/generations")
         assert requests[0].url == "https://gw.example/v1/images/generations"
 
     async def test_azure_addresses_the_deployment_in_the_url(
@@ -140,7 +136,7 @@ class TestOpenAIFamily:
     async def test_empty_answer_is_an_error(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         sent({"data": []})
         with pytest.raises(ValueError, match="returned no image"):
-            await _generate("dall-e-3")
+            await _generate("gpt-image-1")
 
     async def test_unknown_model_without_base_is_rejected(self) -> None:
         with pytest.raises(UnsupportedProviderError):
@@ -151,20 +147,20 @@ class TestOpenAIFamily:
     ) -> None:
         monkeypatch.setenv("OPENAI_API_KEY", "from-env")
         requests = sent(_OPENAI_ANSWER)
-        await _generate("dall-e-3", api_key=None)
+        await _generate("gpt-image-1", api_key=None)
         assert "Authorization" not in requests[0].headers
 
 
 class TestEdit:
-    async def test_dall_e_2_uploads_a_single_image(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
+    async def test_image_and_mask_are_uploaded_as_a_form(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent(_OPENAI_ANSWER)
         result = await aedit_images(
-            "dall-e-2",
+            "gpt-image-1",
             _PNG,
             "make it blue",
             mask=b"\x89PNG\r\n\x1a\nmask",
             size="1024x1024",
-            n=1,
+            quality=None,
             api_key="k",
             api_base=None,
             timeout=30.0,
@@ -173,57 +169,55 @@ class TestEdit:
         (request,) = requests
         assert request.url == "https://api.openai.com/v1/images/edits"
         assert request.body is None
-        assert request.form == {"prompt": "make it blue", "n": "1", "size": "1024x1024", "model": "dall-e-2"}
+        assert request.form == {"prompt": "make it blue", "size": "1024x1024", "model": "gpt-image-1"}
         assert request.files is not None
-        assert set(request.files) == {"image", "mask"}
-        assert request.files["image"] == ("image.png", _PNG, "image/png")
+        assert set(request.files) == {"image[]", "mask"}
+        assert request.files["image[]"] == ("image.png", _PNG, "image/png")
         assert len(result) == 2
 
-    async def test_gpt_image_uploads_a_list_field(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
+    async def test_the_image_is_a_list_field_without_a_mask(
+        self, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
         requests = sent(_OPENAI_ANSWER)
-        await aedit_images(
-            "gpt-image-1", _PNG, "edit", mask=None, size="1024x1024", n=1, api_key="k", api_base=None, timeout=30.0
-        )
+        await _edit(_PNG)
         assert requests[0].files is not None
         assert set(requests[0].files) == {"image[]"}
+
+    async def test_quality_is_a_form_field_only_when_the_caller_names_one(
+        self, sent: Callable[[Answer], list[PreparedRequest]]
+    ) -> None:
+        requests = sent(_OPENAI_ANSWER)
+        await _edit(_PNG, quality="high")
+        await _edit(_PNG)
+        assert requests[0].form is not None
+        assert requests[0].form["quality"] == "high"
+        assert requests[1].form is not None
+        assert "quality" not in requests[1].form
 
     async def test_jpeg_upload_is_labelled_by_its_content(
         self, sent: Callable[[Answer], list[PreparedRequest]]
     ) -> None:
         requests = sent(_OPENAI_ANSWER)
-        jpeg = b"\xff\xd8\xff\xe0" + b"\x00" * 16
-        await aedit_images(
-            "gpt-image-1", jpeg, "edit", mask=None, size="1024x1024", n=1, api_key="k", api_base=None, timeout=30.0
-        )
+        await _edit(b"\xff\xd8\xff\xe0" + b"\x00" * 16)
         assert requests[0].files is not None
         assert requests[0].files["image[]"][2] == "image/jpeg"  # type: ignore[index]
 
     async def test_provider_without_an_edit_endpoint_is_rejected(self) -> None:
         with pytest.raises(UnsupportedProviderError, match="no image editing endpoint"):
-            await aedit_images(
-                "gemini/imagen-3.0-generate-002",
-                _PNG,
-                "edit",
-                mask=None,
-                size="1024x1024",
-                n=1,
-                api_key="k",
-                api_base=None,
-                timeout=30.0,
-            )
+            await _edit(_PNG, model="gemini/imagen-3.0-generate-002")
 
 
 class TestGemini:
     async def test_imagen_predict(self, sent: Callable[[Answer], list[PreparedRequest]]) -> None:
         requests = sent({"predictions": [{"bytesBase64Encoded": "QUJD"}]})
-        result = await _generate("gemini/imagen-3.0-generate-002", size="1792x1024", n=2)
+        result = await _generate("gemini/imagen-3.0-generate-002", size="1792x1024")
 
         (request,) = requests
         assert request.url == "https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict"
         assert request.headers == {"x-goog-api-key": "k"}
         assert request.body == {
             "instances": [{"prompt": "a cat"}],
-            "parameters": {"sampleCount": 2, "aspectRatio": "16:9"},
+            "parameters": {"sampleCount": 1, "aspectRatio": "16:9"},
         }
         assert result == [GeneratedImage(b64_json="QUJD")]
 
@@ -280,7 +274,6 @@ class TestGemini:
             "contents": [{"parts": [{"text": "a cat"}]}],
             "generationConfig": {
                 "response_modalities": ["IMAGE", "TEXT"],
-                "candidateCount": 1,
                 "imageConfig": {"aspectRatio": "1:1", "imageSize": "2K"},
             },
         }
@@ -342,7 +335,7 @@ class TestMiniMax:
         requests = sent(
             {"base_resp": {"status_code": 0}, "data": {"image_urls": ["https://img/1.png"], "image_base64": ["QUJD"]}}
         )
-        result = await _generate("minimax_image/image-01", size="1280x720", n=2)
+        result = await _generate("minimax_image/image-01", size="1280x720")
 
         (request,) = requests
         assert request.url == "https://api.minimax.io/v1/image_generation"
@@ -352,7 +345,6 @@ class TestMiniMax:
             "prompt": "a cat",
             "aspect_ratio": "16:9",
             "response_format": "url",
-            "n": 2,
         }
         assert result == [GeneratedImage(url="https://img/1.png"), GeneratedImage(b64_json="QUJD")]
 

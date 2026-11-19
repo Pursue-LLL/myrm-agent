@@ -24,7 +24,7 @@ from tests.support.chrome_mcp_e2e import (
 )
 
 _LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-_LOCALES = ("en", "zh", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh")
 
 _DISMISS_MIGRATION_JS = """(() => {
   try {

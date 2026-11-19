@@ -10,6 +10,7 @@ myrm_agent_harness.toolkits.memory.relational._schema (POS: Table DDL, scope mig
 myrm_agent_harness.toolkits.memory.relational.base (POS: Relational store abstraction layer)
 myrm_agent_harness.toolkits.memory.relational.exceptions
 myrm_agent_harness.toolkits.memory.types (POS: Memory type definitions)
+myrm_agent_harness.utils.db.sqlite (POS: Public facade of the unified SQLite hardening factory)
 
 [OUTPUT]
 SQLiteRelationalStore: Async SQLite relational store with WAL mode,
@@ -47,6 +48,12 @@ from myrm_agent_harness.toolkits.memory.relational.exceptions import (
     RelationalStoreError,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryScope, MemorySearchResult
+from myrm_agent_harness.utils.db.sqlite import (
+    DURABLE,
+    checkpoint_truncate_async,
+    open_hardened_async,
+    prepare_database_file,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +64,8 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
     Features:
     - Async I/O via aiosqlite
     - WAL mode for concurrent reads
-    - Connection reuse with double-checked locking
+    - Connection reuse with double-checked locking; a connection is kept only once it is hardened, its tables
+      exist and the first quick check passed, so a failed or cancelled open leaves nothing behind
     - JSON column support for metadata/keywords
     - Composite index optimization
 
@@ -76,7 +84,6 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
         # Replacing one memory's index rows takes several statements on the one shared connection; without
         # this lock, concurrent replacements interleave and leave the rows of every writer behind.
         self._exact_fact_write_lock = asyncio.Lock()
-        self._initialized = False
         self._closed = False
         self._fts5_supported = False
         logger.info("SQLiteRelationalStore initialized: %s", self._db_path)
@@ -90,31 +97,13 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                     raise RelationalConnectionError("Store has been closed")
                 if self._connection is None:
                     try:
-                        from myrm_agent_harness.utils.db.sqlite import (
-                            prepare_database_file,
-                        )
-
                         prepare_database_file(self._db_path)
-                        self._connection = await aiosqlite.connect(str(self._db_path))
-                        await self._init_connection_settings()
-                        await self._init_tables()
-                        # Fast quick_check on connection establishment
-                        async with self._connection.execute("PRAGMA quick_check(1)") as cursor:
-                            rows = list(await cursor.fetchall())
-                        if not rows or len(rows) != 1 or str(rows[0][0]).lower() != "ok":
-                            await self._connection.close()
-                            self._connection = None
-                            raise CorruptedMemoryIndexError(
-                                f"SQLite store {self._db_path} failed initial quick_check: {rows}",
-                                db_path=str(self._db_path),
-                                index_type="sqlite_relational",
-                                repair_suggestion="Restore from sqlite_backup snapshot or reset memory store.",
-                            )
+                        self._connection = await open_hardened_async(
+                            self._db_path, DURABLE, prepare=self._prepare_connection
+                        )
                     except CorruptedMemoryIndexError:
-                        self._connection = None
                         raise
                     except Exception as e:
-                        await self._discard_connection()
                         err_str = str(e).lower()
                         if any(k in err_str for k in ("malformed", "corrupt", "not a database", "disk i/o error")):
                             raise CorruptedMemoryIndexError(
@@ -126,25 +115,31 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
                         raise RelationalConnectionError(f"Failed to connect: {e}") from e
         return self._connection
 
+    async def _prepare_connection(self, connection: aiosqlite.Connection) -> None:
+        """Create the tables and run the first quick check on a connection that is not published yet."""
+        try:
+            self._fts5_supported = await init_relational_schema(connection)
+        except Exception as e:
+            raise RelationalConnectionError(f"Failed to initialize tables: {e}") from e
+        async with connection.execute("PRAGMA quick_check(1)") as cursor:
+            rows = [tuple(row) for row in await cursor.fetchall()]
+        if not self._quick_check_ok(rows):
+            raise CorruptedMemoryIndexError(
+                f"SQLite store {self._db_path} failed initial quick_check: {rows}",
+                db_path=str(self._db_path),
+                index_type="sqlite_relational",
+                repair_suggestion="Restore from sqlite_backup snapshot or reset memory store.",
+            )
+
     async def _discard_connection(self) -> None:
         """Close the current connection and drop it, so the next call opens a fresh one.
 
-        A connection whose setup failed may lack its tables; keeping it would make every later call fail on it until
-        the process restarts, while a fresh connection retries the setup. A connection that reads as corrupted is
-        dropped and reopened the same way.
+        A connection that reads as corrupted is dropped and reopened this way.
         """
         connection, self._connection = self._connection, None
         if connection is not None:
             with contextlib.suppress(Exception):
                 await connection.close()
-
-    async def _init_connection_settings(self) -> None:
-        if self._connection is None:
-            return
-        from myrm_agent_harness.utils.db.sqlite import DURABLE, harden_connection_async
-
-        await harden_connection_async(self._connection, DURABLE, db_path=self._db_path)
-        await self._connection.commit()
 
     async def _quick_check_rows(self) -> list[tuple[object, ...]]:
         """Run ``PRAGMA quick_check(1)``, confirming any failure on a fresh connection.
@@ -239,15 +234,6 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
             return "", []
         placeholders = ",".join("?" for _ in namespaces)
         return f" AND primary_namespace IN ({placeholders})", list(namespaces)
-
-    async def _init_tables(self) -> None:
-        if self._initialized or self._connection is None:
-            return
-        try:
-            self._fts5_supported = await init_relational_schema(self._connection)
-            self._initialized = True
-        except Exception as e:
-            raise RelationalConnectionError(f"Failed to initialize tables: {e}") from e
 
     # ── Reset ────────────────────────────────────────────────────────
 
@@ -358,10 +344,12 @@ class SQLiteRelationalStore(SQLiteProfileMixin, SQLiteRuleMixin, SQLitePendingMi
 
     async def close(self) -> None:
         self._closed = True
-        if self._connection is not None:
-            from myrm_agent_harness.utils.db.sqlite import checkpoint_truncate_async
-
-            await checkpoint_truncate_async(self._connection)
-            await self._connection.close()
-            self._connection = None
-            logger.info("SQLiteRelationalStore closed")
+        # Holding the lock makes a close that overlaps an open wait for it, so the connection that open publishes is
+        # closed too instead of outliving the store.
+        async with self._connection_lock:
+            connection = self._connection
+            if connection is not None:
+                await checkpoint_truncate_async(connection)
+                await connection.close()
+                self._connection = None
+                logger.info("SQLiteRelationalStore closed")

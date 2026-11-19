@@ -7,7 +7,6 @@ efficiency (10x cost reduction).
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,9 +14,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from myrm_agent_harness.agent.streaming.stream_executor import StreamExecutor
 from myrm_agent_harness.agent.streaming.types import AgentEventType
-
-if TYPE_CHECKING:
-    pass
 
 
 @pytest.fixture

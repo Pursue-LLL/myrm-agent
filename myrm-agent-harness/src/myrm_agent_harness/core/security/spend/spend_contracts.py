@@ -17,7 +17,7 @@
 
 [POS]
 Harness core spend layer. Defines immutable data transfer models and token formats
-for autonomous spending governors, ensuring zero-float integer accounting.
+for spending governors, ensuring zero-float integer accounting.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ DEFAULT_SPEND_HMAC_SALT: str = "myrm-agent-commerce-spend-salt-v1"
 
 @dataclass(frozen=True, slots=True)
 class SpendGovernorConfig:
-    """Configuration constraints for autonomous agentic commerce spending."""
+    """Configuration constraints for agentic commerce spending."""
 
     daily_cap_cents: int = 1000  # $10.00
     per_action_cap_cents: int = 200  # $2.00

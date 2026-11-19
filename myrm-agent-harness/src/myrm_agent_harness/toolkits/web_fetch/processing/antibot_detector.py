@@ -11,10 +11,15 @@ Detection philosophy:
 Tiers:
   - Tier 1: High-confidence WAF structural markers → any page size
   - Tier 2: Medium-confidence generic patterns → short pages only
-  - Tier 3: Structural integrity → catches silent blocks / empty shells
+  - Tier 3: Structural integrity → catches silent blocks / empty shells / untitled script interstitials
+
+An HTML page served with 403 or a server error (5xx) is an error or challenge page whatever its size: such pages
+ship inline bundles that push them past every size gate, so the status decides, not the byte count. Other 4xx
+answers (404, 410, ...) are the origin's final word on the request: trying another tier cannot change them, so the
+content rules judge them.
 
 [INPUT]
-- web_fetch.processing.html_scan::body_content, strip_script_and_style, strip_tags (POS: Linear-time scans of raw HTML text)
+- web_fetch.processing.html_scan::body_content, extract_title, strip_script_and_style, strip_tags (POS: Linear-time scans of raw HTML text)
 
 [OUTPUT]
 - is_blocked: Tells whether a crawl result was blocked by anti-bot protection or is an error page, with the reason
@@ -27,7 +32,7 @@ from __future__ import annotations
 
 import re
 
-from .html_scan import body_content, strip_script_and_style, strip_tags
+from .html_scan import body_content, extract_title, strip_script_and_style, strip_tags
 
 # ---------------------------------------------------------------------------
 # Tier 1: High-confidence structural markers (any page size)
@@ -78,6 +83,10 @@ _CONTENT_ELEMENTS_RE = re.compile(
 )
 _SCRIPT_TAG_RE = re.compile(r"<script\b", re.I)
 _BODY_RE = re.compile(r"<body\b", re.I)
+# An interstitial that waits for JavaScript (a WAF verification, a loading screen) names no title, runs a few scripts
+# and shows less than a short paragraph; a real page, however small, names itself.
+_SHELL_MIN_SCRIPTS = 3
+_SHELL_MAX_VISIBLE_CHARS = 200
 
 # ---------------------------------------------------------------------------
 # Error page title patterns
@@ -107,6 +116,7 @@ _ERROR_CONTENT_KEYWORDS = frozenset(
 # Thresholds
 # ---------------------------------------------------------------------------
 _BLOCK_PAGE_MAX_SIZE = 5_000
+_SERVER_ERROR_MIN_STATUS = 500
 _EMPTY_CONTENT_THRESHOLD = 100
 _SNIPPET_SIZE = 15_000
 _DEEP_SCAN_THRESHOLD = 15_000
@@ -129,6 +139,11 @@ def _looks_like_data(html: str) -> bool:
     if stripped[:10].lower().startswith(("<html", "<!")):
         return bool(re.search(r"<body[^>]*>\s*<pre[^>]*>\s*[{\[]", stripped[:500], re.I))
     return stripped[0] == "<"
+
+
+def _is_refusal_status(status_code: int | None) -> bool:
+    """403 and every server error (5xx): the origin refused or failed the request."""
+    return status_code is not None and (status_code == 403 or status_code >= _SERVER_ERROR_MIN_STATUS)
 
 
 def _structural_integrity_check(html: str) -> tuple[bool, str]:
@@ -162,6 +177,14 @@ def _structural_integrity_check(html: str) -> tuple[bool, str]:
         return True, f"Structural: {', '.join(signals)} ({html_len} bytes, {visible_len} chars visible)"
     if signal_count == 1 and html_len < _BLOCK_PAGE_MAX_SIZE:
         return True, f"Structural: {signals[0]} on small page ({html_len} bytes, {visible_len} chars visible)"
+
+    if (
+        script_count >= _SHELL_MIN_SCRIPTS
+        and visible_len < _SHELL_MAX_VISIBLE_CHARS
+        and not (extract_title(html) or "").strip()
+    ):
+        detail = f"{script_count} scripts, {visible_len} chars visible, {html_len} bytes"
+        return True, f"Structural: untitled script shell ({detail})"
 
     return False, ""
 
@@ -213,8 +236,8 @@ def is_blocked(
             if pattern.search(deep_snippet):
                 return True, reason
 
-    # --- HTTP 403/503: always blocked for non-data HTML ---
-    if status_code in (403, 503) and not _looks_like_data(html):
+    # --- HTTP 403 and 5xx: always blocked for non-data HTML ---
+    if _is_refusal_status(status_code) and not _looks_like_data(html):
         if html_len < _EMPTY_CONTENT_THRESHOLD:
             return True, f"HTTP {status_code} with near-empty response ({html_len} bytes)"
         check_snippet = _scriptless_head(html) if html_len > _TIER2_MAX_SIZE else snippet

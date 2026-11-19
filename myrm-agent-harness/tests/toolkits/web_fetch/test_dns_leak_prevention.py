@@ -32,10 +32,17 @@ def _disable_ssrf_dns_pin():
     With the SSRF shield on, every fetch pins the target through a real DNS lookup. These
     tests use documentation hostnames that do not resolve, so on a runner without network
     the guard fails before the mocked fetch is ever called and the assertions never run.
+    The browser's egress guard follows the same switch.
     """
-    with patch(
-        "myrm_agent_harness.toolkits.web_fetch.fetchers.stealth_fetcher.is_ssrf_shield_enabled",
-        return_value=False,
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.web_fetch.fetchers.stealth_fetcher.is_ssrf_shield_enabled",
+            return_value=False,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.browser.pool.egress_guard.is_ssrf_shield_enabled",
+            return_value=False,
+        ),
     ):
         yield
 
@@ -83,8 +90,8 @@ class TestStealthFetcherDnsProtection:
             await fetcher.fetch("https://example.com")
             mock_fetch.assert_called_once()
             call_kwargs = mock_fetch.call_args[1]
-            assert "dns_over_https" not in call_kwargs
-            assert "proxy" not in call_kwargs
+            assert call_kwargs["dns_over_https"] is False
+            assert call_kwargs["proxy"] is None
 
     @pytest.mark.asyncio
     async def test_doh_persists_across_proxy_rotation(self) -> None:

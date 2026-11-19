@@ -1,6 +1,6 @@
 """Chrome E2E: the nav rail's tools menu is a readable popover and each entry opens the panel it names.
 
-Five floating HUD capsules were folded into one nav-rail entry. The unit tests mock Radix, so only a real browser shows
+One nav-rail entry gathers the utility panels in a menu. The unit tests mock Radix, so only a real browser shows
 that the popover sits inside the viewport, is not covered by the phone drawer, stays readable in both themes, and that
 every entry reaches its panel. The menu is client state only, so the lane is SHARED+READ.
 
@@ -43,7 +43,7 @@ from tests.support.chrome_mcp_e2e import (
 pytestmark = [pytest.mark.integration, pytest.mark.timeout(600)]
 
 _LOCALES_DIR = Path(__file__).resolve().parents[3] / "myrm-agent-frontend" / "locales"
-_LOCALES = ("en", "zh", "zh-TW", "ja", "ko", "de")
+_LOCALES = ("en", "zh")
 
 _DESKTOP_VIEWPORT = (1280, 900)
 _PHONE_VIEWPORT = (390, 844)

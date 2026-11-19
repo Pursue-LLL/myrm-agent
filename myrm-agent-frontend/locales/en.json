@@ -936,10 +936,6 @@
       "title": "Allow discovery and delegation by other agents",
       "description": "When enabled, other agents can discover and call this agent during automatic team formation. When disabled, this agent is not discovered automatically, but you can still reference it explicitly with @."
     },
-    "formalKoreanReplies": {
-      "title": "Formal Korean replies",
-      "description": "Replies use polite formal Korean (hamnida style) suited for business email, meeting notes, and office workflows."
-    },
     "openapi": {
       "title": "OpenAPI Services",
       "subtitle": "Zero-code REST API tool integration via OpenAPI specs",
@@ -1184,7 +1180,10 @@
         "imageMissing": "Image Generation: no API key for the selected image provider",
         "videoMissing": "Video Generation: no API key for the selected video provider",
         "ttsMissing": "Text to Speech: no API key for the selected TTS provider",
-        "hint": "Without credentials the agent will not receive media tools at runtime. Configure keys in Settings (Model Service for image/video; Channels > Voice for TTS).",
+        "imageNotSelected": "Image Generation: no image model is selected",
+        "videoNotSelected": "Video Generation: no video provider and model are selected",
+        "ttsNotSelected": "Text to Speech: no TTS provider, model and voice are selected",
+        "hint": "The agent only gets a media tool once a model is chosen and its provider has an API key. Choose models and set keys in Settings.",
         "openSettings": "Open Settings",
         "recheck": "Recheck"
       },
@@ -1829,7 +1828,7 @@
       "title": "Failed to load configuration",
       "description": "Unable to connect to the service. Please check if the backend is running and try again.",
       "retry": "Retry",
-      "hintUnreachable": "Backend not reachable. Run: myrm dev or myrm start. Ensure .env.local has API_PORT=8080.",
+      "hintUnreachable": "Backend not reachable. Run: myrm start. Ensure .env.local has API_PORT=8080.",
       "hintSplitDev": "Backend OK at http://{host}:{port}. Run myrm start, or bun run dev then open http://localhost:3000 (API_PORT={proxyPort}).",
       "hintStandalone": "Backend OK at http://{host}:{port}. Run myrm start, or set API_PORT={proxyPort} in .env.local."
     },
@@ -2077,9 +2076,7 @@
       "createdMessage": {
         "bash": "Snapshot taken before running a command",
         "file_write": "Snapshot taken before writing files",
-        "file_append": "Snapshot taken before appending to files",
         "file_delete": "Snapshot taken before deleting files",
-        "patch_file": "Snapshot taken before patching files",
         "unknown": "Workspace snapshot created to protect your code"
       }
     },
@@ -2722,6 +2719,7 @@
         "queue": "Agent busy... Ctrl/⌘+Enter to queue follow-up"
       },
       "pausedStopped": "Queue paused because you stopped the reply.",
+      "steeringReturned": "The run ended before it could read your guidance, so it was added to the queue.",
       "resume": "Resume",
       "retry": "Retry",
       "attachments": "{count, plural, one {# attachment} other {# attachments}}",
@@ -3477,9 +3475,6 @@
     "handoffSuccessDescription": "Upgraded from v{fromVersion} to v{version}. Enjoy the latest features.",
     "handoffFailureTitle": "Update Not Applied",
     "handoffFailureDescription": "Target version v{targetVersion} was not replaced. Still running v{currentVersion}. Please check permissions and try again.",
-    "pwaNewVersion": "New Version Available",
-    "pwaDescription": "The app has been updated in the background. Refresh to enjoy the latest features.",
-    "pwaRefresh": "Refresh Now",
     "pwaInstallApp": "Install App",
     "pwaInstallTitle": "Install as desktop app",
     "viewDetails": "View details"
@@ -3816,9 +3811,7 @@
     "to": "To",
     "clearTimeFilter": "Clear",
     "citeToComposer": "Cite in composer",
-    "citeSameChat": "This result is from the current chat — nothing to cite",
-    "fuzzyMatchBadge": "Fuzzy match",
-    "fuzzyMatchBadgeTooltip": "No exact match found; automatically expanded with relaxed matching"
+    "citeSameChat": "This result is from the current chat — nothing to cite"
   },
   "images": {
     "search": "Search images",
@@ -5512,7 +5505,7 @@
       "skillsSubmitFailed": "Memories imported, but skill review submission failed — use the pending queue above",
       "secretsImportSuccess": "Imported {count} API key(s) into provider settings",
       "secretsImportFailed": "API key import failed — enter keys manually in Model Service settings",
-      "secretsImportPartialSkip": "Some API keys did not match a provider slot — complete setup in Model Service settings",
+      "secretsImportPartialSkip": "No API keys were imported — the result lists the ones that need manual setup",
       "rollbackSuccess": "Rollback completed",
       "rollbackFailed": "Rollback failed",
       "sourceCard": {
@@ -5540,9 +5533,9 @@
           "title": "Hermes Architecture Drop-in Mapping",
           "badge": "100% Asset Readiness",
           "userMdTarget": "Procedural Directives & Behavioral Rules",
-          "userMdDesc": "Top-priority injection, tamper-proof protected instruction approval gate",
+          "userMdDesc": "Always injected first with the highest behavioral authority; writes to protected instructions go through an approval gate",
           "memoryMdTarget": "Fact & Episodic Knowledge Base",
-          "memoryMdDesc": "Isolated read-only context, wrap_untrusted injection firewall barrier",
+          "memoryMdDesc": "Imported as semantic memories; recalled text is credential-redacted and marked as untrusted data",
           "sessionSearchTarget": "Native SQLite FTS5 Dialogue Backtrace",
           "sessionSearchDesc": "Millisecond-level precise full-text search, 0 external daemon overhead",
           "externalMcpTarget": "Progressive Disclosure & Sandbox Tooling",
@@ -5577,8 +5570,7 @@
           "agent_config_manual": "Agent config",
           "no_importable_data": "Importable data",
           "cron_lane": "Scheduled tasks (cron)",
-          "kanban_not_migrated": "Kanban boards",
-          "credential_pool_migration": "Credential pool migration"
+          "kanban_not_migrated": "Kanban boards"
         },
         "pendingSkillsHint": "{count} skill(s) detected — will be submitted for review after you confirm",
         "mcpServersTitle": "MCP Servers Detected",
@@ -5589,7 +5581,8 @@
         "mcpKeepaliveIgnored": "Keepalive setting ignored because it is below 5 seconds or unsupported by this transport",
         "instructionLargeWarning": "Instruction content is ~{count} characters — importing may raise per-turn token cost; consider trimming SOUL/rules",
         "hermesEconomyHint": "Hermes imports use the Knowledge Work agent preset (search, files, tasks, memory). Smart Routing and auxiliary models map into your model settings automatically.",
-        "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or confirm import to auto-create matching slots",
+        "providersMissingHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings first",
+        "providersMissingImportableHint": "External assistant API keys were detected but no model providers are configured. Add providers in settings, or tick the key import below to create them from the detected keys (providers with several regional endpoints still have to be added in settings, so you can pick the region)",
         "configureProvidersLink": "Open model provider settings",
         "backupHint": "Export a memory backup before importing (recommended)",
         "exportBackup": "Export backup",
@@ -5616,11 +5609,6 @@
           "invalid_schedule": "Invalid or unsupported schedule",
           "prompt_injection": "Prompt blocked by safety scan",
           "unsupported_job_type": "Unsupported task type"
-        },
-        "tokenEconomics": {
-          "title": "Token usage comparison",
-          "description": "{count} skill(s) detected — here is how per-turn token cost compares",
-          "savings": "{percent}% saved"
         },
         "sessionsTitle": "Session Lane — {count} session(s) detected",
         "resumptionReady": "Ready for Resumption",
@@ -5655,6 +5643,7 @@
           "skill_pending": "{count, plural, one {# skill pending review} other {# skills pending review}}",
           "skill_none": "No skills",
           "credential_opt_in": "API keys available (optional import)",
+          "credential_manual": "API keys found — enter them in provider settings",
           "credential_no_providers": "API keys found, but no model providers configured",
           "credential_none": "No API keys detected",
           "cron_importable": "{importable, plural, one {# scheduled task} other {# scheduled tasks}} will import paused{skipped, plural, =0 {} other { · # skipped}}",
@@ -5672,6 +5661,8 @@
         "sessionsImported": "Successfully imported {count} historical session(s) with context mounted",
         "resumeChat": "Resume Chat",
         "skillsSubmitted": "{count} skill(s) submitted for review",
+        "secretsNeedEndpoint": "No provider was created for {names}: these providers offer several regional endpoints. Add the provider in Model Service settings, pick the region, then enter the key.",
+        "secretsUnsupported": "No matching model provider, not imported: {names}. Enter them manually where needed.",
         "nextStepsWithSkills": "Approve skills in the pending queue above; configure MCP and channels in Settings",
         "nextStepsMemoryOnly": "Configure MCP and channels manually in Settings",
         "nextStepsPartialFailure": "Memories imported; skill submission failed — retry or add manually",
@@ -6344,11 +6335,11 @@
     "title": "Artifacts",
     "empty": "No artifacts yet",
     "emptyDesc": "Reports, charts, and code generated by the agent during conversations will be archived here",
-    "select_prompt": "Select an artifact on the left to view its immutable timeline",
+    "select_prompt": "Select an artifact on the left to view its version timeline",
     "no_desc": "No description",
-    "version_history": "Version timeline (tamper-proof)",
-    "tamper_free": "Integrity verification passed",
-    "corrupted": "File has been tampered with!",
+    "version_history": "Version timeline",
+    "integrity_ok": "Integrity verification passed",
+    "integrity_failed": "Integrity verification failed",
     "verifying": "Verifying...",
     "verify_hash": "Verify integrity",
     "loading_versions": "Loading versions...",
@@ -7162,10 +7153,6 @@
     "retry": "Retry",
     "executionStepsBadge": "Steps",
     "loadMore": "Load more",
-    "timeJustNow": "just now",
-    "timeMinutesAgo": "{count}m ago",
-    "timeHoursAgo": "{count}h ago",
-    "timeDaysAgo": "{count}d ago",
     "executionSteps": "Steps",
     "stopReasonTitle": "Stop Reason",
     "stopReasonIterationLimit": "Reached iteration limit",
@@ -7216,6 +7203,7 @@
     "statsError": "Errored",
     "triggerSuccess": "Task \"{name}\" triggered",
     "triggerFail": "Trigger failed",
+    "triggerAlreadyRunning": "Task \"{name}\" is already running",
     "pauseSuccess": "Task \"{name}\" paused",
     "resumeSuccess": "Task \"{name}\" resumed",
     "resumeBlocked": "Cannot resume (expired or limit reached)",
@@ -7268,6 +7256,10 @@
     "skippedCreditExhausted": "Work Units exhausted. This run was skipped.",
     "skippedPreflight": "The pre-flight probe skipped this run.",
     "skippedNoContent": "Nothing to report. This run was skipped.",
+    "skippedCooldown": "Still within the cooldown after the previous run. This run was skipped.",
+    "skippedOutsideHours": "Outside the active hours set for this task. This run was skipped.",
+    "skippedUntrustedWorkflow": "Workflow tasks do not run for messages from other senders. This run was skipped.",
+    "skippedMemoryPressure": "System memory was low. This run was skipped and will be tried again later.",
     "circuitBreakTitle": "Runaway Loop Circuit Breaker",
     "circuitBreakDesc": "The agent encountered persistent identical errors in unattended mode. Execution was halted immediately to prevent wasted compute.",
     "runError": "Error",
@@ -7346,11 +7338,8 @@
       "ttl_expired": "TTL expired"
     },
     "capabilitiesLabel": "Capability Fence",
-    "capabilitiesDesc": "Declare which tool capabilities this task may use. Leave empty for all capabilities",
-    "capabilitiesAllHint": "Unrestricted (all capabilities)",
-    "failClosedHint": "Scheduled tasks deny dangerous operations by default. Configure capability fence below or enable YOLO mode in agent security settings.",
-    "capabilitiesUpdated": "Capability fence updated",
-    "capabilitiesCleared": "Capability fence cleared",
+    "capabilitiesDesc": "Choose what this task may do on its own. Nobody can approve steps while a scheduled run is going, so anything not chosen here is refused. Even with a matching capability chosen, an unattended run still stops steps that touch protected files, and steps that look like payments, Google Workspace writes, or sending data out after a credential file was read (opening web pages on your Domain Allowlist doesn't count).",
+    "capabilitiesAllHint": "Nothing chosen: read files, search and open web pages only",
     "toolsAllowedLabel": "Built-in Tools Scope",
     "toolsAllowedDesc": "Limit which built-in tools mount at run time. Intersected with the bound agent profile. Leave empty for no extra restriction.",
     "toolsAllowedAllHint": "Unrestricted (agent profile only)",
@@ -7358,7 +7347,7 @@
     "capPreset": {
       "research": "Research",
       "devops": "DevOps",
-      "full": "All capabilities"
+      "readOnly": "Read-only"
     },
     "toolPreset": {
       "webOnly": "Web only",
@@ -7383,7 +7372,7 @@
     "verificationError": "Verify Error",
     "verificationSummary": "Delivery review",
     "verificationRunOkReviewFailed": "Task completed; delivery review did not pass — expand for details.",
-    "blockedHint": "If this job should be allowed to do these, adjust its Capability Fence or Allowed Paths in the job settings.",
+    "blockedHint": "Steps outside this job's Capability Fence or Allowed Paths can be allowed in the job settings. Whatever you allow, an unattended run still stops steps that touch protected files, and steps that look like payments, Google Workspace writes, or sending data out after a credential file was read (opening web pages on your Domain Allowlist doesn't count).",
     "connectorDegradedBadge": "Connector Degraded",
     "connectorFixSuggestion": "Troubleshooting Suggestion",
     "connectorHealthStatus": "Connector Health",
@@ -7477,7 +7466,7 @@
     "sessionTargetSelectChat": "Select a conversation to bind...",
     "threadAutomationTooltip": "Thread automation — runs return to this conversation",
     "failureAlertLabel": "Failure Alert",
-    "failureAlertDesc": "Send an alert after consecutive failures reach the threshold",
+    "failureAlertDesc": "Send an alert after consecutive failures reach the threshold. A failure that pauses the job is alerted right away.",
     "failureAlertAfter": "After failures",
     "failureAlertCooldown": "Alert cooldown (s)",
     "failureAlertUpdated": "Failure alert updated",
@@ -7642,6 +7631,8 @@
     "triggerSourceWebhook": "webhook",
     "triggerSourceSystem": "system",
     "triggerSourceManual": "manual",
+    "triggerSourceRecovery": "restart recovery",
+    "triggerSourceShutdown": "app shutdown",
     "schedulerStatus": {
       "running": "Scheduler Running",
       "degraded": "Scheduler Degraded",
@@ -9517,9 +9508,9 @@
     "title": "Tool Execution Approval",
     "spendProtection": {
       "title": "Financial Transaction Protection",
-      "description": "The agent is requesting an external financial charge. Parameter integrity is cryptographically sealed.",
+      "description": "The agent is requesting an external financial charge. Check the amount before approving.",
       "amount": "Charge Amount",
-      "tamperProtected": "SHA-256 Tamper Protected"
+      "actionBound": "Locked to this exact charge"
     },
     "batchTitle": "Batch Approval ({count} tools)",
     "batchHighRisk": {
@@ -9994,7 +9985,6 @@
   "imageGen": {
     "generated": "Generated",
     "download": "Download",
-    "regenerate": "Regenerate",
     "editThisImage": "Edit this image",
     "editPromptPrefix": "Please modify the image above: ",
     "referenceImages": "Reference Images",
@@ -10488,7 +10478,6 @@
     "trigger": {
       "write_file": "File written",
       "delete_file": "File deleted",
-      "patch_file": "File updated",
       "execute_terminal": "Terminal",
       "manual": "Manual",
       "pre_rollback": "Before restore"
@@ -10696,11 +10685,7 @@
       "applyFailed": "Apply Failed",
       "sourceDraft": "Draft Growth",
       "sourceEvolution": "Evolution Review",
-      "growthType": "Type: {type}",
-      "today": "Today",
-      "yesterday": "Yesterday",
-      "daysAgo": "{count}d ago",
-      "weeksAgo": "{count}w ago"
+      "growthType": "Type: {type}"
     },
     "empty": {
       "title": "Start chatting with Agent",
@@ -11927,7 +11912,9 @@
     "retryTask": "Retry Task",
     "retrying": "Retrying...",
     "cancelled": "Task cancelled",
-    "videoCompletedFallback": "Video completed. Open the artifacts panel to view output.",
+    "expired": "This task record has expired. Files it produced stay in your media library.",
+    "openLibrary": "Open media library",
+    "resultUnavailable": "This result can't be displayed here. Check your media library for the file.",
     "videoUnsupported": "Your browser does not support video playback.",
     "alternateLabel": "Alternate {index}",
     "providerLabel": "Provider",
@@ -12457,7 +12444,7 @@
         "skills": "Local skills",
         "rules": "Workspace rules",
         "hasMyrmConfig": "Contains a .myrm project config",
-        "repoCommands": "Commands this folder wants to run without asking",
+        "repoCommands": "Commands this folder wants to run without asking, with any options after them",
         "restrictedHint": "If you choose Restrict, local skills, rules, and MCP servers from this folder stay disabled until you trust it in Settings.",
         "cancel": "Cancel",
         "restrict": "Link without trusting",
@@ -12477,9 +12464,9 @@
       "restrictedTitle": "Restricted mode",
       "restrictedMessage": "{path} is not trusted. Its skills, rules and local tools are turned off.",
       "pendingTitle": "Commands waiting for your approval",
-      "pendingMessage": "{path} lists commands that would run without asking you each time. They stay off until you allow them.",
+      "pendingMessage": "{path} lists commands, with any options after them, that would run without asking you each time. They stay off until you allow them.",
       "pendingList": "Waiting for your approval",
-      "commandsOnTrust": "Trusting this folder also lets these commands run without asking",
+      "commandsOnTrust": "Trusting this folder also lets these commands, with any options after them, run without asking",
       "turnedOffTitle": "Turned off until you trust this folder",
       "itemSkills": "{count, plural, one {# local skill} other {# local skills}}",
       "itemRules": "{count, plural, one {# workspace rule} other {# workspace rules}}",
@@ -14031,17 +14018,6 @@
     "sandboxIframeTitle": "Interactive prototype canvas",
     "submitShortcutHint": "⌘+Enter to submit"
   },
-  "structuredAsking": {
-    "skippedBadge": "Skipped",
-    "answeredBadge": "Decided",
-    "recommended": "Recommended",
-    "textSlotPlaceholder": "Enter custom value or notes...",
-    "skipControl": "Skip (Let Agent Decide)",
-    "confirmSelection": "Confirm Selection",
-    "skippedExplanation": "User skipped this question; agent will proceed with the recommended default.",
-    "userChoseLabel": "Selected",
-    "noneSelected": "None"
-  },
   "dataDashboard": {
     "defaultSubtitle": "Generated autonomously by Myrm Visual Engine",
     "copySummary": "Copy Metric Summary",
@@ -14323,10 +14299,10 @@
       "lockedUseDoctorUnavailable": "Unknown",
       "lockedUseDoctorWarn": "Attention",
       "lockedUseDoctorFail": "Blocked",
-      "lockedUseDoctorBadgeNotMac": "Desktop app (macOS)",
+      "lockedUseDoctorBadgeNotMac": "Desktop app only",
       "lockedUseDoctorBadgeAwayOn": "Away mode on",
       "lockedUseDoctorBadgeBridgeReady": "Shell connected",
-      "lockedUseDoctorDetailNotMac": "Use the Myrm desktop app on macOS for away mode and privacy curtain.",
+      "lockedUseDoctorDetailNotMac": "Away mode needs the Myrm desktop app on macOS. The privacy curtain works with the desktop app on macOS and Windows.",
       "lockedUseDoctorDetailAwayOff": "Desktop shell is ready. Turn on Locked Use above when you want unattended unlock behind the curtain.",
       "lockedUseDoctorDetailBridgeMissing": "Start the Myrm desktop app on this Mac so away mode can coordinate with the shell.",
       "lockedUseDoctorDetailShellUnavailable": "Restart the Myrm desktop app, then check away mode and privacy curtain in Settings.",
@@ -15171,7 +15147,7 @@
       "approvalTimeoutDesc": "Seconds to wait for your approval before auto-resolving a tool call.",
       "seconds": "seconds",
       "timeoutBehavior": "Timeout Action",
-      "timeoutBehaviorDesc": "Action to take when approval times out. \"Deny\" rejects the tool call; \"Allow\" auto-approves it.",
+      "timeoutBehaviorDesc": "Action to take when approval times out. \"Deny\" rejects the tool call; \"Allow\" auto-approves it, except actions only you may approve, which are always rejected: payments, irreversible outbound actions, destructive commands, and edits to protected instruction files, git hooks or git config.",
       "timeoutDeny": "Deny",
       "timeoutAllow": "Allow",
       "rulesTitle": "Permission Rules",
@@ -15351,7 +15327,7 @@
           "title": "Recommended Use Cases",
           "case1": "Local development and debugging",
           "case2": "CI/CD automation pipelines",
-          "case3": "Scheduled tasks and batch processing",
+          "case3": "Batch processing and long-running tasks",
           "case4": "Trusted environments with high confidence in AI behavior"
         }
       },
@@ -15403,8 +15379,9 @@
       },
       "trustedFolders": {
         "title": "Trusted Folders",
-        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder.",
+        "description": "Folders you explicitly trusted when linking a project workspace. Revoking trust disables local skills, rules, and MCP servers from that folder, and the commands it listed ask for approval again.",
         "totalEntries": "{count} folders",
+        "commands": "Commands that run without asking, with any options after them",
         "refresh": "Refresh",
         "loading": "Loading…",
         "empty": "No trusted folders yet",
@@ -15418,11 +15395,11 @@
         },
         "notice": {
           "title": "How folder trust works",
-          "description": "Trust applies to repo-local side channels only. Shell and file permissions still follow your security policy."
+          "description": "Trust turns on a folder's local skills, rules, and MCP servers and lets the commands it listed run without asking. Every other command and file access still follows your security policy."
         },
         "revokeConfirm": {
           "title": "Revoke folder trust?",
-          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run.",
+          "description": "Local skills, rules, and MCP servers from {path} will be disabled on the next run, and the commands it listed will ask for approval again.",
           "cancel": "Cancel",
           "confirm": "Revoke trust"
         }
@@ -15822,7 +15799,10 @@
       "ttsModel": "Model",
       "ttsVoice": "Voice",
       "ttsDoubaoKeyHint": "Doubao-TTS uses the composite credential \"appid:access_token\" (Volcengine console: Speech Technology → App Details).",
-      "ttsProbeSlowHint": "Seed-Audio is a generative model — the test synthesizes a short audio clip and may take 1–2 minutes."
+      "ttsProbeSlowHint": "Seed-Audio is a generative model — the test synthesizes a short audio clip and may take 1–2 minutes.",
+      "selectPlaceholder": "Select…",
+      "reselectPlaceholder": "Select again",
+      "ttsSelectionSaveFailed": "Failed to save your selection"
     },
     "acp": {
       "title": "ACP Agents",
@@ -18823,11 +18803,7 @@
     "languageChannelSyncDesc": "Applies to the web interface and IM channel commands (/help, /goal, /status, etc.).",
     "languageOptions": {
       "chinese": "中文",
-      "chineseTraditional": "繁體中文",
-      "english": "English",
-      "japanese": "日本語",
-      "korean": "한국어",
-      "german": "Deutsch"
+      "english": "English"
     },
     "theme": "Choose your favorite theme",
     "themeOptions": {
@@ -19161,7 +19137,6 @@
     "currentSearchService": "Current Search Service",
     "builtInDefault": "Local",
     "searxngFreeLocal": "SearXNG (Free Local)",
-    "duckduckgoFree": "DuckDuckGo (Free Cloud)",
     "modelPlaceholder": "provider/model (e.g., openai/gpt-4, anthropic/claude-3-opus-20240229)",
     "apiKeyPlaceholder": "Enter your API key",
     "baseUrlPlaceholder": "Provider API URL or custom URL (built-in common provider URLs don't need to be filled in)",
@@ -21115,33 +21090,33 @@
       "criticalPauseActive": "Critical Pause Awaiting Approval"
     },
     "commerceBudget": {
-      "title": "Autonomous Spending & Commerce Sandbox",
-      "description": "Controlled micro-budget autonomous payment vault with merchant allowlists to eliminate trivial fee interruptions",
+      "title": "Spending Limit Gate",
+      "description": "Per-payment and daily caps, a merchant-domain allowlist and a one-click freeze. The gate holds no card numbers. YOLO Mode, Always Allow and Smart Intent Guard never release payment-like tool calls; in a chat you are watching, each one waits for your approval.",
       "dailyCap": "Daily Spending Cap",
-      "dailyCapDesc": "Maximum daily total amount permitted for autonomous agent spending",
+      "dailyCapDesc": "Maximum total the gate accepts for reservations per day",
       "perActionCap": "Per-Action Limit",
       "perActionCapDesc": "Maximum allowance per single micro-payment operation (recommended <= $2.00)",
       "todaySpent": "Spent Today",
       "activeReserved": "Active Reserved",
       "remainingBudget": "Remaining Budget",
       "emergencyFreeze": "Emergency Freeze",
-      "emergencyFreezeDesc": "Blocks all autonomous spending instantly and forces human approval",
+      "emergencyFreezeDesc": "While frozen, the gate rejects every new reservation until you unfreeze it",
       "frozenStatus": "Emergency Frozen",
-      "activeStatus": "Sandbox Active",
+      "activeStatus": "Gate Active",
       "allowedMerchants": "Allowed Merchants Whitelist",
-      "allowedMerchantsDesc": "Only allow payments to whitelisted domains (supports wildcards e.g. *.openai.com)",
+      "allowedMerchantsDesc": "Only reservations for allowlisted domains are accepted (wildcards such as *.openai.com are supported)",
       "addMerchant": "Add Merchant",
       "addMerchantPlaceholder": "Enter merchant domain (e.g. namesilo.com)",
       "save": "Save Changes",
       "savedSuccess": "Commerce budget settings updated successfully",
-      "ledgerTitle": "Tamper-Evident Spending Ledger",
-      "ledgerDesc": "Cryptographically chained audit trail with HMAC signatures",
-      "noEntries": "No autonomous spending transactions recorded",
+      "ledgerTitle": "Spending Ledger",
+      "ledgerDesc": "A record of every reservation and commit. Committed entries carry a SHA-256 entry hash, kept for reference and not verified on read",
+      "noEntries": "No spending transactions recorded",
       "merchant": "Merchant",
       "amount": "Amount",
       "status": "Status",
       "time": "Time",
-      "verifiedReceipt": "HMAC Signature Verified",
+      "verifiedReceipt": "Entry hash recorded",
       "entryHashLabel": "Entry hash:",
       "entryHashPending": "Pending / N/A",
       "idempotencyKeyLabel": "Idempotency key:"
@@ -22113,11 +22088,11 @@
     "noChanges": "No changes"
   },
   "commerceReceipt": {
-    "statusCommitted": "Paid & Verified",
+    "statusCommitted": "Committed",
     "statusReserved": "Reserved",
-    "statusRefunded": "Refunded",
+    "statusRefunded": "Released",
     "statusRejected": "Blocked",
-    "hashVerified": "Ledger hash verified (HMAC)"
+    "hashVerified": "Ledger entry hash recorded"
   },
   "evidencePack": {
     "modalTitle": "Six-step project experience wizard",

@@ -246,6 +246,25 @@ class TestAstIntegration:
         result = scan_skill_content("script", source)
         assert len(result.ast_findings) >= 1
 
+    def test_front_matter_document_is_not_routed_to_the_python_branch(self):
+        source = '---\nname: reports\ndescription: "Import the sales figures from the export"\n---\n# Reports\n'
+        result = scan_skill_content("reports", source)
+        assert result.ast_findings == []
+        assert result.is_clean
+
+    def test_front_matter_document_keeps_per_block_ast_analysis(self):
+        source = (
+            '---\nname: evil\ndescription: "from a helper"\n---\n# Evil\n```python\nresult = eval(user_input)\n```\n'
+        )
+        result = scan_skill_content("evil", source)
+        assert any(f.threat_type == "code_injection" for f in result.ast_findings)
+        assert not any(f.threat_type == "ast_parse_error" for f in result.ast_findings)
+
+    def test_explicit_extension_overrides_the_content_heuristic(self):
+        prose = "Import the data from the export first.\n"
+        assert scan_skill_content("guide", prose, file_extension=".md").ast_findings == []
+        assert scan_skill_content("run", prose, file_extension=".sh").ast_findings == []
+
     def test_ast_findings_count_in_summary(self):
         source = 'eval(x)\nos.system("ls")'
         result = scan_skill_content("test.py", source, file_extension=".py")

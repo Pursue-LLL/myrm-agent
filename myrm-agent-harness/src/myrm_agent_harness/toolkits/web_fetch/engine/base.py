@@ -9,17 +9,18 @@ Tier breaker: a domain's L1/L2 tier that a higher tier keeps making up for is sk
 Cache: In-memory LRU (default 1 h TTL, 500 entries, 100 MB cap)
   - Request coalescing: concurrent requests for the same URL trigger only one network call (30 s timeout guard; waiters take over a cancelled leader's fetch)
   - URL normalisation: strips known tracking params for better hit rate
+  - GitHub blob links are fetched as their raw file, so a long source file is not cut at the page-size ceiling
   - HTTP conditional requests: sends ETag / Last-Modified on cache expiry to save bandwidth
   - Stale-While-Revalidate: returns stale cache immediately, refreshes via background priority queue (30 s timeout)
   - Cache warm-up: concurrent pre-warming with exponential back-off retry
 Boundary: single-sandbox, single-process semantics; tier breaker state lives in memory, per process.
 
 [INPUT]
-web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher with optional HTTP/3 retry)
+web_fetch.fetchers.http_fetcher::HttpFetcher (POS: L1 HTTP fetcher)
 web_fetch.fetchers.browser_fetcher::BrowserFetcher (POS: L2 browser-based fetcher)
+web_fetch.fetchers.target_guard::assert_not_blocklisted (POS: network blocklist verdict for one URL)
 web_fetch.fetchers.protocols::FetcherType, FetchResult (POS: Fetcher protocol types)
 web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection)
-web_fetch.probe.http3_probe::get_http3_retry_metrics (POS: QUIC egress probe and L1 retry metrics)
 web_fetch.router.tier_breaker::get_global_tier_breaker (POS: Per-domain start-tier policy)
 web_fetch.router.domain_metrics::get_global_domain_metrics_manager (POS: Per-domain failure history behind the staleness hint)
 browser.pool.proxy::ProxyPool (POS: Proxy pool for browser fetchers)
@@ -32,6 +33,8 @@ FetchEngine: Layered fetch engine with a tier breaker, caching, and request coal
 [POS]
 Core fetch engine. Orchestrates L1/L2/L3 fetchers behind a per-domain tier breaker with
 in-memory caching, request coalescing, and stale-while-revalidate semantics.
+The network blocklist is fixed for the life of an engine, so its caches never hold a page fetched under another
+list; a caller whose list can change builds a new engine for each call.
 
 """
 
@@ -53,12 +56,13 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.browser.pool.proxy import ProxyPool
     from myrm_agent_harness.toolkits.browser.session_vault import SessionVault
 
+from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.utils.lru_cache import LRUCache
 
 from ..fetchers.browser_fetcher import BrowserFetcher
 from ..fetchers.http_fetcher import HttpFetcher
 from ..fetchers.stealth_fetcher import StealthFetcher
-from ..probe.http3_probe import get_http3_retry_metrics
+from ..fetchers.target_guard import assert_not_blocklisted
 from ..processing.pipeline import ContentPipeline
 from ..router import get_global_domain_metrics_manager, get_global_tier_breaker
 from .batch_mixin import FetchEngineBatchMixin, cancel_fetches
@@ -119,18 +123,29 @@ class FetchEngine(
         crawl_timeout: float = _DEFAULT_CRAWL_TIMEOUT,
         domain_allowlist: DomainAllowlist | None = None,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
         youtube_languages: list[str] | None = None,
     ):
         self._domain_allowlist = domain_allowlist
         self._allow_private_networks = allow_private_networks
+        self._network_blocklist = network_blocklist
         self._youtube_languages = youtube_languages
         self._http_fetcher = HttpFetcher(
-            proxy_pool=proxy_pool, session_vault=session_vault, allow_private_networks=allow_private_networks
+            proxy_pool=proxy_pool,
+            session_vault=session_vault,
+            allow_private_networks=allow_private_networks,
+            network_blocklist=network_blocklist,
         )
         self._browser_fetcher = BrowserFetcher(
-            allow_private_networks=allow_private_networks, session_vault=session_vault
+            allow_private_networks=allow_private_networks,
+            session_vault=session_vault,
+            network_blocklist=network_blocklist,
         )
-        self._stealth_fetcher = StealthFetcher(proxy_pool=proxy_pool, allow_private_networks=allow_private_networks)
+        self._stealth_fetcher = StealthFetcher(
+            proxy_pool=proxy_pool,
+            allow_private_networks=allow_private_networks,
+            network_blocklist=network_blocklist,
+        )
         self._pipeline = ContentPipeline(use_raw_markdown=use_raw_markdown)
 
         self._tier_breaker = get_global_tier_breaker()
@@ -197,7 +212,15 @@ class FetchEngine(
         allow_escalation: bool = True,
     ) -> Document | None:
         """Crawl a single URL, return Document or None."""
+        from ..processing.github_blob_url import github_blob_to_raw
         from ..processing.url_normalizer import normalize_url
+
+        # A pure string check, so it runs ahead of the SSRF lookup, which may resolve the name.
+        try:
+            assert_not_blocklisted(url, self._network_blocklist)
+        except SSRFSecurityError as exc:
+            logger.warning(f"URL blocked by outbound policy: {url} — {exc}")
+            return None
 
         if not self._allow_private_networks:
             from myrm_agent_harness.core.security.guards.ssrf import validate_url_for_ssrf
@@ -213,6 +236,9 @@ class FetchEngine(
                 logger.warning("URL blocked by domain allowlist: %s (host=%s)", url, hostname)
                 return None
 
+        # The policy checks above judged the URL as given; the rewrite stays on the same host, and the redirect it
+        # leads to is judged hop by hop in the fetch. A blob link then shares the cache entry of its raw link.
+        url = github_blob_to_raw(url)
         cache_key = normalize_url(url)
 
         if cache_key in self._url_access_stats:
@@ -323,7 +349,6 @@ class FetchEngine(
         return {
             "crawl_cache": self._crawl_cache.get_metrics(),
             "fail_cache": self._fail_cache.get_metrics(),
-            "http3_retry": get_http3_retry_metrics(),
             "background_revalidation": {
                 "success": self._bg_revalidations_success,
                 "failed": self._bg_revalidations_failed,

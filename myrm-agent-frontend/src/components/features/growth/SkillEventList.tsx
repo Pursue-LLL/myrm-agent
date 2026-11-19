@@ -1,9 +1,10 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { AlertTriangle, CheckCircle2, Clock3, ShieldAlert, XCircle } from 'lucide-react';
 import { IconGlow } from '@/components/features/icons/PremiumIcons';
 import { cn } from '@/lib/utils/classnameUtils';
+import { formatRelativeTime } from '@/lib/utils/relativeTime';
 import type { SkillEvolutionEvent } from '@/services/statistics';
 import { useGrowthTypeLabel } from './useGrowthTypeLabel';
 
@@ -58,28 +59,8 @@ const STATUS_CONFIG = {
 
 export default function SkillEventList({ events }: SkillEventListProps) {
   const t = useTranslations('growthDashboard.skillEvents');
+  const locale = useLocale();
   const growthTypeLabel = useGrowthTypeLabel();
-
-  const formatRelativeDate = (isoStr: string): string => {
-    const date = new Date(isoStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) {
-      return t('today');
-    }
-    if (diffDays === 1) {
-      return t('yesterday');
-    }
-    if (diffDays < 7) {
-      return t('daysAgo', { count: diffDays });
-    }
-    if (diffDays < 30) {
-      return t('weeksAgo', { count: Math.floor(diffDays / 7) });
-    }
-    return date.toLocaleDateString();
-  };
 
   if (events.length === 0) {
     return <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">{t('empty')}</div>;
@@ -117,7 +98,7 @@ export default function SkillEventList({ events }: SkillEventListProps) {
               )}
             </div>
             <span className="mt-0.5 flex-shrink-0 text-xs text-muted-foreground">
-              {formatRelativeDate(event.created_at)}
+              {formatRelativeTime(event.created_at, locale)}
             </span>
           </div>
         );

@@ -5,10 +5,9 @@
 - VideoResult: Structured result from a video generation request
 - ProviderCapabilities: Declarative capability profile for a video provider
 - FailoverAttempt: Record of a single provider attempt during failover
-- MediaCallback: Async callback type for persisting generated videos
-- VideoGenerationError: Exception raised when all providers fail
+- MediaCallback: Async callback that stores a generated video and returns its stable reference
+- VideoGenerationError: Exception raised when all providers fail or a generated video cannot be persisted
 - OverrideIgnored: Record of an override parameter ignored by the provider
-- TaskStatus: Async video generation task state
 
 [POS]
 Pure data types with no business logic. Mirrors the image module's
@@ -17,7 +16,6 @@ models.py architecture for consistency.
 
 from __future__ import annotations
 
-import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -27,7 +25,6 @@ from pydantic.alias_generators import to_camel
 
 from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
 from myrm_agent_harness.toolkits.llms._media_shared.types import (
-    MediaTaskState,
     NormalizationRecord,
     ProviderModeCapabilities,
 )
@@ -54,8 +51,10 @@ class MediaMeta:
 
 
 MediaCallback = Callable[[bytes, str, MediaMeta], Awaitable[str]]
-"""Async callback: (video_bytes, mime_type, metadata) -> persisted URL.
+"""Async callback: (video_bytes, mime_type, metadata) -> stable reference of the stored video.
 
+The reference is an opaque, non-empty string the business layer can resolve later (for example ``media://<id>``).
+The callback raises when it cannot store the video; the generator then fails the generation.
 Framework defines the interface; business layer injects the implementation.
 """
 
@@ -147,7 +146,7 @@ class VideoResult:
     provider: str
     model: str
     latency_ms: float = 0.0
-    persisted_urls: list[str] = field(default_factory=list)
+    persisted_refs: list[str] = field(default_factory=list)
     attempts: list[FailoverAttempt] = field(default_factory=list)
     ignored_overrides: list[OverrideIgnored] = field(default_factory=list)
     normalizations: list[NormalizationRecord] = field(default_factory=list)
@@ -162,8 +161,8 @@ class VideoResult:
             "count": len(self.videos),
             "latency_ms": round(self.latency_ms),
         }
-        if self.persisted_urls:
-            out["video_urls"] = self.persisted_urls
+        if self.persisted_refs:
+            out["video_urls"] = self.persisted_refs
         if self.ignored_overrides:
             out["ignored_overrides"] = [{"key": o.key, "value": o.value} for o in self.ignored_overrides]
         if self.normalizations:
@@ -185,8 +184,8 @@ class VideoGenerationConfig(BaseModel):
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    provider: str = Field(default="openai", description="Primary video generation provider ID")
-    model: str = Field(default="sora", description="Primary model within the provider")
+    provider: str = Field(description="Primary video generation provider ID")
+    model: str = Field(description="Primary model within the provider")
     api_key: SecretStr | None = Field(default=None, description="API key (protected from logging)")
     base_url: str | None = Field(default=None, description="Custom API base URL")
     timeout_seconds: int = Field(default=300, description="Per-request timeout (video generation is slow)")
@@ -207,7 +206,7 @@ class VideoGenerationConfig(BaseModel):
     media_callback: MediaCallback | None = Field(
         default=None,
         exclude=True,
-        description="Async callback for persisting generated videos",
+        description="Async callback that stores each generated video and returns its stable reference",
     )
     max_download_bytes: int = Field(default=200 * 1024 * 1024, description="Max video download size (200MB)")
     progress_callback: Callable[[str], Awaitable[None]] | None = Field(
@@ -237,59 +236,3 @@ class ModerationBlockedError(VideoGenerationError):
     ) -> None:
         super().__init__(message, latency_ms=latency_ms)
         self.violation_reason = violation_reason
-
-
-TaskState = MediaTaskState
-"""Backward-compatible alias. Use MediaTaskState for new code."""
-
-
-@dataclass
-class TaskStatus:
-    """Status of an async video generation task."""
-
-    task_id: str
-    state: TaskState = TaskState.QUEUED
-    provider: str = ""
-    model: str = ""
-    prompt: str = ""
-    progress: str = ""
-    provider_task_id: str = ""
-    idempotency_key: str = ""
-    created_at: float = field(default_factory=time.time)
-    completed_at: float | None = None
-    result: VideoResult | None = None
-    error: str | None = None
-
-    def to_dict(self) -> dict[str, object]:
-        out: dict[str, object] = {
-            "task_id": self.task_id,
-            "state": self.state.value,
-            "provider": self.provider,
-            "model": self.model,
-            "progress": self.progress,
-            "created_at": self.created_at,
-        }
-        if self.provider_task_id:
-            out["provider_task_id"] = self.provider_task_id
-        if self.completed_at:
-            out["completed_at"] = self.completed_at
-        if self.error:
-            out["error"] = self.error
-        if self.result:
-            out["result"] = self.result.to_dict()
-        return out
-
-    def to_persistence_dict(self) -> dict[str, object]:
-        """Minimal serializable dict for task store persistence."""
-        return {
-            "task_id": self.task_id,
-            "state": self.state.value,
-            "provider": self.provider,
-            "model": self.model,
-            "prompt": self.prompt,
-            "provider_task_id": self.provider_task_id,
-            "idempotency_key": self.idempotency_key,
-            "created_at": self.created_at,
-            "completed_at": self.completed_at,
-            "error": self.error,
-        }

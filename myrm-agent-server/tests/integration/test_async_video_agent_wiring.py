@@ -58,8 +58,8 @@ async def test_general_agent_video_tool_enqueues_task_with_chat_and_agent_ids(
         chat_id="chat-video-wiring-int",
         agent_id="agent-video-wiring-int",
         video_generation_params=VideoGenerationParams(
-            provider="openai",
-            model="sora",
+            provider="volcengine",
+            model="seedance-2-0",
             api_key="sk-video-wiring-int",
         ),
     )
@@ -78,14 +78,14 @@ async def test_general_agent_video_tool_enqueues_task_with_chat_and_agent_ids(
         }
     )
     payload = json.loads(str(raw))
-    assert payload.get("task_id")
-    assert payload.get("status") == "pending"
-    assert payload.get("task_type") == "video_generate"
+    (started,) = payload["tasks"]
+    assert started["task_type"] == "video_generate"
+    assert started["status"] == "pending"
 
-    task = await video_task_store.get_task(str(payload["task_id"]))
+    task = await video_task_store.get_task(started["task_id"])
     assert task is not None
-    assert task.payload["model"] == "sora"
-    assert task.payload["provider"] == "openai"
+    assert task.payload["model"] == "seedance-2-0"
+    assert task.payload["provider"] == "volcengine"
     assert "api_key" not in task.payload
     assert isinstance(task.payload.get("api_key_enc"), str)
     assert task.payload["chat_id"] == "chat-video-wiring-int"

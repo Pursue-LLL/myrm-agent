@@ -10,7 +10,6 @@ under skills the user has turned off.
 [OUTPUT]
 - normalize_path: normalize a path for prefix comparison
 - is_under_disabled_skill_root: check whether a path is under a disabled root
-- filter_disabled_skill_paths: drop paths under disabled skill roots
 - get_disabled_skill_roots: read roots from RunnableConfig context
 
 [POS]
@@ -36,12 +35,6 @@ def is_under_disabled_skill_root(path: str, disabled_roots: Sequence[str]) -> bo
     if not disabled_roots:
         return False
     return any(is_within_boundary(path, root) for root in disabled_roots)
-
-
-def filter_disabled_skill_paths(paths: Sequence[str], disabled_roots: Sequence[str]) -> list[str]:
-    if not disabled_roots:
-        return list(paths)
-    return [p for p in paths if not is_under_disabled_skill_root(p, disabled_roots)]
 
 
 def get_disabled_skill_roots(config: RunnableConfig | None) -> list[str]:

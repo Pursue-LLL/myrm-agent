@@ -5,7 +5,9 @@ The ``CronManager`` is the single entry point for all job mutations
 (used by both agent tools and API routes).
 
 [INPUT]
-- cron.engine.parser::compute_next_run (POS: cron expression parser and validator)
+- cron.manager_queries::CronQueryMixin (POS: read-only queries of the cron CRUD manager)
+- cron.manager_update::CronUpdateMixin (POS: update path of the cron CRUD manager)
+- cron.manager_validation::CronValidationMixin (POS: validation half of the cron CRUD manager)
 - cron.triggers::TriggerConfig, WebhookTrigger (POS: event trigger definitions)
 - cron.types::CronJob, CronJobPatch, JobStatus, JobType, ScheduleKind, etc. (POS: cron data models)
 - cron.protocols::CronStore (POS: cron job persistence protocol)
@@ -16,7 +18,9 @@ The ``CronManager`` is the single entry point for all job mutations
 
 [POS]
 Cron CRUD orchestration layer. Validates job configurations, persists changes via CronStore,
-and notifies CronScheduler of mutations. Used by both agent tools and API routes.
+and notifies CronScheduler of mutations. Used by both agent tools and API routes. Creation, duplication,
+deletion, pause, resume, trigger and the manual trial run (``run_now``) live here; reads (``CronQueryMixin``), updates (``CronUpdateMixin``) and
+field validation (``CronValidationMixin``) are mixed in.
 """
 
 from __future__ import annotations
@@ -27,7 +31,8 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
+from myrm_agent_harness.toolkits.cron.manager_queries import CronQueryMixin
+from myrm_agent_harness.toolkits.cron.manager_update import CronUpdateMixin
 from myrm_agent_harness.toolkits.cron.manager_validation import CronValidationMixin
 from myrm_agent_harness.toolkits.cron.triggers import TriggerConfig, WebhookTrigger
 from myrm_agent_harness.toolkits.cron.types import (
@@ -43,19 +48,15 @@ from myrm_agent_harness.toolkits.cron.types import (
 )
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.infra.incremental.types import (
-        MonitorConfig,
-        MonitorState,
-        ResetReason,
-    )
+    from myrm_agent_harness.infra.incremental.types import MonitorConfig
     from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
-    from myrm_agent_harness.toolkits.cron.types import CronRunRecord, Schedule
+    from myrm_agent_harness.toolkits.cron.types import RunNowOutcome, Schedule
 
 logger = logging.getLogger(__name__)
 
 
-class CronManager(CronValidationMixin):
+class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
     """CRUD orchestration for cron jobs.
 
     All mutations validate inputs, persist via ``CronStore``, and notify
@@ -75,77 +76,6 @@ class CronManager(CronValidationMixin):
         self._store = store
         self._scheduler = scheduler
         self._shell_enabled = shell_enabled
-
-    # ------------------------------------------------------------------
-    # Queries
-    # ------------------------------------------------------------------
-
-    async def list_jobs(
-        self,
-        *,
-        name_filter: str | None = None,
-        chat_id: str | None = None,
-        project_id: str | None = None,
-        limit: int | None = None,
-        offset: int = 0,
-    ) -> list[CronJob]:
-        return await self._store.list_jobs(
-            name_filter=name_filter,
-            chat_id=chat_id,
-            project_id=project_id,
-            limit=limit,
-            offset=offset,
-        )
-
-    async def count_jobs(
-        self,
-        *,
-        name_filter: str | None = None,
-        chat_id: str | None = None,
-        project_id: str | None = None,
-    ) -> int:
-        return await self._store.count_jobs(
-            name_filter=name_filter,
-            chat_id=chat_id,
-            project_id=project_id,
-        )
-
-    async def get_job(self, job_id: str) -> CronJob | None:
-        return await self._store.get_job(job_id)
-
-    async def list_runs(
-        self,
-        *,
-        job_id: str | None = None,
-        limit: int = 20,
-        offset: int = 0,
-        status: str | None = None,
-    ) -> list[CronRunRecord]:
-        # Run records outlive a deleted job (a one-shot job is deleted after it ran) but are not served by its id.
-        if job_id and await self._store.get_job(job_id) is None:
-            return []
-        return await self._store.list_runs(job_id, limit=limit, offset=offset, status=status)
-
-    async def count_runs(
-        self,
-        *,
-        job_id: str | None = None,
-        status: str | None = None,
-    ) -> int:
-        if job_id and await self._store.get_job(job_id) is None:
-            return 0
-        return await self._store.count_runs(job_id, status=status)
-
-    async def get_monitor_state(self, job_id: str) -> MonitorState | None:
-        """Return the monitor state for a job, or None if not found."""
-        return await self._store.get_monitor_state(job_id)
-
-    async def batch_get_monitor_states(self, job_ids: list[str]) -> dict[str, MonitorState]:
-        """Batch get monitor states for multiple jobs.
-
-        Returns dict mapping job_id to MonitorState. Missing jobs are omitted.
-        """
-        return await self._store.batch_get_monitor_states(job_ids)
 
     # ------------------------------------------------------------------
     # Mutations
@@ -247,10 +177,10 @@ class CronManager(CronValidationMixin):
                 context_from=context_from,
                 pre_condition_script=pre_condition_script,
                 acceptance_criteria=acceptance_criteria,
-                next_run_at=compute_next_run(schedule, now),
                 created_at=now,
                 updated_at=now,
             )
+            job.next_run_at = self._book_slot(job, now)
         except ValueError as e:
             # Config validation failed — reject entire job, no fallback
             logger.error("Cron job config validation failed: %s", e)
@@ -315,187 +245,6 @@ class CronManager(CronValidationMixin):
         logger.warning("Cron job duplicated: %s -> %s (%s)", source.name, final_name, new_id)
         return cloned
 
-    async def _reset_baseline_on_change(self, job_id: str, reset_reason: ResetReason) -> None:
-        """Reset monitor baseline and record reason.
-
-        Called when command/prompt/monitor_type changes with enabled monitoring.
-        Clears baseline data and persists reset metadata for user visibility.
-
-        Args:
-            job_id: Job identifier.
-            reset_reason: Why the baseline was reset.
-        """
-        state = await self._store.get_monitor_state(job_id)
-        if state:
-            state.data = {}
-            state.last_reset_at = datetime.now(UTC)
-            state.last_reset_reason = reset_reason
-            await self._store.save_monitor_state(state)
-        else:
-            await self._store.delete_monitor_state(job_id)
-        logger.info(
-            "Auto-reset monitor baseline due to %s change: %s",
-            reset_reason.replace("_", "/"),
-            job_id,
-        )
-
-    async def update_job(self, job_id: str, patch: CronJobPatch) -> CronJob | None:
-        """Update job fields via patch.
-
-        Auto-resets monitor baseline when command/prompt/monitor_type changes
-        with enabled monitor.
-        """
-        job = await self._store.get_job(job_id)
-        if not job:
-            return None
-        self._validate_update_content(job, patch)
-
-        now = datetime.now(UTC)
-        reset_reason: ResetReason | None = None
-
-        if patch.name is not None:
-            job.name = patch.name
-        if patch.status is not None:
-            if patch.status == JobStatus.ACTIVE and job.status != JobStatus.ACTIVE:
-                self._validate_resume_preconditions(job, now)
-            job.status = patch.status
-        if patch.schedule is not None:
-            self._validate_schedule(patch.schedule)
-            job.schedule = patch.schedule
-            job.next_run_at = compute_next_run(patch.schedule, now)
-        if patch.prompt is not None and patch.prompt != job.prompt:
-            job.prompt = patch.prompt
-            if job.monitor_config and job.monitor_config.enabled:
-                reset_reason = "prompt_change"
-        if patch.model is not None:
-            job.model = patch.model
-        if patch.agent_id is not None:
-            job.agent_id = patch.agent_id
-        if patch.clear_project_id:
-            job.project_id = None
-        elif patch.project_id is not None:
-            job.project_id = patch.project_id
-        if patch.clear_workflow_template:
-            job.workflow_template_id = None
-            job.workflow_template_args = None
-        else:
-            if patch.workflow_template_id is not None:
-                job.workflow_template_id = patch.workflow_template_id or None
-            if patch.workflow_template_args is not None:
-                job.workflow_template_args = patch.workflow_template_args or None
-        if patch.command is not None and patch.command != job.command:
-            job.command = patch.command
-            if job.monitor_config and job.monitor_config.enabled:
-                reset_reason = "command_change"
-        if patch.delivery is not None:
-            job.delivery = patch.delivery
-        if patch.clear_failure_delivery:
-            job.failure_delivery = None
-        elif patch.failure_delivery is not None:
-            job.failure_delivery = patch.failure_delivery
-        if patch.clear_active_hours:
-            job.active_hours = None
-        elif patch.active_hours is not None:
-            job.active_hours = patch.active_hours
-        if patch.required_capabilities is not None:
-            job.required_capabilities = patch.required_capabilities
-        if patch.allowed_roots is not None:
-            job.allowed_roots = patch.allowed_roots
-        if patch.clear_tools_allowed:
-            job.tools_allowed = None
-        elif patch.tools_allowed is not None:
-            job.tools_allowed = patch.tools_allowed
-        if patch.clear_skill_ids:
-            job.skill_ids = ()
-        elif patch.skill_ids is not None:
-            job.skill_ids = patch.skill_ids
-        if patch.max_retries is not None:
-            job.max_retries = patch.max_retries
-        if patch.retry_backoff_ms is not None:
-            job.retry_backoff_ms = patch.retry_backoff_ms
-        if patch.timeout_seconds is not None:
-            job.timeout_seconds = patch.timeout_seconds
-        if patch.misfire_grace_seconds is not None:
-            job.misfire_grace_seconds = patch.misfire_grace_seconds
-        if patch.cooldown_seconds is not None:
-            job.cooldown_seconds = patch.cooldown_seconds
-        if patch.clear_max_fires:
-            job.max_fires = None
-        elif patch.max_fires is not None:
-            job.max_fires = patch.max_fires
-        if patch.clear_expires_at:
-            job.expires_at = None
-        elif patch.expires_at is not None:
-            job.expires_at = patch.expires_at
-        if patch.session_target is not None:
-            job.session_target = patch.session_target
-        if patch.clear_chat_id:
-            job.chat_id = None
-        elif patch.chat_id is not None:
-            job.chat_id = patch.chat_id
-        if patch.clear_failure_alert:
-            job.failure_alert = False
-        elif patch.failure_alert is not None:
-            job.failure_alert = patch.failure_alert
-        if patch.delete_after_run is not None:
-            job.delete_after_run = patch.delete_after_run
-        if patch.run_retention_days is not None:
-            job.run_retention_days = patch.run_retention_days
-        if patch.deduplicate is not None:
-            job.deduplicate = patch.deduplicate
-            if not patch.deduplicate:
-                job.last_output_hash = None
-        if patch.skip_if_active is not None:
-            job.skip_if_active = patch.skip_if_active
-        if patch.clear_monitor_config:
-            job.monitor_config = None
-        elif patch.monitor_config is not None:
-            if (
-                job.monitor_config
-                and job.monitor_config.enabled
-                and patch.monitor_config.monitor_type != job.monitor_config.monitor_type
-            ):
-                reset_reason = reset_reason or "monitor_type_change"
-            job.monitor_config = patch.monitor_config
-        if patch.clear_triggers:
-            job.triggers = None
-        elif patch.triggers is not None:
-            job.triggers = self._ensure_webhook_credentials(patch.triggers)
-        if patch.clear_context_from:
-            job.context_from = ()
-        elif patch.context_from is not None:
-            await self._validate_context_from(job_id, patch.context_from)
-            job.context_from = patch.context_from
-        if patch.clear_pre_condition_script:
-            job.pre_condition_script = None
-        elif patch.pre_condition_script is not None:
-            job.pre_condition_script = patch.pre_condition_script
-        if patch.clear_acceptance_criteria:
-            job.acceptance_criteria = ()
-        elif patch.acceptance_criteria is not None:
-            job.acceptance_criteria = patch.acceptance_criteria
-        if patch.consecutive_failures is not None:
-            job.consecutive_failures = patch.consecutive_failures
-        if patch.clear_last_error:
-            job.last_error = None
-        elif patch.last_error is not None:
-            job.last_error = patch.last_error
-        job.updated_at = now
-
-        if reset_reason:
-            try:
-                await self._reset_baseline_on_change(job_id, reset_reason)
-            except Exception:
-                logger.warning(
-                    "Failed to auto-reset monitor baseline for job %s, baseline may be stale until next run",
-                    job_id,
-                    exc_info=True,
-                )
-
-        job = await self._store.save_job(job)
-        self._scheduler.notify_change()
-        return job
-
     async def delete_job(self, job_id: str) -> bool:
         if await self._store.get_job(job_id) is None:
             return False
@@ -537,24 +286,17 @@ class CronManager(CronValidationMixin):
         return await self.update_job(job_id, CronJobPatch(status=JobStatus.PAUSED))
 
     async def resume_job(self, job_id: str) -> CronJob | None:
+        """Re-enable a job through the activation path of update_job; an enabled job comes back unchanged."""
         job = await self._store.get_job(job_id)
-        if not job:
-            return None
-
-        now = datetime.now(UTC)
-        self._validate_resume_preconditions(job, now)
-
-        job.status = JobStatus.ACTIVE
-        job.next_run_at = compute_next_run(job.schedule, now)
-        job.consecutive_failures = 0
-        job.updated_at = now
-
-        job = await self._store.save_job(job)
-        self._scheduler.notify_change()
-        return job
+        if job is None or job.status == JobStatus.ACTIVE:
+            return job
+        return await self.update_job(job_id, CronJobPatch(status=JobStatus.ACTIVE))
 
     async def trigger_now(self, job_id: str) -> bool:
-        """Set next_run_at to now so the scheduler picks it up immediately."""
+        """Make an active job due now: the scheduler runs it as an ordinary scheduled run (slot booked, fire counted).
+
+        For a manual trial run that touches neither the schedule nor the fire count, use ``run_now``.
+        """
         job = await self._store.get_job(job_id)
         if not job or job.status != JobStatus.ACTIVE:
             return False
@@ -563,3 +305,7 @@ class CronManager(CronValidationMixin):
         await self._store.save_job(job)
         self._scheduler.notify_change()
         return True
+
+    async def run_now(self, job_id: str) -> RunNowOutcome:
+        """Start one manual trial run of an active job that is not already running; see ``CronScheduler.run_now``."""
+        return await self._scheduler.run_now(job_id)

@@ -160,16 +160,22 @@ def test_restricting_needs_no_hash(client: TestClient) -> None:
 
 
 def test_list_trusted_folders(client: TestClient) -> None:
-    entry = WorkspaceTrustEntry(
+    trusted = WorkspaceTrustEntry(
         path="/tmp/demo",
         level=WorkspaceTrustLevel.TRUSTED,
         decided_at="2026-08-31T00:00:00+00:00",
         manifest_hash="",
+        disclosed_command_prefixes=("npm run test", "make lint"),
+    )
+    restricted = WorkspaceTrustEntry(
+        path="/tmp/other",
+        level=WorkspaceTrustLevel.RESTRICTED,
+        decided_at="2026-08-30T00:00:00+00:00",
     )
     mock_store = AsyncMock()
     mock_store.loaded = True
     mock_store.load = AsyncMock()
-    mock_store.list_entries = lambda: [entry]
+    mock_store.list_entries = lambda: [trusted, restricted]
 
     with patch(
         "app.api.security.workspace_trust.get_workspace_trust_store",
@@ -180,4 +186,7 @@ def test_list_trusted_folders(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["success"] is True
-    assert len(body["data"]) == 1
+    assert [(row["path"], row["disclosed_command_prefixes"]) for row in body["data"]] == [
+        ("/tmp/demo", ["npm run test", "make lint"]),
+        ("/tmp/other", []),
+    ]

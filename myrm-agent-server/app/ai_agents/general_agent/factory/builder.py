@@ -48,7 +48,6 @@ async def build_general_agent(
         user_id = SINGLE_TENANT_USER_ID
 
     workspace_root = agent_wrapper.declared_allowed_roots[0] if agent_wrapper.declared_allowed_roots else None
-    effective_prompt_locale = getattr(agent_wrapper, "prompt_locale", None) or getattr(agent_wrapper, "locale", None)
 
     from typing import cast
 
@@ -141,19 +140,18 @@ async def build_general_agent(
     from app.services.agent.goals.goal_registry import GoalRegistry
 
     enable_planning = agent_wrapper.enable_planning
-    # Mounted at build time: callers key the execution cache by GoalRegistry.has_active_goal.
-    goal_provider = GoalRegistry.get_provider(effective_chat_id)
-    if goal_provider:
-        active_goal = await goal_provider.get_active_goal(effective_chat_id)
-        if active_goal:
-            enable_planning = True
-            from myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools import (
-                create_goal_tools,
-            )
+    # Mounted from the stored goal, the truth callers key the execution cache by (GoalRegistry.has_active_goal): an
+    # IM, cron or wake turn registers no provider yet runs on a chat whose goal is still active.
+    goal_provider = GoalRegistry.resolve_provider(effective_chat_id)
+    if await goal_provider.get_active_goal(effective_chat_id):
+        enable_planning = True
+        from myrm_agent_harness.agent.meta_tools.goals.goal_agent_tools import (
+            create_goal_tools,
+        )
 
-            goal_tools = create_goal_tools(goal_provider, effective_chat_id)
-            tools.extend(goal_tools)
-            logger.info("Goal tools loaded: complete_goal_tool")
+        goal_tools = create_goal_tools(goal_provider, effective_chat_id, locale=agent_wrapper._tool_description_locale())
+        tools.extend(goal_tools)
+        logger.info("Goal tools loaded: complete_goal_tool")
 
     # 4.5 Channel notification tool (Turn1 when notify_targets configured)
     channel_notify_tool_loaded = load_channel_notify_tool(agent_wrapper, tools)
@@ -191,7 +189,7 @@ async def build_general_agent(
         agent_wrapper,
         mount_plan=mount_plan,
         channel_notify_tool_loaded=channel_notify_tool_loaded,
-        prompt_locale=effective_prompt_locale,
+        prompt_locale=agent_wrapper.locale,
     )
 
     # 9. Call framework API
@@ -202,7 +200,6 @@ async def build_general_agent(
     trusted_ids: list[str] | None = None
     resolved_env_map: dict[str, dict[str, str]] | None = None
     global_env: dict[str, str] | None = None
-    secret_store = None
 
     if _user_skill_cfg.trusted_skill_ids:
         trusted_ids = _user_skill_cfg.trusted_skill_ids
@@ -290,9 +287,6 @@ async def build_general_agent(
         else None
     )
 
-    memory_binding = context_assembly.binding
-    memory_namespaces = memory_binding.namespaces if memory_binding is not None else []
-
     allowed_tool_names: list[str] = []
     for t in tools:
         raw_name = getattr(t, "name", None)
@@ -339,28 +333,15 @@ async def build_general_agent(
         # The harness reads MCP configs by attribute and applies its own default where MCPServerConfig has no field (max_output_chars).
         mcp_servers=cast("list[MCPConfig]", agent_wrapper.mcp_config or []),
         openapi_services=agent_wrapper.openapi_services or [],
-        memory_namespaces=memory_namespaces,
         workspace_binding=workspace_binding,
         max_iterations=agent_wrapper.max_iterations or 100,
-        unattended=getattr(agent_wrapper, "unattended_mode", False),
         locale=agent_wrapper.locale,
-        prompt_locale=effective_prompt_locale,
+        prompt_locale=agent_wrapper.locale,
         channel_name=agent_wrapper.channel_name,
         security_config=security_ext._build_security_config(),
         engine_params=normalized_engine_params,
         mcp_surface_mode=mcp_surface_mode,
     )
-
-    library_skill_names: frozenset[str] = frozenset()
-    if skill_backend is not None:
-        try:
-            library_skills = await skill_backend.list_skills()
-            library_skill_names = frozenset(skill.name for skill in library_skills)
-        except Exception as e:
-            logger.warning(
-                "Failed to load skill library names for gap detection (non-blocking): %s",
-                e,
-            )
 
     # PTC dependency auto-injection: MCP/PTC skills require bash + file_read
     from app.services.agent.tool_mount import apply_ptc_meta_mount
@@ -398,9 +379,7 @@ async def build_general_agent(
         executor=executor,
         storage_backend=storage_backend,
         skill_backend=skill_backend,
-        market_backend=None,
         write_backend=None,
-        secret_backend=secret_store if agent_wrapper.agent_id else None,
         memory_manager=memory_manager,
         enable_memory_auto_extraction=agent_wrapper.enable_memory and agent_wrapper.enable_memory_auto_extraction,
         extraction_llm=agent_wrapper._lite_llm,
@@ -439,7 +418,6 @@ async def build_general_agent(
         enable_answer_tool=agent_wrapper.enable_answer_tool,
         enable_planning=enable_planning,
         task_workspace_root=workspace_root,
-        library_skill_names=library_skill_names,
     )
 
     # 9.5 Register extensions (subagent tools, security, memory)
@@ -451,7 +429,7 @@ async def build_general_agent(
     ]
 
     if _should_enable_subagent_tools():
-        logger.warning("Subagent tools are enabled. Adding SubagentManagementExtension.")
+        logger.info("Subagent tools are enabled. Adding SubagentManagementExtension.")
         subagent_ext = SubagentManagementExtension(
             jit_subagents=agent_wrapper.jit_subagents,
             subagent_ids=agent_wrapper.subagent_ids or [],
@@ -460,7 +438,7 @@ async def build_general_agent(
         )
         extensions.insert(-1, subagent_ext)
     else:
-        logger.warning("Subagent tools are NOT enabled. Skipping SubagentManagementExtension.")
+        logger.info("Subagent tools are NOT enabled. Skipping SubagentManagementExtension.")
 
     for ext in extensions:
         agent.register_extension(ext)

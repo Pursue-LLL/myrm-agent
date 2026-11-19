@@ -11,6 +11,7 @@
 - SSRFSecurityError: raised on blocked URLs (re-exported from url_allowlist)
 - check_url / resolve_and_check: sync validation
 - validate_url_for_ssrf / async_validate_url_for_ssrf: full validation with DNS
+- async_vetted_addresses: the public addresses a URL's host resolves to, for clients that connect to them by name
 - async_pin_url: DNS-pinned URL for HTTP clients; blocks emit SSRF_BLOCKED audit entries
 
 [POS]
@@ -49,6 +50,7 @@ __all__ = [
     "URLAllowlistGuard",
     "async_pin_url",
     "async_validate_url_for_ssrf",
+    "async_vetted_addresses",
     "check_url",
     "clear_dynamic_blocked_hostnames",
     "is_internal_ip",
@@ -230,21 +232,16 @@ async def async_validate_url_for_ssrf(url: str) -> SSRFResult:
     return await _resolve_and_check_async(hostname)
 
 
-async def async_pin_url(
-    url: str,
-    allowed_internal_hosts: list[str] | None = None,
-) -> tuple[str, dict[str, str]]:
-    """Validate URL and return a DNS-pinned safe URL plus Host header for HTTP clients."""
+async def _vet_host(url: str, allowed_internal_hosts: list[str] | None) -> tuple[str, tuple[str, ...]]:
+    """Validate *url* and return its hostname with the addresses that hostname may be dialed at."""
     hostname, error = validate_scheme_and_hostname(url)
     if hostname is None:
         raise SSRFSecurityError(error)
 
     URLAllowlistGuard.check(hostname)
 
-    allowed_hosts = allowed_internal_hosts or []
-    parsed = urlparse(url)
-    if hostname in allowed_hosts:
-        return url, {}
+    if hostname in (allowed_internal_hosts or []):
+        return hostname, ()
 
     result = await _resolve_and_check_async(hostname)
     if not result.safe:
@@ -255,7 +252,34 @@ async def async_pin_url(
     if not result.resolved_ips:
         raise SSRFSecurityError(f"DNS resolution failed for {hostname}")
 
-    ip_address = result.resolved_ips[0]
+    return hostname, result.resolved_ips
+
+
+async def async_vetted_addresses(
+    url: str,
+    allowed_internal_hosts: list[str] | None = None,
+) -> tuple[str, ...]:
+    """Validate *url* and return the addresses its host resolves to, every one of them public.
+
+    For a client that keeps the host name in the URL (so TLS checks the certificate against it) and is told to
+    connect only to these addresses. A host listed in *allowed_internal_hosts* is not resolved and has none: ``()``.
+    A host that is an IP literal is its own address.
+    """
+    _hostname, addresses = await _vet_host(url, allowed_internal_hosts)
+    return addresses
+
+
+async def async_pin_url(
+    url: str,
+    allowed_internal_hosts: list[str] | None = None,
+) -> tuple[str, dict[str, str]]:
+    """Validate URL and return a DNS-pinned safe URL plus Host header for HTTP clients."""
+    hostname, addresses = await _vet_host(url, allowed_internal_hosts)
+    if not addresses:
+        return url, {}
+
+    parsed = urlparse(url)
+    ip_address = addresses[0]
     host_part = f"[{ip_address}]" if ":" in ip_address and not ip_address.startswith("[") else ip_address
     netloc = f"{host_part}:{parsed.port}" if parsed.port else host_part
     safe_url = urlunparse(parsed._replace(netloc=netloc))

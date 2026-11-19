@@ -21,7 +21,7 @@ except (KeyError, OSError):
   printf '%s' "${real_home}"
 }
 
-# Runtime namespace that identifies the real user's own stack (`myrm start|dev|stop`). The OSS
+# Runtime namespace that identifies the real user's own stack (`myrm start|stop`). The OSS
 # CLI exports it; every maintainer entry (`./myrm-dev`, tests, isolated runtimes) uses another
 # namespace, so each side classifies the other's processes as foreign and never signals them.
 USER_RUNTIME_NAMESPACE="user"

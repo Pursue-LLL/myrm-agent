@@ -5,6 +5,7 @@ import pytest
 from myrm_agent_harness.toolkits.llms.image.types import (
     BUILTIN_PROFILES,
     ModelProfile,
+    editable_model_names,
     get_profile,
     list_profiles,
     register_profile,
@@ -18,7 +19,6 @@ class TestModelProfile:
         p = ModelProfile(name="test-model")
         assert p.name == "test-model"
         assert p.api_key_provider == "openai"
-        assert p.max_count == 1
         assert p.supports_edit is False
         assert p.max_input_images == 0
         assert p.allowed_sizes == frozenset()
@@ -39,8 +39,8 @@ class TestModelProfile:
         d = p.to_dict()
         assert d["name"] == "test"
         assert d["api_key_provider"] == "openai"
-        assert d["max_count"] == 1
         assert d["supports_edit"] is False
+        assert "max_count" not in d
         assert "allowed_sizes" not in d
         assert "max_input_images" not in d
 
@@ -53,7 +53,6 @@ class TestModelProfile:
         p = ModelProfile(
             name="full",
             api_key_provider="together_ai",
-            max_count=4,
             supports_edit=True,
             max_input_images=2,
             allowed_sizes=frozenset({"1024x1024", "512x512"}),
@@ -71,32 +70,40 @@ class TestProfileRegistry:
     """Tests for profile registration and lookup."""
 
     def test_builtin_profiles_exist(self) -> None:
-        assert "dall-e-3" in BUILTIN_PROFILES
-        assert "dall-e-2" in BUILTIN_PROFILES
-        assert "gpt-image-1" in BUILTIN_PROFILES
-        assert "gemini/imagen-3.0-generate-002" in BUILTIN_PROFILES
-        assert "flux/schnell" in BUILTIN_PROFILES
-        assert "flux/pro" in BUILTIN_PROFILES
-        assert "stability/stable-diffusion-xl" in BUILTIN_PROFILES
+        for name in (
+            "gpt-image-2.6-sunburst",
+            "gpt-image-2.6-flare",
+            "gemini/imagen-3.0-generate-002",
+            "flux/schnell",
+            "flux/pro",
+            "stability/stable-diffusion-xl",
+            "xai/grok-imagine-image",
+            "xai/grok-imagine-image-quality",
+        ):
+            assert name in BUILTIN_PROFILES
 
     def test_builtin_count(self) -> None:
-        assert len(BUILTIN_PROFILES) == 9
+        assert len(BUILTIN_PROFILES) == 8
+
+    @pytest.mark.parametrize("retired", ["dall-e-3", "dall-e-2", "gpt-image-1"])
+    def test_retired_models_are_not_in_the_catalog(self, retired: str) -> None:
+        assert retired not in BUILTIN_PROFILES
+        assert get_profile(retired) is None
 
     def test_get_profile_known(self) -> None:
-        p = get_profile("dall-e-3")
+        p = get_profile("gpt-image-2.6-sunburst")
         assert p is not None
-        assert p.name == "dall-e-3"
-        assert p.max_count == 1
+        assert p.name == "gpt-image-2.6-sunburst"
 
     def test_get_profile_unknown(self) -> None:
         assert get_profile("unknown-model-xyz") is None
 
     def test_register_custom_profile(self) -> None:
-        custom = ModelProfile(name="my-custom-model", max_count=8)
+        custom = ModelProfile(name="my-custom-model", max_prompt_length=123)
         register_profile(custom)
         found = get_profile("my-custom-model")
         assert found is not None
-        assert found.max_count == 8
+        assert found.max_prompt_length == 123
 
     def test_list_profiles_sorted(self) -> None:
         profiles = list_profiles()
@@ -104,29 +111,34 @@ class TestProfileRegistry:
         assert names == sorted(names)
         assert len(profiles) >= len(BUILTIN_PROFILES)
 
-    def test_dalle2_supports_edit(self) -> None:
-        p = get_profile("dall-e-2")
+    @pytest.mark.parametrize("name", ["gpt-image-2.6-sunburst", "gpt-image-2.6-flare"])
+    def test_gpt_image_capabilities(self, name: str) -> None:
+        p = get_profile(name)
         assert p is not None
         assert p.supports_edit is True
         assert p.max_input_images == 1
-
-    def test_gpt_image_1_capabilities(self) -> None:
-        p = get_profile("gpt-image-1")
-        assert p is not None
-        assert p.supports_edit is True
-        assert "auto" in p.allowed_sizes
+        assert p.allowed_sizes == frozenset()
         assert p.max_prompt_length == 32000
+
+    def test_editable_model_names_lists_only_models_that_edit(self) -> None:
+        names = editable_model_names()
+        assert {"gpt-image-2.6-sunburst", "gpt-image-2.6-flare"} <= set(names)
+        assert names == sorted(names)
+        for name in names:
+            profile = get_profile(name)
+            assert profile is not None
+            assert profile.supports_edit
 
     @pytest.mark.parametrize(
         "model,expected_provider",
         [
-            ("dall-e-3", "openai"),
-            ("dall-e-2", "openai"),
-            ("gpt-image-1", "openai"),
+            ("gpt-image-2.6-sunburst", "openai"),
+            ("gpt-image-2.6-flare", "openai"),
             ("gemini/imagen-3.0-generate-002", "gemini"),
             ("flux/schnell", "together_ai"),
             ("flux/pro", "together_ai"),
             ("stability/stable-diffusion-xl", "stability"),
+            ("xai/grok-imagine-image", "xai"),
         ],
     )
     def test_api_key_provider_per_model(self, model: str, expected_provider: str) -> None:
@@ -137,7 +149,6 @@ class TestProfileRegistry:
     def test_gemini_imagen_capabilities(self) -> None:
         p = get_profile("gemini/imagen-3.0-generate-002")
         assert p is not None
-        assert p.max_count == 4
         assert "16:9" in p.allowed_aspect_ratios
 
     def test_flux_schnell_capabilities(self) -> None:
@@ -148,5 +159,4 @@ class TestProfileRegistry:
     def test_stability_sdxl_capabilities(self) -> None:
         p = get_profile("stability/stable-diffusion-xl")
         assert p is not None
-        assert p.max_count == 4
         assert "1024x1024" in p.allowed_sizes

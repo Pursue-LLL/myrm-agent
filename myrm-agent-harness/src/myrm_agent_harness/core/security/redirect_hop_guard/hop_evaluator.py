@@ -20,6 +20,7 @@ Shared by the browser context filter, the navigation guard and the web_fetch loc
 from __future__ import annotations
 
 import ipaddress
+from dataclasses import replace
 from urllib.parse import urlparse
 
 from myrm_agent_harness.core.security.redirect_hop_guard.name_resolution import IPAddress, resolve_addresses
@@ -185,7 +186,9 @@ class RedirectHopEvaluator:
         redirect hops and subresources are judged by the literal host alone. Only loopback,
         link-local, unspecified and cloud metadata answers are judged. RFC 1918, CGNAT and
         benchmarking ranges are not, because fake-IP proxies and VPNs hand them out for public
-        names. A lookup that fails or times out judges nothing.
+        names. A lookup that fails or times out judges nothing. A name allowed after a lookup (public, or
+        private but granted) carries the addresses that were judged in ``addresses``, so a caller can dial
+        only those.
         """
         verdict = self.evaluate_hop(target_url, resource_type)
         if self._grants is None or verdict.matched_rule != _PUBLIC_TARGET:
@@ -193,7 +196,8 @@ class RedirectHopEvaluator:
         hostname = _plain_hostname(target_url)
         if hostname is None:
             return verdict
-        addresses = [_unmapped(address) for address in await resolve_addresses(hostname)]
+        answers = await resolve_addresses(hostname)
+        addresses = [_unmapped(address) for address in answers]
         metadata = next((address for address in addresses if address in _CLOUD_METADATA_ADDRESSES), None)
         if metadata is not None:
             return self._build_blocked_result(
@@ -204,13 +208,15 @@ class RedirectHopEvaluator:
             )
         local = next((address for address in addresses if _is_local_address(address)), None)
         if local is not None:
-            return self._blocked_unless_granted(
+            verdict = self._blocked_unless_granted(
                 target_url,
                 resource_type,
                 "RESOLVES_TO_LOCAL_ADDRESS",
                 f"Target host '{hostname}' resolves to {local}, a loopback or link-local address",
             )
-        return verdict
+            if verdict.disposition != HopDisposition.ALLOW:
+                return verdict
+        return replace(verdict, addresses=tuple(str(address) for address in addresses))
 
     @staticmethod
     def _get_blocked_disposition(resource_type: str) -> HopDisposition:

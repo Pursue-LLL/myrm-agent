@@ -8,7 +8,7 @@ Commerce domain services and session state isolation for transactional AI agents
 | File | Role | Description |
 |------|------|-------------|
 | `__init__.py` | Package | Public export of session isolation components and gated services. |
-| `spending_ledger.py` | Audit & Ledger | `SpendingLedgerEntry` and `SpendingLedgerStore` providing persistent, tamper-evident spending audit records. |
+| `spending_ledger.py` | Audit & Ledger | `SpendingLedgerEntry` and `SpendingLedgerStore` providing persistent spending audit records. |
 | `budget_service.py` | Budget Governance | `CommerceBudgetService` orchestrating SpendGovernor state machine, budget limits, emergency freezes, and ledger entries. |
 
 ## Invariants

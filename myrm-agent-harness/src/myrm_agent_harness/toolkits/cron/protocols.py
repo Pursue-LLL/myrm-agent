@@ -2,7 +2,7 @@
 
 Seven contracts that the application layer must satisfy:
 
-- ``CronStore``        — persistence (17 methods, unified for scheduler & manager)
+- ``CronStore``        — persistence (20 methods, unified for scheduler & manager)
 - ``PreFlightCondition`` — optional probe that decides, before a run, whether the run is worth making
 - ``JobRunner``        — execute a single job and produce a ``JobResult``
 - ``ResultDelivery``   — push results to the user via some channel
@@ -101,9 +101,10 @@ class CronStore(Protocol):
         ...
 
     async def save_job(self, job: CronJob) -> CronJob:
-        """Create or update a job (upsert semantics).
+        """Create or update a job (upsert semantics).  Returns the persisted job.
 
-        Returns the persisted job (may differ in ``updated_at`` etc.).
+        A new job gets ``updated_at`` stamped with the current time; an update stores the ``updated_at`` the job
+        carries, so moving the stamp is the caller's decision.
         """
         ...
 
@@ -111,12 +112,34 @@ class CronStore(Protocol):
         """Delete a job by ID.  Returns True if a row was deleted."""
         ...
 
-    async def claim_due(self, job_ids: list[str]) -> None:
-        """Atomically mark the given jobs as claimed for execution.
+    async def advance_next_run(self, job_id: str, *, next_run_at: datetime) -> bool:
+        """Book ``next_run_at`` for a job whose stored next run is due.  Returns True when the booking was made.
 
-        Typically sets ``next_run_at = NULL`` so they won't be picked up again.
-        Must be an atomic operation to ensure cross-process safety.
+        One atomic conditional update: the job exists, is ACTIVE, and its stored ``next_run_at`` is set and not
+        later than now, the comparison ``list_jobs(due_before=now)`` makes.  False means the job was paused,
+        deleted, re-booked by an edit or is not due any more, and nothing was written.  The scheduler dispatches a
+        run only when this returns True, so two workers can never both run one slot.  The value is stored as UTC.
+
+        A successful booking also stamps ``updated_at`` with the current time, which puts the replay anchor of startup
+        recovery past the booked slot.
         """
+        ...
+
+    async def mark_running(self, job_id: str) -> None:
+        """Record that a run of the job is in flight: insert the marker, or overwrite it with the current time.
+
+        The marker outlives a process that dies under its run and is the only trace of that run, so the next start
+        can report it.  One marker per job, whatever the number of overlapping runs.  Independent of the job row: a
+        deleted job's marker stays until its run ends.
+        """
+        ...
+
+    async def clear_running(self, job_id: str) -> None:
+        """Remove the job's in-flight marker.  A missing marker is not an error."""
+        ...
+
+    async def list_running(self) -> list[tuple[str, datetime]]:
+        """Return ``(job_id, started_at)`` of every in-flight marker, oldest first, with ``started_at`` in UTC."""
         ...
 
     async def save_run(self, run: CronRunRecord) -> None:
@@ -133,7 +156,8 @@ class CronStore(Protocol):
     ) -> list[CronRunRecord]:
         """Return recent run records, newest first.
 
-        When ``job_id`` is None, returns runs across all jobs (global view).
+        When ``job_id`` is None, returns runs across all jobs (global view). ``status`` selects the runs that ended in
+        it; ``error`` selects every failed run, a circuit break included (``run_status_filter.matching_run_statuses``).
         """
         ...
 
@@ -143,17 +167,7 @@ class CronStore(Protocol):
         *,
         status: str | None = None,
     ) -> int:
-        """Count run records matching the given filters."""
-        ...
-
-    async def list_orphaned_active(self) -> list[CronJob]:
-        """Return ACTIVE jobs with ``next_run_at IS NULL``.
-
-        These are jobs that were claimed for execution (next_run_at cleared
-        by ``claim_due``) but never completed — typically due to a process
-        crash.  The scheduler uses this during startup recovery to detect
-        and heal stale runs.
-        """
+        """Count run records matching the given filters; ``status`` means what it does for ``list_runs``."""
         ...
 
     async def purge_old_runs(self, before: datetime) -> int:
@@ -161,14 +175,6 @@ class CronStore(Protocol):
 
         Returns the number of deleted rows.  Called periodically by the
         scheduler to prevent unbounded growth of the run history table.
-        """
-        ...
-
-    async def get_latest_integrity_hash(self, job_id: str) -> str | None:
-        """Return the ``integrity_hash`` of the most recent run for a job.
-
-        Used by the executor to chain the next run's Merkle hash.
-        Returns None if the job has no prior runs (or no hashed runs).
         """
         ...
 
@@ -292,7 +298,8 @@ class ConcurrencyLock(Protocol):
     """Optional lock for leader election or cross-process coordination.
 
     When multiple scheduler processes run against the same DB, only the lock holder ticks.
-    The implementation must handle automatic renewal internally.
+    The implementation must handle automatic renewal internally, and the lock must not pass to another process
+    while its holder is alive: at start the scheduler reads every in-flight marker as the trace of a dead process.
 
     Lifecycle: ``try_acquire`` at start, ``release`` at stop.
     """
@@ -404,13 +411,6 @@ class StreamListener(Protocol):
 
     async def stop_all(self) -> None:
         """Tear down all active stream connections (graceful shutdown)."""
-        ...
-
-    def active_streams(self) -> dict[str, str]:
-        """Return ``{job_id: stream_url}`` for all active connections.
-
-        Used by the frontend status indicator and health checks.
-        """
         ...
 
 

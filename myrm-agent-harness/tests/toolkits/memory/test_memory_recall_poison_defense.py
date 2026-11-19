@@ -11,9 +11,11 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
     RECALL_TOOL_UNTRUSTED_PREAMBLE,
 )
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import (
+    drill_down_single_memory,
     search_memory_corpus,
 )
 from myrm_agent_harness.toolkits.memory.types import (
+    EvidenceReference,
     MemorySearchResult,
     MemoryType,
     SemanticMemory,
@@ -278,3 +280,90 @@ async def test_sessions_search_redacts_credentials_and_adds_preamble() -> None:
     assert content.startswith(RECALL_TOOL_UNTRUSTED_PREAMBLE)
     assert "sk-proj-abcdefghij1234567890" not in content
     assert "Deploy failed" in content
+
+
+_DRILL_SECRET = "sk-proj-abcdefghij1234567890"
+
+
+def _make_drill_memory() -> SemanticMemory:
+    """A stored memory whose text, metadata and evidence anchor all carry injected framing and a credential."""
+    tainted = f"{_POISON_PAYLOAD} key {_DRILL_SECRET}"
+    return SemanticMemory(
+        id="mem-drill-1",
+        content=tainted,
+        overview_l1=tainted,
+        metadata={"origin": tainted},
+        evidence=[EvidenceReference(source_id=tainted)],
+    )
+
+
+def _manager_returning(memory: SemanticMemory | None) -> AsyncMock:
+    manager = AsyncMock()
+    manager.get_memory = AsyncMock(return_value=memory)
+    return manager
+
+
+@pytest.mark.asyncio
+async def test_drill_down_full_sanitizes_content_metadata_and_evidence() -> None:
+    manager = _manager_returning(_make_drill_memory())
+
+    result = await drill_down_single_memory(manager, " mem-drill-1 ", detail_level="full")
+
+    manager.get_memory.assert_awaited_once_with("mem-drill-1")
+    assert result.startswith(RECALL_TOOL_UNTRUSTED_PREAMBLE)
+    assert "(id: mem-drill-1" in result
+    assert "[L2 Verbatim Full Content]" in result
+    assert "Metadata:" in result
+    assert "Evidence:" in result
+    assert "<<<UNTRUSTED_DATA" not in result
+    assert "<tool_call>" not in result
+    assert _DRILL_SECRET not in result
+    assert "exfiltrate secrets" in result
+
+
+@pytest.mark.asyncio
+async def test_drill_down_overview_sanitizes_overview_and_keeps_expand_hint() -> None:
+    manager = _manager_returning(_make_drill_memory())
+
+    result = await drill_down_single_memory(manager, "mem-drill-1", detail_level="overview")
+
+    assert result.startswith(RECALL_TOOL_UNTRUSTED_PREAMBLE)
+    assert "[L1 Overview]" in result
+    assert "<<<UNTRUSTED_DATA" not in result
+    assert "<tool_call>" not in result
+    assert _DRILL_SECRET not in result
+    assert "exfiltrate secrets" in result
+    assert "memory_search_tool(memory_id='mem-drill-1', detail_level='full')" in result
+
+
+@pytest.mark.asyncio
+async def test_drill_down_not_found_reply_has_no_preamble() -> None:
+    result = await drill_down_single_memory(_manager_returning(None), " missing ", detail_level="full")
+
+    assert result == "Memory with id 'missing' not found."
+
+
+@pytest.mark.asyncio
+async def test_drill_down_benign_text_passes_through_after_preamble() -> None:
+    memory = SemanticMemory(id="mem-drill-2", content="Deploys use list[str] on port 8080 under /srv/app.")
+
+    result = await drill_down_single_memory(_manager_returning(memory), "mem-drill-2", detail_level="full")
+
+    assert result.splitlines()[0] == RECALL_TOOL_UNTRUSTED_PREAMBLE
+    assert result.endswith("[L2 Verbatim Full Content]\nDeploys use list[str] on port 8080 under /srv/app.")
+
+
+@pytest.mark.parametrize(
+    "secret",
+    ["AKIA" + "QWERTYUIOPASDFGH", "ghp_" + "aB3dE5fG7hI9jK1lM3nO5pQ7rS9tU1vW3xY5"],
+    ids=["aws-access-key", "github-token"],
+)
+@pytest.mark.asyncio
+async def test_drill_down_overview_fallback_masks_a_credential_the_cut_would_split(secret: str) -> None:
+    # Without a stored L1 the overview is the content cut to 250 chars, and the cut falls 12 chars into the credential.
+    memory = SemanticMemory(id="mem-drill-3", content="w" * 237 + " " + secret + " " + "tail " * 100)
+
+    result = await drill_down_single_memory(_manager_returning(memory), "mem-drill-3", detail_level="overview")
+
+    assert "[L1 Overview]\n" + "w" * 237 in result
+    assert secret[:10] not in result

@@ -272,6 +272,17 @@ class BrowserNavigationError(BrowserSessionError):
                         "Check if the site is accessible from your network",
                     ]
                 )
+            elif "net::ERR_SOCKS_CONNECTION_FAILED" in error_text:
+                # The egress guard answers every connection it will not make this way: the browser cannot tell a refusal
+                # from an unresolvable or unreachable host.
+                suggestions.extend(
+                    [
+                        "The network policy refused the connection - only public internet hosts are reachable, so "
+                        "localhost, private network addresses and cloud metadata hosts are blocked",
+                        "If the host should be public, check that the domain exists and resolves to a public address",
+                        "Content on a private network cannot be opened from this environment",
+                    ]
+                )
 
         if not suggestions:
             suggestions.extend(

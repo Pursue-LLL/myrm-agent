@@ -21,6 +21,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import get_args
 from uuid import uuid4
 
 from myrm_agent_harness.agent.meta_tools.bash._background.job_store_core import (
@@ -39,6 +40,10 @@ logger = logging.getLogger(__name__)
 
 _STORE: BackgroundJobStore | None = None
 _CONFIGURED_PATH: Path | None = None
+
+# The statuses a ledger row can hold, derived from the Literal so the two cannot drift; a stored value outside them
+# reads as ``exited``.
+_STATUS_BY_NAME: dict[str, BackgroundJobStoreStatus] = {name: name for name in get_args(BackgroundJobStoreStatus)}
 
 # Columns the table gained after its first definition, as (name, ALTER statement); a ledger opened without them gets
 # them added, so a new and an existing ledger end up with the same table.
@@ -205,20 +210,6 @@ class BackgroundJobStore:
             )
             return cursor.rowcount == 1
 
-    def try_claim_finish_by_session_pid(self, session_id: str, pid: int) -> bool:
-        """Legacy dedupe path when job_id is unknown (pre-store rows)."""
-        now = time.time()
-        with self._connect() as conn:
-            cursor = conn.execute(
-                """
-                UPDATE background_jobs
-                SET finish_processed = 1, updated_at = ?
-                WHERE session_id = ? AND pid = ? AND finish_processed = 0 AND status = 'exited'
-                """,
-                (now, session_id, pid),
-            )
-            return cursor.rowcount == 1
-
     def mark_orphaned(self, job_id: str) -> None:
         now = time.time()
         with self._connect() as conn:
@@ -295,18 +286,12 @@ class BackgroundJobStore:
 
     @staticmethod
     def _row_to_record(row: sqlite3.Row) -> BackgroundJobRecord:
-        status_raw = str(row["status"])
-        status: BackgroundJobStoreStatus
-        if status_raw in ("running", "exited", "killed", "orphaned"):
-            status = status_raw  # type: ignore[assignment]
-        else:
-            status = "exited"
         return BackgroundJobRecord(
             job_id=str(row["job_id"]),
             pid=int(row["pid"]) if row["pid"] is not None else None,
             session_id=str(row["session_id"]),
             command=str(row["command"]),
-            status=status,
+            status=_STATUS_BY_NAME.get(str(row["status"]), "exited"),
             started_at=float(row["started_at"]),
             completed_at=float(row["completed_at"]) if row["completed_at"] is not None else None,
             exit_code=int(row["exit_code"]) if row["exit_code"] is not None else None,

@@ -54,7 +54,11 @@ class TestBrowserTakeoverMessageIdIntegration:
         assert stored.get("is_managed") is False
 
     @pytest.mark.asyncio
-    async def test_resolve_pending_browser_takeover_for_chat(self) -> None:
+    @pytest.mark.parametrize(
+        ("decision", "expected_status"),
+        [("approve", "APPROVED"), ("deny", "REJECTED")],
+    )
+    async def test_resolve_pending_browser_takeover_for_chat(self, decision: str, expected_status: str) -> None:
         chat_id = str(uuid.uuid4())
         message_id = f"msg-{uuid.uuid4().hex[:12]}"
         _, payload = _browser_takeover_interrupt(message_id=message_id)
@@ -72,9 +76,14 @@ class TestBrowserTakeoverMessageIdIntegration:
 
         resolved = await ApprovalRegistry.resolve_pending_browser_takeover_for_chat(
             chat_id,
-            decision="approve",
+            decision=decision,
         )
         assert resolved == 1
 
-        refreshed = await ApprovalRegistry.resolve_approval(record.id, "approve")
-        assert refreshed is None
+        stored = await ApprovalRegistry.get_approval(record.id)
+        assert stored is not None
+        assert stored.status == expected_status
+        assert stored.resolved_at is not None
+
+        # Already decided: a second resolver finds nothing left to decide.
+        assert await ApprovalRegistry.resolve_approval(record.id, "approve") is None

@@ -1,306 +1,214 @@
-"""Smoke tests for video_agent_tool."""
+"""Tests for video_tool: generate starts one task, list and status read, nothing degrades silently."""
 
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from langchain_core.tools import BaseTool
+from myrm_agent_harness.toolkits.llms.video import VideoGenerationConfig
+from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
 from myrm_agent_harness.toolkits.tasks import Task, TaskStatus
+from pydantic import ValidationError
 
 from app.ai_agents.media_tools.video_agent_tool import create_video_generation_tool
+from app.ai_agents.media_tools.video_schema import build_video_input_schema
 from app.tasks.task_payload_crypto import seal_task_payload_secrets
 
+_MODULE = "app.ai_agents.media_tools.video_agent_tool"
 
-@pytest.mark.asyncio
-async def test_video_tool_list_action() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock(return_value='{"providers":[]}')
-    engine.tool_description = "Video generation tool."
-    tool = create_video_generation_tool(engine)
 
-    result = await tool.ainvoke({"action": "list"})
-
-    assert "providers" in result
-    engine.execute.assert_awaited_once_with(
-        "list",
-        prompt=None,
-        provider=None,
-        model=None,
-        duration_seconds=None,
-        aspect_ratio=None,
-        resolution=None,
-        enable_audio=None,
-        reference_images=None,
-        reference_videos=None,
-        force=False,
+def _tool(
+    *,
+    provider: str = "volcengine",
+    model: str = "seedance-2-0",
+    allowed_roots: Sequence[str] = (),
+    task_user_id: str = "default",
+    agent_id: str | None = None,
+    chat_id: str | None = None,
+) -> BaseTool:
+    return create_video_generation_tool(
+        VideoGenerationConfig(provider=provider, model=model),
+        allowed_roots=allowed_roots,
+        task_user_id=task_user_id,
+        agent_id=agent_id,
+        chat_id=chat_id,
     )
 
 
-@pytest.mark.asyncio
-async def test_video_tool_generate_action() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock(return_value='{"task_id":"t1"}')
-    engine.tool_description = "Video generation tool."
-    tool = create_video_generation_tool(engine)
-
-    result = await tool.ainvoke({"action": "generate", "prompt": "a sunset"})
-
-    assert "task_id" in result
-    engine.execute.assert_awaited_once_with(
-        "generate",
-        prompt="a sunset",
-        provider=None,
-        model=None,
-        duration_seconds=None,
-        aspect_ratio=None,
-        resolution=None,
-        enable_audio=None,
-        reference_images=None,
-        reference_videos=None,
-        force=False,
-    )
+def _patched_enqueuer(task_id: str = "vid-1") -> tuple[MagicMock, MagicMock]:
+    enqueuer = MagicMock()
+    enqueuer.generate_video = AsyncMock(return_value=task_id)
+    return MagicMock(return_value=enqueuer), enqueuer
 
 
-@pytest.mark.asyncio
-async def test_video_tool_generate_requires_prompt() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock()
-    engine.tool_description = "Video generation tool."
-    tool = create_video_generation_tool(engine)
+def test_the_factory_returns_the_named_tool() -> None:
+    tool = _tool()
 
-    result = await tool.ainvoke({"action": "generate", "prompt": "  "})
-
-    assert "prompt is required" in result
-    engine.execute.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_video_tool_status_action() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock(return_value='{"status":"completed"}')
-    engine.tool_description = "Video generation tool."
-    tool = create_video_generation_tool(engine)
-
-    result = await tool.ainvoke({"action": "status"})
-
-    assert "completed" in result
-    engine.execute.assert_awaited_once_with(
-        "status",
-        prompt=None,
-        provider=None,
-        model=None,
-        duration_seconds=None,
-        aspect_ratio=None,
-        resolution=None,
-        enable_audio=None,
-        reference_images=None,
-        reference_videos=None,
-        force=False,
-    )
-
-
-def test_create_video_generation_tool_returns_basetool() -> None:
-    engine = MagicMock()
-    engine.tool_description = "desc"
-    tool = create_video_generation_tool(engine)
     assert isinstance(tool, BaseTool)
     assert tool.name == "video_tool"
+    for action in ("generate", "status", "list"):
+        assert f"action='{action}'" in tool.description
+
+
+def test_the_schema_has_no_force_flag_and_no_unknown_provider_names() -> None:
+    tool = _tool()
+
+    assert "force" not in tool.args
+    assert "task_id" in tool.args
+    assert "kling" not in tool.args["provider"]["description"]
 
 
 @pytest.mark.asyncio
-async def test_video_tool_generate_enqueues_when_async_config() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock()
-    engine.tool_description = "Video generation tool."
-    async_config = MagicMock()
-    mock_store = MagicMock()
+async def test_list_names_the_registered_providers() -> None:
+    payload = json.loads(await _tool().ainvoke({"action": "list"}))
 
-    with (
-        patch(
-            "app.lifecycle.task_worker.get_task_store",
-            return_value=mock_store,
-        ),
-        patch(
-            "app.ai_agents.media_tools.video_agent_tool.AsyncVideoGenerationTools",
-        ) as async_cls,
-    ):
-        async_engine = MagicMock()
-        async_engine.generate_video = AsyncMock(
-            return_value='{"task_id":"vid-abc","task_type":"video_generate","status":"pending"}'
+    assert {"gemini", "volcengine"} <= {provider["id"] for provider in payload["providers"]}
+
+
+@pytest.mark.asyncio
+async def test_generate_requires_a_prompt() -> None:
+    enqueuer_cls, _ = _patched_enqueuer()
+
+    with patch(f"{_MODULE}.AsyncVideoGenerationTools", enqueuer_cls):
+        payload = json.loads(await _tool().ainvoke({"action": "generate", "prompt": "  "}))
+
+    assert "prompt is required" in payload["error"]
+    enqueuer_cls.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_generate_starts_one_task_with_everything_it_was_given() -> None:
+    enqueuer_cls, enqueuer = _patched_enqueuer("vid-7")
+    store = MagicMock()
+    tool = _tool(allowed_roots=["/work/chat-9"], task_user_id="user-1", agent_id="agent-42", chat_id="chat-99")
+
+    with patch(f"{_MODULE}.AsyncVideoGenerationTools", enqueuer_cls), patch(f"{_MODULE}.media_task_store", return_value=store):
+        payload = json.loads(
+            await tool.ainvoke(
+                {
+                    "action": "generate",
+                    "prompt": "a dog running",
+                    "duration_seconds": 5,
+                    "aspect_ratio": "16:9",
+                    "resolution": "1080p",
+                    "reference_images": ["media://media_ref"],
+                    "reference_videos": [],
+                    "negative_prompt": "blurry",
+                    "seed": 7,
+                }
+            )
         )
-        async_cls.return_value = async_engine
 
-        tool = create_video_generation_tool(
-            engine,
-            async_config=async_config,
-            task_user_id="user-1",
-            agent_id="agent-42",
-            chat_id="chat-99",
-        )
-        result = await tool.ainvoke({"action": "generate", "prompt": "sunset clip"})
-
-    payload = json.loads(result)
-    assert payload["task_id"] == "vid-abc"
-    assert payload["task_type"] == "video_generate"
-    engine.execute.assert_not_awaited()
-    async_engine.generate_video.assert_awaited_once()
-    call_kwargs = async_engine.generate_video.await_args.kwargs
-    assert call_kwargs["user_id"] == "user-1"
-    assert call_kwargs["agent_id"] == "agent-42"
-    assert call_kwargs["chat_id"] == "chat-99"
-    async_cls.assert_called_once_with(
-        async_config,
-        mock_store,
-        payload_postprocessor=seal_task_payload_secrets,
-    )
-
-
-@pytest.mark.asyncio
-async def test_video_tool_async_config_description_contains_workflow() -> None:
-    engine = MagicMock()
-    engine.tool_description = "Video generation tool. Active: luma/ray-2."
-    async_config = MagicMock()
-    tool = create_video_generation_tool(engine, async_config=async_config)
-    assert "Workflow:" in tool.description
-    assert "action='generate'" in tool.description
-    assert "action='status'" in tool.description
-    assert "luma/ray-2" in tool.description
-
-
-@pytest.mark.asyncio
-async def test_video_tool_status_with_task_id_reads_task_store() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock(return_value='{"status":"idle"}')
-    engine.tool_description = "Video generation tool."
-    task = Task(
-        task_id="vid-1",
-        task_type="video_generate",
-        user_id="user-1",
-        status=TaskStatus.RUNNING,
-        payload={"prompt": "sunset clip"},
-        progress=0.5,
-    )
-    mock_store = MagicMock()
-    mock_store.get_task = AsyncMock(return_value=task)
-
-    with patch(
-        "app.lifecycle.task_worker.get_task_store",
-        return_value=mock_store,
-    ):
-        tool = create_video_generation_tool(engine)
-        result = await tool.ainvoke({"action": "status", "task_id": "vid-1"})
-
-    payload = json.loads(result)
-    assert payload["task_id"] == "vid-1"
-    assert payload["status"] == "running"
-    assert payload["task_type"] == "video_generate"
-    mock_store.get_task.assert_awaited_once_with("vid-1")
-    engine.execute.assert_not_awaited()
-
-
-@pytest.mark.asyncio
-async def test_video_tool_generate_passes_negative_prompt_and_seed() -> None:
-    engine = MagicMock()
-    engine.execute = AsyncMock(return_value='{"task_id":"t2"}')
-    engine.tool_description = "Video generation tool."
-    tool = create_video_generation_tool(engine)
-
-    result = await tool.ainvoke(
-        {
-            "action": "generate",
-            "prompt": "a sunset",
-            "negative_prompt": "blurry, distorted",
-            "seed": 42,
-        }
-    )
-
-    assert "task_id" in result
-    engine.execute.assert_awaited_once_with(
-        "generate",
-        prompt="a sunset",
+    assert payload["tasks"] == [{"task_id": "vid-7", "task_type": "video_generate", "status": "pending"}]
+    assert enqueuer_cls.call_args.args[1] is store
+    assert enqueuer_cls.call_args.kwargs == {"payload_postprocessor": seal_task_payload_secrets}
+    enqueuer.generate_video.assert_awaited_once_with(
+        "a dog running",
         provider=None,
         model=None,
-        duration_seconds=None,
-        aspect_ratio=None,
-        resolution=None,
+        duration_seconds=5,
+        aspect_ratio="16:9",
+        resolution="1080p",
         enable_audio=None,
-        reference_images=None,
+        reference_images=["media://media_ref"],
         reference_videos=None,
-        extra_params={"negative_prompt": "blurry, distorted", "seed": 42},
-        force=False,
+        extra_params={"negative_prompt": "blurry", "seed": 7},
+        allowed_roots=["/work/chat-9"],
+        user_id="user-1",
+        agent_id="agent-42",
+        chat_id="chat-99",
     )
 
 
 @pytest.mark.asyncio
-async def test_video_tool_dynamic_schema_diet_omits_unsupported_audio() -> None:
-    """Verify that when a provider does not support audio, enable_audio is omitted from tool args."""
-    from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
+async def test_generate_without_a_task_store_is_an_explicit_error() -> None:
+    enqueuer_cls, _ = _patched_enqueuer()
 
-    mock_provider = MagicMock()
-    mock_provider.capabilities = ProviderCapabilities(
-        supports_audio=False,
-        supports_aspect_ratio=True,
-        max_duration_seconds=5,
-    )
-    engine = MagicMock()
-    engine._config.provider = "kling-no-audio"
-    engine._registry.get.return_value = mock_provider
-    engine.tool_description = "Video generation tool."
+    with (
+        patch(f"{_MODULE}.AsyncVideoGenerationTools", enqueuer_cls),
+        patch(f"{_MODULE}.media_task_store", side_effect=RuntimeError("task store not initialized")),
+    ):
+        payload = json.loads(await _tool().ainvoke({"action": "generate", "prompt": "a dog"}))
 
-    tool = create_video_generation_tool(engine)
-    schema_props = tool.args_schema.model_json_schema()["properties"]
-
-    assert "enable_audio" not in schema_props
-    assert "aspect_ratio" in schema_props
-    assert "duration_seconds" in schema_props
+    assert payload == {"error": "Task store unavailable"}
+    enqueuer_cls.assert_not_called()
 
 
 @pytest.mark.asyncio
-async def test_video_tool_moderation_blocked_error_returns_terminal_json() -> None:
-    """Verify that ModerationBlockedError is caught and converted to non-retryable terminal JSON."""
-    from myrm_agent_harness.toolkits.llms.video import ModerationBlockedError
+async def test_a_parameter_the_provider_lacks_is_passed_on_for_the_engine_to_report() -> None:
+    """The pruned schema stays permissive (``extra=allow``); the generator reports what it ignored."""
+    enqueuer_cls, enqueuer = _patched_enqueuer()
+    tool = _tool(provider="minimax", model="MiniMax-Hailuo-2.3")
 
-    engine = MagicMock()
-    engine.execute = AsyncMock(
-        side_effect=ModerationBlockedError(
-            "Rejected by safety policy",
-            violation_reason="Content flagged for NSFW safety policy violation",
-        )
-    )
-    engine.tool_description = "Video generation tool."
+    assert "enable_audio" not in tool.args
+    with patch(f"{_MODULE}.AsyncVideoGenerationTools", enqueuer_cls), patch(f"{_MODULE}.media_task_store"):
+        payload = json.loads(await tool.ainvoke({"action": "generate", "prompt": "silent", "enable_audio": True}))
 
-    tool = create_video_generation_tool(engine)
-    result = await tool.ainvoke({"action": "generate", "prompt": "unsafe content"})
-
-    payload = json.loads(result)
-    assert payload["code"] == "MODERATION_BLOCKED"
-    assert payload["retryable"] is False
-    assert "NSFW" in payload["reason"]
-    assert "adjust the wording" in payload["tip"]
+    assert "error" not in payload
+    assert enqueuer.generate_video.await_args.kwargs["enable_audio"] is True
 
 
 @pytest.mark.asyncio
-async def test_video_tool_unsupported_audio_sanitized_gracefully() -> None:
-    """Verify that if caller passes enable_audio=True for a provider without audio, it is sanitized to False without ValidationError."""
-    from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
+async def test_an_unknown_action_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        await _tool().ainvoke({"action": "extend", "prompt": "a dog"})
 
-    mock_provider = MagicMock()
-    mock_provider.capabilities = ProviderCapabilities(
-        supports_audio=False,
-        supports_aspect_ratio=True,
-    )
-    engine = MagicMock()
-    engine._config.provider = "kling-no-audio"
-    engine._registry.get.return_value = mock_provider
-    engine.execute = AsyncMock(return_value='{"task_id":"t-audio"}')
-    engine.tool_description = "Video generation tool."
 
-    tool = create_video_generation_tool(engine)
-    # The schema doesn't advertise enable_audio, but extra="allow" permits it without crashing,
-    # and _enqueue_generate sanitizes enable_audio to False
-    result = await tool.ainvoke({"action": "generate", "prompt": "a silent scene", "enable_audio": True})
-    assert "t-audio" in result
-    call_kwargs = engine.execute.await_args.kwargs
-    assert call_kwargs["enable_audio"] is False
+@pytest.mark.asyncio
+async def test_status_of_a_finished_video_returns_its_stored_references() -> None:
+    result = {"video_urls": ["media://media_vid"], "provider": "volcengine", "model": "seedance-2-0", "count": 1}
+    task = Task(task_id="vid-1", task_type="video_generate", user_id="u", status=TaskStatus.SUCCEEDED, payload={}, result=result)
+    store = MagicMock()
+    store.get_task = AsyncMock(return_value=task)
+
+    with patch("app.ai_agents.media_tools.task_results.media_task_store", return_value=store):
+        payload = json.loads(await _tool().ainvoke({"action": "status", "task_id": "vid-1"}))
+
+    assert payload["status"] == "succeeded"
+    assert payload["result"] == result
+
+
+@pytest.mark.asyncio
+async def test_status_reports_an_unknown_task_and_a_missing_id_explicitly() -> None:
+    store = MagicMock()
+    store.get_task = AsyncMock(return_value=None)
+
+    with patch("app.ai_agents.media_tools.task_results.media_task_store", return_value=store):
+        unknown = json.loads(await _tool().ainvoke({"action": "status", "task_id": "vid-missing"}))
+        missing_id = json.loads(await _tool().ainvoke({"action": "status"}))
+
+    assert unknown == {"error": "Task not found", "task_id": "vid-missing"}
+    assert "task_id is required" in missing_id["error"]
+
+
+@pytest.mark.parametrize(
+    ("capabilities", "present", "absent"),
+    [
+        (
+            ProviderCapabilities(supports_audio=False, supports_aspect_ratio=True, max_duration_seconds=5),
+            {"aspect_ratio", "duration_seconds"},
+            {"enable_audio", "reference_videos"},
+        ),
+        (
+            ProviderCapabilities(supports_audio=True, supports_aspect_ratio=False, max_input_videos=2),
+            {"enable_audio", "reference_videos"},
+            {"aspect_ratio"},
+        ),
+    ],
+)
+def test_the_schema_drops_parameters_the_provider_cannot_use(
+    capabilities: ProviderCapabilities, present: set[str], absent: set[str]
+) -> None:
+    properties = set(build_video_input_schema(capabilities).model_json_schema()["properties"])
+
+    assert present <= properties
+    assert not absent & properties
+
+
+def test_the_schema_without_capabilities_keeps_every_parameter() -> None:
+    properties = set(build_video_input_schema(None).model_json_schema()["properties"])
+
+    assert {"enable_audio", "aspect_ratio", "reference_videos", "reference_images", "task_id"} <= properties

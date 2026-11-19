@@ -133,6 +133,8 @@ class MessagesMixin:
         offset: int,
         since: datetime | None,
         until: datetime | None,
+        *,
+        raw_query: str,
     ) -> tuple[list[MessageFtsSearchRow], int]:
         return await ChatMessageSearchRepository.search_messages_fts(
             db,
@@ -141,6 +143,7 @@ class MessagesMixin:
             offset,
             since,
             until,
+            raw_query=raw_query,
         )
 
     @staticmethod
@@ -244,7 +247,7 @@ class MessagesMixin:
             safe_query = sanitize_fts5_query(keyword)
             if not safe_query:
                 return []
-            return await ChatMessageSearchRepository.get_matching_chat_ids(db, safe_query)
+            return await ChatMessageSearchRepository.get_matching_chat_ids(db, safe_query, raw_query=keyword)
         except Exception:
-            logger.debug("FTS sidebar search fallback to ilike-only for keyword=%r", keyword, exc_info=True)
+            logger.debug("FTS sidebar search fallback to ilike-only", exc_info=True)
             return []

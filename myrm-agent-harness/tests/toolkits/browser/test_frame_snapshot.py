@@ -156,8 +156,7 @@ class TestFrameState:
         with pytest.raises(AriaAcquisitionError, match="Failed to acquire ARIA tree"):
             await snapshot.capture(selector="#not-exist")
 
-    # 注意：cursor-interactive 功能已由 test_cursor_interactive_integration.py 完整测试
-    # 该 mock 测试已移除，因为真实集成测试更可靠
+    # cursor-interactive 功能由 test_cursor_interactive_integration.py 的真实集成测试覆盖
 
     @pytest.mark.asyncio
     async def test_cross_origin_handling(self):

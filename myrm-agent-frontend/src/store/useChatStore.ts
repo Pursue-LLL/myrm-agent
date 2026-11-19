@@ -316,7 +316,6 @@ const useChatStore = create<ChatState>()(
           );
         }
       },
-      setNewChatCreated: (created) => set({ newChatCreated: created }),
       setMessages: (updater: (state: ChatState) => void) => set(updater),
       refreshCompactionState: async (chatId, meta) => {
         const { getChatDetail, listContextBranches, getContextPins } = await import('@/services/chat');
@@ -1231,6 +1230,6 @@ const useChatStore = create<ChatState>()(
 
 export default useChatStore;
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
   (window as Window & { __myrmChatStore?: typeof useChatStore }).__myrmChatStore = useChatStore;
 }

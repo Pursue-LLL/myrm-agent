@@ -77,7 +77,7 @@ async def test_enrich_message_locale_user_overrides_platform_on_neutral_channel(
     assert enriched.metadata["locale"] == "zh-CN"
 
 
-_NEXT_STEPS_TITLE = {"zh-TW": "後續步驟：", "zh-CN": "后续步骤："}
+_NEXT_STEPS_TITLE = "后续步骤："
 
 
 @pytest.mark.asyncio
@@ -93,15 +93,15 @@ _NEXT_STEPS_TITLE = {"zh-TW": "後續步驟：", "zh-CN": "后续步骤："}
         ("zh", "zh-CN"),
     ],
 )
-async def test_sender_chinese_tag_selects_its_script_catalog(platform_tag: str, locale: str) -> None:
-    """A Traditional Chinese sender is answered from the zh-TW catalog, any other Chinese one from zh-CN."""
+async def test_sender_chinese_tag_resolves_its_script_and_reads_the_chinese_catalog(platform_tag: str, locale: str) -> None:
+    """The locale keeps the script the sender wrote; every Chinese sender is answered from the zh-CN catalog."""
     ch = MagicMock()
     ch.extract_sender_locale = MagicMock(return_value=platform_tag)
     router = _make_router(bus=_make_bus(ch), locale_provider=_FixedLocaleProvider("en"))
     msg = InboundMessage(channel="telegram", sender_id="u1", content="/help")
     enriched = await router._enrich_message_locale(msg)
     assert enriched.metadata["locale"] == locale
-    assert channel_t(locale, "config_next_steps", steps="x").strip().startswith(_NEXT_STEPS_TITLE[locale])
+    assert channel_t(locale, "config_next_steps", steps="x").strip().startswith(_NEXT_STEPS_TITLE)
 
 
 @pytest.mark.asyncio

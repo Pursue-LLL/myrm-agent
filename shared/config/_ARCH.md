@@ -20,6 +20,7 @@ Legacy storage id remap 在前后端使用**同一算法**（与 [`providers.py`
 | `provider_legacy_remap.json` | 遗留 providerId → canonical storage id | `providers.py` · `providerIdentityMigration.ts` · Docker `/shared` · PyInstaller bundle · vitest · pytest |
 | `kanban_move_guard.json` | 看板任务手动 move 的流转表：每个起点状态（含「原地不动」）服务端接受的目标状态 | [`kanban-transitions.ts`](../../myrm-agent-frontend/src/components/features/kanban/kanban-transitions.ts) 据此在发起前拦下必败的移动 · 服务端只在测试里读它，运行时不打包 |
 | `kanban_blocked_reasons.json` | 服务端自己拥有的看板任务阻塞原因（依赖合并失败、模型用量上限、批次暂停、工作目录过宽、运行停在审批请求上、运行停在浏览器要人的一步）的原文，按 key 命名 | [`kanbanBlockedReason.ts`](../../myrm-agent-frontend/src/lib/kanban/kanbanBlockedReason.ts) 按整句匹配译成界面语言 · 服务端只在测试里读它，运行时不打包 |
+| `media_generation_contract.json` | 生成媒体的结果形状与登记规则：图像模型清单、三个媒体工具的返回形状、聊天登记的条目形状，以及两端共同遵守的登记用例 | [`mediaGenerated.ts`](../../myrm-agent-frontend/src/lib/chat/mediaGenerated.ts) · [`imageModels.ts`](../../myrm-agent-frontend/src/lib/utils/media/imageModels.ts) · `ImageTaskCard` / `VideoTaskCard` 的结果解析 · 服务端 [`media_generated.py`](../../myrm-agent-server/app/services/agent/streaming_support/media_generated.py) 实现同一套登记规则，服务端只在测试里读这份文件，运行时不打包 |
 
 ## Kanban Blocked Reasons Contract
 
@@ -39,3 +40,19 @@ Legacy storage id remap 在前后端使用**同一算法**（与 [`providers.py`
 [`test_move_guard_contract.py`](../../myrm-agent-server/tests/api/kanban/test_move_guard_contract.py)
 把 9 × 9 对状态逐对打到真实的 `POST /kanban/tasks/{id}/move`，接受与否必须和这张表完全一致。
 改服务端守卫或这张表，都要让该测试保持通过。
+
+## Media Generation Contract
+
+媒体工具的结果由服务端产出、由前端卡片消费，聊天里的卡片又由工具结果登记出来，三处必须对同一份形状达成一致，所以形状写在 `media_generation_contract.json`：
+
+- `image_models`：图像模型清单，顺序与 harness `BUILTIN_PROFILES` 一致；设置页的 `IMAGE_MODEL_OPTIONS` 逐项等于它。
+- `shapes`：`generate_result`（`tasks[{task_id, task_type, status}]`）、`image_result`（`images[{url, mime_type}]`、`model`、`prompt`、`latency_ms`，`provider` 可选）、
+  `video_result`（`video_urls`）、`speech_result`（`audio_url`、`model`、`duration_seconds` 可选）、登记条目 `task_entry` / `stored_entry`。
+  图像、视频、语音地址一律是 `media://<id>`；字段类型只有 `string`（非空）、`number`、`media_reference`、`{list}` 和 `{one_of}`。
+- `collector_cases`：工具名 + 结果 + 应登记的条目。服务端 `collect_media_generated` 与前端 `mediaGeneratedEntriesOf` 都逐条跑它。
+
+[`test_media_generation_contract.py`](../../myrm-agent-server/tests/unit/ai_agents/media_tools/test_media_generation_contract.py)
+把真实的生成入口、任务执行器、同步编辑、语音工具的输出逐一按 `shapes` 校验，并跑 `collector_cases`；
+前端 [`mediaGenerationContract.test.ts`](../../myrm-agent-frontend/src/lib/chat/__tests__/mediaGenerationContract.test.ts) 与
+[`mediaGenerationContract.test.tsx`](../../myrm-agent-frontend/src/components/features/task-card/__tests__/mediaGenerationContract.test.tsx)
+用同一份文件核对登记结果、模型清单和两张任务卡片。改任一端的字段名或这份文件，都要让两条测试保持通过。

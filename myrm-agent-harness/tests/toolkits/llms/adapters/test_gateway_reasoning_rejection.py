@@ -1,7 +1,8 @@
 """Tests for how the gateway normalizer treats a rejected reasoning control.
 
-A gateway that answers 400 to ``reasoning_effort`` or ``thinking`` must be retried without exactly that control, from
-the top level and from ``extra_body`` alike, and the endpoint must not be asked the same thing again.
+A gateway that answers 400 to ``reasoning_effort``, ``thinking``, ``enable_thinking`` or ``chat_template_kwargs`` must
+be retried without exactly that control, from the top level and from ``extra_body`` alike, and the endpoint must not be
+asked the same thing again.
 """
 
 from __future__ import annotations
@@ -179,3 +180,55 @@ class TestRejectedReasoningMemory:
         drop_rejected_reasoning_params(request, model=_MODEL, base_url=_BASE)
 
         assert request == _effort_params("max")
+
+
+class TestGatewayDialectControls:
+    """The switches SiliconFlow and NVIDIA document are controls like any other: rejected, retried without, remembered."""
+
+    @pytest.mark.parametrize(
+        ("control", "value", "message"),
+        [
+            ("enable_thinking", False, "Unrecognized request argument supplied: enable_thinking"),
+            # SiliconFlow's answer to a model that has no switch (CherryHQ/cherry-studio issue 6642, code 20015).
+            ("enable_thinking", False, "Value error, current model does not support parameter `enable_thinking`."),
+            ("enable_thinking", True, "unknown field enable_thinking"),
+            ("chat_template_kwargs", {"thinking": True}, "Unsupported parameter(s): chat_template_kwargs"),
+            (
+                "chat_template_kwargs",
+                {"thinking": False},
+                "[{'type': 'extra_forbidden', 'loc': ('body', 'chat_template_kwargs'), 'msg': 'Extra inputs are not permitted'}]",
+            ),
+        ],
+    )
+    def test_the_control_is_recognised_stripped_and_remembered(self, control: str, value: object, message: str) -> None:
+        params: dict[str, object] = {"extra_body": {control: value, "keep": True}}
+
+        assert is_gateway_param_rejection(Exception(message)) is True
+        assert sanitize_gateway_params_on_400(params, Exception(message), model=_MODEL, base_url=_BASE) == [control]
+        assert params["extra_body"] == {"keep": True}
+
+        again: dict[str, object] = {"extra_body": {control: value, "keep": True}}
+        drop_rejected_reasoning_params(again, model=_MODEL, base_url=_BASE)
+
+        assert again["extra_body"] == {"keep": True}
+
+    def test_the_boolean_switch_is_not_mistaken_for_the_thinking_object(self) -> None:
+        params: dict[str, object] = {"extra_body": {"enable_thinking": False, "thinking": {"type": "disabled"}}}
+
+        stripped = sanitize_gateway_params_on_400(
+            params, Exception("unknown field enable_thinking"), model=_MODEL, base_url=_BASE
+        )
+
+        assert stripped == ["enable_thinking"]
+        assert params["extra_body"] == {"thinking": {"type": "disabled"}}
+
+    def test_a_template_value_the_endpoint_never_rejected_is_kept(self) -> None:
+        rejected: dict[str, object] = {"extra_body": {"chat_template_kwargs": {"thinking": False}}}
+        sanitize_gateway_params_on_400(
+            rejected, Exception("unsupported chat_template_kwargs"), model=_MODEL, base_url=_BASE
+        )
+
+        other: dict[str, object] = {"extra_body": {"chat_template_kwargs": {"thinking": True}}}
+        drop_rejected_reasoning_params(other, model=_MODEL, base_url=_BASE)
+
+        assert other["extra_body"] == {"chat_template_kwargs": {"thinking": True}}

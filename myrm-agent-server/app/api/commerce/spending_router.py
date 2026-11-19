@@ -1,4 +1,4 @@
-"""Autonomous Commerce Spending Limit and Safe Payment API Endpoints.
+"""Spending Limit Gate API Endpoints.
 
 [INPUT]
 - fastapi::APIRouter, Query, HTTPException, status
@@ -11,13 +11,13 @@
 - PUT /api/v1/commerce/spending/budget: Update spending caps and allowed merchants
 - POST /api/v1/commerce/spending/freeze: Emergency circuit breaker freeze/unfreeze
 - POST /api/v1/commerce/spending/preauth: Request atomic pre-authorization voucher
-- POST /api/v1/commerce/spending/commit: Finalize completed transaction with cryptographic receipt
-- POST /api/v1/commerce/spending/release: Abort or refund reservation
-- GET /api/v1/commerce/spending/ledger: Fetch tamper-evident audit ledger entries
+- POST /api/v1/commerce/spending/commit: Finalize a completed transaction and record its entry hash and action digest
+- POST /api/v1/commerce/spending/release: Release an unused reservation (ledger status becomes refunded; no funds move)
+- GET /api/v1/commerce/spending/ledger: Fetch audit ledger entries
 
 [POS]
 Server-level commerce security API in app/api/commerce/.
-Provides safe, constrained micro-payment capabilities for autonomous agent operations.
+Exposes the spending limit gate over REST: caps, merchant allowlist, freeze, reservations and ledger.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ class ReleaseRequest(BaseModel):
 
 @router.get("/budget", response_model=StandardSuccessResponse)
 async def get_budget_status() -> StandardSuccessResponse:
-    """Retrieve autonomous commerce spending status and current limits."""
+    """Retrieve spending gate status and current limits."""
     service = get_commerce_budget_service()
     status_dto = service.get_status()
     return create_success_response(status_dto)
@@ -89,7 +89,7 @@ async def update_budget_config(
 async def set_emergency_freeze(
     payload: FreezeRequest,
 ) -> StandardSuccessResponse:
-    """Emergency circuit breaker: freeze or unfreeze autonomous micro-payments."""
+    """Emergency circuit breaker: freeze or unfreeze the spending gate."""
     service = get_commerce_budget_service()
     status_dto = service.set_freeze(payload.freeze)
     return create_success_response(status_dto)
@@ -120,7 +120,7 @@ async def pre_authorize_spend(
 async def commit_spend(
     payload: CommitRequest,
 ) -> StandardSuccessResponse:
-    """Commit executed spend lease and record cryptographic receipt in ledger."""
+    """Commit an executed spend lease and record its entry hash and action digest in the ledger."""
     service = get_commerce_budget_service()
     res = service.commit_spend(
         lease_id=payload.lease_id,
@@ -149,7 +149,7 @@ async def get_spending_ledger(
     session_id: str | None = Query(default=None, description="Filter by session ID"),
     limit: int = Query(default=50, ge=1, le=200, description="Max records to return"),
 ) -> StandardSuccessResponse:
-    """Fetch audit ledger entries for autonomous agent expenditures."""
+    """Fetch spending gate audit ledger entries."""
     service = get_commerce_budget_service()
     entries = service.list_ledger_entries(session_id=session_id, limit=limit)
     return create_success_response(entries)

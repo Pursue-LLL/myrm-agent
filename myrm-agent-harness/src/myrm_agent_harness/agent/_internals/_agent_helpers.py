@@ -90,10 +90,9 @@ def effective_round_budget(config: object) -> int:
     """How many model rounds a run may take.
 
     The configured ``recursion_limit`` states the budget as the steps of a bare model/tools loop,
-    two a round (``AgentConfig.from_env`` maps ``MYRM_RECURSION_LIMIT`` onto it, and the builders map
-    ``max_iterations * 2`` and ``max_turns * 2``), so a positive value is read as that many rounds
-    halved: raising it would silently override what the operator set. The default covers only a
-    configuration that never chose one.
+    two a round (the builders map ``max_iterations * 2`` and ``max_turns * 2`` onto it), so a positive
+    value is read as that many rounds halved: raising it would silently override what the operator
+    set. The default covers only a configuration that never chose one.
 
     ``graph_recursion_limit`` turns the rounds into the graph's step limit and ``LoopGuard`` derives
     its warn/critical nudge rounds from the same rounds, so both must come from this number.

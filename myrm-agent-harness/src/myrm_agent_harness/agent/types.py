@@ -142,7 +142,6 @@ class WorkspaceBinding:
     root_path: str
     chat_id: str | None = None
     task_id: str | None = None
-    inherit_parent: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,7 +159,14 @@ class AgentRuntimeSpec:
     # --- Capabilities ---
     allowed_tools: list[str] = field(default_factory=list)
     no_builtin_tools: bool = False
-    """When True, strips all built-in framework meta tools, leaving only explicit domain tools."""
+    """When True, leaves out every built-in meta tool and the skill catalog that sends the model to them.
+
+    Tools the host passes in and middleware tools stay; the turn receipt still lists the bound skills. The
+    catalog stays out even when a host tool shares the name of ``skill_select_tool`` or ``skill_search_tool``.
+    What a host tool's own text tells the model is the host's to keep true: the skill market tool
+    (``create_skill_market_tool``) sends the model to the skill catalog and ``skill_select_tool``, so a host that
+    sets this leaves it unmounted.
+    """
     tool_groups: list[str] = field(default_factory=list)
     skill_ids: list[str] = field(default_factory=list)
     skill_configs: dict[str, dict[str, object]] | None = None
@@ -169,13 +175,11 @@ class AgentRuntimeSpec:
     mcp_surface_mode: str = "auto"
 
     # --- Runtime Policies ---
-    memory_namespaces: list[str] = field(default_factory=list)
     workspace_binding: WorkspaceBinding | None = None
     # User-facing turn budget (1 turn = 1 LLM tool round); the harness maps it
     # to ``2 * max_iterations`` LangGraph nodes (each turn consumes model +
     # tools nodes). Aligned with subagent ``max_turns`` semantics.
     max_iterations: int = 50
-    unattended: bool = False
 
     # --- Additional Config ---
     locale: str | None = None

@@ -384,7 +384,7 @@ describe('PolymorphicApprovalCard', () => {
 
     expect(screen.getByTestId('spend-protection-banner')).toBeInTheDocument();
     expect(screen.getByText('toolApproval.spendProtection.title')).toBeInTheDocument();
-    expect(screen.getByText('toolApproval.spendProtection.tamperProtected')).toBeInTheDocument();
+    expect(screen.getByText('toolApproval.spendProtection.actionBound')).toBeInTheDocument();
     expect(screen.getByText(/25.00 USD/)).toBeInTheDocument();
     // Allow Always button should be hidden due to hideAllowAlways
     expect(screen.queryByText('toolApproval.allowAlways')).not.toBeInTheDocument();

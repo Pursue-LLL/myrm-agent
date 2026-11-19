@@ -3,9 +3,6 @@
 When adding a new construction site, update EXPECTED_* below and verify
 `auto_restore_domains`, `enable_browser`, `enable_web_fetch`, and related ResolvedAgentProfile fields
 are passed consistently (Web / Channel / Cron / Eval / Voice parity).
-
-Response-locale suffix parity is guarded separately by
-``tests/services/agent/params/test_response_locale_suffix_guard.py``.
 """
 
 from __future__ import annotations

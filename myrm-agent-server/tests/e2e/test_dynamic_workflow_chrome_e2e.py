@@ -62,7 +62,7 @@ _PREPARE_DW_TURN_JS = """(async () => {
 _CLICK_RUN_WORKFLOW_JS = """(() => {
   const buttons = [...document.querySelectorAll('button')];
   const runBtn = buttons.find((btn) =>
-    /Run Workflow|运行工作流|執行工作流|ワークフローを実行/i.test((btn.textContent || '').trim()),
+    /Run Workflow|运行工作流/i.test((btn.textContent || '').trim()),
   );
   if (!runBtn || runBtn.disabled) {
     return { ok: false, err: 'run-button-missing-or-disabled' };
@@ -94,7 +94,6 @@ _KICKOFF_DW_JS = f"""(async () => {{
     return {{ ok: false, err: 'no-send' }};
   }}
   return await bridge.sendChatMessage({json.dumps(E2E_PROMPT)}, {{
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   }});
 }})()"""

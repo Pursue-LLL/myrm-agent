@@ -14,7 +14,7 @@
 
 [POS]
 Read-only file system strategy for the virtual /mcp/ paths: serves the function documents of MCP skills
-from their metadata and rejects write, delete and replace.
+from their metadata and rejects write.
 """
 
 from __future__ import annotations
@@ -59,14 +59,6 @@ class MCPFileSystemStrategy(FileSystemStrategy):
     async def write_file(self, path: str, content: str) -> None:
         """MCP 路径不支持写入"""
         raise PermissionError(f"Cannot write to MCP virtual path: {path}")
-
-    async def delete_file(self, path: str) -> None:
-        """MCP 路径不支持删除"""
-        raise PermissionError(f"Cannot delete MCP virtual path: {path}")
-
-    async def replace_text(self, path: str, old_str: str, new_str: str) -> None:
-        """MCP 路径不支持替换"""
-        raise PermissionError(f"Cannot modify MCP virtual path: {path}")
 
     async def is_directory(self, path: str) -> bool:
         """检查 MCP 路径是否是目录
@@ -172,10 +164,6 @@ class MCPFileSystemStrategy(FileSystemStrategy):
         """获取 MCP 文档大小"""
         doc = self._read_mcp_function_doc(path)
         return len(doc.encode("utf-8"))
-
-    def get_actual_path(self, path: str) -> str:
-        """MCP 路径返回自身"""
-        return path
 
     def _read_mcp_function_doc(self, path: str) -> str:
         """读取 MCP 函数文档

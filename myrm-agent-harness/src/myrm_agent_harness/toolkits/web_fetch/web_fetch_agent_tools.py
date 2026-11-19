@@ -21,7 +21,9 @@ Contains:
 - create_web_fetch_tool: Create web fetch meta-tool
 
 [POS]
-Web fetch meta-tool for known-URL full read and RAG extract modes.
+Web fetch meta-tool for known-URL full read and RAG extract modes. The user's network blocklist is read on every
+call and handed to the engine that call builds, so a list edited mid-session applies to the next fetch and the
+shared engine's caches never hold a page fetched under another list.
 """
 
 from __future__ import annotations
@@ -32,6 +34,8 @@ from langchain.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from myrm_agent_harness.core.config.llm import LLMConfig
     from myrm_agent_harness.toolkits.retriever.embedding.factory import EmbeddingConfig
     from myrm_agent_harness.toolkits.retriever.reranker.factory import RerankerConfig
@@ -73,6 +77,7 @@ def create_web_fetch_tool(
     sufficiency_config: SufficiencyConfig | None = None,
     sufficiency_llm_config: LLMConfig | None = None,
     blocked_hostnames: tuple[str, ...] | None = None,
+    network_blocklist_provider: Callable[[], tuple[str, ...]] | None = None,
     description_locale: str | None = None,
 ) -> BaseTool:
     """Create web fetch meta-tool.
@@ -86,6 +91,11 @@ def create_web_fetch_tool(
     rejected before fetching — a generic content policy hook callers can use
     for benchmark decontamination or domain filtering. None disables it.
 
+    ``network_blocklist_provider`` returns the user's current network blocklist (exact or ``*.``
+    wildcard hosts) and is called on every tool call. A listed host is never read: the requested
+    URL is refused, and so is a redirect that leads to one (the HTTP tier judges every hop before
+    requesting it, the browser tiers the URL they were given and the page they ended on).
+
     ``description_locale`` selects the LLM-facing tool description locale
     (default English).
     """
@@ -96,9 +106,15 @@ def create_web_fetch_tool(
     def check_urls(urls: list[str]) -> list[str]:
         return validate_urls(urls, blocked_hostnames=blocked_hostnames, allow_private_networks=allow_private_networks)
 
+    def current_network_blocklist() -> tuple[str, ...]:
+        return network_blocklist_provider() if network_blocklist_provider is not None else ()
+
     async def read_in_full(urls: list[str]) -> dict[str, object]:
         return await _fetch_full_content(
-            urls, use_raw_markdown=use_raw_markdown, allow_private_networks=allow_private_networks
+            urls,
+            use_raw_markdown=use_raw_markdown,
+            allow_private_networks=allow_private_networks,
+            network_blocklist=current_network_blocklist(),
         )
 
     if reranker_config is None or embedding_config is None:
@@ -133,6 +149,7 @@ def create_web_fetch_tool(
             reranker_config,
             embedding_config,
             allow_private_networks=allow_private_networks,
+            network_blocklist=current_network_blocklist(),
         )
         await _append_sufficiency_notice(result, questions, sufficiency_config, sufficiency_llm_config)
         return result
@@ -145,6 +162,7 @@ async def _fetch_full_content(
     *,
     use_raw_markdown: bool = False,
     allow_private_networks: bool = False,
+    network_blocklist: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Read the pages in full: each keeps its share of one budget and the rest stays one file read away."""
     from myrm_agent_harness.toolkits.web_fetch import FetchEngine, web_fetch_tools
@@ -158,11 +176,12 @@ async def _fetch_full_content(
     from myrm_agent_harness.toolkits.web_fetch.processing.spill import emit_web_fetch_evicted_ref, store_full_text
     from myrm_agent_harness.utils.context_format import wrap_with_external_sources_tag
 
-    need_custom_engine = use_raw_markdown or allow_private_networks
+    need_custom_engine = use_raw_markdown or allow_private_networks or bool(network_blocklist)
     engine = (
         FetchEngine(
             use_raw_markdown=use_raw_markdown,
             allow_private_networks=allow_private_networks,
+            network_blocklist=network_blocklist,
             session_vault=web_fetch_tools._http_fetcher._session_vault,
         )
         if need_custom_engine
@@ -255,6 +274,7 @@ async def _fetch_and_extract(
     embedding_config: EmbeddingConfig,
     *,
     allow_private_networks: bool = False,
+    network_blocklist: tuple[str, ...] = (),
 ) -> dict[str, object]:
     """Retrieve relevant content snippets from webpages."""
     from myrm_agent_harness.toolkits.retriever.embedding.factory import get_embedding_service
@@ -271,6 +291,7 @@ async def _fetch_and_extract(
         embeddings=embeddings,
         top_k=10,
         allow_private_networks=allow_private_networks,
+        network_blocklist=network_blocklist,
     )
 
     if error:

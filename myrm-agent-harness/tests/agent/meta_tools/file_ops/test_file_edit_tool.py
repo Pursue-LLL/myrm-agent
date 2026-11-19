@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from myrm_agent_harness.agent.meta_tools.file_ops.core.batch_str_replace import EditMatchError
 from myrm_agent_harness.agent.meta_tools.file_ops.file_edit_tool import (
     FileEditInput,
     create_file_edit_tool,
@@ -88,16 +89,18 @@ async def test_file_edit_tool_permission_denied() -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("error_message", "hint_fragment"),
+    ("error", "hint_fragment"),
     [
-        ("text not found in file", "not found"),
-        ("old_str appears 3 times", "multiple times"),
-        ("Edits 1 and 2 overlap", "overlap"),
-        ("New syntax errors introduced in a.py: SyntaxError: invalid syntax", "syntax validation failed"),
-        ("invalid parameter", "Invalid edit parameters"),
+        (EditMatchError("not_found", "text not found in file"), "not found"),
+        (EditMatchError("ambiguous", "found 3 matches"), "multiple times"),
+        (EditMatchError("overlap", "Edits 1 and 2 overlap"), "overlap"),
+        (ValueError("New syntax errors introduced in a.py: SyntaxError: invalid syntax"), "syntax validation failed"),
+        (ValueError("invalid parameter"), "Invalid edit parameters"),
+        # The hint follows the kind of failure the engine raised, not words in the message.
+        (ValueError("text not found in file"), "Invalid edit parameters"),
     ],
 )
-async def test_file_edit_tool_value_error_hints(error_message: str, hint_fragment: str) -> None:
+async def test_file_edit_tool_value_error_hints(error: ValueError, hint_fragment: str) -> None:
     tool = create_file_edit_tool()
 
     with (
@@ -109,7 +112,7 @@ async def test_file_edit_tool_value_error_hints(error_message: str, hint_fragmen
             "myrm_agent_harness.agent.meta_tools.file_ops.file_edit_tool.FileOperationService",
         ) as mock_service_cls,
     ):
-        mock_service_cls.return_value.execute = AsyncMock(side_effect=ValueError(error_message))
+        mock_service_cls.return_value.execute = AsyncMock(side_effect=error)
         with pytest.raises(ToolError) as exc_info:
             await tool.ainvoke(
                 {"path": "x.py", "edits": [{"old_str": "a", "new_str": "b"}]},

@@ -22,7 +22,6 @@ config types (AgentConfig, TracingConfig) with strict Pydantic field validation.
 
 """
 
-import os
 from dataclasses import dataclass
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -34,19 +33,16 @@ from myrm_agent_harness.core.config.llm import CustomModelDef, LLMConfig
 class TracingConfig:
     """可视化追踪配置 (Tracing)
 
-    支持本地开源可视化 (Arize Phoenix) 和商业云端 (LangSmith)。
-    注意：为了保证数据隐私，默认推荐使用本地 Phoenix。
+    支持本地开源可视化 (Arize Phoenix)。
     """
 
     enable_local_ui: bool = False  # 是否启用本地 Phoenix UI (需安装 [observability] 依赖)
-    enable_langsmith: bool = False  # 是否启用 LangSmith (需配置 LANGCHAIN_TRACING_V2 等环境变量)
-    phoenix_project_name: str = "myrm-agent"  # Phoenix 项目名称
 
 
 class AgentConfig(BaseModel):
     """Agent 配置（支持后端路由）
 
-    主构造函数为纯参数，from_env() 提供便捷的环境变量初始化。
+    所有字段由调用方显式传入，不读取环境变量。
     使用 Pydantic 进行严格字段验证，避免运行时错误。
 
     Example:
@@ -184,25 +180,6 @@ class AgentConfig(BaseModel):
         preset = BUILTIN_PRESETS[name]
         config_dict = {**preset.config_dict, "llm": llm, **overrides}
         return cls.from_dict(config_dict)
-
-    @classmethod
-    def from_env(cls) -> "AgentConfig":
-        """从 MYRM_* 环境变量加载配置。"""
-        llm_config = LLMConfig.from_env()
-
-        tracing_config = TracingConfig(
-            enable_local_ui=os.getenv("MYRM_ENABLE_LOCAL_UI", "false").lower() == "true",
-            enable_langsmith=os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true",
-            phoenix_project_name=os.getenv("MYRM_PHOENIX_PROJECT", "myrm-agent"),
-        )
-
-        return cls(
-            llm=llm_config,
-            tracing_config=tracing_config,
-            recursion_limit=int(os.getenv("MYRM_RECURSION_LIMIT", "50")),
-            timeout_seconds=(int(ts) if (ts := os.getenv("MYRM_TIMEOUT_SECONDS")) else None),
-            enable_artifacts=os.getenv("MYRM_ENABLE_ARTIFACTS", "true").lower() == "true",
-        )
 
 
 __all__ = [

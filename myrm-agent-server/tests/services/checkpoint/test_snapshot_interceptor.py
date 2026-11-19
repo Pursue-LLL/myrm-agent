@@ -8,15 +8,18 @@ trigger mapping, and context None handling.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from myrm_agent_harness.api import PrivacyFailClosedViolationError
+from myrm_agent_harness.toolkits.code_execution.interceptor import DestructiveActionPayload
 
 from app.services.checkpoint.snapshot_service import SnapshotInterceptor, _workspace_locks
 
 
 @pytest.fixture(autouse=True)
-def _clear_workspace_locks():
+def _clear_workspace_locks() -> Iterator[None]:
     """Reset module-level locks between tests."""
     _workspace_locks.clear()
     yield
@@ -28,7 +31,7 @@ def interceptor() -> SnapshotInterceptor:
     return SnapshotInterceptor()
 
 
-def _make_payload(session_id: str = "sess-1") -> dict:
+def _make_payload(session_id: str = "sess-1") -> DestructiveActionPayload:
     return {"session_id": session_id, "command": "rm -rf /tmp/test"}
 
 
@@ -38,7 +41,7 @@ def _make_payload(session_id: str = "sess-1") -> dict:
 
 
 @pytest.mark.asyncio
-async def test_get_store_calls_factory(interceptor: SnapshotInterceptor):
+async def test_get_store_calls_factory(interceptor: SnapshotInterceptor) -> None:
     """_get_store lazily initializes via create_file_snapshot_store()."""
     assert interceptor._store is None
 
@@ -55,7 +58,7 @@ async def test_get_store_calls_factory(interceptor: SnapshotInterceptor):
 
 
 @pytest.mark.asyncio
-async def test_get_store_caches_result(interceptor: SnapshotInterceptor):
+async def test_get_store_caches_result(interceptor: SnapshotInterceptor) -> None:
     """Second call to _get_store returns cached instance."""
     mock_store = AsyncMock()
     with patch(
@@ -75,7 +78,7 @@ async def test_get_store_caches_result(interceptor: SnapshotInterceptor):
 
 
 @pytest.mark.asyncio
-async def test_per_turn_dedup_skips_second_call(interceptor: SnapshotInterceptor):
+async def test_per_turn_dedup_skips_second_call(interceptor: SnapshotInterceptor) -> None:
     """Same (workspace, turn) pair should only snapshot once."""
     mock_store = AsyncMock()
     mock_store.take_snapshot = AsyncMock(return_value="abc123")
@@ -91,7 +94,7 @@ async def test_per_turn_dedup_skips_second_call(interceptor: SnapshotInterceptor
 
 
 @pytest.mark.asyncio
-async def test_different_turns_both_snapshot(interceptor: SnapshotInterceptor):
+async def test_different_turns_both_snapshot(interceptor: SnapshotInterceptor) -> None:
     """Different turn IDs should each get their own snapshot."""
     mock_store = AsyncMock()
     mock_store.take_snapshot = AsyncMock(return_value="abc123")
@@ -111,7 +114,7 @@ async def test_different_turns_both_snapshot(interceptor: SnapshotInterceptor):
 
 
 @pytest.mark.asyncio
-async def test_skips_when_no_session_id(interceptor: SnapshotInterceptor):
+async def test_skips_when_no_session_id(interceptor: SnapshotInterceptor) -> None:
     """Payload without session_id => early return, no snapshot."""
     with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock:
         await interceptor.before_destructive_action("/tmp/ws", "bash", {"command": "ls"})
@@ -125,7 +128,7 @@ async def test_skips_when_no_session_id(interceptor: SnapshotInterceptor):
 
 
 @pytest.mark.asyncio
-async def test_emit_snapshot_event_uses_event_bus(interceptor: SnapshotInterceptor):
+async def test_emit_snapshot_event_uses_event_bus(interceptor: SnapshotInterceptor) -> None:
     """_emit_snapshot_event should call get_event_bus().publish(AppEvent(...))."""
     mock_bus = MagicMock()
 
@@ -151,7 +154,7 @@ async def test_emit_snapshot_event_uses_event_bus(interceptor: SnapshotIntercept
 
 
 @pytest.mark.asyncio
-async def test_snapshot_error_caught_gracefully(interceptor: SnapshotInterceptor):
+async def test_snapshot_error_caught_gracefully(interceptor: SnapshotInterceptor) -> None:
     """Errors in snapshot creation should be caught, not propagated."""
     mock_store = AsyncMock()
     mock_store.take_snapshot = AsyncMock(side_effect=RuntimeError("git failed"))
@@ -170,7 +173,7 @@ async def test_snapshot_error_caught_gracefully(interceptor: SnapshotInterceptor
 
 
 @pytest.mark.asyncio
-async def test_trigger_mapping(interceptor: SnapshotInterceptor):
+async def test_trigger_mapping(interceptor: SnapshotInterceptor) -> None:
     """Each action_type should map to the correct SnapshotTrigger."""
     from myrm_agent_harness.agent.file_snapshot.types import SnapshotTrigger
 
@@ -181,9 +184,7 @@ async def test_trigger_mapping(interceptor: SnapshotInterceptor):
     test_cases = [
         ("bash", SnapshotTrigger.EXECUTE_TERMINAL),
         ("file_write", SnapshotTrigger.WRITE_FILE),
-        ("file_append", SnapshotTrigger.WRITE_FILE),
         ("file_delete", SnapshotTrigger.DELETE_FILE),
-        ("patch_file", SnapshotTrigger.PATCH_FILE),
         ("unknown_action", SnapshotTrigger.MANUAL),
     ]
 
@@ -207,7 +208,7 @@ async def test_trigger_mapping(interceptor: SnapshotInterceptor):
 
 
 @pytest.mark.asyncio
-async def test_workspace_locks_are_per_workspace():
+async def test_workspace_locks_are_per_workspace() -> None:
     """Different workspaces should have independent locks."""
     lock_a = _workspace_locks["/ws/a"]
     lock_b = _workspace_locks["/ws/b"]
@@ -223,10 +224,10 @@ async def test_workspace_locks_are_per_workspace():
 
 
 @pytest.mark.asyncio
-async def test_timeout_does_not_block_caller(interceptor: SnapshotInterceptor):
+async def test_timeout_does_not_block_caller(interceptor: SnapshotInterceptor) -> None:
     """If snapshot takes > 3s, before_destructive_action returns without waiting."""
 
-    async def _slow_snapshot(*args, **kwargs):
+    async def _slow_snapshot(*args: object, **kwargs: object) -> None:
         await asyncio.sleep(10)
 
     mock_context = MagicMock(
@@ -249,7 +250,7 @@ async def test_timeout_does_not_block_caller(interceptor: SnapshotInterceptor):
 
 
 @pytest.mark.asyncio
-async def test_before_destructive_action_handles_none_context(interceptor: SnapshotInterceptor):
+async def test_before_destructive_action_handles_none_context(interceptor: SnapshotInterceptor) -> None:
     """chat_id comes from payload session_id; missing turn/agent context falls back."""
     mock_context = MagicMock(
         get_current_agent_id=MagicMock(return_value=None),
@@ -269,7 +270,7 @@ async def test_before_destructive_action_handles_none_context(interceptor: Snaps
 
 
 @pytest.mark.asyncio
-async def test_before_destructive_action_uses_payload_session_id(interceptor: SnapshotInterceptor):
+async def test_before_destructive_action_uses_payload_session_id(interceptor: SnapshotInterceptor) -> None:
     """chat_id is sourced from the hook payload session_id (harness chat context)."""
     with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot:
         await interceptor.before_destructive_action("/tmp/ws", "bash", _make_payload("chat-abc"))
@@ -284,7 +285,7 @@ async def test_before_destructive_action_uses_payload_session_id(interceptor: Sn
 
 
 @pytest.mark.asyncio
-async def test_emit_snapshot_event_catches_exceptions(interceptor: SnapshotInterceptor):
+async def test_emit_snapshot_event_catches_exceptions(interceptor: SnapshotInterceptor) -> None:
     """_emit_snapshot_event should not raise even if event bus fails."""
     mock_module = MagicMock()
     mock_module.get_event_bus.side_effect = RuntimeError("bus broken")
@@ -299,12 +300,12 @@ async def test_emit_snapshot_event_catches_exceptions(interceptor: SnapshotInter
 
 
 @pytest.mark.asyncio
-async def test_concurrent_snapshots_different_workspaces(interceptor: SnapshotInterceptor):
+async def test_concurrent_snapshots_different_workspaces(interceptor: SnapshotInterceptor) -> None:
     """Two different workspaces can snapshot concurrently without blocking."""
     mock_store = AsyncMock()
     call_order: list[str] = []
 
-    async def _mock_take_snapshot(working_dir: str = "", **kwargs):
+    async def _mock_take_snapshot(working_dir: str = "", **kwargs: object) -> str:
         call_order.append(f"start-{working_dir}")
         await asyncio.sleep(0.05)
         call_order.append(f"end-{working_dir}")
@@ -325,7 +326,7 @@ async def test_concurrent_snapshots_different_workspaces(interceptor: SnapshotIn
     assert "start-/ws/b" in call_order
 
 
-async def test_snapshotted_turns_cache_is_bounded(interceptor: SnapshotInterceptor):
+async def test_snapshotted_turns_cache_is_bounded(interceptor: SnapshotInterceptor) -> None:
     """LRU cache evicts the least-recently used entries beyond the bound."""
     from app.services.checkpoint.snapshot_service import _MAX_CACHED_TURNS
 
@@ -348,12 +349,12 @@ async def test_snapshotted_turns_cache_is_bounded(interceptor: SnapshotIntercept
 # ---------------------------------------------------------------------------
 
 
-def _effect_payload(*, destructive: bool, effects: list[str], session_id: str = "sess-1") -> dict:
+def _effect_payload(*, destructive: bool, effects: list[str], session_id: str = "sess-1") -> DestructiveActionPayload:
     return {"session_id": session_id, "command": "cmd", "destructive": destructive, "external_effects": effects}
 
 
 @pytest.mark.asyncio
-async def test_effect_only_command_is_recorded_without_a_snapshot(interceptor: SnapshotInterceptor):
+async def test_effect_only_command_is_recorded_without_a_snapshot(interceptor: SnapshotInterceptor) -> None:
     """A command that only reaches outside the workspace has nothing for a file snapshot to capture."""
     airbag = MagicMock()
     with (
@@ -369,7 +370,7 @@ async def test_effect_only_command_is_recorded_without_a_snapshot(interceptor: S
 
 
 @pytest.mark.asyncio
-async def test_destructive_command_with_effects_snapshots_and_records(interceptor: SnapshotInterceptor):
+async def test_destructive_command_with_effects_snapshots_and_records(interceptor: SnapshotInterceptor) -> None:
     airbag = MagicMock()
     with (
         patch("app.services.checkpoint.snapshot_service.get_task_airbag_service", return_value=airbag),
@@ -383,7 +384,7 @@ async def test_destructive_command_with_effects_snapshots_and_records(intercepto
 
 
 @pytest.mark.asyncio
-async def test_effects_are_recorded_after_the_turn_was_already_snapshotted(interceptor: SnapshotInterceptor):
+async def test_effects_are_recorded_after_the_turn_was_already_snapshotted(interceptor: SnapshotInterceptor) -> None:
     """Per-turn dedup guards snapshots only; a later external effect in the same turn must still be recorded."""
     airbag = MagicMock()
     with (
@@ -397,7 +398,7 @@ async def test_effects_are_recorded_after_the_turn_was_already_snapshotted(inter
 
 
 @pytest.mark.asyncio
-async def test_payload_without_effects_never_touches_the_airbag(interceptor: SnapshotInterceptor):
+async def test_payload_without_effects_never_touches_the_airbag(interceptor: SnapshotInterceptor) -> None:
     airbag = MagicMock()
     with (
         patch("app.services.checkpoint.snapshot_service.get_task_airbag_service", return_value=airbag),
@@ -408,3 +409,27 @@ async def test_payload_without_effects_never_touches_the_airbag(interceptor: Sna
     airbag.record_session_external_effects.assert_not_called()
     mock_snapshot.assert_awaited_once()
     assert "external_effects" not in mock_snapshot.call_args.args[-1]
+
+
+# ---------------------------------------------------------------------------
+# 13. Privacy ladder checks the target the payload names
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_a_target_outside_the_workspace_is_not_snapshotted(interceptor: SnapshotInterceptor) -> None:
+    payload: DestructiveActionPayload = {"session_id": "sess-1", "path": "/elsewhere/file.txt"}
+    with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot:
+        with pytest.raises(PrivacyFailClosedViolationError):
+            await interceptor.before_destructive_action("/tmp/ws", "file_write", payload)
+
+    mock_snapshot.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_a_target_inside_the_workspace_is_snapshotted(interceptor: SnapshotInterceptor) -> None:
+    payload: DestructiveActionPayload = {"session_id": "sess-1", "path": "/tmp/ws/src/file.txt"}
+    with patch.object(interceptor, "_safe_snapshot_with_lock", new_callable=AsyncMock) as mock_snapshot:
+        await interceptor.before_destructive_action("/tmp/ws", "file_write", payload)
+
+    mock_snapshot.assert_awaited_once()

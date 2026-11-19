@@ -169,7 +169,7 @@ _ADD_COMMENT_JS = """((args) => {
   setter.call(intent, args.intent);
   intent.dispatchEvent(new Event('input', { bubbles: true }));
   const add = Array.from(document.querySelectorAll('section[aria-label="Artifact annotations"] button'))
-    .find((b) => /^(Add comment|添加批注|新增批註)$/.test((b.textContent || '').trim()));
+    .find((b) => /^(Add comment|添加批注)$/.test((b.textContent || '').trim()));
   if (!add) return { ok: false, reason: 'no-add' };
   add.click();
   return { ok: true };
@@ -186,7 +186,7 @@ _SEND_REVIEW_JS = """(() => {
   // Fast mode needs a search service; revisions are agent turns.
   window.__MYRM_E2E_CHAT__?.setActionMode?.('agent');
   const send = Array.from(document.querySelectorAll('section[aria-label="Artifact annotations"] button'))
-    .find((b) => /^(Send for revision|发送审阅|傳送審閱)$/.test((b.textContent || '').trim()));
+    .find((b) => /^(Send for revision|发送审阅)$/.test((b.textContent || '').trim()));
   if (!send) return { ok: false, reason: 'no-send' };
   if (send.disabled) return { ok: false, reason: 'send-disabled' };
   send.click();
@@ -206,7 +206,7 @@ _SUBMITTED_READY_JS = """((args) => {
   const txt = panel ? (panel.innerText || '') : '';
   const stored = window.localStorage.getItem('myrm.artifact-annotations.v1') || '';
   return {
-    ready: /submitted|已送审|已送審/.test(txt) && txt.includes(args.intent),
+    ready: /submitted|已送审/.test(txt) && txt.includes(args.intent),
     hasPanel: !!panel,
     panelText: txt.slice(0, 300),
     storedSubmitted: stored.includes('"status":"submitted"'),

@@ -9,6 +9,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.acp.runtime.acp.callback import AcpCallbackHandler
 from myrm_agent_harness.toolkits.acp.types import PermissionDecision, RuntimeConfig
+from tests.support.windows_text_mode import emulate_windows_text_mode
 
 
 class TestAcpCallbackHandlerSessionUpdate:
@@ -186,6 +187,54 @@ class TestAcpCallbackHandlerFileOps:
         target = blocker / "sub" / "out.txt"
         result = await handler.write_text_file("content", str(target), "s1")
         assert result is None
+
+    @staticmethod
+    def _writable_handler(cwd: Path) -> AcpCallbackHandler:
+        return AcpCallbackHandler(
+            RuntimeConfig(backend_type="acp", command="dummy", cwd=str(cwd), permission_mode="allow_all"),
+            "s1",
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_file_is_read_with_its_line_endings(self, tmp_path: Path) -> None:
+        target = tmp_path / "crlf.txt"
+        target.write_bytes(b"one\r\ntwo\r\nthree\r\n")
+        handler = self._writable_handler(tmp_path)
+
+        whole = await handler.read_text_file(str(target), "s1")
+        second_line = await handler.read_text_file(str(target), "s1", limit=1, line=2)
+
+        assert whole["content"] == "one\r\ntwo\r\nthree\r\n"
+        assert second_line["content"] == "two\r\n"
+
+    @pytest.mark.asyncio
+    async def test_a_file_read_and_written_back_is_unchanged(self, tmp_path: Path) -> None:
+        """An agent that edits nothing must not change a byte: CRLF, a lone CR and non-ASCII text all survive."""
+        original = "crlf\r\nlone\rcr\nunix\ncafé\r\n".encode()
+        target = tmp_path / "mixed.txt"
+        target.write_bytes(original)
+        handler = self._writable_handler(tmp_path)
+
+        read = await handler.read_text_file(str(target), "s1")
+        written = await handler.write_text_file(read["content"], str(target), "s1")
+
+        assert written == {"success": True}
+        assert target.read_bytes() == original
+
+    @pytest.mark.asyncio
+    async def test_a_text_is_written_as_the_bytes_it_holds(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Where text mode translates newlines (Windows), a text with CRLF and a lone CR must still land unchanged."""
+        emulate_windows_text_mode(monkeypatch)
+        text = "crlf\r\nlone\rcr\nunix\ncafé\n"
+        target = tmp_path / "written.txt"
+        handler = self._writable_handler(tmp_path)
+
+        written = await handler.write_text_file(text, str(target), "s1")
+
+        assert written == {"success": True}
+        assert target.read_bytes() == text.encode()
 
 
 class TestAcpCallbackHelpers:

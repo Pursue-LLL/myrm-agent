@@ -1,16 +1,16 @@
 """FTS5 Utilities
 
-Provides robust sanitization for SQLite FTS5 MATCH queries, silent
-auto-healing for corrupted FTS5 indexes (power-loss survival guard), the
-in-place swap of an FTS5 table to another tokenizer and the conversion of an
-FTS5 bm25 rank into a relevance score.
+Provides the sanitization that turns user input into a valid SQLite FTS5
+MATCH expression, silent auto-healing for corrupted FTS5 indexes (power-loss
+survival guard), the in-place swap of an FTS5 table to another tokenizer and
+the conversion of an FTS5 bm25 rank into a relevance score.
 
 [INPUT]
 - sqlite3.Connection (POS: open connection for integrity/rebuild operations)
 - str (POS: table name, query string)
 
 [OUTPUT]
-- sanitize_fts5_query: Sanitize user input for safe use in FTS5 MATCH queries.
+- sanitize_fts5_query: Sanitize user input into a valid FTS5 MATCH expression (a term FTS5 cannot read as a word is quoted, a boolean operator stays only between two operands); empty when nothing searchable is left.
 - fts5_integrity_check: Check FTS5 virtual table health via official command.
 - fts5_rebuild: Rebuild the FTS5 inverted index from the text the table itself stores.
 - fts5_auto_heal: Detect corruption on query failure and rebuild transparently; declines when the stored rows cannot be read.
@@ -32,9 +32,64 @@ import sqlite3
 
 logger = logging.getLogger(__name__)
 
+# FTS5 reads only these characters as an unquoted word: any non-ASCII character, ASCII letters and digits, "_" and the
+# substitute character (https://sqlite.org/fts5.html, section 3.1). Every other term has to sit inside double quotes.
+_FTS5_WORD = re.compile(r"[0-9A-Za-z_\x1a\u0080-\U0010ffff]+")
+_FTS5_OPERATORS = frozenset({"AND", "OR", "NOT"})
+# A quoted phrase with its optional prefix star, or a run of anything else that is not whitespace.
+_FTS5_PIECE = re.compile(r'"[^"]*"\*?|[^\s"]+')
+
+
+def _quoted_unless_word(piece: str) -> str:
+    """``piece`` in a form FTS5 parses; empty for a lone star.
+
+    A word stays. Any other term is quoted, and its prefix star stays outside the quotes.
+    """
+    word = piece.removesuffix("*")
+    if not word.strip("*"):
+        return ""
+    if word in _FTS5_OPERATORS or not _FTS5_WORD.fullmatch(word):
+        return f'"{word}"{piece[len(word) :]}'
+    return piece
+
+
+def _ensure_parseable(query: str) -> str:
+    """Quote or drop every piece of an already sanitized ``query`` that FTS5 cannot parse.
+
+    The sanitizing steps remove most special characters, yet a term such as ``don't`` or ``world.`` is still a syntax
+    error, and a boolean operator can end up beside another operator or at either end of the query. Pieces that parse and
+    the whitespace between pieces are left as they are.
+    """
+    out: list[str] = []
+    cursor = 0
+    has_operand = False
+    operator_at: int | None = None  # where in ``out`` an operator waits for its right operand
+    for match in _FTS5_PIECE.finditer(query):
+        if gap := query[cursor : match.start()]:
+            out.append(gap)
+        cursor = match.end()
+        piece = match.group()
+        if piece in _FTS5_OPERATORS:
+            if has_operand and operator_at is None:
+                operator_at = len(out)
+                out.append(piece)
+            continue
+        if piece[0] != '"':
+            piece = _quoted_unless_word(piece)
+            if not piece:
+                continue
+        # FTS5 reads two touching quoted pieces as one phrase that holds a literal quote.
+        if piece[0] == '"' and out and out[-1].endswith('"'):
+            out.append(" ")
+        out.append(piece)
+        has_operand, operator_at = True, None
+    if operator_at is not None:
+        del out[operator_at:]
+    return "".join(out).strip()
+
 
 def sanitize_fts5_query(query: str) -> str:
-    """Sanitize user input for safe use in FTS5 MATCH queries.
+    """Sanitize user input into a valid FTS5 MATCH expression.
 
     FTS5 has its own query syntax where characters like `+`, `*`, `(`, `)`,
     `{`, `}`, `"`, `^` and bare boolean operators (`AND`, `OR`, `NOT`) have
@@ -47,6 +102,16 @@ def sanitize_fts5_query(query: str) -> str:
     - Wrap unquoted hyphenated and dotted terms in quotes so FTS5
       matches them as exact phrases instead of splitting on the
       hyphen/dot (e.g. `chat-send`, `P2.2`, `my-app.config.ts`)
+    - Quote every other term FTS5 would not read as a word (`don't`,
+      `world.`, `` `code` ``) and keep `AND`/`OR`/`NOT` only between two
+      operands, so a non-empty result always parses
+
+    A quoted term is a literal phrase: a trigram table finds `world.` only in
+    text that holds the dot, a unicode61 table also finds the word without it.
+
+    The result is an FTS5 expression, not the text that was typed (`C++`
+    becomes `C`, `it's` becomes `"it's"`), so a caller that falls back to a
+    substring scan reads the typed text and not this result.
     """
     if not query:
         return ""
@@ -108,7 +173,8 @@ def sanitize_fts5_query(query: str) -> str:
     for i, quoted in enumerate(_quoted_parts):
         sanitized = sanitized.replace(f"\x00Q{i}\x00", quoted)
 
-    return sanitized.strip()
+    # Step 7: Quote or drop what FTS5 still cannot parse
+    return _ensure_parseable(sanitized)
 
 
 # ---------------------------------------------------------------------------

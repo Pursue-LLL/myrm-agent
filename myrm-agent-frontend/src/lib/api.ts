@@ -1,13 +1,11 @@
 /**
  * [INPUT]
- * - @/lib/deploy-mode::getApiBaseUrl (POS: 前端部署模式与基础地址解析层)
- * - @/lib/utils/backend-url::BACKEND_BASE_URL, createDynamicUrl (POS: 后端服务基础地址层)
+ * - @/lib/deploy-mode (POS: 前端部署模式与基础地址解析层)
+ * - @/lib/api-url::API_BASE_URL, BACKEND_BASE_URL, getApiUrl, getStorageUrl, getWebuiUrl, getWsUrl (POS: URL 拼接层)
  * - @/services/riskHeldToast::showRiskHeldRefusal (POS: 被风控规则拦下的文字的统一提示)
  *
  * [OUTPUT]
- * - API_BASE_URL: 规范化的 API 基础地址。
- * - BACKEND_BASE_URL: 规范化的后端基础地址。
- * - getApiUrl / getWsUrl / getStorageUrl: 统一 URL 拼接工具（getWsUrl 动态读取 getApiBaseUrl 以支持 sandbox 部署）。
+ * - API_BASE_URL / BACKEND_BASE_URL / getApiUrl / getWebuiUrl / getWsUrl / getStorageUrl: 重新导出 `@/lib/api-url` 的 URL 拼接工具，调用方只认本入口。
  * - fetchWithTimeout / apiRequest: 前端统一请求入口（local gate + `BACKEND_UNREACHABLE`；relay UI locale via `Accept-Language`；运输失败后 `markLocalBackendUnreachable` 失效缓存；`fetchWithTimeout` 为直连调用 SSOT；401/403 强登出拦截；错误 toast 对 `risk_held` 拒绝改用本地化的风控提示）
  *
  * [POS]
@@ -15,8 +13,8 @@
  */
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 import { ensureLocalBackendReady, markLocalBackendUnreachable } from '@/lib/backend-health';
-import { getApiBaseUrl, isLocalMode, resolveE2eApiBase, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
-import { BACKEND_BASE_URL, createDynamicUrl } from '@/lib/utils/backend-url';
+import { getApiUrl } from '@/lib/api-url';
+import { isLocalMode, resolveE2eApiBase, shouldRedirectToLoginOnAuthFailure } from '@/lib/deploy-mode';
 import { BACKEND_UNREACHABLE_CODE, resolveBackendUnreachableMessage } from '@/lib/local-backend-dev';
 import { clearAuthToken } from '@/lib/guest';
 import { withMobilePairHeaders } from '@/lib/mobileRemote';
@@ -24,7 +22,7 @@ import { toast } from '@/lib/utils/toast';
 import { translateI18nKey } from '@/services/i18nToastService';
 import { showRiskHeldRefusal } from '@/services/riskHeldToast';
 import { redactErrorMessage } from '@/lib/utils/error-handling';
-import { getClientLocale, normalizeLocaleForBackend } from '@/lib/utils/locale';
+import { getClientLocale, resolveBackendLocale } from '@/lib/utils/locale';
 
 const AUTH_LOGIN_PATH = buildAuthLoginPath();
 
@@ -38,61 +36,7 @@ function redirectToLoginAfterAuthFailure(): void {
   }
 }
 
-export const API_BASE_URL = createDynamicUrl(getApiBaseUrl);
-
-export { BACKEND_BASE_URL };
-
-/**
- * 获取完整的API地址
- */
-export const getApiUrl = (endpoint: string): string => {
-  if (endpoint.startsWith('/webui')) {
-    return getWebuiUrl(endpoint);
-  }
-  return `${API_BASE_URL}${endpoint}`;
-};
-
-/**
- * WebUI 路由挂载在后端 `/webui`（非 `/api/v1`）。
- * 本地开发经 Next rewrites 代理；沙箱/远程使用 BACKEND_BASE_URL。
- */
-export const getWebuiUrl = (endpoint: string): string => {
-  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const webuiPath = path.startsWith('/webui') ? path : `/webui${path}`;
-  if (BACKEND_BASE_URL) {
-    return `${BACKEND_BASE_URL}${webuiPath}`;
-  }
-  return webuiPath;
-};
-
-/**
- * 获取 WebSocket URL（将 http(s) 转换为 ws(s)）
- */
-export const getWsUrl = (endpoint: string): string => {
-  const base = getApiBaseUrl().replace(/^http/, 'ws');
-  return `${base}${endpoint}`;
-};
-
-/**
- * 获取存储服务的完整 URL
- * 将相对路径（如 /api/v1/storage/files/xxx）转换为完整的后端 URL
- */
-export const getStorageUrl = (url: string): string => {
-  // 空 URL 直接返回，让调用者处理
-  if (!url) {
-    return '';
-  }
-  // 如果已经是完整 URL，直接返回
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  if (url.startsWith('vault://')) {
-    const vaultId = url.slice('vault://'.length).split(':')[0];
-    return `${BACKEND_BASE_URL}/api/v1/files/vault/${vaultId}/content`;
-  }
-  // 相对路径直接拼接到后端基础 URL
-  return `${BACKEND_BASE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
-};
+export { API_BASE_URL, BACKEND_BASE_URL, getApiUrl, getStorageUrl, getWebuiUrl, getWsUrl } from '@/lib/api-url';
 
 /**
  * 错误严重程度
@@ -386,17 +330,17 @@ async function assertLocalBackendReadyForRequest(): Promise<void> {
   if (typeof window === 'undefined' || !isLocalMode()) {
     return;
   }
-  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('e2e_warm_platform_readiness') === 'true') {
-    return;
-  }
-  const e2eBase = resolveE2eApiBase();
-  if (e2eBase) {
-    const runtimeReady = (window as Window & { __MYRM_E2E_RUNTIME_READY__?: Promise<unknown> })
-      .__MYRM_E2E_RUNTIME_READY__;
-    if (runtimeReady) {
-      await runtimeReady;
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('e2e_warm_platform_readiness') === 'true') {
+      return;
     }
-    return;
+    if (resolveE2eApiBase()) {
+      const runtimeReady = window.__MYRM_E2E_RUNTIME_READY__;
+      if (runtimeReady) {
+        await runtimeReady;
+      }
+      return;
+    }
   }
   const ready = await ensureLocalBackendReady();
   if (!ready) {
@@ -417,9 +361,7 @@ const getAuthToken = (): string | null => {
 // 动态 import 断静态环：api 被 store→llm-config 链反向依赖，静态 import useConfigStore 会成环
 async function resolveAcceptLanguageHeader(): Promise<string | undefined> {
   const { default: useConfigStore } = await import('@/store/useConfigStore');
-  const savedLocale = useConfigStore.getState().personalSettings?.locale;
-  const cookieLocale = getClientLocale();
-  return normalizeLocaleForBackend(savedLocale || cookieLocale);
+  return resolveBackendLocale(useConfigStore.getState().personalSettings?.locale, getClientLocale());
 }
 
 /**

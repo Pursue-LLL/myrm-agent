@@ -60,10 +60,6 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent._internals.memory_extraction import (
         ExtractionLifecycleObserver,
     )
-    from myrm_agent_harness.backends.secrets.protocols import AgentSecretBackend
-    from myrm_agent_harness.backends.skills.market_protocols import (
-        SkillMarketBackend,
-    )
     from myrm_agent_harness.backends.skills.protocols import (
         SkillBackend as SkillBackendProtocol,
     )
@@ -113,9 +109,7 @@ class SkillAgent(
         executor: "CodeExecutor | None" = None,
         storage_backend: "StorageProvider | None" = None,
         skill_backend: "SkillBackendProtocol | None" = None,
-        market_backend: "SkillMarketBackend | None" = None,
         write_backend: "ScanningSkillWriteBackend | None" = None,
-        secret_backend: "AgentSecretBackend | None" = None,
         memory_manager: "MemoryManager | None" = None,
         enable_memory_auto_extraction: bool = True,
         extraction_llm: BaseChatModel | None = None,
@@ -155,9 +149,7 @@ class SkillAgent(
         task_workspace_root: str | None = None,
         available_tool_names: frozenset[str] | None = None,
         available_tool_groups: frozenset[str] | None = None,
-        library_skill_names: frozenset[str] | None = None,
     ) -> None:
-        self.model_resolver = model_resolver
         super().__init__(
             llm=llm,
             executor=executor,
@@ -172,14 +164,13 @@ class SkillAgent(
             safety_fallback_llm=safety_fallback_llm,
             checkpointer=checkpointer,
             event_log_backend=event_log_backend,
+            model_resolver=model_resolver,
         )
 
         self.skill_configs = skill_configs
         self.skill_backend = skill_backend
-        self.market_backend = market_backend
         self.write_backend = write_backend
         self.storage_backend = storage_backend
-        self.secret_backend = secret_backend
         self.state_manager = state_manager
         self.memory_manager: MemoryManager | None = memory_manager
         self._enable_memory_auto_extraction = enable_memory_auto_extraction
@@ -209,7 +200,6 @@ class SkillAgent(
         self._task_workspace_root = task_workspace_root
         self._available_tool_names = available_tool_names
         self._available_tool_groups = available_tool_groups
-        self._library_skill_names = library_skill_names
         # Fingerprint of the bound set the skill_search index was last built from (None: not synced yet).
         self._synced_skill_fingerprint: str | None = None
 

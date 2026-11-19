@@ -7,15 +7,17 @@
 - app.services.agent.stream_session.turn_history_sync (POS: how the turn relates to the chat's agent thread)
 - app.services.agent.stream_session.turn_workspace_bind (POS: canonical first-turn workspace bind, validated before the chat row is written)
 - app.services.agent.stream_session.stream_pump::pump_to_buffer (POS: SSE pump)
+- app.services.agent.stream_session.stream_finalize::release_unfinished_turn / release_turn_registrations (POS: teardown of a turn whose stream never reached finalize, and the registrations a turn gives back)
 - myrm_agent_harness.utils.runtime.cancellation::CancellationRegistry (POS: Stop handle of the turn, registered at turn entry)
 
 [OUTPUT]
-- execute_agent_turn_after_reserve: register cancel token → bind workspace → persist → pre-reply compact → history → agent session → pump (background)
+- execute_agent_turn_after_reserve: register cancel token → bind workspace → persist → pre-reply compact → history → agent session → pump (background); a turn refused or failed before its own state is registered ends through fail_buffered_turn, and every later exit gives back what the turn registered
 - fail_buffered_turn: end a turn that failed before its stream started with an error SSE and release its cancel token
-- write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable
+- write_interrupted_turn_marker: persist the write-ahead marker that makes a crashed turn recoverable, returning the id of the marker row
 
 [POS]
 E1 turn body: runs inside the background task started by orchestrator_turn_launch while clients already subscribe to the buffer during pre-reply compact and orchestrator setup.
+The body owns the registrations it makes (steering token, goal provider, run digest, collector, replay marker): finalize ends a turn that ran, and the body's finally, which opens with the steering token's registration, ends every other exit.
 """
 
 from __future__ import annotations
@@ -48,6 +50,7 @@ from app.services.agent.stream_session.orchestrator_turn_setup import (
     prepare_goal_provider,
     search_service_unavailable_detail,
 )
+from app.services.agent.stream_session.stream_finalize import release_turn_registrations, release_unfinished_turn
 from app.services.agent.stream_session.stream_pump import pump_to_buffer
 from app.services.agent.stream_session.stream_session_types import AgentStreamSession
 from app.services.agent.stream_session.turn_capability_terminal import (
@@ -63,6 +66,7 @@ from app.services.agent.streaming_support.stream_collector import StreamContentC
 from app.services.chat.compact_service import CompactResult
 
 if TYPE_CHECKING:
+    from myrm_agent_harness.agent.goals.protocols import GoalProvider
     from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry, ResilientStreamBuffer
 
     from app.ai_agents import GeneralAgentParams
@@ -171,54 +175,70 @@ async def execute_agent_turn_after_reserve(
         return
 
     steering_token = SteeringToken() if request.chat_id else None
-    if steering_token and request.chat_id:
-        SteeringRegistry.register(request.chat_id, steering_token)
+    goal_provider: GoalProvider | None = None
+    session: AgentStreamSession | None = None
+    try:
+        if steering_token and request.chat_id:
+            SteeringRegistry.register(request.chat_id, steering_token)
 
-    goal_provider = await prepare_goal_provider(request, text_content)
-    extra_context = await build_turn_extra_context(
-        request,
-        params,
-        base=turn.extra_context,
-        goal_provider=goal_provider,
-    )
-    if history_mode is not None:
-        extra_context[HISTORY_MODE_CONTEXT_KEY] = history_mode
+        goal_provider = await prepare_goal_provider(request, text_content)
+        extra_context = await build_turn_extra_context(
+            request,
+            params,
+            base=turn.extra_context,
+            goal_provider=goal_provider,
+        )
+        if history_mode is not None:
+            extra_context[HISTORY_MODE_CONTEXT_KEY] = history_mode
 
-    collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
-    if request.chat_id:
-        from app.services.copilot.run_digest_store import RunDigestStore
+        collector = StreamContentCollector(sibling_group_id=request.sibling_group_id, chat_id=request.chat_id)
+        session = AgentStreamSession(
+            request=request,
+            http_request=http_request,
+            params=params,
+            cancel_token=cancel_token,
+            steering_token=steering_token,
+            routing_tier=turn.routing_tier,
+            archive_restore_results=turn.archive_restore_results,
+            registry=registry,
+            collector=collector,
+            goal_provider=goal_provider,
+            extra_context=extra_context,
+            routing_specialty=turn.routing_specialty,
+            routing_reason=turn.routing_reason,
+            context_warnings=turn.context_warnings,
+            stream_started_at_monotonic=stream_started_at_monotonic,
+            pre_reply_compact_result=pre_reply_compact_result,
+            pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
+            pending_session_draft=pending_draft,
+        )
+        if request.chat_id:
+            from app.services.copilot.run_digest_store import RunDigestStore
 
-        RunDigestStore.begin_run(request.chat_id)
+            session.digest_run = RunDigestStore.begin_run(request.chat_id)
 
-    session = AgentStreamSession(
-        request=request,
-        http_request=http_request,
-        params=params,
-        cancel_token=cancel_token,
-        steering_token=steering_token,
-        routing_tier=turn.routing_tier,
-        archive_restore_results=turn.archive_restore_results,
-        registry=registry,
-        collector=collector,
-        goal_provider=goal_provider,
-        extra_context=extra_context,
-        routing_specialty=turn.routing_specialty,
-        routing_reason=turn.routing_reason,
-        context_warnings=turn.context_warnings,
-        stream_started_at_monotonic=stream_started_at_monotonic,
-        pre_reply_compact_result=pre_reply_compact_result,
-        pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
-        pending_session_draft=pending_draft,
-    )
+        if request.chat_id and request.resume_value is None:
+            if pending_draft is None or getattr(pending_draft, "committed", False):
+                try:
+                    session.turn_marker_id = await write_interrupted_turn_marker(
+                        request, params, user_message_id=persisted_message_id
+                    )
+                except Exception as marker_exc:
+                    logger.warning("Turn marker write skipped: %s", marker_exc)
 
-    if request.chat_id and request.resume_value is None:
-        if pending_draft is None or getattr(pending_draft, "committed", False):
-            try:
-                await write_interrupted_turn_marker(request, params, user_message_id=persisted_message_id)
-            except Exception as marker_exc:
-                logger.debug("Turn marker write skipped: %s", marker_exc)
-
-    await pump_to_buffer(session, buffer)
+        await pump_to_buffer(session, buffer)
+    finally:
+        # The pump hands a turn it ran to finalize, which tears the turn down. Every other exit (a Stop while the turn
+        # is queued, a failure in setup or in the pump) ends here, so the turn gives back what it registered.
+        if session is None:
+            release_turn_registrations(
+                chat_id=request.chat_id,
+                message_id=request.message_id,
+                steering_token=steering_token,
+                goal_provider=goal_provider,
+            )
+        else:
+            await release_unfinished_turn(session)
 
 
 async def write_interrupted_turn_marker(
@@ -226,20 +246,22 @@ async def write_interrupted_turn_marker(
     params: GeneralAgentParams,
     *,
     user_message_id: str | None = None,
-) -> None:
-    """Persist a write-ahead marker so a crash leaves a recoverable trace.
+) -> str:
+    """Persist a write-ahead marker so a crash leaves a recoverable trace, and return the id of the marker row.
 
     ``user_message_id`` is the id the user row was stored under, which can differ from the request's
-    id; replay excludes that row from history because the turn's query is replayed separately.
+    id; replay excludes that row from history because the turn's query is replayed separately. The turn keeps the
+    returned id so that it can clear exactly this marker and not the one a later turn of the chat wrote.
     """
     from app.database.models.chat import InterruptedTurnMarker
     from app.platform_utils import get_session_factory
 
+    marker_id = str(uuid.uuid4())
     session_factory = get_session_factory()
     async with session_factory() as db:
         await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.chat_id == request.chat_id))
         marker = InterruptedTurnMarker(
-            id=str(uuid.uuid4()),
+            id=marker_id,
             chat_id=request.chat_id,
             user_message_id=user_message_id or request.message_id or "",
             action_mode=request.action_mode or "fast",
@@ -248,3 +270,4 @@ async def write_interrupted_turn_marker(
         )
         db.add(marker)
         await db.commit()
+    return marker_id

@@ -37,11 +37,23 @@ def _name_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _local(requested: str, allowed_hosts: list[str] | None = None) -> FetchTargetGuard:
-    return FetchTargetGuard(requested_url=requested, allow_private_networks=True, allowed_hosts=allowed_hosts or [])
+    return FetchTargetGuard(
+        requested_url=requested,
+        allow_private_networks=True,
+        allowed_hosts=allowed_hosts or [],
+        ssrf_shield=True,
+        network_blocklist=(),
+    )
 
 
 def _cloud(requested: str = "https://example.com/", allowed_hosts: list[str] | None = None) -> FetchTargetGuard:
-    return FetchTargetGuard(requested_url=requested, allow_private_networks=False, allowed_hosts=allowed_hosts or [])
+    return FetchTargetGuard(
+        requested_url=requested,
+        allow_private_networks=False,
+        allowed_hosts=allowed_hosts or [],
+        ssrf_shield=True,
+        network_blocklist=(),
+    )
 
 
 @pytest.mark.asyncio
@@ -59,7 +71,7 @@ class TestLocalPolicy:
     async def test_requested_private_origin_is_reachable(self, requested: str) -> None:
         guard = _local(requested)
 
-        assert await guard.pin(requested) == (requested, {})
+        assert await guard.pin(requested) == ()
 
     async def test_same_origin_redirect_is_reachable(self) -> None:
         guard = _local("http://localhost:3000/start")
@@ -158,10 +170,10 @@ class TestLocalPolicy:
         with pytest.raises(SSRFSecurityError, match="resolves to"):
             await guard.pin(hop)
 
-    async def test_a_requested_hostname_resolving_to_loopback_is_reachable(self) -> None:
+    async def test_a_requested_hostname_resolving_to_loopback_is_reachable_at_that_address_only(self) -> None:
         guard = _local("http://rebind.example:3000/start")
 
-        await guard.pin("http://rebind.example:3000/final")
+        assert await guard.pin("http://rebind.example:3000/final") == ("127.0.0.1",)
 
     async def test_cloud_metadata_behind_a_hostname_is_never_reachable_not_even_when_requested(self) -> None:
         guard = _local("http://creds.example/")
@@ -169,17 +181,37 @@ class TestLocalPolicy:
         with pytest.raises(SSRFSecurityError, match="metadata"):
             await guard.pin("http://creds.example/")
 
-    @pytest.mark.parametrize("hop", ["http://proxied.example/", "http://dead.example/"])
-    async def test_what_a_proxy_hands_out_or_a_dns_that_cannot_answer_does_not_block(self, hop: str) -> None:
+    @pytest.mark.parametrize(
+        ("hop", "pinned"),
+        [
+            (
+                "http://proxied.example/",
+                ("198.18.0.7",),
+            ),  # an address the policy does not judge is still the dialed one
+            ("http://dead.example/", ()),  # nothing answered, so nothing was judged and the client resolves the name
+        ],
+    )
+    async def test_what_a_proxy_hands_out_or_a_dns_that_cannot_answer_does_not_block(
+        self, hop: str, pinned: tuple[str, ...]
+    ) -> None:
         guard = _local("http://localhost:3000/start")
 
-        assert await guard.pin(hop) == (hop, {})
+        assert await guard.pin(hop) == pinned
 
-    @pytest.mark.parametrize("public", ["http://8.8.8.8/", "https://example.com/path", "https://sub.example.org:8443/"])
-    async def test_public_targets_are_reachable(self, public: str) -> None:
+    @pytest.mark.parametrize(
+        ("public", "pinned"),
+        [
+            ("http://8.8.8.8/", ()),  # a literal address dials itself
+            ("https://example.com/path", (_PUBLIC_ADDRESS,)),
+            ("https://sub.example.org:8443/", (_PUBLIC_ADDRESS,)),
+        ],
+    )
+    async def test_public_targets_are_reachable_at_the_addresses_that_were_judged(
+        self, public: str, pinned: tuple[str, ...]
+    ) -> None:
         guard = _local("http://localhost:3000/start")
 
-        assert await guard.pin(public) == (public, {})
+        assert await guard.pin(public) == pinned
 
     @pytest.mark.parametrize(
         "url",
@@ -210,13 +242,6 @@ class TestLocalPolicy:
             with pytest.raises(SSRFSecurityError):
                 await guard.pin("https://strasse.de/x")
 
-    async def test_pin_never_adds_a_host_header(self) -> None:
-        guard = _local("http://localhost:3000/start")
-
-        _url, headers = await guard.pin("https://example.com/")
-
-        assert headers == {}
-
 
 @pytest.mark.asyncio
 class TestCloudPolicy:
@@ -237,12 +262,10 @@ class TestCloudPolicy:
     async def test_allowed_internal_host_is_reachable(self) -> None:
         guard = _cloud(allowed_hosts=["127.0.0.1"])
 
-        assert await guard.pin("http://127.0.0.1:3000/") == ("http://127.0.0.1:3000/", {})
+        assert await guard.pin("http://127.0.0.1:3000/") == ()
 
-    async def test_public_literal_is_reachable(self) -> None:
-        url, _headers = await _cloud().pin("http://8.8.8.8/")
-
-        assert "8.8.8.8" in url
+    async def test_public_literal_is_its_own_address(self) -> None:
+        assert await _cloud().pin("http://8.8.8.8/") == ("8.8.8.8",)
 
 
 class TestCanonicalUrl:

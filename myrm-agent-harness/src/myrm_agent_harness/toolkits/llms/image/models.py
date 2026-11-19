@@ -8,8 +8,8 @@
 - ImageGenerationConfig: Image generation/editing service configuration
 - ImageResult: Structured result from a generation/editing request
 - FailoverAttempt: Record of a single model attempt during failover
-- MediaCallback: Async callback type for persisting generated images
-- ImageGenerationError: Exception raised when all models fail
+- MediaCallback: Async callback that stores a generated image and returns its stable reference
+- ImageGenerationError: Exception raised when all models fail or a generated image cannot be persisted
 
 [POS]
 Pure data types with no business logic. Separated from generator.py
@@ -49,8 +49,10 @@ class MediaMeta:
 
 
 MediaCallback = Callable[[bytes, str, MediaMeta], Awaitable[str]]
-"""Async callback: (image_bytes, mime_type, metadata) -> persisted URL.
+"""Async callback: (image_bytes, mime_type, metadata) -> stable reference of the stored image.
 
+The reference is an opaque, non-empty string the business layer can resolve later (for example ``media://<id>``).
+The callback raises when it cannot store the image; the engine then fails the generation.
 Framework defines the interface; business layer injects the implementation.
 """
 
@@ -60,14 +62,13 @@ class ImageGenerationConfig(BaseModel):
 
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
-    model: str = Field(default="dall-e-3", description="Primary image generation model identifier")
+    model: str = Field(description="Primary image generation model identifier")
     api_key: SecretStr | None = Field(default=None, description="API key (protected from logging)")
     base_url: str | None = Field(default=None, description="Custom API base URL (proxy, private deployment)")
     default_size: str = Field(
         default="1024x1024",
-        description="Default image dimensions (e.g. '1024x1024', '1024x1792', '16:9')",
+        description="Image dimensions used when a request names none, as WIDTHxHEIGHT (e.g. '1024x1024')",
     )
-    default_quality: str = Field(default="standard", description="Default quality (standard/hd)")
     timeout_seconds: int = Field(default=120, description="Per-model request timeout in seconds")
     max_retries: int = Field(default=1, ge=0, le=3, description="Max retry attempts per model on failure")
     fallback_models: list[str] = Field(
@@ -81,7 +82,7 @@ class ImageGenerationConfig(BaseModel):
     media_callback: MediaCallback | None = Field(
         default=None,
         exclude=True,
-        description="Async callback for persisting generated images",
+        description="Async callback that stores each generated image and returns its stable reference",
     )
 
 
@@ -103,7 +104,7 @@ class ImageResult:
     revised_prompt: str | None
     model: str
     latency_ms: float = 0.0
-    persisted_url: str | None = None
+    persisted_ref: str | None = None
     mime_type: str = "image/png"
     attempts: list[FailoverAttempt] = field(default_factory=list)
 

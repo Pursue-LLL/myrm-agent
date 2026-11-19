@@ -13,22 +13,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from langgraph.types import Command
 from myrm_agent_harness.agent.middlewares.approval.scheduler import ApprovalTimeoutScheduler
+from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancellationToken, CancelReason
 
 from app.services.agent.execution_cache.types import ExecutionMode
 from app.services.agent.gateway import AgentGateway, GatewayConfig
 from app.services.agent.streaming_support import hitl_timeout
 from app.services.agent.streaming_support.hitl_timeout import (
-    CLARIFICATION_NO_ANSWER_RESUME_VALUE,
-    CLARIFICATION_TIMEOUT_SECONDS,
     HitlKind,
-    arm_interrupt_timeout,
     schedule_approval_timeout,
     schedule_clarification_timeout,
 )
 from app.services.agent.turn_lease import lease
 
 CHAT_ID = "chat-hitl"
+CARD_ID = "interrupt-card-1"
 FAST = 0.02
 
 CLARIFICATION_EVENT: dict[str, object] = {
@@ -144,8 +143,8 @@ def _arm(kind: HitlKind, params: MagicMock, monkeypatch: pytest.MonkeyPatch) -> 
     """Arm ``kind`` with a short timeout; returns the resume value the timer must carry."""
     if kind == "clarification":
         monkeypatch.setattr(hitl_timeout, "CLARIFICATION_TIMEOUT_SECONDS", FAST)
-        schedule_clarification_timeout(CHAT_ID, params)
-        return CLARIFICATION_NO_ANSWER_RESUME_VALUE
+        schedule_clarification_timeout(CHAT_ID, params, CARD_ID)
+        return {INTERRUPT_ID_KEY: CARD_ID}
     schedule_approval_timeout(CHAT_ID, {"seconds": FAST, "behavior": "deny"}, params)
     return {"decision": "reject"}
 
@@ -200,14 +199,14 @@ async def test_a_timed_out_card_records_that_the_timeout_answered_it(
     answered_cards: dict[str, dict[str, object]],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    params = _params()
-    expected_value = _arm("clarification", params, monkeypatch)
+    _arm("clarification", _params(), monkeypatch)
 
     with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [MESSAGE_EVENT], [])):
         await _settle()
 
     stored = answered_cards["assistant-row"]
-    assert stored["clarification"] == {"answered": True, "answerRecord": {"by": "timeout", "value": expected_value}}
+    # The id only routes the answer to its pause; the card shows who answered, not where the answer was sent.
+    assert stored["clarification"] == {"answered": True, "answerRecord": {"by": "timeout", "value": {}}}
 
 
 @pytest.mark.asyncio
@@ -223,25 +222,34 @@ async def test_approval_timeout_leaves_stored_cards_alone(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("event", "kind"),
-    [
-        (CLARIFICATION_EVENT, "clarification"),
-        (APPROVAL_EVENT, "approval"),
-    ],
-)
-async def test_the_next_interrupt_gets_its_own_timer(
-    event: dict[str, object], kind: HitlKind, gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
+async def test_the_next_approval_gets_its_own_timer(
+    gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     scheduler = ApprovalTimeoutScheduler.get()
     _arm("approval", _params(), monkeypatch)
 
-    with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [event], [])):
+    with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [APPROVAL_EVENT], [])):
         await _settle()
 
-    assert scheduler.pending_count == 1, f"the resumed run stopped at a {kind} interrupt; its timer must be armed"
+    assert scheduler.pending_count == 1, "the resumed run stopped at an approval; its timer must be armed"
     assert scheduler.resolve_if_first(CHAT_ID) is True, "the new timer keeps its handle and a manual answer still wins"
     assert scheduler.pending_count == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fired", ["approval", "clarification"])
+async def test_the_next_clarification_waits_for_the_user_instead_of_starting_another_countdown(
+    fired: HitlKind, gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A run an expired timer resumed never skips its next question on a timer too: the user has not been heard from yet."""
+    scheduler = ApprovalTimeoutScheduler.get()
+    _arm(fired, _params(), monkeypatch)
+
+    with patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [CLARIFICATION_EVENT], [])):
+        await _settle()
+
+    assert scheduler.pending_count == 0
+    assert scheduler.resolve_if_first(CHAT_ID) is True, "the card stays answerable by hand"
 
 
 @pytest.mark.asyncio
@@ -356,19 +364,22 @@ async def test_a_stopped_resume_ends_the_background_jobs_it_started(
 
 
 @pytest.mark.asyncio
-async def test_bookkeeping_failure_still_arms_the_next_interrupt(
-    gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(("event", "armed"), [(APPROVAL_EVENT, 1), (CLARIFICATION_EVENT, 0)])
+async def test_bookkeeping_failure_still_settles_the_next_interrupt(
+    event: dict[str, object], armed: int, gateway: AgentGateway, persisted: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """The next approval still gets its timer and the next question stays answerable by hand."""
     scheduler = ApprovalTimeoutScheduler.get()
     _arm("clarification", _params(), monkeypatch)
 
     with (
-        patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [CLARIFICATION_EVENT], [])),
+        patch("app.services.agent.streaming.ai_agent_service_stream", _agent_stream(gateway, [event], [])),
         patch("app.services.chat.chat_service.ChatService.get_all_messages", new=AsyncMock(side_effect=RuntimeError("db down"))),
     ):
         await _settle()
 
-    assert scheduler.pending_count == 1
+    assert scheduler.pending_count == armed
+    assert scheduler.resolve_if_first(CHAT_ID) is True
 
 
 @pytest.mark.asyncio
@@ -384,90 +395,3 @@ async def test_a_card_that_cannot_be_marked_does_not_lose_the_continuation(
         await _settle()
 
     assert persisted == ["persist:continued"]
-
-
-@pytest.mark.parametrize(
-    ("schedule", "seconds", "behavior", "override"),
-    [
-        (lambda params: schedule_clarification_timeout(CHAT_ID, params), CLARIFICATION_TIMEOUT_SECONDS, "deny", {}),
-        (
-            lambda params: schedule_approval_timeout(CHAT_ID, {"seconds": "45", "behavior": "allow"}, params),
-            45.0,
-            "allow",
-            None,
-        ),
-    ],
-)
-def test_each_kind_registers_its_timeout_decision(
-    schedule: Callable[[MagicMock], None], seconds: float, behavior: str, override: dict[str, object] | None
-) -> None:
-    scheduler = MagicMock()
-    with patch.object(ApprovalTimeoutScheduler, "get", return_value=scheduler):
-        schedule(_params())
-
-    kwargs = scheduler.schedule.call_args.kwargs
-    assert kwargs["key"] == CHAT_ID
-    assert kwargs["timeout_seconds"] == seconds
-    assert kwargs["behavior"] == behavior
-    assert kwargs["resume_value_override"] == override
-    assert callable(kwargs["resume_callback"])
-
-
-def test_constants_match_the_documented_timeouts() -> None:
-    assert CLARIFICATION_TIMEOUT_SECONDS == 900.0
-    assert CLARIFICATION_NO_ANSWER_RESUME_VALUE == {}
-
-
-@pytest.mark.parametrize("seconds", [object(), None, "soon", float("inf")])
-def test_unusable_approval_seconds_fall_back_to_the_default(seconds: object) -> None:
-    scheduler = MagicMock()
-    with patch.object(ApprovalTimeoutScheduler, "get", return_value=scheduler):
-        schedule_approval_timeout(CHAT_ID, {"seconds": seconds, "behavior": "deny"}, _params())
-
-    assert scheduler.schedule.call_args.kwargs["timeout_seconds"] == 300.0
-
-
-@pytest.mark.parametrize(
-    ("approval_timeout", "clarification_pending", "armed"),
-    [
-        ({"seconds": 1}, True, "clarification"),
-        ({"seconds": 5, "behavior": "deny"}, False, "approval"),
-    ],
-)
-def test_arm_interrupt_timeout_picks_the_interrupt_that_carries_a_timer(
-    approval_timeout: dict[str, object] | None,
-    clarification_pending: bool,
-    armed: str,
-) -> None:
-    scheduler = MagicMock()
-    with (
-        patch.object(ApprovalTimeoutScheduler, "get", return_value=scheduler),
-        patch.object(hitl_timeout, "schedule_clarification_timeout") as clarification,
-        patch.object(hitl_timeout, "schedule_approval_timeout") as approval,
-    ):
-        arm_interrupt_timeout(
-            CHAT_ID,
-            _params(),
-            approval_timeout=approval_timeout,
-            clarification_pending=clarification_pending,
-            awaiting_answer=True,
-        )
-
-    called = {name for name, mock in (("clarification", clarification), ("approval", approval)) if mock.called}
-    assert called == {armed}
-    scheduler.reopen.assert_not_called()
-
-
-@pytest.mark.parametrize(("awaiting_answer", "reopened"), [(True, True), (False, False)])
-def test_arm_interrupt_timeout_reopens_only_an_interrupt_without_a_timer(awaiting_answer: bool, reopened: bool) -> None:
-    scheduler = MagicMock()
-    with patch.object(ApprovalTimeoutScheduler, "get", return_value=scheduler):
-        arm_interrupt_timeout(
-            CHAT_ID,
-            _params(),
-            approval_timeout=None,
-            clarification_pending=False,
-            awaiting_answer=awaiting_answer,
-        )
-
-    assert scheduler.reopen.called is reopened

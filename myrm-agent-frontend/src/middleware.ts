@@ -5,10 +5,10 @@
  * - lib/marketing-paths.ts (POS: SaaS 公开路径白名单)
  *
  * [OUTPUT]
- * - middleware(): 营销 `?locale=` 接力 + 首次 Accept-Language 自动检测 + sandbox 未登录重定向
+ * - middleware(): 营销 `?locale=` 接力 + Accept-Language 自动检测（cookie 缺失或语言不受支持时）+ sandbox 未登录重定向
  *
  * [POS]
- * Next.js 边缘中间件：首次访问自动检测 OS locale 写入 NEXT_LOCALE cookie；营销站 locale 参数接力；sandbox 模式鉴权重定向。
+ * Next.js 边缘中间件：首次访问（或 NEXT_LOCALE cookie 已是不受支持的语言）自动检测 OS locale 写入 cookie；营销站 locale 参数接力；sandbox 模式鉴权重定向。
  */
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -48,7 +48,8 @@ export function middleware(request: NextRequest) {
     return localeRelay;
   }
 
-  const needsLocaleDetection = !request.cookies.has(NEXT_LOCALE_COOKIE_NAME);
+  // A cookie naming a locale the app does not offer is detected afresh like a missing one.
+  const needsLocaleDetection = !parseLocaleQueryParam(request.cookies.get(NEXT_LOCALE_COOKIE_NAME)?.value ?? null);
   const { pathname } = request.nextUrl;
 
   if (pathname === '/workspace') {

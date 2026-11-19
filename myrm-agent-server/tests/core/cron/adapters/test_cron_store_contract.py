@@ -9,9 +9,10 @@ reload with the default owner) and the order of jobs (the SQL store orders by th
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import asyncio
+from collections.abc import AsyncIterator, Callable
 from dataclasses import replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -34,6 +35,9 @@ from tests.support.policy_sqlite import policy_database
 
 _EPOCH = datetime(2030, 1, 1, tzinfo=UTC)
 
+# Fields set from a `**dict` are checked against every field type of the job; a variadic callable is not.
+_replace_job: Callable[..., CronJob] = replace
+
 # Names that tell a literal substring match from a SQL LIKE pattern (`%`, `_`) and from its escape characters.
 _NAMES = ("Daily Report", "weekly report", "Backup", "50% off", "a_b", "axb", "c/d", "e\\f")
 
@@ -51,9 +55,25 @@ def _at(minutes: int) -> datetime:
     return _EPOCH + timedelta(minutes=minutes)
 
 
+def _from_now(minutes: int) -> datetime:
+    """``advance_next_run`` judges 'due' against the real clock, so its cases sit relative to it."""
+    return datetime.now(UTC) + timedelta(minutes=minutes)
+
+
+async def _next_clock_tick() -> None:
+    """Markers are stamped by the real clock; two back-to-back stamps can tie, and a tie is ordered by job id."""
+    await asyncio.sleep(0.002)
+
+
 def _utc(moment: datetime | None) -> datetime | None:
     """The SQL store hands timestamps back as naive UTC; both forms name the same instant."""
     return moment.replace(tzinfo=UTC) if moment is not None and moment.tzinfo is None else moment
+
+
+def _is_just_now(moment: datetime) -> bool:
+    """The SQL store stamps with the database clock, in whole seconds, so 'now' gets a few seconds of room."""
+    stamped = _utc(moment)
+    return stamped is not None and abs(datetime.now(UTC) - stamped) < timedelta(seconds=10)
 
 
 def _job(
@@ -84,7 +104,6 @@ def _run(
     *,
     minute: int,
     status: RunStatus = RunStatus.OK,
-    integrity_hash: str = "",
 ) -> CronRunRecord:
     return CronRunRecord(
         id=run_id,
@@ -93,7 +112,6 @@ def _run(
         finished_at=_at(minute) + timedelta(seconds=30),
         duration_ms=30_000,
         status=status,
-        integrity_hash=integrity_hash,
     )
 
 
@@ -166,7 +184,7 @@ async def test_due_before_lists_active_scheduled_jobs_up_to_and_including_the_cu
         _job("late", next_run_at=_at(50)),
         _job("paused", status=JobStatus.PAUSED, next_run_at=_at(5)),
         _job("done", status=JobStatus.COMPLETED, next_run_at=_at(1)),
-        _job("claimed"),
+        _job("unscheduled"),
     )
 
     assert _ids(await store.list_jobs(due_before=_at(4))) == set()
@@ -182,28 +200,94 @@ async def test_earliest_next_run_ignores_inactive_and_unscheduled_jobs(store: Cr
         _job("later", next_run_at=_at(30)),
         _job("sooner", next_run_at=_at(10)),
         _job("paused", status=JobStatus.PAUSED, next_run_at=_at(1)),
-        _job("claimed"),
+        _job("unscheduled"),
     )
 
     assert _utc(await store.earliest_next_run()) == _at(10)
 
 
-async def test_claim_due_clears_the_next_run_and_reports_the_job_as_orphaned(store: CronStore) -> None:
+async def test_advance_next_run_books_a_due_job_for_exactly_one_caller(store: CronStore) -> None:
+    await _save(store, _job("a", next_run_at=_from_now(-5)), _job("b", next_run_at=_from_now(-5)))
+    booked = _from_now(60)
+
+    assert await store.advance_next_run("a", next_run_at=booked) is True
+    assert await store.advance_next_run("a", next_run_at=booked + timedelta(hours=1)) is False
+
+    booked_job, untouched = await store.get_job("a"), await store.get_job("b")
+    assert booked_job is not None and untouched is not None
+    untouched_slot = _utc(untouched.next_run_at)
+    assert _utc(booked_job.next_run_at) == booked
+    assert untouched_slot is not None and untouched_slot < datetime.now(UTC)
+
+
+async def test_advance_next_run_refuses_what_is_not_a_due_active_job(store: CronStore) -> None:
+    not_due, due = _from_now(30), _from_now(-5)
     await _save(
         store,
-        _job("a", next_run_at=_at(5)),
-        _job("b", next_run_at=_at(6)),
-        _job("idle", status=JobStatus.PAUSED),
+        _job("later", next_run_at=not_due),
+        _job("paused", status=JobStatus.PAUSED, next_run_at=due),
+        _job("done", status=JobStatus.COMPLETED, next_run_at=due),
+        _job("unscheduled"),
     )
 
-    await store.claim_due(["a"])
+    for job_id in ("later", "paused", "done", "unscheduled", "missing"):
+        assert await store.advance_next_run(job_id, next_run_at=_from_now(90)) is False
 
-    claimed, untouched = await store.get_job("a"), await store.get_job("b")
-    assert claimed is not None
-    assert claimed.next_run_at is None
-    assert untouched is not None
-    assert _utc(untouched.next_run_at) == _at(6)
-    assert _ids(await store.list_orphaned_active()) == {"a"}
+    assert {job.id: _utc(job.next_run_at) for job in await store.list_jobs()} == {
+        "later": not_due,
+        "paused": due,
+        "done": due,
+        "unscheduled": None,
+    }
+
+
+async def test_a_job_edited_after_it_was_listed_as_due_is_not_booked(store: CronStore) -> None:
+    await _save(store, _job("a", next_run_at=_from_now(-5)))
+    (listed,) = await store.list_jobs(due_before=datetime.now(UTC))
+    await store.save_job(replace(listed, next_run_at=_from_now(120)))
+
+    assert await store.advance_next_run("a", next_run_at=_from_now(180)) is False
+
+
+async def test_advance_next_run_stores_a_zoned_instant_as_utc(store: CronStore) -> None:
+    await _save(store, _job("a", next_run_at=_from_now(-5)))
+    booked = _from_now(60).astimezone(timezone(timedelta(hours=8)))
+
+    assert await store.advance_next_run("a", next_run_at=booked) is True
+
+    stored = await store.get_job("a")
+    assert stored is not None and _utc(stored.next_run_at) == booked
+
+
+async def test_advance_next_run_stamps_updated_at_only_when_it_books(store: CronStore) -> None:
+    stamp = _at(0)
+    for job in (_job("due", next_run_at=_from_now(-5)), _job("later", next_run_at=_from_now(30))):
+        await store.save_job(replace(await store.save_job(job), updated_at=stamp))
+
+    assert await store.advance_next_run("later", next_run_at=_from_now(90)) is False
+    assert await store.advance_next_run("due", next_run_at=_from_now(90)) is True
+
+    refused, booked = await store.get_job("later"), await store.get_job("due")
+    assert refused is not None and booked is not None
+    assert _utc(refused.updated_at) == stamp
+    assert _is_just_now(booked.updated_at)
+
+
+async def test_save_job_keeps_the_instant_of_a_zoned_timestamp_on_insert_and_on_update(store: CronStore) -> None:
+    east, west = timezone(timedelta(hours=8)), timezone(timedelta(hours=-5))
+    instants = {
+        "next_run_at": _from_now(120).astimezone(east),
+        "last_run_at": _from_now(-30).astimezone(west),
+        "expires_at": _from_now(24 * 60).astimezone(east),
+        "last_failure_alert_at": _from_now(-10).astimezone(west),
+    }
+    zoned = _replace_job(_job("zoned"), **instants)
+
+    for saved in (zoned, replace(zoned, name="renamed")):
+        await store.save_job(saved)
+        stored = await store.get_job("zoned")
+        assert stored is not None
+        assert {field: _utc(getattr(stored, field)) for field in instants} == instants
 
 
 async def test_save_job_upserts_by_id_and_delete_job_reports_whether_a_row_went(store: CronStore) -> None:
@@ -219,6 +303,17 @@ async def test_save_job_upserts_by_id_and_delete_job_reports_whether_a_row_went(
     assert await store.delete_job("one") is True
     assert await store.delete_job("one") is False
     assert await store.get_job("one") is None
+
+
+async def test_save_job_stamps_updated_at_on_insert_and_keeps_the_given_value_on_update(store: CronStore) -> None:
+    stamp = _at(0)
+    created = await store.save_job(replace(_job("one"), updated_at=stamp))
+    assert _is_just_now(created.updated_at)
+
+    await store.save_job(replace(created, name="renamed", updated_at=stamp))
+
+    stored = await store.get_job("one")
+    assert stored is not None and _utc(stored.updated_at) == stamp
 
 
 async def test_runs_list_newest_first_with_filters_pagination_and_counts(store: CronStore) -> None:
@@ -240,6 +335,22 @@ async def test_runs_list_newest_first_with_filters_pagination_and_counts(store: 
     assert await store.count_runs("job-a", status="error") == 1
 
 
+async def test_a_status_filter_on_error_selects_circuit_breaks_too(store: CronStore) -> None:
+    await _save(store, _job("job"))
+    for run in (
+        _run("ok", "job", minute=0),
+        _run("error", "job", minute=10, status=RunStatus.ERROR),
+        _run("breaker", "job", minute=20, status=RunStatus.CIRCUIT_BREAK),
+        _run("skipped", "job", minute=30, status=RunStatus.SKIPPED),
+    ):
+        await store.save_run(run)
+
+    assert [r.id for r in await store.list_runs(status="error")] == ["breaker", "error"]
+    assert await store.count_runs(status="error") == 2
+    assert [r.id for r in await store.list_runs(status="circuit_break")] == ["breaker"]
+    assert await store.count_runs(status="circuit_break") == 1
+
+
 async def test_purge_old_runs_removes_only_runs_finished_before_the_cutoff(store: CronStore) -> None:
     await _save(store, _job("job"))
     for run in (_run("old", "job", minute=0), _run("edge", "job", minute=10), _run("new", "job", minute=20)):
@@ -247,17 +358,6 @@ async def test_purge_old_runs_removes_only_runs_finished_before_the_cutoff(store
 
     assert await store.purge_old_runs(_at(10) + timedelta(seconds=30)) == 1
     assert {r.id for r in await store.list_runs("job")} == {"edge", "new"}
-
-
-async def test_latest_integrity_hash_comes_from_the_newest_hashed_run(store: CronStore) -> None:
-    await _save(store, _job("job"))
-    assert await store.get_latest_integrity_hash("job") is None
-
-    await store.save_run(_run("r0", "job", minute=0, integrity_hash="h0"))
-    await store.save_run(_run("r1", "job", minute=10, integrity_hash="h1"))
-    await store.save_run(_run("r2", "job", minute=20))
-
-    assert await store.get_latest_integrity_hash("job") == "h1"
 
 
 async def test_delete_job_cascade_removes_the_runs_and_monitor_state_of_that_job_only(store: CronStore) -> None:
@@ -290,3 +390,37 @@ async def test_monitor_state_upserts_per_job_and_batch_reads_only_what_exists(st
     assert await store.get_monitor_state("missing") is None
     assert await store.delete_monitor_state("job") is True
     assert await store.delete_monitor_state("job") is False
+
+
+async def test_a_marker_is_one_row_per_job_and_marking_again_moves_its_start_forward(store: CronStore) -> None:
+    before = datetime.now(UTC)
+    await store.mark_running("job-a")
+    await _next_clock_tick()
+    await store.mark_running("job-b")
+    await _next_clock_tick()
+    await store.mark_running("job-a")  # an overlapping run of the same job overwrites the marker, it never adds one
+
+    running = await store.list_running()
+    assert [job_id for job_id, _ in running] == ["job-b", "job-a"], "oldest first: job-a was stamped again after job-b"
+    assert all(started.tzinfo is not None and before <= started <= datetime.now(UTC) for _, started in running)
+
+
+async def test_clearing_a_marker_removes_it_and_clearing_a_missing_one_is_not_an_error(store: CronStore) -> None:
+    await store.mark_running("job-a")
+    await store.mark_running("job-b")
+
+    await store.clear_running("job-a")
+    await store.clear_running("job-a")
+    await store.clear_running("never-marked")
+
+    assert [job_id for job_id, _ in await store.list_running()] == ["job-b"]
+
+
+async def test_a_marker_belongs_to_the_run_and_not_to_the_job_row(store: CronStore) -> None:
+    await _save(store, _job("job"))
+    await store.mark_running("job")
+
+    assert await store.delete_job_cascade("job") is True
+    await store.mark_running("never-stored")
+
+    assert {job_id for job_id, _ in await store.list_running()} == {"job", "never-stored"}

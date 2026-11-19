@@ -370,14 +370,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.runtime.context.tree_state",
         "fold_branch_todo_state",
     ),
-    "create_compaction_todo_anchor": (
-        "myrm_agent_harness.runtime.context.tree_state",
-        "create_compaction_todo_anchor",
-    ),
-    "extract_todo_store_from_payload": (
-        "myrm_agent_harness.runtime.context.tree_state",
-        "extract_todo_store_from_payload",
-    ),
     "last_user_authored_index": ("myrm_agent_harness.core.message_origin", "last_user_authored_index"),
     "runtime_human_message": ("myrm_agent_harness.core.message_origin", "runtime_human_message"),
 }

@@ -1,4 +1,4 @@
-"""Spending Ledger Models and Tamper-Evident Storage for Agent Commerce.
+"""Spending Ledger Models and Storage for Agent Commerce.
 
 [INPUT]
 - json, threading, time: Python 标准库
@@ -14,7 +14,7 @@
 
 [POS]
 Server-level transactional commerce ledger in app/commerce/.
-Provides audit trail and receipt verification for autonomous agent spending.
+Provides a persistent audit trail for spending gate reservations and commits.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ LedgerStatus = Literal["reserved", "committed", "refunded", "rejected"]
 
 
 class SpendingLedgerEntry(BaseModel):
-    """Immutable audit record for an autonomous agent commerce expenditure."""
+    """Audit record for one spending gate reservation, updated as it is committed or released."""
 
     entry_id: str = Field(description="Unique ledger entry identifier")
     lease_id: str = Field(description="Associated SpendGovernor lease ID")
@@ -45,8 +45,8 @@ class SpendingLedgerEntry(BaseModel):
     amount_cents: int = Field(gt=0, description="Transaction amount in integer USD Cents")
     currency: str = Field(default="USD", description="Currency ISO code")
     status: LedgerStatus = Field(default="reserved", description="Current lifecycle state")
-    action_digest: str | None = Field(default=None, description="HMAC-SHA256 signature of the spend action")
-    entry_hash: str | None = Field(default=None, description="Cryptographic chained hash from SpendGovernor")
+    action_digest: str | None = Field(default=None, description="Human-readable summary of the committed spend")
+    entry_hash: str | None = Field(default=None, description="Unkeyed SHA-256 chain hash set at commit")
     idempotency_key: str = Field(default="", description="Idempotency key to prevent double charging")
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     updated_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

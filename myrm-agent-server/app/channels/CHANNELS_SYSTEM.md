@@ -198,7 +198,7 @@ wechat_d4e5f6   ← 额外实例 2
    - `SelectMenu` → `"• {placeholder}: option1, option2, ..."`
    - `QuickReply` (required=True) → `"1️⃣ {label}\n2️⃣ {label2}\n\n↩️ 回复数字选择"`
    - `QuickReply` (required=False) → 静默丢弃（避免杂乱）
-3. **国际化**：通过 `get_locale_from_metadata()` 归一化 locale（中文区分 `zh-CN` 与 `zh-TW`），catalog 渲染按引擎回退链取文案（`zh-TW` → `zh` → `zh-Hant` → `zh-CN` → `en`；默认 en，业务层经 `metadata["locale"]` 注入）
+3. **国际化**：通过 `get_locale_from_metadata()` 归一化 locale（中文区分 `zh-CN` 与 `zh-TW`），catalog 渲染按引擎回退链取文案（`zh-TW` → `zh` → `zh-Hant` → `zh-CN` → `en`，随捆绑目录落到 `zh-CN`；默认 en，业务层经 `metadata["locale"]` 注入）
 4. **日志记录**：INFO级别记录降级事件，格式：`Downgrading components for channel 'whatsapp': buttons, quick_replies(2) → text fallback`
 5. **文本追加**：将 fallback 文本追加到 `msg.content` 末尾，用 `\n\n` 分隔
 
@@ -216,7 +216,7 @@ components: []
 
 **Channel Command i18n（slash 命令静态回复）**：
 
-渠道 slash 命令的系统静态回复（非 Agent LLM 输出）通过 `app/channels/i18n/` 包提供 en / zh-CN / zh-TW / ja 四语 catalog（`.ftl` 文件）。
+渠道 slash 命令的系统静态回复（非 Agent LLM 输出）通过 `app/channels/i18n/` 包提供 en / zh-CN 两语 catalog（`.ftl` 文件）。
 
 | 组件 | 职责 |
 |------|------|
@@ -227,9 +227,9 @@ components: []
 | `protocols/locale.py` | `LocaleProvider` 协议（业务层注入） |
 | `routing/pipeline/inbound.py` | ingress 时 `_enrich_message_locale()` 写入 `metadata.locale` |
 
-**Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`；发送者的 `zh-hant`、`zh_HK` 等平台标签与 GUI 的 `zh-TW` 偏好都归一为 `zh-TW`，由 `zh-TW.ftl` 回复。
+**Locale 解析优先级**：`metadata.locale` → `platform_locale` / `language_code`（Telegram ingress）→ `LocaleProvider`（server：`UserConfigLocaleProvider` 读 `personalSettings.locale`）→ 平台默认（feishu/dingtalk 等 → zh-CN）→ `en`；发送者的 `zh-hant`、`zh_HK` 等平台标签与 GUI 的 `zh-TW` 偏好都归一为 `zh-TW`，由 `zh-CN.ftl` 回复。
 
-**测试**：`tests/channels/i18n/test_locale_key_parity.py` 断言四语 key 集合一致、placeholder 一致、Fluent 引用合法、消息可渲染、无死 key；`test_engine.py` 覆盖引擎 fallback 与格式化；`test_locale_resolution.py` 覆盖请求 locale 收敛到已有 catalog 的语言；`tests/channels/test_router_locale_i18n.py` 与 `tests/core/channel_bridge/test_locale_provider_e2e.py` 覆盖发送者标签、GUI 偏好到 catalog 文案的整条链（含繁体 `zh-TW`）。
+**测试**：`tests/channels/i18n/test_locale_key_parity.py` 断言两语 key 集合一致、placeholder 一致、Fluent 引用合法、消息可渲染、无死 key；`test_engine.py` 覆盖引擎 fallback 与格式化；`test_locale_resolution.py` 覆盖请求 locale 收敛到已有 catalog 的语言；`tests/channels/test_router_locale_i18n.py` 与 `tests/core/channel_bridge/test_locale_provider_e2e.py` 覆盖发送者标签、GUI 偏好到 catalog 文案的整条链（含繁体 `zh-TW` 读 `zh-CN` 文案）。
 
 **前端联动**：设置 → 偏好 → 语言区块说明「同步应用于 Web 界面与 IM 渠道命令」；与 `personalSettings.locale` 写入链路一致。
 
@@ -449,7 +449,7 @@ MessageBus 出站管线（队列 publish_outbound 与直发 send_now 共用同�
 所有出站媒体下载通过 `channels.media.MediaDownloader` 执行（内置 `SSRFValidator`），
 集成 `core.security.guards.ssrf.async_validate_url_for_ssrf`（scheme 白名单 + hostname 黑名单 + DNS 解析 + IP 网络黑名单）。
 
-**出站敏感附件闸**：附件来源（交付物扫描、工具产物、Agent 回复）都不检查文件是什么，IM 聊天又没有确认环节，所以 `prepare_outbound` 的第一步 `withhold_sensitive_attachments`（`core/outbound_attachment_guard.py`）拒发密钥/凭据类本地文件：复用 harness `is_sensitive_file`（大小写不敏感、fail-closed），同时检查符号链接目标；`.key` 仅在文件是 ZIP（Keynote）时放行；系统生成的 `ephemeral` 临时文件与 URL 附件不检查。被拦附件从消息中移除，正文追加本地化说明（`attachment_withheld_note`，四语），WARNING 日志只记录文件名。它是安全带而非分类器：按文件名匹配，改名后的密钥会漏过；`config.json`、`*.db` 等误伤按 fail-closed 接受。闸在能力降级之前，收件人看到的是真实原因而非"不支持附件"。
+**出站敏感附件闸**：附件来源（交付物扫描、工具产物、Agent 回复）都不检查文件是什么，IM 聊天又没有确认环节，所以 `prepare_outbound` 的第一步 `withhold_sensitive_attachments`（`core/outbound_attachment_guard.py`）拒发密钥/凭据类本地文件：复用 harness `is_sensitive_file`（大小写不敏感、fail-closed），同时检查符号链接目标；`.key` 仅在文件是 ZIP（Keynote）时放行；系统生成的 `ephemeral` 临时文件与 URL 附件不检查。被拦附件从消息中移除，正文追加本地化说明（`attachment_withheld_note`，中英两语），WARNING 日志只记录文件名。它是安全带而非分类器：按文件名匹配，改名后的密钥会漏过；`config.json`、`*.db` 等误伤按 fail-closed 接受。闸在能力降级之前，收件人看到的是真实原因而非"不支持附件"。
 
 ### 6.3 流式输出
 
@@ -497,8 +497,8 @@ StreamCoordinator
 - `ChannelHealth` 追踪连续成功/失败次数
 - `collect_issues()` 结构化诊断（kind/severity/message/fix）；缺 SDK 依赖为 ERROR + `uv sync --extra …`；WeChat 语音 SILK 解码缺 pilk 为 WARNING + `uv sync --extra wechat-silk`（不阻塞启用，Settings 可一键安装）
 - `POST /channels/manage/{name}/install-dependencies` 在 server venv 内 lazy-install（harness `runtime.deps.lazy_deps`：`platform.discord` / `platform.feishu` / `platform.matrix` / `platform.wechat-silk`），成功后 **hot-register** 到 Gateway（无需重启进程）；响应 `registered: false` 表示 pip 成功但频道未上 bus（需配凭证或重启）
-- Edge TTS（`voice-tts` extra，GPL-3.0）通过 `uv sync --extra voice-tts` 安装；Desktop PyInstaller 打包 **排除** GPL extras（`voice-tts` / `wechat-silk`）；Settings → Voice 会提示可用性，`GET /health/info` 返回 `edge_tts_available`；Web 朗读 API 失败时前端 toast 提示
-- 本地 STT（`local-stt` extra）通过 `uv sync --extra local-stt` 安装 faster-whisper；`GET /health/info` 返回 `local_stt_available`；`POST /stt/transcribe` 与 WebSocket STT 在 local provider 未安装时返回 install hint（HTTP 503 / WS error JSON）；Web 聊天 `useSpeechInput` 503/WS 错误 toast（Settings 横幅 + 录音失败提示）
+- Edge TTS（`voice-tts` extra，GPL-3.0）通过 `uv sync --extra voice-tts` 安装；Desktop PyInstaller 打包 **排除** GPL extras（`voice-tts` / `wechat-silk`）；Settings → Voice 会提示可用性，`GET /health/info` 返回 `edge_tts_available`（按包是否已安装判定，不导入）；Web 朗读 API 失败时前端 toast 提示
+- 本地 STT（`local-stt` extra）通过 `uv sync --extra local-stt` 安装 faster-whisper；`GET /health/info` 返回 `local_stt_available`（按包是否已安装判定，不导入）；`POST /stt/transcribe` 与 WebSocket STT 在 local provider 未安装时返回 install hint（HTTP 503 / WS error JSON）；Web 聊天 `useSpeechInput` 503/WS 错误 toast（Settings 横幅 + 录音失败提示）
 - `GET /channels/manage/status` 对未进 bus 的 SDK 频道返回 `status: unavailable` + `DEPENDENCY` issue（`registry.probe_sdk_channel_issues`），Settings 可一键安装
 - `PATCH …/toggle` 启用前 **先** `ensure_channel_dependencies_ready`（仅 ERROR 级 SDK 依赖会阻塞/自动安装；WARNING 级可选能力依赖需用户在 Settings 手动安装）
 - 可选 extra：`channels-sdk`（discord-py + lark-oapi）、`matrix`、`matrix-e2ee`、`wechat-silk`（pilk，GPLv3 SILK→WAV）、`wechat-formatter`（markdown+pygments，MIT，prebuilt `wechat-article-formatter` skill）、`voice-tts`（edge-tts）、`local-stt`（faster-whisper）；官方 Docker 镜像 `--all-extras` 含上述 optional；Desktop 商业包不含 GPL extras
@@ -521,7 +521,7 @@ StreamCoordinator
 - Discord 语音跟随的对账循环按 REST 补收错过的网关事件，每 10–13 秒轮询一遍各公会：跟随用户在语音频道里，就加入并像事件加入那样记录（之后错过的离开也补得上）；每个跟随用户都被确认不在（没有语音状态、没有频道、或在不允许的频道）才丢掉过期的记录，并与离开事件一样走接力或离开（公会级的「是否离开」检查照常问）；HTTP 错误、舞台频道、缓存里没有的频道这类没有确认的答案不改任何状态，轮询期间跟随用户换了频道（事件比答案新）则这一轮的答案全部作废，静音、推流这类不换频道的状态变化不算；有跟随状态（公会标志在，或记录里有这个公会）的公会里，REST 轮询答不出来（403、5xx 这类 HTTP 错误）时，每个公会和用户每 10 分钟记一条 WARNING，因为该公会的过期记录在它答复之前补不回来，其它公会与窗口内的重复只记 DEBUG；每次丢掉过期记录记一条以 `Reconciliation:` 开头的 INFO（默认日志级别是 WARNING，这条 INFO 要把级别开到 INFO 才看得到）；某个公会这一轮出错（REST 轮询遇到网络错误、加入抛错）只记 WARNING（带公会号与异常，不带堆栈）并留给下一轮，不结束循环、不跳过后面的公会，落在一轮里的取消仍会结束任务；已结束的对账任务在下次启动时重新拉起（`voice/test_follow_reconcile.py`、`voice/test_follow_presence.py` 守住）
 - Discord 适配器的入站只填 `sender_id`，不预置 `user_id`（私聊、按钮点击、语音转写因此按 DM 策略与配对解析，未配对者不进入回合，`test_discord_sender_identity.py` 守住）
 - Discord 的 `/voice` 命令不经入站管道，命令先应答（defer）再按调用者在该频道发消息时的访问策略判定（`BaseChannel.is_sender_admitted` → 总线 → 路由器的发送者准入，公会里所有者与已启用群聊的成员放行，群聊未启用或群聊策略为 DISABLED 则拒绝；拒绝时只给调用者回一条仅其可见的提示并记带频道的 WARNING，判定未接线同样拒绝；除只读的 `status` 外（`join`、`leave`，未列为只读的动作同样）准入之后还要所有者（`BaseChannel.is_sender_owner` → 总线 → 路由器的所有者判定，即系统命令用的那一个：有效的管理员配对或控制面转发，出错拒绝），被准入的非所有者收到专用提示、不加入不离开，`status` 按准入放行；`test_discord_voice_command_admission.py`、`tests/channels/core/test_sender_gate.py` 与 `routing/test_router_sender_gate.py` 守住）
-- Discord `/voice` 命令的全部回复（无权限、仅所有者、语音未启用、仅限服务器、需指定频道、加入成功与失败、离开、状态）取自渠道目录的 `voice_*`，按 Discord 报告的调用者语言渲染（`en-US` / `en-GB` 为英文，`zh-CN` / `zh-TW` / `ja` 为本地化，其余回退英文）；没有会话时 `leave` 回复不在语音频道而不调用离开；加入另一语音频道的会话时，只有 VoiceClient 事后连接在目标频道才算加入（discord.py 的移动超时只记日志、正常返回），否则回复加入失败且会话与文字频道绑定不变；`test_discord_voice_command_replies.py` 与 `voice/test_join_move_outcome.py` 守住
+- Discord `/voice` 命令的全部回复（无权限、仅所有者、语音未启用、仅限服务器、需指定频道、加入成功与失败、离开、状态）取自渠道目录的 `voice_*`，按 Discord 报告的调用者语言渲染（`en-US` / `en-GB` 为英文，`zh-CN` 与 `zh-TW` 为中文，其余回退英文）；没有会话时 `leave` 回复不在语音频道而不调用离开；加入另一语音频道的会话时，只有 VoiceClient 事后连接在目标频道才算加入（discord.py 的移动超时只记日志、正常返回），否则回复加入失败且会话与文字频道绑定不变；`test_discord_voice_command_replies.py` 与 `voice/test_join_move_outcome.py` 守住
 - 语音说话人在转写之前先过同一判定（私聊口径，已配对者），被拒绝者的音频不进语音转写（`voice/test_speaker_gate.py` 守住）
 - `channel.send` / CP egress 未证明送达（渠道声明回传 id 却返回 `None`、CP 无 `message_id`）时 **不得 ack**：队列分发与 `send_now` 一律结算为失败（DLQ + 永久失败回调 + 释放磁盘条目），`send_now` 另向调用方抛错
 - `GET /api/v1/health/liveness` 暴露 `pendingOutboundCount` 供运维观测

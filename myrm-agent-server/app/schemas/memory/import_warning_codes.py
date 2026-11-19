@@ -12,7 +12,7 @@ Shared contract leaf of the schemas layer. Import adapters emit these codes, the
 migration wizard and the import review dialog resolve them through the
 ``memory.importWarnings`` namespace, and the contract tests guard both
 directions: every emitted code must be declared here, and every declared code
-must carry copy in all six product locales.
+must carry copy in both product locales.
 """
 
 from __future__ import annotations

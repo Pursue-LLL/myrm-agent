@@ -2,8 +2,9 @@
  * [INPUT]
  * - @/i18n/config (POS: defaultLocale 静态 html lang 占位)
  * - @/i18n/LocalizedProviders (POS: 根 i18n + 全局 initializer 树)
+ * - @/components/dev/E2eBridgeLoader (POS: E2E 桥的挂载组件，只在非生产构建渲染)
  *
- * [POS] Next.js 根布局：主题、国际化（DocumentLang 在 Suspense 内同步 lang）、全局初始化器、页面壳层。
+ * [POS] Next.js 根布局：主题、国际化（DocumentLang 在 Suspense 内同步 lang）、全局初始化器、页面壳层；E2E 运行时绑定脚本与桥只在非生产构建注入。
  */
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
@@ -47,10 +48,12 @@ export default function LocaleLayout({ children }: { children: React.ReactNode }
         <link rel="preload" as="image" href="/brand/brand-mark-128.webp" type="image/webp" />
       </head>
       <body className="min-h-full" suppressHydrationWarning>
-        <Script id="e2e-runtime-bootstrap" src="/e2e-runtime-bootstrap.js" strategy="beforeInteractive" />
+        {process.env.NODE_ENV !== 'production' && (
+          <Script id="e2e-runtime-bootstrap" src="/e2e-runtime-bootstrap.js" strategy="beforeInteractive" />
+        )}
         <Script id="theme-pre-init" src="/theme-init.js" strategy="beforeInteractive" />
         <WebVitals />
-        <E2eBridgeLoader />
+        {process.env.NODE_ENV !== 'production' && <E2eBridgeLoader />}
         <Suspense fallback={process.env.NODE_ENV === 'development' ? null : <AppShellSkeleton />}>
           <LocalizedProviders>{children}</LocalizedProviders>
         </Suspense>

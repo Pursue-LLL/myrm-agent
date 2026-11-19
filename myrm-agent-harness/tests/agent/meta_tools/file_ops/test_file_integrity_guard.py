@@ -289,11 +289,6 @@ class TestReadBeforeEditGate:
         guard.record_read("/a.py", "content")
         assert guard.require_read_before_write("/a.py") is None
 
-    def test_gate_passes_after_partial_read(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read_marker("/a.py")
-        assert guard.require_read_before_write("/a.py") is None
-
     def test_gate_passes_after_write(self) -> None:
         guard = FileIntegrityGuard()
         guard.record_write("/a.py", "content")
@@ -312,61 +307,10 @@ class TestReadBeforeEditGate:
         assert guard.require_read_before_write("a.py") is None
 
 
-class TestFullReadBeforeEditGate:
-    """Tests for full-read gate before edits (require_full_read_before_edit)."""
-
-    def test_blocks_partial_read_only(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read_marker("/a.py")
-        rejection = guard.require_full_read_before_edit("/a.py")
-        assert rejection is not None
-        assert "only partially read" in rejection
-
-    def test_passes_after_full_read(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read("/a.py", "content")
-        assert guard.require_full_read_before_edit("/a.py") is None
-
-    def test_passes_after_write(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_write("/a.py", "content")
-        assert guard.require_full_read_before_edit("/a.py") is None
-
-
-class TestRecordReadMarker:
-    """Tests for partial read marker (record_read_marker)."""
-
-    def test_marker_does_not_overwrite_full_hash(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read("/a.py", "full_content")
-        guard.record_read_marker("/a.py")
-        rejection = guard.require_version_match("/a.py", "changed")
-        assert rejection is not None
-
-    def test_marker_skips_version_check(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read_marker("/a.py")
-        assert guard.require_version_match("/a.py", "anything") is None
-
-    def test_full_read_upgrades_marker(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read_marker("/a.py")
-        guard.record_read("/a.py", "full_content")
-        assert guard.require_version_match("/a.py", "full_content") is None
-        assert guard.require_version_match("/a.py", "different") is not None
-
-    def test_marker_agent_isolation(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read_marker("/a.py", agent_id="agent-a")
-        assert guard.require_read_before_write("/a.py", agent_id="agent-a") is None
-        rejection = guard.require_read_before_write("/a.py", agent_id="agent-b")
-        assert rejection is not None
-
-
 class TestEdgeCases:
     """Edge case scenarios for completeness."""
 
-    def test_empty_file_content_does_not_conflict_with_sentinel(self) -> None:
+    def test_an_empty_file_is_a_recorded_read_like_any_other(self) -> None:
         guard = FileIntegrityGuard()
         guard.record_read("/empty.py", "")
         assert guard.require_version_match("/empty.py", "") is None
@@ -386,13 +330,6 @@ class TestEdgeCases:
         guard.clear_agent("a")
         assert guard.require_read_before_write("/f.py", agent_id="a") is not None
         assert guard.require_read_before_write("/f.py", agent_id="b") is None
-
-    def test_version_after_partial_read_then_full_read(self) -> None:
-        guard = FileIntegrityGuard()
-        guard.record_read_marker("/f.py")
-        guard.record_read("/f.py", "full content v1")
-        assert guard.require_version_match("/f.py", "full content v1") is None
-        assert guard.require_version_match("/f.py", "modified") is not None
 
     def test_multiple_writes_update_hash(self) -> None:
         guard = FileIntegrityGuard()

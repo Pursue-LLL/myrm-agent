@@ -5,13 +5,13 @@
 - core.security.detection.content_boundary::sanitize (POS: Content boundary defense core)
 
 [OUTPUT]
-- parse_time_bound: Parse recall time filters into UTC datetimes.
+- parse_time_bound: Parse a recall time bound (ISO 8601, or a relative amount such as 30m, 24h, 7d, 2w, 1y) into a UTC datetime.
 - memory_age_label: Human-readable age label for memory timestamps.
 - is_stale: Staleness check for recalled factual memories.
 - channel_label: Human-readable channel provenance label.
 - sanitize_recalled_content: Redact credentials then sanitize recalled body before tool output.
 - finalize_recall_tool_output: Prefix recall tool output with untrusted-data advisory.
-- format_profile_recall_output: Sanitized profile attribute lookup for recall tools.
+- format_profile_recall_output, format_drill_down_output: Sanitized direct read-back for recall tools (a profile attribute by key, a stored memory by id).
 - format_preference_save_ack: Sanitized preference save success ack for memory_save tools.
 - format_write_ack: Save ack that tells a stored memory from one held for the user's approval.
 - format_recall_source_error_suffix: Sanitized source_error suffix for recall tool output.
@@ -33,12 +33,14 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.memory.types import AnyMemory
 
 _STALENESS_THRESHOLD_HOURS = 24
+# A relative time bound is "<amount><unit>" counted back from now, e.g. "30m" or "7d". "m" is minutes, as in the kanban
+# and loop shorthands; there is no month unit, so a month is written "30d".
 _RELATIVE_TIME_RE = re.compile(r"^(\d+)\s*(d|h|w|m|y)$", re.IGNORECASE)
 _RELATIVE_UNITS: dict[str, int] = {
+    "m": 60,
     "h": 3600,
     "d": 86400,
     "w": 604800,
-    "m": 2592000,
     "y": 31536000,
 }
 
@@ -57,21 +59,25 @@ RECALL_DRIFT_DEFENSE_FOOTER = (
 
 
 def parse_time_bound(value: str | None) -> datetime | None:
-    """Parse a time-bound string into a UTC datetime."""
+    """Parse a time-bound string into a UTC datetime; None when it is unparseable or out of range.
+
+    A bound is an ISO 8601 date or datetime, or an amount counted back from now: ``<n>m`` minutes, ``<n>h`` hours,
+    ``<n>d`` days, ``<n>w`` weeks, ``<n>y`` 365-day years.
+    """
     if not value:
         return None
     value = value.strip()
-    match = _RELATIVE_TIME_RE.match(value)
-    if match:
-        amount = int(match.group(1))
-        unit_seconds = _RELATIVE_UNITS.get(match.group(2).lower(), 86400)
-        return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
     try:
+        match = _RELATIVE_TIME_RE.match(value)
+        if match:
+            amount = int(match.group(1))
+            unit_seconds = _RELATIVE_UNITS[match.group(2).lower()]
+            return datetime.now(UTC) - timedelta(seconds=amount * unit_seconds)
         dt = datetime.fromisoformat(value)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=UTC)
-        return dt
-    except ValueError:
+            return dt.replace(tzinfo=UTC)
+        return dt.astimezone(UTC)
+    except (ValueError, OverflowError):
         return None
 
 
@@ -171,3 +177,35 @@ def format_recall_source_error_suffix(source_error: str) -> str:
     """Format correction source_error for recall suffix with the same redact → sanitize SSOT."""
     safe_error = sanitize_recalled_content(source_error)
     return f" (avoid: {safe_error})"
+
+
+def format_drill_down_output(memory: AnyMemory, *, detail_level: str) -> str:
+    """Format a by-id memory read-back (L1 overview or L2 full text) for the recall tool.
+
+    The stored text is as untrusted as a search hit, so it passes the same
+    redact → sanitize SSOT and gets the static preamble; the header line only
+    carries system-assigned fields (channel, type, id, domain, age) and stays as is.
+    """
+    effective_time = max(memory.created_at, memory.updated_at)
+    age = memory_age_label(effective_time)
+    provenance = channel_label(memory.scope.channel_id)
+    header = (
+        f"{provenance}[{memory.memory_type}] "
+        f"(id: {memory.id}, domain: {memory.domain}/{memory.domain_category}, age: {age})"
+    )
+    if detail_level == "overview":
+        # Cut after sanitizing: a prefix cut from raw text can strand part of a credential that no pattern matches.
+        overview = (
+            sanitize_recalled_content(memory.overview_l1)
+            if memory.overview_l1
+            else sanitize_recalled_content(memory.content)[:250]
+        )
+        return finalize_recall_tool_output(
+            f"{header}\n[L1 Overview]\n{overview}\n\n"
+            f"[Drill-down]: Call memory_search_tool(memory_id='{memory.id}', detail_level='full') for full verbatim context."
+        )
+
+    metadata_repr = f"\nMetadata: {memory.metadata}" if memory.metadata else ""
+    evidence_repr = f"\nEvidence: {[e.source_id for e in memory.evidence]}" if memory.evidence else ""
+    body = sanitize_recalled_content(f"{memory.content}{metadata_repr}{evidence_repr}")
+    return finalize_recall_tool_output(f"{header}\n[L2 Verbatim Full Content]\n{body}")

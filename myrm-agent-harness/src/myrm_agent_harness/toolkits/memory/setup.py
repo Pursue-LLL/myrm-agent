@@ -30,6 +30,7 @@ from myrm_agent_harness.toolkits.memory.config import (
     RecallMode,
 )
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
+from myrm_agent_harness.toolkits.memory.protocols.vector import VectorStoreProtocol
 from myrm_agent_harness.toolkits.memory.relational.sqlite_store import (
     SQLiteRelationalStore,
 )
@@ -42,12 +43,12 @@ from myrm_agent_harness.toolkits.retriever.reranker.factory import (
     RerankerConfig,
     get_reranker_service,
 )
-from myrm_agent_harness.toolkits.vector.base import VectorStore
 from myrm_agent_harness.toolkits.vector.config import DeploymentMode, VectorStoreConfig
 from myrm_agent_harness.toolkits.vector.qdrant.factory import create_vector_store
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.memory.file_sync.sync import FileMemorySyncEngine
+    from langchain_core.language_models import BaseChatModel
+
     from myrm_agent_harness.toolkits.memory.graph.sqlite_store import SQLiteGraphStore
     from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
         ConflictCallback,
@@ -75,7 +76,7 @@ def open_local_graph_store(base_path: Path) -> SQLiteGraphStore:
     return SQLiteGraphStore(db_path=str(base_path / "graph.db"))
 
 
-async def _probe_embedding_dimension(embedding_service: object) -> int:
+async def _probe_embedding_dimension(embedding_service: EmbeddingService) -> int:
     """The embedder's vector size, probed when the service cannot report it yet.
 
     ``dimension`` may raise until a first embed completes (auto-detect backends), so a
@@ -91,7 +92,7 @@ async def _probe_embedding_dimension(embedding_service: object) -> int:
     if isinstance(dim, int) and dim > 0:
         return dim
     try:
-        test_vec = await embedding_service.embed("dimension probe")  # type: ignore[attr-defined]
+        test_vec = await embedding_service.embed("dimension probe")
     except Exception as e:
         logger.warning("Cannot determine embedding dimension (%s); collections are created on first write.", e)
         return 0
@@ -104,8 +105,8 @@ async def create_local_memory_manager(
     *,
     user_id: str = "sandbox_user",
     approval_required: bool = False,
-    dedup_llm: object | None = None,
-    consolidation_llm: object | None = None,
+    dedup_llm: BaseChatModel | None = None,
+    consolidation_llm: BaseChatModel | None = None,
     namespaces: list[str] | None = None,
     agent_id: str | None = None,
     channel_id: str | None = None,
@@ -113,7 +114,7 @@ async def create_local_memory_manager(
     task_id: str | None = None,
     memory_policy: AgentMemoryPolicy | None = None,
     recall_mode: RecallMode = RecallMode.HYBRID,
-    vector_store: VectorStore | None = None,
+    vector_store: VectorStoreProtocol | None = None,
     reranker_config: RerankerConfig | None = None,
     time_decay_half_life_days: float | None = None,
     on_conflict: ConflictCallback | None = None,
@@ -263,25 +264,3 @@ async def create_local_memory_manager(
 
     logger.info(f"Local MemoryManager initialized at {base_path} for local user")
     return manager
-
-
-def setup_local_file_memory_sync(
-    base_path: str | Path,
-    memory_manager: MemoryManager | None = None,
-) -> FileMemorySyncEngine:
-    """Create and initialize a Local-First FileMemorySyncEngine.
-
-    Ensures MEMORY.md and daily note directory structures are created and
-    binds synchronization to the provided MemoryManager instance.
-    """
-    from myrm_agent_harness.toolkits.memory.file_sync import (
-        FileMemoryStore,
-        FileMemorySyncEngine,
-        FileMemoryTopology,
-    )
-
-    resolved_path = Path(base_path).resolve()
-    topology = FileMemoryTopology(root_dir=resolved_path)
-    store = FileMemoryStore(topology=topology)
-    store.ensure_topology()
-    return FileMemorySyncEngine(store=store, memory_manager=memory_manager)

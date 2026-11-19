@@ -3,19 +3,22 @@
 Covers:
 - detect_line_ending: CRLF, LF, empty, single-line, mixed
 - normalize_line_endings: LF→LF, LF→CRLF, CRLF→LF, CRLF→CRLF, mixed, lone CR, idempotence
-- StorageBackendStrategy.replace_text: CRLF preservation for exact + fuzzy match
+- view_lines: CRLF, lone CR and LF all end a line in a view
 - FileOperationService._execute_create: a new file keeps the line endings it was given
 """
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import io
+import itertools
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.line_endings import (
     detect_line_ending,
     normalize_line_endings,
+    view_lines,
 )
 
 # ── detect_line_ending ──────────────────────────────────────────────
@@ -114,102 +117,49 @@ class TestNormalizeLineEndings:
         assert normalize_line_endings("no newlines", "\r\n") == "no newlines"
 
 
-# ── StorageBackendStrategy.replace_text CRLF preservation ───────────
+# ── view_lines ──────────────────────────────────────────────────────
 
 
-@pytest.mark.asyncio
-async def test_replace_text_preserves_crlf() -> None:
-    """Exact match on a CRLF file should produce a CRLF result."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
+class TestViewLines:
+    """A view splits the text a file was read as; every line ending must end a line."""
+
+    @pytest.mark.parametrize(
+        ("text", "shown"),
+        [
+            ("a\nb\n", ["a", "b", ""]),
+            ("a\r\nb\r\n", ["a", "b", ""]),
+            ("a1\rb2\rc3\r", ["a1", "b2", "c3", ""]),
+            ("a\rb\r\nc\n", ["a", "b", "c", ""]),
+            ("x\n\r\ny", ["x", "", "y"]),
+            ("abc\r\r\n", ["abc", "", ""]),
+            ("no newline", ["no newline"]),
+            ("", [""]),
+        ],
     )
+    def test_every_line_ending_ends_a_line(self, text: str, shown: list[str]) -> None:
+        assert view_lines(text.split("\n")) == shown
 
-    crlf_content = "line1\r\nline2\r\nline3\r\n"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=crlf_content)
-    storage.write_text = AsyncMock()
+    def test_a_text_shows_the_same_lines_with_any_line_ending(self) -> None:
+        lines = ["alpha", "", "beta", "gamma"]
+        shown = {ending: view_lines(ending.join(lines).split("\n")) for ending in ("\n", "\r\n", "\r")}
+        assert shown["\r\n"] == shown["\r"] == shown["\n"] == lines
 
-    strategy = StorageBackendStrategy(storage)
-    await strategy.replace_text("test.txt", "line2", "replaced")
+    def test_agrees_with_universal_newlines_for_every_short_text_over_the_line_ending_alphabet(self) -> None:
+        """``preview`` and ``stream`` read through universal newlines; the view must show the lines they show."""
+        for length in range(7):
+            for chars in itertools.product("a\r\n", repeat=length):
+                text = "".join(chars)
+                expected = io.StringIO(text, newline=None).getvalue().split("\n")
+                assert view_lines(text.split("\n")) == expected, repr(text)
 
-    written = storage.write_text.call_args[0][1]
-    assert "\r\n" in written
-    assert "replaced\r\n" in written
-    assert "\n" not in written.replace("\r\n", "")
+    def test_returns_a_new_list_even_when_there_is_nothing_to_change(self) -> None:
+        raw = ["a", "b"]
+        shown = view_lines(raw)
+        assert shown == raw
+        assert shown is not raw
 
-
-@pytest.mark.asyncio
-async def test_replace_text_lf_unchanged() -> None:
-    """LF files should stay LF after replacement."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    lf_content = "line1\nline2\nline3\n"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=lf_content)
-    storage.write_text = AsyncMock()
-
-    strategy = StorageBackendStrategy(storage)
-    await strategy.replace_text("test.txt", "line2", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert "\r\n" not in written
-    assert "replaced\n" in written
-
-
-@pytest.mark.asyncio
-async def test_replace_text_fuzzy_preserves_crlf() -> None:
-    """Fuzzy match path should also preserve CRLF."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    crlf_content = "  line1\r\n  line2\r\n  line3\r\n"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=crlf_content)
-    storage.write_text = AsyncMock()
-
-    fuzzy_result = MagicMock()
-    fuzzy_result.success = True
-    fuzzy_result.content = "  line1\n  replaced\n  line3\n"
-    fuzzy_result.strategy = "whitespace_normalized"
-    fuzzy_result.confidence = 0.95
-
-    strategy = StorageBackendStrategy(storage)
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.file_ops.core.batch_str_replace.fuzzy_replace",
-        return_value=fuzzy_result,
-    ):
-        await strategy.replace_text("test.txt", "line2_typo", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert "\r\n" in written
-    assert "\n" not in written.replace("\r\n", "")
-
-
-@pytest.mark.asyncio
-async def test_replace_text_single_line_no_normalization() -> None:
-    """Single-line file (no newlines) should skip normalization."""
-    from myrm_agent_harness.agent.meta_tools.file_ops.strategies.storage_strategy import (
-        StorageBackendStrategy,
-    )
-
-    content = "single line no newline"
-    storage = AsyncMock()
-    storage.exists = AsyncMock(return_value=True)
-    storage.read_text = AsyncMock(return_value=content)
-    storage.write_text = AsyncMock()
-
-    strategy = StorageBackendStrategy(storage)
-    await strategy.replace_text("test.txt", "single", "replaced")
-
-    written = storage.write_text.call_args[0][1]
-    assert written == "replaced line no newline"
-    assert "\r\n" not in written
+    def test_no_lines_shows_no_lines(self) -> None:
+        assert view_lines([]) == []
 
 
 # ── FileOperationService._execute_create line endings ──────────────

@@ -11,7 +11,7 @@
 - delegate_failed_event: 直连委托在到达 CLI 的结果之前就出了意外 → 同形状的错误事件
 
 [POS]
-外部 Agent 直连路径的失败文案层（Server 业务层，中英两套；ja/ko/de 回退英文，与 llm_errors 一致）。事件形状沿用
+外部 Agent 直连路径的失败文案层（Server 业务层，中英两套；其他语言回退英文，与 llm_errors 一致）。事件形状沿用
 前端 ErrorStreamEvent 契约（`diagnostic_result.resolution_steps` 必须是数组），步骤文案只说用户要做什么，
 不带异常名、路径或命令行；唯一点名的是 API Key 模式下该 Agent 读取的环境变量名（设置页「环境变量」里用户自己填的就是它）。其余失败（限流、进程崩溃、CLI 自己报告的错误）保持 CLI 的原话，不在这里改写。
 """

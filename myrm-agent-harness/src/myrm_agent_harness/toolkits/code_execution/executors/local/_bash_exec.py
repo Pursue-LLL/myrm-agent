@@ -11,7 +11,7 @@ core.security.redact::command_preview (POS: masked, cut command for a log line)
 
 [OUTPUT]
 LocalBashMixin: ``execute_bash`` (validated, audited run in the persistent shell with the command's own environment),
-``execute_bash_stream``, command preparation and the sanitized environment a shell starts with.
+command preparation and the sanitized environment a shell starts with.
 
 [POS]
 The bash path of the local executor. It is the only place that turns the command an agent issued
@@ -24,7 +24,6 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -227,52 +226,6 @@ class LocalBashMixin:
         )
         self.metrics.record(final_result, "bash")
         return final_result
-
-    async def execute_bash_stream(self: _BashHost, context: ExecutionContext) -> AsyncIterator[str]:
-        """Execute a Bash command with real-time line-by-line output streaming."""
-        from myrm_agent_harness.toolkits.code_execution.security.validator import (
-            validate_command,
-        )
-
-        context = self._scoped_context(context)
-        command = context.code
-        issued_command = context.original_code or command
-        workspace = Path(context.workspace_root) if context.workspace_root else self._current_workspace
-        effective_cwd = self._resolve_work_dir(context.work_dir, workspace)
-
-        effective_allowed_hosts = None
-        if context.allow_network and context.allowed_hosts is not None:
-            effective_allowed_hosts = context.allowed_hosts
-
-        validation_result = validate_command(
-            command,
-            workspace_path=effective_cwd,
-            additional_paths=self._command_whitelist(context),
-            allowed_hosts=effective_allowed_hosts,
-        )
-
-        if not validation_result.is_safe:
-            yield f"[ERROR] Command blocked: {validation_result.reason}\n"
-            return
-
-        enforce_capability_access(CapabilityAction.EXECUTE, str(effective_cwd))
-
-        self._setup_workspace(str(effective_cwd) if effective_cwd else None)
-        command = await self._prepare_bash_command(command)
-        env = self._build_bash_env(context.env)
-        session = await self._get_or_create_bash_session(context, env)
-        command_env = build_command_env(
-            context.env,
-            context.allowed_credential_issuers,
-            issued_command,
-            context.skill_env,
-            effective_cwd if context.enter_work_dir else None,
-        )
-
-        timeout = context.timeout or self.config.local.max_execution_time
-        record_execution()
-        async for chunk in session.execute_stream(command, timeout, cancel_token=context.cancel_token, env=command_env):
-            yield chunk
 
     async def _prepare_bash_command(self: _BashHost, command: str) -> str:
         """Rewrite workspace paths and pip commands for the local environment.

@@ -126,16 +126,3 @@ class LocalStorageBackend(BaseFileSystemBackend):
         """Move a file or directory."""
         await super().move(src_key, dst_key)
         logger.info("Moved: %s -> %s", src_key, dst_key)
-
-    def resolve_absolute_path(self, key: str) -> str:
-        """Get the absolute filesystem path of a key.
-
-        For callers that need to access the filesystem directly.
-
-        Args:
-            key: File path/key
-
-        Returns:
-            Absolute path string
-        """
-        return str(self._resolve_key_to_path(key))

@@ -56,7 +56,7 @@ def _show_replace_toast_js(seed: dict[str, object]) -> str:
 _TOAST_UNDO_READY_JS = """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
   const undo = buttons.find((btn) =>
-    /Undo last update|Restore previous|撤销上次|直近の更新を元に戻す|Letztes Update rückgängig/i.test(
+    /Undo last update|Restore previous|撤销上次/i.test(
       (btn.textContent || '').trim(),
     ),
   );
@@ -68,7 +68,7 @@ def _click_toast_undo_js() -> str:
     return """(() => {
   const buttons = Array.from(document.querySelectorAll('button'));
   const undo = buttons.find((btn) =>
-    /Undo last update|Restore previous|撤销上次|直近の更新を元に戻す|Letztes Update rückgängig/i.test(
+    /Undo last update|Restore previous|撤销上次/i.test(
       (btn.textContent || '').trim(),
     ),
   );
@@ -87,7 +87,7 @@ def _fetch_skill_md(api_url: str, skill_id: str) -> str:
 _RESTORE_SUCCESS_JS = """(() => {
   const bodyText = document.body?.innerText || '';
   return {
-    ready: /Restored previous|restored|已恢复|已恢復|wiederhergestellt|復元/i.test(bodyText),
+    ready: /Restored previous|restored|已恢复/i.test(bodyText),
     sample: bodyText.slice(0, 400),
   };
 })()"""

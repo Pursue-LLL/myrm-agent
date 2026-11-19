@@ -184,7 +184,7 @@ describe('code to copy mapping', () => {
 
   it('formats character totals in the reader locale', () => {
     expect(formatImaChars(1234, 'en')).toBe('1.2K');
-    expect(formatImaChars(1234, 'de')).not.toBe('');
+    expect(formatImaChars(12345, 'zh')).toBe('1.2万');
   });
 });
 
@@ -286,8 +286,8 @@ describe('settings.wiki.ima locale contract', () => {
     expect(SERVER_KINDS.map(imaKindKey)).not.toContain('kinds.other');
   });
 
-  it.each(['en', 'de'])('%s copy contains no CJK text', (locale) => {
-    const text = JSON.stringify(imaMessages(locale));
+  it('en copy contains no CJK text', () => {
+    const text = JSON.stringify(imaMessages('en'));
     expect(text).not.toMatch(/[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/);
   });
 });

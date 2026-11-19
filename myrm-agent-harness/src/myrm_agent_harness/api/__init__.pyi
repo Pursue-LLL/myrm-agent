@@ -405,12 +405,6 @@ from myrm_agent_harness.runtime.context.transcripts import (
     TranscriptParseResult as TranscriptParseResult,
 )
 from myrm_agent_harness.runtime.context.tree_state import (
-    create_compaction_todo_anchor as create_compaction_todo_anchor,
-)
-from myrm_agent_harness.runtime.context.tree_state import (
-    extract_todo_store_from_payload as extract_todo_store_from_payload,
-)
-from myrm_agent_harness.runtime.context.tree_state import (
     fold_branch_todo_state as fold_branch_todo_state,
 )
 from myrm_agent_harness.runtime.diagnostics.compliance import (

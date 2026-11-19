@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing
@@ -112,6 +113,134 @@ def test_sanitize_fts5_strips_near_operator() -> None:
     assert result == ""
     result2 = sanitize_fts5_query("hello NEAR world")
     assert "NEAR" not in result2
+
+
+def test_sanitize_fts5_quotes_pieces_fts5_does_not_read_as_a_word() -> None:
+    assert sanitize_fts5_query("don't") == '"don\'t"'
+    assert sanitize_fts5_query("see `code` here") == 'see "`code`" here'
+    assert sanitize_fts5_query("hello world.") == 'hello "world."'
+    assert sanitize_fts5_query("e.g.") == '"e.g" "."'
+    assert sanitize_fts5_query("你好.") == '"你好."'
+    assert sanitize_fts5_query("foo*bar") == '"foo*bar"'
+
+
+def test_sanitize_fts5_keeps_a_prefix_star_after_a_quoted_word() -> None:
+    assert sanitize_fts5_query("chat-sen*") == '"chat-sen"*'
+    assert sanitize_fts5_query("it's*") == '"it\'s"*'
+
+
+def test_sanitize_fts5_separates_quoted_pieces_that_touch() -> None:
+    """FTS5 reads two touching quoted pieces as one phrase that holds a literal quote."""
+    assert sanitize_fts5_query('"a""b"') == '"a" "b"'
+
+
+def test_sanitize_fts5_keeps_a_boolean_operator_only_between_two_operands() -> None:
+    assert sanitize_fts5_query("a AND AND b").split() == ["a", "AND", "b"]
+    assert sanitize_fts5_query("a AND NEAR") == "a"
+    assert sanitize_fts5_query("a NOT b") == "a NOT b"
+    assert sanitize_fts5_query("a-*") == "a"
+
+
+# ---------------------------------------------------------------------------
+# Output contract: FTS5 reads whatever the sanitizer returns
+# ---------------------------------------------------------------------------
+
+_TOKENIZERS = ("unicode61", "porter unicode61", "trigram")
+_EVERYDAY_QUERIES = (
+    "don't",
+    "it's what's",
+    "John's I'm we're",
+    "e.g.",
+    "i.e. etc.",
+    "Inc.",
+    "hello world.",
+    "wait...",
+    "v2.0.",
+    "node.js,",
+    "'quoted'",
+    "`code`",
+    "C++",
+    "a, b",
+    "$100",
+    "50%",
+    "#tag @user",
+    "https://example.com/a?b=c",
+    "src/app/page.tsx",
+    "key=value",
+    "foo: bar",
+    "(draft)",
+    "[todo]",
+    "what?! really",
+    "你好.",
+    "你好，世界",
+    "emoji 🙂.",
+)
+_SYNTAX_EDGE_QUERIES = (
+    "AND",
+    "OR OR",
+    "a AND AND b",
+    "a OR NOT",
+    "a AND NEAR",
+    "x NEAR/3 y",
+    "NOT NOT a",
+    "AND*",
+    "*AND",
+    "*",
+    "**",
+    "a * b",
+    "a-*",
+    "foo*bar",
+    "foo**",
+    "chat-sen*",
+    '"phrase"*',
+    '"a""b"',
+    '"" a',
+    '"unclosed',
+    'a"b"c',
+    "-",
+    "--x--",
+    "a - b",
+    "col:val",
+    "{x} [y] a|b",
+    "\x00x\x01y\ttab\nnl",
+)
+_FUZZ_PIECES = (
+    *("a", "foo", "你好", "é", "🙂", "_", "7", "x.y", "a-b", "AND", "OR", "NOT", "NEAR", "near"),
+    *("'", "`", ".", "..", "-", "*", "**", '"', ",", ";", ":", "(", ")", "[", "]", "{", "}"),
+    *("+", "^", "/", "\\", "|", "&", "%", "$", "#", "@", "!", "?", "<", ">", "=", "~"),
+    *("\x00", "\t", "\n", " ", " "),
+)
+_FUZZ_CASES = 3000
+
+
+def _random_query(rng: random.Random) -> str:
+    return "".join(rng.choice(_FUZZ_PIECES) for _ in range(rng.randint(1, 14)))
+
+
+def _rejected_output(conn: sqlite3.Connection, raw: str) -> str:
+    """The sanitizer's output for ``raw`` when FTS5 rejects it as a MATCH expression, otherwise empty."""
+    output = sanitize_fts5_query(raw)
+    if not output:
+        return ""
+    try:
+        conn.execute("SELECT rowid FROM docs WHERE docs MATCH ?", (output,)).fetchall()
+    except sqlite3.OperationalError:
+        return output
+    return ""
+
+
+@pytest.mark.parametrize("tokenizer", _TOKENIZERS)
+def test_the_output_is_always_a_query_fts5_can_parse(tokenizer: str) -> None:
+    rng = random.Random(20260116)
+    queries = [*_EVERYDAY_QUERIES, *_SYNTAX_EDGE_QUERIES, *(_random_query(rng) for _ in range(_FUZZ_CASES))]
+
+    with closing(sqlite3.connect(":memory:")) as conn:
+        conn.execute(f"CREATE VIRTUAL TABLE docs USING fts5(body, tokenize='{tokenizer}')")
+        rejected = {raw: output for raw in queries if (output := _rejected_output(conn, raw))}
+
+    assert not rejected, (
+        f"{len(rejected)} of {len(queries)} outputs are not FTS5 syntax, first: {list(rejected.items())[:5]}"
+    )
 
 
 _NOTES = 60

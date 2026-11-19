@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
@@ -45,7 +45,6 @@ def _run(
     run_id: str = "r1",
     job_id: str = "j1",
     started_at: datetime | None = None,
-    integrity_hash: str | None = None,
 ) -> CronRunRecord:
     t = started_at or _NOW
     return CronRunRecord(
@@ -55,7 +54,6 @@ def _run(
         finished_at=t + timedelta(seconds=1),
         duration_ms=1000,
         status=RunStatus.OK,
-        integrity_hash=integrity_hash,
     )
 
 
@@ -117,19 +115,40 @@ class TestJobCRUD:
     async def test_earliest_next_run_empty(self, store: InMemoryCronStore) -> None:
         assert await store.earliest_next_run() is None
 
-    async def test_claim_due(self, store: InMemoryCronStore) -> None:
+    async def test_advance_next_run_books_a_due_job_once(self, store: InMemoryCronStore) -> None:
         await store.save_job(_job("j1", next_run_at=_NOW))
-        await store.claim_due(["j1"])
+        booked = datetime.now(UTC) + timedelta(hours=1)
+
+        assert await store.advance_next_run("j1", next_run_at=booked) is True
+        assert await store.advance_next_run("j1", next_run_at=booked + timedelta(hours=1)) is False
+
         job = await store.get_job("j1")
         assert job is not None
-        assert job.next_run_at is None
+        assert job.next_run_at == booked
 
-    async def test_list_orphaned_active(self, store: InMemoryCronStore) -> None:
-        await store.save_job(_job("j1", next_run_at=None))
-        await store.save_job(_job("j2", next_run_at=_NOW))
-        orphans = await store.list_orphaned_active()
-        assert len(orphans) == 1
-        assert orphans[0].id == "j1"
+    async def test_advance_next_run_refuses_a_job_that_is_not_due_paused_or_gone(
+        self, store: InMemoryCronStore
+    ) -> None:
+        not_due = datetime.now(UTC) + timedelta(hours=1)
+        await store.save_job(_job("not-due", next_run_at=not_due))
+        await store.save_job(_job("paused", status=JobStatus.PAUSED, next_run_at=_NOW))
+        await store.save_job(_job("never-booked", next_run_at=None))
+
+        for job_id in ("not-due", "paused", "never-booked", "gone"):
+            assert await store.advance_next_run(job_id, next_run_at=not_due + timedelta(hours=1)) is False
+
+        unchanged = {job.id: job.next_run_at for job in await store.list_jobs()}
+        assert unchanged == {"not-due": not_due, "paused": _NOW, "never-booked": None}
+
+    async def test_advance_next_run_stores_a_zoned_instant_as_utc(self, store: InMemoryCronStore) -> None:
+        await store.save_job(_job("j1", next_run_at=_NOW))
+        booked = (datetime.now(UTC) + timedelta(hours=1)).astimezone(timezone(timedelta(hours=8)))
+
+        assert await store.advance_next_run("j1", next_run_at=booked) is True
+
+        job = await store.get_job("j1")
+        assert job is not None and job.next_run_at is not None
+        assert job.next_run_at == booked and job.next_run_at.utcoffset() == timedelta(0)
 
     async def test_deepcopy_isolation(self, store: InMemoryCronStore) -> None:
         await store.save_job(_job("j1"))
@@ -172,12 +191,6 @@ class TestRunRecords:
         deleted = await store.purge_old_runs(before=_NOW - timedelta(days=30))
         assert deleted == 1
         assert await store.count_runs() == 1
-
-    async def test_get_latest_integrity_hash(self, store: InMemoryCronStore) -> None:
-        await store.save_run(_run("r1", "j1", started_at=_NOW, integrity_hash="hash1"))
-        await store.save_run(_run("r2", "j1", started_at=_NOW + timedelta(minutes=1), integrity_hash="hash2"))
-        assert await store.get_latest_integrity_hash("j1") == "hash2"
-        assert await store.get_latest_integrity_hash("j999") is None
 
     async def test_delete_job_cascade(self, store: InMemoryCronStore) -> None:
         await store.save_job(_job("j1"))

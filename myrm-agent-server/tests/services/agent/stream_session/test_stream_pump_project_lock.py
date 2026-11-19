@@ -337,3 +337,26 @@ async def test_cancel_while_waiting_releases_reserved_gateway_session(monkeypatc
     finally:
         gateway.release_session("test-chat-123")
         orch.release("proj-1")
+
+
+@pytest.mark.asyncio
+async def test_a_turn_that_ends_after_the_next_message_reserved_leaves_that_reservation(monkeypatch):
+    """The gateway gives the chat back when the stream ends, so the chat's next message can reserve it before the pump
+    of the finished turn reaches its teardown; that reservation must survive the teardown."""
+    from app.services.agent.gateway import get_agent_gateway
+
+    gateway = get_agent_gateway()
+
+    async def stream_whose_chat_goes_to_the_next_message(_session):
+        yield _CHUNK
+        gateway.reserve_session("test-chat-123", active_message_id="next-msg-789")
+
+    session = _make_session(project_id=None)
+    _install_mocks(monkeypatch, ProjectOrchestrator(), stream_whose_chat_goes_to_the_next_message)
+
+    try:
+        await pump_to_buffer(session, _make_buffer())
+
+        assert gateway.get_active_message_id("test-chat-123") == "next-msg-789"
+    finally:
+        gateway.release_session("test-chat-123")

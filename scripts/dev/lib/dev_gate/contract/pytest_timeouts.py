@@ -6,6 +6,7 @@ from __future__ import annotations
 import os
 from typing import Final
 
+from dev_gate.contract import parallel_pressure
 from dev_gate.contract.admission import (
     SIGNOFF_DESKTOP_OPEN_NAV_STRATEGY_COUNT,
     SIGNOFF_DESKTOP_OPEN_NAV_WALL_TIMEOUT_SEC,
@@ -255,15 +256,7 @@ def parallel_live_pytest_timeout_floor_sec(base: int) -> int:
     Observed: leases=5 bootstrap mono_elapsed≈730s before BODY — 810s floor kills at REAPPLY.
     +: wave_active_lease_count can lag registry peers during ADMIT — include session SSOT.
     """
-    load = 0
-    try:
-        from pathlib import Path
-
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        load = wave_active_lease_count(Path(__file__).resolve().parents[6])
-    except (ImportError, OSError, RuntimeError, ValueError):
-        load = 0
+    load = parallel_pressure.wave_active_lease_count_for_mux()
     try:
         from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 

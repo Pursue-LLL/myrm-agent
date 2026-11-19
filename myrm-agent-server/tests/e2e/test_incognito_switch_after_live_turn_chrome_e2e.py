@@ -46,7 +46,7 @@ from tests.support.chrome_mcp_e2e import (  # noqa: E402
 )
 from tests.support.e2e_provider_seed import seed_live_e2e_providers  # noqa: E402
 
-_TOGGLE_LABELS = ("Incognito Mode", "无痕模式", "無痕模式", "シークレットモード", "시크릿 모드", "Inkognito-Modus")
+_TOGGLE_LABELS = ("Incognito Mode", "无痕模式")
 
 _FIND_TOGGLE = """const labels = %s;
   const toggle = Array.from(document.querySelectorAll('button[aria-pressed]')).find(
@@ -75,7 +75,6 @@ _SEND_JS = """(async () => {
   if (!bridge?.sendChatMessage) return { ok: false, err: 'no-sendChatMessage' };
   bridge.setActionMode?.('agent');
   return await bridge.sendChatMessage(%s, {
-    waitForStreamCompletion: false,
     preserveActionMode: true,
   });
 })()""" % json.dumps(_QUESTION)

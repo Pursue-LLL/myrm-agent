@@ -10,7 +10,11 @@
 - get_model_headroom_floor(): Minimum token headroom budget for reasoning output
 - is_thinking_model(): Whether a model qualifies as reasoning/thinking
 - apply_thinking_headroom(): In-place proactive adjustment of max_tokens
-- extract_reasoning_effort(): Extracted caller reasoning intensity level
+- extract_reasoning_effort(): Extracted caller reasoning intensity level (top level, ``extra_body``, OpenRouter's
+  ``reasoning.effort`` or a gateway's ``chat_template_kwargs``)
+- is_disabled_effort(): Whether an effort value asks for no reasoning
+- DISABLED_EFFORT_VALUES / MAX_EFFORT_VALUES / HEAVY_EFFORT_VALUES: The spellings of 'no reasoning', of the strongest
+  level and of 'high or stronger', shared by the provider mappings
 - strip_untranslated_off_effort(): Drops an 'off' effort no provider rule translated
 
 [POS]
@@ -44,11 +48,14 @@ _DEFAULT_HEADROOM_FLOOR: int = 16384
 _DEFAULT_REASONING_TIMEOUT_FLOOR: float = 450.0
 _HEAVY_REASONING_TIMEOUT_FLOOR: float = 600.0
 
-# Normalized effort values
-_DISABLED_EFFORT_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
-_HEAVY_EFFORT_VALUES: frozenset[str] = frozenset({"high", "max", "xhigh", "ultra"})
+# Normalized effort values: the one vocabulary every provider mapping reads
+DISABLED_EFFORT_VALUES: frozenset[str] = frozenset({"off", "none", "disabled", "false", "0"})
+# Spellings of the strongest level; DeepSeek and the gateways that carry its models all map them to ``max``
+MAX_EFFORT_VALUES: frozenset[str] = frozenset({"max", "xhigh", "ultra"})
+# ``high`` and everything stronger
+HEAVY_EFFORT_VALUES: frozenset[str] = MAX_EFFORT_VALUES | {"high"}
 # Spellings of 'off' that are not values of the OpenAI-compatible reasoning_effort enum ('none' is one)
-_NON_WIRE_OFF_VALUES: frozenset[str] = frozenset({"off", "disabled", "false", "0"})
+_NON_WIRE_OFF_VALUES: frozenset[str] = DISABLED_EFFORT_VALUES - {"none"}
 
 # Authoritative catalog of known reasoning models and their baseline timeout floors (seconds)
 # Ordered by specificity when matching prefixes.
@@ -131,6 +138,7 @@ def extract_reasoning_effort(llm_kwargs: Mapping[str, object] | None) -> str | N
     1. Top-level ``reasoning_effort``
     2. ``extra_body.reasoning_effort``
     3. ``extra_body.reasoning.effort`` (OpenRouter format)
+    4. ``extra_body.chat_template_kwargs.reasoning_effort`` (chat-template gateways)
     """
     if not llm_kwargs:
         return None
@@ -153,6 +161,27 @@ def extract_reasoning_effort(llm_kwargs: Mapping[str, object] | None) -> str | N
         if effort is not None:
             return str(effort).lower()
 
+    template_kwargs = extra_body.get("chat_template_kwargs")
+    if isinstance(template_kwargs, Mapping):
+        effort = template_kwargs.get("reasoning_effort")
+        if effort is not None:
+            return str(effort).lower()
+
+    return None
+
+
+def is_disabled_effort(effort: object) -> bool:
+    """Whether ``effort`` is one of the spellings that ask for no reasoning (``off``, ``none``, ...)."""
+    return isinstance(effort, str) and effort.strip().lower() in DISABLED_EFFORT_VALUES
+
+
+def _thinking_switch(extra_body: Mapping[str, object]) -> bool | None:
+    """The on/off state a request body states as a boolean: ``enable_thinking`` or a chat-template flag; else None."""
+    template_kwargs = extra_body.get("chat_template_kwargs")
+    for holder in (extra_body, template_kwargs if isinstance(template_kwargs, Mapping) else {}):
+        for key in ("enable_thinking", "thinking"):
+            if isinstance(value := holder.get(key), bool):
+                return value
     return None
 
 
@@ -164,16 +193,15 @@ def is_reasoning_explicitly_disabled(llm_kwargs: Mapping[str, object] | None) ->
     if llm_kwargs.get("supports_reasoning") is False:
         return True
 
-    effort = extract_reasoning_effort(llm_kwargs)
-    if effort in _DISABLED_EFFORT_VALUES:
+    if is_disabled_effort(extract_reasoning_effort(llm_kwargs)):
         return True
 
     extra_body = llm_kwargs.get("extra_body")
     if isinstance(extra_body, Mapping):
         thinking = extra_body.get("thinking")
-        if thinking is False:
-            return True
         if isinstance(thinking, Mapping) and thinking.get("type") == "disabled":
+            return True
+        if _thinking_switch(extra_body) is False:
             return True
 
     return False
@@ -188,15 +216,15 @@ def is_reasoning_explicitly_enabled(llm_kwargs: Mapping[str, object] | None) -> 
         return True
 
     effort = extract_reasoning_effort(llm_kwargs)
-    if effort is not None and effort not in _DISABLED_EFFORT_VALUES:
+    if effort is not None and not is_disabled_effort(effort):
         return True
 
     extra_body = llm_kwargs.get("extra_body")
     if isinstance(extra_body, Mapping):
         thinking = extra_body.get("thinking")
-        if thinking is True:
-            return True
         if isinstance(thinking, Mapping) and thinking.get("type") == "enabled":
+            return True
+        if _thinking_switch(extra_body) is True:
             return True
 
     return False
@@ -252,7 +280,7 @@ def get_model_timeout_floor(
     # L2 Driver/Config: Explicit supports_reasoning=True grants floor for custom/unlisted models
     if llm_kwargs and llm_kwargs.get("supports_reasoning") is True:
         effort = extract_reasoning_effort(llm_kwargs)
-        if effort in _HEAVY_EFFORT_VALUES:
+        if effort in HEAVY_EFFORT_VALUES:
             return _HEAVY_REASONING_TIMEOUT_FLOOR
         return _DEFAULT_REASONING_TIMEOUT_FLOOR
 

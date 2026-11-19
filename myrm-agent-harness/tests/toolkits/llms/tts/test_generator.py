@@ -13,6 +13,12 @@ from myrm_agent_harness.toolkits.llms.tts.generator import AsyncTTSEngine
 from myrm_agent_harness.toolkits.llms.tts.models import TTSConfig, TTSGenerationError
 
 
+def _config(provider: str = "openai", **overrides: object) -> TTSConfig:
+    fields: dict[str, object] = {"provider": provider, "model": "tts-1", "voice": "alloy"}
+    fields.update(overrides)
+    return TTSConfig(**fields)
+
+
 @pytest.fixture
 def gateway_config() -> ToolGatewayConfig:
     return ToolGatewayConfig(
@@ -45,7 +51,7 @@ def _patch_async_client(post_return: MagicMock | Exception) -> tuple[MagicMock, 
 
 
 def test_build_request_openai_direct() -> None:
-    engine = AsyncTTSEngine(TTSConfig(provider="openai", api_key=SecretStr("sk-test"), voice="nova"))
+    engine = AsyncTTSEngine(_config(api_key=SecretStr("sk-test"), voice="nova"))
     url, headers, body = engine._build_request("hello", bypass_gateway=True)
 
     assert url == "https://api.openai.com/v1/audio/speech"
@@ -55,7 +61,7 @@ def test_build_request_openai_direct() -> None:
 
 def test_build_request_elevenlabs_direct() -> None:
     engine = AsyncTTSEngine(
-        TTSConfig(provider="elevenlabs", api_key=SecretStr("el-key"), voice="voice-123", model="eleven_v2"),
+        _config("elevenlabs", api_key=SecretStr("el-key"), voice="voice-123", model="eleven_v2"),
     )
     url, headers, body = engine._build_request("hi", bypass_gateway=True)
 
@@ -66,7 +72,7 @@ def test_build_request_elevenlabs_direct() -> None:
 
 def test_build_request_openai_gateway(gateway_config: ToolGatewayConfig) -> None:
     engine = AsyncTTSEngine(
-        TTSConfig(provider="openai", model="gpt-4o-mini-tts", gateway_config=gateway_config),
+        _config(model="gpt-4o-mini-tts", gateway_config=gateway_config),
     )
     url, headers, _body = engine._build_request("hello", bypass_gateway=False)
 
@@ -76,7 +82,7 @@ def test_build_request_openai_gateway(gateway_config: ToolGatewayConfig) -> None
 
 def test_build_request_elevenlabs_gateway(gateway_config: ToolGatewayConfig) -> None:
     engine = AsyncTTSEngine(
-        TTSConfig(provider="elevenlabs", voice="v1", gateway_config=gateway_config),
+        _config("elevenlabs", voice="v1", gateway_config=gateway_config),
     )
     url, _, _ = engine._build_request("hello", bypass_gateway=False)
     assert url == "https://gateway.example/tool-relay/tts/elevenlabs/v1"
@@ -84,7 +90,7 @@ def test_build_request_elevenlabs_gateway(gateway_config: ToolGatewayConfig) -> 
 
 def test_build_request_gateway_generic_provider(gateway_config: ToolGatewayConfig) -> None:
     engine = AsyncTTSEngine(
-        TTSConfig(provider="fish_audio", model="s1", gateway_config=gateway_config),
+        _config("fish_audio", model="s1", gateway_config=gateway_config),
     )
     url, _, body = engine._build_request("hello", bypass_gateway=False)
     assert url == "https://gateway.example/tool-relay/tts/fish_audio/s1"
@@ -92,14 +98,14 @@ def test_build_request_gateway_generic_provider(gateway_config: ToolGatewayConfi
 
 
 def test_build_request_unsupported_provider_direct() -> None:
-    engine = AsyncTTSEngine(TTSConfig(provider="unknown", api_key=SecretStr("k")))
+    engine = AsyncTTSEngine(_config("unknown", api_key=SecretStr("k")))
     with pytest.raises(ValueError, match="Unsupported TTS provider"):
         engine._build_request("hello", bypass_gateway=True)
 
 
 @pytest.mark.asyncio
 async def test_generate_openai_success() -> None:
-    engine = AsyncTTSEngine(TTSConfig(provider="openai", api_key=SecretStr("sk-test")))
+    engine = AsyncTTSEngine(_config(api_key=SecretStr("sk-test")))
     mock_client, client_patch = _patch_async_client(_mock_http_response())
 
     with client_patch:
@@ -112,17 +118,15 @@ async def test_generate_openai_success() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_persists_via_media_callback() -> None:
-    callback = AsyncMock(return_value="https://cdn.example/audio.mp3")
-    engine = AsyncTTSEngine(
-        TTSConfig(provider="openai", api_key=SecretStr("sk-test"), media_callback=callback),
-    )
+async def test_generate_attaches_the_reference_the_media_callback_returns() -> None:
+    callback = AsyncMock(return_value="media://aud1")
+    engine = AsyncTTSEngine(_config(api_key=SecretStr("sk-test"), media_callback=callback))
     _, client_patch = _patch_async_client(_mock_http_response())
 
     with client_patch:
         result = await engine.generate("persist me")
 
-    assert result.persisted_url == "https://cdn.example/audio.mp3"
+    assert result.persisted_ref == "media://aud1"
     callback.assert_awaited_once()
     args = callback.await_args.args
     assert args[0] == b"audio-bytes"
@@ -131,25 +135,37 @@ async def test_generate_persists_via_media_callback() -> None:
 
 
 @pytest.mark.asyncio
-async def test_generate_media_callback_failure_still_returns_audio() -> None:
-    callback = AsyncMock(side_effect=RuntimeError("storage down"))
-    engine = AsyncTTSEngine(
-        TTSConfig(provider="openai", api_key=SecretStr("sk-test"), media_callback=callback),
-    )
+async def test_generate_without_a_callback_has_no_reference() -> None:
+    engine = AsyncTTSEngine(_config(api_key=SecretStr("sk-test")))
     _, client_patch = _patch_async_client(_mock_http_response())
 
     with client_patch:
         result = await engine.generate("hello")
 
-    assert result.persisted_url is None
-    assert result.audio_bytes == b"audio-bytes"
+    assert result.persisted_ref is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "callback",
+    [AsyncMock(side_effect=RuntimeError("storage down")), AsyncMock(return_value="")],
+    ids=["callback-raises", "empty-reference"],
+)
+async def test_audio_that_cannot_be_stored_fails_without_calling_the_provider_again(callback: AsyncMock) -> None:
+    engine = AsyncTTSEngine(_config(api_key=SecretStr("sk-test"), max_retries=2, media_callback=callback))
+    mock_client, client_patch = _patch_async_client(_mock_http_response())
+
+    with client_patch, pytest.raises(TTSGenerationError, match="Failed to store the generated audio"):
+        await engine.generate("hello")
+
+    mock_client.post.assert_awaited_once()
+    assert callback.await_count == 1
 
 
 @pytest.mark.asyncio
 async def test_generate_gateway_failover_to_byok(gateway_config: ToolGatewayConfig) -> None:
     engine = AsyncTTSEngine(
-        TTSConfig(
-            provider="openai",
+        _config(
             api_key=SecretStr("sk-byok"),
             gateway_config=gateway_config,
             max_retries=1,
@@ -180,7 +196,7 @@ async def test_generate_gateway_failover_to_byok(gateway_config: ToolGatewayConf
 @pytest.mark.asyncio
 async def test_generate_retries_then_raises() -> None:
     engine = AsyncTTSEngine(
-        TTSConfig(provider="openai", api_key=SecretStr("sk-test"), max_retries=1),
+        _config(api_key=SecretStr("sk-test"), max_retries=1),
     )
     _, client_patch = _patch_async_client(RuntimeError("network down"))
 
@@ -194,6 +210,6 @@ async def test_generate_retries_then_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_unsupported_provider_raises_generation_error() -> None:
-    engine = AsyncTTSEngine(TTSConfig(provider="unknown", api_key=SecretStr("test-key")))
+    engine = AsyncTTSEngine(_config("unknown", api_key=SecretStr("test-key")))
     with pytest.raises(TTSGenerationError, match="Unsupported TTS provider"):
         await engine.generate("hello")

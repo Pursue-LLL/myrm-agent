@@ -6,6 +6,7 @@ import time
 import unicodedata
 from dataclasses import dataclass, field, replace
 from enum import IntEnum
+from typing import Literal
 
 from myrm_agent_harness.backends.skills._content_memo import ContentMemo
 from myrm_agent_harness.backends.skills.scanning.ast_analyzer import AstScanFinding
@@ -192,12 +193,13 @@ def scan_skill_content(
     Runs three analysis passes:
     1. Regex pattern matching (``ALL_PATTERN_GROUPS``)
     2. Invisible Unicode detection
-    3. Python AST analysis (for .py files)
+    3. Python AST analysis (``.py`` files and the Python code blocks of Markdown documents)
 
     Args:
         skill_name: Skill identifier for the result
         content: Text content to scan (SKILL.md, .py, .sh, or any text file)
-        file_extension: File extension hint (e.g. ".py") for AST analysis
+        file_extension: File extension (e.g. ".py", ".md") selecting the AST pass; when empty the pass is inferred
+            from the content, and YAML front matter means Markdown
 
     Returns:
         ScanResult with all findings (empty if clean)
@@ -235,12 +237,13 @@ def _scan_content(skill_name: str, content: str, file_extension: str) -> ScanRes
     _scan_invisible_unicode(content, result)
 
     # AST analysis for Python files and Markdown embedded code blocks
-    if file_extension == ".py" or (not file_extension and _looks_like_python(content)):
+    ast_pass = _ast_pass_for(content, file_extension)
+    if ast_pass == "python":
         from myrm_agent_harness.backends.skills.scanning.ast_analyzer import analyze_python_ast
 
         ast_findings = analyze_python_ast(content, skill_name)
         result.ast_findings.extend(ast_findings)
-    elif file_extension == ".md" or (not file_extension and "```" in content):
+    elif ast_pass == "markdown":
         from myrm_agent_harness.backends.skills.scanning.ast_analyzer import analyze_markdown_python_ast
 
         ast_findings = analyze_markdown_python_ast(content, skill_name)
@@ -282,6 +285,26 @@ def _scan_invisible_unicode(content: str, result: ScanResult) -> None:
                         line_number=line_num,
                     )
                 )
+
+
+def _ast_pass_for(content: str, file_extension: str) -> Literal["python", "markdown"] | None:
+    """Pick the AST pass: Python source, the Python code blocks of a Markdown document, or neither.
+
+    An explicit extension decides. Without one, a front matter fence marks a skill document, so words such as
+    ``from `` or ``import `` in its prose cannot send it down the Python branch; any other text is Python when it
+    opens like source and Markdown when it carries a code fence.
+    """
+    if file_extension == ".py":
+        return "python"
+    if file_extension == ".md":
+        return "markdown"
+    if file_extension:
+        return None
+    if content.lstrip("\ufeff \t\r\n").startswith("---"):
+        return "markdown"
+    if _looks_like_python(content):
+        return "python"
+    return "markdown" if "```" in content else None
 
 
 def _looks_like_python(content: str) -> bool:

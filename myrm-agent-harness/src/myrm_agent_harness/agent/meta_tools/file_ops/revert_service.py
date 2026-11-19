@@ -1,10 +1,11 @@
-"""File revert service — undo AI file changes at message or file granularity.
+"""File revert service — undo AI file changes of a message or of a whole session.
 
 Reads snapshots from SnapshotStore and restores files to their pre-modification
-state. Integrates with FileIntegrityGuard (hash update) and ArtifactTracker (cleanup).
+state. Integrates with FileIntegrityGuard (hash update) and the artifact trail (revert record).
 
 [INPUT]
-- agent.context_management.tracking.artifact_tracker::ArtifactAction (POS: artifact trail tracker; ArtifactAction names the file operation: created, modified, deleted or read)
+- agent.context_management.tracking.artifact_tracker::ArtifactAction, get_artifact_tracker (POS: artifact trail tracker; ArtifactAction names the file operation: created, modified, deleted or read)
+- toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.; type only)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
 
 [OUTPUT]
@@ -13,7 +14,7 @@ state. Integrates with FileIntegrityGuard (hash update) and ArtifactTracker (cle
 - RevertService: Restores files to pre-AI-edit state.
 
 [POS]
-File revert service — undo AI file changes at message or file granularity.
+File revert service — undo AI file changes of a message or of a whole session.
 """
 
 from __future__ import annotations
@@ -22,9 +23,13 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .core.file_integrity_guard import get_file_integrity_guard
 from .observers.snapshot_observer import FileSnapshot, SnapshotOp, SnapshotStore
+
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +83,7 @@ class RevertService:
         return result
 
     @staticmethod
-    async def revert_message(session_id: str, message_id: str, executor: object | None = None) -> RevertResult:
+    async def revert_message(session_id: str, message_id: str, executor: CodeExecutor | None = None) -> RevertResult:
         """Revert all file changes from a specific message.
 
         Processes snapshots in reverse order to handle multiple edits to the
@@ -109,7 +114,7 @@ class RevertService:
                 continue
             seen_paths.add(snap.path)
 
-            result = await _revert_single(snap, executor)
+            result = await _revert_single(snap, executor, session_id)
             if result.success:
                 reverted.append(snap.path)
             elif result.warning:
@@ -125,34 +130,7 @@ class RevertService:
         return RevertResult(reverted_files=reverted, warnings=warnings, skipped_files=skipped)
 
     @staticmethod
-    async def revert_file(
-        session_id: str, message_id: str, file_path: str, executor: object | None = None
-    ) -> RevertResult:
-        """Revert a single file change from a specific message."""
-        store = SnapshotStore.get()
-        snap = store.get_file_snapshot(session_id, message_id, file_path)
-
-        if snap is None:
-            return RevertResult(
-                reverted_files=[],
-                warnings=[f"No snapshot found for {file_path} in this message"],
-                skipped_files=[file_path],
-            )
-
-        if not snap.revertible:
-            return RevertResult(
-                reverted_files=[],
-                warnings=[f"Cannot revert {file_path}: change is not revertible"],
-                skipped_files=[file_path],
-            )
-
-        result = await _revert_single(snap, executor)
-        if result.success:
-            return RevertResult(reverted_files=[file_path], warnings=[], skipped_files=[])
-        return RevertResult(reverted_files=[], warnings=[result.warning or "Unknown error"], skipped_files=[file_path])
-
-    @staticmethod
-    async def revert_session(session_id: str, executor: object | None = None) -> RevertResult:
+    async def revert_session(session_id: str, executor: CodeExecutor | None = None) -> RevertResult:
         """Revert all file changes in a session (processes newest first)."""
         store = SnapshotStore.get()
         session_snaps = store.get_session_snapshots(session_id)
@@ -170,7 +148,7 @@ class RevertService:
                     continue
                 seen_paths.add(snap.path)
 
-                result = await _revert_single(snap, executor)
+                result = await _revert_single(snap, executor, session_id)
                 if result.success:
                     all_reverted.append(snap.path)
                 elif result.warning:
@@ -193,8 +171,8 @@ class _SingleRevertResult:
     warning: str | None = None
 
 
-async def _revert_single(snap: FileSnapshot, executor: object | None) -> _SingleRevertResult:
-    """Revert a single file snapshot."""
+async def _revert_single(snap: FileSnapshot, executor: CodeExecutor | None, session_id: str) -> _SingleRevertResult:
+    """Revert a single file snapshot of ``session_id``."""
     if not snap.revertible:
         return _SingleRevertResult(success=False, warning=f"Cannot revert {snap.path}: not revertible")
 
@@ -205,6 +183,7 @@ async def _revert_single(snap: FileSnapshot, executor: object | None) -> _Single
             if path.is_file():
                 path.unlink()
                 logger.info("Reverted (deleted created file): %s", snap.path)
+            _record_revert(snap.path, session_id, file_removed=True)
             return _SingleRevertResult(success=True)
 
         if snap.original_content is None:
@@ -213,17 +192,19 @@ async def _revert_single(snap: FileSnapshot, executor: object | None) -> _Single
         if not path.exists():
             return _SingleRevertResult(success=False, warning=f"File no longer exists: {snap.path}. Cannot revert.")
 
-        current_content = path.read_text("utf-8")
+        # Bytes in both directions: text mode rewrites line endings (it writes "\n" as "\r\n" on Windows), so a CRLF
+        # file would not compare equal to its snapshot and would not come back byte-for-byte.
+        current_content = path.read_bytes().decode("utf-8")
         if current_content == snap.original_content:
             return _SingleRevertResult(success=True)
 
-        path.write_text(snap.original_content, "utf-8")
+        path.write_bytes(snap.original_content.encode("utf-8"))
 
         guard = get_file_integrity_guard(executor)
         if guard is not None:
             guard.record_write(snap.path, snap.original_content)
 
-        _cleanup_artifact(snap.path)
+        _record_revert(snap.path, session_id, file_removed=False)
 
         logger.info("Reverted file: %s", snap.path)
         return _SingleRevertResult(success=True)
@@ -260,20 +241,24 @@ def _resolve_local_path(snap_path: str) -> Path:
     return local
 
 
-def _cleanup_artifact(path: str) -> None:
-    """Remove artifact tracking for a reverted file."""
-    try:
-        from myrm_agent_harness.agent.context_management.infra.session_lock import get_current_chat_id
-        from myrm_agent_harness.agent.context_management.tracking.artifact_tracker import (
-            ArtifactAction,
-            ArtifactTracker,
-        )
+def _record_revert(path: str, session_id: str, *, file_removed: bool) -> None:
+    """Record a reverted file in the artifact trail of ``session_id``, so a later summary shows the file as the user left it.
 
-        chat_id = get_current_chat_id()
-        if chat_id:
-            ArtifactTracker.global_tracker().record(chat_id, path, ArtifactAction.DELETED, "Reverted by user")
-    except Exception:
-        pass
+    A file the revert removed is a deletion. A file it restored still exists, so it stays a modification that the
+    user undid: recording it as deleted would tell the model a file is gone when it is there.
+
+    A revert runs from an API request, outside any agent turn, so the session to update is the one it is for, not the
+    chat bound to the caller. A session that has no trail has nothing to correct.
+    """
+    from myrm_agent_harness.agent.context_management.tracking.artifact_tracker import (
+        ArtifactAction,
+        get_artifact_tracker,
+    )
+
+    tracker = get_artifact_tracker(session_id)
+    if tracker is not None:
+        action = ArtifactAction.DELETED if file_removed else ArtifactAction.MODIFIED
+        tracker.record(path, action, description="Reverted by user")
 
 
 def _schedule_disk_cleanup(store: SnapshotStore, scope: str, session_id: str, message_id: str | None = None) -> None:

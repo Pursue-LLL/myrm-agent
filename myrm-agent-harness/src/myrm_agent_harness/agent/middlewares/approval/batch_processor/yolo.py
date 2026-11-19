@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.agent.security.approval_reason::is_human_only (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist which asks are not theirs to answer.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
 - myrm_agent_harness.agent.security.guards.untrusted_ingress_fence::is_tool_allowed_under_untrusted_ingress / is_untrusted_ingress_active (POS: Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.)
@@ -8,24 +9,25 @@
 - myrm_agent_harness.core.security.spend_governance::compute_action_digest / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
 - myrm_agent_harness.agent.middlewares.approval.denial_diagnostic_bridge::build_auto_review_denial_message (POS: Gives the model something to act on instead of a bare refusal. Used by batch_processor to word the refusals of the read-only lease, the permission engine, the shell-escalation check and the LLM security review.)
+- myrm_agent_harness.agent.middlewares.approval.batch_processor._workspace_snapshot::pre_destructive_snapshot_id (POS: 破坏性命令等待审批时的回滚点；决策循环与 YOLO 分支共用。)
 
 [OUTPUT]
 - operator_as_key_deny_message: Fail-closed before HITL: lone printable operators are never key names.
-- _evaluate_yolo_batch: _evaluate_yolo_batch
+- _evaluate_yolo_batch: one verdict per call of a watched run: approved, refused, or pending for the four kinds only a person may accept
 
 [POS]
-batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用后调用。
+batch_processor 的 YOLO 分支；由 core 在确认 YOLO 可用、且不是定时运行时调用。
+定时运行里没有人能为 YOLO 负责，一律按任务声明的能力结算。YOLO 之下，资金、社交不可逆、破坏性、受保护写入
+（指令文件、git 钩子与配置）四类调用仍交给人审批。
 """
-
-
 
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from langchain_core.messages import ToolCall
 
+from myrm_agent_harness.agent.security.approval_reason import is_human_only
 from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.engine import (
     evaluate_tool_call,
@@ -53,8 +55,10 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
 )
 
 from ..denial_diagnostic_bridge import build_auto_review_denial_message
+from ._workspace_snapshot import pre_destructive_snapshot_id
 
 _VISION_KEY_TOOL_NAMES = frozenset({"desktop_vision_tool", "desktop_vision"})
+
 
 def operator_as_key_deny_message(tool_name: str, tool_input: dict[str, object]) -> str | None:
     """Fail-closed before HITL: lone printable operators are never key names.
@@ -94,11 +98,11 @@ async def _evaluate_yolo_batch(
 ) -> tuple[
     list[tuple[int, ToolCall]],
     list[tuple[int, ToolCall, str]],
-    list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
 ]:
     auto_approved: list[tuple[int, ToolCall]] = []
     auto_denied: list[tuple[int, ToolCall, str]] = []
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]] = []
+    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, object] | None]] = []
 
     suffix = "" if not config.yolo_mode_timeout else f" (expires in {config.yolo_mode_timeout}s)"
     logger.info(
@@ -238,19 +242,12 @@ async def _evaluate_yolo_batch(
                     "YOLO_DESTRUCTIVE_IRREVERSIBLE_BLOCKED",
                     f"Irreversible destructive operations are immune to YOLO auto-approval: {destr_reason}",
                 )
-                from pathlib import Path
-
-                from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
-                    create_workspace_snapshot,
-                )
-
-                snap_res = create_workspace_snapshot(Path.cwd())
                 destr_ctx: dict[str, object] = {
                     "irreversible_destructive": True,
                     "high_risk": True,
                     "hide_allow_always": True,
                     "blast_radius": blast_info,
-                    "snapshot_id": snap_res.snapshot_id,
+                    "snapshot_id": pre_destructive_snapshot_id(),
                 }
                 pending_approval.append(
                     (
@@ -260,6 +257,17 @@ async def _evaluate_yolo_batch(
                         f"Irreversible destructive operation ({destr_reason or tool_name}) requires explicit human approval",
                         destr_ctx,
                     )
+                )
+            elif is_human_only(reason):
+                logger.warning(
+                    "[YOLO_PROTECTED_WRITE_GATE] Tool %s blocked from YOLO auto-approval: %s",
+                    tool_name,
+                    reason,
+                )
+                record_decision(tool_name, "YOLO_PROTECTED_WRITE_BLOCKED", reason)
+                # The engine's own reason goes on: the card words it by its code, as it does without YOLO.
+                pending_approval.append(
+                    (idx, tool_call, permission_type, reason, {"high_risk": True, "hide_allow_always": True})
                 )
             else:
                 record_decision(tool_name, "YOLO_AUTO_APPROVE", "YOLO mode enabled")

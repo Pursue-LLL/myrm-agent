@@ -47,10 +47,6 @@ RETAINED_ON_PURPOSE = {
         "gallery of generated media with its own management; not conversation content",
         "images generated in an incognito chat and their prompts are saved like any other and are not scrubbed",
     ),
-    "batch_image_jobs": Retained(
-        "image batch jobs belong to the media library, not to the conversation",
-        "the job row, including its prompt plan, stays with the gallery",
-    ),
     "cron_jobs": Retained(
         "a schedule is user configuration; the chat is only its delivery target",
         "the schedule stays; only its delivery target names the purged chat",

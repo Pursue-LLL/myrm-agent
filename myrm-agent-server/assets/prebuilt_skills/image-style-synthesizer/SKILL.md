@@ -21,7 +21,7 @@ contract:
     - "Phase 2: Atomic Schema Compilation — compile user intent into the six-dimensional Prompt-as-Code schema (Subject, Style Preset, Lighting, Material, Composition, Negative Gating)"
     - "Phase 3: Typography & Safety Gating — enforce typography restrictions (max 3 uppercase words) and inject essential negative prompt tokens to eliminate artifacts and gibberish"
     - "Phase 4: Synthesis Tool Invocation — invoke image_tool(action='generate', prompt=compiled_prompt, size=target_size) with the assembled prompt string"
-    - "Phase 5: Artifact Registration & Presentation — verify generated image output, register under artifacts/images/ directory, and present visual preview with style rationale to the user"
+    - "Phase 5: Presentation — the generated image appears in the chat by itself once its task finishes; present the style rationale to the user"
   potential_traps:
     - description: "Unconstrained english text generation causing warped, misspelled lettering in generated images"
       mitigation: "Strict Typography Gate: enforce a maximum of 3 explicit words, and automatically inject 'distorted text, blurry letters, spelling mistakes, watermark' into negative prompt"
@@ -39,7 +39,7 @@ contract:
       is_required: true
     - step_id: tool_invoked
       description: "image_tool is invoked with compiled prompt and valid aspect ratio"
-      validation_method: "Tool execution returns image url or task id"
+      validation_method: "Tool execution returns a task id"
       is_required: true
   success_criteria: "Spoken or text image request is compiled into structured Prompt-as-Code and converted into a commercial-grade visual asset"
   estimated_duration_seconds: 60
@@ -109,14 +109,14 @@ Assemble the compiled tokens into a cohesive prompt string and execute `image_to
 ```python
 # Compiled prompt structure:
 compiled_prompt = f"{subject}, {style}, {lighting}, {material}, {composition}, clean background"
-image_tool(action="generate", prompt=compiled_prompt, size=target_size, quality="hd")
+image_tool(action="generate", prompt=compiled_prompt, size=target_size)
 ```
 
 ---
 
-### Phase 5: Artifact Registration & Presentation
+### Phase 5: Presentation
 
-1. Upon receiving the generated image URL or data, report the relative path (e.g. `artifacts/images/YYYY-MM-DD-{style-slug}.png`).
+1. The image appears in the chat by itself once its task finishes; do not repeat its address or invent a file path for it.
 2. Present a concise explanation to the user:
    - **Applied Style Preset** (e.g. `3D Isometric Tech Illustration`);
    - **Key Visual Elements & Lighting Choices**;

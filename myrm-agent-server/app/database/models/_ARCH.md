@@ -23,12 +23,12 @@
 | `fission.py` | 域模块 | FissionTaskRecord（高并发子代理执行图持久化，防刷新丢失） | ✅ |
 | `vault_credential.py` | 域模块 | VaultCredential | ✅ |
 | `web_push_subscription.py` | 域模块 | WebPushSubscription（Web Push VAPID 订阅） | ✅ |
-| `memory.py` | 域模块 | ProfileAttribute, ProceduralRule, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
+| `memory.py` | 域模块 | ProfileAttribute, PendingMemory, SharedContextModel, SharedContextBindingModel, SharedContextWriteProposalModel, MemoryOperationEventModel, MemoryHealthSnapshotModel, MemoryMigrationProvenanceModel, MemoryImportDryRunModel, MemoryImportBatchModel, MemoryImportItemModel, MemoryArchiveRestoreBatchModel, MemoryArchiveRestoreItemModel；导入审查和归档恢复模型持久化 dry-run、确认批次、回滚状态和清理所需时间字段 | ✅ |
 | `config.py` | 域模块 | UserConfig | ✅ |
-| `cron.py` | 域模块 | CronJobModel, CronRunModel, MonitorStateModel | ✅ |
+| `cron.py` | 域模块 | CronJobModel, CronRunModel, MonitorStateModel, CronInflightModel（在飞运行标记：每个任务一行，不挂外键，属于运行而不属于任务行；由 `create_all` 建表） | ✅ |
 | `channel.py` | 域模块 | ChannelPairingModel（渠道配对持久化实体，含 role 权限角色与 daily_quota 每日限额，支撑所有者独占与成员特权隔离） | ✅ |
 | `channel_message.py` | 域模块 | ChannelMessageModel（多渠道入站明细持久化实体，支撑凭据脱敏、打标与记忆候选） | ✅ |
-| `media.py` | 域模块 | BatchImageJob, MediaLibrary | ✅ |
+| `media.py` | 域模块 | MediaLibrary | ✅ |
 | `security.py` | 域模块 | UserToolAllowlist, RiskRule, RiskHit, SecurityProfile, SkillPermissionGrant, SkillPermissionUsageLog | ✅ |
 | `skill.py` | 域模块 | PendingMigration, ExperienceLedgerEvent | ✅ |
 | `approval.py` | 域模块 | ApprovalRecord | ✅ |

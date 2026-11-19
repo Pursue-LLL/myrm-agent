@@ -14,7 +14,7 @@
 | `CheckpointCard.tsx`          | 组件 | 单个 Agent 任务检查点卡片（时间/状态/重新发起入口；删除前应用内确认） | ✅    |
 | `CheckpointList.tsx`          | 组件 | Agent 任务检查点列表（重新发起/删除/清理；清理前应用内确认） | ✅    |
 | `FileDiffViewer.tsx`          | 核心 | 文件级 diff 视图，支持 checkbox 选择性恢复、行数统计显示   | ✅    |
-| `FileSnapshotCard.tsx`        | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳）                 | ✅    |
+| `FileSnapshotCard.tsx`        | 组件 | 单个文件快照卡片（触发类型/文件数/时间戳）；触发类型标签只取 `fileSnapshot.trigger.*` 双语文案，没有对应文案的值显示原值 | ✅    |
 | `FileSnapshotList.tsx`        | 组件 | 文件快照列表（创建版本/恢复/删除/清理/查看 diff）          | ✅    |
 | `FileSnapshotPanel.tsx`       | 入口 | 浮动按钮 + 侧滑面板，集成到 ChatWindow                     | ✅    |
 | `TaskAirbagCapsule.tsx`       | 组件 | 无人值守长任务的改动撤销入口胶囊（改动数量/审查入口；`refreshKey` 变化时重新读取，丢弃过期响应） | ✅    |
@@ -30,7 +30,7 @@
 - 恢复操作有二次确认 dialog 防止误操作
 - 撤销对话框恒定声明「撤销只还原工作区文件，数据库/容器/网络请求/git push 等外部操作不会被撤销」；运行中检测到的外部影响类别（服务端记入安全气囊）另列一行，文案复用 `fileSnapshot.effects.*`
 - `GoalStatusHeader` 以 `status:turnsUsed` 作为胶囊 `refreshKey`，目标开始（首次布防）、每轮结束与状态变化时刷新；用户选择「保留改动」后服务端不再返回状态，胶囊随之消失
-- 文案在 `taskAirbag` 命名空间（zh/en/ja/ko/de/zh-TW），不暴露内部 ID 或快照术语
+- 文案在 `taskAirbag` 命名空间（zh/en），不暴露内部 ID 或快照术语
 
 ## 依赖
 

@@ -62,6 +62,7 @@ async def test_conversation_recall_search_resilient_on_fts_corruption() -> None:
     results = await ConversationRecallRepository.search(
         db,
         safe_query="test query",
+        raw_query="test query",
         limit=10,
         current_chat_id=None,
         agent_id=None,

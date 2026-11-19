@@ -11,18 +11,15 @@ from myrm_agent_harness.agent.middlewares.approval.batch_processor import (
 )
 from myrm_agent_harness.agent.security.types import SecurityConfig
 from myrm_agent_harness.core.security.spend_governance import (
-    GENESIS_PREV_HASH,
     SpendPolicy,
-    SpendReceipt,
     compute_action_digest,
-    compute_entry_hash,
     is_financial_or_spend_tool,
     parse_spend_amount,
     verify_action_digest,
 )
 
 
-def test_is_financial_or_spend_tool():
+def test_is_financial_or_spend_tool() -> None:
     assert is_financial_or_spend_tool("mcp__stripe__charge_customer") is True
     assert is_financial_or_spend_tool("payment_gateway") is True
     assert is_financial_or_spend_tool("checkout_order") is True
@@ -31,7 +28,7 @@ def test_is_financial_or_spend_tool():
     assert is_financial_or_spend_tool("fetch_weather", {"city": "Paris"}) is False
 
 
-def test_parse_spend_amount():
+def test_parse_spend_amount() -> None:
     amt, cur = parse_spend_amount({"amount": 25.5, "currency": "EUR"})
     assert amt == 25.5
     assert cur == "EUR"
@@ -52,7 +49,7 @@ def test_parse_spend_amount():
     assert cur4 is None
 
 
-def test_action_digest_and_verification():
+def test_action_digest_and_verification() -> None:
     tool = "stripe_charge"
     args = {"amount": 35.0, "currency": "USD", "account": "acc_test"}
     digest = compute_action_digest(tool, args)
@@ -69,7 +66,7 @@ def test_action_digest_and_verification():
     assert verify_action_digest(tool, args, "") is False
 
 
-def test_spend_policy_caps():
+def test_spend_policy_caps() -> None:
     policy = SpendPolicy(per_action_cap=50.0, session_cap=100.0, enabled=True)
 
     # Within cap
@@ -87,58 +84,8 @@ def test_spend_policy_caps():
     assert "exceeds session cap" in reason
 
 
-def test_tamper_evident_receipt_integrity():
-    prev = GENESIS_PREV_HASH
-    ts = 1700000000.0
-    tool = "mcp_stripe_charge"
-    amount = 25.0
-    currency = "USD"
-    digest = "aabbcc" * 10
-    idempotency = "idem_123"
-
-    entry_hash = compute_entry_hash(
-        prev_hash=prev,
-        timestamp=ts,
-        tool_name=tool,
-        amount=amount,
-        currency=currency,
-        action_digest=digest,
-        idempotency_key=idempotency,
-    )
-
-    receipt = SpendReceipt(
-        entry_id="rec_1",
-        session_id="sess_1",
-        prev_hash=prev,
-        entry_hash=entry_hash,
-        tool_name=tool,
-        amount=amount,
-        currency=currency,
-        action_digest=digest,
-        idempotency_key=idempotency,
-        timestamp=ts,
-    )
-
-    assert receipt.verify_integrity() is True
-
-    # Tampered receipt amount
-    bad_receipt = SpendReceipt(
-        entry_id="rec_1",
-        session_id="sess_1",
-        prev_hash=prev,
-        entry_hash=entry_hash,
-        tool_name=tool,
-        amount=999.0,  # tampered!
-        currency=currency,
-        action_digest=digest,
-        idempotency_key=idempotency,
-        timestamp=ts,
-    )
-    assert bad_receipt.verify_integrity() is False
-
-
 @pytest.mark.asyncio
-async def test_yolo_financial_gate_blocks_auto_approval():
+async def test_yolo_financial_gate_blocks_auto_approval() -> None:
     config = SecurityConfig(yolo_mode_enabled=True)
     tool_calls: list[ToolCall] = [
         {"name": "mcp__stripe__charge_customer", "args": {"amount": 15.0, "currency": "USD"}, "id": "call_1"},
@@ -158,13 +105,14 @@ async def test_yolo_financial_gate_blocks_auto_approval():
     assert len(pending) == 1
     idx, _tc, _perm_type, _reason, extra_ctx = pending[0]
     assert idx == 0
+    assert extra_ctx is not None
     assert extra_ctx["is_spend"] is True
     assert extra_ctx["spend_amount"] == 15.0
     assert "action_digest" in extra_ctx
 
 
 @pytest.mark.asyncio
-async def test_apply_approval_decisions_digest_binding_protection():
+async def test_apply_approval_decisions_digest_binding_protection() -> None:
     tool_name = "mcp__stripe__charge_customer"
     args = {"amount": 20.0, "currency": "USD"}
     call_id = "tc_stripe_1"
@@ -178,7 +126,9 @@ async def test_apply_approval_decisions_digest_binding_protection():
         "spend_currency": "USD",
         "action_digest": expected_digest,
     }
-    pending = [(0, tool_call, "spend", "Financial spend", extra_ctx)]
+    pending: list[tuple[int, ToolCall, str, str, dict[str, object] | None]] = [
+        (0, tool_call, "spend", "Financial spend", extra_ctx)
+    ]
 
     # Case 1: Tampered or mismatched digest in decision
     bad_decision = [{"type": "approve", "action_digest": "tampered_digest_value_123"}]

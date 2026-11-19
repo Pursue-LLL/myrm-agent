@@ -1,8 +1,9 @@
 /**
  * [POS]
  * Locale-aware relative time formatting via Intl.RelativeTimeFormat
- * (auto "just now"/"x minutes ago" phrasing; all six app locales supported natively).
- * Offset-less server timestamps are read as UTC.
+ * (auto "now"/"x minutes ago" phrasing; both app locales supported natively).
+ * Offset-less server timestamps are read as UTC. It describes events that already happened: a timestamp ahead of
+ * this device's clock (server and browser clocks drift apart) reads as "now", never as "in x seconds".
  *
  * [OUTPUT]
  * - formatRelativeTime
@@ -28,7 +29,7 @@ export function formatRelativeTime(isoTimestamp: string, locale: string): string
   if (Number.isNaN(then)) {
     return '';
   }
-  const diffSeconds = Math.round((then - Date.now()) / 1000);
+  const diffSeconds = Math.min(0, Math.round((then - Date.now()) / 1000));
   const absSeconds = Math.abs(diffSeconds);
   const formatter = getFormatter(locale);
   if (absSeconds < 60) {

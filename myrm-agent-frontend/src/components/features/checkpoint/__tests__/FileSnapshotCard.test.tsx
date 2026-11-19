@@ -9,6 +9,7 @@ const translations: Record<string, string> = {
   'effects.database': 'database changes',
   'effects.container_cloud': 'container or cloud operations',
   'effects.network_mutation': 'network requests',
+  'trigger.write_file': 'File written',
 };
 
 const tFn = (key: string, values?: Record<string, string | number>): string => {
@@ -47,6 +48,16 @@ const renderCard = (snapshot: FileSnapshotInfo) =>
   );
 
 describe('FileSnapshotCard', () => {
+  it('labels a snapshot with the localized text of its trigger', () => {
+    renderCard(baseSnapshot({ trigger: 'write_file' }));
+    expect(screen.getByText('File written')).toBeInTheDocument();
+  });
+
+  it('shows the trigger itself when no localized text exists for it', () => {
+    renderCard(baseSnapshot({ trigger: 'a_trigger_without_text' }));
+    expect(screen.getByText('a_trigger_without_text')).toBeInTheDocument();
+  });
+
   it('renders mapped plain-language labels for known external effects', () => {
     renderCard(baseSnapshot({ externalEffects: ['database', 'container_cloud'] }));
     const badge = screen.getByTitle('database changes, container or cloud operations');

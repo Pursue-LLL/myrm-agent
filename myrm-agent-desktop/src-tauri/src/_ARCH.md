@@ -36,7 +36,7 @@ Tauri 桌面应用的 Rust 后端核心，负责：
 | `../command_registry_macro.in` | ✅ 核心 | Tauri 命令注册单一清单（build allowlist / app handler / security tests 共用） | ✅ |
 | `app/` | ✅ 核心 | Tauri Builder、插件、setup、快捷键、托盘、优雅停机 | — |
 | `runtime/` | ✅ 核心 | Sidecar 运行时（见下表） | ✅ |
-| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（多语言文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件；`capability.rs` 把同一份 gate 推导成 Tauri ACL 能力（每个窗口面一份 capability，同时覆盖 Local 与精确来源 Remote），`acl_tests.rs` 用真实 ACL 清单在进程内证明两道闸门一致 | ✅ |
+| `ipc_security/` | ✅ 核心 | IPC sender gate（main/session 来源校验）、命令风险分级（reject/drop）、高敏操作短时票据 + 原生确认（中英文案 + 主窗口 parent 绑定，防主窗注入静默执行），并内置确认执行自动化回归（通过/取消/超时/回传失败）与 `ipc-sensitive-confirmation` 运行时审计事件；`capability.rs` 把同一份 gate 推导成 Tauri ACL 能力（每个窗口面一份 capability，同时覆盖 Local 与精确来源 Remote），`acl_tests.rs` 用真实 ACL 清单在进程内证明两道闸门一致 | ✅ |
 | `runtime/python_backend.rs` | ✅ 核心 | Python 后端 Sidecar 启动/停止/健康检查 IPC；dev 用 venv，release 经 `runtime/sidecar_path.rs` 定位随包目录树里的入口可执行文件（缺失或 0 字节即报错）并在应用私有的可写工作目录里启动它；冷启动最多 120s `/health` 轮询 | ✅ |
 | `runtime/process_registry/` | ✅ 核心 | 桌面受管进程注册表与生命周期中心（多 Sidecar 全局登记、退出码捕获） | ✅ |
 | `runtime/watchdog.rs` | ✅ 核心 | 后端 Sidecar 健康监控与崩溃自动恢复（30s 周期检查、指数退避重启、循环崩溃保护） | ✅ |
@@ -93,9 +93,9 @@ Tauri 主进程 (Rust)
         └── 反向代理：/api/v1/* → http://localhost:{backend.port}/api/v1/*
 ```
 
-Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`），IPC 读取 `webui_port` 后轮询 Next 就绪并跳转。
+Release 模式 WebView 先加载 `frontend-shell/`（`withGlobalTauri: true`）。壳页不轮询、不自行跳转：Rust 在 Next 应答后（若后端此时仍在启动，最多再等 2 s 看它是否快速失败）把主窗口导航到 `ProductOrigin::standalone_root`；后端启动失败则带 `startup_error` 把主窗口导航回壳页显示失败面板。
 
-该跳转只服务主窗口首屏：会话窗与宠物浮层不经壳页，直接以 `ProductOrigin`（`http://127.0.0.1:<webui_port>`）构造的完整地址开窗（`WebviewUrl::External`）——`WebviewUrl::App` 在发布版会回落到壳页，其跳转只回产品根路径，路径与查询全被丢弃。产品页（含这些子窗口）在发布版属 Remote 来源，Tauri ACL 对它的授权由启动期注册的 capability 给出（见 [ipc_security/_ARCH.md](ipc_security/_ARCH.md)）。
+该导航只服务主窗口首屏：会话窗与宠物浮层不经壳页，直接以 `ProductOrigin`（`http://127.0.0.1:<webui_port>`）构造的完整地址开窗（`WebviewUrl::External`）——`WebviewUrl::App` 在发布版会回落到壳页，壳页不自行跳转、Rust 也只导航主窗口，所以路径与查询到不了产品页。产品页（含这些子窗口）在发布版属 Remote 来源，Tauri ACL 对它的授权由启动期注册的 capability 给出（见 [ipc_security/_ARCH.md](ipc_security/_ARCH.md)）。
 
 ---
 

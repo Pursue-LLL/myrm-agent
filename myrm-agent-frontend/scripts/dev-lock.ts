@@ -232,7 +232,7 @@ export function assertDevLockAvailable(port: number): void {
     console.error(`   Started: ${existing.startedAt}`);
     console.error(`   CWD: ${existing.cwd}`);
     console.error('   Parallel attach: ./myrm-dev ready --attach');
-    console.error('   Reset stack: ./myrm stop && ./myrm-dev ready');
+    console.error('   Reset stack: ./myrm-dev stop && ./myrm-dev ready');
     process.exit(1);
   }
 

@@ -24,14 +24,14 @@ from .chat import (
 )
 from .commitment import CommitmentModel
 from .config import ConfigAuditLog, UserConfig
-from .cron import CronJobModel, CronRunModel, MonitorStateModel
+from .cron import CronInflightModel, CronJobModel, CronRunModel, MonitorStateModel
 from .daily_wrap import DailyWrapCache
 from .expert_summon_metric import ExpertSummonMetricEvent
 from .faq import FaqCorpus, FaqEntry, FaqHitLog
 from .fission import FissionTaskRecord
 from .kanban import KanbanBoardModel, KanbanTaskEdgeModel, KanbanTaskModel
 from .lifecycle_webhook import LifecycleWebhookModel
-from .media import BatchImageJob, MediaLibrary
+from .media import MediaLibrary
 from .memory import (
     MemoryArchiveRestoreBatchModel,
     MemoryArchiveRestoreItemModel,
@@ -43,7 +43,6 @@ from .memory import (
     MemoryMigrationProvenanceModel,
     MemoryOperationEventModel,
     PendingMemory,
-    ProceduralRule,
     ProfileAttribute,
     SharedContextBindingModel,
     SharedContextModel,
@@ -103,7 +102,6 @@ __all__ = [
     "MemoryMigrationProvenanceModel",
     "MemoryOperationEventModel",
     "ProfileAttribute",
-    "ProceduralRule",
     "PendingMemory",
     "SharedContextModel",
     "SharedContextBindingModel",
@@ -112,6 +110,7 @@ __all__ = [
     "UserConfig",
     "ConfigAuditLog",
     # Cron
+    "CronInflightModel",
     "CronJobModel",
     "CronRunModel",
     "MonitorStateModel",
@@ -125,7 +124,6 @@ __all__ = [
     "ChannelPairingModel",
     "ChannelMessageModel",
     # Media
-    "BatchImageJob",
     "MediaLibrary",
     # Security
     "UserToolAllowlist",

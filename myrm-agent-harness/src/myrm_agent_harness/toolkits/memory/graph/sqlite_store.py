@@ -4,6 +4,7 @@
 memory.graph.base::GraphStore (POS: 图存储抽象层)
 memory.graph.sqlite_temporal (POS: 双时态图存储核心引擎)
 memory.graph.sqlite_traversal (POS: 递归 CTE 图遍历执行器)
+utils.db.sqlite::open_hardened_async (POS: 统一 SQLite 硬化工厂的公共门面)
 
 [OUTPUT]
 SQLiteGraphStore: 轻量异步 SQLite 图存储门面，支持双时态版本置换与递归 CTE 遍历
@@ -15,6 +16,7 @@ SQLiteGraphStore: 轻量异步 SQLite 图存储门面，支持双时态版本置
 import asyncio
 import json
 import logging
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
@@ -45,8 +47,22 @@ from myrm_agent_harness.toolkits.memory.graph.sqlite_traversal import (
     execute_related_nodes,
     execute_related_nodes_with_depth,
 )
+from myrm_agent_harness.utils.db.sqlite import (
+    DURABLE,
+    checkpoint_truncate_async,
+    open_hardened_async,
+    prepare_database_file,
+)
 
 logger = logging.getLogger(__name__)
+
+_GRAPH_PROFILE = replace(DURABLE, page_size_bytes=4096)
+
+
+async def _count_rows(conn: aiosqlite.Connection, sql: str) -> int:
+    async with conn.execute(sql) as cursor:
+        row = await cursor.fetchone()
+    return int(row[0]) if row is not None else 0
 
 
 class SQLiteGraphStore(GraphStore):
@@ -56,7 +72,8 @@ class SQLiteGraphStore(GraphStore):
     - Async I/O via aiosqlite
     - WAL mode (50-100% concurrency improvement)
     - 64MB query cache + 256MB mmap
-    - Connection reuse with double-checked locking
+    - Connection reuse with double-checked locking; a connection is kept only once it is hardened and its tables
+      exist, so a failed or cancelled open leaves nothing behind and the next call opens again
     - Bi-temporal valid-time tracking and relationship superseding
     - Cycle detection in causal chain queries
     - Composite index optimization
@@ -67,7 +84,6 @@ class SQLiteGraphStore(GraphStore):
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._connection: aiosqlite.Connection | None = None
         self._connection_lock = asyncio.Lock()
-        self._initialized = False
         logger.info("SQLiteGraphStore initialized: %s", self._db_path)
 
     async def _get_connection(self) -> aiosqlite.Connection:
@@ -75,36 +91,17 @@ class SQLiteGraphStore(GraphStore):
             async with self._connection_lock:
                 if self._connection is None:
                     try:
-                        from myrm_agent_harness.utils.db.sqlite import prepare_database_file
-
                         prepare_database_file(self._db_path)
-                        self._connection = await aiosqlite.connect(str(self._db_path))
-                        await self._init_connection_settings()
-                        await self._init_tables()
+                        self._connection = await open_hardened_async(
+                            self._db_path, _GRAPH_PROFILE, prepare=self._init_tables
+                        )
                     except Exception as e:
                         raise GraphConnectionError(f"Failed to connect to SQLite: {e}") from e
         return self._connection
 
-    async def _init_connection_settings(self) -> None:
-        if self._connection is None:
-            return
-        from dataclasses import replace
-
-        from myrm_agent_harness.utils.db.sqlite import DURABLE, harden_connection_async
-
-        await harden_connection_async(
-            self._connection,
-            replace(DURABLE, page_size_bytes=4096),
-            db_path=self._db_path,
-        )
-        await self._connection.commit()
-
-    async def _init_tables(self) -> None:
-        if self._initialized or self._connection is None:
-            return
+    async def _init_tables(self, connection: aiosqlite.Connection) -> None:
         try:
-            await migrate_temporal_schema(self._connection)
-            self._initialized = True
+            await migrate_temporal_schema(connection)
         except Exception as e:
             raise GraphConnectionError(f"Failed to initialize tables: {e}") from e
 
@@ -348,10 +345,8 @@ class SQLiteGraphStore(GraphStore):
 
     async def get_stats(self) -> GraphStats:
         conn = await self._get_connection()
-        async with conn.execute("SELECT COUNT(*) FROM graph_nodes") as c:
-            node_count = (await c.fetchone())[0]
-        async with conn.execute("SELECT COUNT(*) FROM graph_relationships") as c:
-            rel_count = (await c.fetchone())[0]
+        node_count = await _count_rows(conn, "SELECT COUNT(*) FROM graph_nodes")
+        rel_count = await _count_rows(conn, "SELECT COUNT(*) FROM graph_relationships")
 
         label_counts: dict[str, int] = {}
         async with conn.execute("SELECT labels FROM graph_nodes") as c:
@@ -384,10 +379,12 @@ class SQLiteGraphStore(GraphStore):
             return False
 
     async def close(self) -> None:
-        if self._connection is not None:
-            from myrm_agent_harness.utils.db.sqlite import checkpoint_truncate_async
-
-            await checkpoint_truncate_async(self._connection)
-            await self._connection.close()
-            self._connection = None
-            logger.info("SQLiteGraphStore closed")
+        # Holding the lock makes a close that overlaps an open wait for it, so the connection that open publishes is
+        # closed too instead of outliving the store.
+        async with self._connection_lock:
+            connection = self._connection
+            if connection is not None:
+                await checkpoint_truncate_async(connection)
+                await connection.close()
+                self._connection = None
+                logger.info("SQLiteGraphStore closed")

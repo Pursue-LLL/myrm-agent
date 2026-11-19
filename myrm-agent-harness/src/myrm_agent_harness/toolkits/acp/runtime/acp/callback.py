@@ -343,7 +343,9 @@ class AcpCallbackHandler:
         if resolved is None:
             return {"content": f"[error] Path '{path}' is outside working directory"}
         try:
-            content = resolved.read_text(encoding="utf-8", errors="replace")
+            # Bytes, not ``read_text``: text mode turns CRLF and lone CR into LF, and the agent's edit would then be
+            # written back with every line ending of the file changed.
+            content = resolved.read_bytes().decode("utf-8", errors="replace")
             if line is not None and limit is not None:
                 lines = content.splitlines(keepends=True)
                 content = "".join(lines[max(0, line - 1) : line - 1 + limit])
@@ -370,7 +372,9 @@ class AcpCallbackHandler:
             return None
         try:
             resolved.parent.mkdir(parents=True, exist_ok=True)
-            resolved.write_text(content, encoding="utf-8")
+            # Bytes, not ``write_text``: text mode writes ``\n`` as ``\r\n`` on Windows, which would turn a CRLF text
+            # into CR CR LF.
+            resolved.write_bytes(content.encode("utf-8"))
             return {"success": True}
         except OSError as exc:
             logger.error("write_text_file_failed path=%s error=%s", path, exc)

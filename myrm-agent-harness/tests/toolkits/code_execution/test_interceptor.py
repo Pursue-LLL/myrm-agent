@@ -7,6 +7,7 @@ from collections.abc import Iterator
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.interceptor import (
+    DestructiveActionPayload,
     set_execution_interceptor,
     trigger_bash_action_hook,
 )
@@ -14,9 +15,11 @@ from myrm_agent_harness.toolkits.code_execution.interceptor import (
 
 class _RecordingInterceptor:
     def __init__(self) -> None:
-        self.calls: list[tuple[str, str, dict]] = []
+        self.calls: list[tuple[str, str, DestructiveActionPayload]] = []
 
-    async def before_destructive_action(self, workspace_path: str, action_type: str, payload: dict) -> None:
+    async def before_destructive_action(
+        self, workspace_path: str, action_type: str, payload: DestructiveActionPayload
+    ) -> None:
         self.calls.append((workspace_path, action_type, payload))
 
 

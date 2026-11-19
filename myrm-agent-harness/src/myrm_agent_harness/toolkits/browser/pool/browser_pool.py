@@ -4,6 +4,7 @@
 - patchright.async_api::BrowserContext (POS: Patchright context instance)
 - .browser_launcher::BrowserLauncher, BrowserInstance (POS: browser launcher and instance metadata)
 - .context_factory::ContextFactory (POS: context creation factory)
+- .egress_guard::EgressGuard (POS: loopback proxy that lets the contexts of launched browsers connect only to addresses the SSRF policy admits)
 - .page_pool::PagePool (POS: page object pool)
 - .config::BrowserPoolConfig (POS: browser pool config)
 - .memory_guard::MemoryGuard (POS: memory pressure check)
@@ -32,6 +33,8 @@ Global browser resource pool. Manages Browser/Context/Page three-layer resources
 7. Three-layer automatic crash recovery (L1: browser disconnect event, L2: page crash event, L3: lifecycle fallback);
    an acquisition that fails on an exited Playwright driver evicts the browsers it cut off and retries once
 8. Semaphore safety net (prevents semaphore leaks or double releases on crash and on a cancelled or failed acquisition)
+9. Connection-level network isolation: with an ``egress_guard`` the contexts of browsers the pool launched connect only through
+   it, and the browser may not send UDP outside a proxy (WebRTC); see ``egress_guard.py``
 
 This module owns the pool state, construction and warmup; the acquire/release/destroy path, scheduling, lifecycle and
 monitoring are the mixins above.
@@ -64,6 +67,7 @@ from .throttle import ThrottleStrategy, create_throttle_strategy
 if TYPE_CHECKING:
     from patchright.async_api import BrowserContext
 
+    from .egress_guard import EgressGuard
     from .extension_bridge import ExtensionBridge
 
 logger = logging.getLogger(__name__)
@@ -93,6 +97,18 @@ if sys.platform == "darwin":
     args_list = _DEFAULT_LAUNCH_OPTIONS.get("args")
     if isinstance(args_list, list) and "--disable-features=MacAppCodeSignClone" not in args_list:
         args_list.append("--disable-features=MacAppCodeSignClone")
+
+_DOH_FLAG = "--dns-over-https-templates=https://cloudflare-dns.com/dns-query"
+# The egress guard carries TCP only; without this flag a page can open UDP sockets (WebRTC, STUN) that no proxy sees.
+_WEBRTC_UDP_FLAG = "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"
+
+
+def _add_launch_flags(options: dict[str, object], *flags: str) -> None:
+    """Add the missing ``flags`` to the ``args`` of ``options``, on a new list: a list the caller passed is never changed."""
+    raw = options.get("args")
+    args = list(raw) if isinstance(raw, list) else []
+    args.extend(flag for flag in flags if flag not in args)
+    options["args"] = args
 
 
 class ContextType(Enum):
@@ -129,6 +145,7 @@ class GlobalBrowserPool(
         proxy_pool: ProxyPool | None = None,
         config: BrowserPoolConfig | None = None,
         extension_bridge: ExtensionBridge | None = None,
+        egress_guard: EgressGuard | None = None,
     ) -> None:
         """Initialize global browser pool.
 
@@ -138,6 +155,8 @@ class GlobalBrowserPool(
             proxy_pool: Proxy pool (supports rotation and sticky sessions)
             config: Browser pool configuration (concurrency/rate-limiting/circuit-breaker/resource interception)
             extension_bridge: ExtensionBridge protocol implementation for EXTENSION launch mode (injected from business layer)
+            egress_guard: Connection guard for the contexts of browsers this pool launches (strict network policy);
+                None leaves their connections to the browser. The pool stops it on shutdown.
 
         """
         self._browsers: list[BrowserInstance] = []
@@ -171,17 +190,19 @@ class GlobalBrowserPool(
 
         # Dictionary of launchers keyed by (BrowserEngine, LaunchMode)
         self._launchers: dict[tuple[BrowserEngine, LaunchMode], BrowserLauncher] = {}
-        self._launch_options = launch_options or dict(_DEFAULT_LAUNCH_OPTIONS)
+        self._launch_options = dict(launch_options or _DEFAULT_LAUNCH_OPTIONS)
         self._extension_bridge = extension_bridge
+        self._egress_guard = egress_guard
 
         if self._proxy_pool:
-            args = list(raw) if isinstance(raw := self._launch_options.get("args"), list) else []
-            args.append("--dns-over-https-templates=https://cloudflare-dns.com/dns-query")
-            self._launch_options["args"] = args
+            _add_launch_flags(self._launch_options, _DOH_FLAG)
+        if egress_guard is not None:
+            _add_launch_flags(self._launch_options, _WEBRTC_UDP_FLAG)
 
         self._context_factory = ContextFactory(
             proxy_pool=self._proxy_pool,
             default_emulation=self._config.default_emulation,
+            egress_guard=egress_guard,
         )
         self._lifecycle_task: asyncio.Task[None] | None = None
 
@@ -193,7 +214,8 @@ class GlobalBrowserPool(
             f"memory_guard={self._config.memory_guard.enabled}, "
             f"circuit_breaker={cb_config.enabled}, "
             f"idle_timeout={self._config.idle_timeout_seconds}s, "
-            f"proxy_pool={'enabled' if self._proxy_pool else 'disabled'}",
+            f"proxy_pool={'enabled' if self._proxy_pool else 'disabled'}, "
+            f"egress_guard={'enabled' if egress_guard else 'disabled'}",
         )
 
     def _make_page_pool(
@@ -212,6 +234,18 @@ class GlobalBrowserPool(
             context,
             max_size=0 if isinstance(browser_inst, ExtensionBrowserInstance) else max_size,
             preserve_session=not browser_inst.is_managed,
+        )
+
+    def _guards_egress(self, browser_inst: BrowserInstance) -> bool:
+        """Whether the contexts of this browser connect through the egress guard.
+
+        Only a Chromium the pool launched itself can be pointed at it: a browser attached over CDP, a remote one and the
+        user's own (extension) are not the pool's to configure, and Camoufox is another engine.
+        """
+        return (
+            self._egress_guard is not None
+            and browser_inst.is_managed
+            and browser_inst.engine == BrowserEngine.CHROMIUM_PATCHRIGHT
         )
 
     async def warmup(self, browsers: int = 2, pages_per_context: int = 5) -> None:
@@ -243,6 +277,7 @@ class GlobalBrowserPool(
                     inst.browser,
                     ctx_type.value,
                     extension_attached=isinstance(inst, ExtensionBrowserInstance),
+                    guard_egress=self._guards_egress(inst),
                 )
                 pool = self._make_page_pool(
                     inst,

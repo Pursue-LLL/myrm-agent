@@ -12,25 +12,10 @@
 
 import { BUILTIN_AGENT_I18N } from './builtin-agent-i18n-data';
 
-type SupportedLocale = 'en' | 'zh' | 'zh-TW' | 'ja' | 'ko' | 'de';
+type SupportedLocale = 'en' | 'zh';
 
 function resolveLocale(locale: string): SupportedLocale {
-  if (locale === 'zh-TW' || locale === 'zh-Hant') {
-    return 'zh-TW';
-  }
-  if (locale.startsWith('zh')) {
-    return 'zh';
-  }
-  if (locale.startsWith('ja')) {
-    return 'ja';
-  }
-  if (locale.startsWith('ko')) {
-    return 'ko';
-  }
-  if (locale.startsWith('de')) {
-    return 'de';
-  }
-  return 'en';
+  return locale.startsWith('zh') ? 'zh' : 'en';
 }
 
 export function getBuiltinAgentName(agentId: string, agentName: string, locale: string): string {

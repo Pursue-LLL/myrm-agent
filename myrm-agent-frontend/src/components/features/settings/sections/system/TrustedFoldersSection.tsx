@@ -112,6 +112,20 @@ const TrustedFoldersSection = memo(() => {
                   </div>
                   <p className="truncate font-mono text-xs text-foreground">{shortenHomePath(entry.path)}</p>
                   <p className="text-xs text-muted-foreground">{new Date(entry.decided_at).toLocaleString()}</p>
+                  {entry.disclosed_command_prefixes.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <p className="text-xs text-muted-foreground">{t('commands')}</p>
+                      <ul aria-label={t('commands')} className="flex max-h-24 flex-wrap gap-1.5 overflow-y-auto">
+                        {entry.disclosed_command_prefixes.map((prefix) => (
+                          <li key={prefix}>
+                            <Badge variant="outline" className="font-mono text-[10px]">
+                              {prefix}
+                            </Badge>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
                 <Button
                   size="sm"

@@ -8,12 +8,8 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import de from '../../../../locales/de.json';
 import en from '../../../../locales/en.json';
-import ja from '../../../../locales/ja.json';
-import ko from '../../../../locales/ko.json';
 import zh from '../../../../locales/zh.json';
-import zhTW from '../../../../locales/zh-TW.json';
 import useChatStore from '@/store/useChatStore';
 import { AdaptiveScheduler } from '../adaptiveScheduler';
 import { handleMessageStream, type StreamHandlerActions, type StreamHandlerState } from '../messageStreamHandler';
@@ -134,6 +130,70 @@ describe('stream handlers write through the live store', () => {
       expect(message.metadata?.kanban_tasks_created).toEqual([task]);
     });
 
+    describe('media tools register what they produced', () => {
+      const started = (...ids: string[]) =>
+        JSON.stringify({ tasks: ids.map((task_id) => ({ task_id, task_type: 'image_generate', status: 'pending' })) });
+
+      it('registers one entry per task an image call started', async () => {
+        const message = await streamTurn([
+          stepEvent('image_tool', 'call-1'),
+          toolEnd('image_tool', { result: started('img-1', 'img-2') }),
+        ]);
+
+        expect(message.metadata?.media_generated).toEqual([
+          { kind: 'image', task_id: 'img-1' },
+          { kind: 'image', task_id: 'img-2' },
+        ]);
+      });
+
+      it('registers the stored audio of a speech call from an object result too', async () => {
+        const message = await streamTurn([
+          stepEvent('tts_generate', 'call-1'),
+          toolEnd('tts_generate', {
+            result: {
+              status: 'success',
+              audio_url: 'media://media_speech',
+              model: 'gpt-4o-mini-tts',
+              duration_seconds: 2,
+            },
+          }),
+        ]);
+
+        expect(message.metadata?.media_generated).toEqual([
+          { kind: 'tts', media: 'media://media_speech', model: 'gpt-4o-mini-tts', duration_seconds: 2 },
+        ]);
+      });
+
+      it('keeps the entries of every media call in the turn and never repeats one', async () => {
+        const message = await streamTurn([
+          stepEvent('image_tool', 'call-1'),
+          toolEnd('image_tool', { result: started('img-1') }),
+          stepEvent('video_tool', 'call-2'),
+          toolEnd('video_tool', { result: JSON.stringify({ tasks: [{ task_id: 'vid-1' }] }) }),
+          toolEnd('image_tool', { result: started('img-1') }),
+        ]);
+
+        expect(message.metadata?.media_generated).toEqual([
+          { kind: 'image', task_id: 'img-1' },
+          { kind: 'video', task_id: 'vid-1' },
+        ]);
+      });
+
+      it.each([
+        ['a status lookup', 'image_tool', { task_id: 'img-1', status: 'succeeded', result: { images: [] } }],
+        ['an error', 'video_tool', { error: 'Task store unavailable' }],
+        ['a result that is not JSON', 'image_tool', 'plain text'],
+        ['another tool with the same shape', 'web_search_tool', { tasks: [{ task_id: 'x' }] }],
+      ])('registers nothing for %s', async (_label, toolName, result) => {
+        const message = await streamTurn([
+          stepEvent(toolName, 'call-1'),
+          toolEnd(toolName, { result: typeof result === 'string' ? result : JSON.stringify(result) }),
+        ]);
+
+        expect(message.metadata?.media_generated).toBeUndefined();
+      });
+    });
+
     it('keeps the result of a cron job the call scheduled', async () => {
       const result = { status: 'success', job_id: 'job-1' };
       const message = await streamTurn([
@@ -240,10 +300,6 @@ describe('stream handlers write through the live store', () => {
     it.each([
       ['en', en],
       ['zh', zh],
-      ['zh-TW', zhTW],
-      ['de', de],
-      ['ja', ja],
-      ['ko', ko],
     ])('%s: a user Stop and a forced end each read their own shipped words', async (_language, shipped) => {
       const { runCancelled, runTerminated } = shipped.progressSteps;
       locale.messages = { 'progressSteps.runCancelled': runCancelled, 'progressSteps.runTerminated': runTerminated };

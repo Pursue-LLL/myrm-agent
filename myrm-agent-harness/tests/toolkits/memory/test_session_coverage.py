@@ -92,13 +92,11 @@ class TestSessionMethods:
             trigger="user asks weather",
             action="call weather API",
             source=RuleSource.USER_EXPLICIT,
-            trigger_keywords=["weather", "forecast"],
         )
 
         assert isinstance(rule, ProceduralMemory)
         assert rule.trigger == "user asks weather"
         assert rule.action == "call weather API"
-        assert rule.trigger_keywords == ["weather", "forecast"]
         assert session.buffer_size == 1
 
     @pytest.mark.asyncio

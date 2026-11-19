@@ -15,7 +15,8 @@ Lifecycle: bind_workspace(path) -> warm_up() -> execute()/execute_bash()/read_fi
 - set_executor: Bind (or clear) the executor for the current async context.
 - reset_executor: Restore a previous executor binding from a ContextVar token.
 - require_executor: Return the current executor, raising if unavailable.
-- clear_and_close_stashed_executor: Remove and close stashed executor asynchronously.
+- stash_executor_for_session / get_stashed_executor: Session-keyed executor lookup that survives ContextVar loss.
+- clear_stashed_executor: Drop a session's stashed executor and close it in the background.
 - clear_all_stashed_executors_for_tests: Drop every stashed executor (test isolation).
 
 [POS]
@@ -27,7 +28,6 @@ import logging
 import shlex
 import uuid
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
 from contextvars import ContextVar, Token
 from pathlib import Path
 
@@ -83,7 +83,11 @@ class CodeExecutor(ABC):
     def __init__(self, config: ExecutionConfig | None = None):
         self.config = config
         self._workspace_path: str | None = None
-        self.metrics = ExecutionMetrics()
+        self._metrics = ExecutionMetrics()
+
+    @property
+    def metrics(self) -> ExecutionMetrics:
+        return self._metrics
 
     @property
     def workspace_path(self) -> str:
@@ -126,25 +130,6 @@ class CodeExecutor(ABC):
         exc_tb: object,
     ) -> None:
         await self.close()
-
-    async def execute_bash_stream(self, context: ExecutionContext) -> AsyncIterator[str]:
-        """Execute a Bash command with real-time output streaming.
-
-        Yields output chunks as they become available. Subclasses should override
-        for true streaming via subprocess PIPE readline. The default implementation
-        falls back to batch execution and yields the full output at once.
-
-        Args:
-            context: Execution context (code field is the Bash command).
-
-        Yields:
-            Output chunks (stdout lines).
-        """
-        result = await self.execute_bash(context)
-        if result.stdout:
-            yield result.stdout
-        if result.stderr:
-            yield result.stderr
 
     async def spawn_background_process(self, context: ExecutionContext) -> AsyncProcessProtocol:
         """Spawn a background process returning live stdio streams.
@@ -229,11 +214,6 @@ class CodeExecutor(ABC):
             await self._exec_bash(f"rm -f {shlex.quote(tmp_path)}")
             raise OSError(f"Atomic replace failed for '{path}': {result.error or result.stderr}")
 
-    async def append_file(self, path: str, content: str) -> None:
-        """Append text content to a file."""
-        safe = await self._resolve_for_write(path)
-        await write_bytes_via_shell(self._exec_bash, safe, path, content.encode(), append=True)
-
     async def delete_file(self, path: str) -> None:
         """Delete a file."""
         safe = await self._resolve_for_write(path)
@@ -243,11 +223,6 @@ class CodeExecutor(ABC):
         """Check if a file or directory exists."""
         safe = await self.resolve_path(path)
         result = await self._exec_bash(f"test -e {shlex.quote(safe)} && echo 1 || echo 0")
-        return result.stdout.strip() == "1"
-
-    async def is_file(self, path: str) -> bool:
-        safe = await self.resolve_path(path)
-        result = await self._exec_bash(f"test -f {shlex.quote(safe)} && echo 1 || echo 0")
         return result.stdout.strip() == "1"
 
     async def is_dir(self, path: str) -> bool:
@@ -273,11 +248,6 @@ class CodeExecutor(ABC):
             raise OSError(f"Not a regular file: {path}")
         return int(answer)
 
-    async def mkdir(self, path: str) -> None:
-        """Create a directory (including parents)."""
-        safe = await self._resolve_for_write(path)
-        await self._exec_bash(f"mkdir -p {shlex.quote(safe)}")
-
     async def list_files(self, path: str = ".", pattern: str = "*") -> list[str]:
         """List files matching a pattern."""
         safe = await self.resolve_path(path)
@@ -285,7 +255,20 @@ class CodeExecutor(ABC):
         return [line for line in result.stdout.strip().splitlines() if line] if result.success else []
 
     async def resolve_path(self, relative_path: str) -> str:
-        """Resolve a relative path to absolute, with path traversal detection."""
+        """Resolve a relative path to absolute, with path traversal detection.
+
+        A network share or NT-namespace spelling is refused before anything resolves it: on Windows, resolving
+        such a path connects to the host it names.
+        """
+        from myrm_agent_harness.core.security.path import (
+            is_network_or_nt_path,
+            is_within_boundary,
+            network_path_refusal,
+        )
+
+        if is_network_or_nt_path(relative_path):
+            raise ValueError(network_path_refusal(relative_path))
+
         wp = Path(self.workspace_path).resolve()
 
         clean = WorkspacePathResolver.container_relative(relative_path) or relative_path
@@ -294,8 +277,6 @@ class CodeExecutor(ABC):
             resolved = Path(clean).resolve()
         else:
             resolved = (wp / clean).resolve()
-
-        from myrm_agent_harness.core.security.path import is_within_boundary
 
         if not is_within_boundary(resolved, wp) and granted_root_containing(resolved) is None:
             raise ValueError(f"Path traversal detected: {relative_path} (workspace is {wp})")
@@ -307,29 +288,13 @@ class CodeExecutor(ABC):
         refuse_write_into_readonly_grant(safe, self.workspace_path)
         return safe
 
-    async def is_available(self) -> bool:
-        return True
-
     def get_executor_name(self) -> str:
         return self.__class__.__name__.removesuffix("Executor") or self.__class__.__name__
-
-    async def save_workspace(self, session_id: str, storage_path: str) -> bool:
-        return False
-
-    async def restore_workspace(self, session_id: str, storage_path: str) -> bool:
-        return False
 
     async def _exec_bash(self, command: str) -> ExecutionResult:
         """Internal bash execution helper for default file operations."""
         ctx = ExecutionContext(code=command, work_dir=self.workspace_path)
         return await self.execute_bash(ctx)
-
-    def _extract_python_code_from_bash(self, command: str) -> str | None:
-        from myrm_agent_harness.toolkits.code_execution.python_extractor import (
-            extract_python_from_bash,
-        )
-
-        return extract_python_from_bash(command)
 
 
 # ---------------------------------------------------------------------------
@@ -404,16 +369,6 @@ def clear_stashed_executor(session_id: str) -> None:
             task.add_done_callback(_stashed_cleanup_tasks.discard)
         except RuntimeError:
             pass
-
-
-async def clear_and_close_stashed_executor(session_id: str) -> None:
-    """Remove stashed executor entry and explicitly close it on session teardown."""
-    executor = _session_executor_stash.pop(session_id, None)
-    if executor is not None:
-        try:
-            await executor.close()
-        except Exception as e:
-            logger.warning("Failed to close stashed executor for session %s: %s", session_id, e)
 
 
 def clear_all_stashed_executors_for_tests() -> None:

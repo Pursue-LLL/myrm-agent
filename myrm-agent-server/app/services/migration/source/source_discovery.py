@@ -8,7 +8,7 @@ DiscoveryResult: list of detected data sources with confidence scoring.
 
 [POS]
 Local/Tauri-only service that scans the user's home directory for external
-AI assistant data (Hermes, Claude Code, OpenClaw, Codex, Pi — five sources).
+AI assistant data (Hermes, Claude Code, OpenClaw, Codex, Pi, PLUR — six sources).
 SaaS sandboxes cannot access user filesystems.
 Per-source probe logic lives in source_probes.py.
 New migration sources are intentionally out of scope; see _ARCH.md policy.
@@ -22,6 +22,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
+
+from app.services.migration.env_secrets import read_env_keys
 
 ConfidenceLevel = Literal["low", "medium", "high"]
 
@@ -45,7 +47,10 @@ class ExternalSource:
     files: list[DiscoveredFile] = field(default_factory=list)
     memory_count_estimate: int = 0
     skill_count: int = 0
+    # The source holds provider keys somewhere (``.env`` or a credential store), entered by hand or imported.
     has_api_keys: bool = False
+    # Its ``.env`` holds keys the opt-in key import reads; a credential store never does.
+    has_importable_keys: bool = False
 
 
 @dataclass
@@ -57,12 +62,6 @@ class DiscoveryResult:
 
 
 _MEMORY_BULLET_PATTERN = re.compile(r"^[-*]\s+.+$", re.MULTILINE)
-
-_ENV_API_KEY_PATTERN = re.compile(
-    r"^(OPENAI_API_KEY|ANTHROPIC_API_KEY|OPENROUTER_API_KEY|GOOGLE_API_KEY|"
-    r"GEMINI_API_KEY|GROQ_API_KEY|XAI_API_KEY|MISTRAL_API_KEY|DEEPSEEK_API_KEY)\s*=",
-    re.MULTILINE,
-)
 
 
 def _get_search_paths(env_var: str, app_name: str, default_dot_dir: str, explicit_home: Path | None) -> list[Path]:
@@ -118,13 +117,9 @@ def _count_md_bullets(path: Path) -> int:
 
 
 def _detect_api_keys_in_env(path: Path) -> bool:
-    """Check if .env file contains known API key variables."""
+    """Whether the ``.env`` holds a key the import would bring (the same list and grammar as the import)."""
 
-    try:
-        content = path.read_text(encoding="utf-8", errors="ignore")
-        return bool(_ENV_API_KEY_PATTERN.search(content))
-    except OSError:
-        return False
+    return bool(read_env_keys(path).importable)
 
 
 def discover_external_sources(home_dir: str | None = None) -> DiscoveryResult:

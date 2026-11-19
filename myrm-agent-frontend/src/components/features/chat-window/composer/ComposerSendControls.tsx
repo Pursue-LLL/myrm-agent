@@ -104,15 +104,18 @@ export function ComposerSendControls({
   return (
     <>
       {serverTurnActive && stopButton}
-      <span className="brand-elevation-slot">
+      {/* The slot's 8px padding ring would swallow taps meant for the neighbouring attach button, so only the button takes pointer input. */}
+      <span className="brand-elevation-slot pointer-events-none">
         <button
           type="button"
           onClick={() => void onSend()}
           disabled={!hasText && !hasFiles && !hasPendingSkill}
-          className="message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
+          className="pointer-events-auto relative message-send-btn btn-brand-elevation bg-primary text-primary-foreground disabled:text-black/50 dark:disabled:text-white/50 disabled:bg-muted dark:disabled:bg-muted/30 hover:bg-primary-hover rounded-full p-2"
           aria-label={commonT('send')}
         >
           <ArrowRight size={17} />
+          {/* Phones: the button stays 33px; this invisible box lifts the touch target to 44×44, reaching right into the card padding and only 2px left, where the attach button sits 4px away. An element rather than an `after:` utility: the brand elevation rule in brand.css treats any class list containing "absolute" as already positioned and drops its z-index. */}
+          <span aria-hidden="true" className="absolute -inset-y-[5.5px] -left-0.5 -right-[9px] hidden max-sm:block" />
         </button>
       </span>
     </>

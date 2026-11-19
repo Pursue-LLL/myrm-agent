@@ -1,5 +1,7 @@
 """[INPUT]
 - .state (POS: shared startup state)
+- .prebuilt_skills::init_prebuilt_skills (POS: the prebuilt skill sync of the parallel phase)
+- .startup_recovery::recover_failed_init (POS: what follows a failed database initialisation)
 
 [OUTPUT]
 - phase helpers and the sequential/parallel startup phases
@@ -11,7 +13,6 @@ Startup phases of the server lifespan.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING
 
 from app.config.settings import settings
 from app.database.connection import init_database
@@ -20,10 +21,9 @@ from app.lifecycle import (
     init_workspace_trust_store,
 )
 
-if TYPE_CHECKING:
-    pass
-
 from . import state
+from .prebuilt_skills import init_prebuilt_skills
+from .startup_recovery import recover_failed_init
 from .state import logger
 
 
@@ -127,48 +127,7 @@ async def _phase_1a_sequential() -> None:
         logger.info("[Startup] Database initialized")
     except Exception as e:
         logger.error("[Startup] Database initialization failed: %s", e)
-
-        from app.config.settings import settings
-        from app.database.operations.recovery import rescue_database
-        from app.platform_utils import reset_database_engine
-        from app.server.status import system_status
-
-        db_path = settings.database.sqlite_path
-
-        # 1. Try B-Tree page-skipping rowid salvage rescue (last-resort row-level data salvage)
-        if rescue_database(db_path):
-            system_status.database_recovered = True
-            await reset_database_engine()
-            await init_database()
-            logger.info("[Startup] Database rescued successfully")
-        else:
-            # 2. Try multi-snapshot integrity-verified restore
-            restored = False
-            try:
-                from app.database.operations.backup import get_sqlite_backup_manager
-
-                manager = get_sqlite_backup_manager()
-                if manager is not None:
-                    result = manager.restore_latest()
-                    if result.restored:
-                        restored = True
-                        system_status.database_recovered = True
-                        await reset_database_engine()
-                        await init_database()
-                        logger.info(
-                            "[Startup] Database restored from snapshot %s",
-                            result.snapshot_file,
-                        )
-            except Exception as restore_exc:
-                logger.warning("[Startup] Snapshot restore failed: %s", restore_exc)
-
-            # 3. Degrade to in-memory as ultimate fallback
-            if not restored:
-                logger.warning("[Startup] All recovery methods exhausted, degrading to in-memory mode")
-                system_status.database_degraded = True
-                settings.database.sqlite_path = ":memory:"
-                await reset_database_engine()
-                await init_database()
+        await recover_failed_init(e)
 
     from app.services.chat.compact.compression_streak import (
         register_chat_compression_streak_store,
@@ -358,20 +317,6 @@ async def _phase_1b_parallel() -> None:
 
         register_all_idle_handlers()
 
-    async def _init_prebuilt_skills() -> None:
-        from myrm_agent_harness.toolkits.storage.factory import get_storage_provider
-
-        from app.core.skills.prebuilt_sync import sync_prebuilt_seeds
-        from app.core.skills.store.service import skills_service
-
-        storage = get_storage_provider()
-        sync_result = await sync_prebuilt_seeds(storage)
-        from app.api.health.update_status import note_prebuilt_sync_result
-
-        note_prebuilt_sync_result(sync_result.synced_count)
-        if sync_result.skill_ids:
-            await skills_service.user_config.ensure_prebuilt_enabled_after_sync(list(sync_result.skill_ids))
-
     async def _init_builtin_agents() -> None:
         from app.services.agent.builtin_specs.builtin_initializer import (
             initialize_builtin_agents,
@@ -425,7 +370,7 @@ async def _phase_1b_parallel() -> None:
         _init_permission_logger_task(),
         _init_context_cleanup_task(),
         _init_idle_handlers_task(),
-        _init_prebuilt_skills(),
+        init_prebuilt_skills(),
         _init_builtin_agents(),
         _init_harness_bridge_task(),
         _init_security_reviewer_task(),

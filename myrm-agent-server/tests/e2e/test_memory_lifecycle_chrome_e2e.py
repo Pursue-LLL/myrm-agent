@@ -309,7 +309,7 @@ _MEMORY_LIFECYCLE_PROBE_JS = """(async () => {
   // next-intl bundles ("Retry extraction") and causes false positives.
   const hasRetry =
     !!retryBtn
-    && /Retry extraction|重试提取|重試提取|Extraktion wiederholen|抽出を再試行|추출 재시도/i.test(
+    && /Retry extraction|重试提取/i.test(
       retryText,
     );
   const store = window.__myrmChatStore?.getState?.();

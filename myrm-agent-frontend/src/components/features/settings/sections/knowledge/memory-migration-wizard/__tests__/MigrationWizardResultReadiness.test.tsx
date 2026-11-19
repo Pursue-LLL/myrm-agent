@@ -1,12 +1,22 @@
 /** @vitest-environment jsdom */
+/**
+ * [INPUT]
+ * ../ResultStep (POS: 迁移向导结果步骤)
+ *
+ * [OUTPUT]
+ * 结果页 readiness 门禁、就绪锚点、开始聊天与验证记忆入口、告警动作、会话搜索一键开启的回归测试。
+ *
+ * [POS]
+ * 结果页以服务端复查的 readiness 为准：仍为 critical 时不能开始聊天；就绪或带警告时登记就绪锚点，
+ * 并经 `/?agent_id=` 打开导入的智能体（智能体标识先转义）。会话搜索未开启时给出一键开启，已开启则不显示。
+ */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { PreviewStep } from '../PreviewStep';
 import { ResultStep } from '../ResultStep';
 import type { TranslationFn } from '../wizardShared';
 import useChatStore from '@/store/useChatStore';
-import type { MemoryImportDryRunResponse } from '@/services/memory/archive';
 
 const mockPush = vi.fn();
 const mockQueueMigrationReadinessAnchor = vi.fn();
@@ -77,6 +87,24 @@ const baseResult = {
   },
 };
 
+/** The result step with every prop at rest; a test passes only the ones it exercises. */
+const renderResultStep = (props: Partial<ComponentProps<typeof ResultStep>> = {}) =>
+  render(
+    <ResultStep
+      result={baseResult}
+      skillSubmitResult={null}
+      skillSubmitFailed={false}
+      secretsImport={null}
+      rollingBack={false}
+      onRollback={() => undefined}
+      onRetrySkillSubmit={() => undefined}
+      retryingSkills={false}
+      onDone={() => undefined}
+      t={t}
+      {...props}
+    />,
+  );
+
 describe('ResultStep readiness gating', () => {
   beforeEach(() => {
     mockPush.mockReset();
@@ -99,28 +127,17 @@ describe('ResultStep readiness gating', () => {
       },
     });
 
-    render(
-      <ResultStep
-        result={{
-          ...baseResult,
-          readiness: {
-            status: 'critical',
-            issues: [
-              { code: 'providers_not_configured', severity: 'critical', params: {}, settings_path: '/settings/models' },
-            ],
-          },
-        }}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep({
+      result: {
+        ...baseResult,
+        readiness: {
+          status: 'critical',
+          issues: [
+            { code: 'providers_not_configured', severity: 'critical', params: {}, settings_path: '/settings/models' },
+          ],
+        },
+      },
+    });
 
     const button = screen.getByRole('button', { name: 'result.startChatRecheck' });
     expect(button).not.toBeDisabled();
@@ -136,20 +153,7 @@ describe('ResultStep readiness gating', () => {
   });
 
   it('queues readiness anchor on mount when recheck reports ready', async () => {
-    render(
-      <ResultStep
-        result={baseResult}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep();
 
     await waitFor(() => {
       expect(mockQueueMigrationReadinessAnchor).toHaveBeenCalledWith({
@@ -161,20 +165,7 @@ describe('ResultStep readiness gating', () => {
   });
 
   it('starts chat when recheck reports ready', async () => {
-    render(
-      <ResultStep
-        result={baseResult}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep();
 
     const button = screen.getByRole('button', { name: 'result.startChat' });
     fireEvent.click(button);
@@ -190,20 +181,7 @@ describe('ResultStep readiness gating', () => {
   });
 
   it('opens the imported agent by an address that is safe to put in a link', async () => {
-    render(
-      <ResultStep
-        result={{ ...baseResult, target_agent_id: 'my agent&1' }}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep({ result: { ...baseResult, target_agent_id: 'my agent&1' } });
 
     fireEvent.click(screen.getByRole('button', { name: 'result.startChat' }));
 
@@ -213,20 +191,7 @@ describe('ResultStep readiness gating', () => {
   });
 
   it('prefills a verification prompt into the composer and opens the imported agent', async () => {
-    render(
-      <ResultStep
-        result={baseResult}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep();
 
     fireEvent.click(screen.getByRole('button', { name: 'result.verifyMemory' }));
 
@@ -235,33 +200,22 @@ describe('ResultStep readiness gating', () => {
   });
 
   it('renders MCP issue quick-fix action', () => {
-    render(
-      <ResultStep
-        result={{
-          ...baseResult,
-          readiness: {
-            status: 'warning',
-            issues: [
-              {
-                code: 'mcp_servers_imported_disabled',
-                severity: 'warning',
-                params: { count: 1 },
-                settings_path: '/settings/mcp',
-              },
-            ],
-          },
-        }}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep({
+      result: {
+        ...baseResult,
+        readiness: {
+          status: 'warning',
+          issues: [
+            {
+              code: 'mcp_servers_imported_disabled',
+              severity: 'warning',
+              params: { count: 1 },
+              settings_path: '/settings/mcp',
+            },
+          ],
+        },
+      },
+    });
 
     const link = screen.getByRole('link', { name: 'result.readinessAction.configureMcp' });
     expect(link).toHaveAttribute('href', '/settings/mcp');
@@ -276,20 +230,7 @@ describe('ResultStep conversation search opt-in', () => {
   });
 
   it('shows enable button when conversation search is off and enables on click', () => {
-    render(
-      <ResultStep
-        result={baseResult}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep();
 
     const button = screen.getByRole('button', { name: 'result.enableConversationSearch' });
     fireEvent.click(button);
@@ -301,195 +242,50 @@ describe('ResultStep conversation search opt-in', () => {
   it('hides enable button when conversation search is already on', () => {
     mockConfigState.memoryEnableConversationSearch = true;
 
-    render(
-      <ResultStep
-        result={baseResult}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep();
 
     expect(screen.queryByRole('button', { name: 'result.enableConversationSearch' })).not.toBeInTheDocument();
   });
 
   it('renders Codex wiki completion lane when migration source is codex', () => {
-    render(
-      <ResultStep
-        result={baseResult}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        migrationSource="codex"
-        workspaceBindCandidates={[
-          {
-            path: '/tmp/vault',
-            label: 'Codex Obsidian vault',
-            has_obsidian_config: true,
-            markdown_file_count: 2,
-          },
-        ]}
-        t={t}
-      />,
-    );
+    renderResultStep({
+      migrationSource: 'codex',
+      workspaceBindCandidates: [
+        {
+          path: '/tmp/vault',
+          label: 'Codex Obsidian vault',
+          has_obsidian_config: true,
+          markdown_file_count: 2,
+        },
+      ],
+    });
 
     expect(screen.getByTestId('codex-wiki-completion-lane')).toBeTruthy();
     expect(screen.getByTestId('codex-completion-vault-hint')).toBeTruthy();
   });
 
   it('renders step_budget_low issue warning and action link', () => {
-    render(
-      <ResultStep
-        result={{
-          ...baseResult,
-          readiness: {
-            status: 'warning',
-            issues: [
-              {
-                code: 'step_budget_low',
-                severity: 'warning',
-                params: { count: 1, min_steps: 100 },
-                settings_path: '/settings?tab=agent',
-              },
-            ],
-          },
-        }}
-        skillSubmitResult={null}
-        skillSubmitFailed={false}
-        secretsImportMessage={null}
-        rollingBack={false}
-        onRollback={() => undefined}
-        onRetrySkillSubmit={() => undefined}
-        retryingSkills={false}
-        onDone={() => undefined}
-        t={t}
-      />,
-    );
+    renderResultStep({
+      result: {
+        ...baseResult,
+        readiness: {
+          status: 'warning',
+          issues: [
+            {
+              code: 'step_budget_low',
+              severity: 'warning',
+              params: { count: 1, min_steps: 100 },
+              settings_path: '/settings?tab=agent',
+            },
+          ],
+        },
+      },
+    });
 
     expect(screen.getByText((content) => content.includes('result.readinessIssue.stepBudgetLow'))).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'result.readinessAction.configureStepBudget' })).toHaveAttribute(
       'href',
       '/settings?tab=agent',
     );
-  });
-});
-
-describe('PreviewStep trusted source disclosure gate', () => {
-  const dummyDryRun: MemoryImportDryRunResponse = {
-    dry_run_id: 'dry-run-123',
-    payload_hash: 'hash-123',
-    expires_at: '2026-01-01T00:00:00Z',
-    result: {
-      summary: {
-        version: '1',
-        total_items: 5,
-        mapped_items: 5,
-        unmapped_items: 0,
-        status: 'ready' as const,
-        source: 'pi',
-      },
-      mappings: [],
-      warnings: [],
-      normalized_data: {},
-    },
-    coverage_items: [],
-    migration_lanes: [],
-    pending_skills_total: 2,
-    pending_skills: [
-      {
-        name: 'test-skill',
-        content: 'echo hi',
-      },
-    ],
-  };
-
-  it('requires trusted source checkbox when importing from pi competitor', () => {
-    const onConfirm = vi.fn();
-    const { rerender } = render(
-      <PreviewStep
-        source={{
-          competitor: 'pi',
-          root: '/home/user/.pi',
-          confidence: 'high',
-          files: [],
-          memory_count_estimate: 5,
-          skill_count: 2,
-          has_api_keys: false,
-        }}
-        dryRun={dummyDryRun}
-        importing={false}
-        importSecrets={false}
-        onImportSecretsChange={vi.fn()}
-        importSessions
-        onImportSessionsChange={vi.fn()}
-        onConfirm={onConfirm}
-        onBack={vi.fn()}
-        t={t}
-      />,
-    );
-
-    const checkbox = screen.getByTestId('migration-trusted-source-checkbox');
-    expect(checkbox).not.toBeChecked();
-
-    const confirmBtn = screen.getByRole('button', { name: 'preview.confirmImport' });
-    expect(confirmBtn).toBeDisabled();
-
-    fireEvent.click(checkbox);
-    expect(checkbox).toBeChecked();
-    expect(confirmBtn).not.toBeDisabled();
-
-    fireEvent.click(confirmBtn);
-    expect(onConfirm).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not render trusted source disclosure when source is not pi and has no skills', () => {
-    const onConfirm = vi.fn();
-    render(
-      <PreviewStep
-        source={{
-          competitor: 'hermes',
-          root: '/home/user/.hermes',
-          confidence: 'medium',
-          files: [],
-          memory_count_estimate: 3,
-          skill_count: 0,
-          has_api_keys: false,
-        }}
-        dryRun={{
-          ...dummyDryRun,
-          pending_skills: [],
-          result: {
-            ...dummyDryRun.result,
-            summary: {
-              ...dummyDryRun.result.summary,
-              source: 'hermes',
-            },
-          },
-        }}
-        importing={false}
-        importSecrets={false}
-        onImportSecretsChange={vi.fn()}
-        importSessions
-        onImportSessionsChange={vi.fn()}
-        onConfirm={onConfirm}
-        onBack={vi.fn()}
-        t={t}
-      />,
-    );
-
-    expect(screen.queryByTestId('migration-trusted-source-checkbox')).toBeNull();
-    const confirmBtn = screen.getByRole('button', { name: 'preview.confirmImport' });
-    expect(confirmBtn).not.toBeDisabled();
   });
 });

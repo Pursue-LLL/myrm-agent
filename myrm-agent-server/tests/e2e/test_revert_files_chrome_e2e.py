@@ -583,7 +583,7 @@ _CLICK_SESSION_REVERT_FLOW_JS = """(() => {
       if (dialog) {
         const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((el) => {
           const label = (el.textContent || '').trim();
-          return /Undo all AI file changes|撤销本次会话中 AI 的所有文件变更|撤銷本次會話中 AI 的所有檔案變更|Alle KI-Dateiänderungen|すべてのファイル変更を元に戻|모든 AI 파일 변경/i.test(
+          return /Undo all AI file changes|撤销本次会话中 AI 的所有文件变更/i.test(
             label,
           );
         });

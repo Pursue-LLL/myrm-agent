@@ -1,4 +1,4 @@
-"""Spend governance and cryptographic receipt primitives for Agent Commerce.
+"""Spend governance and action-digest primitives for Agent Commerce.
 
 [INPUT]
 - hashlib, hmac, json: Standard cryptographic and serialization libraries
@@ -10,9 +10,11 @@
 - is_irreversible_social_action: Detect if action is socially irreversible (git push, package publish, external notify)
 - compute_action_digest: Cryptographic HMAC-SHA256 digest of tool + args + amount
 - verify_action_digest: Timing-attack safe verification of action digest
-- compute_entry_hash: Compute HMAC-chained hash for append-only tamper-evident ledger
+- DEFAULT_SPEND_SALT: Default HMAC salt of the action digest
 - SpendPolicy: Data model for per-action and session spending caps
-- SpendReceipt: Immutable cryptographic receipt record
+- compute_script_content_hash: SHA-256 of a script file on disk
+- extract_script_file_target: Find the script file a tool call would execute
+- verify_script_file_integrity: Detect a script that changed after approval (TOCTOU)
 
 [POS]
 Foundational Agent Commerce governance module in core/security/.
@@ -30,7 +32,6 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 
 DEFAULT_SPEND_SALT = "myrm-agent-spend-hmac-salt"
-GENESIS_PREV_HASH = "0" * 64
 
 _SPEND_TOOL_KEYWORDS = frozenset(
     {
@@ -214,21 +215,6 @@ def verify_action_digest(
     return hmac.compare_digest(computed, expected_digest)
 
 
-def compute_entry_hash(
-    prev_hash: str,
-    timestamp: float,
-    tool_name: str,
-    amount: float | None,
-    currency: str | None,
-    action_digest: str,
-    idempotency_key: str,
-    secret_salt: str = DEFAULT_SPEND_SALT,
-) -> str:
-    """Compute hash for a single tamper-evident ledger entry chaining from prev_hash."""
-    payload = f"{prev_hash}:{timestamp:.3f}:{tool_name}:{amount}:{currency}:{action_digest}:{idempotency_key}".encode()
-    return hmac.new(secret_salt.encode("utf-8"), payload, hashlib.sha256).hexdigest()
-
-
 @dataclass(frozen=True, slots=True)
 class SpendPolicy:
     """Policy constraints for agent financial operations."""
@@ -259,36 +245,6 @@ class SpendPolicy:
             )
 
         return True, "Within spend policy caps"
-
-
-@dataclass(frozen=True, slots=True)
-class SpendReceipt:
-    """Immutable cryptographic receipt for executed financial spend."""
-
-    entry_id: str
-    session_id: str
-    prev_hash: str
-    entry_hash: str
-    tool_name: str
-    amount: float
-    currency: str
-    action_digest: str
-    idempotency_key: str
-    timestamp: float
-
-    def verify_integrity(self, secret_salt: str = DEFAULT_SPEND_SALT) -> bool:
-        """Verify receipt entry hash matches its chained inputs."""
-        expected = compute_entry_hash(
-            prev_hash=self.prev_hash,
-            timestamp=self.timestamp,
-            tool_name=self.tool_name,
-            amount=self.amount,
-            currency=self.currency,
-            action_digest=self.action_digest,
-            idempotency_key=self.idempotency_key,
-            secret_salt=secret_salt,
-        )
-        return hmac.compare_digest(self.entry_hash, expected)
 
 
 # ============================================================================

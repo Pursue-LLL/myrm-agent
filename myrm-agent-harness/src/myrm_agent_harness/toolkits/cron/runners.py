@@ -12,7 +12,8 @@ Security: two-layer defense-in-depth:
 - (none)
 
 [OUTPUT]
-- ShellJobRunner: Executes shell commands with timeout and safety checks.
+- ShellJobRunner: Executes a shell job's command under the job's own timeout after the safety checks; exit code 0 is
+  success, exit code 1 only for a job with monitoring enabled, any other code a failure.
 
 [POS]
 Built-in job runners.
@@ -28,11 +29,13 @@ from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult
 
 logger = logging.getLogger(__name__)
 
-_SHELL_TIMEOUT = 120
-
 
 class ShellJobRunner:
-    """Executes shell commands with timeout and safety checks."""
+    """Executes shell commands under the job's own timeout, with safety checks.
+
+    Exit code 0 is success. Exit code 1 is the "new content found" signal of a change monitor, so it counts as success
+    only for a job with monitoring enabled; for any other job every non-zero exit code is a failure.
+    """
 
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
         if not job.command:
@@ -46,19 +49,14 @@ class ShellJobRunner:
             )
 
         try:
-            result = await safe_exec(job.command, timeout=_SHELL_TIMEOUT)
+            result = await safe_exec(job.command, timeout=job.timeout_seconds)
 
-            if result.returncode == 0:
+            monitoring = bool(job.monitor_config and job.monitor_config.enabled)
+            if result.returncode == 0 or (result.returncode == 1 and monitoring):
                 return JobResult(
                     success=True,
                     output=result.stdout,
-                    exit_code=0,
-                )
-            if result.returncode == 1:
-                return JobResult(
-                    success=True,
-                    output=result.stdout,
-                    exit_code=1,
+                    exit_code=result.returncode,
                 )
             return JobResult(
                 success=False,
@@ -70,7 +68,7 @@ class ShellJobRunner:
         except TimeoutError:
             return JobResult(
                 success=False,
-                error=f"shell command timed out after {_SHELL_TIMEOUT}s",
+                error=f"shell command timed out after {job.timeout_seconds}s",
                 exit_code=124,
             )
         except Exception as exc:

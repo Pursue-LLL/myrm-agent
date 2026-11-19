@@ -31,6 +31,12 @@ Layer 3 (quote-stripped, ESCALATE):
   Suspicious but potentially legitimate patterns (curl|sh, eval, base64 -d,
   kill/pkill/killall). Forces ASK regardless of permission ruleset.
 
+Layer 3c (ORIGINAL command, ESCALATE):
+  A write to a protected instruction file (redirect, ``sed -i``, ``tee``, ``cp``, ``mv``, ``rm``, ``truncate``, their
+  PowerShell and cmd spellings, an interpreter opening it for writing), read command by command; the evidence is the
+  file name.
+  See: protected_instruction_command.py
+
 Layer 4 (recursive, BLOCK/ESCALATE):
   Extracts commands from shell wrappers that hide payloads in single quotes
   (bash -c '...', sh -c '...', trap '...' SIGNAL) and recursively analyzes
@@ -42,13 +48,14 @@ Consumers:
 - toolkits/cron/runners.ShellJobRunner — pre-execution check
 
 [INPUT]
-- core.security.path.rules::PROTECTED_INSTRUCTION_PATTERNS (POS: Protected-path policy)
+- security.protected_instruction_command::protected_instruction_mutation_target (POS: The shell-side reading of the protected instruction files, shared with the permission engine and the allow-always guard)
 - security.shell_command_rules (POS: Pattern catalogue for layers 1-3; this module holds the engine)
 - security.persistent_env::persistent_env_injection (POS: Code-injection variables a command exports into the persistent shell)
 
 [OUTPUT]
 - ThreatLevel: Severity level of a detected command threat.
 - CommandThreat: A single security threat detected in a shell command.
+- PROTECTED_WRITE_CATEGORY: The threat category of a write to a protected instruction file.
 - analyze_hidden_characters: Layer 1 alone (control and invisible characters), valid for shell and Python text.
 - analyze_command: Analyze a shell command for security threats.
 - has_block_threat: Quick check: return the first BLOCK-level threat, or None if clean.
@@ -63,8 +70,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Final
 
 from .persistent_env import persistent_env_injection
+from .protected_instruction_command import protected_instruction_mutation_target
 from .shell_command_rules import (
     ANSI_C_QUOTE_RE,
     BINARY_INJECTION,
@@ -92,6 +101,11 @@ class CommandThreat:
     category: str
     detail: str
     evidence: str
+
+
+# The category of the escalation for a write to a protected instruction file: the permission engine words its ask
+# from it, with the file name the threat carries as evidence.
+PROTECTED_WRITE_CATEGORY: Final = "protected_instruction_mutation"
 
 
 # ---------------------------------------------------------------------------
@@ -316,13 +330,14 @@ def analyze_command(command: str, *, _depth: int = 0) -> tuple[CommandThreat, ..
                 )
             )
 
-    if is_protected_instruction_mutation_command(command):
+    protected_file = protected_instruction_mutation_target(command)
+    if protected_file is not None:
         threats.append(
             CommandThreat(
                 level=ThreatLevel.ESCALATE,
-                category="protected_instruction_mutation",
+                category=PROTECTED_WRITE_CATEGORY,
                 detail="Attempted modification of protected instruction file via shell command",
-                evidence=command[:100],
+                evidence=protected_file,
             )
         )
 
@@ -339,53 +354,6 @@ def is_integration_mutation_command(command: str) -> bool:
     stripped = _strip_quoted_content(command)
     normalized = " ".join(stripped.split())
     return any(pattern.search(normalized) for pattern, _desc in _integration_write_patterns_compiled())
-
-
-def _protected_path_alternation() -> str:
-    """Render the shared persona-protection rules as a shell-side path alternation.
-
-    The rule list lives in ``core.security.path`` so the file tools, the shell
-    pre-flight and this analyzer cannot drift apart. A rule of the form
-    ``**/name`` matches the file itself and ``**/dir/**`` matches everything
-    under a protected directory, so a directory rule contributes its prefix and
-    the alternation matches both the directory and its contents.
-    """
-    from myrm_agent_harness.core.security.path.rules import (
-        PROTECTED_INSTRUCTION_PATTERNS,
-    )
-
-    fragments: list[str] = []
-    for rule in PROTECTED_INSTRUCTION_PATTERNS:
-        body = rule[3:] if rule.startswith("**/") else rule
-        fragments.append(re.escape(body[:-3] if body.endswith("/**") else body))
-    return "(?:" + "|".join(fragments) + ")"
-
-
-_PROTECTED_FILE_NAMES_RE = _protected_path_alternation()
-
-_PROTECTED_INSTRUCTION_SHELL_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(
-        rf"(?:>|>>)\s*['\"]?(?:[^\s;|\'\"]*?/)?{_PROTECTED_FILE_NAMES_RE}['\"]?",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        rf"\b(?:sed\s+-[a-zA-Z]*i[a-zA-Z]*|tee(?:\s+-[a-zA-Z]+)*|cp(?:\s+-[a-zA-Z]+)*|"
-        rf"mv(?:\s+-[a-zA-Z]+)*|rm(?:\s+-[a-zA-Z]+)*|truncate(?:\s+-[a-zA-Z]+)*)\b.*?"
-        rf"(?:[\s/'\"]|^)(?:[^\s;|\'\"<>]*?/)?{_PROTECTED_FILE_NAMES_RE}(?:[\s/'\"<>]|$)",
-        re.IGNORECASE,
-    ),
-    re.compile(
-        rf"(?:python[0-9.]*|node|ruby|perl)\b.*?(?:write|open).*?{_PROTECTED_FILE_NAMES_RE}",
-        re.IGNORECASE,
-    ),
-)
-
-
-def is_protected_instruction_mutation_command(command: str) -> bool:
-    """Return True if command attempts to overwrite, delete or mutate protected instruction files."""
-    if not command or not command.strip():
-        return False
-    return any(p.search(command) for p in _PROTECTED_INSTRUCTION_SHELL_PATTERNS)
 
 
 def has_block_threat(command: str) -> CommandThreat | None:

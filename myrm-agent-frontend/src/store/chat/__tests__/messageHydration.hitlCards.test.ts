@@ -76,6 +76,14 @@ describe('parseMessages settled cards', () => {
     });
   });
 
+  it('keeps the interrupt id of a pending card, so a reloaded card still answers its own pause', () => {
+    const form = { questions: [{ id: 'strategy', prompt: 'Choose', options: [{ id: 'canary', label: 'Canary' }] }] };
+    const [parsed] = parseMessages([persisted({ clarification: { answered: false, interruptId: 'int-1', form } })]);
+
+    expect(parsed.clarification?.answered).toBe(false);
+    expect(parsed.clarification?.interruptId).toBe('int-1');
+  });
+
   it('reads a card settled before records existed as answered without a record', () => {
     const [parsed] = parseMessages([persisted({ clarification: { answered: true } })]);
 

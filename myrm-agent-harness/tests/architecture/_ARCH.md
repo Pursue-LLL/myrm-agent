@@ -58,6 +58,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_bash_executor_reexport.py` | Gate | `meta_tools/bash/_executor/executor.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_code_execute_tool_reexport.py` | Gate | `meta_tools/bash/bash_code_execute_tool.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_native_ptc_removed.py` | Gate | bash 路径禁止 Turn1 native PTC stub（`_ptc_tools_ref` / `inject_ptc_for_python_execution` / `get_ptc_description`） | — |
+| `test_cron_removed_symbols.py` | Gate | cron toolkit 已删符号零残留：`parse_loop_command_input` / `parse_natural_interval` / `is_top_of_hour_cron` / `compute_stagger_offset_s` / `active_streams`，以及先清空下次触发时间再运行的认领协议留下的符号（`claim_due` / `is_stale_run` / `list_orphaned_active` / `_recover_stale_runs` / `_active_jobs` / `_execute_and_persist` / `execute_fn`）不得再出现在 `toolkits/cron` 的模块与 `_ARCH.md` 里（整词匹配，较长的名字不误报；含检测器正反例自证） | — |
 | `test_no_ghost_registry_metadata.py` | Gate | `tool_registry.py` metadata maps 不得含无 @tool 源的幽灵键 | — |
 | `test_types_reexport.py` | Gate | `backends/skills/types/` `__all__` 聚合 re-export 完整性 | — |
 | `test_validate_arch_inventory.py` | Gate | `_ARCH.md` 文件表 vs 同级 `.py` 一致性（table-only 解析）；含 agent/ 与全 harness subprocess gate、单测与跨仓 server md-refs gate | — |
@@ -83,6 +84,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_prompt_token_budget_gate.py` | Gate | Turn-1 默认工具集与系统提示词 Token 预算上限与压缩比 CI 门禁 | — |
 | `test_tool_wire_budget_gate.py` | Gate | Turn-1 默认工具集的线上真实 Token 上限：以 `tool_bind_kwargs` 的真实产物（转换并按模型规整后的 function 载荷，含参数 schema）计量，补上描述门禁看不到的参数 schema 一块；除总量外每个工具另有单工具上限（未登记的工具不得超过默认 500，重工具各登记约高出实测 4% 的上限，防止一个工具膨胀被另一个缩小抵消）；另守「默认工具全部绑定成功」（失败会被静默跳过而藏起成本）与「估算器不低估线上」 | — |
 | `test_command_log_masking.py` | Gate | AST：`src/` 内日志调用不得直接引用名字里带 `command` / `cmd` 一词的变量，须经 `command_preview` 或 `redact_command_line`；按名字拦截，是绊线而不是证明；允许清单以 `路径::函数::变量` 登记且过期条目报错；自带检测器正反例 | — |
+| `test_file_tools_take_no_command_parameters.py` | Gate | 三个文件工具（read / write / edit）的参数 schema（含嵌套对象与 `$defs`）里不得出现名字以 `command` / `cmd` / `script` 收尾的参数：权限引擎按工具类别评级而不读参数，文件工具若带一个命令参数，shell 文本就会在文件工具的评级下绕过 bash 工具的审批、代码执行策略与预检；文件工具需要执行的命令走 bash 工具；按名字拦截，是绊线而不是证明；自带检测器正反例 | — |
 | `test_framework_public_surface.py` | Gate | AST：`src/` 只经框架公开的面接触 LangChain / LangGraph——① 禁止就地改写框架对象（在非自有对象上替换框架方法、改写框架类的属性、重赋 `__class__`），须改用中间件钩子或 `request.override(...)`；② 导入的名字须列在其模块的 `__all__` 里，无 `__all__` 的模块须登记在 `ACCEPTED_MODULES_WITHOUT_ALL`（登记项无人导入或模块已有 `__all__` 即报错）；③ 禁止读 `__pregel*` / `__langgraph*` 私有配置键，暂无公开替代者登记在 `KNOWN_PRIVATE_KEYS`（读取消失而条目仍在即报错）；不覆盖框架递给我们的对象上的属性访问与运行时拼出的键；自带三类检测器正反例，防退化为 no-op | — |
 | `test_framework_dependency_bounds.py` | Gate | `pyproject.toml` 里每个 LangChain / LangGraph 系依赖须同时声明 `>=` 下限与 `<` 上限（每周金丝雀安装的正是这些声明）；自带规则正反例 | — |
 

@@ -1,7 +1,11 @@
 """测试 URL 规范化功能"""
 
-import pytest
+from unittest.mock import AsyncMock
 
+import pytest
+from langchain_core.documents import Document
+
+from myrm_agent_harness.toolkits.web_fetch.engine import FetchEngine
 from myrm_agent_harness.toolkits.web_fetch.processing.url_normalizer import normalize_url
 
 
@@ -82,10 +86,38 @@ def test_url_without_query():
 
 
 def test_url_with_fragment():
-    """测试带 fragment 的 URL（fragment 不应该被保留）"""
+    """普通锚点不改变页面内容，不进缓存键"""
     url = "https://example.com/page#section"
     normalized = normalize_url(url)
     assert "#section" not in normalized
+    assert normalized == normalize_url("https://example.com/page")
+    assert normalize_url("https://example.com/page?a=1#top") == normalize_url("https://example.com/page?a=1")
+
+
+@pytest.mark.parametrize("prefix", ["/", "!/"])
+def test_hash_route_fragments_are_distinct_keys(prefix: str):
+    """哈希路由页面的不同路由是不同的页面，不能共用缓存键"""
+    alpha = normalize_url(f"https://example.com/app#{prefix}alpha")
+    beta = normalize_url(f"https://example.com/app#{prefix}beta")
+    assert alpha != beta
+    assert alpha.endswith(f"#{prefix}alpha")
+    assert alpha != normalize_url("https://example.com/app")
+
+
+def test_hash_route_still_drops_tracking_params():
+    """保留路由片段不影响追踪参数的剥离"""
+    assert normalize_url("https://example.com/app?utm_source=x&b=2&a=1#/inbox") == (
+        "https://example.com/app?a=1&b=2#/inbox"
+    )
+
+
+@pytest.mark.parametrize("name", ["ref", "referrer", "source"])
+def test_generic_parameter_names_select_content(name: str):
+    """ref、referrer、source 可能选择内容（GitHub contents API 的 ?ref= 选分支），不能当追踪参数丢弃"""
+    base = "https://api.github.com/repos/owner/repo/contents/setup.py"
+    assert normalize_url(f"{base}?{name}=3.12") != normalize_url(f"{base}?{name}=3.13")
+    assert normalize_url(f"{base}?{name}=3.12") != normalize_url(base)
+    assert normalize_url(f"{base}?{name}=3.12") == f"{base}?{name}=3.12"
 
 
 @pytest.mark.parametrize(
@@ -100,3 +132,31 @@ def test_url_with_fragment():
 def test_equivalent_urls_normalized_to_same(url1: str, url2: str):
     """测试等价 URL 规范化为相同结果"""
     assert normalize_url(url1) == normalize_url(url2)
+
+
+async def test_engine_fetches_each_content_selecting_url_separately():
+    """引擎层回归：`?ref=` 不同值、哈希路由不同路由各抓一次，第二个请求拿不到第一个的内容"""
+    urls = [
+        "https://page.example/contents?ref=3.12",
+        "https://page.example/contents?ref=3.13",
+        "https://page.example/app#/alpha",
+        "https://page.example/app#/beta",
+    ]
+
+    async def fetch(url: str, **_: object) -> tuple[Document, None]:
+        return Document(page_content=url, metadata={}), None
+
+    # The SSRF policy is not under test; allowing private networks keeps the fake host from needing a DNS lookup.
+    engine = FetchEngine(allow_private_networks=True)
+    network = AsyncMock(side_effect=fetch)
+    engine._crawl_with_degradation = network  # type: ignore[method-assign]
+    try:
+        pages = [await engine.crawl(url) for url in urls]
+        repeat = await engine.crawl(urls[0])
+    finally:
+        await engine.shutdown()
+
+    assert [page.page_content for page in pages if page is not None] == urls
+    assert repeat is not None
+    assert repeat.page_content == urls[0]
+    assert network.call_count == len(urls)

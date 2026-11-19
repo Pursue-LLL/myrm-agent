@@ -111,7 +111,7 @@ computer-use = [
 # toolkits/web_fetch/ - L1 HTTP / L3 stealth 爬取 + YouTube 字幕快路径
 web = [
   "scrapling[fetchers]>=0.5.1",      # L1: curl_cffi TLS 指纹 HTTP / L3: Patchright+BrowserForge 反检测
-  "curl_cffi>=0.17.0",               # L1 有界下载 (fetchers/bounded_get.py): libcurl 写回调中止传输, 0.17.0 起验证
+  "curl_cffi>=0.17.0",               # L1 有界下载 (fetchers/bounded_get.py): libcurl 写回调中止传输, 0.17.0 起验证; L1 连接钉死 (fetchers/connection_pin.py): 会话级 curl_options 的 CURLOPT_RESOLVE
   "youtube-transcript-api>=1.2.5",   # YouTube 字幕提取 (youtube_extractor; HTML fallback when missing)
 ]
 
@@ -227,7 +227,8 @@ target-version = "py313"
 extend-exclude = []
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "B", "S", "SIM", "RUF"]
+# TC005 only (empty `if TYPE_CHECKING:` blocks), not the whole flake8-type-checking family.
+select = ["E", "F", "I", "N", "W", "UP", "B", "S", "SIM", "RUF", "TC005"]
 ignore = [
   "E501", "B008", "SIM108", "RUF001", "RUF002", "RUF003", "RUF022",
   # S 规则噪音抑制：LangChain/subprocess/pickle 等场景在 agent 框架中是刚需，逐条评估后排除误报。

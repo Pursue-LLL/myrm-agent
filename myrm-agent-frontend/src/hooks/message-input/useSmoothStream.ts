@@ -24,8 +24,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** 支持的语言列表，用于 Intl.Segmenter 初始化 */
-const SEGMENTER_LANGUAGES = ['en-US', 'zh-CN', 'zh-TW', 'ja-JP', 'ko-KR', 'de-DE', 'es-ES', 'fr-FR', 'pt-BT', 'ru-RU'];
+/** Intl.Segmenter 的 locale 优先级列表：按顺序取首个运行时支持的 locale，其余项仅在前项不受支持时才生效 */
+const SEGMENTER_LANGUAGES = ['en-US', 'zh-CN', 'zh-TW', 'ja-JP', 'ko-KR', 'de-DE', 'es-ES', 'fr-FR', 'pt-BR', 'ru-RU'];
 
 /** 全局共享的 Segmenter 实例（避免重复创建） */
 const segmenter = new Intl.Segmenter(SEGMENTER_LANGUAGES);

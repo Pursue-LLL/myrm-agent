@@ -1,7 +1,7 @@
 """E2E tests — real-browser secret redaction on page content.
 
 #170 BrowserOutputSecretRedaction: page-displayed credentials must never reach
-the LLM context. Every browser tool result passes through ``mark_untrusted``
+the LLM context. The page-content results of the browser tools pass through ``mark_untrusted``
 (``redact_sensitive_text`` then ``wrap_untrusted``) in ``tools/common.py``.
 
 These tests run against a REAL browser (patchright) with a locally-injected

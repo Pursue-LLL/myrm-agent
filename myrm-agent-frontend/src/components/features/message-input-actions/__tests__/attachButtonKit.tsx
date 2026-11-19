@@ -5,7 +5,7 @@
  * - ../AttachButton (POS: 被测组件)
  *
  * [OUTPUT]
- * - kit: 提示、文件服务、上传控制器、图片整理、哈希、部署模式的替身句柄
+ * - kit: 提示、文件服务（含桌面选图上传）、上传控制器、图片整理、哈希、部署模式的替身句柄
  * - resetAttachKit: 恢复默认行为（浏览器环境、文件原样通过、哈希按文件名、上传全部成功）
  * - renderAttach: 渲染按钮，返回当前文件列表的读写口（模拟别处同时改动列表）
  * - settle / pickFiles: 让已能完成的步骤跑完；在文件输入框里选文件并等待
@@ -47,6 +47,8 @@ const kit = vi.hoisted(() => ({
         options?: UploadOptions,
       ) => Promise<FileReference[]>
     >(),
+  uploadPickedImages:
+    vi.fn<(refs: FileReference[], options?: UploadOptions, signal?: AbortSignal) => Promise<FileReference[]>>(),
   resetUploadController: vi.fn<() => void>(),
   uploadSignal: new AbortController().signal,
   admit: vi.fn<(files: File[]) => Promise<File[]>>(),
@@ -64,6 +66,7 @@ vi.mock('@/lib/deploy-mode', async (importOriginal) => ({
 vi.mock('@/services/file-service', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/file-service')>()),
   selectFiles: kit.selectFiles,
+  uploadPickedImages: kit.uploadPickedImages,
   getFileService: () => ({ uploadFiles: kit.uploadFiles }),
 }));
 vi.mock('@/services/uploadController', () => ({
@@ -78,7 +81,7 @@ vi.mock('@/lib/utils/fileUtils', async (importOriginal) => ({
 
 const extensionOf = (name: string) => name.split('.').pop() ?? '';
 
-/** Boundaries behave: files pass through untouched, hashes follow the file name, every upload succeeds. */
+/** Boundaries behave: files pass through untouched, hashes follow the file name, every upload succeeds, picked images get a server copy. */
 export function resetAttachKit(): void {
   cleanup();
   vi.clearAllMocks();
@@ -93,6 +96,13 @@ export function resetAttachKit(): void {
       fileType: 'uploaded' as const,
       fileUrl: `/uploads/${file.name}`,
     })),
+  );
+  kit.uploadPickedImages.mockImplementation(async (refs) =>
+    refs.map((ref) =>
+      ref.localPath && ['png', 'jpg', 'jpeg', 'webp'].includes(ref.fileExtension)
+        ? { ...ref, id: `id:${ref.fileName}`, fileUrl: `/uploads/${ref.fileName}` }
+        : ref,
+    ),
   );
   useProviderStore.setState({ defaultModelConfig: undefined });
 }

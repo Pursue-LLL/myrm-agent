@@ -76,9 +76,7 @@ export function AgentFleetCockpit({
             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
           </div>
           <div className="flex flex-col">
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-              {t('metricWorking')}
-            </span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">{t('metricWorking')}</span>
             <span className="font-bold text-sm text-emerald-700 dark:text-emerald-300">
               {summary?.working_agents ?? 0}
             </span>
@@ -89,12 +87,8 @@ export function AgentFleetCockpit({
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
           <IconCheck className="w-4 h-4 text-blue-500 shrink-0" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">
-              {t('metricReady')}
-            </span>
-            <span className="font-bold text-sm text-blue-700 dark:text-blue-300">
-              {summary?.ready_agents ?? 0}
-            </span>
+            <span className="text-[10px] text-blue-600 dark:text-blue-400 font-medium">{t('metricReady')}</span>
+            <span className="font-bold text-sm text-blue-700 dark:text-blue-300">{summary?.ready_agents ?? 0}</span>
           </div>
         </div>
 
@@ -102,9 +96,7 @@ export function AgentFleetCockpit({
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
           <IconActivity className="w-4 h-4 text-amber-500 shrink-0" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">
-              {t('metricWaiting')}
-            </span>
+            <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium">{t('metricWaiting')}</span>
             <span className="font-bold text-sm text-amber-700 dark:text-amber-300">
               {summary?.waiting_input_agents ?? 0}
             </span>
@@ -115,12 +107,8 @@ export function AgentFleetCockpit({
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
           <IconX className="w-4 h-4 text-rose-500 shrink-0" />
           <div className="flex flex-col">
-            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">
-              {t('metricErrors')}
-            </span>
-            <span className="font-bold text-sm text-rose-700 dark:text-rose-300">
-              {summary?.error_agents ?? 0}
-            </span>
+            <span className="text-[10px] text-rose-600 dark:text-rose-400 font-medium">{t('metricErrors')}</span>
+            <span className="font-bold text-sm text-rose-700 dark:text-rose-300">{summary?.error_agents ?? 0}</span>
           </div>
         </div>
 
@@ -130,9 +118,7 @@ export function AgentFleetCockpit({
           <div className="flex flex-col">
             <span className="text-[10px] text-muted-foreground">{t('metricTokens')}</span>
             <span className="font-mono font-bold text-sm text-foreground">
-              {summary?.total_tokens_consumed
-                ? `${Math.round(summary.total_tokens_consumed / 1000)}k`
-                : '0'}
+              {summary?.total_tokens_consumed ? `${Math.round(summary.total_tokens_consumed / 1000)}k` : '0'}
             </span>
           </div>
         </div>
@@ -143,8 +129,7 @@ export function AgentFleetCockpit({
         {/* State Filter Pills */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
           {FILTER_TABS.map((tab) => {
-            const isSelected =
-              tab.id === 'all' ? activeFilter === undefined : activeFilter === tab.id;
+            const isSelected = tab.id === 'all' ? activeFilter === undefined : activeFilter === tab.id;
             return (
               <button
                 key={tab.id}

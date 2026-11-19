@@ -4,7 +4,7 @@
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
   core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
-  core.security.tool_registry::host_file_paths, url_arg_error, url_arg_hosts (POS: the files a call names, the canonical hosts of the URLs it names, and why a URL has no canonical form)
+  core.security.tool_registry::URL_BEARING_PERMISSIONS, host_file_paths, url_arg_error, url_arg_hosts (POS: the tools that take URLs, the files a call names, the canonical hosts of the URLs it names, and why a URL has no canonical form)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
@@ -16,7 +16,7 @@
   with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
-- check_tool_path_policy(): strictest path-zone verdict over the host files a file tool names (engine and cron policy share it)
+- check_tool_path_policy(): strictest verdict over the host files a file tool names and the protected instruction files a shell command writes (engine and cron policy share it)
 - check_capability(): test (permission, target) against a CapabilitySet
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
@@ -50,7 +50,12 @@ from myrm_agent_harness.agent.security.types import (
     SecurityConfig,
 )
 from myrm_agent_harness.core.security.domain_match import host_matches
-from myrm_agent_harness.core.security.tool_registry import host_file_paths, url_arg_error, url_arg_hosts
+from myrm_agent_harness.core.security.tool_registry import (
+    URL_BEARING_PERMISSIONS,
+    host_file_paths,
+    url_arg_error,
+    url_arg_hosts,
+)
 
 
 def _wildcard_match(value: str, pattern: str) -> bool:
@@ -99,7 +104,6 @@ def check_capability(permission: str, target: str, capabilities: CapabilitySet) 
     )
 
 
-_URL_BEARING_PERMISSIONS: frozenset[str] = frozenset({"web_fetch", "net_fetch", "browser_navigate"})
 # Only a browser navigation asks about a domain outside the allowlist: a fetch only reads a page, and is held to the
 # blocklist and the ruleset.
 _DOMAIN_APPROVAL_PERMISSIONS: frozenset[str] = frozenset({"browser_navigate"})
@@ -113,7 +117,7 @@ _ACTION_SEVERITY: dict[PermissionAction, int] = {
 
 def _check_url_syntax(permission: str, tool_input: dict[str, object]) -> tuple[PermissionAction | None, str]:
     """Deny a URL-bearing tool when a URL it names has no canonical form: no list can judge the host a client would dial."""
-    if permission not in _URL_BEARING_PERMISSIONS:
+    if permission not in URL_BEARING_PERMISSIONS:
         return None, ""
     error = url_arg_error(tool_input)
     return (PermissionAction.DENY, f"URL not allowed: {error}") if error else (None, "")
@@ -123,7 +127,7 @@ def _check_domain_blocklist(
     permission: str, tool_input: dict[str, object], network_blocklist: tuple[str, ...]
 ) -> tuple[PermissionAction | None, str]:
     """Deny a URL-bearing tool when any host it names matches the network blocklist."""
-    if permission not in _URL_BEARING_PERMISSIONS or not network_blocklist:
+    if permission not in URL_BEARING_PERMISSIONS or not network_blocklist:
         return None, ""
     for hostname in url_arg_hosts(tool_input):
         if host_matches(hostname, network_blocklist):
@@ -160,9 +164,7 @@ def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name
     """
     if permission == "mcp_invoke" and tool_name:
         return tool_name
-    if permission in COMMAND_BEARING_PERMISSIONS:
-        return command_text(tool_input) or "*"
-    return "*"
+    return command_text(permission, tool_input) or "*"
 
 
 def _resolve_targets(
@@ -175,7 +177,7 @@ def _resolve_targets(
     """
     if permission in _PATH_CHECKED_PERMISSIONS:
         return tuple(host_file_paths(tool_input)) or ("*",)
-    if permission in _URL_BEARING_PERMISSIONS:
+    if permission in URL_BEARING_PERMISSIONS:
         return url_arg_hosts(tool_input) or ("*",)
     return (_resolve_target(permission, tool_input, tool_name=tool_name),)
 
@@ -227,15 +229,18 @@ def check_tool_path_policy(
     config: SecurityConfig,
     workspace_root: str | None,
 ) -> tuple[PermissionAction, str] | None:
-    """Strictest path-zone verdict (session grants included) over the host files a file tool names; ``None`` if it names none."""
+    """Strictest verdict over what a call touches that needs a person; ``None`` if it touches nothing of the kind.
+
+    A file tool is judged by the zones (session grants included) of the host files it names, a shell tool by
+    whether its command writes a protected instruction file.
+    """
+    from myrm_agent_harness.agent.security.checks import check_command_protected_write, check_path_policy
+
     paths = host_file_paths(tool_input) if permission in _PATH_CHECKED_PERMISSIONS else []
     if not paths:
-        return None
+        return check_command_protected_write(permission, tool_input)
 
-    from myrm_agent_harness.agent.security.checks import check_path_policy
-    from myrm_agent_harness.agent.security.session_access import (
-        merge_path_policy_with_session_access,
-    )
+    from myrm_agent_harness.agent.security.session_access import merge_path_policy_with_session_access
 
     policy = merge_path_policy_with_session_access(config.path_policy)
     verdicts = [
@@ -271,7 +276,7 @@ def evaluate_tool_call(
     2b. URL Scheme Check → non-http(s) → DENY
     2b2. Domain Blocklist → any URL of a network tool on the blocklist → DENY
     2c. Domain HITL → browser navigation to a domain not in the allowlist → ASK (when enabled)
-    3. Path Policy → forbidden/allowed/workspace check (file_read/file_write only)
+    3. Path Policy → forbidden/allowed/workspace check (file_read/file_write); a shell command's write to a protected instruction file → ASK
     4. Permission ruleset with target resolution → last-match-wins
     5. Risk classifier fallback → SAFE shell commands → ALLOW (shell_exec/code_interpreter)
     6. Fallback → ASK
@@ -337,14 +342,9 @@ def evaluate_tool_call(
             classify_command_risk,
         )
 
-        command = command_text(tool_input)
+        command = command_text(permission, tool_input)
         if command and classify_command_risk(command) == CommandRiskLevel.SAFE:
-            reason = (
-                "Sandbox-aware safe command auto-allow"
-                if getattr(config, "is_sandbox", False)
-                else "Safe read-only command auto-allow"
-            )
-            return PermissionAction.ALLOW, reason
+            return PermissionAction.ALLOW, "Safe read-only command auto-allow"
 
     return result_action, ""
 

@@ -1,6 +1,6 @@
 /**
  * [INPUT]
- * locales/{zh,en,zh-TW,ja,ko,de}.json — fault-side attribution strings.
+ * locales/{zh,en}.json — fault-side attribution strings.
  * [OUTPUT]
  * Vitest: InteractionCentricFailureLocalizerStack i18n keys exist and are
  * non-empty in every supported locale.
@@ -15,7 +15,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const LOCALES_ROOT = resolve(process.cwd(), 'locales');
-const LANGUAGES = ['zh', 'en', 'zh-TW', 'ja', 'ko', 'de'] as const;
+const LANGUAGES = ['zh', 'en'] as const;
 
 const FAULT_SIDE_KEYS = ['model', 'harness_tool', 'harness_pipeline', 'env', 'grader', 'owner'] as const;
 

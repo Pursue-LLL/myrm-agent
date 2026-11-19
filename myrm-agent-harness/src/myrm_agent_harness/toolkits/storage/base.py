@@ -12,7 +12,8 @@
 
 [POS]
 Storage provider abstract base class. Defines the unified storage interface contract for all
-storage backends. Supports file read/write, delete, list, and info query.
+storage backends. Supports file read/write, delete, list, and info query, plus an optional
+local-path hand-off for backends that keep files on the local disk.
 Method names use read/write (not get/put).
 """
 
@@ -21,6 +22,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 
 
 @dataclass
@@ -224,6 +226,17 @@ class StorageProvider(ABC):
             FileNotFoundError: File not found
         """
         ...
+
+    def local_path(self, key: str) -> Path | None:
+        """Absolute path of ``key`` when this backend keeps files on the local disk, else ``None``.
+
+        Lets a caller hand the file to the OS (HTTP range requests, sendfile) instead of reading
+        it whole into memory. The path is not checked for existence.
+
+        Raises:
+            StorageError: The key escapes the storage root
+        """
+        return None
 
 
 class StorageError(Exception):

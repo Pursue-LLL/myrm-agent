@@ -20,7 +20,7 @@ from myrm_agent_harness.toolkits.web_fetch.fetchers.protocols import FetchResult
 from myrm_agent_harness.utils.url_syntax import parse_outbound_url
 from tests.support.host_spellings import DIAL_SPELLINGS
 
-_PIN = "myrm_agent_harness.toolkits.web_fetch.fetchers.target_guard.async_pin_url"
+_VET = "myrm_agent_harness.toolkits.web_fetch.fetchers.target_guard.async_vetted_addresses"
 _LOOKUP = "myrm_agent_harness.core.security.redirect_hop_guard.hop_evaluator.resolve_addresses"
 # ``urljoin`` rejects a bracketed host that is not an IP literal, so a redirect to it is never followed.
 _REDIRECT_SPELLINGS = tuple(spelling for spelling in DIAL_SPELLINGS if spelling != "[example.test]")
@@ -45,7 +45,7 @@ def _response(location: str | None = None) -> MagicMock:
 
 async def _fetch(fetcher: HttpFetcher, url: str, *, shield: bool = True) -> FetchResult | None:
     return await fetcher._fetch_with_redirects(
-        url, headers={}, cookie_jar=None, enable_ssrf_shield=shield, allowed_hosts=[], use_http3=False
+        url, headers={}, cookie_jar=None, enable_ssrf_shield=shield, allowed_hosts=[]
     )
 
 
@@ -66,14 +66,14 @@ def local_fetcher(monkeypatch: pytest.MonkeyPatch) -> HttpFetcher:
 
 @pytest.fixture
 def judged(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """The cloud policy's pin, replaced by a recorder of the URLs it was asked to judge (it would resolve names)."""
+    """The cloud policy's judgment, replaced by a recorder of the URLs it was asked to judge (it would resolve names)."""
     seen: list[str] = []
 
-    async def pin(url: str, _allowed_hosts: list[str]) -> tuple[str, dict[str, str]]:
+    async def vet(url: str, _allowed_hosts: list[str] | None = None) -> tuple[str, ...]:
         seen.append(url)
-        return url, {}
+        return ()
 
-    monkeypatch.setattr(_PIN, pin)
+    monkeypatch.setattr(_VET, vet)
     return seen
 
 
@@ -142,19 +142,6 @@ class TestEveryHopIsRequestedInItsCanonicalSpelling:
         await _fetch(local_fetcher, "http://EXAMPLE.test./page")
 
         assert _requested(install_fake_scrapling) == ["http://example.test/page", "http://example.test/next"]
-
-    async def test_the_name_dialed_after_a_failed_pinned_request_is_the_canonical_one(
-        self, install_fake_scrapling: AsyncMock, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        async def pin(url: str, _allowed_hosts: list[str]) -> tuple[str, dict[str, str]]:
-            return "http://203.0.113.9/page", {"Host": "example.test"}
-
-        monkeypatch.setattr(_PIN, pin)
-        install_fake_scrapling.side_effect = [OSError("certificate names the host, not the address"), _response()]
-
-        await _fetch(HttpFetcher(), "http://EXAMPLE.test./page")
-
-        assert _requested(install_fake_scrapling) == ["http://203.0.113.9/page", "http://example.test/page"]
 
     async def test_a_fetch_without_the_shield_requests_the_url_as_written(
         self, install_fake_scrapling: AsyncMock

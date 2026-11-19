@@ -3,7 +3,7 @@
 [INPUT]
 - .protocols::GoalProvider (POS: GoalProvider protocol)
 - .types::Goal, GoalStatus, GoalBudget, GoalAccountingOutcome (POS: Goal data types)
-- .storage::GoalStorage (POS: SQLite persistence)
+- .storage::GoalStorage (POS: StorageProvider-backed goal persistence)
 
 [OUTPUT]
 - GoalManager: Implementation of GoalProvider.
@@ -388,7 +388,9 @@ class GoalManager(GoalManagerQueueMixin, GoalProvider):
         )
         return goal
 
-    async def evaluate_semantic(self, criteria: str, content: str) -> VerificationResult:
+    async def evaluate_semantic(
+        self, criteria: str, content: str, context_messages: list[object] | None = None
+    ) -> VerificationResult:
         """Evaluate a semantic criterion using an LLM judge.
 
         This must be implemented by the Server layer to inject the correct LLM context.

@@ -1,6 +1,6 @@
 /**
- * [INPUT] @/store/useCronStore (POS: 暂停/恢复/触发/刷新), @/services/cron::duplicateCronJob (POS: 复制任务)
- * [OUTPUT] useCronJobActions: 任务卡片的暂停/恢复切换、立即运行（5 秒防连点）、复制及 canResume 判定，失败统一 toast 提示
+ * [INPUT] @/store/useCronStore (POS: 暂停/恢复/触发/刷新), @/services/cron::duplicateCronJob (POS: 复制任务), @/lib/api::ApiError (POS: 以 HTTP 状态码区分「已在运行」与失败)
+ * [OUTPUT] useCronJobActions: 任务卡片的暂停/恢复切换、立即运行（5 秒防连点；任务已在运行时服务端答 409，给出专门提示）、复制及 canResume 判定，失败统一 toast 提示
  * [POS] CronJobCard 的动作层。
  */
 
@@ -8,6 +8,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from 'sonner';
+import { ApiError } from '@/lib/api';
 import { duplicateCronJob, type CronJob } from '@/services/cron';
 import useCronStore from '@/store/useCronStore';
 
@@ -29,6 +30,7 @@ export function useCronJobActions(job: CronJob) {
     if (job.status === 'completed') {
       return false;
     }
+    // oxlint-disable-next-line react/purity -- the clock only decides whether the resume button is offered; the server checks the expiry again when the job is resumed
     if (job.expires_at && new Date(job.expires_at).getTime() <= Date.now()) {
       return false;
     }
@@ -62,8 +64,12 @@ export function useCronJobActions(job: CronJob) {
     try {
       await triggerJob(job.id);
       toast.success(t('triggerSuccess', { name: job.name }));
-    } catch {
-      toast.error(t('triggerFail'));
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 409) {
+        toast.error(t('triggerAlreadyRunning', { name: job.name }));
+      } else {
+        toast.error(t('triggerFail'));
+      }
       setTriggering(false);
       return;
     }

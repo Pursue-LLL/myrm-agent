@@ -21,6 +21,7 @@ from myrm_agent_harness.toolkits.code_execution.session.shell_flavor import (
     ShellFlavor,
     WindowsFlavor,
 )
+from tests.toolkits.code_execution._session_helpers import split_bash_wrapper
 
 _TRICKY = "a\"b\\c d$HOME `whoami` $(echo pwned) 'q'\nsecond-line"
 
@@ -84,17 +85,6 @@ class TestScopedEnv:
         result = await session.execute("exit 3", env=CommandEnv(scoped={"TOKEN_A": "secret"}))
         assert result.exit_code == 3
 
-        assert await _read(session, "TOKEN_A") == "<unset>"
-
-    async def test_scoped_value_is_removed_after_a_stream(self, session: LocalPersistentSession) -> None:
-        chunks = [
-            chunk
-            async for chunk in session.execute_stream(
-                "printf '%s' \"$TOKEN_A\" | od -An -tx1 | tr -d ' \\n'", env=CommandEnv(scoped={"TOKEN_A": "streamed"})
-            )
-        ]
-
-        assert _hex("streamed") in "".join(chunks)
         assert await _read(session, "TOKEN_A") == "<unset>"
 
     async def test_shell_state_the_command_made_is_kept(self, session: LocalPersistentSession) -> None:
@@ -168,11 +158,10 @@ class TestWrappedCommand:
             "echo hi", "EX", "END", "$?", CommandEnv(sticky={"ORG": "o"}, scoped={"TOKEN_A": "t"})
         )
 
-        lines = wrapped.splitlines()
-        block = lines[lines.index("{") + 1 : lines.index("}")]
+        _, block, after = split_bash_wrapper(wrapped)
+
         assert block == ["export ORG=$'o'", "export TOKEN_A=$'t'", "echo hi", "__myrm_rc__=$?"]
-        assert lines[-1] == "unset TOKEN_A"
-        assert lines.index("echo 'END'") == len(lines) - 2
+        assert after == ["echo 'EX'\"$__myrm_rc__\"", "echo 'END'", "unset TOKEN_A"]
 
     def test_powershell_sets_before_the_block_and_removes_after_the_end_marker(self) -> None:
         wrapped = PowerShellFlavor().build_wrapped_command(
@@ -197,8 +186,8 @@ class TestWrappedCommand:
     def test_bash_enters_the_directory_in_a_subshell_inside_the_block(self) -> None:
         wrapped = BashFlavor().build_wrapped_command("echo hi", "EX", "END", "$?", CommandEnv(cwd="/w/a b"))
 
-        lines = wrapped.splitlines()
-        block = lines[lines.index("{") + 1 : lines.index("}")]
+        _, block, _ = split_bash_wrapper(wrapped)
+
         assert block == ["( cd -- '/w/a b' && {", "echo hi", "} )", "__myrm_rc__=$?"]
 
     @pytest.mark.parametrize("flavor", [PowerShellFlavor(), WindowsFlavor()])

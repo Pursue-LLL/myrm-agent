@@ -1,53 +1,35 @@
 """Video task executor implementation.
 
 [INPUT]
-- myrm_agent_harness.toolkits.llms.video::VideoGenerator (POS: engine)
+- myrm_agent_harness.toolkits.llms.video::VideoGenerator, VideoGenerationError (POS: engine)
+- myrm_agent_harness.toolkits.llms.media_inputs::resolve_media_inputs (POS: the single reference resolver)
 - myrm_agent_harness.toolkits.tasks::Task (POS: async task entity)
+- app.ai_agents.media_tools.input_policy::build_media_input_policy (POS: reference-resolution policy)
 - app.tasks.video_config_resolver::VideoGenerationConfigResolver (POS: config resolver)
+- app.tasks.payload_values (POS: typed payload reads)
 
 [OUTPUT]
 - VideoTaskExecutor: AsyncTaskExecutor implementation for video_generate tasks
 
 [POS]
-Server task worker executor for async video generation with payload image clamping.
+Server task worker executor for async video generation: it resolves reference images and videos through the single
+resolver, hands public video URLs to providers that can fetch them, and returns stored ``media://`` references.
 """
 
 from __future__ import annotations
 
+from myrm_agent_harness.toolkits.llms.media_inputs import resolve_media_inputs
 from myrm_agent_harness.toolkits.llms.media_task_types import TASK_TYPE_VIDEO_GENERATE
 from myrm_agent_harness.toolkits.llms.video import VideoGenerator, get_registry
-from myrm_agent_harness.toolkits.llms.video.video_engine import (
-    _resolve_image_inputs,
-    _resolve_video_inputs,
-)
 from myrm_agent_harness.toolkits.tasks import Task
 
+from app.ai_agents.media_tools.input_policy import build_media_input_policy
+from app.tasks.payload_values import optional_bool, optional_int, optional_str, str_list
 from app.tasks.video_config_resolver import VideoGenerationConfigResolver
 
-
-def _coerce_str(value: object | None) -> str | None:
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return None
-
-
-def _coerce_str_list(value: object | None) -> list[str] | None:
-    if not isinstance(value, list):
-        return None
-    values = [item.strip() for item in value if isinstance(item, str) and item.strip()]
-    return values if values else None
-
-
-def _coerce_int(value: object | None) -> int | None:
-    if isinstance(value, int):
-        return value
-    return None
-
-
-def _coerce_bool(value: object | None) -> bool | None:
-    if isinstance(value, bool):
-        return value
-    return None
+# Providers that can fetch a source video themselves (xAI extend/edit, fal continuation) read its public URLs here
+# instead of re-uploading the bytes.
+_SOURCE_URLS_PARAM = "_video_source_urls"
 
 
 class VideoTaskExecutor:
@@ -62,41 +44,41 @@ class VideoTaskExecutor:
     async def execute(self, task: Task) -> dict[str, object]:
         """Execute video generation task."""
         payload = task.payload
-        prompt_raw = _coerce_str(payload.get("prompt"))
-        if prompt_raw is None:
-            msg = "Video task payload is missing required field: prompt"
-            raise ValueError(msg)
+        prompt = optional_str(payload.get("prompt"))
+        if prompt is None:
+            raise ValueError("Video task payload is missing required field: prompt")
 
-        config = self._config_resolver(task)
-        generator = VideoGenerator(config, get_registry())
-
-        reference_images = _coerce_str_list(payload.get("reference_images"))
-        reference_videos = _coerce_str_list(payload.get("reference_videos"))
-        resolved_images = await _resolve_image_inputs(reference_images) if reference_images else None
-        if resolved_images:
-            from app.ai_agents.media_tools.image_clamp import clamp_image_payload
-
-            resolved_images = [clamp_image_payload(img)[0] for img in resolved_images]
-        resolved_videos = await _resolve_video_inputs(reference_videos) if reference_videos else None
+        generator = VideoGenerator(self._config_resolver(task), get_registry())
+        policy = build_media_input_policy(str_list(payload.get("allowed_roots")))
+        image_refs = str_list(payload.get("reference_images"))
+        video_refs = str_list(payload.get("reference_videos"))
+        reference_images = (
+            await resolve_media_inputs(image_refs, "image", policy, field_name="reference_images") if image_refs else None
+        )
+        reference_videos = (
+            await resolve_media_inputs(video_refs, "video", policy, field_name="reference_videos") if video_refs else None
+        )
 
         extra_params_raw = payload.get("extra_params")
-        extra_params = extra_params_raw if isinstance(extra_params_raw, dict) else None
+        extra_params = dict(extra_params_raw) if isinstance(extra_params_raw, dict) else {}
+        if source_urls := [ref for ref in video_refs if ref.startswith(("http://", "https://"))]:
+            extra_params[_SOURCE_URLS_PARAM] = source_urls
 
         result = await generator.generate(
-            prompt_raw,
-            provider_id=_coerce_str(payload.get("provider_override")),
-            model=_coerce_str(payload.get("model_override")),
-            duration_seconds=_coerce_int(payload.get("duration_seconds")),
-            aspect_ratio=_coerce_str(payload.get("aspect_ratio")),
-            resolution=_coerce_str(payload.get("resolution")),
-            enable_audio=_coerce_bool(payload.get("enable_audio")),
-            reference_images=resolved_images,
-            reference_videos=resolved_videos,
-            extra_params=extra_params,
+            prompt,
+            provider_id=optional_str(payload.get("provider_override")),
+            model=optional_str(payload.get("model_override")),
+            duration_seconds=optional_int(payload.get("duration_seconds")),
+            aspect_ratio=optional_str(payload.get("aspect_ratio")),
+            resolution=optional_str(payload.get("resolution")),
+            enable_audio=optional_bool(payload.get("enable_audio")),
+            reference_images=reference_images,
+            reference_videos=reference_videos,
+            extra_params=extra_params or None,
         )
 
         result_dict = result.to_dict()
-        result_dict["prompt"] = prompt_raw
+        result_dict["prompt"] = prompt
         return result_dict
 
     def can_execute(self, task_type: str) -> bool:

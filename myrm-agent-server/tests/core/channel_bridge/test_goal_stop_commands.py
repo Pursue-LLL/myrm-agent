@@ -25,7 +25,6 @@ def chat_id(tmp_path: Path) -> Iterator[str]:
     cid = f"goal-clear-{uuid.uuid4().hex[:8]}"
     with patch("app.platform_utils.get_storage_provider", return_value=LocalStorageBackend(str(tmp_path))):
         yield cid
-    GoalRegistry.unregister(cid)
 
 
 @pytest.fixture
@@ -48,7 +47,7 @@ async def _clear(chat_id: str) -> tuple[str, InboundMessage]:
     [GoalStatus.ACTIVE, GoalStatus.PAUSED, GoalStatus.BUDGET_LIMITED, GoalStatus.NEEDS_HUMAN_REVIEW, GoalStatus.WAIT],
 )
 async def test_clear_cancels_every_open_goal(chat_id: str, status: GoalStatus) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     if status is not GoalStatus.ACTIVE:
         await provider.update_status(goal.goal_id, status)
@@ -62,7 +61,7 @@ async def test_clear_cancels_every_open_goal(chat_id: str, status: GoalStatus) -
 
 
 async def test_clear_leaves_a_finished_goal_alone(chat_id: str) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     await provider.update_status(goal.goal_id, GoalStatus.COMPLETE)
 
@@ -75,7 +74,7 @@ async def test_clear_leaves_a_finished_goal_alone(chat_id: str) -> None:
 
 
 async def test_clear_stops_the_turn_of_a_working_goal(chat_id: str, gateway: MagicMock) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     await provider.create_goal(chat_id, _OBJECTIVE)
 
     await _clear(chat_id)
@@ -84,7 +83,7 @@ async def test_clear_stops_the_turn_of_a_working_goal(chat_id: str, gateway: Mag
 
 
 async def test_clear_of_a_paused_goal_leaves_the_chat_turn_alone(chat_id: str, gateway: MagicMock) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     await provider.update_status(goal.goal_id, GoalStatus.PAUSED)
 
@@ -94,7 +93,7 @@ async def test_clear_of_a_paused_goal_leaves_the_chat_turn_alone(chat_id: str, g
 
 
 async def test_pause_stops_the_turn_and_keeps_the_note(chat_id: str, gateway: MagicMock) -> None:
-    provider = GoalRegistry.get_or_create_provider(chat_id)
+    provider = GoalRegistry.register(chat_id)
     goal = await provider.create_goal(chat_id, _OBJECTIVE)
     msg = InboundMessage(channel="test", sender_id="user-1", content="/goal pause waiting for review")
 

@@ -125,7 +125,9 @@ class TestFinalizeBranchCoverage:
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         mock_drain.assert_called_once_with("chat-branch")
-        mock_end_run.assert_called_once_with("chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}])
+        mock_end_run.assert_called_once_with(
+            "chat-branch", phase=RunDigestPhase.ERROR, progress_steps=[{}], run=session.digest_run
+        )
 
     @pytest.mark.asyncio
     async def test_turn_capability_completed_is_recorded(self) -> None:
@@ -223,8 +225,8 @@ class TestFinalizeBranchCoverage:
     async def test_resume_marks_pending_clarification_answered(self) -> None:
         """Resumed turns mark the pending clarification answered."""
         session = _make_session()
-        session.request.resume_value = "resume-payload"
-        session.collector.extra_data = {"clarification": {"answered": False}}
+        session.request.resume_value = {"framework": "langchain"}
+        session.collector.extra_data = {"clarification": {"answered": False, "interruptId": "int-2"}}
         clarification_msg = MagicMock(id="m-clarify", role="assistant")
         clarification_msg.extra_data = {"clarification": {"answered": False}}
         with (
@@ -258,12 +260,13 @@ class TestFinalizeBranchCoverage:
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification())
 
         assert mock_update_extra.await_count == 1
-        mock_schedule_clarification.assert_called_once()
+        mock_schedule_clarification.assert_called_once_with("chat-branch", session.params, "int-2")
 
     @pytest.mark.asyncio
     async def test_clarification_timeout_scheduled_via_holder(self) -> None:
-        """pending in the holder schedules the clarification timeout."""
+        """A clarification the stream announced arms its timer for the pause its card was announced for."""
         session = _make_session()
+        session.collector.extra_data = {"clarification": {"answered": False, "interruptId": "int-1"}}
         with (
             patch("app.services.agent.stream_session.stream_finalize.enqueue_context_compaction_telemetry"),
             patch("app.services.agent.stream_session.stream_finalize.clear_context_task_metrics"),
@@ -286,4 +289,4 @@ class TestFinalizeBranchCoverage:
             mock_ctx.reset = MagicMock()
             await finalize_agent_stream_session(session, MagicMock(), _approval(), _clarification(pending=True))
 
-        mock_schedule_clarification.assert_called_once()
+        mock_schedule_clarification.assert_called_once_with("chat-branch", session.params, "int-1")

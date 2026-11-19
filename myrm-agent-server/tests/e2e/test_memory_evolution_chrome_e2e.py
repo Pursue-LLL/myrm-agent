@@ -105,9 +105,9 @@ _SHEET_PROBE_JS = """(() => {
   const actionEl = document.querySelector('[data-testid="merge-action"]');
   const text = document.body.innerText || '';
 
-  const sheetOpen = Boolean(sheetEl || historyEl || /Evolution History|演变历史|演變歷史|変遷履歴|변천 이력|Entwicklungshistorie/.test(text));
-  const hasMergeBadge = Boolean(countEl || /Merged \\d+ times|已合并 \\d+ 次|已合併 \\d+ 次|\\d+ 回マージ済み|\\d+회 병合됨|\\d+x zusammengeführt/.test(text));
-  const hasMergeAction = Boolean(actionEl || /Merged|Replaced|Supplemented|合并|替换|补充|合併|替換|マージ|置換|補足|병합|대체|보완|Zusammengeführt|Ersetzt|Ergänzt/.test(text));
+  const sheetOpen = Boolean(sheetEl || historyEl || /Evolution History|演变历史/.test(text));
+  const hasMergeBadge = Boolean(countEl || /Merged \\d+ times|已合并 \\d+ 次/.test(text));
+  const hasMergeAction = Boolean(actionEl || /Merged|Replaced|Supplemented|合并|替换|补充/.test(text));
 
   return {
     ready: sheetOpen && hasMergeBadge && hasMergeAction,
@@ -120,7 +120,7 @@ _SHEET_PROBE_JS = """(() => {
 
 _SHEET_CLOSE_JS = """(() => {
   // Radix Sheet: 右上角关闭按钮（aria-label）优先；回退 Escape 由 harness 处理
-  const btn = document.querySelector('[data-state="open"] [data-radix-collection-item], [data-radix-sheet-close], button[aria-label*="Close"], button[aria-label*="关闭"], button[aria-label*="關閉"]');
+  const btn = document.querySelector('[data-state="open"] [data-radix-collection-item], [data-radix-sheet-close], button[aria-label*="Close"], button[aria-label*="关闭"]');
   if (!btn) return { ok: false, err: 'close btn not found' };
   btn.click();
   return { ok: true };
@@ -158,7 +158,7 @@ _CORRECTED_SHEET_OPEN_JS = """(() => {
 _CORRECTION_PROBE_JS = """(() => {
   const chainEl = document.querySelector('[data-testid="correction-chain"]');
   const text = document.body.innerText || '';
-  const hasCorrectionBadge = Boolean(chainEl || /Corrects|纠正|糾正|修正|수정|Korrigiert/.test(text));
+  const hasCorrectionBadge = Boolean(chainEl || /Corrects|纠正|修正/.test(text));
   const hasSupersededContent = Boolean(chainEl || /corrected v1/.test(text));
   return {
     ready: hasCorrectionBadge,

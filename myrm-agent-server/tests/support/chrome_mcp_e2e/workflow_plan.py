@@ -26,10 +26,10 @@ _WORKFLOW_PLAN_CARD_JS = """(() => {
   const text = document.body?.innerText || '';
   const planRoot = document.querySelector('[data-testid="dynamic-workflow-plan-card"]');
   const runBtn = document.querySelector('[data-testid="dynamic-workflow-plan-run"]');
-  const hasTitle = Boolean(planRoot) || /Dynamic Workflow Plan|动态工作流计划|ダイナミックワークフロープラン/i.test(text);
+  const hasTitle = Boolean(planRoot) || /Dynamic Workflow Plan|动态工作流计划/i.test(text);
   const buttons = [...document.querySelectorAll('button')];
   const hasRun = Boolean(runBtn) || buttons.some((btn) =>
-    /Run Workflow|运行工作流|執行工作流|ワークフローを実行/i.test((btn.textContent || '').trim()),
+    /Run Workflow|运行工作流/i.test((btn.textContent || '').trim()),
   );
   const snap = window.__MYRM_E2E_CHAT__?.turnSnapshot?.() ?? {};
   const apiBase = window.__MYRM_E2E_API_BASE__ ?? window.__MYRM_E2E_RUNTIME__?.apiBase ?? null;

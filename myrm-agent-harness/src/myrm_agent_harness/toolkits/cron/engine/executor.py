@@ -14,13 +14,15 @@ but owns no scheduling state — that remains in ``CronScheduler``.
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
 - toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)
 - toolkits.cron.engine.incremental_monitoring::IncrementalMonitoringMixin (POS: diff of a run's output against its baseline, mixed into the executor)
+- toolkits.cron.engine.run_closer::RunCloserMixin (POS: the closing write of a run, mixed into the executor)
 - toolkits.cron.engine.run_notices::RunNoticeMixin (POS: notices about a run's outcome and an automatic pause, mixed into the executor)
 
 [OUTPUT]
 - JobExecutor: Manages the complete lifecycle of a single job execution.
 
 [POS]
-Single-job execution lifecycle.
+Single-job execution lifecycle. Runs the job, records and delivers its result and raises the notices; the closing
+write that follows the record (next slot, auto-pause, one-time completion) is ``RunCloserMixin``.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ import hashlib
 import logging
 import secrets
 from dataclasses import replace as dc_replace
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.infra.incremental.manager import IncrementalMonitorManager
@@ -43,31 +45,21 @@ from myrm_agent_harness.toolkits.cron.engine.connector_health import (
 )
 from myrm_agent_harness.toolkits.cron.engine.failure_alerts import FailureAlertMixin
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
-    classify_transient_error,
-    error_backoff_ms,
-)
-from myrm_agent_harness.toolkits.cron.engine.helpers import (
     extract_telemetry as _extract_telemetry,
 )
+from myrm_agent_harness.toolkits.cron.engine.helpers import run_status_of
 from myrm_agent_harness.toolkits.cron.engine.incremental_monitoring import IncrementalMonitoringMixin
-from myrm_agent_harness.toolkits.cron.engine.integrity import (
-    GENESIS_HASH,
-    compute_integrity_hash,
-)
-from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.engine.parser import compute_next_run
+from myrm_agent_harness.toolkits.cron.engine.run_closer import RunCloserMixin
 from myrm_agent_harness.toolkits.cron.engine.run_notices import RunNoticeMixin
 from myrm_agent_harness.toolkits.cron.engine.skipped_runs import SkippedRunMixin
 from myrm_agent_harness.toolkits.cron.protocols import PreFlightConditionError
+from myrm_agent_harness.toolkits.cron.triggers import TriggerKind
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
     CronJob,
     CronRunRecord,
     DeliveryStatus,
     JobResult,
-    JobStatus,
-    RunStatus,
-    ScheduleKind,
 )
 
 if TYPE_CHECKING:
@@ -81,7 +73,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_SCHEDULE_ERROR_THRESHOLD = 3
 _MAX_OUTPUT_CHARS = 8000
 _MAX_CONTEXT_FROM_CHARS = 8000
 
@@ -91,7 +82,7 @@ def _output_hash(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()[:32]
 
 
-class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin, SkippedRunMixin):
+class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin, RunNoticeMixin, SkippedRunMixin):
     """Manages the complete lifecycle of a single job execution.
 
     Stateful only in the sense that it holds injected dependencies.
@@ -145,8 +136,6 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin,
         trigger_source: str = "cron",
     ) -> None:
         """Core execution logic within TracingContext scope."""
-        self._current_trigger_source = trigger_source
-
         # 1. Pre-flight Condition check
         if self._pre_condition and job.pre_condition_script:
             probe_started = datetime.now(UTC)
@@ -161,7 +150,7 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin,
                 return
             if not should_run:
                 logger.info("Job %s skipped by pre-flight condition", job.id)
-                await self._record_skipped_by_probe(job)
+                await self._record_skipped_by_probe(job, trigger_source=trigger_source)
                 return
             if injected_context:
                 context = f"{injected_context}\n\n{context}" if context else injected_context
@@ -193,12 +182,12 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin,
                 result.retry_at.isoformat(),
                 result.skip_reason or result.error or "unknown",
             )
-            await self._record_deferred(job, result)
+            await self._record_deferred(job, result, trigger_source=trigger_source)
             return
 
         if result.skipped:
             logger.info("Job %s skipped by runner: %s", job.id, result.skip_reason or "unknown")
-            await self._record_skipped_by_runner(job, result.skip_reason)
+            await self._record_skipped_by_runner(job, result.skip_reason, trigger_source=trigger_source)
             return
 
         await self._finish_run(job, result, started, trigger_source)
@@ -232,21 +221,13 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin,
             run_metadata = run_metadata or {}
             run_metadata.setdefault("connector_failure", fail_detail.to_dict())
 
-        prev_hash = await self._store.get_latest_integrity_hash(job.id) or GENESIS_HASH
-
-        run_status = (
-            RunStatus.CIRCUIT_BREAK
-            if getattr(result, "circuit_broken", False)
-            else (RunStatus.OK if result.success else RunStatus.ERROR)
-        )
-
         run = CronRunRecord(
             id=secrets.token_urlsafe(12),
             job_id=job.id,
             started_at=started,
             finished_at=finished,
             duration_ms=duration_ms,
-            status=run_status,
+            status=run_status_of(result),
             output=result.output[:_MAX_OUTPUT_CHARS] if result.output else None,
             error=result.error[:1000] if result.error else None,
             model=model,
@@ -257,16 +238,16 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin,
             delivery_status=delivery_status,
             delivery_error=delivery_error,
             metadata=run_metadata,
-            prev_hash=prev_hash,
         )
-        integrity_hash = compute_integrity_hash(run, prev_hash)
-        run = dc_replace(run, integrity_hash=integrity_hash)
 
         await self._store.save_run(run)
         await self._notify_run_outcome(job, result, delivery_status)
 
+        if trigger_source == TriggerKind.MANUAL:
+            await self._record_trial_outcome(job, result, finished)
+            return
         new_failures = 0 if result.success else job.consecutive_failures + 1
-        await self._update_after_run(job, result, new_failures, finished)
+        await self._update_after_run(job, result, new_failures, finished, delivery_status)
 
     # ------------------------------------------------------------------
     # Delivery
@@ -369,130 +350,3 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunNoticeMixin,
                 output = output[:_MAX_CONTEXT_FROM_CHARS] + "\n[... output truncated ...]"
             fragments.append(f"## Output from task '{task_name}'\n\n{output}")
         return "\n\n---\n\n".join(fragments)
-
-    # ------------------------------------------------------------------
-    # State update after execution
-    # ------------------------------------------------------------------
-
-    async def _update_after_run(
-        self,
-        job: CronJob,
-        result: JobResult,
-        new_failures: int,
-        finished: datetime,
-    ) -> None:
-        if not await adopt_latest(self._store, job):
-            logger.info("Job %s was deleted during execution, skipping post-run update", job.id)
-            return
-
-        if job.schedule.kind == ScheduleKind.ONCE:
-            await self._handle_once_completion(job, result, new_failures, finished)
-            return
-
-        if getattr(result, "circuit_broken", False):
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
-            logger.warning(
-                "Job %s auto-paused due to circuit break: %s",
-                job.id,
-                result.error,
-            )
-        elif not result.success and new_failures > job.max_retries:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
-            logger.warning(
-                "Job %s auto-paused: %d consecutive failures (max_retries=%d)",
-                job.id,
-                new_failures,
-                job.max_retries,
-            )
-        elif result.success or not result.retry_safe:
-            try:
-                job.next_run_at = compute_next_run(job.schedule, finished)
-            except Exception as exc:
-                self._handle_schedule_compute_error(job, exc, finished)
-        else:
-            backoff = error_backoff_ms(new_failures)
-            job.next_run_at = finished + timedelta(milliseconds=backoff)
-
-        job.last_run_at = finished
-        job.last_status = (
-            RunStatus.CIRCUIT_BREAK
-            if getattr(result, "circuit_broken", False)
-            else (RunStatus.OK if result.success else RunStatus.ERROR)
-        )
-        job.last_error = result.error if not result.success else None
-        job.consecutive_failures = new_failures
-
-        if result.success:
-            job.last_failure_alert_at = None
-        else:
-            self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
-
-        job.updated_at = datetime.now(UTC)
-        await self._store.save_job(job)
-
-    async def _handle_once_completion(
-        self,
-        job: CronJob,
-        result: JobResult,
-        new_failures: int,
-        finished: datetime,
-    ) -> None:
-        if result.success and job.delete_after_run:
-            await self._store.delete_job(job.id)
-            return
-
-        if result.success:
-            job.status = JobStatus.COMPLETED
-            job.consecutive_failures = 0
-            job.last_failure_alert_at = None
-        elif result.retry_safe and classify_transient_error(result.error or "") and new_failures <= job.max_retries:
-            backoff = error_backoff_ms(new_failures)
-            job.next_run_at = finished + timedelta(milliseconds=backoff)
-            job.consecutive_failures = new_failures
-            job.last_error = result.error
-            logger.warning(
-                "One-shot job %s: transient error, retrying in %dms (attempt %d/%d)",
-                job.id,
-                backoff,
-                new_failures,
-                job.max_retries,
-            )
-        else:
-            job.status = JobStatus.PAUSED
-            job.consecutive_failures = new_failures
-            job.last_error = result.error
-            self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
-
-        if job.status != JobStatus.ACTIVE:
-            job.next_run_at = None
-        job.last_run_at = finished
-        job.last_status = RunStatus.OK if result.success else RunStatus.ERROR
-        job.updated_at = datetime.now(UTC)
-        await self._store.save_job(job)
-
-    def _handle_schedule_compute_error(self, job: CronJob, error: Exception, finished: datetime) -> None:
-        """Handle schedule computation failure with fallback retry.
-
-        Below threshold: sets a 60-second fallback next_run_at so the
-        scheduler retries instead of leaving the job as a zombie.
-        At threshold: auto-pauses the job.
-        """
-        job.consecutive_failures += 1
-        if job.consecutive_failures >= _SCHEDULE_ERROR_THRESHOLD:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
-            logger.warning(
-                "Job %s auto-paused: schedule expression keeps failing (%d times): %s",
-                job.id,
-                job.consecutive_failures,
-                error,
-            )
-        else:
-            job.next_run_at = finished + timedelta(seconds=60)
-            logger.warning(
-                "Job %s: schedule compute error (%s), will retry in 60s",
-                job.id,
-                error,
-            )

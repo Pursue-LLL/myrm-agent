@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Globe, Pencil, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/primitives/select';
-import type { AlternativeApiUrl } from '@/store/config/providerTypes';
+import type { AlternativeApiUrl } from '@/store/config/providerCatalog';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
 
 interface ApiUrlSelectorProps {

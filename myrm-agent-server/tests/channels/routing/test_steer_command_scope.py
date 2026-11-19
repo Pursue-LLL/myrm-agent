@@ -143,7 +143,7 @@ async def test_a_run_that_stopped_taking_steering_makes_the_instruction_a_turn_o
     assert chat.submit.call_args.args[0].content == _INSTRUCTION
 
 
-@pytest.mark.parametrize("locale", ["en", "zh-CN", "ja"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 def test_the_queued_acknowledgement_tells_who_started_the_run_how_to_redirect_it(locale: str) -> None:
     msg = InboundMessage(channel="telegram", sender_id="bob", content="x", metadata={"locale": locale})
 
@@ -153,7 +153,7 @@ def test_the_queued_acknowledgement_tells_who_started_the_run_how_to_redirect_it
     assert "2" in text and "10" in text
 
 
-@pytest.mark.parametrize("locale", ["en", "zh-CN", "zh-TW", "ja"])
+@pytest.mark.parametrize("locale", ["en", "zh-CN"])
 def test_the_refusal_for_a_member_who_did_not_start_the_run_is_localized(locale: str) -> None:
     msg = InboundMessage(channel="telegram", sender_id="bob", content="x", metadata={"locale": locale})
 

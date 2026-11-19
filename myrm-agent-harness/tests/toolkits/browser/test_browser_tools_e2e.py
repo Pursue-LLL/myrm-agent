@@ -139,7 +139,7 @@ async def test_tool_snapshot_content(browser_session: BrowserSession) -> None:
 
     # Verify ARIA tree contains elements
     assert "button" in result.lower() or "heading" in result.lower()
-    # Verify refs are present (Bug修复验证)
+    # Verify refs are present
     assert "e0" in result or "e1" in result
 
 

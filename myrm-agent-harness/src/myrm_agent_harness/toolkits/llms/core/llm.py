@@ -7,6 +7,7 @@ Review agent/context_management/PROMPT_CACHE_PRACTICE.md §6.1-6.2 whenever this
 - catalog::supports_web_search (POS: model native search capability detection)
 - transport::speaks_openai_body (POS: whether the provider takes an OpenAI-shaped request body)
 - core.deepseek_reasoning / openai_reasoning / openrouter_verbosity / reasoning_profile (POS: per-provider reasoning-effort normalization and the shared reasoning profile)
+- core.gateway_dialect (POS: the thinking switch SiliconFlow and NVIDIA document for an explicit choice)
 
 [OUTPUT]
 - create_chat_model(): factory function to create chat model instances
@@ -22,7 +23,8 @@ local endpoint stall-detection relaxation (auto-detect localhost/RFC1918 → rel
 inter_chunk/request timeouts), Ollama-scoped 64k context window (options.num_ctx injected only for
 Ollama endpoints, since other OpenAI-compatible local gateways reject Ollama option objects),
 OpenRouter reasoning_effort → reasoning.effort rewrite, reasoning-effort normalization per provider family
-(DeepSeek, OpenAI; an 'off' no rule translated is omitted from OpenAI-shaped bodies),
+(DeepSeek, OpenAI; an 'off' no rule translated is omitted from OpenAI-shaped bodies), the documented thinking switch
+of SiliconFlow and NVIDIA for an explicit choice,
 and native model capability passthrough (web_search_options) via tri-state native_tools config
 (None=auto-detect / set=explicit / empty set=disabled).
 Core layer used by LLMManager and business layer as the unified entry point for multi-model calls.
@@ -42,6 +44,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
 )
 from myrm_agent_harness.toolkits.llms.catalog import supports_web_search
 from myrm_agent_harness.toolkits.llms.core.deepseek_reasoning import apply_deepseek_reasoning_effort
+from myrm_agent_harness.toolkits.llms.core.gateway_dialect import apply_gateway_thinking
 from myrm_agent_harness.toolkits.llms.core.openai_reasoning import apply_openai_reasoning_effort
 from myrm_agent_harness.toolkits.llms.core.openrouter_verbosity import apply_openrouter_reasoning_effort
 from myrm_agent_harness.toolkits.llms.core.reasoning_profile import strip_untranslated_off_effort
@@ -254,8 +257,11 @@ def create_chat_model(
     apply_openai_reasoning_effort(model, llm_kwargs)
 
     # OpenAI-shaped bodies have no 'off' value: what the rules above did not translate is omitted, not sent as an
-    # invalid level. OpenRouter's own disable switch is refused by models that always reason, so it is not guessed.
+    # invalid level. Gateways that document their own thinking switch (SiliconFlow, NVIDIA) get it first, so their
+    # 'off' is translated rather than dropped. OpenRouter's own disable switch is refused by models that always
+    # reason, so it is not guessed.
     if openai_body:
+        apply_gateway_thinking(model, llm_kwargs)
         strip_untranslated_off_effort(llm_kwargs)
 
     # OpenRouter: rewrite reasoning_effort → extra_body.reasoning.effort

@@ -1,26 +1,32 @@
 """Rules the permission engine applies to the command line of shell tools.
 
 [INPUT]
-- Tool input of a command-bearing tool: ``command`` (bash tool) or ``data`` (text typed into a running process)
+- Tool input of a command-bearing tool as the model sent it: ``command`` (bash tool) or ``data`` (text typed into a
+  running process)
 - core.security.shell_command_lexer: where each command of a line starts and ends
 - agent.security.command_allowlist_pattern::is_compound_shell_command (POS: more than one plain command)
 
 [OUTPUT]
-- COMMAND_BEARING_PERMISSIONS: permission types whose tool input carries command text
+- COMMAND_TEXT_KEY / COMMAND_BEARING_PERMISSIONS: the permission types whose tool input carries command text, and
+  the one field of that input the tool runs
 - command_text(): the text a shell tool is about to run
+- launch_command(): the command a call starts; text typed into a running process starts none
 - check_command_denylist(): user-defined deny globs over that text (Layer 2a.5, YOLO-proof)
 - CommandVerdict / judge_command(): the ruleset's decision for a line, with each pattern rule scoped to the one
   plain command it was written for
 
 [POS]
-Pure helpers of ``engine.py``: the engine owns the order of the layers, this module owns what a shell command
-line means to a rule, so a rule sees the same command the shell will run.
+Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval
+stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a
+command, which field of them the tool runs and what a command line means to a rule, so every judge sees the
+command the shell will run and no other text.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from fnmatch import fnmatch
+from types import MappingProxyType
 from typing import NamedTuple
 
 from myrm_agent_harness.agent.security.command_allowlist_pattern import (
@@ -33,7 +39,14 @@ from myrm_agent_harness.core.security.shell_command_lexer import (
 )
 from myrm_agent_harness.core.security.shell_wrapper_peel import deny_readings
 
-COMMAND_BEARING_PERMISSIONS = frozenset({"shell_exec", "code_interpreter"})
+# The bash tool starts a command; ``bash_process_tool`` types into one that is already running.
+_LAUNCH_PERMISSION = "code_interpreter"
+_STDIN_PERMISSION = "shell_exec"
+
+# The one field of each command-bearing tool's input that the tool runs. The tools' input models drop every other
+# key, so a judge that read another one would approve, deny or review text that never runs.
+COMMAND_TEXT_KEY: Mapping[str, str] = MappingProxyType({_LAUNCH_PERMISSION: "command", _STDIN_PERMISSION: "data"})
+COMMAND_BEARING_PERMISSIONS = frozenset(COMMAND_TEXT_KEY)
 
 _SEVERITY = {
     PermissionAction.ALLOW: 0,
@@ -42,9 +55,20 @@ _SEVERITY = {
 }
 
 
-def command_text(tool_input: dict[str, object]) -> str:
-    """The text a shell tool is about to run: its ``command``, else ``code``, else the ``data`` typed into a process."""
-    return str(tool_input.get("command", "") or tool_input.get("code", "") or tool_input.get("data", "")).strip()
+def command_text(permission: str, tool_input: dict[str, object]) -> str:
+    """The text a shell tool is about to run, from the one field of its input the tool executes.
+
+    Empty for a permission that carries no command, and when the field is absent or blank.
+    """
+    key = COMMAND_TEXT_KEY.get(permission)
+    return str(tool_input.get(key) or "").strip() if key else ""
+
+
+def launch_command(permission: str, tool_input: dict[str, object] | None) -> str | None:
+    """The command a call starts, or None: text typed into a running process starts nothing."""
+    if permission != _LAUNCH_PERMISSION or not tool_input:
+        return None
+    return command_text(permission, tool_input) or None
 
 
 def check_command_denylist(
@@ -67,7 +91,7 @@ def check_command_denylist(
     """
     if permission not in COMMAND_BEARING_PERMISSIONS or not command_denylist:
         return None, ""
-    command = command_text(tool_input)
+    command = command_text(permission, tool_input)
     if not command:
         return None, ""
     for pattern in command_denylist:

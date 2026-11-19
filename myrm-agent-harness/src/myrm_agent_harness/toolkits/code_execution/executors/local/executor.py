@@ -20,13 +20,14 @@ persistent session lifecycle, workspace binding, and composed services
 (VenvManager, CommandRewriter, FileScanner, ExecutionHelper).
 """
 
-import asyncio
+import asyncio  # tests patch ``executor.asyncio.create_subprocess_exec``
 import logging
 import tempfile
 import time
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Self
+from weakref import WeakValueDictionary
 
 from myrm_agent_harness.core.security.ocap import CapabilityAction, check_capability_access
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
@@ -99,9 +100,9 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         self._helper = ExecutionHelper()
 
         self._current_workspace: Path | None = None
-        self._readonly_paths: list[str] = []
         self._bash_sessions: dict[str, LocalPersistentSession] = {}
         self._venv_warm_task: asyncio.Task[None] | None = None
+        self._bash_start_locks: WeakValueDictionary[str, asyncio.Lock] = WeakValueDictionary()
         self._closed: bool = False
 
         if workspace_path:
@@ -128,10 +129,6 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         path.mkdir(parents=True, exist_ok=True)
 
         logger.debug(f" LocalExecutor: bound to workspace {workspace_path}")
-
-    def add_readonly_path(self, path: str) -> None:
-        """Register a read-only path (local mode)."""
-        self._readonly_paths.append(path)
 
     def _resolve_work_dir(self, work_dir: str, workspace_root: Path | None) -> Path | None:
         """Resolve abstract paths (e.g. /workspace/...) to local filesystem paths.
@@ -323,6 +320,7 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         """Get the healthy persistent shell for this context or start one."""
         return await get_or_create_bash_session(
             self._bash_sessions,
+            self._bash_start_locks,
             context,
             env,
             workspace=self._current_workspace,
@@ -348,10 +346,6 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         if workspace_path:
             self._current_workspace = Path(workspace_path)
             self._current_workspace.mkdir(parents=True, exist_ok=True)
-
-    async def is_available(self) -> bool:
-        """Local executor is always available."""
-        return True
 
     def get_executor_name(self) -> str:
         """Return the executor name."""

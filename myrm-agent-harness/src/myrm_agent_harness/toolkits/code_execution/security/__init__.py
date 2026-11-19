@@ -8,6 +8,7 @@
 - safe_command_configs.py: subcommand flag whitelist data (git read-only subcommands)
 - blacklist.py: Python module blacklists, dangerous env var names, file-modifying commands
 - validator.py: unified validation interface (command, module, path)
+- path_component.py: identifier-to-directory-name validation (user_id, chat_id, workspace_id)
 - shell_bleed.py: script env var leak detection (warning-only)
 - archive_sanitizer.py: archive command sanitization
 """
@@ -37,6 +38,10 @@ from myrm_agent_harness.toolkits.code_execution.security.destructive_rules impor
 from myrm_agent_harness.toolkits.code_execution.security.destructive_types import (
     BlastRadiusInfo,
     DestructiveAnalysisResult,
+)
+from myrm_agent_harness.toolkits.code_execution.security.path_component import (
+    is_path_component_safe,
+    validate_path_component,
 )
 from myrm_agent_harness.toolkits.code_execution.security.risk_classifier import (
     CommandRiskLevel,
@@ -71,11 +76,9 @@ from myrm_agent_harness.toolkits.code_execution.security.validator import (
     is_command_allowed,
     is_module_allowed,
     is_path_allowed,
-    is_path_component_safe,
     validate_command,
     validate_module,
     validate_path,
-    validate_path_component,
 )
 from myrm_agent_harness.toolkits.code_execution.security.workspace_snapshot import (
     WorkspaceSnapshotResult,

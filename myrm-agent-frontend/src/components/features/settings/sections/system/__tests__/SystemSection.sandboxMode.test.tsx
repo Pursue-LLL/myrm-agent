@@ -3,7 +3,7 @@
  * [INPUT]
  * - @/components/features/settings/sections/system/SystemSection (real, with the real useSystemConfig)
  * - @/components/features/settings/sections/system/SandboxResetCard (real, with the real ConfirmDialog)
- * - locales/{en,zh,zh-TW,ja,ko,de}.json (real copy)
+ * - locales/{zh,en}.json (real copy)
  * - @/lib/api: apiRequest, ApiError
  *
  * [OUTPUT]
@@ -21,11 +21,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import SystemSection from '../SystemSection';
 import { ApiError, apiRequest } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
-import de from '../../../../../../../locales/de.json';
 import en from '../../../../../../../locales/en.json';
-import ja from '../../../../../../../locales/ja.json';
-import ko from '../../../../../../../locales/ko.json';
-import zhTW from '../../../../../../../locales/zh-TW.json';
 import zh from '../../../../../../../locales/zh.json';
 
 // The global setup stubs next-intl with an identity translator; this suite asserts the real locale copy.
@@ -73,7 +69,7 @@ vi.mock('../../knowledge/MemoryMonitorCard', stubCard);
 vi.mock('../AccessCard', () => ({ AccessCard: () => null }));
 vi.mock('@/components/features/health/DoctorDashboard', () => ({ DoctorDashboard: () => null }));
 
-const LOCALES = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const LOCALES = { en, zh } as const;
 type LocaleCode = keyof typeof LOCALES;
 
 const renderCloudSystemTab = (locale: LocaleCode) =>

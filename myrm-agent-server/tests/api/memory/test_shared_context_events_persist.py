@@ -1,8 +1,8 @@
 """Shared Context memory-operation events must be persisted after API operations.
 
 [POS]
-回归保护：archive_shared_context / delete_shared_context_binding 的 ledger 事件此前只发布
-SSE 而不落库（get_db_session 不自动 commit），刷新后事件消失。修复后必须落库。
+archive_shared_context / delete_shared_context_binding 的 ledger 事件必须落库：
+只发布 SSE 而不落库（get_db_session 不自动 commit）的话，刷新后事件消失。
 """
 
 from __future__ import annotations

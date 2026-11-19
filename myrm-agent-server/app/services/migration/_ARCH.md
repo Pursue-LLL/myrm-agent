@@ -40,9 +40,10 @@
 | `_loaders_openclaw.py` | 核心 | OpenClaw 复杂 loader（多 workspace、sessions、skills） | ✅ |
 | `_loaders_pi.py` | 核心 | Pi loader（AGENTS.md、settings.json、auth.json、sessions/*.jsonl、skills/） | ✅ |
 | `_loaders_claude.py` | 核心 | Claude Code 车道：CLAUDE.md/CLAUDE.local.md 规则、`projects/*/memory` 自动记忆（索引仅作兜底）、settings/MCP 配置、skills 与 transcripts | ✅ |
-| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（load_usage_sidecar 读取 Hermes .usage.json、serialize_transcript 转录本序列化） | ✅ |
+| `_loader_utils.py` | 辅助 | 跨 loader 共享工具函数（load_usage_sidecar 读取 Hermes .usage.json、serialize_transcript 转录本序列化、extract_env_key_names 列出 `.env` 里可导入的 key 名并标注来源为 env） | ✅ |
+| `env_secrets.py` | SSOT | 竞品 `.env` 里哪些变量算 provider key（`IMPORTABLE_PROVIDERS` / `ENV_TO_PROVIDER_ID`，变量名取自 transport 的 `PROFILES.api_key_env` 加竞品别名）、哪些 provider 不能凭 key 单独建行（`MULTI_ENDPOINT_PROVIDERS`：区域或套餐不同端点不同）、key 名的来源标记（`KEY_FROM_ENV` 可导入 / `KEY_FROM_AUTH` 只能手动填）与 `.env` 读取（`read_env_keys`：可导入的 key，加没有对应 provider 的 key 变量名）；迁移预览、payload 的 key 名列表与导入三处共用，对「什么算 key」不会各说各话 | ✅ |
 | `obsidian_vault_hints.py` | 辅助 | Obsidian vault 路径发现（Codex/Claude settings → 规范化目录路径，供 workspace bind + wiki import 交接） | ✅ |
-| `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings、`.myrm/rules` | ✅ |
+| `instruction_writer.py` | 核心 | 写入 Agent.systemPrompt、personalSettings（以 `MIGRATION_CONFIG_DEVICE_ID` 记审计；回滚后清用户配置缓存）、`.myrm/rules` | ✅ |
 | `memory_import_binding.py` | 辅助 | 全局 namespace MemoryManager 工厂 | ✅ |
 | `instruction_rollback.py` | 辅助 | 与 memory import batch 绑定的指令车道回滚 | ✅ |
 | `session_lane.py` | 核心 | 外部竞品（Claude Code, Codex 等）转录本会话车道服务：dry-run 预览转换、confirm 批量落库 Chat / Message 表、挂载初始轻量上下文、严格保持静态前缀一致以最大化 Prompt Cache 命中 | ✅ |

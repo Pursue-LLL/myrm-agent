@@ -104,6 +104,7 @@ class TestDiscoverPi:
         result = discover_pi(tmp_path)
         assert result is not None
         assert result.has_api_keys is True
+        assert result.has_importable_keys is False
 
     def test_returns_none_when_no_pi_dir(self, tmp_path: Path) -> None:
         assert discover_pi(tmp_path) is None
@@ -144,6 +145,7 @@ class TestLoadPi:
         key_names = [k["name"] for k in env_keys]
         assert "ANTHROPIC_API_KEY" in key_names
         assert "OPENAI_API_KEY" in key_names
+        assert {k["source"] for k in env_keys} == {"auth"}
 
     def test_loads_sessions(self, tmp_path: Path, _local: None) -> None:
         agent_dir = tmp_path / ".pi" / "agent"

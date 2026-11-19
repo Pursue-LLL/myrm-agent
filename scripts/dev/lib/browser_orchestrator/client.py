@@ -200,13 +200,14 @@ def _cached_parallel_load() -> int:
         cached_at, cached = _wave_lease_cache
         if now - cached_at < _WAVE_LEASE_CACHE_TTL_SEC:
             return cached
-    load = 0
     try:
         from e2e_core.peer_count_ssot import parallel_active_test_count_ssot
 
         load = parallel_active_test_count_ssot()
     except ImportError:
-        load = _wave_lease_count_probe()
+        from dev_gate.contract import parallel_pressure
+
+        load = parallel_pressure.wave_active_lease_count_for_mux()
     _wave_lease_cache = (now, load)
     return load
 
@@ -217,16 +218,6 @@ def _parallel_scaled_evaluate_timeout_sec(base: float) -> float:
     if load < 2:
         return base
     return min(180.0, base + float(load) * 15.0)
-
-
-def _wave_lease_count_probe() -> int:
-    try:
-        from e2e_core.stack_mutation_policy import wave_active_lease_count
-
-        root = Path(__file__).resolve().parents[5]
-        return wave_active_lease_count(root)
-    except (ImportError, OSError, RuntimeError, ValueError):
-        return 0
 
 
 def orchestrator_open_tx_wall_sec() -> float:
@@ -291,10 +282,9 @@ def _socket_cap_from_operation_budgets(raw: object) -> float:
 def _default_socket_path() -> str:
     """Stable socket path independent of TMPDIR.
 
-    TMPDIR is repointed by myrm dev isolation (e.g. detach spawns a private
-    tmp.XXXX dir) while the daemon may be started by a sibling process with a
-    different TMPDIR — so a tmpdir-derived socket path silently splits the pair
-    into two worlds. Anchor on the real user home, same directory that holds
+    The daemon may be started by a sibling process with a different TMPDIR than
+    its clients — so a tmpdir-derived socket path silently splits the pair into
+    two worlds. Anchor on the real user home, same directory that holds
     ``daemon.pid``.
     """
     from e2e_core.real_user_home import real_user_home

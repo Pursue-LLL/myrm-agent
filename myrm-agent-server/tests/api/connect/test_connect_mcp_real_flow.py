@@ -108,7 +108,7 @@ async def test_connect_wizard_and_mcp_desktop_flow(tmp_path: Path) -> None:
         ),
     ):
         await setup_mcp_endpoint(app)
-        client = TestClient(app)
+        client = TestClient(app, base_url="http://localhost:8080")  # the MCP guards need a loopback Host with a port
 
         try:
             # 4. Verify API capability endpoint

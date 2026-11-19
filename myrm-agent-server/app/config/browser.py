@@ -1,13 +1,16 @@
 """Browser pool configuration for application layer
 
 [INPUT] myrm_agent_harness.toolkits.browser.pool.config::BrowserPoolConfig (POS: 浏览器池配置数据结构)
+[INPUT] myrm_agent_harness.toolkits.browser.pool::create_egress_guard (POS: 严格网络策略下浏览器的出口连接守卫，不适用时返回 None)
 [INPUT] app.schemas.config::BrowserCloudProviderConfigValue (POS: 云浏览器供应商配置模型)
 [INPUT] app.services.config.service::config_service (POS: 配置持久化服务)
 [OUTPUT] get_browser_pool_config: 根据部署模式生成 BrowserPoolConfig
 [OUTPUT] get_browser_launch_options: 本地/沙箱 fallback 启动参数
+[OUTPUT] get_browser_egress_guard: 云端（沙箱）部署的浏览器出口连接守卫，本地模式为 None
 [OUTPUT] resolve_cloud_browser_endpoint: 异步解析云浏览器 WS endpoint
 [OUTPUT] get_configured_browser_pool: 带部署模式配置的 GlobalBrowserPool 单例
-[POS] 浏览器池配置工厂。按部署模式（Local/Sandbox）生成 BrowserPoolConfig 预设，支持注入云浏览器 endpoint。
+[POS] 浏览器池配置工厂。按部署模式（Local/Sandbox）生成 BrowserPoolConfig 预设，支持注入云浏览器 endpoint；
+云端部署的浏览器池另带出口连接守卫，所有创建池的入口都经由这里取配置，避免先创建者的配置胜出。
 """
 
 import dataclasses
@@ -24,7 +27,7 @@ from myrm_agent_harness.toolkits.browser.pool.config import (
 from .deploy_mode import is_local_mode
 
 if TYPE_CHECKING:
-    from myrm_agent_harness.toolkits.browser.pool import GlobalBrowserPool
+    from myrm_agent_harness.toolkits.browser.pool import EgressGuard, GlobalBrowserPool
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +137,20 @@ def get_browser_launch_options() -> dict[str, object]:
     return options
 
 
+def get_browser_egress_guard() -> "EgressGuard | None":
+    """Connection guard for the browsers the pool launches, in cloud (sandbox) deployments.
+
+    A local deployment runs on the user's own machine and its sessions may reach private networks, so there is
+    nothing to forbid. Elsewhere the harness decides whether the policy applies: it does not when the SSRF shield is
+    off or when the environment sends HTTP traffic through a proxy that owns the policy.
+    """
+    if is_local_mode():
+        return None
+    from myrm_agent_harness.toolkits.browser.pool import create_egress_guard
+
+    return create_egress_guard()
+
+
 def get_configured_browser_pool() -> "GlobalBrowserPool":
     """Return GlobalBrowserPool singleton initialized with deploy-mode config."""
     from myrm_agent_harness.toolkits.browser.pool import get_global_browser_pool
@@ -141,12 +158,14 @@ def get_configured_browser_pool() -> "GlobalBrowserPool":
     return get_global_browser_pool(
         config=get_browser_pool_config(),
         launch_options=get_browser_launch_options(),
+        egress_guard=get_browser_egress_guard(),
     )
 
 
 __all__ = [
     "get_browser_pool_config",
     "get_browser_launch_options",
+    "get_browser_egress_guard",
     "resolve_cloud_browser_endpoint",
     "get_configured_browser_pool",
 ]

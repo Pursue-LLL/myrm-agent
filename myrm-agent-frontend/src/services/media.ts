@@ -11,7 +11,6 @@ export interface MediaItem {
   file_size: number;
   tags: string[];
   session_id: string | null;
-  batch_job_id: string | null;
   thumbnail_url: string | null;
   created_at: string;
 }
@@ -27,7 +26,6 @@ export interface MediaQueryParams {
   tags?: string;
   keyword?: string;
   session_id?: string;
-  batch_job_id?: string;
   before?: string;
   after?: string;
   cursor?: string;

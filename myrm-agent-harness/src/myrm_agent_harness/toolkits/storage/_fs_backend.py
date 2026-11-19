@@ -175,7 +175,10 @@ class BaseFileSystemBackend(StorageProvider):
 
         await asyncio.to_thread(shutil.move, str(src_path), str(dst_path))
 
-    # ── get_url ─────────────────────────────────────────
+    # ── get_url / local_path ────────────────────────────
+
+    def local_path(self, key: str) -> Path | None:
+        return self._resolve_key_to_path(key)
 
     async def get_url(self, key: str, expires_in: int = 3600) -> str:
         path = self._resolve_key_to_path(key)

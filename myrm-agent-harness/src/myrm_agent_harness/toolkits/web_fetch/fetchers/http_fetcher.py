@@ -1,19 +1,17 @@
-"""L1 HTTP fetcher via Scrapling curl_cffi with optional HTTP/3 retry lane.
+"""L1 HTTP fetcher via Scrapling curl_cffi.
 
 [INPUT]
-- .bounded_get::bounded_get (POS: a GET through Scrapling whose body is held to a size bound while it is received)
-- .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy for the web_fetch tiers that follow redirects)
-- toolkits.web_fetch.processing.antibot_detector::is_blocked (POS: Anti-bot detection for crawl results)
-- toolkits.web_fetch.probe.http3_probe::is_quic_egress_available (POS: QUIC egress probe and L1 retry metrics)
-- toolkits.web_fetch.router.site_experience::get_global_site_experience_store (POS: Site experience store)
+- .bounded_get::bounded_get (POS: a GET through Scrapling whose body is held to a size bound while it is received, connecting only to the addresses it is given)
+- .target_guard::FetchTargetGuard (POS: per-fetch SSRF policy and network blocklist for the web_fetch tiers)
+- toolkits.web_fetch.processing.charset_detector::detect_and_decode_html (POS: Multi-tier charset detection)
 - toolkits.browser.pool.proxy::ProxyPool (POS: Proxy rotation pool for FetchEngine)
 - utils.content_sniff::classify_payload (POS: web page, text or binary file, decided once for every fetch tier)
 
 [OUTPUT]
-- HttpFetcher: L1 tier fetcher with HTTP/2 default and HTTP/3 retry on antibot/403/empty failure (not 429; skipped when proxy pool active); every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, and a hop the SSRF policy rejects raises SSRFSecurityError instead of degrading to the next tier
+- HttpFetcher: L1 tier fetcher; every hop (the requested URL and each redirect ``Location``) is judged and dialed in its canonical spelling, at the addresses the judgment looked at, and a hop the SSRF policy or the network blocklist rejects raises SSRFSecurityError instead of degrading to the next tier
 
 [POS]
-L1 lightweight HTTP fetcher. Delegates TLS impersonation to Scrapling defaults; retries once with QUIC when enabled.
+L1 lightweight HTTP fetcher. Delegates TLS impersonation to Scrapling defaults.
 Every body is received through ``bounded_get``, so one response never holds more than the transfer bound.
 """
 
@@ -25,20 +23,12 @@ import logging
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
+from myrm_agent_harness.core.security.guards.ssrf import SSRFSecurityError
 from myrm_agent_harness.core.security.http.secure_fetch import (
     is_ssrf_shield_enabled,
     parse_allowed_internal_hosts,
 )
-from myrm_agent_harness.toolkits.web_fetch.probe.http3_probe import (
-    is_quic_egress_available,
-    record_http3_retry,
-)
-from myrm_agent_harness.toolkits.web_fetch.processing.antibot_detector import (
-    is_blocked as detect_antibot,
-)
-from myrm_agent_harness.toolkits.web_fetch.router.site_experience import (
-    get_global_site_experience_store,
-)
+from myrm_agent_harness.toolkits.web_fetch.processing.charset_detector import detect_and_decode_html
 from myrm_agent_harness.utils.content_sniff import PayloadKind, classify_payload
 
 from .bounded_get import FetchedResponse, bounded_get
@@ -56,7 +46,6 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TIMEOUT = 10
 _MAX_CONCURRENT = 20
 _MAX_REDIRECTS = 5
-_HTTP3_RETRY_STATUS = frozenset({403})
 
 
 # A readable body is cut where reading further stops paying off. A web page is converted to Markdown on one CPU-bound
@@ -80,12 +69,14 @@ class HttpFetcher:
         proxy_pool: ProxyPool | None = None,
         session_vault: SessionVault | None = None,
         allow_private_networks: bool = False,
+        network_blocklist: tuple[str, ...] = (),
     ):
         self._semaphore = asyncio.Semaphore(max_concurrent)
         self._timeout = timeout
         self._proxy_pool = proxy_pool
         self._session_vault = session_vault
         self._allow_private_networks = allow_private_networks
+        self._network_blocklist = network_blocklist
 
     async def fetch(self, url: str, *, etag: str | None = None, last_modified: str | None = None) -> FetchResult | None:
         enable_ssrf_shield = is_ssrf_shield_enabled()
@@ -102,64 +93,15 @@ class HttpFetcher:
             headers["If-Modified-Since"] = last_modified
 
         cookie_jar = await self._load_cookie_jar(url)
-        site_store = get_global_site_experience_store()
-        prefer_http3 = site_store.get_prefer_http3(domain)
-        can_use_http3 = await self._can_use_http3_lane()
 
         async with self._semaphore:
-            if prefer_http3 and can_use_http3:
-                prefer_result = await self._fetch_with_redirects(
-                    url,
-                    headers=headers,
-                    cookie_jar=cookie_jar,
-                    enable_ssrf_shield=enable_ssrf_shield,
-                    allowed_hosts=allowed_hosts,
-                    use_http3=True,
-                )
-                if prefer_result is not None and not self._should_retry_with_http3(prefer_result):
-                    return prefer_result
-
-                site_store.set_prefer_http3(domain, enabled=False)
-                logger.info("L1 HTTP/3 prefer_http3 cleared for %s after QUIC failure", domain)
-                return prefer_result
-
-            http2_result = await self._fetch_with_redirects(
+            return await self._fetch_with_redirects(
                 url,
                 headers=headers,
                 cookie_jar=cookie_jar,
                 enable_ssrf_shield=enable_ssrf_shield,
                 allowed_hosts=allowed_hosts,
-                use_http3=False,
             )
-
-            if not self._should_retry_with_http3(http2_result):
-                return http2_result
-
-            if not can_use_http3:
-                return http2_result
-
-            logger.info("L1 HTTP/2 blocked for %s; retrying once with HTTP/3", url)
-            http3_result = await self._fetch_with_redirects(
-                url,
-                headers=headers,
-                cookie_jar=cookie_jar,
-                enable_ssrf_shield=enable_ssrf_shield,
-                allowed_hosts=allowed_hosts,
-                use_http3=True,
-            )
-
-            http3_succeeded = http3_result is not None and not self._should_retry_with_http3(http3_result)
-            record_http3_retry(succeeded=http3_succeeded)
-            if http3_succeeded:
-                site_store.set_prefer_http3(domain)
-                return http3_result
-
-            return http2_result if http2_result is not None else http3_result
-
-    async def _can_use_http3_lane(self) -> bool:
-        if self._proxy_pool is not None:
-            return False
-        return await is_quic_egress_available()
 
     @staticmethod
     def _extract_domain(url: str) -> str:
@@ -213,32 +155,6 @@ class HttpFetcher:
             logger.warning("HttpFetcher failed to load session cookies for %s: %s", url, exc)
             return None
 
-    @staticmethod
-    def _should_retry_with_http3(result: FetchResult | None) -> bool:
-        if result is None:
-            return True
-
-        if result.status_code == 304:
-            return False
-
-        if result.status_code == 429:
-            return False
-
-        if result.status_code in _HTTP3_RETRY_STATUS:
-            return True
-
-        if 400 <= result.status_code < 500:
-            return False
-
-        if result.kind is not PayloadKind.WEB:
-            return False
-
-        if not result.has_content:
-            return True
-
-        blocked, _reason = detect_antibot(result.status_code, result.html)
-        return blocked
-
     async def _fetch_with_redirects(
         self,
         url: str,
@@ -247,59 +163,30 @@ class HttpFetcher:
         cookie_jar: http.cookiejar.CookieJar | None,
         enable_ssrf_shield: bool,
         allowed_hosts: list[str],
-        use_http3: bool,
     ) -> FetchResult | None:
         current_url = url
         redirect_count = 0
-        request_headers = headers.copy()
-        guard = (
-            FetchTargetGuard(
-                requested_url=url,
-                allow_private_networks=self._allow_private_networks,
-                allowed_hosts=allowed_hosts,
-            )
-            if enable_ssrf_shield
-            else None
+        guard = FetchTargetGuard.for_fetch(
+            url,
+            allow_private_networks=self._allow_private_networks,
+            allowed_hosts=allowed_hosts,
+            ssrf_shield=enable_ssrf_shield,
+            network_blocklist=self._network_blocklist,
         )
 
         while redirect_count <= _MAX_REDIRECTS:
-            request_url = current_url
-
+            addresses: tuple[str, ...] = ()
             if guard is not None:
                 # A rejected hop raises SSRFSecurityError: returning None would let the browser tiers
                 # fetch the same URL. The hop is judged and dialed in its canonical spelling, because
-                # libcurl may read another spelling as a different host than the one the policy classified.
+                # libcurl may read another spelling as a different host than the one the policy classified,
+                # and it connects only to the addresses the judgment looked at: it does not resolve the
+                # name again, and the URL keeps the name so the certificate is checked against it.
                 current_url = guard.canonical_url(current_url)
-                request_url, host_header = await guard.pin(current_url)
-                request_headers.pop("Host", None)  # the previous hop's pinned Host must not leak onto this hop
-                request_headers.update(host_header)
+                addresses = await guard.pin(current_url)
 
             try:
-                kwargs = self._build_request_kwargs(
-                    request_headers,
-                    cookie_jar,
-                    use_http3=use_http3,
-                )
-                try:
-                    response = await bounded_get(request_url, kwargs)
-                except Exception as exc:
-                    if request_url != current_url:
-                        logger.info(
-                            "HttpFetcher DNS-pinned URL failed at %s (%s); retrying with validated domain %s",
-                            request_url,
-                            exc,
-                            current_url,
-                        )
-                        fallback_headers = request_headers.copy()
-                        fallback_headers.pop("Host", None)
-                        fallback_kwargs = self._build_request_kwargs(
-                            fallback_headers,
-                            cookie_jar,
-                            use_http3=use_http3,
-                        )
-                        response = await bounded_get(current_url, fallback_kwargs)
-                    else:
-                        raise
+                response = await bounded_get(current_url, self._build_request_kwargs(headers, cookie_jar), addresses)
 
                 if response.status in (301, 302, 303, 307, 308):
                     location = response.headers.get("Location") or response.headers.get("location")
@@ -310,6 +197,8 @@ class HttpFetcher:
                     continue
 
                 return self._response_to_fetch_result(response, current_url)
+            except SSRFSecurityError:
+                raise
             except Exception as exc:
                 logger.warning("HttpFetcher failed at %s — %s", current_url, exc)
                 return None
@@ -321,8 +210,6 @@ class HttpFetcher:
         self,
         headers: dict[str, str],
         cookie_jar: http.cookiejar.CookieJar | None,
-        *,
-        use_http3: bool,
     ) -> GetRequestParams:
         kwargs: GetRequestParams = {
             "timeout": self._timeout,
@@ -331,10 +218,6 @@ class HttpFetcher:
 
         if headers:
             kwargs["headers"] = headers.copy()
-
-        if use_http3:
-            kwargs["http3"] = True
-            kwargs["impersonate"] = None
 
         if self._proxy_pool:
             kwargs["proxy"] = self._proxy_pool.get_next().to_url()
@@ -364,8 +247,6 @@ class HttpFetcher:
         kind = classify_payload(resp_headers.get("content-type"), body)
 
         if kind is not PayloadKind.BINARY:
-            from ..probe.charset_detector import detect_and_decode_html
-
             ceiling = MAX_HTML_BODY_BYTES if kind is PayloadKind.WEB else MAX_PLAIN_TEXT_BODY_BYTES
             source_truncated = len(body) > ceiling
             if source_truncated:

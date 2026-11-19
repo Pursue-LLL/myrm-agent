@@ -152,6 +152,11 @@ async def test_process_text_paths_exception_fallback(tmp_path: Path) -> None:
     assert parts[-1] == "fallback content"
 
 
+def _numbered(code: str) -> str:
+    """The lines of ``code`` as the file service renders them: each behind its line number."""
+    return "\n".join(f"{number:>6}|{line}" for number, line in enumerate(code.split("\n"), start=1))
+
+
 @pytest.mark.asyncio
 async def test_process_text_paths_structure_mode(tmp_path: Path) -> None:
     """验证 parse_mode='structure' 时结构化提取 Python 代码大纲"""
@@ -163,7 +168,7 @@ async def test_process_text_paths_structure_mode(tmp_path: Path) -> None:
     with patch(
         "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._view_text",
         new_callable=AsyncMock,
-        return_value=code,
+        return_value=_numbered(code),
     ):
         parts = await process_text_paths(
             [str(py_file)],
@@ -179,3 +184,36 @@ async def test_process_text_paths_structure_mode(tmp_path: Path) -> None:
     assert "class OrderService" in parts[0]
     assert "def OrderService.create_order" in parts[0]
     assert "def helper" in parts[0]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "viewed",
+    [
+        " Error reading nope.py: Path not found: nope.py",
+        'Archive restore blocked.\n{"reason": "archive_restore_range_required"}',
+        " folder:\n  inner.py",
+    ],
+    ids=["missing", "refused", "directory"],
+)
+async def test_process_text_paths_structure_mode_shows_a_view_without_file_lines_as_it_is(
+    tmp_path: Path, viewed: str
+) -> None:
+    mock_executor = MagicMock()
+    mock_executor.workspace_path = str(tmp_path)
+
+    with patch(
+        "myrm_agent_harness.agent.meta_tools.file_ops.core.file_read.text_paths._view_text",
+        new_callable=AsyncMock,
+        return_value=viewed,
+    ):
+        parts = await process_text_paths(
+            [str(tmp_path / "x.py")],
+            mock_executor,
+            None,
+            None,
+            "all",
+            config=_DUMMY_CONFIG,
+            parse_mode="structure",
+        )
+    assert parts == [viewed]

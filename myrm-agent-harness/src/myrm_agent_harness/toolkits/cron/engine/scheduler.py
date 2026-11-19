@@ -5,24 +5,27 @@ job instead of fixed-interval polling.  Due jobs are dispatched into async
 tasks bounded by a concurrency semaphore.
 
 Execution lifecycle is delegated to ``JobExecutor``; startup recovery to
-``StartupRecovery``.  This module owns only the timer machinery and
-concurrency control.
-
+``StartupRecovery``; admission of due jobs, trigger dispatch and the guarded
+execution path to ``SchedulerDispatchMixin``.  This module owns the timer
+machinery, the tick that hands due jobs to admission and the stop, which
+records the runs it cuts off before it cancels them.
 
 [INPUT]
 - cron.engine.executor::JobExecutor (POS: job execution lifecycle manager)
-- cron.engine.helpers::_ensure_utc, is_within_active_hours, pre_execution_check, etc. (POS: scheduling helper utilities)
-- cron.engine.job_freshness::adopt_latest (POS: stored job as the truth after the stagger and slot waits)
+- cron.engine.helpers::_ensure_utc, is_past_misfire_grace (POS: pure engine helpers: UTC normalisation and the misfire-grace check among the schedule-window helpers)
 - cron.engine.recovery::StartupRecovery (POS: startup recovery for missed jobs)
-- cron.types::CronConfig, CronJob, JobStatus, JobType (POS: cron data models)
+- cron.engine.scheduler_dispatch::SchedulerDispatchMixin (POS: admission, trigger dispatch and the guarded execution path, mixed into the scheduler)
+- cron.types::CronConfig, CronJob, JobType (POS: cron data models)
 
 [OUTPUT]
 - CronScheduler: precise timer-based scheduling engine with concurrency control and watchdog
 
 [POS]
-Cron scheduling engine. Computes exact sleep durations to the next due job, dispatches
-due jobs into async tasks with semaphore-based concurrency control, and delegates execution
-to JobExecutor.
+Cron scheduling engine. Computes exact sleep durations to the next due job, admits due
+jobs (a recurring job's next slot is booked before its run starts) into async tasks with
+semaphore-based concurrency control, and delegates execution to JobExecutor. A stop
+records the in-flight runs as interrupted (not counted as failures), cancels them and
+releases the lock.
 """
 
 from __future__ import annotations
@@ -30,29 +33,19 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
-import random
+from collections import Counter
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.cron.engine.executor import JobExecutor
-from myrm_agent_harness.toolkits.cron.engine.helpers import (
-    _ensure_utc,
-    auto_pause_notice,
-    is_within_active_hours,
-    pre_execution_check,
-)
+from myrm_agent_harness.toolkits.cron.engine.helpers import _ensure_utc
 from myrm_agent_harness.toolkits.cron.engine.helpers import (
     is_past_misfire_grace as _is_past_grace,
 )
-from myrm_agent_harness.toolkits.cron.engine.helpers import (
-    resolve_stagger_ms as _resolve_stagger_ms,
-)
-from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
 from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
+from myrm_agent_harness.toolkits.cron.engine.scheduler_dispatch import SchedulerDispatchMixin
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
-    CronJob,
-    JobStatus,
     JobType,
 )
 
@@ -68,6 +61,7 @@ if TYPE_CHECKING:
         ResultDelivery,
         TriggerProvider,
     )
+    from myrm_agent_harness.toolkits.cron.types import CronJob
 
 logger = logging.getLogger(__name__)
 
@@ -75,13 +69,16 @@ _FALLBACK_RETRY_SECONDS = 30
 _PURGE_INTERVAL_SECONDS = 86_400
 _DEFAULT_RETENTION_DAYS = 30
 _MIN_REFIRE_GAP_S = 2.0
+# A host that embeds the scheduler may force-kill a slow exit after about two seconds: the runs' unwinding gets a
+# fraction of that, so the lock release and the rest of the shutdown still fit.
+_STOP_CANCEL_WAIT_S = 0.5
 _WATCHDOG_INTERVAL_S = 60.0
 # First tick after start: the health banner treats "no tick yet" as a startup warning,
 # and waiting a full watchdog interval made every backend restart flash that banner.
 _STARTUP_TICK_DELAY_S = 2.0
 
 
-class CronScheduler:
+class CronScheduler(SchedulerDispatchMixin):
     """Precise timer-based cron scheduler.
 
     Instantiated once by the application layer, started in the server
@@ -116,7 +113,10 @@ class CronScheduler:
         self._global_sem = asyncio.Semaphore(cfg.max_concurrent)
 
         self._last_purge_at: datetime | None = None
-        self._active_jobs: set[str] = set()
+        # Runs between launch and close, per job: the one place "running" lives.
+        self._in_flight: Counter[str] = Counter()
+        # Jobs whose due slot is being booked: their run launches right after, so a manual request must wait too.
+        self._admitting: set[str] = set()
         self._bg_tasks: set[asyncio.Task[None]] = set()
 
         self._executor = JobExecutor(
@@ -128,7 +128,8 @@ class CronScheduler:
         )
         self._recovery = StartupRecovery(
             store=store,
-            execute_fn=self._execute_and_persist,
+            admit_fn=self._admit,
+            on_interrupted=self._executor.notify_interrupted,
         )
 
     def _spawn(self, coro: Coroutine[object, object, None]) -> None:
@@ -184,9 +185,29 @@ class CronScheduler:
         if self._watchdog_handle:
             self._watchdog_handle.cancel()
             self._watchdog_handle = None
+        if self._bg_tasks:
+            await self._end_runs()
         if self._lock:
             await self._lock.release("cron:scheduler:lock")
         logger.info("Cron scheduler stopped")
+
+    async def _end_runs(self) -> None:
+        """Cut off the runs still going: leave a trace of each, cancel them, give them a moment to unwind.
+
+        The traces come first and are not failures: the desktop shell force-kills a slow exit, and what was written
+        before the unwind survives it. The wait is short for the same reason; a run that outlives it ends with the
+        process, and its marker is already gone, so the next start reports nothing twice.
+        """
+        try:
+            await self._recovery.report_interrupted(counted=False)
+        except Exception as exc:
+            logger.warning("Cron scheduler stop: could not record the interrupted runs: %s", exc)
+        # Taken after the write: runs that finished meanwhile have left the set.
+        tasks = list(self._bg_tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.wait(tasks, timeout=_STOP_CANCEL_WAIT_S)
 
     # ------------------------------------------------------------------
     # Timer machinery
@@ -254,26 +275,8 @@ class CronScheduler:
         self._arm_watchdog()
         try:
             now = datetime.now(UTC)
-            due_jobs = await self._store.list_jobs(due_before=now)
-
-            runnable: list[CronJob] = []
-            skipped_ids: list[str] = []
-            for job in due_jobs:
-                if _is_past_grace(job, now):
-                    logger.warning("Job %s skipped: past misfire grace", job.id)
-                    skipped_ids.append(job.id)
-                else:
-                    runnable.append(job)
-
-            claim_ids = [j.id for j in runnable] + skipped_ids
-            if claim_ids:
-                await self._store.claim_due(claim_ids)
-
-            for job_id in skipped_ids:
-                await self._recovery.reschedule_skipped(job_id)
-
-            for job in runnable:
-                self._spawn(self._execute_and_persist(job))
+            for job in await self._store.list_jobs(due_before=now):
+                await self._handle_due(job, now)
 
             self._last_tick_at = now
             self._tick_errors = 0
@@ -285,6 +288,24 @@ class CronScheduler:
         finally:
             self._tick_in_progress = False
             self._arm_timer()
+
+    async def _handle_due(self, job: CronJob, now: datetime) -> None:
+        """Admit a due job, or reschedule it when its slot is past the misfire grace.
+
+        A job that is still in flight waits: its run books the next slot when it closes. A failure here is
+        confined to this job: its due time stays booked, so the same failure repeats on every tick, and it must
+        not hold back the jobs behind it.
+        """
+        if self._in_flight[job.id]:
+            return
+        try:
+            if _is_past_grace(job, now):
+                logger.warning("Job %s skipped: past misfire grace", job.id)
+                await self._recovery.reschedule_skipped(job.id)
+            else:
+                await self._admit(job)
+        except Exception as exc:
+            logger.warning("Cron tick: job %s could not be handled: %s", job.id, exc)
 
     # ------------------------------------------------------------------
     # Run record housekeeping
@@ -301,142 +322,3 @@ class CronScheduler:
                 logger.warning("Purged %d old cron run records (before %s)", deleted, cutoff.isoformat())
         except Exception as exc:
             logger.warning("Failed to purge old runs: %s", exc)
-
-    # ------------------------------------------------------------------
-    # Trigger dispatch (event-driven execution)
-    # ------------------------------------------------------------------
-
-    async def dispatch_event(
-        self,
-        message: str,
-        channel: str,
-        user_id: str,
-    ) -> int:
-        """Check event triggers against an incoming message.
-
-        Returns the number of jobs triggered.  When no ``TriggerProvider``
-        is injected, returns 0 immediately.
-        """
-        if not self._trigger_provider:
-            return 0
-        try:
-            jobs = await self._trigger_provider.check_event_triggers(message, channel, user_id)
-        except Exception as exc:
-            logger.warning("Event trigger check failed: %s", exc)
-            return 0
-
-        context = f"[TRIGGER: event]\nChannel: {channel}\nUser: {user_id}\nMessage: {message}"
-        for job in jobs:
-            self._spawn(self._execute_and_persist(job, context=context, trigger_source="event"))
-        return len(jobs)
-
-    async def dispatch_system_event(
-        self,
-        source: str,
-        event_type: str,
-        payload: dict[str, object],
-    ) -> int:
-        """Check system-event triggers.  Returns the number of jobs triggered."""
-        if not self._trigger_provider:
-            return 0
-        try:
-            jobs = await self._trigger_provider.check_system_event(source, event_type, payload)
-        except Exception as exc:
-            logger.warning("System event trigger check failed: %s", exc)
-            return 0
-
-        import json
-
-        payload_str = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
-        context = f"[TRIGGER: system_event]\nSource: {source}\nEvent: {event_type}\nPayload:\n{payload_str}"
-        for job in jobs:
-            self._spawn(self._execute_and_persist(job, context=context, trigger_source="system_event"))
-        return len(jobs)
-
-    async def dispatch_webhook(
-        self,
-        path: str,
-        secret: str,
-        payload: dict[str, object],
-    ) -> CronJob | None:
-        """Validate and execute a webhook-triggered job.
-
-        Returns the matched ``CronJob`` or ``None``.
-        """
-        if not self._trigger_provider:
-            return None
-        try:
-            job = await self._trigger_provider.handle_webhook(path, secret, payload)
-        except Exception as exc:
-            logger.warning("Webhook trigger failed for path %s: %s", path, exc)
-            return None
-
-        if job is None:
-            return None
-
-        import json
-
-        payload_str = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
-        context = f"[TRIGGER: webhook]\nPath: {path}\nPayload:\n{payload_str}"
-        self._spawn(self._execute_and_persist(job, context=context, trigger_source="webhook"))
-        return job
-
-    # ------------------------------------------------------------------
-    # Execution dispatch (stagger + concurrency + delegate to executor)
-    # ------------------------------------------------------------------
-
-    async def _execute_and_persist(
-        self,
-        job: CronJob,
-        *,
-        context: str = "",
-        trigger_source: str = "cron",
-    ) -> None:
-        try:
-            now = datetime.now(UTC)
-            skip_reason = pre_execution_check(job, now)
-            if skip_reason:
-                logger.warning("Job %s skipped: %s", job.id, skip_reason)
-                pause_notice = auto_pause_notice(job, skip_reason)
-                if pause_notice is not None:
-                    await self._store.save_job(job)
-                    await self._executor.emit_notice(pause_notice)
-                return
-
-            if not is_within_active_hours(job.active_hours):
-                logger.warning("Job %s skipped: outside active hours", job.id)
-                return
-
-            if job.skip_if_active and job.id in self._active_jobs:
-                logger.warning("Job %s skipped: previous instance still running (skip_if_active)", job.id)
-                return
-
-            stagger = _resolve_stagger_ms(job)
-            if stagger > 0:
-                delay_ms = random.randint(0, stagger)
-                logger.warning("Job %s: stagger delay %dms", job.id, delay_ms)
-                await asyncio.sleep(delay_ms / 1000)
-
-            runner = self._runners.get(job.job_type)
-            if not runner:
-                logger.warning("No runner registered for job type %s", job.job_type)
-                return
-
-            self._active_jobs.add(job.id)
-            try:
-                async with self._global_sem:
-                    # The waits above can last minutes; the stored job decides whether the run still happens.
-                    if not await adopt_latest(self._store, job) or job.status != JobStatus.ACTIVE:
-                        logger.info("Job %s was deleted or paused before it started, skipping", job.id)
-                        return
-                    job.fire_count += 1
-                    await self._executor.run_and_record(
-                        job,
-                        runner,
-                        context=context,
-                        trigger_source=trigger_source,
-                    )
-            finally:
-                self._active_jobs.discard(job.id)
-        except Exception as exc:
-            logger.warning("Unhandled error in job %s: %s", job.id, exc)

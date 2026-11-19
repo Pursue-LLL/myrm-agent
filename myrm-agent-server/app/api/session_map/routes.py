@@ -1,31 +1,34 @@
 """
 [INPUT]
 - SessionNodeModel, ProjectClusterModel, FleetCockpitSummary, SessionSearchRequest, SessionSearchResponse from .models
-- SQLAlchemy async session or DB models for Project and Chat
-- In-memory mock/fallback store when operating in standalone sandbox or test modes
+- Project, Chat and ApprovalRecord rows read through the request's AsyncSession
+- AgentGateway.active_session_ids() for the turns currently in flight
 
 [OUTPUT]
 - APIRouter exposing:
   - GET /api/v1/session-map/projects (list project clusters with internal session nodes)
-  - GET /api/v1/session-map/cockpit (aggregate fleet metrics across hundreds of agents)
+  - GET /api/v1/session-map/cockpit (aggregate fleet metrics over the same session nodes)
   - POST /api/v1/session-map/search (search sessions across projects with snippet highlights)
 
 [POS]
 Backend API for Project-Centric Session Map and Agent State Cockpit View.
+Every figure comes from stored rows or the live gateway; a database failure surfaces as an error response, never as
+placeholder data.
 Strict typing: Zero `Any`. File length < 320 lines.
 """
 
-from datetime import datetime, timezone
-from typing import Dict, List, Optional
+from collections import Counter
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.connection import get_db
+from app.database.models.approval import ApprovalRecord
 from app.database.models.chat import Chat
 from app.database.models.project import Project
 from app.services.agent.gateway import get_agent_gateway
+from app.services.skills.growth.constants import is_background_growth_approval
 
 from .models import (
     AgentState,
@@ -39,11 +42,20 @@ from .models import (
 
 router = APIRouter()
 
+# The map plots the newest chats only, which bounds the payload.
+_MAX_SESSIONS = 200
 
-def _infer_session_state(chat: Chat, running_ids: frozenset[str]) -> AgentState:
-    """Infers agent runtime pulse; a chat is working exactly while the gateway has a turn in flight for it."""
+
+def _infer_session_state(chat: Chat, running_ids: frozenset[str], waiting_ids: frozenset[str]) -> AgentState:
+    """Infers the agent runtime pulse of a chat.
+
+    A chat waits exactly while an approval is pending for it and works exactly while the gateway has a turn in flight
+    for it; a failing compaction streak outranks both.
+    """
     if chat.compression_ineffective_streak > 3:
         return "error"
+    if chat.id in waiting_ids:
+        return "waiting_input"
     if chat.id in running_ids:
         return "working"
     if chat.compacted_before_id:
@@ -51,169 +63,130 @@ def _infer_session_state(chat: Chat, running_ids: frozenset[str]) -> AgentState:
     return "ready"
 
 
+async def _chats_awaiting_decision(db: AsyncSession) -> frozenset[str]:
+    """Chats with a pending approval that suspends the agent for a user decision.
+
+    Background growth drafts are reviewed in the skills inbox and never hold a chat, the same split the approvals
+    inbox and the pending-approval gate make.
+    """
+    rows = await db.execute(
+        select(ApprovalRecord.chat_id, ApprovalRecord.action_type, ApprovalRecord.thread_id).where(
+            ApprovalRecord.status == "PENDING", ApprovalRecord.chat_id.is_not(None)
+        )
+    )
+    return frozenset(
+        chat_id
+        for chat_id, action_type, thread_id in rows
+        if chat_id and not is_background_growth_approval(action_type, thread_id)
+    )
+
+
 def _build_default_cluster() -> ProjectClusterModel:
+    """Bucket for the chats that belong to no project."""
     return ProjectClusterModel(
         id="proj-default",
         name="Global Workspace",
         description="Unassigned standalone agent sessions",
-        color="#6366f1",
-        workspace_path="/workspace/default",
-        git_repo_url="https://github.com/myrm-agent/workspace.git",
-        sessions=[],
-        active_agent_count=0,
-        total_tokens=0,
+        workspace_path=None,
     )
 
 
-@router.get("/projects", response_model=List[ProjectClusterModel])
-async def list_session_map_projects(
-    state_filter: Optional[AgentState] = Query(None, description="Optional agent state filter"),
-    db: Optional[AsyncSession] = Depends(get_db),
-) -> List[ProjectClusterModel]:
-    """Retrieves all projects with nested session topologies."""
-    clusters_map: Dict[str, ProjectClusterModel] = {}
+def _build_session_node(chat: Chat, state: AgentState) -> SessionNodeModel:
+    return SessionNodeModel(
+        id=chat.id,
+        title=chat.title or "Untitled Session",
+        project_id=chat.project_id,
+        agent_id=chat.agent_id,
+        agent_name=f"Agent-{chat.agent_id[:6]}" if chat.agent_id else "Myrm-General",
+        state=state,
+        current_task=chat.last_message[:120] if chat.last_message else None,
+        tokens_used=chat.total_tokens or 0,
+        last_active_at=chat.updated_at.isoformat(),
+        tags=chat.tags or [],
+        workspace_dir=chat.workspace_dir,
+    )
+
+
+async def _load_clusters(db: AsyncSession, state_filter: AgentState | None = None) -> list[ProjectClusterModel]:
+    """Project clusters with their session nodes, optionally keeping only the sessions in one runtime state."""
+    projects = (await db.execute(select(Project).order_by(Project.sort_order.asc(), Project.created_at.desc()))).scalars().all()
+    chats = (await db.execute(select(Chat).order_by(Chat.updated_at.desc()).limit(_MAX_SESSIONS))).scalars().all()
+    waiting_ids = await _chats_awaiting_decision(db)
+    running_ids = get_agent_gateway().active_session_ids()
+
+    project_clusters = {
+        p.id: ProjectClusterModel(
+            id=p.id,
+            name=p.name,
+            description=p.description or "",
+            color=p.color or "#6366f1",
+            workspace_path=p.workspace_path,
+        )
+        for p in projects
+    }
     default_cluster = _build_default_cluster()
 
-    try:
-        if db is not None:
-            # Query all projects
-            proj_stmt = select(Project).order_by(Project.sort_order.asc(), Project.created_at.desc())
-            proj_res = await db.execute(proj_stmt)
-            for p in proj_res.scalars().all():
-                clusters_map[p.id] = ProjectClusterModel(
-                    id=p.id,
-                    name=p.name,
-                    description=p.description or "",
-                    color=p.color or "#6366f1",
-                    workspace_path=p.workspace_path or f"/workspace/{p.name.lower()}",
-                    git_repo_url=f"https://github.com/myrm-agent/{p.name.lower()}.git",
-                    sessions=[],
-                    active_agent_count=0,
-                    total_tokens=0,
-                )
+    for chat in chats:
+        state = _infer_session_state(chat, running_ids, waiting_ids)
+        if state_filter and state != state_filter:
+            continue
 
-            # Query all chats
-            chat_stmt = select(Chat).order_by(Chat.updated_at.desc()).limit(200)
-            chat_res = await db.execute(chat_stmt)
-            running_ids = get_agent_gateway().active_session_ids()
-            for c in chat_res.scalars().all():
-                s_state = _infer_session_state(c, running_ids)
-                if state_filter and s_state != state_filter:
-                    continue
+        cluster = project_clusters.get(chat.project_id) if chat.project_id else None
+        if cluster is None:
+            cluster = default_cluster
+        node = _build_session_node(chat, state)
+        cluster.sessions.append(node)
+        cluster.total_tokens += node.tokens_used
+        if state in ("working", "ready"):
+            cluster.active_agent_count += 1
 
-                updated_str = c.updated_at.isoformat() if c.updated_at else datetime.now(timezone.utc).isoformat()
-                node = SessionNodeModel(
-                    id=c.id,
-                    title=c.title or "Untitled Session",
-                    project_id=c.project_id,
-                    agent_id=c.agent_id,
-                    agent_name=f"Agent-{c.agent_id[:6]}" if c.agent_id else "Myrm-General",
-                    state=s_state,
-                    current_task=c.last_message[:120] if c.last_message else None,
-                    tokens_used=c.total_tokens or 0,
-                    last_active_at=updated_str,
-                    tags=c.tags or [],
-                    workspace_dir=c.workspace_dir,
-                )
-
-                if c.project_id and c.project_id in clusters_map:
-                    clusters_map[c.project_id].sessions.append(node)
-                    clusters_map[c.project_id].total_tokens += node.tokens_used
-                    if node.state in ("working", "ready"):
-                        clusters_map[c.project_id].active_agent_count += 1
-                else:
-                    default_cluster.sessions.append(node)
-                    default_cluster.total_tokens += node.tokens_used
-                    if node.state in ("working", "ready"):
-                        default_cluster.active_agent_count += 1
-    except Exception:
-        # Graceful fallback for non-DB sandbox environments
-        pass
-
-    result: List[ProjectClusterModel] = list(clusters_map.values())
+    clusters = list(project_clusters.values())
     if default_cluster.sessions:
-        result.append(default_cluster)
-    elif not result:
-        # Provide sample initial topology if store is empty
-        now_iso = datetime.now(timezone.utc).isoformat()
-        sample_node = SessionNodeModel(
-            id="chat-init-01",
-            title="Core Architecture & Auth Workflow",
-            project_id="proj-default",
-            agent_id="agent-arch-01",
-            agent_name="Architect-Lead",
-            state="working",
-            current_task="Refactoring OAuth provider integration and workspace trust",
-            tokens_used=14200,
-            last_active_at=now_iso,
-            tags=["architecture", "security"],
-            workspace_dir="/workspace/open-perplexity",
-        )
-        default_cluster.sessions.append(sample_node)
-        default_cluster.active_agent_count = 1
-        default_cluster.total_tokens = 14200
-        result.append(default_cluster)
+        clusters.append(default_cluster)
+    return clusters
 
-    return result
+
+@router.get("/projects", response_model=list[ProjectClusterModel])
+async def list_session_map_projects(
+    state_filter: AgentState | None = Query(None, description="Optional agent state filter"),
+    db: AsyncSession = Depends(get_db),
+) -> list[ProjectClusterModel]:
+    """Retrieves all projects with nested session topologies."""
+    return await _load_clusters(db, state_filter)
 
 
 @router.get("/cockpit", response_model=FleetCockpitSummary)
 async def get_fleet_cockpit_summary(
-    db: Optional[AsyncSession] = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> FleetCockpitSummary:
     """Retrieves fleet overview metrics across projects and agents."""
-    clusters = await list_session_map_projects(db=db)
-
-    total_projects = len(clusters)
-    all_sessions: List[SessionNodeModel] = []
-    working_count = 0
-    ready_count = 0
-    waiting_count = 0
-    error_count = 0
-    total_tokens = 0
-
-    for cluster in clusters:
-        for s in cluster.sessions:
-            all_sessions.append(s)
-            total_tokens += s.tokens_used
-            if s.state == "working":
-                working_count += 1
-            elif s.state == "ready":
-                ready_count += 1
-            elif s.state == "waiting_input":
-                waiting_count += 1
-            elif s.state == "error":
-                error_count += 1
-
-    top_active = sorted(
-        all_sessions,
-        key=lambda s: s.last_active_at,
-        reverse=True,
-    )[:10]
+    clusters = await _load_clusters(db)
+    sessions = [session for cluster in clusters for session in cluster.sessions]
+    states = Counter(session.state for session in sessions)
 
     return FleetCockpitSummary(
-        total_projects=total_projects,
-        total_sessions=len(all_sessions),
-        total_agents=len(all_sessions),
-        working_agents=working_count,
-        ready_agents=ready_count,
-        waiting_input_agents=waiting_count,
-        error_agents=error_count,
-        total_tokens_consumed=total_tokens,
-        top_active_sessions=top_active,
+        total_projects=len(clusters),
+        total_sessions=len(sessions),
+        total_agents=len(sessions),
+        working_agents=states["working"],
+        ready_agents=states["ready"],
+        waiting_input_agents=states["waiting_input"],
+        error_agents=states["error"],
+        total_tokens_consumed=sum(session.tokens_used for session in sessions),
+        top_active_sessions=sorted(sessions, key=lambda s: s.last_active_at, reverse=True)[:10],
     )
 
 
 @router.post("/search", response_model=SessionSearchResponse)
 async def search_session_map(
     request: SessionSearchRequest,
-    db: Optional[AsyncSession] = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ) -> SessionSearchResponse:
     """Full-text and metadata search across projects and session nodes."""
-    clusters = await list_session_map_projects(state_filter=request.state, db=db)
+    clusters = await _load_clusters(db, request.state)
     q = request.query.strip().lower()
 
-    hits: List[SessionSearchHit] = []
+    hits: list[SessionSearchHit] = []
 
     for cluster in clusters:
         if request.project_id and cluster.id != request.project_id:

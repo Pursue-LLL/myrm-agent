@@ -70,7 +70,7 @@ _OPEN_DIAGNOSTICS_JS = """(() => {
   } catch (e) {}
 
   const isTraceOrAnalyticsDialog = (d) =>
-    /执行回放|執行回放|Execution Trace|Execution Replay|执行轨迹|耗时|性能诊断|Session Analytics|Performance|运行分析|运行诊断/.test(d.innerText || '');
+    /执行回放|Execution Trace|Execution Replay|执行轨迹|耗时|性能诊断|Session Analytics|Performance|运行分析|运行诊断/.test(d.innerText || '');
 
   const dialogs = Array.from(document.querySelectorAll('.fixed.inset-0'));
   const activeAnalytics = dialogs.find(isTraceOrAnalyticsDialog);
@@ -92,14 +92,14 @@ _OPEN_DIAGNOSTICS_JS = """(() => {
 
   const allButtons = Array.from(document.querySelectorAll('button'));
   let btn = allButtons.find((b) =>
-    /性能诊断|性能診斷|耗时与性能诊断|Performance Diagnostics|Diagnostics/i.test(
+    /性能诊断|耗时与性能诊断|Performance Diagnostics|Diagnostics/i.test(
       (b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('title') || '') + ' ' + (b.innerText || ''),
     ),
   );
   if (!btn) {
     // Also check dual-tab trace button in ChatWindow header
     btn = allButtons.find((b) =>
-      /执行轨迹|執行軌跡|Execution Trace|Trace/i.test(
+      /执行轨迹|Execution Trace|Trace/i.test(
         (b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('title') || '') + ' ' + (b.innerText || ''),
       ),
     );
@@ -163,7 +163,7 @@ def _trace_dialog_probe_js(tool_names: list[str]) -> str:
     return f"""(() => {{
       const dialogs = Array.from(document.querySelectorAll('.fixed.inset-0'));
       let container = dialogs.find((d) =>
-        /执行回放|執行回放|Execution Trace|Execution Replay|执行轨迹|性能表现|Token|耗时|用量|Session Analytics|运行时长/.test(d.innerText || ''),
+        /执行回放|Execution Trace|Execution Replay|执行轨迹|性能表现|Token|耗时|用量|Session Analytics|运行时长/.test(d.innerText || ''),
       );
       if (!container) {{
         // Check inline trace timeline view if dual-tab was switched
@@ -191,7 +191,7 @@ def _trace_dialog_probe_js(tool_names: list[str]) -> str:
         ready: visible.length > 0 || /bash|terminal|exec|shell/i.test(text),
         visible,
         toolRows: toolRows.length,
-        hasEnterReplay: /播放录像|播放錄像|Enter Replay|进入回放|進入回放/.test(text),
+        hasEnterReplay: /播放录像|Enter Replay|进入回放/.test(text),
         textSnippet: text.slice(0, 300),
       }};
     }})()"""
@@ -205,11 +205,11 @@ def _trace_dialog_probe_js(tool_names: list[str]) -> str:
 _ENTER_REPLAY_JS = """(() => {
   const dialogs = Array.from(document.querySelectorAll('.fixed.inset-0'));
   const dialog = dialogs.find((d) =>
-    /执行回放|執行回放|Execution Trace|Execution Replay|执行轨迹|性能表现|Session Analytics/.test(d.innerText || ''),
+    /执行回放|Execution Trace|Execution Replay|执行轨迹|性能表现|Session Analytics/.test(d.innerText || ''),
   );
   const scope = dialog || document.body;
   const btn = Array.from(scope.querySelectorAll('button')).find((b) =>
-    /播放录像|播放錄像|Enter Replay|进入回放|進入回放/.test((b.textContent || '').trim()),
+    /播放录像|Enter Replay|进入回放/.test((b.textContent || '').trim()),
   );
   if (!btn) {
     const bodyText = document.body?.innerText || '';
@@ -264,7 +264,7 @@ _REPLAY_END_STATE_JS = """(() => {
     // still shows the Enter Replay button and no Session Replay title, the click
     // never flipped replayMode (wrong button target / state not committed).
     const traceDialog = dialogs.find((d) =>
-      /Execution Replay|执行回放|執行回放|Execution Trace|执行轨迹|性能表现|Session Analytics/.test(d.innerText || ''),
+      /Execution Replay|执行回放|Execution Trace|执行轨迹|性能表现|Session Analytics/.test(d.innerText || ''),
     );
     const traceText = traceDialog ? traceDialog.innerText : '';
     return {
@@ -275,8 +275,8 @@ _REPLAY_END_STATE_JS = """(() => {
         .map((d) => (d.innerText || '').slice(0, 120))
         .slice(0, 3),
       traceDialogFound: Boolean(traceDialog),
-      traceDialogStillHasEnterReplay: /Enter Replay|播放录像|播放錄像|进入回放|進入回放/.test(traceText),
-      traceDialogHasReplayTitle: /Session Replay|录像回放|錄像回放/.test(traceText),
+      traceDialogStillHasEnterReplay: /Enter Replay|播放录像|进入回放/.test(traceText),
+      traceDialogHasReplayTitle: /Session Replay|录像回放/.test(traceText),
       traceDialogText: traceText.slice(0, 600),
       hasLoadingText: /加载中|Loading|加载/.test(bodyText),
       bodyErr: /应用出错了|Application error|page error/i.test(bodyText),
@@ -443,7 +443,7 @@ async def test_chrome_ui_lineage_trace_replay(
           }} catch (e) {{}}
           const allButtons = Array.from(document.querySelectorAll('button'));
           const btn = allButtons.find((b) =>
-            /性能诊断|性能診斷|耗时与性能诊断|Performance Diagnostics|Diagnostics/i.test(
+            /性能诊断|耗时与性能诊断|Performance Diagnostics|Diagnostics/i.test(
               (b.getAttribute('aria-label') || '') + ' ' + (b.getAttribute('title') || '') + ' ' + (b.innerText || ''),
             ),
           );

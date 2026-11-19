@@ -38,6 +38,9 @@ import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import { CronWorkflowTemplateBadge } from './CronWorkflowTemplateBinding';
 
+// The tooltip names a last run that did not succeed; a circuit break has its own word, not the plain error's.
+const LAST_RUN_STATUS_KEY = { error: 'runError', skipped: 'runSkipped', circuit_break: 'runCircuitBreak' } as const;
+
 function ScheduleLabel({ job, t, locale }: { job: CronJob; t: ScheduleT; locale: string }) {
   const s = job.schedule;
   if (!s) {
@@ -91,7 +94,7 @@ export const CronJobMetaBadges = memo(({ job }: { job: CronJob }) => {
   const locale = useLocale();
   const allJobs = useCronStore((s) => s.jobs);
   const lastRunColor =
-    job.last_status === 'error'
+    job.last_status === 'error' || job.last_status === 'circuit_break'
       ? 'text-rose-600 dark:text-rose-400'
       : job.last_status === 'skipped'
         ? 'text-amber-600 dark:text-amber-400'
@@ -275,7 +278,7 @@ export const CronJobMetaBadges = memo(({ job }: { job: CronJob }) => {
           <TooltipContent>
             {job.last_status && job.last_status !== 'ok' && (
               <span className="mr-1 font-medium">
-                {t(job.last_status === 'error' ? 'runError' : 'runSkipped')}
+                {t(LAST_RUN_STATUS_KEY[job.last_status])}
                 {' · '}
               </span>
             )}

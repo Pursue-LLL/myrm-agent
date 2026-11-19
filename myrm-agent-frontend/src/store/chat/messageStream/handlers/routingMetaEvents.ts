@@ -21,7 +21,8 @@ export async function routingMetaEvents(ctx: StreamCtx): Promise<StreamTurn | nu
     const tier = routingData?.tier;
     const specialty = routingData?.specialty;
     const reason = routingData?.reason;
-    if (typeof window !== 'undefined') {
+    // Routing diagnostics the smart-routing E2E lane reads: development builds only.
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
       const afterPush = () => {
         try {
           const st = H.useChatStore.getState();

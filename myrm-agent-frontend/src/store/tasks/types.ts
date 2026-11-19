@@ -34,6 +34,6 @@ export interface ImageGenerationResult {
     mime_type?: string;
   }>;
   model: string;
-  provider: string;
+  provider?: string;
   latency_ms?: number;
 }

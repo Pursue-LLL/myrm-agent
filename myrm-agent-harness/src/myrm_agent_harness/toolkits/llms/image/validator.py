@@ -1,28 +1,29 @@
-"""Three-layer image generation request validator.
+"""Three-layer image edit request validator.
 
 [INPUT]
-- types::ModelProfile (POS: Model capability lookup)
+- types::ModelProfile, editable_model_names (POS: Model capability lookup)
 
 [OUTPUT]
 - ImageValidator: Stateless request validator
 - ValidationError: Raised when validation fails
 
 [POS]
-Pre-call validation that rejects invalid image generation requests
+Pre-call validation that rejects invalid image edit requests
 before they reach the remote API.  Three defence layers:
   L1 Prompt   — empty/length/control-char checks
   L2 Capability — request params vs ModelProfile constraints
   L3 Input    — MIME allowlist + file size limit for edit images
 
-Outbound URL SSRF for reference/result downloads is enforced in
-``generator._download_reference_images`` and ``models._download_url``
-via ``core.security.http.secure_fetch.secure_get``.
+Reference inputs are bounded by ``media_inputs`` and provider result downloads by
+``models._download_url`` (SSRF-protected through ``core.security.http.secure_fetch.secure_get``).
 """
 
 from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING
+
+from .types import editable_model_names
 
 if TYPE_CHECKING:
     from .types import ModelProfile
@@ -48,19 +49,6 @@ class ValidationError(Exception):
 class ImageValidator:
     """Stateless three-layer image generation request validator."""
 
-    def validate_generate(
-        self,
-        prompt: str,
-        *,
-        profile: ModelProfile | None,
-        n: int = 1,
-        size: str | None = None,
-    ) -> None:
-        """Validate a generate request.  Raises ``ValidationError``."""
-        self._l1_prompt(prompt, profile)
-        if profile:
-            self._l2_capability_generate(profile, n=n, size=size)
-
     def validate_edit(
         self,
         prompt: str,
@@ -68,15 +56,12 @@ class ImageValidator:
         profile: ModelProfile | None,
         image_mime: str | None = None,
         image_size_bytes: int | None = None,
-        image_url: str | None = None,
-        n: int = 1,
         size: str | None = None,
     ) -> None:
         """Validate an edit request.  Raises ``ValidationError``."""
-        del image_url  # URL SSRF is enforced at secure_get download time
         self._l1_prompt(prompt, profile)
         if profile:
-            self._l2_capability_edit(profile, n=n, size=size)
+            self._l2_capability(profile, size=size)
         self._l3_input(image_mime, image_size_bytes)
 
     @staticmethod
@@ -92,15 +77,12 @@ class ImageValidator:
             raise ValidationError("Prompt contains invalid control characters")
 
     @staticmethod
-    def _l2_capability_generate(
-        profile: ModelProfile,
-        *,
-        n: int,
-        size: str | None,
-    ) -> None:
-        if n > profile.max_count:
-            raise ValidationError(f"Requested {n} images, model {profile.name} supports max {profile.max_count}")
-
+    def _l2_capability(profile: ModelProfile, *, size: str | None) -> None:
+        if not profile.supports_edit:
+            raise ValidationError(
+                f"Model {profile.name} does not support image editing. Models that edit images: "
+                f"{', '.join(editable_model_names())}"
+            )
         if (
             size
             and profile.allowed_sizes
@@ -112,17 +94,6 @@ class ImageValidator:
                 f"Allowed sizes: {sorted(profile.allowed_sizes)}"
                 + (f", aspect ratios: {sorted(profile.allowed_aspect_ratios)}" if profile.allowed_aspect_ratios else "")
             )
-
-    @staticmethod
-    def _l2_capability_edit(
-        profile: ModelProfile,
-        *,
-        n: int,
-        size: str | None,
-    ) -> None:
-        if not profile.supports_edit:
-            raise ValidationError(f"Model {profile.name} does not support image editing")
-        ImageValidator._l2_capability_generate(profile, n=n, size=size)
 
     @staticmethod
     def _l3_input(

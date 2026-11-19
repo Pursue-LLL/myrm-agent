@@ -1,174 +1,108 @@
 """[INPUT]
-- ProviderCapabilities (POS: capabilities metadata from video generator)
+- ProviderCapabilities (POS: capabilities metadata from video generation providers)
 - Pydantic BaseModel and FieldInfo specifications
 
 [OUTPUT]
-- VideoToolInput: Static baseline Pydantic model for video generation
-- DynamicVideoToolInput: Dynamically pruned Pydantic model with extra="allow"
-- _build_dynamic_video_input_schema: Factory constructing the dynamic schema
+- build_video_input_schema: Factory constructing the video tool input schema for a provider's capabilities
 
 [POS]
-Schema definitions and dynamic schema diet builder for video generation tool.
-Keeps System Prompt Prefix Cache stable while allowing runtime parameter passthrough.
+Schema definition for the video generation tool. A provider that cannot do audio, aspect ratios or video input
+does not get those parameters (a schema diet that prevents the model from hallucinating them); ``extra="allow"``
+still lets a superset call through, and the generator reports what it ignored. The schema is fixed per provider,
+so it keeps the system prompt prefix cache stable.
 """
 
 from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
+from pydantic import BaseModel, ConfigDict, create_model
 from pydantic.fields import FieldInfo
 
-
-class VideoToolInput(BaseModel):
-    action: Literal["generate", "status", "list"] = Field(
-        default="generate",
-        description="Action to perform: 'generate' (submit async video creation task), 'status' (query progress of task_id), 'list' (discover supported video models and providers).",
-    )
-    prompt: str | None = Field(
-        default=None,
-        description="Detailed text prompt describing the video scene, motion, subject, and lighting (required for generate).",
-    )
-    provider: str | None = Field(
-        default=None, description="Optional provider override (e.g. 'kling', 'luma', 'runway', 'minimax')."
-    )
-    model: str | None = Field(default=None, description="Optional model override.")
-    duration_seconds: int | None = Field(default=None, description="Target clip duration in seconds (e.g. 5 or 10).")
-    aspect_ratio: str | None = Field(default=None, description="Aspect ratio (e.g. '16:9', '9:16', '1:1').")
-    resolution: str | None = Field(default=None, description="Video resolution: '720p', '1080p', or '4k'.")
-    enable_audio: bool | None = Field(
-        default=None, description="Whether to synthesize an audio/sound effects track when supported."
-    )
-    reference_images: list[str] | None = Field(
-        default=None,
-        description="Optional image URLs or local paths for image-to-video (I2V) generation.",
-    )
-    reference_videos: list[str] | None = Field(
-        default=None,
-        description="Optional video URLs or local paths for video-to-video (V2V) transformation.",
-    )
-    negative_prompt: str | None = Field(
-        default=None,
-        description="Negative prompt specifying elements to avoid (e.g. 'distorted faces, blurry, watermark, extra limbs').",
-    )
-    seed: int | None = Field(
-        default=None,
-        description="Random seed for reproducible video generation across multiple storyboard scenes.",
-    )
-    force: bool = Field(default=False, description="Force enqueue a new generation even if an existing session task is active.")
-    task_id: str | None = Field(
-        default=None,
-        description="Task ID returned from a previous action='generate' call (required when action='status').",
-    )
+_REFERENCE_FORMS = "media:// references from earlier results, workspace file paths or http(s) URLs"
 
 
-def _build_dynamic_video_input_schema(capabilities: object | None) -> type[BaseModel]:
-    """Dynamically construct a trimmed VideoToolInput schema based on active provider capabilities.
-
-    If a provider does NOT support audio, aspect_ratio, or reference_videos, those fields
-    are omitted from the schema (a dynamic schema diet), preventing LLM parameter
-    hallucinations (400 Bad Request).
-    """
-    from myrm_agent_harness.toolkits.llms.video.models import ProviderCapabilities
-
-    if not isinstance(capabilities, ProviderCapabilities):
-        return VideoToolInput
-
-    supports_audio = bool(capabilities.supports_audio)
-    supports_aspect_ratio = bool(capabilities.supports_aspect_ratio)
-    max_input_videos = int(capabilities.max_input_videos or 0)
-    max_duration_seconds = capabilities.max_duration_seconds
-
+def build_video_input_schema(capabilities: ProviderCapabilities | None) -> type[BaseModel]:
+    """Tool input model for ``video_tool``; ``capabilities`` of ``None`` keeps every parameter."""
+    max_duration_seconds = capabilities.max_duration_seconds if capabilities else None
     fields: dict[str, tuple[object, FieldInfo]] = {
         "action": (
             Literal["generate", "status", "list"],
-            FieldInfo(
-                default="generate",
-                description="Action to perform: 'generate' (submit async video creation task), 'status' (query progress of task_id), 'list' (discover supported video models and providers).",
-            ),
+            FieldInfo(default="generate", description="Action to perform: 'generate', 'status' or 'list'."),
         ),
         "prompt": (
             str | None,
             FieldInfo(
                 default=None,
-                description="Detailed text prompt describing the video scene, motion, subject, and lighting (required for generate).",
+                description="Detailed description of the video scene, motion, subject and lighting (required for generate).",
             ),
         ),
         "provider": (
             str | None,
-            FieldInfo(default=None, description="Optional provider override (e.g. 'fal', 'kling', 'luma', 'runway', 'minimax')."),
+            FieldInfo(default=None, description="Optional provider override; the ids are in the action='list' result."),
         ),
-        "model": (str | None, FieldInfo(default=None, description="Optional model override.")),
+        "model": (
+            str | None,
+            FieldInfo(default=None, description="Optional model override; the ids are in the action='list' result."),
+        ),
         "duration_seconds": (
             int | None,
             FieldInfo(
                 default=None,
                 description=(
-                    f"Target clip duration in seconds (max {max_duration_seconds}s for current provider)."
+                    f"Target clip duration in seconds (max {max_duration_seconds}s for the current provider)."
                     if max_duration_seconds
                     else "Target clip duration in seconds (e.g. 5 or 10)."
                 ),
             ),
         ),
-    }
-
-    if supports_aspect_ratio:
-        fields["aspect_ratio"] = (
+        "aspect_ratio": (
             str | None,
             FieldInfo(default=None, description="Aspect ratio (e.g. '16:9', '9:16', '1:1')."),
-        )
-    fields["resolution"] = (
-        str | None,
-        FieldInfo(default=None, description="Video resolution: '720p', '1080p', or '4k'."),
-    )
-
-    if supports_audio:
-        fields["enable_audio"] = (
+        ),
+        "resolution": (
+            str | None,
+            FieldInfo(default=None, description="Video resolution: '720p', '1080p', or '4k'."),
+        ),
+        "enable_audio": (
             bool | None,
-            FieldInfo(default=None, description="Whether to synthesize an audio/sound effects track when supported."),
-        )
-
-    fields["reference_images"] = (
-        list[str] | None,
-        FieldInfo(
-            default=None,
-            description="Optional image URLs or local paths for image-to-video (I2V) generation.",
+            FieldInfo(default=None, description="Whether to synthesize an audio track when supported."),
         ),
-    )
-
-    if max_input_videos > 0:
-        fields["reference_videos"] = (
+        "reference_images": (
             list[str] | None,
-            FieldInfo(
-                default=None,
-                description="Optional video URLs or local paths for video-to-video (V2V) transformation.",
-            ),
-        )
-
-    fields["negative_prompt"] = (
-        str | None,
-        FieldInfo(
-            default=None,
-            description="Negative prompt specifying elements to avoid (e.g. 'distorted faces, blurry, watermark, extra limbs').",
+            FieldInfo(default=None, description=f"Reference images for image-to-video: {_REFERENCE_FORMS}."),
         ),
-    )
-    fields["seed"] = (
-        int | None,
-        FieldInfo(default=None, description="Random seed for reproducible video generation across multiple storyboard scenes."),
-    )
-    fields["force"] = (
-        bool,
-        FieldInfo(default=False, description="Force enqueue a new generation even if an existing session task is active."),
-    )
-    fields["task_id"] = (
-        str | None,
-        FieldInfo(
-            default=None, description="Task ID returned from a previous action='generate' call (required when action='status')."
+        "reference_videos": (
+            list[str] | None,
+            FieldInfo(default=None, description=f"Reference videos for video-to-video: {_REFERENCE_FORMS}."),
         ),
-    )
+        "negative_prompt": (
+            str | None,
+            FieldInfo(default=None, description="Elements to avoid (e.g. 'distorted faces, blurry, watermark, extra limbs')."),
+        ),
+        "seed": (
+            int | None,
+            FieldInfo(default=None, description="Random seed for reproducible results across the scenes of a storyboard."),
+        ),
+        "task_id": (
+            str | None,
+            FieldInfo(default=None, description="Task ID from an earlier generate result (required when action='status')."),
+        ),
+    }
 
-    return create_model(
-        "DynamicVideoToolInput",
+    if capabilities is not None:
+        if not capabilities.supports_aspect_ratio:
+            del fields["aspect_ratio"]
+        if not capabilities.supports_audio:
+            del fields["enable_audio"]
+        if capabilities.max_input_videos <= 0:
+            del fields["reference_videos"]
+
+    # pydantic types a field definition as ``TypeForm``, which a runtime-built annotation cannot satisfy statically.
+    model: type[BaseModel] = create_model(  # type: ignore[call-overload]
+        "VideoToolInput",
         __config__=ConfigDict(extra="allow"),
-        **fields,
-    )  # type: ignore[call-overload]
+        **fields,  # pyright: ignore[reportArgumentType]
+    )
+    return model

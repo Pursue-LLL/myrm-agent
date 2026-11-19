@@ -5,6 +5,9 @@ export interface TranslationFn {
   (key: string, values?: Record<string, string | number>): string;
 }
 
+/** The wizard's three steps, in the order its container moves between them. */
+export type WizardStep = 'scan' | 'preview' | 'result';
+
 /**
  * Coverage labels the backend may send as an i18n key; anything else is rendered
  * verbatim. Mirrors the label vocabulary of build_coverage_items.
@@ -23,7 +26,6 @@ export const COVERAGE_LABEL_KEYS = [
   'no_importable_data',
   'cron_lane',
   'kanban_not_migrated',
-  'credential_pool_migration',
 ] as const;
 
 /** Cron skip reasons with dedicated copy; unknown reasons fall back to the generic line. */

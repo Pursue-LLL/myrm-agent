@@ -54,8 +54,6 @@ app/api/integrations/search.py
 app/api/kanban/routes/bulk.py
 app/api/kanban/routes/specify.py
 app/api/kanban/routes/task_meta.py
-app/api/media/batch_routes.py
-app/api/media/router.py
 app/api/memory/operations/backup_remote.py
 app/api/memory/operations/crud.py
 app/api/memory/router.py
@@ -117,8 +115,6 @@ app/core/infra/frontend_launcher.py
 app/core/integrations/catalog/models.py
 app/core/integrations/catalog/registry.py
 app/core/kanban/adapters/sqlalchemy_store.py
-app/core/media/batch/orchestrator.py
-app/core/media/service.py
 app/core/monitoring/__init__.py
 app/core/monitoring/prometheus_setup.py
 app/core/retriever/graph/__init__.py
@@ -201,5 +197,3 @@ app/services/webui/passwords.py
 app/services/webui/qrcode.py
 app/startup/local_search_bootstrap.py
 app/tasks/cleanup.py
-app/tasks/events.py
-app/tasks/metrics.py

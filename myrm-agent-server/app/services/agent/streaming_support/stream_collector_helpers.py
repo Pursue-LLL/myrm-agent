@@ -3,6 +3,7 @@
 [INPUT]
 - stdlib json (POS: tool result JSON decode)
 - app.services.agent.approval_payload::is_tool_stuck_pause (POS: tells a loop guard pause from a real approval)
+- myrm_agent_harness.agent.streaming.interrupt_events::INTERRUPT_ID_KEY (POS: the pause a clarification card was announced for, kept on the stored card)
 - app.services.skills.skill_manage_batch_parse::extract_skill_mutation_batch_id_from_step
   (POS: reads the skill mutation batch id a skill_manage step carries; imported when a step is merged)
 
@@ -24,6 +25,8 @@ Stateless parsing helpers for stream_collector; they hold no collector state, so
 from __future__ import annotations
 
 import json
+
+from myrm_agent_harness.agent.streaming.interrupt_events import INTERRUPT_ID_KEY
 
 from app.services.agent.approval_payload import is_tool_stuck_pause
 
@@ -204,6 +207,8 @@ def collect_clarification_required(
     # without that the card has nothing to show and must not be persisted.
     if len(clarification) <= 1:
         return None
+    if isinstance(interrupt_id := event.get(INTERRUPT_ID_KEY), str) and interrupt_id:
+        clarification[INTERRUPT_ID_KEY] = interrupt_id
     return clarification
 
 

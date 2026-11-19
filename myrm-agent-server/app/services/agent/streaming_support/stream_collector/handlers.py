@@ -1,6 +1,7 @@
 """[INPUT]
 - app.services.agent.streaming_support.evicted_output::attach_evicted_to_step / find_step_for_evicted / parse_evicted_ref_payload / step_accepts_pending_evicted (POS: Stateless helpers for stream_collector. Evicted output arrives as its own event, before or after the tool step it belongs to, so the collector holds it until a step accepts it.)
 - app.services.agent.streaming_support.stream_collector_helpers::collect_clarification_required / collect_cron_job_result / collect_file_mutation_failures / collect_kanban_task_created / collect_plan_confirmation_status / is_memory_citation_tool / iteration_limit_message / merge_sources_list / merge_tasks_step / string_keyed_dict / string_keyed_dicts (POS: Stateless parsing helpers for stream_collector; they hold no collector state, so each can be read and tested alone.)
+- app.services.agent.streaming_support.media_generated::collect_media_generated (POS: The media a media tool call produced, registered from the tool's structured result.)
 - app.services.skills.mutation_batch_stream::link_batch_to_step (POS: Dependency-free contract module shared by the hook (producer) and stream_collector (consumer).)
 - app.services.agent.streaming_support.stream_collector.base::StreamCollectorBase (POS: handlers 与 state 两个 mixin 共用的实例属性类型，集中一处避免重复注解。)
 - app.services.agent.streaming_support.stream_collector.constants::_FAILOVER_REASON_TO_STEP_KEY / _PERSISTED_STATUS_STEP_KEYS (POS: handlers / state / core 共用的限制与事件映射。)
@@ -21,6 +22,7 @@ from app.services.agent.streaming_support.evicted_output import (
     parse_evicted_ref_payload,
     step_accepts_pending_evicted,
 )
+from app.services.agent.streaming_support.media_generated import collect_media_generated
 from app.services.agent.streaming_support.stream_collector_helpers import (
     collect_clarification_required,
     collect_cron_job_result,
@@ -232,6 +234,7 @@ class StreamEventHandlersMixin(StreamCollectorBase):
         if is_memory_recall and isinstance(trace, dict):
             self._append_memory_retrieval_trace(trace)
         collect_kanban_task_created(self._kanban_tasks_created, event)
+        collect_media_generated(self._media_generated, event)
         cron_result = collect_cron_job_result(event)
         if cron_result is not None:
             self._cron_job_result = cron_result

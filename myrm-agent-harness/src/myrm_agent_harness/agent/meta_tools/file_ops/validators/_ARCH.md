@@ -8,7 +8,7 @@ Validators module.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Validators module. | — |
-| auto_verify.py | Core | Smart Auto-Verify. Infers and runs CLI linters from the workspace root after file edits when Agent does not provide explicit verify_command. Provides soft diagnostic feedback. | ✅ |
+| auto_verify.py | Core | Smart Auto-Verify. Runs pyright from the workspace root (`_workspace_command_context`) after every Python edit and appends soft diagnostic feedback to the tool result; the write is kept. Other languages are not registered: a per-file check is silent or reports phantom errors, and `cargo check` runs the workspace's `build.rs`. | ✅ |
 | base.py | Core | Provides Validator. | ✅ |
 | binary_validator.py | Core | Binary file validator | ✅ |
 | client_secret_validator.py | Core | Client-side code secret leak validator blocking hardcoded keys/credentials in frontend files (.tsx, .jsx, .vue, .html, .js). | ✅ |
@@ -19,7 +19,7 @@ Validators module.
 | office_write_guard.py | Core | Secondary guard: warn on direct text writes to Office binary paths | ✅ |
 | invariant_validator.py | Core | Goal-scoped invariant file protection: blocks writes matching active Goal protected_paths before they happen. Pattern matching via `core.security.path.pattern`. | ✅ |
 | evidence_readonly_validator.py | Core | Session Evidence read-only protection: blocks writes to evidence/user_inputs to preserve raw audit trail. | ✅ |
-| path_validator.py | Core | Path security validator with symlink detection and actionable error hints for LLM self-correction. | ✅ |
+| path_validator.py | Core | Path security validator with symlink detection and actionable error hints for LLM self-correction. A network share or NT-namespace spelling is refused first, on its text, before any filesystem call (the symlink and boundary checks that follow would open it). | ✅ |
 | permission_validator.py | Core | Provides PermissionValidator. | ✅ |
 | sensitive_file_validator.py | Core | Sensitive file validator — resolves `SENSITIVE_FILE_PATTERNS` through `core.security.path.pattern` so its verdict is identical to `path_security.is_sensitive_file()`. | ✅ |
 | size_validator.py | Core | Provides SizeValidator: rejects a file over its limit (`ValidatorChain(ranged_read=True)` raises the limit to `MAX_RANGED_READ_SIZE_BYTES`); the refusal points to the line range, or to search and shell tools when even a range is too large. | ✅ |

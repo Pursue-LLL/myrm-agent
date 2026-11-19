@@ -18,7 +18,7 @@ Bound skills → resolve_catalog_display_skills() → get_metadata_summary()
                                          ↓
                     ┌── explicit [use X] → SkillAgent._preload_explicit_skill()
                     │                      → 0-roundtrip SOP injection into HumanMessage
-                    │                      → fallback to Rule 6 on any error
+                    │                      → fallback to Rule 6 when no SOP can be delivered
                     │
                     └── implicit (LLM auto-select) → skill_select_tool(skill_names)
                                          ↓
@@ -26,7 +26,7 @@ Bound skills → resolve_catalog_display_skills() → get_metadata_summary()
                          └── already loaded → concise summary (~200 tokens)
 ```
 
-**Explicit skill injection**: When the user explicitly invokes a skill (via slash command or command palette), the message arrives as `[use skill_name] args`. `SkillAgent._preload_explicit_skill()` detects this pattern, calls `get_skill_document()` to load the SOP, and injects it directly into the query with an `[IMPORTANT: ...]` header. This eliminates one LLM round trip (2-5s + 500-2000 token savings per invocation). On any failure (skill not found, SOP error), the query passes through unchanged for Rule 6 fallback.
+**Explicit skill injection**: When the user explicitly invokes a skill (via slash command or command palette), the message arrives as `[use skill_name] args`. `SkillAgent._preload_explicit_skill()` detects this pattern, calls `get_skill_document()` to load the SOP, and injects it directly into the query with an `[IMPORTANT: ...]` header. This eliminates one LLM round trip (2-5s + 500-2000 token savings per invocation). If none of the named skills can deliver an SOP (not found, unreadable, no content), the query passes through unchanged for Rule 6 fallback; a bundle `[use s1,s2]` skips a skill without a deliverable SOP and injects the rest.
 
 **Loaded-skill deduplication**: Uses `get_loaded_skills()` ContextVar to detect already-loaded skills, read per name at the moment the name is reached: a skill named twice in one call, or under two spellings, loads its SOP once and each later mention gets the summary. Returns a concise summary via `build_reload_summary()` / `build_reload_summary_with_index()` in `skill_document_loader.py` (tool names from `MCPSkillData.tools` + compact linked index + `file_path` hint, ~200 tokens) instead of the full SOP, preventing the select → compact → re-select token waste loop. Separate `skill_select_tool` calls in one assistant message run concurrently and are not serialized, so each can still deliver the same skill's SOP. A skill enters the loaded scope only after its SOP is delivered (`add_loaded_skill` follows a successful `get_skill_document`): the skill-boundary guardrail (`middlewares/guardrails/providers/skill_boundary.py`) and the turn's tool allowlist (`middlewares/tooling/skill_attenuation_middleware.py`) read that scope, so claiming a skill before its load finishes would change what they allow while the model holds no SOP yet, and a concurrent call could answer "already loaded" for a skill whose load then fails.
 
@@ -44,7 +44,7 @@ Bound skills → resolve_catalog_display_skills() → get_metadata_summary()
 |------|------|-------------|-------|
 | __init__.py | Package | Skill selection tool module + `get_skill_document` export. | — |
 | skill_select_tool.py | Core | Static-description skill selection meta-tool; invoke handler resolves each written name with `resolve_skill_reference` and loads the SOP. | ✅ |
-| skill_document_loader.py | Core | SOP load pipeline, L2 file read, reload summaries, L1 footer orchestration. A stored skill's document carries `skill_call_notice` under its title (call a script by its full `.claude/skills/<name>/…` path as one plain command; what a plain call is lives in `agent/skills/runtime/skill_invocation.py`). A dynamic command in a skill document (a backticked command after `!`) runs with a 10 s deadline, its output read through `communicate_bounded` (5 MiB per pipe, then cut to 2000 characters in the document), and the command, started in its own process group, is killed together with everything it started at the deadline or when the run is cancelled. | ✅ |
+| skill_document_loader.py | Core | SOP load pipeline, L2 file read, reload summaries, L1 footer orchestration. `get_skill_document` returns an empty string when no SOP can be delivered (the backend read failed and is logged, it returned no content, or the skill has no document source), so neither `skill_select_tool` nor the `[use]` preload counts that skill as loaded. A stored skill's document carries `skill_call_notice` under its title (call a script by its full `.claude/skills/<name>/…` path as one plain command; what a plain call is lives in `agent/skills/runtime/skill_invocation.py`). A dynamic command in a skill document (a backticked command after `!`) runs with a 10 s deadline, its output read through `communicate_bounded` (5 MiB per pipe, then cut to 2000 characters in the document), and the command, started in its own process group, is killed together with everything it started at the deadline or when the run is cancelled. | ✅ |
 | l1_disclosure_footer.py | Core | L1 linked-files index + config block footer for `get_skill_document`. | ✅ |
 
 ## Key Dependencies

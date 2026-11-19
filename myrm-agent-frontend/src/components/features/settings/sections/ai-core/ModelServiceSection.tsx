@@ -12,7 +12,6 @@ import {
   getRoutedModelName,
   CustomProviderType,
   hasUsableProviderAuth,
-  normalizeApiUrl,
   resolveProviderApiKeyForRequests,
 } from '@/store/config/providerTypes';
 import ProviderList from '../../model-service/ProviderList';
@@ -189,7 +188,7 @@ const ModelServiceSection = memo(() => {
         const result = await validateLLM({
           model: modelFullName,
           api_key: requestApiKey,
-          base_url: normalizeApiUrl(currentProvider.apiUrl) || null,
+          base_url: currentProvider.apiUrl || null,
           model_kwargs: {},
         });
         console.log('[handleValidateModel] validateLLM result:', result);
@@ -232,7 +231,7 @@ const ModelServiceSection = memo(() => {
           config: {
             model: fullName,
             api_key: requestApiKey,
-            base_url: normalizeApiUrl(provider.apiUrl) || null,
+            base_url: provider.apiUrl || null,
             model_kwargs: {},
           },
           displayName: `${provider.name} / ${model}`,

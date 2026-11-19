@@ -18,8 +18,7 @@
 - core.file_conflict_guard::check_conflict_pre_write (POS: 文件并发编辑冲突守卫)
 - core.batch_str_replace::apply_batch_str_replace, compute_batch_edit_line_range (POS: Batch str-replace engine)
 - core.file_view_service::FileViewService (POS: VIEW operation)
-- core.verify_runner::run_verify_command (POS: Verify-command run; passed / failed / never ran)
-- validators.auto_verify::run_auto_verify (POS: soft linter diagnostics when no verify command is given)
+- validators.auto_verify::run_auto_verify (POS: Smart Auto-Verify; pyright diagnostics appended after a Python edit)
 - validators.markdown_vault_write_guard::MarkdownVaultWriteGuard (POS: vault markdown FM preserve guard)
 - validators.office_write_guard::OfficeWriteGuard (POS: secondary Office path text-write warnings)
 
@@ -27,8 +26,7 @@
 - FileOperationService: 文件操作服务类(统一的文件操作接口).VIEW 交给 FileViewService.CREATE 只创建新文件并
   notify_file_created(post_write);已存在的路径在验证阶段被拒绝.
   Appends Office fidelity warnings on CREATE and Vault/Office fidelity warnings on STR_REPLACE responses.
-  A verify command that exits non-zero undoes the write (CREATE deletes the file, STR_REPLACE restores it);
-  one that never ran leaves the write in place and says so in the response.
+  Appends the Auto-Verify report (soft linter diagnostics, the write is kept) to both.
 
 [POS]
 File operation service. Provides a unified file operation interface integrating strategies, validator chains, observer pipelines, concurrency control, resource limits, security validation, and concurrent subagent conflict detection. The read side lives in FileViewService.
@@ -38,7 +36,6 @@ File operation service. Provides a unified file operation interface integrating 
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 
@@ -62,7 +59,6 @@ from .file_path_lock_manager import acquire_file_path_lock
 from .file_view_service import FileViewService
 from .operation_context import OperationContext, OperationType
 from .result_formatter import ResultFormatter
-from .verify_runner import run_verify_command
 
 logger = logging.getLogger(__name__)
 
@@ -174,11 +170,7 @@ class FileOperationService:
         logger.info("Calling observer_manager.notify_file_created for %s", resolved_path)
         await self.observer_manager.notify_file_created(resolved_path, new_content)
 
-        check_report = await self._check_write(
-            resolved_path,
-            undo=lambda: strategy.delete_file(resolved_path),
-            failure_headline="File created but verification failed. The file has been deleted.",
-        )
+        verify_report = await self._auto_verify(resolved_path)
 
         # Record hash AFTER observers and verification so FormatObserver's changes are captured.
         # Re-read to get the post-formatted content; skip re-read when no
@@ -193,8 +185,8 @@ class FileOperationService:
         response = ResultFormatter.format_success("created", resolved_path)
         if conflict_warning:
             response = f"{response}\n\n{conflict_warning}"
-        if check_report:
-            response = f"{response}\n{check_report}"
+        if verify_report:
+            response = f"{response}\n{verify_report}"
         return self._append_office_warnings(response, office_warnings)
 
     async def _execute_str_replace(self) -> str:
@@ -267,13 +259,7 @@ class FileOperationService:
 
         await self.observer_manager.notify_file_modified(resolved_path, old_content, new_content)
 
-        check_report = await self._check_write(
-            resolved_path,
-            undo=lambda: strategy.write_file(resolved_path, old_content),
-            failure_headline="File edited but verification failed. Changes have been rolled back.",
-            edit_line_start=line_start,
-            edit_line_end=line_end,
-        )
+        verify_report = await self._auto_verify(resolved_path, edit_line_start=line_start, edit_line_end=line_end)
 
         if guard is not None:
             final_content = "\n".join(await strategy.read_file(resolved_path))
@@ -284,47 +270,36 @@ class FileOperationService:
         response = ResultFormatter.format_success("replaced text in", resolved_path)
         if conflict_warning:
             response = f"{response}\n\n{conflict_warning}"
-        if check_report:
-            response = f"{response}\n{check_report}"
+        if verify_report:
+            response = f"{response}\n{verify_report}"
         return self._append_office_warnings(
             self._append_vault_warnings(response, vault_warnings),
             office_warnings,
         )
 
-    async def _check_write(
+    async def _auto_verify(
         self,
         resolved_path: str,
         *,
-        undo: Callable[[], Awaitable[None]],
-        failure_headline: str,
         edit_line_start: int | None = None,
         edit_line_end: int | None = None,
     ) -> str | None:
-        """Check the file just written; returns the line to append to the response, or None.
+        """Soft linter diagnostics for the file just written, to append to the response; None when there are none.
 
-        A verify command that exits non-zero runs ``undo`` and raises; one that never ran keeps the write and
-        returns a note saying so. Without a verify command the soft linter diagnostics run (no rollback).
+        The write is kept whatever the linter says; the model reads the report and fixes the file itself.
         """
         executor = self.context.executor
         if executor is None:
             return None
 
-        if not self.context.verify_command:
-            from ..validators.auto_verify import run_auto_verify
+        from ..validators.auto_verify import run_auto_verify
 
-            return await run_auto_verify(
-                executor,
-                resolved_path,
-                edit_line_start=edit_line_start,
-                edit_line_end=edit_line_end,
-            )
-
-        outcome = await run_verify_command(executor, self.context.verify_command, resolved_path)
-        if outcome.failed:
-            await undo()
-            logger.warning("Verification failed for %s, the write was undone. Error: %s", resolved_path, outcome.stderr)
-            raise ValueError(f"{failure_headline}\n{outcome.failure_report()}")
-        return outcome.not_run_note() if outcome.not_run else None
+        return await run_auto_verify(
+            executor,
+            resolved_path,
+            edit_line_start=edit_line_start,
+            edit_line_end=edit_line_end,
+        )
 
     @staticmethod
     def _append_vault_warnings(response: str, warnings: list[str]) -> str:

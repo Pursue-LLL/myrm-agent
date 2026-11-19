@@ -78,15 +78,3 @@ def test_skill_size_within_budget(skill_text: str) -> None:
     assert len(skill_text) <= _MAX_SKILL_CHARS, (
         f"image-style-synthesizer SKILL.md is {len(skill_text)} chars, exceeding budget {_MAX_SKILL_CHARS}"
     )
-
-
-def test_channel_router_design_image_command_registered() -> None:
-    from app.channels.routing.command_defs import SYSTEM_COMMANDS, CommandKind
-
-    design_cmd = next((c for c in SYSTEM_COMMANDS if c.name == "design-image"), None)
-    assert design_cmd is not None, "Missing /design-image command in SYSTEM_COMMANDS"
-    assert design_cmd.kind == CommandKind.SKILL
-    assert "image-style-synthesizer" in design_cmd.skill_ids
-    assert "image-design" in design_cmd.aliases
-    assert "prompt-image" in design_cmd.aliases
-    assert "style-image" in design_cmd.aliases

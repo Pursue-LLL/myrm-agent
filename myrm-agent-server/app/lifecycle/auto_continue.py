@@ -1,7 +1,7 @@
 """Crash auto-continue: resume interrupted normal turns after a restart.
 
 [INPUT]
-- app.database.models.chat::InterruptedTurnMarker (POS: 崩溃自动续跑的 write-ahead marker，流开始前写入、正常完成后清理)
+- app.database.models.chat::InterruptedTurnMarker (POS: 崩溃自动续跑的 write-ahead marker，流开始前写入、回合的流结束或被用户停止时清理)
 - app.services.agent.runtime_context::build_agent_runtime_context (POS: Business-layer helper，为每个 agent 入口注入统一的运行时上下文)
 - app.services.agent.streaming::ai_agent_service_stream (POS: Agent 流式服务层，创建 Agent 并经 Gateway 执行，输出 message/message_end 事件)
 - app.services.agent.turn_lease::server_turn_lease (POS: 服务端自启回合的会话占用 + 取消令牌，使聊天「停止」与 E-Stop 能到达重放回合)
@@ -39,9 +39,10 @@ async def auto_continue_interrupted_turns() -> None:
 
     Scans ``interrupted_turn_markers`` for entries within the freshness window.
     For each qualifying marker, constructs a lightweight agent stream request
-    and dispatches it in the background. The marker is cleaned up by the
-    normal stream finalization path on success, or incremented and pruned
-    on repeated failure (crash-loop breaker).
+    and dispatches it in the background. The dispatching worker removes the
+    marker when the replay ends, however it ends; a replay that crashes the
+    process again leaves it with a raised attempt count, and the scan prunes
+    it once the count reaches the cap (crash-loop breaker).
     """
     try:
         # Check user preference (default: enabled)
@@ -210,10 +211,10 @@ async def _dispatch_auto_continue(
         except Exception as notif_err:
             logger.error("Failed to create auto-continue failure notification: %s", notif_err)
     finally:
-        # Cleanup marker (stream_finalize may have already done this on success)
+        # The replay runs outside stream finalize, so this worker removes the marker it replayed.
         try:
             async with session_factory() as db:
                 await db.execute(delete(InterruptedTurnMarker).where(InterruptedTurnMarker.id == marker.id))
                 await db.commit()
         except Exception as cleanup_err:
-            logger.debug("Auto-continue marker cleanup: %s", cleanup_err)
+            logger.warning("Auto-continue marker cleanup: %s", cleanup_err)

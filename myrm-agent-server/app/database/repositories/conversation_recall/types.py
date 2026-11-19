@@ -2,9 +2,10 @@
 
 [INPUT]
 - sqlalchemy.engine.row::RowMapping (POS: SQLAlchemy row mapping contract)
+- app.database.repositories.conversation_recall.sql::HIGHLIGHT_OPEN, HIGHLIGHT_CLOSE (POS: Conversation Recall SQL 契约层)
 
 [OUTPUT]
-- ConversationRecallRow: Typed conversation recall search row.
+- ConversationRecallRow: Typed conversation recall search row; its snippet is for display, its window for a model.
 - ConversationRecallDocumentRow: Typed conversation recall management row.
 - ConversationRecallContext: Current chat context for scoped recall.
 - ConversationRecallHealth: Opaque health summary for the recall index.
@@ -23,17 +24,22 @@ from typing import Mapping, TypeAlias
 
 from sqlalchemy.engine import RowMapping
 
+from app.database.repositories.conversation_recall.sql import HIGHLIGHT_CLOSE, HIGHLIGHT_OPEN
+
 RecallMapping: TypeAlias = Mapping[str, object] | RowMapping
 
 
 @dataclass(frozen=True, slots=True)
 class ConversationRecallRow:
+    """One recall hit. The snippet wraps matched terms in ``<mark>`` for display; the window is the same text without them."""
+
     chat_id: str
     title: str | None
     agent_id: str | None
     source: str
     message_id: str | None
     snippet: str
+    window: str
     summary: str | None
     last_message_at: datetime | None
     created_at: datetime | None
@@ -76,13 +82,15 @@ class ConversationRecallHealth:
 
 
 def recall_row(row: RecallMapping) -> ConversationRecallRow:
+    marked = required_str(row, "snippet")
     return ConversationRecallRow(
         chat_id=required_str(row, "chat_id"),
         title=optional_str(row, "title"),
         agent_id=optional_str(row, "agent_id"),
         source=required_str(row, "source"),
         message_id=optional_str(row, "message_id"),
-        snippet=required_str(row, "snippet"),
+        snippet=marked.replace(HIGHLIGHT_OPEN, "<mark>").replace(HIGHLIGHT_CLOSE, "</mark>"),
+        window=marked.replace(HIGHLIGHT_OPEN, "").replace(HIGHLIGHT_CLOSE, ""),
         summary=optional_str(row, "summary"),
         last_message_at=optional_datetime(row, "last_message_at"),
         created_at=optional_datetime(row, "created_at"),

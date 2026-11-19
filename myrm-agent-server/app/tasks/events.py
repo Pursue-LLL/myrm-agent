@@ -1,4 +1,17 @@
-"""SSE events for real-time task status updates."""
+"""SSE events for real-time task status updates.
+
+[INPUT]
+- myrm_agent_harness.toolkits.tasks::TaskStatus (POS: Queue protocol + compare-and-set persistence contract)
+- app/tasks/metrics.py::{safe_counter_inc, task_event_emitted_total, task_event_dropped_total, task_event_replaced_total} (POS: Prometheus instruments and best-effort recorders for the task subsystem)
+
+[OUTPUT]
+- TaskEventBus: in-memory fan-out of task status events to SSE subscribers through bounded per-subscriber queues.
+- task_event_bus: the process-wide bus; the worker callback and the cancel endpoint publish to it, the SSE endpoint streams from it.
+
+[POS]
+- SSE task status event hub. When a subscriber queue is full the oldest buffered event is replaced by the newest one flagged
+  ``sync_required``, so a slow client resynchronises instead of falling further behind; delivery counters never affect delivery.
+"""
 
 import asyncio
 import json
@@ -9,23 +22,13 @@ from collections.abc import AsyncGenerator, Callable
 from myrm_agent_harness.toolkits.tasks import TaskStatus
 
 from app.tasks.metrics import (
+    safe_counter_inc,
     task_event_dropped_total,
     task_event_emitted_total,
     task_event_replaced_total,
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_counter_inc(counter: object, **labels: str) -> None:
-    """Best-effort counter increment that never interrupts event delivery."""
-    try:
-        if labels:
-            counter.labels(**labels).inc()  # type: ignore[call-arg, attr-defined]
-        else:
-            counter.inc()  # type: ignore[attr-defined]
-    except Exception as exc:  # pragma: no cover - defensive metrics guard
-        logger.debug("Failed to increment task event metric: %s", exc)
 
 
 class TaskEventBus:
@@ -88,19 +91,19 @@ class TaskEventBus:
         for queue in self._subscribers:
             try:
                 queue.put_nowait(event)
-                _safe_counter_inc(task_event_emitted_total, status=status.value)
+                safe_counter_inc(task_event_emitted_total, status=status.value)
             except asyncio.QueueFull:
-                _safe_counter_inc(task_event_dropped_total, status=status.value, reason="queue_full_drop_oldest")
+                safe_counter_inc(task_event_dropped_total, status=status.value, reason="queue_full_drop_oldest")
                 overflow_event = dict(event)
                 overflow_event["sync_required"] = True
                 try:
                     queue.get_nowait()
                     queue.put_nowait(overflow_event)
-                    _safe_counter_inc(task_event_replaced_total, status=status.value)
-                    _safe_counter_inc(task_event_emitted_total, status=status.value)
+                    safe_counter_inc(task_event_replaced_total, status=status.value)
+                    safe_counter_inc(task_event_emitted_total, status=status.value)
                     self._warn_queue_full(task_id, "replaced oldest buffered event")
                 except (asyncio.QueueEmpty, asyncio.QueueFull):
-                    _safe_counter_inc(task_event_dropped_total, status=status.value, reason="queue_full_drop_newest")
+                    safe_counter_inc(task_event_dropped_total, status=status.value, reason="queue_full_drop_newest")
                     self._warn_queue_full(task_id, "dropping newest event")
             except Exception as e:
                 logger.error(f"Failed to emit event to subscriber: {e}")

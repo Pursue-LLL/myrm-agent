@@ -1,0 +1,10 @@
+mark {
+  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.dark mark {
+  background-color: color-mix(in srgb, var(--primary) 30%, transparent);
+}

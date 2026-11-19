@@ -1,5 +1,5 @@
 """[INPUT]
-- myrm_agent_harness.core.artifacts.constants::ArtifactType (POS: Artifact type mappings — framework-agnostic constants.)
+- myrm_agent_harness.core.config.gateway::ToolGatewayConfig (POS: 工具网关配置契约)
 - myrm_agent_harness.core.artifacts.paths::resolve_workspace_downloads_dir (POS: Single source of truth for the on-disk layout of the artifact vault and of browser downloads under a task workspace root.)
 - myrm_agent_harness.agent.security.engine::evaluate_tool_call (POS: Layers 1–5 of the security architecture. Pure deterministic evaluation — no side effects, no I/O, trivially testable.)
 - myrm_agent_harness.core.security.tool_registry::resolve_permission_type (POS: tool safety registry: the permission type a tool call is judged under)
@@ -11,8 +11,9 @@
 - _media_gateway_configured: _media_gateway_configured
 - _is_media_credential_configured: _is_media_credential_configured
 - _video_generation_credential_configured: _video_generation_credential_configured
+- _media_api_key: The saved API key of a media engine as the secret its config holds
+- _media_gateway: The saved tool gateway settings of a media engine as its validated config
 - _select_image_constraints: Select optimal ImageConstraints based on model family.
-- _get_artifact_push_fn: Create an artifact push callback for image/video generation tools.
 - _build_download_config: Download support of a chat's browser: its folder under the workspace and the policy for downloads a page starts.
 
 [POS]
@@ -22,11 +23,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.core.artifacts.constants import ArtifactType
+from myrm_agent_harness.core.config.gateway import ToolGatewayConfig
+from pydantic import SecretStr
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.security.types import SecurityConfig
@@ -95,6 +96,16 @@ def _video_generation_credential_configured(params: VideoGenerationParams) -> bo
     )
 
 
+def _media_api_key(api_key: str | None) -> SecretStr | None:
+    """The saved API key as the secret the engine configs hold, so it never reaches a log line."""
+    return None if api_key is None else SecretStr(api_key)
+
+
+def _media_gateway(gateway_config: dict[str, object] | None) -> ToolGatewayConfig | None:
+    """The saved tool gateway settings (either key style) as the config the engines route through."""
+    return None if gateway_config is None else ToolGatewayConfig.model_validate(gateway_config)
+
+
 def _select_image_constraints(model_name: str) -> object | None:
     """Select optimal ImageConstraints based on model family.
 
@@ -114,33 +125,6 @@ def _select_image_constraints(model_name: str) -> object | None:
         return CLAUDE_OPUS_47_IMAGE_CONSTRAINTS
 
     return None
-
-
-def _get_artifact_push_fn() -> Callable[[str, str, ArtifactType, str], None] | None:
-    """Create an artifact push callback for image/video generation tools.
-
-    Returns the ``push_inline_artifact`` function from the agent layer,
-    or ``None`` when the agent runtime is unavailable.
-    """
-    try:
-        from myrm_agent_harness.agent.artifacts import push_inline_artifact
-
-        def _push(
-            filename: str,
-            preview_url: str,
-            artifact_type: ArtifactType,
-            content_type: str,
-        ) -> None:
-            push_inline_artifact(
-                filename=filename,
-                preview_url=preview_url,
-                artifact_type=artifact_type,
-                content_type=content_type,
-            )
-
-        return _push
-    except Exception:
-        return None
 
 
 def _build_download_config(workspace_root: str, security: SecurityConfig) -> DownloadConfig:

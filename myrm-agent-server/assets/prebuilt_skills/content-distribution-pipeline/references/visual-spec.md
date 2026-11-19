@@ -33,5 +33,5 @@
 Every completed distribution bundle should contain `visual_assets/specs.md` detailing:
 - [ ] Cover headline text and subtitle hierarchy.
 - [ ] Aspect ratios generated (3:4, 9:16, 2.35:1).
-- [ ] Prompt descriptions suitable for AI image generators (e.g. FLUX, DALL-E, Canvas).
+- [ ] Prompt descriptions suitable for AI image generators (e.g. FLUX, Imagen, Canvas).
 - [ ] Color palette tokens and typography hierarchy.

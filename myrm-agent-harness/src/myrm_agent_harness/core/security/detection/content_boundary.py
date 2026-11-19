@@ -32,7 +32,7 @@ Additional utility:
 - sanitize(): Unicode 折叠 + 结构化 token 剥离 + 标记消毒（层 1+1.5+2）
 - detect_suspicious(): 注入模式检测，返回匹配的模式名列表（层 4）
 - strip_invisible_unicode(): 零宽/不可见 Unicode 字符剥离
-- wrap_untrusted(): 完整 5 层防护，用于外部数据（web/KB/webhook）
+- wrap_untrusted(): 完整 5 层防护，用于外部数据（联网搜索与抓取、知识库、浏览器、MCP；各出口的范围与例外见 toolkits/SECURITY_WRAPPER_GUIDE.md）
 - wrap_tool_output(): 完整 5 层防护，用于工具执行结果
 - extract_wrapped_payload(): 剥离安全边界，返回内部数据（PTC 程序化消费）
 
@@ -216,7 +216,7 @@ def wrap_untrusted(content: str, *, source: str = "") -> str:
     """Wrap external untrusted content with random-ID boundary markers + safety notice.
 
     Use for: web search results, web fetch content, knowledge base retrieval,
-    channel metadata, email/webhook payloads.
+    browser page content, MCP tool results.
 
     Performs all 5 layers: sanitize + pattern detection + random boundary + LLM-level safety notice.
     """

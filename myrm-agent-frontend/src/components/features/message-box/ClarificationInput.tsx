@@ -4,7 +4,7 @@
  * [INPUT]
  * @/store/chat/types::ClarificationForm (POS: structured clarification form schema)
  * @/store/useChatStore::sendMessage (POS: resume-mode clarification send path)
- * @/store/chat/clarificationCardAnswer::answerClarificationWithResume (POS: the card closes at click so the composer is released for the resumed run, and reopens when the resume is not delivered)
+ * @/store/chat/clarificationCardAnswer::answerClarificationWithResume (POS: the card closes at click so the composer is released for the resumed run, the answer goes to the pause the card was announced for, and the card reopens when the resume is not delivered)
  * @/store/chat/clarificationCardDraft::loadClarificationDraft (POS: what the user had written when a refused resume brings the card back)
  * @/store/chat/streamErrors::ApprovalAlreadyResolvedError (POS: the timeout or another device already settled the card without this answer)
  * ./ClarificationOptions, ./ClarificationChrome (POS: option-list and card-shell presentation primitives)
@@ -123,7 +123,7 @@ const ClarificationInput = ({
       await answerClarificationWithResume(
         messageId,
         { value: resumeValue, draft: { input, selectedOptions, formTexts, formSelections } },
-        () => sendMessage('', messageId, undefined, resumeValue),
+        (addressedAnswer) => sendMessage('', messageId, undefined, addressedAnswer),
       );
     } catch (err) {
       reportAnswerError(err);

@@ -8,6 +8,7 @@ stubbed so the assignment point is what is exercised.
 from __future__ import annotations
 
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -79,6 +80,8 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     monkeypatch.setattr(orchestrator_turn_body, "write_interrupted_turn_marker", fake_marker)
     monkeypatch.setattr(orchestrator_turn_body, "pump_to_buffer", fake_pump)
     monkeypatch.setattr(orchestrator_turn_body, "AgentStreamSession", lambda **_kwargs: SimpleNamespace())
+    unfinished_turn_net = AsyncMock()
+    monkeypatch.setattr(orchestrator_turn_body, "release_unfinished_turn", unfinished_turn_net)
     monkeypatch.setattr(pre_reply_compact_sse, "run_pre_reply_compact_with_sse", fake_compact)
 
     request = SimpleNamespace(
@@ -109,3 +112,4 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     assert params.turn_identity == "msg-persisted"
     assert captured["user_message_id"] == persisted
     assert len(pumped) == 1
+    unfinished_turn_net.assert_awaited_once_with(pumped[0])

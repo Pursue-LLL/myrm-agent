@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from myrm_agent_harness.infra.incremental.types import MonitorState
+from myrm_agent_harness.toolkits.cron import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronRunRecord,
@@ -19,8 +20,10 @@ from myrm_agent_harness.toolkits.cron.types import (
 from sqlalchemy import delete, select, update
 from sqlalchemy.sql import func as sqlfunc
 
+from app.core.cron.adapters.sqlalchemy_inflight import SqlAlchemyInflightMixin
 from app.core.cron.adapters.sqlalchemy_mapping import (
     apply_job_to_model,
+    as_utc,
     job_to_domain,
     job_to_model,
     normalize_monitor_config_payload,
@@ -68,8 +71,8 @@ def _normalize_job_monitor_config_in_place(row: CronJobModel) -> bool:
     return True
 
 
-class SqlAlchemyCronStore:
-    """CronStore backed by SQLAlchemy + app.database models."""
+class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
+    """CronStore backed by SQLAlchemy + app.database models; the in-flight markers live in the mixin."""
 
     # ------------------------------------------------------------------
     # Job CRUD
@@ -240,7 +243,7 @@ class SqlAlchemyCronStore:
     async def save_job(self, job: CronJob) -> CronJob:
         async with get_session() as session:
             # The row is read, merged and written back. A writer committing in between aborts that with
-            # SQLITE_BUSY_SNAPSHOT, and a claimed job whose post-run write is lost this way never fires again.
+            # SQLITE_BUSY_SNAPSHOT, and the write, a run's closing write or an edit, is lost.
             await acquire_write_lock(session)
             existing = (await session.execute(select(CronJobModel).where(CronJobModel.id == job.id))).scalar_one_or_none()
 
@@ -262,10 +265,23 @@ class SqlAlchemyCronStore:
             await session.commit()
             return _exec_rowcount(result) > 0
 
-    async def claim_due(self, job_ids: list[str]) -> None:
+    async def advance_next_run(self, job_id: str, *, next_run_at: datetime) -> bool:
+        # One conditional UPDATE decides which worker dispatches a slot. The due test is the range comparison
+        # list_jobs(due_before) makes, never equality on the stored text: a value a microsecond off, or written in
+        # an older text format, must still match exactly when list_jobs found the job due.
         async with get_session() as session:
-            await session.execute(update(CronJobModel).where(CronJobModel.id.in_(job_ids)).values(next_run_at=None))
+            result = await session.execute(
+                update(CronJobModel)
+                .where(
+                    CronJobModel.id == job_id,
+                    CronJobModel.status == JobStatus.ACTIVE,
+                    CronJobModel.next_run_at.isnot(None),
+                    CronJobModel.next_run_at <= datetime.now(timezone.utc),
+                )
+                .values(next_run_at=as_utc(next_run_at))
+            )
             await session.commit()
+            return _exec_rowcount(result) > 0
 
     # ------------------------------------------------------------------
     # Run records
@@ -291,23 +307,9 @@ class SqlAlchemyCronStore:
                     delivery_status=run.delivery_status,
                     delivery_error=run.delivery_error,
                     metadata_json=run.metadata,
-                    integrity_hash=run.integrity_hash or None,
-                    prev_hash=run.prev_hash or None,
                 )
             )
             await session.commit()
-
-    async def get_latest_integrity_hash(self, job_id: str) -> str | None:
-        async with get_session() as session:
-            stmt = (
-                select(CronRunModel.integrity_hash)
-                .where(CronRunModel.job_id == job_id)
-                .where(CronRunModel.integrity_hash.isnot(None))
-                .order_by(CronRunModel.started_at.desc())
-                .limit(1)
-            )
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none()
 
     async def list_runs(
         self,
@@ -322,7 +324,7 @@ class SqlAlchemyCronStore:
             if job_id is not None:
                 stmt = stmt.where(CronRunModel.job_id == job_id)
             if status:
-                stmt = stmt.where(CronRunModel.status == status)
+                stmt = stmt.where(CronRunModel.status.in_(matching_run_statuses(status)))
             stmt = stmt.order_by(CronRunModel.started_at.desc()).offset(offset).limit(limit)
             result = await session.execute(stmt)
             return [run_to_domain(r) for r in result.scalars().all()]
@@ -338,17 +340,8 @@ class SqlAlchemyCronStore:
             if job_id is not None:
                 stmt = stmt.where(CronRunModel.job_id == job_id)
             if status:
-                stmt = stmt.where(CronRunModel.status == status)
+                stmt = stmt.where(CronRunModel.status.in_(matching_run_statuses(status)))
             return (await session.execute(stmt)).scalar() or 0
-
-    async def list_orphaned_active(self) -> list[CronJob]:
-        stmt = select(CronJobModel).where(
-            CronJobModel.status == JobStatus.ACTIVE,
-            CronJobModel.next_run_at.is_(None),
-        )
-        async with get_session() as session:
-            rows = (await session.execute(stmt)).scalars().all()
-            return [job_to_domain(r) for r in rows]
 
     async def purge_old_runs(self, before: datetime) -> int:
         async with get_session() as session:

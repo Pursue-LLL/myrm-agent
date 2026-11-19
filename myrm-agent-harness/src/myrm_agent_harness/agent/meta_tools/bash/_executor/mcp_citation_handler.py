@@ -1,7 +1,7 @@
 """MCP Metadata Extractor
 
 负责解析和提取 MCP 调用元数据。
- 不再注册引用，只返回结构化元数据。
+ 不注册引用，只返回结构化元数据。
 
 [INPUT]
 - toolkits.code_execution.executors.common.mcp_markers (POS: 标记的形状，与输出脱敏器共用)

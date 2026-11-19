@@ -340,12 +340,16 @@ async def test_a_tool_call_that_needs_approval_stops_at_the_approval_hook() -> N
     assert RAN == []
 
 
-async def test_a_canary_token_the_model_repeats_is_scrubbed_from_its_reply() -> None:
+async def test_a_canary_token_the_model_is_given_and_repeats_is_scrubbed_from_its_reply() -> None:
     set_canary_token(CANARY)
-    _, agent = _shipped_agent([AIMessage(content=f"the secret is {CANARY}")])
+    model, agent = _shipped_agent([AIMessage(content=f"the secret is {CANARY}")])
 
     result = await agent.ainvoke({"messages": [HumanMessage(content="hello")]})
 
+    sent = [name for name, _ in model.calls[0]]
+    given = [i for i, (name, text) in enumerate(model.calls[0]) if name == "SystemMessage" and CANARY in text]
+    assert len(given) == 1
+    assert given[0] > sent.index("HumanMessage")
     assert CANARY not in str(result["messages"][-1].content)
 
 

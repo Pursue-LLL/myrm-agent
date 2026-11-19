@@ -185,6 +185,8 @@ export type Message = {
     title?: string;
     form?: ClarificationForm;
     answerRecord?: HitlAnswerRecord;
+    /** The pause the card was announced for; absent on a card the server stored without one. */
+    interruptId?: string;
   };
   planConfirmation?: {
     plan: string;
@@ -251,6 +253,7 @@ export interface File {
   previewUrl?: string; // 乐观本地预览 URL (URL.createObjectURL)
   uploadPercent?: number; // 上传进度百分比 (0~100)
   tempId?: string; // 临时客户端唯一标识
+  mediaId?: string; // 媒体库条目 ID：附件取自已生成的媒体，发给模型时以 media://<id> 引用，不经上传
 }
 
 export interface ClarificationOption {

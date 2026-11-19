@@ -1,12 +1,27 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/lib/api-url::getStorageUrl (POS: Turns a stored-media reference into a URL the browser can load)
+ * @/components/primitives/{badge,button} (POS: Shared UI primitives)
+ *
+ * [OUTPUT]
+ * ImageResultCard: Generated image grid with prompt, badges, download, lightbox and the edit-this-image action.
+ *
+ * [POS]
+ * Presentation of a finished image generation. Image addresses arrive as stored-media references and are resolved
+ * only when the browser loads them; the edit action hands back the reference it was given.
+ */
+
 import React, { memo, useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
+import { getStorageUrl } from '@/lib/api-url';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Badge } from '@/components/primitives/badge';
 import { Button } from '@/components/primitives/button';
 
-interface ImageGenImage {
+export interface ImageGenImage {
+  /** A stored-media reference or a plain URL. */
   url: string;
   mimeType?: string;
 }
@@ -18,12 +33,11 @@ interface ImageResultCardProps {
   size?: string;
   latencyMs?: number;
   referenceImageUrls?: string[];
-  onEditRequest?: (imageUrl: string) => void;
-  onRegenerate?: () => void;
+  onEditRequest?: (image: ImageGenImage) => void;
 }
 
 export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
-  ({ images, prompt, model, size, latencyMs, referenceImageUrls, onEditRequest, onRegenerate }) => {
+  ({ images, prompt, model, size, latencyMs, referenceImageUrls, onEditRequest }) => {
     const t = useTranslations('imageGen');
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
     const [promptExpanded, setPromptExpanded] = useState(false);
@@ -44,8 +58,9 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
     const handleDownload = useCallback(async (img: ImageGenImage, index: number) => {
       const ext = img.mimeType?.split('/')[1] || 'png';
       const filename = `generated-${Date.now()}-${index + 1}.${ext}`;
+      const src = getStorageUrl(img.url);
       try {
-        const response = await fetch(img.url);
+        const response = await fetch(src);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -56,7 +71,7 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
         document.body.removeChild(link);
         URL.revokeObjectURL(blobUrl);
       } catch {
-        window.open(img.url, '_blank', 'noopener,noreferrer');
+        window.open(src, '_blank', 'noopener,noreferrer');
       }
     }, []);
 
@@ -80,7 +95,7 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
               key={i}
               type="button"
               onClick={() => !failedIndexes.has(i) && handlePreview(i)}
-              className="relative group overflow-hidden rounded-full border border-border/30 bg-muted/30 p-0 cursor-pointer"
+              className="relative group overflow-hidden rounded-xl border border-border/30 bg-muted/30 p-0 cursor-pointer"
             >
               {failedIndexes.has(i) ? (
                 <div className="flex items-center justify-center w-full aspect-square text-muted-foreground text-xs">
@@ -88,8 +103,9 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
                 </div>
               ) : (
                 <>
+                  {/* oxlint-disable-next-line next/no-img-element -- the source is a library file or an address resolved at runtime, which next/image cannot optimize */}
                   <img
-                    src={img.url}
+                    src={getStorageUrl(img.url)}
                     alt={`${t('generated')} ${i + 1}`}
                     className="w-full h-auto object-cover transition-transform group-hover:scale-[1.02]"
                     loading="lazy"
@@ -118,7 +134,13 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
             <div className="flex gap-1.5 flex-wrap">
               {referenceImageUrls.map((refUrl, i) => (
                 <div key={i} className="w-12 h-12 rounded border border-border/30 overflow-hidden bg-muted/30">
-                  <img src={refUrl} alt={`Reference ${i + 1}`} className="w-full h-full object-cover" loading="lazy" />
+                  {/* oxlint-disable-next-line next/no-img-element -- the source is a library file or an address resolved at runtime, which next/image cannot optimize */}
+                  <img
+                    src={getStorageUrl(refUrl)}
+                    alt={`${t('referenceImages')} ${i + 1}`}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
                 </div>
               ))}
             </div>
@@ -156,13 +178,8 @@ export const ImageResultCard: React.FC<ImageResultCardProps> = memo(
               <DownloadIcon />
             </Button>
             {onEditRequest && images[0] && (
-              <Button variant="ghost" size="sm" onClick={() => onEditRequest(images[0].url)} className="h-7 text-xs">
+              <Button variant="ghost" size="sm" onClick={() => onEditRequest(images[0])} className="h-7 text-xs">
                 {t('editThisImage')}
-              </Button>
-            )}
-            {onRegenerate && (
-              <Button variant="ghost" size="icon" onClick={onRegenerate} title={t('regenerate')} className="h-7 w-7">
-                <RegenerateIcon />
               </Button>
             )}
           </div>
@@ -240,8 +257,9 @@ const ImageLightbox: React.FC<ImageLightboxProps> = memo(({ images, currentIndex
       role="presentation"
     >
       <div className="relative max-w-[90vw] max-h-[90vh]">
+        {/* oxlint-disable-next-line next/no-img-element -- the source is a library file or an address resolved at runtime, which next/image cannot optimize */}
         <img
-          src={img.url}
+          src={getStorageUrl(img.url)}
           alt={`${t('generated')} ${index + 1}`}
           className="max-w-full max-h-[85vh] object-contain rounded-lg"
         />
@@ -312,25 +330,6 @@ const DownloadIcon: React.FC = () => (
     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
     <polyline points="7 10 12 15 17 10" />
     <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-);
-
-const RegenerateIcon: React.FC = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="14"
-    height="14"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-  >
-    <path d="M21 2v6h-6" />
-    <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
-    <path d="M3 22v-6h6" />
-    <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
   </svg>
 );
 

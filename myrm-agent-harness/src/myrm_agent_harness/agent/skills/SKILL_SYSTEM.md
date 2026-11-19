@@ -216,9 +216,11 @@ Level 0: 发现（Discovery）
   → 同时执行依赖检查和信任级别标注
 
 Level 1: 摘要（Summary）
-  → generate_skill_prompt() 生成安全 XML 摘要
-  → 注入系统 Prompt，供 LLM 了解可用技能
-  → Token 消耗：~50 tokens/技能
+  → render_bound_skills_catalog() 生成安全 XML 摘要（runtime/skill_catalog_delivery.py，条目由 registry.get_metadata_summary() 渲染）
+  → 写入会话首条 HumanMessage 作为基线，绑定列表变化时以 <bound_skills_update> 前置到新的 HumanMessage；不进 SystemMessage；`no_builtin_tools` 的智能体例外：目录指向内置的 `skill_select_tool`、`skill_search_tool`，它没有这两个工具，所以既无目录也无 `skill_search` 索引（宿主传入同名工具也不会让它们回来），回合回执仍列出绑定的技能（见 `agent/_internals/_ARCH.md`）
+  → Token 消耗：完整条目共用 L1_CATALOG_MAX_TOKENS（2,000）预算，每条含描述与契约摘要
+    （129 个对模型可见的预置技能实测：均值约 195、最小 47、最大 343）；预算外的技能只占一个名字（均值约 7），
+    名字行另有 L1_HIDDEN_NAMES_MAX_TOKENS（1,500）上限
 
 Level 2: 正文（Body）
   → get_skill_content() 返回 SKILL.md 正文
@@ -257,7 +259,7 @@ Level 3: 资源（Resources）
 - 通用规则在 `skill_select_tool` 静态 description，减少误触发；
 - `trust` 属性让 LLM 知道技能的信任级别；
 - L1 仅在有技能未内联（`hidden_count > 0`）时输出 search/hidden 动态规则；
-- L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整 `name + description` 条目，不再按技能个数截断；
+- L1 按 `L1_CATALOG_MAX_TOKENS = 2,000` token 预算选择完整条目，不再按技能个数截断；完整条目 = 完整 `description` + 带契约的技能的 `<contract>` 摘要（步骤/陷阱/验证计数、成功标准、依赖、至多 2 条验证与 2 条陷阱，每段截到 160 字符；上方示例为简洁省略了它）；
 - 预算外的技能不再只是一个数字：目录末尾的 `<hidden_skill_names>` 一行按字母序列出它们的名字（上限 `L1_HIDDEN_NAMES_MAX_TOKENS = 1,500`，超出时以 `and N more not listed` 收尾）。名字在目录里，模型直接 select；只知能力、不知名字才 search。
 - 走 PTC 的 MCP 技能（服务器没有自带 instructions）在自己的条目里多一个 `<functions>` 块，列出它的全部函数；目录里另有一个 `<function_index_rules>` 块，写明这类条目无需先 select，并给出调用约定（与 L2 正文共用 `agent/skills/runtime/ptc_calling.py` 的文本）。函数覆盖请求时，模型直接在 `bash_code_execute_tool` 里 `from skills.<name> import <函数>`，省掉一轮 `skill_select_tool`；需要全部签名时仍可 select。块有两种形态：
   - **带文档**：服务器的全部文档（每个函数的签名、描述、参数描述，描述分别截到 400 / 240 字符）不超过 `L1_DOCUMENTED_INDEX_MAX_TOKENS = 2,400` 时，整块列出。模型不必 select，也不必再读 `/mcp/<name>/<函数>.md`，这相当于直连工具 schema 给模型的信息（约为同一批工具 JSON schema 的 60–70% token）。
@@ -314,7 +316,7 @@ overflow_count= 候选 - 显示（预算挤掉的候选；外围技能不算）
 
 ### 4.4 缓存策略
 
-SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取，backend 读取抛错时返回带错误提示的文档；已加载内容的前缀字节不变，**无需修改**。
+SKILL.md 由 `skill_document_loader.get_skill_document()` 按次从 backend 读取；backend 读取抛错时记一条 WARNING 并返回空串，`skill_select_tool` 回一条加载失败的条目、`[use]` 预载跳过该技能，两者都不把它记为已加载、也不记使用；已加载内容的前缀字节不变，**无需修改**。
 
 ---
 
@@ -790,7 +792,7 @@ Scanner（编排器）
 
 ### 15.1 设计
 
-框架不内置技能清单：宿主把随版本发布的预置技能（`assets/prebuilt_skills/<skill>/SKILL.md` 及 `scripts/` 等附属文件）在启动时同步到存储。Server 的实现是 `app/core/skills/prebuilt_sync.py` 的 `sync_prebuilt_seeds`，由 lifespan 启动阶段的 `_init_prebuilt_skills` 调用，每个进程至多运行一次；同步失败只记 ERROR，不阻塞启动。
+框架不内置技能清单：宿主把随版本发布的预置技能（`assets/prebuilt_skills/<skill>/SKILL.md` 及 `scripts/` 等附属文件）在启动时同步到存储。Server 的实现是 `app/core/skills/prebuilt_sync.py` 的 `sync_prebuilt_seeds`，由 lifespan 启动阶段的 `init_prebuilt_skills`（`app/server/lifespan/prebuilt_skills.py`）调用，每个进程至多运行一次；同步失败只记 ERROR，不阻塞启动。本地安装的种子自上次完整同步后没变、留存副本也齐全时，启动沿用上次结果，同一套对账改在首屏之后由 `verify_reused_sync` 补跑。
 
 ### 15.2 同步流程
 
@@ -807,6 +809,7 @@ Scanner（编排器）
 **设计决策**：
 - 三方哈希保护用户对预置技能的修改，升级不会静默覆盖
 - 同步幂等：重复启动不产生重复写入
+- 本地安装沿用上次完整同步：种子指纹与留存副本都对得上时，启动不等对账、首屏之后再补跑；任何一项对不上都回到监听前的完整对账
 - 同步失败不影响系统启动（降级运行）
 
 ---

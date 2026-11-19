@@ -35,3 +35,6 @@ class HopEvaluationResult:
     target_url: str
     resource_type: str
     reason: str
+    # The addresses a public verdict rests on, when the evaluator looked the host up: a caller that dials only these
+    # connects where the verdict was reached. Empty when no lookup happened or it answered nothing.
+    addresses: tuple[str, ...] = ()

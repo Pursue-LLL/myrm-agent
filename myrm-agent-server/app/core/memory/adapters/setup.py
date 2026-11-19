@@ -39,6 +39,7 @@ from app.core.memory.adapters.policy import (
 from app.core.memory.adapters.types import ResolvedContextBinding
 
 if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
     from myrm_agent_harness.toolkits.memory.strategies.consolidation import (
         ConflictCallback,
         ConsolidationCompleteCallback,
@@ -135,8 +136,8 @@ async def create_memory_manager(
     embedding_config: EmbeddingConfig | None,
     *,
     approval_required: bool = False,
-    dedup_llm: object | None = None,
-    consolidation_llm: object | None = None,
+    dedup_llm: BaseChatModel | None = None,
+    consolidation_llm: BaseChatModel | None = None,
     recall_mode: RecallMode = RecallMode.HYBRID,
     time_decay_half_life_days: float | None = None,
     reranker_config: RerankerConfig | None = None,

@@ -2,24 +2,38 @@
 
 [INPUT]
 Adapter-ready dict from source_payload_loader.
+myrm_agent_harness.api::redact_nested, redact_field_text (POS: shared walker and field-aware credential check of the redaction domain)
 
 [OUTPUT]
-SourceInstructionPlan and memory-only payload for import adapters.
+SourceInstructionPlan and memory-only payload for import adapters. The settings files (Cursor, Codex, Claude, Pi)
+enter the plan's global supplement without their credentials: an ``env`` / ``headers`` block keeps its names only,
+and a string holding a credential is replaced whole.
 
 [POS]
-Prevents project instructions (rules, SOUL, AGENTS.md) from being stored as procedural memory.
+Prevents project instructions (rules, SOUL, AGENTS.md) from being stored as procedural memory, and keeps credentials
+out of the supplement that the review session stores and the confirm step writes into the global instructions.
 """
 
 from __future__ import annotations
 
+import json
 import re
 
+from myrm_agent_harness.api import redact_field_text, redact_nested
+
+from ..env_secrets import KEY_FROM_ENV
 from .source_migration_types import (
     SourceInstructionPlan,
     WorkspaceRuleWrite,
 )
 
 _SECTION_BREAK = "\n\n---\n\n"
+
+# The settings blocks that hold one secret per member: Claude's ``env``, an MCP server's ``env`` and ``headers``.
+_NAMES_ONLY_BLOCKS = frozenset({"env", "headers"})
+_REDACTED = "[redacted]"
+# The nesting the shared walker keeps; it cuts what lies deeper, so this walk only has to stop before the stack does.
+_MAX_DEPTH = 32
 
 
 def build_instruction_plan(loaded: dict[str, object]) -> SourceInstructionPlan:
@@ -144,6 +158,13 @@ def has_api_keys(loaded: dict[str, object]) -> bool:
     return isinstance(env_keys, list) and len(env_keys) > 0
 
 
+def has_importable_keys(loaded: dict[str, object]) -> bool:
+    """Whether the payload names keys of the source's ``.env``, the one place the opt-in key import reads."""
+
+    env_keys = loaded.get("env_keys")
+    return isinstance(env_keys, list) and any(isinstance(item, dict) and item.get("source") == KEY_FROM_ENV for item in env_keys)
+
+
 def _text(payload: dict[str, object], key: str) -> str:
     raw = payload.get(key)
     return raw.strip() if isinstance(raw, str) else ""
@@ -155,6 +176,32 @@ def _safe_filename(name: str) -> str:
 
 
 def _settings_preview(settings: dict[str, object]) -> str:
-    import json
+    """Render a settings file as the JSON the global supplement shows, without its credentials.
 
-    return json.dumps(settings, indent=2, ensure_ascii=False)[:4000]
+    The supplement is stored with the review session and read by the model, so it must not carry a secret or a
+    fragment of one: the display mask of the shared redactor keeps the head and tail of a long secret.
+    """
+    shown = redact_nested(_names_only(settings, depth=1), _credential_free, mask_keys=True)
+    return json.dumps(shown, indent=2, ensure_ascii=False)[:4000]
+
+
+def _names_only(value: object, *, depth: int) -> object:
+    """Copy of ``value`` whose ``env`` / ``headers`` blocks list their names without the values.
+
+    Any variable can hold a secret whatever its name says, so the block cannot be judged value by value.
+    """
+    if depth > _MAX_DEPTH or not isinstance(value, dict | list):
+        return value
+    if isinstance(value, list):
+        return [_names_only(item, depth=depth + 1) for item in value]
+    return {
+        key: list(item)
+        if isinstance(key, str) and key.lower() in _NAMES_ONLY_BLOCKS and isinstance(item, dict)
+        else _names_only(item, depth=depth + 1)
+        for key, item in value.items()
+    }
+
+
+def _credential_free(key: str, text: str) -> str:
+    """``text`` itself, or a marker when the shared redactor would change it (the value of field ``key``)."""
+    return text if redact_field_text(key, text) == text else _REDACTED

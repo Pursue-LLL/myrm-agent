@@ -9,18 +9,14 @@ import {
   getMcpFindingRecommendation,
   parseMcpFindingsFromApiErrorDetails,
 } from '@/lib/utils/mcp-config';
-import de from '../../../../../locales/de.json';
 import en from '../../../../../locales/en.json';
-import ja from '../../../../../locales/ja.json';
-import ko from '../../../../../locales/ko.json';
-import zhTW from '../../../../../locales/zh-TW.json';
 import zh from '../../../../../locales/zh.json';
 
 // The global test setup replaces next-intl. A hand-written stub cannot show how a missing key behaves, so the real
 // translator runs over the shipped messages, exactly as the settings components use it.
 const { createTranslator } = await vi.importActual<typeof import('next-intl')>('next-intl');
 
-const locales = { en, zh, 'zh-TW': zhTW, ja, ko, de } as const;
+const locales = { en, zh } as const;
 
 // The components see `useTranslations('settings')` with plain string keys; `createTranslator` derives key types from the
 // message object, so it is viewed through the same contract the helpers declare.
@@ -58,7 +54,7 @@ describe('mcpScanFindingText', () => {
   });
 
   it('shows the server text, not a key path, when a threat type has no translation yet', () => {
-    const t = settingsTranslator('de');
+    const t = settingsTranslator('zh');
     const unknown = finding({ threatType: 'threat_type_added_by_a_newer_server' });
 
     expect(getMcpFindingDescription(unknown, t)).toBe('English fallback');
@@ -122,9 +118,9 @@ describe('mcpScanFindingText', () => {
   it('blocks a dangerous environment variable with the localized reason and the variable name', () => {
     const message = formatMcpGateBlockedMessage(
       { staticFindings: [ENV_INJECTION], fallback: 'fallback' },
-      settingsTranslator('de'),
+      settingsTranslator('zh'),
     );
 
-    expect(message).toBe(`${de.settings.mcpThreat.dangerous_env_injection} (extra_params.env.LD_PRELOAD)`);
+    expect(message).toBe(`${zh.settings.mcpThreat.dangerous_env_injection} (extra_params.env.LD_PRELOAD)`);
   });
 });

@@ -1,22 +1,28 @@
 """[INPUT]
-- app.database.repositories.conversation_recall.sql / .types (POS: SQL + row types)
+- app.database.repositories.conversation_recall.sql / .types (POS: SQL contract with the snippet highlight markers + row types)
+- app.database.repositories.like_pattern (POS: the substring channel of chat search: the needle and LIKE pattern of a typed query)
 
 [OUTPUT]
 - SearchMixin
 
 [POS]
-ConversationRecallRepository mixin: FTS5 search with degraded/fault recovery, document listing and row de-duplication.
+ConversationRecallRepository mixin: FTS5 search with degraded/fault recovery and a substring fallback on the typed query,
+document listing and row de-duplication.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import text
+from sqlalchemy.engine import RowMapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.repositories.conversation_recall.sql import (
+    HIGHLIGHT_CLOSE,
+    HIGHLIGHT_OPEN,
     filter_sql,
 )
 from app.database.repositories.conversation_recall.types import (
@@ -25,6 +31,7 @@ from app.database.repositories.conversation_recall.types import (
     recall_document_row,
     recall_row,
 )
+from app.database.repositories.like_pattern import LIKE_ESCAPE_CLAUSE, like_contains_pattern
 
 logger = logging.getLogger("app.database.repositories.conversation_recall.repo")
 
@@ -35,6 +42,7 @@ class SearchMixin:
         db: AsyncSession,
         *,
         safe_query: str,
+        raw_query: str,
         limit: int,
         current_chat_id: str | None,
         agent_id: str | None,
@@ -54,7 +62,7 @@ class SearchMixin:
             until=until,
         )
         params.update({"query": safe_query, "limit": limit})
-        segment_rows = []
+        segment_rows: Sequence[RowMapping] = []
         try:
             segment_rows = (
                 (
@@ -66,7 +74,7 @@ class SearchMixin:
                             d.agent_id AS agent_id,
                             d.source AS source,
                             s.message_id AS message_id,
-                            snippet(conversation_recall_segments_fts, 0, '<mark>', '</mark>', '...', 56) AS snippet,
+                            snippet(conversation_recall_segments_fts, 0, '{HIGHLIGHT_OPEN}', '{HIGHLIGHT_CLOSE}', '...', 56) AS snippet,
                             d.summary AS summary,
                             s.sent_at AS last_message_at,
                             d.created_at AS created_at,
@@ -78,8 +86,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE conversation_recall_segments_fts MATCH :query
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY conversation_recall_segments_fts.rank ASC, s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit
                     """),
@@ -99,7 +106,7 @@ class SearchMixin:
             except Exception:
                 pass
 
-        document_rows = []
+        document_rows: Sequence[RowMapping] = []
         try:
             document_rows = (
                 (
@@ -111,7 +118,7 @@ class SearchMixin:
                             d.agent_id AS agent_id,
                             d.source AS source,
                             d.last_message_id AS message_id,
-                            snippet(conversation_recall_fts, -1, '<mark>', '</mark>', '...', 56) AS snippet,
+                            snippet(conversation_recall_fts, -1, '{HIGHLIGHT_OPEN}', '{HIGHLIGHT_CLOSE}', '...', 56) AS snippet,
                             d.summary AS summary,
                             d.last_message_at AS last_message_at,
                             d.created_at AS created_at,
@@ -122,8 +129,7 @@ class SearchMixin:
                         JOIN conversation_recall_documents d ON d.id = conversation_recall_fts.rowid
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
                         WHERE conversation_recall_fts MATCH :query
-                          AND d.is_excluded = 0
-                          {filters}
+                          AND {filters}
                         ORDER BY conversation_recall_fts.rank ASC, d.last_message_at DESC, d.updated_at DESC
                         LIMIT :limit
                     """),
@@ -148,10 +154,14 @@ class SearchMixin:
         if results:
             return results
 
-        # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits
-        fallback_rows = []
+        # Two-tier fallback for short keywords (< 3 chars) or CJK where trigram yields 0 hits.
+        # It reads the typed text: the FTS expression has flattened its punctuation and quoted its phrases.
+        pattern = like_contains_pattern(raw_query)
+        if pattern is None:
+            return []
+        fallback_rows: Sequence[RowMapping] = []
         try:
-            fallback_params = {**params, "kw_pattern": f"%{safe_query}%"}
+            fallback_params = {**params, "kw_pattern": pattern}
             fallback_rows = (
                 (
                     await db.execute(
@@ -172,9 +182,9 @@ class SearchMixin:
                         FROM conversation_recall_segments s
                         JOIN conversation_recall_documents d ON d.chat_id = s.chat_id
                         LEFT JOIN conversation_forks f ON f.child_chat_id = d.chat_id
-                        WHERE (s.segment_text LIKE :kw_pattern OR d.searchable_text LIKE :kw_pattern)
-                          AND d.is_excluded = 0
-                          {filters}
+                        WHERE (s.segment_text LIKE :kw_pattern {LIKE_ESCAPE_CLAUSE}
+                               OR d.searchable_text LIKE :kw_pattern {LIKE_ESCAPE_CLAUSE})
+                          AND {filters}
                         ORDER BY s.sent_at DESC, d.last_message_at DESC
                         LIMIT :limit
                     """),

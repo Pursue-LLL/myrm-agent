@@ -14,18 +14,15 @@
 - StorageBackendStrategy: FileSystemStrategy implementation that serves file tool operations through a StorageProvider
 
 [POS]
-File tool strategy over StorageProvider. Implements read, write, replace, delete, list and size operations
+File tool strategy over StorageProvider. Implements read, write, list, existence and size operations
 on any StorageProvider (ExecutorStorageAdapter, LocalStorageBackend, business-layer backends).
 """
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING
 
 from .base import FileSystemStrategy
-
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.storage.base import StorageProvider
@@ -75,44 +72,6 @@ class StorageBackendStrategy(FileSystemStrategy):
         """写入文件"""
         await self.storage.write_text(path, content)
 
-    async def delete_file(self, path: str) -> None:
-        """删除文件"""
-        if not await self.storage.exists(path):
-            raise FileNotFoundError(f"File not found: {path}")
-        await self.storage.delete(path)
-
-    async def replace_text(self, path: str, old_str: str, new_str: str) -> None:
-        """Replace text in a file via the shared batch str-replace engine."""
-        if not await self.storage.exists(path):
-            raise FileNotFoundError(f"File not found: {path}")
-
-        content = await self.storage.read_text(path)
-
-        from ..core.batch_str_replace import apply_batch_str_replace
-        from ..core.operation_context import StrReplaceEdit
-
-        try:
-            new_content, strategies = apply_batch_str_replace(
-                content,
-                (StrReplaceEdit(old_str=old_str, new_str=new_str),),
-            )
-        except ValueError as error:
-            message = str(error)
-            if message.startswith("Edit 1: "):
-                message = message.removeprefix("Edit 1: ")
-            if "text not found" in message.lower() and path not in message:
-                message = f"Text not found in file: {path}\n{message}"
-            raise ValueError(message) from error
-
-        if strategies and strategies[0] != "exact":
-            logger.info(
-                "Fuzzy match succeeded via batch engine: strategy=%s path=%s",
-                strategies[0],
-                path,
-            )
-
-        await self.storage.write_text(path, new_content)
-
     async def is_directory(self, path: str) -> bool:
         """检查路径是否为目录"""
         if hasattr(self.storage, "is_dir"):
@@ -161,17 +120,3 @@ class StorageBackendStrategy(FileSystemStrategy):
             raise FileNotFoundError(f"File not found: {path}")
 
         return (await self.storage.info(path)).size
-
-    def get_actual_path(self, path: str) -> str:
-        """获取实际文件路径
-
-        如果 storage_backend 支持路径解析（如 ExecutorStorageAdapter），返回实际路径。
-        否则返回相对路径（对于云存储等没有本地路径的存储）。
-        """
-        get_full_path = getattr(self.storage, "_get_full_path", None)
-        if callable(get_full_path):
-            return str(get_full_path(path))
-
-        # 对于其他 StorageProvider，返回路径本身
-        # （云存储等没有"实际路径"的概念）
-        return path

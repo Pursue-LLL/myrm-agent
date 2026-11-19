@@ -8,7 +8,7 @@ Chat / Message 仓储。类不持有实例状态：43 个方法全部是 `@stati
 |------|------|------|-------|
 | `__init__.py` | 子域出口 | 导出 `ChatRepository` 与 `SiblingDetail`（原模块对外面） | — |
 | `common.py` | 辅助 | logger、`_DTO_COMPUTED_FIELDS` / `_INCOGNITO_BLANKED_FIELDS`、`_answers_of_turn` 过滤条件 | — |
-| `chats.py` | 核心 | 聊天列表/详情、创建/更新、置顶、回收站生命周期、compaction CAS | ✅ |
+| `chats.py` | 核心 | 聊天列表（侧边栏关键词按键入文本匹配标题、首条消息与消息正文：`%`、`_` 不是通配符；标题与首条消息保留键入的引号，消息正文去掉引号；只有空白的关键词不过滤）/详情、创建/更新、置顶、回收站生命周期、compaction CAS | ✅ |
 | `messages.py` | 核心 | 消息 CRUD、分页、FTS 搜索、extra-data 读写、FTS 命中 chat 解析 | ✅ |
 | `siblings.py` | 核心 | assistant sibling 选择/计数/详情（`SiblingDetail`、`_SiblingGroupInfo`） | ✅ |
 | `routing.py` | 核心 | turn routing-tier 读取（`routingTier` 历史与动量窗口） | ✅ |

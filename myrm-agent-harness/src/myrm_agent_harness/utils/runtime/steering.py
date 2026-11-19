@@ -5,12 +5,12 @@
 - threading::Lock (POS: Python 标准库，线程安全)
 
 [OUTPUT]
-- SteeringToken: Steering 令牌类，允许外部在 Agent 运行时注入消息；`steer`/`redirect` 返回是否被接收，运行在结束处 `close_if_idle` 之后一律拒收
+- SteeringToken: Steering 令牌类，允许外部在 Agent 运行时注入消息；`steer`/`redirect` 返回是否被接收，令牌关闭（`close_if_idle` / `close_and_drain`）之后一律拒收；`close_and_drain` 取走未被读取的消息
 - get_steering_token(): 获取当前请求的 SteeringToken
 - set_steering_token(): 设置当前请求的 SteeringToken
 
 [POS]
-Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain. A message the token accepts is delivered to the model or never accepted: the run closes the token at the point it would end, and a refused message stays with its sender.
+Steering token mechanism. Allows external message injection during Agent runtime to interrupt the current tool chain. Every message the token accepts is delivered to the model or handed back to its sender: a turn that completes normally closes the token at its last gate (messages accepted before the close are read, later ones are refused), and when a run ends by itself any other way the token's owner closes and drains it and returns what the model never read. A cancelled run ends together with the guidance addressed to it: its token is closed, nothing is returned.
 
 """
 
@@ -35,8 +35,11 @@ class SteeringToken:
 
     线程安全：steer() 可从任意线程调用（如 HTTP POST 端点）。
 
-    接收即交付：运行在要结束的那一刻调用 close_if_idle()，此后 steer()/redirect() 一律拒收（返回 False），
-    被拒的消息仍在发送方手里；close_if_idle() 前已接收的消息一定会被运行取走。
+    接收即交付或交还：令牌关闭后 steer()/redirect() 一律拒收（返回 False），被拒的消息仍在发送方手里。
+    正常结束的回合在最后一道关口调用 close_if_idle()，关闸前已接收的消息一定会被运行取走。
+    以错误、迭代上限（无目标）或供应商窗口挂起结束的回合不经过这道关口：令牌的持有者在运行结束时
+    调用 close_and_drain()，把已接收却没有被读到的消息交还发送方。
+    被取消的回合（Stop、/stop、/new、断开连接）连同发给它的指引一起结束：持有者同样关闭令牌（此后拒收），不交还。
     """
 
     def __init__(self) -> None:
@@ -55,7 +58,8 @@ class SteeringToken:
             message: 用户的新消息
 
         Returns:
-            True 表示运行已接收（一定会交付给模型）；False 表示运行已结束，调用方保留该消息。
+            True 表示运行已接收（消息会被模型读到；回合自行结束时由令牌持有者交还；回合被取消则随回合作废）；
+            False 表示令牌已关闭（运行已走到收尾），调用方保留该消息。
         """
         with self._lock:
             if self._closed:
@@ -76,7 +80,7 @@ class SteeringToken:
             message: 用户的新消息
 
         Returns:
-            True 表示运行已接收；False 表示运行已结束，调用方保留该消息。
+            True 表示运行已接收；False 表示令牌已关闭（运行已走到收尾），调用方保留该消息。
         """
         with self._lock:
             if self._closed:
@@ -101,6 +105,24 @@ class SteeringToken:
                 return False
             self._closed = True
             return True
+
+    def close_and_drain(self) -> list[str]:
+        """关闭令牌并取走所有没有被运行读到的消息（原子操作，线程安全）
+
+        令牌的持有者在运行结束时调用，此后 steer()/redirect() 一律拒收。返回值是已接收却没有交付给模型的
+        消息（含已激活但未取走的），按接收顺序排列；自行结束的回合由持有者把它们交还发送方，被取消的回合
+        丢弃。经过 close_if_idle() 收尾的回合队列已空，这里返回空列表。
+
+        Returns:
+            未被读到的消息；没有时为空列表。
+        """
+        with self._lock:
+            self._closed = True
+            unread = self._activated_messages + self._queue
+            self._activated_messages.clear()
+            self._queue.clear()
+            self._redirect_requested = False
+        return unread
 
     @property
     def has_pending(self) -> bool:

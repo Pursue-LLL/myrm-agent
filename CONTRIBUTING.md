@@ -43,7 +43,7 @@ For channels work, use [task path C](#c--channels-im--webhook) below (three-laye
 | 2 | Route shell: [src/app/_ARCH.md](myrm-agent-frontend/src/app/_ARCH.md) — keep `app/*` thin; put UI in `components/features/*` |
 | 3 | Cross-feature widgets (not under `features/`): `components/agent/`, `auth/`, `billing/`, `security/`, `approval/`, `layout/`, `primitives/` |
 | 4 | API clients: [src/services/_ARCH.md](myrm-agent-frontend/src/services/_ARCH.md) · State: [src/store/_ARCH.md](myrm-agent-frontend/src/store/_ARCH.md) |
-| 5 | User-facing copy: `locales/en.json` + `locales/zh.json` (+ ja/ko/de/zh-TW when touching shared keys) · Verify: `bun run verify:i18n` · Build: `bun run build` |
+| 5 | User-facing copy: `locales/en.json` + `locales/zh.json` · Verify: `bun run verify:i18n` · Build: `bun run build` |
 
 #### C — Channels (IM / webhook)
 
@@ -63,11 +63,11 @@ bash scripts/install.sh   # or: myrm setup
 myrm start                # backend :8080 + frontend :3000
 ```
 
-Manual split:
+Manual split (two terminals):
 
 ```bash
-cd myrm-agent-frontend && bun install && bun run dev
-myrm dev                  # backend only
+cd myrm-agent-server && .venv/bin/python run.py        # backend :8080
+cd myrm-agent-frontend && bun install && bun run dev   # frontend :3000
 ```
 
 See [scripts/_ARCH.md](scripts/_ARCH.md) for CLI details.
@@ -166,7 +166,7 @@ Thin HTTP, harness, or DB-direct routes. Find logic in the linked column before 
 | `dev_ports/` | harness `toolkits/code_execution/utils/port_sniffer` (listening-port discovery, process control, preview tunnels) |
 | `presentation/` · `spreadsheet/` | in-module generators (`python-pptx` slides, styled Excel export) — no service layer |
 | `self_evolution/` | in-module component locate / recover pipeline for UI self-evolution tickets |
-| `session_map/` | direct DB aggregation over chat and project models |
+| `session_map/` | direct DB aggregation over chat, project and approval models |
 | `runs/` | in-module read-only timeline aggregation over `core/cron/`, `services/kanban/`, `core/channel_bridge/` and `services/agent/` shell tasks — no service layer |
 | `system_assistant/` | in-module natural-language system control routes |
 | `workbench/` | in-module workspace file tree, command and plugin routes |

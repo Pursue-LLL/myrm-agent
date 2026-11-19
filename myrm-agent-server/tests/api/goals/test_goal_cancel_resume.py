@@ -18,10 +18,8 @@ from app.services.agent.goals.goal_registry import GoalRegistry
 
 
 @pytest.fixture
-def session_id() -> Iterator[str]:
-    sid = f"goal-controls-{uuid.uuid4().hex[:8]}"
-    yield sid
-    GoalRegistry.unregister(sid)
+def session_id() -> str:
+    return f"goal-controls-{uuid.uuid4().hex[:8]}"
 
 
 @pytest.fixture
@@ -51,7 +49,7 @@ def _gateway_stub(
 
 
 async def _goal_in_status(sid: str, status: GoalStatus) -> tuple[GoalProvider, str]:
-    provider = GoalRegistry.get_or_create_provider(sid)
+    provider = GoalRegistry.register(sid)
     goal = await provider.create_goal(sid, "Ship the report")
     if status is not GoalStatus.ACTIVE:
         await provider.update_status(goal.goal_id, status)
@@ -98,7 +96,7 @@ async def test_resume_puts_the_goal_back_to_work(
     assert response.json()["new_status"] == "active"
     goal_stream_trigger.assert_awaited_once()
     assert goal_stream_trigger.await_args is not None
-    started_session, started_goal, _provider = goal_stream_trigger.await_args.args
+    started_session, started_goal = goal_stream_trigger.await_args.args
     assert started_session == session_id
     assert started_goal.goal_id == goal_id
     assert started_goal.status is GoalStatus.ACTIVE

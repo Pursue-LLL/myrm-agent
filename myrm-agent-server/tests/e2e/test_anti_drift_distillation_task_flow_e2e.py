@@ -25,7 +25,6 @@ from __future__ import annotations
 
 import os
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 import pytest
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
@@ -47,9 +46,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.channels.routing.channel_data_plane import ChannelDataPlaneService
 from app.database.models.channel_message import ChannelMessageModel
 from app.database.repositories.channel_message_repo import ChannelMessageRepository
-
-if TYPE_CHECKING:
-    pass
 
 
 @pytest.mark.asyncio

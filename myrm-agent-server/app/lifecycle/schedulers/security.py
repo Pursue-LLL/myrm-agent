@@ -39,13 +39,13 @@ _auth_log_cleanup_scheduler_task: asyncio.Task[None] | None = None
 
 
 async def _approval_ttl_job() -> None:
-    """Periodic approval TTL job (rejects expired approvals)."""
+    """Periodic approval TTL job (settles expired approvals)."""
     try:
         from app.services.approvals.registry import ApprovalRegistry
 
-        rejected_count = await ApprovalRegistry.cleanup_expired_approvals()
-        if rejected_count > 0:
-            logger.info("Approval TTL cleanup: %d expired approvals rejected", rejected_count)
+        settled_count = await ApprovalRegistry.cleanup_expired_approvals()
+        if settled_count > 0:
+            logger.info("Approval TTL cleanup: %d expired approvals settled", settled_count)
     except Exception as exc:
         logger.warning("Approval TTL cleanup failed: %s", exc)
 

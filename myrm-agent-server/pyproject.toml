@@ -18,6 +18,7 @@ dependencies = [
   "pydantic>=2.14.3",          # 数据模型/Schema 校验 (48 文件)
   "pydantic-settings>=2.16.2", # 统一配置管理 (BaseSettings + .env)
   "PyYAML>=6.0.3",             # YAML 解析配置 (配置迁移)
+  "python-dotenv>=1.2.4",       # .env 解析 (配置迁移: 竞品 .env 密钥导入)
   # --- HTTP & I/O ---
   "httpx[socks]>=0.28.1", # HTTP 客户端 (app/ 50+ 文件；socks extra 供 Telegram socks5 代理；Matrix SOCKS 走 aiohttp + 可选 aiohttp-socks)
   "watchdog>=7.1.0", # Workspace vault file change detection (file_watch_service.py)
@@ -156,7 +157,8 @@ target-version = "py313"
 line-length = 130
 
 [tool.ruff.lint]
-select = ["E", "F", "B", "I", "S"]
+# TC005 only (empty `if TYPE_CHECKING:` blocks), not the whole flake8-type-checking family.
+select = ["E", "F", "B", "I", "S", "TC005"]
 ignore = [
   "B008", "E501",
   # S 规则噪音抑制（与 harness 一致策略）

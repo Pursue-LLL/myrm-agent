@@ -14,12 +14,8 @@ channel_bridge setup 子包的一部分；由 __init__.py 聚合导出。
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    pass
 
 
 def _on_channel_status_change(

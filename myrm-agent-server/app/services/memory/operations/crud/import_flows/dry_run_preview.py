@@ -5,8 +5,8 @@ app.services.migration.source.source_migration_types (POS: 迁移车道与指令
 
 [OUTPUT]
 build_lane_rows / build_session_preview / build_instruction_preview /
-build_token_economics / skipped_cron_preview: the content-safe rows the wizard
-renders, each derived from the reviewed session metadata.
+skipped_cron_preview: the content-safe rows the wizard renders, each derived
+from the reviewed session metadata.
 
 [POS]
 Presentation half of the dry-run: pure functions over already-loaded facts, so the
@@ -19,7 +19,6 @@ from app.schemas.memory.archive import (
     CronMigrationSkippedPreviewItem,
     MigrationLaneDetailPart,
     MigrationLanePreviewItem,
-    TokenEconomicsComparison,
 )
 from app.services.memory.operations.crud.import_flows.dry_run_source import (
     LoadedSource,
@@ -30,9 +29,6 @@ from app.services.migration.source.source_migration_types import (
     MigrationLanePreview,
     build_lane_previews,
 )
-
-_COMPETITOR_AVG_SKILL_TOKENS = 500
-_MYRM_AVG_INDEX_TOKENS = 30
 
 
 def skipped_cron_preview(raw: dict[str, object] | None) -> list[CronMigrationSkippedPreviewItem]:
@@ -67,6 +63,7 @@ def build_lane_rows(
         memory_status="pending",
         skill_count=loaded.pending_skills_total or len(loaded.pending_skills),
         has_api_keys=loaded.source_has_api_keys,
+        secrets_importable=loaded.secrets_importable,
         providers_ready=providers_configured,
         include_episodic=loaded.migration_opts.include_episodic,
     )
@@ -149,17 +146,21 @@ def build_lane_response_rows(
 def build_session_preview(sessions: list[dict[str, object]]) -> list[dict[str, object]]:
     """Bounded per-session rows: title, turn/tool counts and workspace hint."""
 
-    return [
-        {
-            "session_id": str(session.get("session_id", "")),
-            "title": str(session.get("title", "")),
-            "turn_count": len(session.get("turns") or []),
-            "tool_call_count": int(session.get("total_tool_calls") or 0),
-            "source_platform": str(session.get("source_platform", "")),
-            "workspace_hint": session.get("detected_workspace_hint"),
-        }
-        for session in sessions
-    ]
+    rows: list[dict[str, object]] = []
+    for session in sessions:
+        turns = session.get("turns")
+        tool_calls = session.get("total_tool_calls")
+        rows.append(
+            {
+                "session_id": str(session.get("session_id", "")),
+                "title": str(session.get("title", "")),
+                "turn_count": len(turns) if isinstance(turns, list) else 0,
+                "tool_call_count": tool_calls if isinstance(tool_calls, int) else 0,
+                "source_platform": str(session.get("source_platform", "")),
+                "workspace_hint": session.get("detected_workspace_hint"),
+            },
+        )
+    return rows
 
 
 def build_instruction_preview(
@@ -178,18 +179,3 @@ def build_instruction_preview(
                 if name:
                     rule_names.append(name)
     return persona, rule_names
-
-
-def build_token_economics(skill_count: int) -> TokenEconomicsComparison | None:
-    """Per-turn cost of full skill injection versus on-demand indexing."""
-
-    if skill_count <= 0:
-        return None
-    source_tokens = skill_count * _COMPETITOR_AVG_SKILL_TOKENS
-    myrm_tokens = skill_count * _MYRM_AVG_INDEX_TOKENS
-    return TokenEconomicsComparison(
-        skill_count=skill_count,
-        source_tokens_per_turn=source_tokens,
-        myrm_tokens_per_turn=myrm_tokens,
-        savings_percent=round((1 - myrm_tokens / source_tokens) * 100, 1) if source_tokens > 0 else 0.0,
-    )

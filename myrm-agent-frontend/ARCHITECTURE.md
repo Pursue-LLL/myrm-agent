@@ -28,5 +28,4 @@
 - `scripts/check_fractal_docs.py` — 目录 `_ARCH.md`
 - `scripts/check_typescript_strict.py` — `tsc --noEmit` 错误数不回升（baseline 见 `scripts/ci/typescript_strict_baseline.txt`）
 - `scripts/check_barrel_exports.py` — 跨域 barrel 白名单
-- `scripts/verify-sw-push.mjs` — `public/sw.js` 含 Web Push handler、URL 消毒与 `client.navigate`（`bun run build` = `build:sw-inject` + Serwist inject-manifest + CI）
 - `bun run test` / `verify:i18n` — Vitest 与 i18n
