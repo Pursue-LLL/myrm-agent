@@ -50,7 +50,6 @@ def cleanup_gate(monkeypatch: pytest.MonkeyPatch) -> asyncio.Event:
 async def _run_pump(registry: GlobalStreamRegistry, message_id: str, *chunks: str) -> asyncio.Task[None]:
     """Pump one turn that streams ``chunks`` into a fresh buffer of ``registry``; returns its pending cleanup task."""
     session = MagicMock()
-    session.pre_reply_compact_sse_sent = True
     session.request.message_id = message_id
     session.request.chat_id = "chat-cleanup"
     session.params.project_id = None

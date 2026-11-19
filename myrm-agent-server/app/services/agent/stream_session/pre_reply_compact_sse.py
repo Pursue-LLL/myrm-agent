@@ -6,7 +6,6 @@
 
 [OUTPUT]
 - run_pre_reply_compact_with_sse: active → compact → completed/failure SSE envelopes
-- append_pre_reply_compact_sse: emit SSE from an existing CompactResult
 
 [POS]
 Web-only SSE wiring for idle pre-reply compaction. Reuses frontend context_compaction progress steps.
@@ -65,14 +64,12 @@ def build_context_compaction_sse_chunk(
     return SSEEnvelope.from_any(payload).to_sse_chunk()
 
 
-async def append_pre_reply_compact_sse(
+async def _append_outcome_sse(
     buffer: _StreamBuffer,
     message_id: str,
-    result: CompactResult | None,
+    result: CompactResult,
 ) -> None:
-    """Append completed/failure compaction SSE when appropriate."""
-    if result is None:
-        return
+    """Append the completed/failure compaction SSE when the gate attempted a compaction."""
     if result.compacted and result.tokens_saved > 0:
         await buffer.append(build_context_compaction_sse_chunk(message_id, phase="completed", result=result))
         return
@@ -88,7 +85,7 @@ async def run_pre_reply_compact_with_sse(
     message_id: str,
     agent_id: str | None,
     request_engine_params: dict[str, object] | None,
-) -> CompactResult | None:
+) -> None:
     """Run stale compact gate with Web SSE active/completed/failure lifecycle."""
     from app.services.chat.stale_compact_gate import run_pre_reply_stale_compact_gate
 
@@ -113,8 +110,7 @@ async def run_pre_reply_compact_with_sse(
             reason=f"gate_failed: {exc}",
             attempted=True,
         )
-        await append_pre_reply_compact_sse(buffer, message_id, failure)
-        return failure
+        await _append_outcome_sse(buffer, message_id, failure)
+        return
 
-    await append_pre_reply_compact_sse(buffer, message_id, result)
-    return result
+    await _append_outcome_sse(buffer, message_id, result)
