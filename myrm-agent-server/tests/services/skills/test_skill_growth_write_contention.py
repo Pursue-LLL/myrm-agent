@@ -106,7 +106,7 @@ async def test_growth_record_keeps_its_resolution_time_when_another_writer_commi
 ) -> None:
     created = ApprovalRecord(id="growth-1", agent_id="agent-1", action_type="skill_draft", status="APPROVED", payload={})
     await _seed(policy_db, created)
-    # The record is created by a write of its own; this test is about the stamp that follows it.
+    # The record's own creating write would be the unit's first transaction; this test is about the stamp that follows it.
     monkeypatch.setattr(ApprovalRegistry, "create_approval", AsyncMock(return_value=created))
 
     await run_while_another_writer_commits(
