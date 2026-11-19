@@ -69,7 +69,7 @@ _git_resolve_identity() {
     name=$(command git config --get user.name 2>/dev/null) || name=""
     email=$(command git config --get user.email 2>/dev/null) || email=""
     if [ -z "$name" ] || [ -z "$email" ]; then
-        if [ -n "$GITHUB_TOKEN" ]; then
+        if [ -n "${GITHUB_TOKEN:-}" ]; then
             cache_file="${TMPDIR:-/tmp}/myrm_gh_identity"
             if [ -f "$cache_file" ]; then
                 cached=$(cat "$cache_file")
@@ -97,7 +97,7 @@ _git_resolve_identity() {
 
 _git_push() {
     local extra_args=() url
-    if [ -n "$GITHUB_TOKEN" ]; then
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
         url=$(_git_remote_url)
         if _git_is_https_github_remote "$url" && ! _git_has_existing_credentials; then
             # The token is referenced via the environment (never inlined), so it
@@ -108,7 +108,8 @@ _git_push() {
             extra_args+=(-c 'credential.helper=!f() { host=""; while IFS= read -r line; do case "$line" in host=*) host="${line#host=}";; esac; done; if [ "$host" = "github.com" ] || [ "$host" = "www.github.com" ]; then echo username=git; echo password="${GITHUB_TOKEN}"; fi; }; f')
         fi
     fi
-    command git "${extra_args[@]}" "$@"
+    # The "+" form keeps an empty array from being an unbound variable under `set -u` in bash 3.2, the bash macOS ships.
+    command git ${extra_args[@]+"${extra_args[@]}"} "$@"
 }
 
 _git_commit() {
@@ -169,7 +170,7 @@ git() {
                 
                 # Download zip
                 local curl_args=(-sSL)
-                if [ -n "$GITHUB_TOKEN" ]; then
+                if [ -n "${GITHUB_TOKEN:-}" ]; then
                     curl_args+=(-H "Authorization: token ${GITHUB_TOKEN}")
                 fi
                 
@@ -241,10 +242,9 @@ git() {
             LC_ALL=C command git diff "${diff_args[@]}"
         fi
     elif [ "$1" = "push" ]; then
-        shift
+        # The helpers hand the whole argument list, subcommand included, on to git.
         _git_push "$@"
     elif [ "$1" = "commit" ]; then
-        shift
         _git_commit "$@"
     else
         command git "$@"
