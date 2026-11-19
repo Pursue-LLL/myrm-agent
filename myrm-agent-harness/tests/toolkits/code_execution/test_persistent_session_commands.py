@@ -15,7 +15,7 @@ from tests.toolkits.code_execution._session_helpers import captured_stdout_chunk
 class TestLifecycleSafety:
     """Lifecycle-safety guards for the persistent-session bug class: marker
     collision, ``exit`` killing the shell, and syntax errors killing the shell.
-    Enforced via random markers + ``exit`` interceptor + ``bash -n`` gate.
+    Enforced via random markers + a script per command + ``bash -n`` gate.
     """
 
     @pytest.mark.asyncio
@@ -60,16 +60,14 @@ class TestLifecycleSafety:
         assert a_exit.startswith("__MYRM_EXIT_")
 
     @pytest.mark.asyncio
-    async def test_exit_keeps_session_alive_and_cwd(self) -> None:
-        """Trailing ``exit 0`` must not kill the persistent shell nor reset cwd."""
+    async def test_exit_keeps_session_alive(self) -> None:
+        """Trailing ``exit 0`` must not kill the persistent shell."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
             result = await session.execute("cd /tmp; pwd; exit 0")
             assert result.success
             assert session.is_alive
-            cwd = await session.execute("pwd")
-            assert "/tmp" in cwd.stdout
         finally:
             await session.close()
 
@@ -83,18 +81,6 @@ class TestLifecycleSafety:
             assert not result.success
             assert result.exit_code == 5
             assert session.is_alive
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_exit_keeps_env(self) -> None:
-        """Exported variables survive a command that ends with ``exit``."""
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            await session.execute("export MYRM_LC=42; exit 0")
-            result = await session.execute('echo "v=$MYRM_LC"')
-            assert "v=42" in result.stdout
         finally:
             await session.close()
 
@@ -233,7 +219,7 @@ class TestLifecycleSafety:
 
     @pytest.mark.asyncio
     async def test_exit_inside_loop(self) -> None:
-        """exit() interceptor works from inside a compound command."""
+        """An ``exit`` inside a compound command ends the command with that status."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
@@ -246,16 +232,15 @@ class TestLifecycleSafety:
 
     @pytest.mark.asyncio
     async def test_trailing_backslash_no_hang(self) -> None:
-        """A trailing backslash continuation must not hang the shell and must leave the session usable.
-
-        The continuation swallows the exit-code line of the wrapper, so the output boundary is corrupted
-        and the shell is terminated on purpose; the contract is that the next command still runs.
-        ``is_alive`` is not asserted because it flips only once the killed process has been reaped.
-        """
+        """A trailing backslash continuation ends with its script: it cannot swallow the exit-code line of the wrapper
+        around the command, which would corrupt the output boundary and cost the shell."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-            _ = await asyncio.wait_for(session.execute("echo a \\", timeout=5), timeout=6)
+            result = await asyncio.wait_for(session.execute("echo a \\", timeout=5), timeout=6)
+            assert result.success
+            assert result.stdout == "a"
+
             follow_up = await asyncio.wait_for(session.execute("echo still_usable", timeout=5), timeout=6)
             assert follow_up.success
             assert "still_usable" in follow_up.stdout
@@ -264,10 +249,8 @@ class TestLifecycleSafety:
 
     @pytest.mark.asyncio
     async def test_set_e_crash_reports_the_exit_code_not_a_dead_shell(self) -> None:
-        """Errexit crash (``set -e`` failing) terminates the non-interactive
-        shell, but the injected EXIT trap still emits the marker pair with the
-        real rc — the result reports the failure instead of misreporting an
-        unexpected shell death."""
+        """A ``set -e`` failure ends the command with the failing status: the
+        result reports the failure instead of an unexpected shell death."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:

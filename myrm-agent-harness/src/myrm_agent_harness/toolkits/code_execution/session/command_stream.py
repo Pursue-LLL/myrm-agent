@@ -87,7 +87,6 @@ class CommandStreamMixin:
         cmd_to_run: str,
         original_command: str,
         timeout: int,
-        is_armored: bool = False,
         cancel_token: CancellationToken | None = None,
         env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
@@ -95,7 +94,7 @@ class CommandStreamMixin:
         # a shell closed under the command then ends it as a dead shell instead of failing on a missing process.
         proc = self.process
         if not proc or not proc.stdin or not proc.stdout:
-            return SessionExecutionResult(False, "", "", 1, error="Process unavailable", is_armored=is_armored)
+            return SessionExecutionResult(False, "", "", 1, error="Process unavailable")
 
         end_marker = _generate_marker("END")
         exit_marker = _generate_marker("EXIT")
@@ -109,7 +108,7 @@ class CommandStreamMixin:
         except Exception as e:
             logger.error("IPC write failure: %s", e)
             await self._discard_shell()
-            return SessionExecutionResult(False, "", "", 1, error="IPC write failure", is_armored=is_armored)
+            return SessionExecutionResult(False, "", "", 1, error="IPC write failure")
 
         import aiofiles
 
@@ -167,7 +166,6 @@ class CommandStreamMixin:
                     "",
                     CANCELLED_EXIT_CODE,
                     error=CANCELLED_WHILE_RUNNING,
-                    is_armored=is_armored,
                 )
             return SessionExecutionResult(
                 False,
@@ -175,7 +173,6 @@ class CommandStreamMixin:
                 f"Timeout after {timeout}s. {_COMMAND_STOPPED_NOTICE}",
                 124,
                 error="Timeout",
-                is_armored=is_armored,
             )
         except asyncio.CancelledError:
             # The task running the command was cancelled from outside (tool deadline, shutdown): the command
@@ -197,7 +194,6 @@ class CommandStreamMixin:
                 err,
                 rc if rc is not None else 1,
                 error=err,
-                is_armored=is_armored,
             )
 
         if stream_buf.parse_failed:
@@ -214,7 +210,6 @@ class CommandStreamMixin:
                 "Session output boundary corrupted",
                 1,
                 error="Session corrupted",
-                is_armored=is_armored,
             )
 
         # The note follows a cut output only; the buffer keeps room for it so stdout still fits the output cap.
@@ -234,4 +229,4 @@ class CommandStreamMixin:
 
             success = classify_exit_code(original_command, exit_code, stdout)
 
-        return SessionExecutionResult(success, stdout, "", exit_code, is_armored=is_armored)
+        return SessionExecutionResult(success, stdout, "", exit_code)

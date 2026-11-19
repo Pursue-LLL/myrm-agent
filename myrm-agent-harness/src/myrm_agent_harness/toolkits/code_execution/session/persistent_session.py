@@ -5,7 +5,7 @@ session.models::SessionConfig, SessionExecutionResult, SessionState (POS: Plain 
 session.command_stream::CommandStreamMixin (POS: Command output pump with auto-tee, SSE flood protection, PII scrubbing, cancel/timeout exit)
 session.process_tree::kill_process_tree (POS: Stops a shell and every process it started)
 session.shell_flavor::get_flavor (POS: Platform-specific shell command formatting)
-security.script_armor::prepare_armored_command, sweep_stale_materialized_scripts (POS: Execution security armor wrapping script materialization, cleanup, and orphan sweeps)
+security.script_armor::prepare_armored_command, sweep_stale_materialized_scripts (POS: Execution security armor: every POSIX command runs from a script file in the workspace)
 utils.runtime.cancellation::OperationCancelledError, run_until_cancelled (POS: Abort an await as soon as the request's token is cancelled)
 
 [OUTPUT]
@@ -13,7 +13,8 @@ PersistentSession: Abstract base for stateful persistent shell sessions.
 
 [POS]
 Abstract persistent shell session base. Manages subprocess lifecycle, state machine, bash syntax pre-check and
-script materialization armor, and runs the commands of one shell one at a time; the command pump lives in
+script armor (on POSIX each command runs as ``bash <script>`` in a child of the shell, so what it exports or
+changes dies with it), and runs the commands of one shell one at a time; the command pump lives in
 ``CommandStreamMixin``. A command whose request is cancelled is stopped like a timed-out one (tree killed, session
 rebuilt on the next command); a command that reaches a shell that died is never replayed.
 """
@@ -246,20 +247,19 @@ class PersistentSession(CommandStreamMixin, ABC):
         if syntax_error:
             return SessionExecutionResult(False, "", syntax_error, 2, error=syntax_error)
 
-        with prepare_armored_command(
-            command,
-            work_dir=self.config.work_dir,
-            is_windows=self._platform.is_windows,
-        ) as cmd_to_run:
-            is_armored = getattr(cmd_to_run, "is_armored", False)
-            return await self._execute_core_stream(
-                cmd_to_run,
-                command,
-                timeout,
-                is_armored=is_armored,
-                cancel_token=cancel_token,
-                env=env,
-            )
+        with contextlib.ExitStack() as armor:
+            try:
+                cmd_to_run = armor.enter_context(
+                    prepare_armored_command(command, self.config.work_dir, self._platform.is_windows)
+                )
+            except OSError as e:
+                # The script is what keeps a command from breaking the shell, so a command without one is not run.
+                logger.error("Cannot write the script of a command: %s", e)
+                message = (
+                    f"The command was not run: its script could not be written ({e.strerror or type(e).__name__})."
+                )
+                return SessionExecutionResult(False, "", message, 1, error=message)
+            return await self._execute_core_stream(cmd_to_run, command, timeout, cancel_token=cancel_token, env=env)
 
     async def _kill_process_group(self, grace_period: float = 2.0) -> None:
         if not self.process or self.process.pid is None:

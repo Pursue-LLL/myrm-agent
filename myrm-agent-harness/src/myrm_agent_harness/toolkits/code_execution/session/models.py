@@ -44,7 +44,6 @@ class SessionExecutionResult:
     exit_code: int
     error: str | None = None
     duration: float = 0.0
-    is_armored: bool = False
 
 
 @dataclass(frozen=True)
@@ -54,8 +53,9 @@ class CommandEnv:
     ``sticky`` values (a skill's settings) are exported before every command and stay for the later ones.
     ``scoped`` values (credentials) are exported before the command and unset right after it, so the shell holds no
     credential between commands and a later command is not handed what an earlier one was granted. All commands of a
-    conversation share the shell: this limits what is delivered, it does not contain a command that tampers with the
-    shell itself (a ``trap``, a function) and so observes what later commands are granted.
+    conversation share the shell. A POSIX command runs in a child of it and cannot plant a ``trap`` or a function there
+    to observe what later commands are granted; a Windows command runs in the shell itself, so there this limits what
+    is delivered and does not contain a command that tampers with the shell.
 
     ``cwd`` is the directory the command starts in, whichever directory the shell is in; the shell stays where it
     was. A command whose directory cannot be entered does not run. Only the POSIX shell driver applies it: the

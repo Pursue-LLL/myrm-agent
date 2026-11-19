@@ -13,6 +13,7 @@ import pytest
 from myrm_agent_harness.toolkits.code_execution.session import (
     LocalPersistentSession,
 )
+from myrm_agent_harness.toolkits.code_execution.session.models import SessionExecutionResult
 from tests.toolkits.code_execution._session_helpers import make_config
 
 
@@ -30,10 +31,8 @@ class TestSmartEnvInjection:
                 os.path.dirname(__file__),
                 "../../../src/myrm_agent_harness/agent/meta_tools/bash/scripts/resilience_init.sh",
             )
-            await session.execute(f"source {script_path}")
-
-            # Check if CI and NEXT_TELEMETRY_DISABLED are exported globally
-            result = await session.execute("env | grep -E '^(CI|NEXT_TELEMETRY_DISABLED)='")
+            # The product puts this script in front of every command, so a command here sources it first.
+            result = await session.execute(f"source {script_path}\nenv | grep -E '^(CI|NEXT_TELEMETRY_DISABLED)='")
             assert "CI=1" in result.stdout
             assert "NEXT_TELEMETRY_DISABLED=1" in result.stdout
         finally:
@@ -56,7 +55,10 @@ class TestSmartEnvInjection:
                 os.path.dirname(__file__),
                 "../../../src/myrm_agent_harness/agent/meta_tools/bash/scripts/resilience_init.sh",
             )
-            await session.execute(f"source {script_path}")
+
+            async def run_with_script(command: str) -> SessionExecutionResult:
+                # The product puts this script in front of every command, so a command here sources it first.
+                return await session.execute(f"source {script_path}\n{command}")
 
             # Create a real package.json to test actual npm behavior
             await session.execute(
@@ -64,17 +66,17 @@ class TestSmartEnvInjection:
             )
 
             # 1. Test npm run build (should inject)
-            result = await session.execute("npm run build")
+            result = await run_with_script("npm run build")
             assert "SKIP_ENV_VALIDATION=1" in result.stdout
             assert "IGNORE_ENV_VALIDATION=1" in result.stdout
 
             # 2. Test npm test (should NOT inject)
-            result2 = await session.execute("npm test")
+            result2 = await run_with_script("npm test")
             assert "SKIP_ENV_VALIDATION=1" not in result2.stdout
             assert "IGNORE_ENV_VALIDATION=1" not in result2.stdout
 
             # 3. Test npm run dev (should inject)
-            result3 = await session.execute("npm run dev")
+            result3 = await run_with_script("npm run dev")
             assert "SKIP_ENV_VALIDATION=1" in result3.stdout
 
         finally:
@@ -161,9 +163,11 @@ exit 0
                 await session.execute(f"echo {b64} | base64 -d > {self._dir}/{name} && chmod +x {self._dir}/{name}")
             # Isolate HOME so a host-level ~/.git-credentials (e.g. gh auth) cannot flip
             # _git_has_existing_credentials and skip helper injection. The identity cache lives under TMPDIR.
-            await session.execute(f"export PATH={self._dir}:$PATH HOME={self._dir}/home TMPDIR={self._dir}/tmp {env}")
-            await session.execute(f"source {self._RESILIENCE}")
-            await session.execute(cmd)
+            # The product puts the resilience script in front of every command, so the command carries it too.
+            await session.execute(
+                f"export PATH={self._dir}:$PATH HOME={self._dir}/home TMPDIR={self._dir}/tmp {env}\n"
+                f"source {self._RESILIENCE}\n{cmd}"
+            )
             result = await session.execute(f"cat {self._dir}/git.log 2>/dev/null || true")
             return result.stdout
         finally:

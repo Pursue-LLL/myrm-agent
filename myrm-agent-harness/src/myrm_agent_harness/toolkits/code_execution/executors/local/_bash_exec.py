@@ -85,7 +85,7 @@ class LocalBashMixin:
 
     @handle_execution_error("LocalExecutor")
     async def execute_bash(self: _BashHost, context: ExecutionContext) -> ExecutionResult:
-        """Execute a Bash command in a persistent session (state persists across calls)."""
+        """Execute a Bash command in a persistent session, as a child of the session's shell."""
         from myrm_agent_harness.core.security.missing_semantics import (
             SemanticsCategory,
             evaluate_missing_capability,

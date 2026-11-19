@@ -54,14 +54,6 @@ from myrm_agent_harness.toolkits.code_execution.security.safe_command_configs im
 )
 from myrm_agent_harness.toolkits.code_execution.security.safe_command_configs.git import GIT_SAFE_SUBCOMMANDS
 from myrm_agent_harness.toolkits.code_execution.security.safe_commands import SAFE_COMMANDS
-from myrm_agent_harness.toolkits.code_execution.security.script_armor import (
-    ScriptArmorConfig,
-    build_file_backed_command,
-    cleanup_materialized_script,
-    materialize_script_to_file,
-    prepare_armored_command,
-    should_materialize_script,
-)
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     CommandThreat,
     ThreatLevel,
@@ -137,13 +129,6 @@ __all__ = [
     # Archive sanitization
     "register_integration_write_patterns",
     "sanitize_archive_command",
-    # Script materialization armor
-    "ScriptArmorConfig",
-    "build_file_backed_command",
-    "cleanup_materialized_script",
-    "materialize_script_to_file",
-    "prepare_armored_command",
-    "should_materialize_script",
     "validate_command",
     "validate_module",
     "validate_path",

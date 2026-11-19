@@ -16,7 +16,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession, SessionConfig
 from myrm_agent_harness.toolkits.code_execution.session.command_stream import CANCELLED_BEFORE_START
-from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
+from myrm_agent_harness.toolkits.code_execution.session.models import CommandEnv, SessionState
 from myrm_agent_harness.utils.runtime.cancellation import CancellationToken, CancelReason, set_cancel_token
 from tests.support.marked_processes import wait_until
 from tests.toolkits.code_execution._session_helpers import hold_command, state_of
@@ -91,9 +91,10 @@ async def test_a_command_that_kills_its_shell_ran_once_and_leaves_a_fresh_shell(
     session: LocalPersistentSession, tmp_path: Path
 ) -> None:
     counter = tmp_path / "runs.txt"
-    assert (await session.execute("export KEEP=1")).success
+    assert (await session.execute("true", env=CommandEnv(sticky={"KEEP": "1"}))).success
 
-    died = await session.execute(f"echo run >> {counter}; kill -9 $$")
+    # A command is a child of its shell: ``$PPID`` is the shell itself.
+    died = await session.execute(f"echo run >> {counter}; kill -9 $PPID")
 
     assert not died.success
     assert died.error is not None

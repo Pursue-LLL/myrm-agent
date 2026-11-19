@@ -119,20 +119,10 @@ class TestBashFlavorNoColor:
         export_lines = [c for c in cmds if c.startswith("export")]
         assert len(export_lines) == 1
 
-    def test_exit_interceptor_injected(self) -> None:
-        """Init commands contain the exit() interceptor so the persistent shell
-        survives trailing ``exit`` in LLM-generated commands."""
-        flavor = BashFlavor()
-        cmds = flavor.build_init_commands("/workspace", timeout=60, max_memory_mb=2048)
-
-        exit_lines = [c for c in cmds if c.startswith("exit()")]
-        assert len(exit_lines) == 1
-        assert "builtin return" in exit_lines[0]
-
     def test_wrapped_command_multiline_rc_capture(self) -> None:
         """The wrapper captures rc inside the block so comment-only or empty
         commands cannot wedge an open brace block (which would hang the shell),
-        an EXIT trap backs up the marker pair for errexit crashes, and TERM,
+        an EXIT trap emits the marker pair when the shell ends, and TERM,
         HUP and INT end the shell with 128 + the signal so the trap reports it."""
         flavor = BashFlavor()
         wrapped = flavor.build_wrapped_command("echo hi", "EX", "END", "$?")
@@ -140,9 +130,9 @@ class TestBashFlavorNoColor:
         before, block, after = split_bash_wrapper(wrapped)
 
         assert before == [
-            "trap 'builtin exit 143' TERM",
-            "trap 'builtin exit 129' HUP",
-            "trap 'builtin exit 130' INT",
+            "trap 'exit 143' TERM",
+            "trap 'exit 129' HUP",
+            "trap 'exit 130' INT",
             'trap \'echo "EX"$?; echo "END"\' EXIT',
         ]
         assert block == ["echo hi", "__myrm_rc__=$?"]

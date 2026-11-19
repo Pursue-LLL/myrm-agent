@@ -1,29 +1,29 @@
-"""Tests for FileBackedSubprocessInvocationAndShellQuoteEscapingArmorSuite.
+"""Tests for the script armor: every command of a POSIX shell session runs from a script file.
 
 Validates:
-1. Dual-mode heuristic probe (Direct Fast-Path vs File-Backed Armor)
-2. Safe script materialization with 0700 permissions & atomic creation
-3. Reliable auto-cleanup and unlink in finally blocks
-4. PersistentSession integration: exit statement survival & heredoc execution without beacon swallowing
+1. A command is written to an owner-only script in the workspace's ``.myrm/exec`` directory and run as ``bash <script>``
+2. The script is removed when the block ends, and a script that cannot be written fails the command instead of
+   running it unarmored
+3. Windows shells take the command as it is
+4. PersistentSession: exit/exec statements and heredocs cannot break the shell, and the stale scripts of a killed shell
+   are swept
 """
 
 from __future__ import annotations
 
+import gc
 import os
+import shlex
 import stat
+import subprocess
 import time
 from pathlib import Path
+from typing import NoReturn
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.security.script_armor import (
-    ArmoredCommandString,
-    ScriptArmorConfig,
-    build_file_backed_command,
-    cleanup_materialized_script,
-    materialize_script_to_file,
     prepare_armored_command,
-    should_materialize_script,
     sweep_stale_materialized_scripts,
 )
 from myrm_agent_harness.toolkits.code_execution.session import (
@@ -42,6 +42,14 @@ def _script_dir(work_dir: Path) -> Path:
     return scratch_dir(work_dir, "exec")
 
 
+def _script_of(shell_line: str) -> Path:
+    """The script a shell line runs: the line is ``bash <script>``."""
+    words = shlex.split(shell_line)
+    assert len(words) == 2
+    assert words[0] == "bash"
+    return Path(words[1])
+
+
 def _write_script(work_dir: Path, name: str, age_seconds: float) -> Path:
     """Put a script file, last touched ``age_seconds`` ago, into the script directory of ``work_dir``."""
     script_dir = _script_dir(work_dir)
@@ -53,136 +61,101 @@ def _write_script(work_dir: Path, name: str, age_seconds: float) -> Path:
     return path
 
 
-class TestScriptArmorHeuristicProbe:
-    """Test heuristic dual-mode decision engine."""
+class TestPrepareArmoredCommand:
+    """The script a command runs from: content, permissions, location, lifetime, failure."""
 
-    def test_direct_fast_path_for_state_modifiers(self) -> None:
-        assert not should_materialize_script("cd /tmp")
-        assert not should_materialize_script("pushd /var")
-        assert not should_materialize_script("popd")
-        assert not should_materialize_script("export VAR=123")
-        assert not should_materialize_script("unset VAR")
-        assert not should_materialize_script("source .venv/bin/activate")
-        assert not should_materialize_script(". /etc/profile")
+    def test_script_holds_the_command_and_belongs_to_its_owner_alone(self, tmp_path: Path) -> None:
+        with prepare_armored_command("echo 'armor test'\nexit 0", tmp_path) as shell_line:
+            script = _script_of(shell_line)
+            assert stat.S_IMODE(script.stat().st_mode) == 0o700
+            assert script.read_text(encoding="utf-8") == "echo 'armor test'\nexit 0\n"
 
-    def test_direct_fast_path_for_simple_short_commands(self) -> None:
-        assert not should_materialize_script("ls -la")
-        assert not should_materialize_script("git status")
-        assert not should_materialize_script("echo 'hello world'")
-        assert not should_materialize_script("mkdir -p /tmp/test_dir")
-
-    def test_file_backed_for_multiline_scripts(self) -> None:
-        multiline = "echo 1\necho 2\necho 3\necho 4"
-        assert should_materialize_script(multiline)
-
-    def test_file_backed_for_heredocs(self) -> None:
-        heredoc = "cat << 'EOF' > file.txt\nline1\nEOF"
-        assert should_materialize_script(heredoc)
-
-        heredoc_unquoted = "cat << EOF > file.txt\nline1\nEOF"
-        assert should_materialize_script(heredoc_unquoted)
-
-    def test_file_backed_for_exit_statements(self) -> None:
-        assert should_materialize_script("exit 1")
-        assert should_materialize_script("if [ ! -f foo ]; then exit 42; fi")
-        assert should_materialize_script("echo hi; exit 0")
-        # Single-line export must stay direct to preserve env vars (handled safely by shell exit interceptor)
-        assert not should_materialize_script("export FOO=1; exit 0")
-
-    def test_file_backed_for_oversized_scripts(self) -> None:
-        cfg = ScriptArmorConfig(direct_max_bytes=50)
-        large_cmd = "echo " + "a" * 100
-        assert should_materialize_script(large_cmd, cfg)
-
-    def test_disabled_config_returns_false(self) -> None:
-        cfg = ScriptArmorConfig(enabled=False)
-        assert not should_materialize_script("echo 1\necho 2\necho 3\necho 4", cfg)
-
-    def test_empty_or_whitespace_command_returns_false(self) -> None:
-        assert not should_materialize_script("")
-        assert not should_materialize_script("   \n\t  ")
-
-
-class TestScriptMaterialization:
-    """Test safe script creation, permissions, and cleanup."""
-
-    def test_materialize_file_permissions_and_content(self, tmp_path: Path) -> None:
-        cmd = "echo 'armor test'\nexit 0"
-        script_path = materialize_script_to_file(cmd, tmp_path)
-        try:
-            assert script_path.exists()
-            # Verify 0700 permission (owner read/write/execute)
-            file_stat = os.stat(script_path)
-            mode = stat.S_IMODE(file_stat.st_mode)
-            assert mode == 0o700
-
-            content = script_path.read_text(encoding="utf-8")
-            assert "echo 'armor test'" in content
-            assert content.endswith("\n")
-        finally:
-            cleanup_materialized_script(script_path)
-            assert not script_path.exists()
-
-    def test_cleanup_nonexistent_path_is_safe(self) -> None:
-        non_existent = Path("/tmp/does_not_exist_xyz123456.sh")
-        cleanup_materialized_script(non_existent)
-        cleanup_materialized_script(None)
-
-    def test_build_file_backed_command(self, tmp_path: Path) -> None:
-        script = tmp_path / "test.sh"
-        cmd = build_file_backed_command(script)
-        assert cmd.startswith('bash "')
-        assert str(script.resolve()) in cmd
-
-    def test_materialize_script_failure_cleans_up_and_closes_fd(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        def _failing_open(*args, **kwargs):
-            raise OSError("simulated disk write error")
-
-        monkeypatch.setattr("builtins.open", _failing_open)
-        with pytest.raises(OSError, match="simulated disk write error"):
-            materialize_script_to_file("echo test", tmp_path)
-
-
-class TestPrepareArmoredCommandContextManager:
-    """Test context manager lifecycle and cleanup guarantee."""
-
-    def test_direct_command_passes_through(self, tmp_path: Path) -> None:
-        raw_cmd = "git status"
-        with prepare_armored_command(raw_cmd, work_dir=tmp_path) as cmd_to_run:
-            assert cmd_to_run == raw_cmd
-
-    def test_armored_command_creates_and_cleans_up(self, tmp_path: Path) -> None:
-        raw_cmd = "cat << 'EOF' > a.txt\nline\nEOF\n"
-        created_file: Path | None = None
-        with prepare_armored_command(raw_cmd, work_dir=tmp_path) as cmd_to_run:
-            assert cmd_to_run.startswith('bash "')
-            file_part = cmd_to_run.split('"', 2)[1]
-            created_file = Path(file_part)
-            assert created_file.exists()
-
-        # After exiting with block, file must be destroyed
-        assert created_file is not None
-        assert not created_file.exists()
+    def test_a_single_line_command_runs_from_a_script_too(self, tmp_path: Path) -> None:
+        with prepare_armored_command("git status", tmp_path) as shell_line:
+            assert _script_of(shell_line).read_text(encoding="utf-8") == "git status\n"
 
     def test_script_sits_in_the_workspace_and_stays_out_of_git(self, tmp_path: Path) -> None:
-        with prepare_armored_command("echo 1\necho 2\necho 3\n", work_dir=tmp_path) as cmd_to_run:
-            script = Path(cmd_to_run.split('"', 2)[1])
+        with prepare_armored_command("echo 1\necho 2\necho 3\n", tmp_path) as shell_line:
+            script = _script_of(shell_line)
             assert script.parent == _script_dir(tmp_path).resolve()
             assert (script.parent / ".gitignore").read_text(encoding="utf-8") == "*\n"
 
-    def test_armored_command_cleans_up_on_exception(self, tmp_path: Path) -> None:
-        raw_cmd = "exit 1"
-        created_file: Path | None = None
-        with pytest.raises(RuntimeError), prepare_armored_command(raw_cmd, work_dir=tmp_path) as cmd_to_run:
-            file_part = cmd_to_run.split('"', 2)[1]
-            created_file = Path(file_part)
-            assert created_file.exists()
+    def test_script_is_removed_when_the_block_ends(self, tmp_path: Path) -> None:
+        with prepare_armored_command("echo hi", tmp_path) as shell_line:
+            script = _script_of(shell_line)
+            assert script.exists()
+
+        assert not script.exists()
+
+    def test_script_is_removed_when_the_block_raises(self, tmp_path: Path) -> None:
+        script: Path | None = None
+        with (
+            pytest.raises(RuntimeError, match="simulated pipeline error"),
+            prepare_armored_command("exit 1", tmp_path) as shell_line,
+        ):
+            script = _script_of(shell_line)
+            assert script.exists()
             raise RuntimeError("simulated pipeline error")
 
-        assert created_file is not None
-        assert not created_file.exists()
+        assert script is not None
+        assert not script.exists()
+
+    def test_a_script_the_command_removed_itself_is_no_error(self, tmp_path: Path) -> None:
+        with prepare_armored_command("echo hi", tmp_path) as shell_line:
+            _script_of(shell_line).unlink()
+
+    def test_workspace_path_with_shell_metacharacters_still_runs_the_script(self, tmp_path: Path) -> None:
+        workspace = tmp_path / 'my "proj" $HOME `id`'
+        workspace.mkdir()
+
+        with prepare_armored_command("echo armored", workspace) as shell_line:
+            completed = subprocess.run(
+                ["/bin/sh", "-c", shell_line], capture_output=True, text=True, timeout=30, check=False
+            )
+
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout.strip() == "armored"
+
+    def test_windows_shells_take_the_command_as_it_is(self, tmp_path: Path) -> None:
+        with prepare_armored_command("dir", tmp_path, is_windows=True) as shell_line:
+            assert shell_line == "dir"
+
+        assert not (tmp_path / ".myrm").exists()
+
+    def test_a_script_that_cannot_be_written_raises_before_the_block_runs(self, tmp_path: Path) -> None:
+        not_a_directory = tmp_path / "plain_file"
+        not_a_directory.write_text("occupied", encoding="utf-8")
+
+        block_ran = False
+        with pytest.raises(OSError), prepare_armored_command("echo hi", not_a_directory):
+            block_ran = True
+
+        assert not block_ran
+
+    @pytest.mark.skipif(not os.path.isdir("/dev/fd"), reason="counting open descriptors needs /dev/fd")
+    def test_a_failed_write_leaves_neither_a_script_nor_an_open_descriptor(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def _failing_open(*args: object, **kwargs: object) -> NoReturn:
+            raise OSError("simulated disk write error")
+
+        with prepare_armored_command("echo warm up", tmp_path):
+            pass
+        # Collect first, so that no unrelated file object is closed by the garbage collector between the two counts.
+        gc.collect()
+        descriptors_before = len(os.listdir("/dev/fd"))
+
+        with monkeypatch.context() as patch:
+            patch.setattr("builtins.open", _failing_open)
+            with (
+                pytest.raises(OSError, match="simulated disk write error"),
+                prepare_armored_command("echo hi", tmp_path),
+            ):
+                pass
+
+        gc.collect()
+        assert len(os.listdir("/dev/fd")) == descriptors_before
+        assert not list(_script_dir(tmp_path).glob(".myrm_exec_*.sh"))
 
 
 class TestPersistentSessionIntegration:
@@ -190,22 +163,83 @@ class TestPersistentSessionIntegration:
 
     @pytest.mark.asyncio
     async def test_exit_statement_does_not_kill_persistent_shell(self, tmp_path: Path) -> None:
-        """A script with 'exit 42' must return exit code 42 without killing the persistent shell."""
+        """A command with 'exit 42' must return exit code 42 without killing the persistent shell."""
         session = LocalPersistentSession(_make_config(tmp_path))
         await session.start()
         try:
-            # First command: sets an environment variable
-            await session.execute("export SESSION_ALIVE_VAR=active_123")
-
-            # Second command: contains exit statement, runs in file-backed subshell
             res1 = await session.execute("if [ -d /tmp ]; then exit 42; fi")
             assert not res1.success
             assert res1.exit_code == 42
 
-            # Third command: persistent session must still be alive and maintain the environment variable
-            res2 = await session.execute("echo $SESSION_ALIVE_VAR")
+            res2 = await session.execute("echo shell_alive")
             assert res2.success
-            assert "active_123" in res2.stdout
+            assert "shell_alive" in res2.stdout
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_exec_statement_does_not_replace_the_persistent_shell(self, tmp_path: Path) -> None:
+        """'exec' replaces the process that runs it: that must be the command's own shell, not the session's."""
+        session = LocalPersistentSession(_make_config(tmp_path))
+        await session.start()
+        try:
+            res1 = await session.execute("exec true")
+            assert res1.success
+
+            res2 = await session.execute("echo shell_alive")
+            assert res2.success
+            assert "shell_alive" in res2.stdout
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_a_command_cannot_change_the_state_of_the_shell(self, tmp_path: Path) -> None:
+        """What a command exports or changes directory to dies with its own shell."""
+        session = LocalPersistentSession(_make_config(tmp_path))
+        await session.start()
+        try:
+            await session.execute("export ARMOR_PROBE=leaked; cd /")
+
+            result = await session.execute('echo "${ARMOR_PROBE:-unset}"; pwd -P')
+            assert result.success
+            exported, directory = result.stdout.split()
+            assert exported == "unset"
+            assert Path(directory).resolve() == tmp_path.resolve()
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_a_short_command_runs_from_a_script_in_the_workspace(self, tmp_path: Path) -> None:
+        """``$0`` of a command is its script: in the workspace's script directory, and gone once the command ended."""
+        session = LocalPersistentSession(_make_config(tmp_path))
+        await session.start()
+        try:
+            result = await session.execute('echo "$0"')
+            assert result.success
+            assert Path(result.stdout.strip()).parent == _script_dir(tmp_path).resolve()
+            assert not list(_script_dir(tmp_path).glob(".myrm_exec_*.sh"))
+        finally:
+            await session.close()
+
+    @pytest.mark.asyncio
+    async def test_command_is_not_run_when_its_script_cannot_be_written(self, tmp_path: Path) -> None:
+        """No script, no command: it never reaches the shell unarmored, and the session carries on afterwards."""
+        session = LocalPersistentSession(_make_config(tmp_path))
+        await session.start()
+        try:
+            blocker = tmp_path / ".myrm"
+            blocker.write_text("occupied", encoding="utf-8")
+
+            result = await session.execute("touch ran.txt")
+            assert not result.success
+            assert result.error is not None
+            assert "was not run" in result.error
+            assert not (tmp_path / "ran.txt").exists()
+
+            blocker.unlink()
+            recovered = await session.execute("echo recovered")
+            assert recovered.success
+            assert "recovered" in recovered.stdout
         finally:
             await session.close()
 
@@ -240,24 +274,6 @@ EOF
             result = await session.execute(cmd)
             assert result.success
             assert "comment_test" in result.stdout
-            assert not result.is_armored
-        finally:
-            await session.close()
-
-    @pytest.mark.asyncio
-    async def test_armored_metadata_propagates_to_execution_result(self, tmp_path: Path) -> None:
-        """Verify is_armored is False for direct commands and True for materialized scripts."""
-        session = LocalPersistentSession(_make_config(tmp_path))
-        await session.start()
-        try:
-            # Direct command -> is_armored is False
-            res_direct = await session.execute("ls -la")
-            assert not res_direct.is_armored
-
-            # Multiline / armored script -> is_armored is True
-            multiline_cmd = "echo 1\necho 2\necho 3\n"
-            res_armored = await session.execute(multiline_cmd)
-            assert res_armored.is_armored
         finally:
             await session.close()
 
@@ -297,15 +313,6 @@ class TestSweepStaleMaterializedScripts:
 
     def test_sweep_nonexistent_directory(self) -> None:
         assert sweep_stale_materialized_scripts("/nonexistent/dir/xyz_404") == 0
-
-    def test_armored_command_string_is_instance_of_str(self) -> None:
-        tagged = ArmoredCommandString('bash "/tmp/.myrm_exec_123.sh"', is_armored=True)
-        assert isinstance(tagged, str)
-        assert tagged.is_armored
-        assert tagged.startswith('bash "')
-        # Slicing returns normal str
-        sliced = tagged[:4]
-        assert sliced == "bash"
 
     def test_sweep_handles_os_error_gracefully(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         stale_file = _write_script(tmp_path, ".myrm_exec_stale_err.sh", age_seconds=7200)

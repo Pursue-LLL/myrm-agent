@@ -11,7 +11,8 @@ import pytest
 from myrm_agent_harness.toolkits.code_execution.session import (
     LocalPersistentSession,
 )
-from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
+from myrm_agent_harness.toolkits.code_execution.session.models import CommandEnv, SessionState
+from myrm_agent_harness.toolkits.code_execution.session.shell_flavor import BashFlavor
 from tests.toolkits.code_execution._session_helpers import make_config, state_of
 
 
@@ -39,21 +40,14 @@ class TestBasicExecution:
         finally:
             await session.close()
 
-    @pytest.mark.asyncio
-    async def test_env_persistence(self) -> None:
-        session = LocalPersistentSession(make_config())
-        await session.start()
-        try:
-            await session.execute("export TEST_VAR=hello123")
-            result = await session.execute("echo $TEST_VAR")
-            assert result.success
-            assert "hello123" in result.stdout
-        finally:
-            await session.close()
 
+class _UnreadableExitCodeFlavor(BashFlavor):
+    """A driver whose wrapper reports ``0x`` as the exit code of every command, which is not a number."""
 
-# Shadowing ``echo`` makes the shell print the exit-code field of the wrapper as ``0x``, which is not a number.
-_UNREADABLE_EXIT_CODE = 'echo() { builtin echo "$1x"; }'
+    def build_wrapped_command(
+        self, command: str, exit_marker: str, end_marker: str, exit_code_var: str, env: CommandEnv | None = None
+    ) -> str:
+        return super().build_wrapped_command(command, exit_marker, end_marker, "0x", env)
 
 
 class TestSessionWedgeRecovery:
@@ -87,25 +81,26 @@ class TestSessionWedgeRecovery:
         try:
             assert session.process is not None
             pid = session.process.pid
-            await session.execute("export KEPT=yes")
 
             reader = await session.execute("cat", timeout=5)
             assert reader.success
             assert reader.stdout == ""
             assert state_of(session) == SessionState.ACTIVE
 
-            after = await session.execute("echo $KEPT", timeout=5)
-            assert after.stdout == "yes"
+            after = await session.execute("echo still_here", timeout=5)
+            assert after.stdout == "still_here"
             assert session.process.pid == pid
         finally:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_an_unreadable_exit_code_replaces_the_shell(self) -> None:
+    async def test_an_unreadable_exit_code_replaces_the_shell(self, monkeypatch: pytest.MonkeyPatch) -> None:
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
-            poisoned = await session.execute(_UNREADABLE_EXIT_CODE, timeout=5)
+            with monkeypatch.context() as patch:
+                patch.setattr(session, "_flavor", _UnreadableExitCodeFlavor())
+                poisoned = await session.execute("true", timeout=5)
             assert not poisoned.success
             assert poisoned.error == "Session corrupted"
             assert session.state == SessionState.TERMINATED
@@ -121,7 +116,7 @@ class TestSessionWedgeRecovery:
 class TestRealUserFlow:
     """End-to-end session flow as a real user would drive it: consecutive
     commands, env persistence across rebuilds, special-char output fidelity,
-    wedge recovery mid-flow, and the exit interceptor."""
+    wedge recovery mid-flow, and an ``exit`` that ends only its own command."""
 
     @pytest.mark.asyncio
     async def test_full_session_lifecycle(self) -> None:
@@ -137,9 +132,9 @@ class TestRealUserFlow:
             assert result.success
             assert result.stdout == 'sk-x"y$HOME`id`\txyz'
 
-            # 2. cwd + env persist across commands.
-            await session.execute("mkdir -p /tmp/myrm-user-flow && cd /tmp/myrm-user-flow")
-            assert (await session.execute("pwd")).stdout == "/tmp/myrm-user-flow"
+            # 2. The session env reaches every command; a directory a command moves to is not where the next starts.
+            assert (await session.execute("cd / && pwd")).stdout == "/"
+            assert (await session.execute("pwd")).stdout == "/tmp"
             assert (await session.execute('echo "$APP_TOKEN"')).stdout == 'sk-x"y$HOME`id`\txyz'
 
             # 3. Multi-line output round-trips.
@@ -156,7 +151,7 @@ class TestRealUserFlow:
             assert result.stdout == 'sk-x"y$HOME`id`\txyz'
             assert state_of(session) == SessionState.ACTIVE
 
-            # 5. exit N is intercepted; shell survives.
+            # 5. exit N ends the command only; the shell survives.
             result = await session.execute("exit 3")
             assert not result.success
             assert result.exit_code == 3

@@ -5,7 +5,7 @@ platform::PlatformInfo (POS: OS detection and shell path resolution)
 
 [OUTPUT]
 ShellFlavor: ABC for platform-specific shell command formatting; applies a command's ``CommandEnv`` around it.
-BashFlavor: Bash/POSIX shell driver with ulimit init, exit() interceptor, and block-rc command wrapping whose stdin is /dev/null.
+BashFlavor: Bash/POSIX shell driver with ulimit init, marker-emitting signal/EXIT traps, and block-rc command wrapping whose stdin is /dev/null.
 PowerShellFlavor: Windows PowerShell driver with UTF-8 encoding, Progress suppression, exit() interceptor, and dual exit code normalization.
 WindowsFlavor: Legacy Windows cmd driver.
 get_flavor: Factory returning the appropriate flavor for the platform.
@@ -103,10 +103,6 @@ class BashFlavor(ShellFlavor):
         return [
             "set +o history 2>/dev/null || true",
             "export PS1='' PS2='' NO_COLOR=1 FORCE_COLOR=0 TERM=dumb",
-            # Contain `exit` inside the command block so a trailing `exit N`
-            # from an LLM-generated command returns from the block instead of
-            # killing the persistent shell (which would silently lose cwd/env).
-            "exit() { builtin return $(( ${1:-0} )); }",
             f"cd '{work_dir}' || cd /tmp",
             ulimit_cmd,
         ]
@@ -132,22 +128,17 @@ class BashFlavor(ShellFlavor):
     def build_wrapped_command(
         self, command: str, exit_marker: str, end_marker: str, exit_code_var: str, env: CommandEnv | None = None
     ) -> str:
-        # EXIT trap backs up the marker pair so an errexit crash (e.g. `set -e`
-        # failing) still emits a parseable boundary. `set -e` is a bash-native
-        # "fail fast" that terminates the shell — without the trap the process
-        # dies markerless, the session reads EOF and misreports an unexpected
-        # crash (triggering a pointless recovery). The trap only fires when the
-        # shell actually exits; a healthy command leaves it dormant so markers
-        # are emitted exactly once per execution.
+        # The EXIT trap emits the marker pair when the shell ends while a command runs, so the pump reads a boundary
+        # instead of a dead pipe. It only fires when the shell actually exits; a healthy command leaves it dormant,
+        # so the markers are emitted exactly once per execution.
         #
         # A signal that ends the shell runs the EXIT trap too, and bash hands it the status of the last command that
         # finished, not the signal's: a command that was terminated would come back as a success. So TERM, HUP and
-        # INT end the shell with the status a shell reports for them (128 + the signal number). ``builtin exit``,
-        # because ``exit`` is a function in this shell (see ``build_init_commands``).
+        # INT end the shell with the status a shell reports for them (128 + the signal number).
         #
-        # The command's variables are exported inside the block, so the command sees them in the persistent shell
-        # itself. The scoped ones are unset after the end marker rather than inside the block: ``exit`` leaves the
-        # block early, and nothing after the markers can change the exit code the caller reads.
+        # The command's variables are exported inside the block, so the command inherits them from the persistent
+        # shell. The scoped ones are unset after the end marker rather than inside the block, so that nothing after
+        # the markers can change the exit code the caller reads.
         #
         # The block's stdin is /dev/null, not the session's pipe. That pipe carries the marker commands that follow
         # the block, and a command that reads its stdin would take them and leave the shell without a boundary.
@@ -160,9 +151,9 @@ class BashFlavor(ShellFlavor):
             clean_command = f"( cd -- {shlex.quote(env.cwd)} && {{\n{clean_command}\n}} )"
         set_lines, unset_lines = self.env_commands(env)
         return (
-            "trap 'builtin exit 143' TERM\n"
-            "trap 'builtin exit 129' HUP\n"
-            "trap 'builtin exit 130' INT\n"
+            "trap 'exit 143' TERM\n"
+            "trap 'exit 129' HUP\n"
+            "trap 'exit 130' INT\n"
             f'trap \'echo "{exit_marker}"$?; echo "{end_marker}"\' EXIT\n'
             "{\n" + "".join(f"{line}\n" for line in set_lines) + f"{clean_command}\n"
             f"__myrm_rc__={exit_code_var}\n"
