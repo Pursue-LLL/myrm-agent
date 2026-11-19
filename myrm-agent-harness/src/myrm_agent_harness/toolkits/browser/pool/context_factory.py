@@ -8,6 +8,7 @@
 - .config::ResourceBlockConfig (POS: resource blocking config)
 - .egress_guard::EgressGuard (POS: loopback proxy that lets a context connect only to addresses the SSRF policy admits)
 - domain_filter::DomainAllowlist, DomainBlocklist, install_domain_filter (POS: domain filtering and resource blocking)
+- enhancers::get_dom_enhancer_script (POS: loader of the DOM enhancer script that every context carries)
 - .stealth::get_stealth_script (POS: stealth anti-detection JS script loader)
 
 [OUTPUT]
@@ -23,7 +24,9 @@ Dedicated to BrowserContext creation and configuration, including:
 6. Installing DomainAllowlist security filter (CSP + JS hardening + CDP audit) when allowlist provided
 7. Forwarding the session's ``allow_private_networks`` policy to the installed HTTP filter, so private-address
    handling follows the session's choice whether or not a domain list or resource blocking is attached
-8. STEALTH mode delivery of 13 anti-detection JS scripts (dual-layer defense: patchright CDP + document-response script injection via enhancers.inject_route)
+8. Registering the DOM enhancer (every context) and, in STEALTH mode, 13 anti-detection JS scripts (patchright's own CDP
+   patches plus ``stealth.js``) as init scripts: the browser runs them in every document of the context before the
+   page's own scripts, whatever fetched the document
 9. Refusing downloads by default (``accept_downloads=False`` in every context kind): the browser would otherwise keep
    every file a page starts in its temp dir until the context closes, so only a context whose owner passes
    ``accept_downloads=True`` (a ``BrowserSession`` with a download manager) keeps any
@@ -232,18 +235,10 @@ class ContextFactory:
         context.set_default_timeout(_DEFAULT_TIMEOUT_MS)
 
         # Inject Progressive DomEnhancer into EVERY context
-        from myrm_agent_harness.toolkits.browser.enhancers import (
-            get_dom_enhancer_script,
-            install_document_script_injection,
-        )
+        from myrm_agent_harness.toolkits.browser.enhancers import get_dom_enhancer_script
 
         enhancer_script = get_dom_enhancer_script()
         if enhancer_script:
-            # patchright's add_init_script silently no-ops (upstream bug), so the
-            # reliable delivery path is a document-response rewrite via route.fulfill.
-            await install_document_script_injection(context, lambda: get_dom_enhancer_script(), label="dom_enhancer")
-            # Keep the init-script registration as a harmless no-op fallback for
-            # engines where the network-level inject route does work.
             await context.add_init_script(enhancer_script)
 
         if context_type == _STEALTH_TYPE and not extension_attached:
@@ -315,14 +310,10 @@ class ContextFactory:
     async def _apply_stealth(context: BrowserContext) -> None:
         """Apply stealth anti-detection patches to a STEALTH context.
 
-        Delivers stealth.js via the document-response rewrite (patchright's
-        add_init_script silently no-ops) and keeps the init-script registration
-        as a fallback for working engines. Covers 13 anti-detection vectors
-        including navigator patches, toString disguise, anti-debugger
-        neutralization, and Performance API cleanup.
+        Registers stealth.js as an init script, so the browser runs it in every document before the page's own scripts.
+        Covers 13 anti-detection vectors including navigator patches, toString disguise,
+        anti-debugger neutralization, and Performance API cleanup.
         """
-        from ..enhancers import install_document_script_injection
         from .stealth import get_stealth_script
 
-        await install_document_script_injection(context, get_stealth_script, label="stealth")
         await context.add_init_script(get_stealth_script())

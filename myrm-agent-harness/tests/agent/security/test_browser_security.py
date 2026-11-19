@@ -191,6 +191,7 @@ class TestInstallDomainFilter:
         al = DomainAllowlist(patterns=("example.com",))
         await install_domain_filter(ctx, al, enable_cdp_audit=False)
         assert ctx.route.call_count >= 1
+        assert ctx.add_init_script.await_count == 2
 
     @pytest.mark.asyncio
     async def test_cdp_audit_registers_page_listener(self):

@@ -104,7 +104,7 @@ Extension Bridge 与 SessionVault 让 Agent 复用已登录会话，且无需读
 - **DevToolsActivePort 自动发现**：AUTO 模式通过 `chrome_discovery.py` 扫描 Chrome/Edge/Chromium/Brave/Canary 的 DevToolsActivePort 文件，自动发现用户本地浏览器的动态 CDP 端口。4 阶段策略：文件扫描 → HTTP probe（完整 CDP API）→ inspect WebSocket path + TCP（`chrome://inspect` 模式）→ 固定端口 9222 HTTP 兜底。
 - **Local 可见 fallback**：server 层 `get_browser_launch_options()` 在 Local 模式设 `headless=False`（SaaS 仍默认 headless）
 - **多租户隔离**：不同 ContextType（CRAWL / AGENT / STEALTH）使用独立 BrowserContext
-- **证书默认校验**：`ContextFactory` 对除扩展上下文之外的每种上下文（CRAWL / AGENT / STEALTH，含接入的 CDP 浏览器里新建的上下文）显式写入 `ignore_https_errors=False`：浏览器会拒绝的证书（自签、过期、主机名不符、根不受信任）让页面加载失败，抛出带 `net::ERR_CERT_*` 的 `BrowserNavigationError`，它的恢复建议只让模型核对域名并如实告知用户，不去找绕过校验的办法。放开校验是运营方的决定：`BrowserConfig.ignore_https_errors`（默认 `False`；服务端由环境变量 `MYRM_BROWSER_IGNORE_HTTPS_ERRORS` 设置）对所有这类上下文生效，池在构造与 `update_proxy_pool` 两处建工厂时都传入它；上下文的创建者仍可经 `context_kwargs` 的 `ignore_https_errors` 单独覆盖。`browser_source=extension` 的用户浏览器不受影响，沿用用户自己的证书设置。文档注入路由（`enhancers/inject_route.py`）取回文档时若 Node 侧拒绝证书，幂等请求交还浏览器自己加载，由浏览器自己的校验裁决；写请求中止，不交给浏览器。
+- **证书默认校验**：`ContextFactory` 对除扩展上下文之外的每种上下文（CRAWL / AGENT / STEALTH，含接入的 CDP 浏览器里新建的上下文）显式写入 `ignore_https_errors=False`：浏览器会拒绝的证书（自签、过期、主机名不符、根不受信任）让页面加载失败，抛出带 `net::ERR_CERT_*` 的 `BrowserNavigationError`，它的恢复建议只让模型核对域名并如实告知用户，不去找绕过校验的办法。放开校验是运营方的决定：`BrowserConfig.ignore_https_errors`（默认 `False`；服务端由环境变量 `MYRM_BROWSER_IGNORE_HTTPS_ERRORS` 设置）对所有这类上下文生效，池在构造与 `update_proxy_pool` 两处建工厂时都传入它；上下文的创建者仍可经 `context_kwargs` 的 `ignore_https_errors` 单独覆盖。`browser_source=extension` 的用户浏览器不受影响，沿用用户自己的证书设置。证书只由浏览器自己校验：文档与子资源都由浏览器自己加载，驱动进程不取回文档，所以浏览器信任而驱动信任库不认的证书（企业 TLS 检测根、私有 CA）不会让页面丢掉脚本（DOM 增强、隐身、域名白名单的 CSP 与加固），表单 POST 也照常发出（`tests/toolkits/browser/test_script_delivery_integration.py` 用浏览器信任、驱动不信任的证书实测）。
 - **智能负载调度**：自动选择负载最低的 Context
 - **智能重试**：3次指数退避重试（2s/4s/8s），处理启动失败和网络异常
 - **并发安全销毁**：支持 `destroy_context` 显式回收资源，并具备严格的并发安全断言，防止销毁正在使用的页面。不拥有上下文的调用方用 `destroy_context(key, only_if_idle=True)`：上下文仍有页面在用时保留并返回 `False`，不抛异常。
@@ -471,7 +471,7 @@ Rejected dangerous schemes: javascript/file/data/blob/ftp. Got: javascript:alert
 **设计目标**：覆盖主线程和 Web Worker 的所有网络出口通道，防止数据泄露
 
 ```
-Layer 0: CSP (Content-Security-Policy)   ← BROWSER KERNEL (主线程 + Worker)
+Layer 0: CSP (Content-Security-Policy)   ← BROWSER KERNEL (文档自身的连接)
 Layer 1: context.route('**/*')           ← PROTOCOL BLOCK (HTTP/HTTPS)
 Layer 2: addInitScript() + defineProperty ← MAIN THREAD HARD (WebRTC/SW)
 Layer 3: CDP Network.webSocketCreated     ← AUDIT VISIBILITY
@@ -486,7 +486,7 @@ Layer 3: CDP Network.webSocketCreated     ← AUDIT VISIBILITY
 
 **Layer 0（CSP）核心优势**：
 - 浏览器内核层执行（W3C 标准原生实现）
-- 自动覆盖主线程和所有 Web Worker（包括 WebSocket/EventSource/sendBeacon）
+- 覆盖文档自身发起的连接（fetch/XHR/WebSocket/EventSource/sendBeacon）；`blob:` Worker 因 `worker-src` 回落到 `script-src` 被拒，从 URL 加载的 Worker 遵循它自己响应的策略、不受这份 CSP 约束，它的请求由 Layer 1 拦截（实测：Worker 里请求白名单之外的主机，CSP 无违规事件、目标站点 0 次命中；同样的 Worker 在没有白名单的上下文里请求成功）
 - 成熟可靠，无法被页面脚本篡改
 
 **Layer 2 硬化机制**：
@@ -500,16 +500,18 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 ```
 
 **覆盖通道**：
-- Layer 0（CSP）: **主线程 + Worker**: fetch/XHR/WebSocket/EventSource/sendBeacon/importScripts
-- Layer 1: HTTP/HTTPS
+- Layer 0（CSP）: **文档自身**: fetch/XHR/WebSocket/EventSource/sendBeacon；`blob:` Worker 被拒
+- Layer 1: HTTP/HTTPS（含 Worker 发起的请求）
 - Layer 2: RTCPeerConnection, WebTransport, Service Worker registration
 - Layer 3: WebSocket audit（含 Worker）
 
+**脚本送达**：Layer 0 与 Layer 2 的脚本由 `install_domain_filter` 经 `BrowserContext.add_init_script` 注册（DOM 增强与 STEALTH 脚本同理，由 `ContextFactory` 注册）。浏览器在上下文的每个文档里、页面自己的脚本之前运行它们，与文档由谁取回无关：顶层、同源 iframe、`srcdoc`、脚本创建的 iframe、`target=_blank`、`noopener` 与跨站弹窗、表单 POST 的应答页，真实 Chromium 实测；`tests/toolkits/browser/test_script_delivery_integration.py` 用浏览器信任、驱动不信任的证书守着这一点。CSP `<meta>` 由脚本在解析器创建 `<head>` 之后插入其首位，先于页面自己的脚本（head 阶段首个内联脚本、body、`DOMContentLoaded`、`load` 与 load 后 200 ms 五个检测阶段全部在策略之下）；没有 `<head>` 的文档（SVG）不设策略。已知边界（实测）：同源的 `window.open` 弹窗，其首个文档复用 opener 打开的初始窗口，init script 只在那个 `about:blank` 上跑过一次，所以这个文档没有 CSP `<meta>`（20 轮里 19 轮五个检测阶段都没有策略）；窗口上的全局加固（`RTCPeerConnection` 等）留在窗口里继续有效（22 个弹窗中 21 个从 head 阶段起即被拦，1 个在 head 阶段短暂暴露）；这类弹窗里 DOM 增强的 body 观察器不会重新挂接。
+
 **私网策略**：云托管（默认 `allow_private_networks=False`）下，导航守卫在 `goto` 之前对 URL 做 DNS 解析校验（所有地址必须为公网），context 过滤器对每个请求逐跳校验。本地模式 `BrowserSession(allow_private_networks=True)` 经 `context_kwargs` → `ContextFactory` → `install_domain_filter(allow_private_networks=…)` → Layer 1 `install_http_filter`，只放行「智能体显式导航到的私网源」（scheme + host + port，登记在 `utils/private_origins.private_origin_grants(context)`，导航守卫与过滤器共用同一份）：页面脚本 / 重定向 / iframe 指向其他私网地址仍被拦，云元数据端点（`169.254.169.254`、`metadata.google.internal` 等）永远被拦。本地模式先按字面主机分类，再对普通主机名做一次 DNS 查询（`core/security/redirect_hop_guard/name_resolution.py`，2 秒上限、15 秒缓存，失败也缓存）：只有解析到环回 / 链路本地 / 未指定地址或云元数据地址的域名（如 `127.0.0.1.nip.io`、攻击者控制的 A 记录）才视同该私网源——显式导航到的源放行，其他被拦，云元数据永不放行；解析到 RFC 1918、CGNAT、`198.18.0.0/15` 的结果不判定（代理与 fake-IP 会把公网域名映射到这些段），解析失败或超时不拦。过滤器仅检查 document 请求，子资源交给 Chromium 的私网访问规则。blocklist、allowlist、广告与资源类型规则照常生效，因此是否挂载域名列表或资源拦截，都不改变会话自己声明的私网策略；域名列表对入口 URL 与子资源由过滤器判定，对文档重定向的后续各跳由导航守卫在加载后回放判定（见下一段）。该标志与 allowlist 一样在 context 创建时生效，同一 `context_key` 以首个创建者的策略为准。
 
-**重定向链的判定时机**：patchright 不会把文档重定向的中间跳交给 route，所以链路在加载完成后用 `request.redirected_from` 回放判定；命中则把标签页重置为 `about:blank` 并抛 `BrowserNavigationBlockedError`，页面内容不会返回给调用方。回放时除私网 / 元数据判定外，还会把该 agent 配置的域名白名单 / 黑名单（`domain_filter/context_lists.py`，由请求过滤器绑定到 context）应用到入口 URL 之后的每一跳：白名单站点不能再通过重定向把标签页带到名单之外的域名，经第三方 IdP 的 OAuth 跳转在配置了白名单的 agent 上也按名单处理。入口 URL 仍由请求过滤器判定。文档注入路由（`enhancers/inject_route.py`）以 `max_redirects=0` 取回，3xx / 非 HTML 响应原样交还 Chromium，由浏览器自己执行重定向（页面 URL 与 origin 正确、cookie 正确、链路可见、请求只发一次）；表单 POST 等非幂等请求取回时关闭驱动的请求超时，失败则 abort 而不是交还 Chromium 重发，所以业务端点响应再慢也只提交一次。出站连接层：严格策略（云托管）下，池自己启动的 Chromium 的每个 context 都经 `EgressGuard`（`pool/egress_guard.py`，本机回环 SOCKS5 代理）出网。Chromium 把主机*名*交给代理，代理只解析一次、要求所有答案都是公网地址、只拨已校验的地址，所以重定向的中间跳、子资源、WebSocket、脚本发起的请求和 DNS rebinding 都到不了内部地址，内部服务一次请求也收不到（真实 Chromium 对照：不经守卫时攻击页的 8 种请求全部落到内部站点，经守卫 0 个）；被拒的连接在页面上表现为 `net::ERR_SOCKS_CONNECTION_FAILED`（Chromium 对所有 SOCKS5 拒绝码给同一个错误，实测），守卫停止后新连接失败为 `ERR_PROXY_CONNECTION_FAILED`，即浏览器没有网络（安全失败）。第一个受守卫的 context 创建前先过金丝雀（用一个不可能存在的域名开临时页，守卫必须听到这次连接，否则抛 `EgressGuardError`，不为一个无视代理设置的浏览器提供页面）。WebRTC 的 UDP 不经任何代理，守卫配置时池的启动参数带 `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`（实测：无该参数时 STUN 数据报发到回环 UDP 端口，有则 0 个）；配置代理后 Chromium 也不再直连 QUIC（WebTransport 实测 0 个数据报）。守卫只执行 SSRF 公网策略，不执行用户的 `network_blocklist`（见下）。守卫不适用于：本地模式与声明 `allow_private_networks` 的 context（私网本就允许）、自带代理的 context（代理池或显式代理，出口策略由代理运营方承担）、经 CDP / 远程 / 扩展接入的浏览器和 Camoufox（不是池启动的 Chromium，池无法为其配置）、SSRF 盾关闭、以及环境配置了 HTTP 代理（`http_proxy` / `https_proxy` / `all_proxy`，守卫直连会绕过该代理，启动时记一条告警）。web_fetch 的 L3 Stealth 层在同样的条件下为每次抓取单独起一个守卫（Scrapling 自己启动 Chromium，不走池），抓取结束即停。不在守卫范围内时，剩余边界依旧成立：Chromium 在判定之前会向未授权的内部地址发出一次 GET（响应不会交给调用方，也读不到内容）；本地模式对主机名的判定与 Chromium 自己的解析是两次独立查询，攻击者控制的 DNS 可在两次之间换答案（DNS rebinding）。这两点只有出站网络层（防火墙 / egress 代理，云托管由控制平面 iptables 承担）才能彻底阻止。web_fetch 的 HTTP / Stealth 层使用同一套策略（`web_fetch/fetchers/target_guard.py`），被策略拒绝的 URL 是终态，不会降级到下一层重试。用户的 `network_blocklist` 由同一模块的 `assert_not_blocklisted` 判定：HTTP 层的每一跳在请求之前判定；Stealth 层与浏览器层只判定入口 URL 与最终页面，中间跳在这两层不可见（浏览器层的池化上下文被所有用户共用，名单无法装进上下文）；命中同样是终态。
+**重定向链的判定时机**：patchright 不会把文档重定向的中间跳交给 route，所以链路在加载完成后用 `request.redirected_from` 回放判定；命中则把标签页重置为 `about:blank` 并抛 `BrowserNavigationBlockedError`，页面内容不会返回给调用方。回放时除私网 / 元数据判定外，还会把该 agent 配置的域名白名单 / 黑名单（`domain_filter/context_lists.py`，由请求过滤器绑定到 context）应用到入口 URL 之后的每一跳：白名单站点不能再通过重定向把标签页带到名单之外的域名，经第三方 IdP 的 OAuth 跳转在配置了白名单的 agent 上也按名单处理。入口 URL 仍由请求过滤器判定。文档由浏览器自己加载并执行重定向（页面 URL 与 origin 正确、cookie 正确、链路可见、请求只发一次），表单 POST 也由浏览器自己发出，服务端只收到一次（`tests/toolkits/browser/test_document_redirect_integration.py` 逐项数服务端收到的请求）。出站连接层：严格策略（云托管）下，池自己启动的 Chromium 的每个 context 都经 `EgressGuard`（`pool/egress_guard.py`，本机回环 SOCKS5 代理）出网。Chromium 把主机*名*交给代理，代理只解析一次、要求所有答案都是公网地址、只拨已校验的地址，所以重定向的中间跳、子资源、WebSocket、脚本发起的请求和 DNS rebinding 都到不了内部地址，内部服务一次请求也收不到（真实 Chromium 对照：不经守卫时攻击页的 8 种请求全部落到内部站点，经守卫 0 个）；被拒的连接在页面上表现为 `net::ERR_SOCKS_CONNECTION_FAILED`（Chromium 对所有 SOCKS5 拒绝码给同一个错误，实测），守卫停止后新连接失败为 `ERR_PROXY_CONNECTION_FAILED`，即浏览器没有网络（安全失败）。第一个受守卫的 context 创建前先过金丝雀（用一个不可能存在的域名开临时页，守卫必须听到这次连接，否则抛 `EgressGuardError`，不为一个无视代理设置的浏览器提供页面）。WebRTC 的 UDP 不经任何代理，守卫配置时池的启动参数带 `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`（实测：无该参数时 STUN 数据报发到回环 UDP 端口，有则 0 个）；配置代理后 Chromium 也不再直连 QUIC（WebTransport 实测 0 个数据报）。守卫只执行 SSRF 公网策略，不执行用户的 `network_blocklist`（见下）。守卫不适用于：本地模式与声明 `allow_private_networks` 的 context（私网本就允许）、自带代理的 context（代理池或显式代理，出口策略由代理运营方承担）、经 CDP / 远程 / 扩展接入的浏览器和 Camoufox（不是池启动的 Chromium，池无法为其配置）、SSRF 盾关闭、以及环境配置了 HTTP 代理（`http_proxy` / `https_proxy` / `all_proxy`，守卫直连会绕过该代理，启动时记一条告警）。web_fetch 的 L3 Stealth 层在同样的条件下为每次抓取单独起一个守卫（Scrapling 自己启动 Chromium，不走池），抓取结束即停。不在守卫范围内时，剩余边界依旧成立：Chromium 在判定之前会向未授权的内部地址发出一次 GET（响应不会交给调用方，也读不到内容）；本地模式对主机名的判定与 Chromium 自己的解析是两次独立查询，攻击者控制的 DNS 可在两次之间换答案（DNS rebinding）。这两点只有出站网络层（防火墙 / egress 代理，云托管由控制平面 iptables 承担）才能彻底阻止。web_fetch 的 HTTP / Stealth 层使用同一套策略（`web_fetch/fetchers/target_guard.py`），被策略拒绝的 URL 是终态，不会降级到下一层重试。用户的 `network_blocklist` 由同一模块的 `assert_not_blocklisted` 判定：HTTP 层的每一跳在请求之前判定；Stealth 层与浏览器层只判定入口 URL 与最终页面，中间跳在这两层不可见（浏览器层的池化上下文被所有用户共用，名单无法装进上下文）；命中同样是终态。
 
-**反爬检测友好**：保留 Web Worker 功能（避免 `new Worker()` 抛异常），与 browser-use（81K stars）策略一致
+**反爬检测友好**：不硬化 Web Worker 构造器（避免 `new Worker()` 抛异常）：从 URL 加载的 Worker 照常运行；挂了域名白名单的上下文里 `blob:` Worker 由 Layer 0 拒绝，与 browser-use（81K stars）策略一致
 
 ---
 
@@ -526,7 +528,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 
 代价：默认 Chromium 引擎的页面不会向会话上报 `console` 事件（macOS 真实 Chromium 实测：页面 `console.error` 已被独立的 CDP `Runtime` 监听收到，`ConsoleLogger` 仍为 0 条）。因此该引擎上 `browser_manage` 的 `console_log` 返回 `CONSOLE_CAPTURE_UNAVAILABLE`（说明控制台不可捕获、不能当作无报错，并指向 `network_log` / `evaluate`），而不是看似成功的空日志；Camoufox 会话照常返回捕获内容。`tests/toolkits/browser/session/test_console_capture_integration.py` 守着这一事实：驱动将来开始上报时该测试失败，提示撤掉「不可用」应答。
 
-**第二层：JS 反检测脚本（仅 STEALTH ContextType，通过 `enhancers.inject_route` 文档响应注入）**
+**第二层：JS 反检测脚本（仅 STEALTH ContextType，作为 init script 注册）**
 
 | # | 措施 | 说明 |
 |---|------|------|

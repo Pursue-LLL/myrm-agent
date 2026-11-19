@@ -147,9 +147,9 @@ class BrowserSessionLifecycleMixin(SessionHost):
                 if local_storage_origins:
                     injected_count = 0
 
-                    # Evaluate on pages already open at a matching origin —
-                    # context-level init-script injection silently no-ops under
-                    # patchright, so storage only lands via explicit evaluation.
+                    # Evaluate on pages already open at a matching origin: an init
+                    # script only reaches the documents loaded after it is
+                    # registered, so storage lands in an open page by evaluation.
                     for origin_data in local_storage_origins:
                         origin = origin_data.get("origin")
                         local_storage = origin_data.get("localStorage", [])

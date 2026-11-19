@@ -1,16 +1,14 @@
-"""Real-Chromium proof that document navigations keep browser semantics through the script-injection route.
+"""Real-Chromium proof that document navigations keep browser semantics next to the page scripts of a pooled context.
 
-Every pooled context rewrites HTML documents to deliver the DOM enhancer, so the injection
-route performs the document request itself. If it followed redirects inside the driver, the
-page would keep the pre-redirect URL and origin, the redirect chain would be invisible to the
-SSRF checks, and any response it could not rewrite would be requested a second time (a form
-POST would be submitted twice). Each scenario counts what reached the server. Run with:
+A pooled context registers the DOM enhancer as an init script, which puts patchright's document pipeline between the
+server and the page. The pipeline must leave the browser's own handling intact: a redirect changes the page URL and
+origin and stays visible to the SSRF checks, and no document is requested twice (a form POST would be submitted
+twice). Each scenario counts what reached the server. Run with:
 `pytest -m integration tests/toolkits/browser/test_document_redirect_integration.py`.
 """
 
 from __future__ import annotations
 
-import asyncio
 import gzip
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -18,7 +16,6 @@ from contextlib import asynccontextmanager
 import pytest
 from patchright.async_api import Error as BrowserDriverError
 from patchright.async_api import Page
-from patchright.async_api import TimeoutError as BrowserTimeoutError
 
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
 from myrm_agent_harness.toolkits.browser.utils.private_origins import private_origin_grants
@@ -37,10 +34,10 @@ _MAIN_WORLD = {"isolated_context": False}
 
 @asynccontextmanager
 async def _tab(*sites: Site) -> AsyncIterator[Page]:
-    """A tab in a pooled context (script injection installed) whose session navigated to ``sites`` on purpose.
+    """A tab in a pooled context (page scripts registered) whose session navigated to ``sites`` on purpose.
 
     The tests drive ``tab.goto`` directly, so they record the explicit navigation the way
-    ``goto_with_ssrf_guard`` does; the redirect and injection behaviour under test is unaffected.
+    ``goto_with_ssrf_guard`` does; the redirect behaviour under test is unaffected.
     """
     pool = GlobalBrowserPool(max_browsers=1)
     tab, context_key = await pool.acquire_page(ContextType.CRAWL, context_kwargs={"allow_private_networks": True})
@@ -83,7 +80,7 @@ async def test_every_redirect_hop_reaches_the_server_exactly_once() -> None:
         assert site.hits == [("GET", "/a"), ("GET", "/b"), ("GET", "/c")]
 
 
-async def test_redirect_loop_is_ended_by_the_browser_not_retried_by_the_route() -> None:
+async def test_redirect_loop_is_ended_by_the_browser() -> None:
     with serve({"/loop": redirect("/loop")}) as site:
         async with _tab(site) as tab:
             with pytest.raises(BrowserDriverError, match="ERR_TOO_MANY_REDIRECTS"):
@@ -178,40 +175,3 @@ async def test_compressed_responses_are_delivered_intact() -> None:
             await tab.goto(site.url("/html"))
             assert await tab.inner_text("body") == "zipped page"
             assert await tab.evaluate(_ENHANCER_PRESENT, **_MAIN_WORLD) is True
-
-
-_ORDER_FORM = '<form method="post" action="/order"><button id="go">go</button></form>'
-_DRIVER_FETCH_TIMEOUT_MS = 1500
-_NAVIGATION_TIMEOUT_MS = 15_000
-
-
-def _order_routes(order: Reply) -> dict[str, Reply]:
-    return {"/form": Reply(body=f"<!DOCTYPE html><html><body>{_ORDER_FORM}</body></html>".encode()), "/order": order}
-
-
-async def test_slow_form_post_is_submitted_once_when_the_answer_outlasts_the_driver_timeout() -> None:
-    receipt = Reply(body=b"<!DOCTYPE html><html><body>receipt</body></html>", delay_s=4.0)
-    with serve(_order_routes(receipt)) as site:
-        async with _tab(site) as tab:
-            # The injection route's own request inherits the context default; shrink it so a
-            # "slow business endpoint" outlasts it within test time instead of 30 seconds.
-            tab.context.set_default_timeout(_DRIVER_FETCH_TIMEOUT_MS)
-            await tab.goto(site.url("/form"), timeout=_NAVIGATION_TIMEOUT_MS)
-            async with tab.expect_navigation(timeout=_NAVIGATION_TIMEOUT_MS):
-                await tab.click("#go", timeout=_NAVIGATION_TIMEOUT_MS)
-            assert await tab.inner_text("body") == "receipt"
-        assert site.paths("POST") == ["/order"]
-
-
-async def test_unanswered_form_post_is_not_resent_and_does_not_wedge_teardown() -> None:
-    unanswered = Reply(body=b"<!DOCTYPE html><html><body>late</body></html>", delay_s=30.0)
-    with serve(_order_routes(unanswered)) as site:
-        async with asyncio.timeout(20):
-            async with _tab(site) as tab:
-                tab.context.set_default_timeout(_DRIVER_FETCH_TIMEOUT_MS)
-                await tab.goto(site.url("/form"), timeout=_NAVIGATION_TIMEOUT_MS)
-                with pytest.raises(BrowserTimeoutError):
-                    async with tab.expect_navigation(timeout=4000):
-                        await tab.click("#go", timeout=_NAVIGATION_TIMEOUT_MS)
-                assert site.paths("POST") == ["/order"]
-        assert site.paths("POST") == ["/order"]

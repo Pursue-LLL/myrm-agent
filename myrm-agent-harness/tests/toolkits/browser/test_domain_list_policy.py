@@ -71,10 +71,11 @@ class TestVerdict:
 
 
 class _Context:
-    """Hashable, weak-referenceable stand-in with the one method the filter installer calls."""
+    """Hashable, weak-referenceable stand-in with the two methods the filter installer calls."""
 
     def __init__(self) -> None:
         self.route = AsyncMock()
+        self.add_init_script = AsyncMock()
 
 
 class TestRegistry:

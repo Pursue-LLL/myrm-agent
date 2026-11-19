@@ -59,8 +59,8 @@ _RESOURCE_TYPE_MAP: dict[str, str] = {
 async def _continue_route_safely(route: Route) -> None:
     """Continue route; ignore duplicate handling when page+context handlers overlap.
 
-    Uses ``route.fallback()`` so requests flow through subsequent handlers
-    such as init script injection.
+    Uses ``route.fallback()`` so a request is still offered to the handlers
+    registered after this one.
     """
     try:
         await route.fallback()

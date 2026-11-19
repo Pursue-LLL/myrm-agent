@@ -4,8 +4,9 @@ Validates that Accept-Language headers are correctly derived from locale
 settings, that module-level constants are never mutated (shallow copy safety),
 that a context refuses downloads unless its owner asks for them, that every
 context except one in the user's own browser verifies certificates unless the
-operator opted out or its owner asks otherwise, and that a context in the user's
-own browser (through the extension) asks for no override.
+operator opted out or its owner asks otherwise, that a context in the user's
+own browser (through the extension) asks for no override, and that the page scripts
+of a context are registered as init scripts.
 """
 
 from __future__ import annotations
@@ -14,13 +15,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser import enhancers
+from myrm_agent_harness.toolkits.browser.enhancers import get_dom_enhancer_script
 from myrm_agent_harness.toolkits.browser.pool import ContextType, EmulationConfig, RoundRobinProxyPool
 from myrm_agent_harness.toolkits.browser.pool.context_factory import (
     _DEFAULT_CONTEXT_OPTIONS,
     ContextFactory,
     _sync_accept_language,
 )
+from myrm_agent_harness.toolkits.browser.pool.stealth import get_stealth_script
 
 
 class TestDownloadDefault:
@@ -67,9 +69,8 @@ class TestCertificateDefault:
 
     @pytest.mark.parametrize(("opted_out", "expected"), [(False, False), (True, True)])
     async def test_the_choice_reaches_the_browser_when_it_creates_the_context(
-        self, monkeypatch: pytest.MonkeyPatch, opted_out: bool, expected: bool
+        self, opted_out: bool, expected: bool
     ) -> None:
-        monkeypatch.setattr(enhancers, "install_document_script_injection", AsyncMock())
         context = MagicMock()
         context.add_init_script = AsyncMock()
         browser = MagicMock()
@@ -121,7 +122,6 @@ class TestExtensionAttachedContext:
     ) -> None:
         apply_stealth = AsyncMock()
         monkeypatch.setattr(ContextFactory, "_apply_stealth", staticmethod(apply_stealth))
-        monkeypatch.setattr(enhancers, "install_document_script_injection", AsyncMock())
         context = MagicMock()
         context.add_init_script = AsyncMock()
         browser = MagicMock()
@@ -130,6 +130,32 @@ class TestExtensionAttachedContext:
         await ContextFactory().create_context(browser, ContextType.STEALTH.value, extension_attached=extension_attached)
 
         assert apply_stealth.await_count == int(stealth_injected)
+
+
+class TestPageScripts:
+    """The scripts of a context are init scripts: the browser runs them in every document before the page's own."""
+
+    @pytest.mark.parametrize(
+        ("context_type", "extension_attached", "stealth_registered"),
+        [
+            (ContextType.AGENT, False, False),
+            (ContextType.STEALTH, False, True),
+            (ContextType.STEALTH, True, False),
+        ],
+    )
+    async def test_the_enhancer_is_registered_in_every_context_and_stealth_only_in_stealth_ones(
+        self, context_type: ContextType, extension_attached: bool, stealth_registered: bool
+    ) -> None:
+        context = MagicMock()
+        context.add_init_script = AsyncMock()
+        browser = MagicMock()
+        browser.new_context = AsyncMock(return_value=context)
+
+        await ContextFactory().create_context(browser, context_type.value, extension_attached=extension_attached)
+
+        expected = [get_dom_enhancer_script(), *([get_stealth_script()] if stealth_registered else [])]
+        assert [call.args[0] for call in context.add_init_script.await_args_list] == expected
+        context.route.assert_not_called()
 
 
 class TestSyncAcceptLanguage:
