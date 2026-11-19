@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import TOOL_DESCRIPTION_EN
 from myrm_agent_harness.agent.skills.mcp.core_generator import SKILL_USAGE_TEMPLATE
 from myrm_agent_harness.agent.skills.mcp.schema_doc_utils import (
     TOOL_DOC_TEMPLATE,
@@ -73,3 +74,26 @@ def test_mcp_usage_template_batches_independent_and_unknown_shapes() -> None:
     assert "Do not split merely because a return shape is undocumented" in SKILL_USAGE_TEMPLATE
     assert "do not call a lookup tool just to discover" in SKILL_USAGE_TEMPLATE
     assert "Emit `[RESULT]` only after the last dependent call" in SKILL_USAGE_TEMPLATE
+
+
+def test_returns_fallback_observes_an_unknown_shape_in_the_same_block() -> None:
+    """The undocumented-shape fallback gives the instruction the usage template and the bash description give.
+
+    The model prints the real value and keeps going in the same block; a split is allowed only when later arguments
+    cannot be built without seeing the result.
+    """
+    fallback = build_returns_section(None)
+
+    assert "[OBSERVATION]" in fallback
+    assert "continue in the same block" in fallback
+    assert "later call" not in fallback
+    assert "never index a field you have not seen documented or printed" in fallback
+    assert "Split only when later arguments cannot be built without seeing the result" in fallback
+
+
+def test_the_unknown_shape_rule_reads_the_same_in_the_fallback_and_the_bash_description() -> None:
+    """Both texts reach the model next to each other; a rule edited in one place only would contradict the other."""
+    rule = "index a field you have not seen documented or printed"
+
+    assert rule in build_returns_section(None)
+    assert rule in TOOL_DESCRIPTION_EN

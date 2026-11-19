@@ -306,9 +306,7 @@ def render_output_type(
         for name, info in properties.items():
             marker = "" if name in required_names else "?"
             safe_name = _safe_output_field_name(name, used_names)
-            parts.append(
-                f"{safe_name}{marker}:{render_output_type(info, defs=defs, _seen=seen, _depth=_depth + 1)}"
-            )
+            parts.append(f"{safe_name}{marker}:{render_output_type(info, defs=defs, _seen=seen, _depth=_depth + 1)}")
         return "object{" + ",".join(parts) + "}"
 
     if schema_type in ("string", "integer", "number", "boolean", "null"):
@@ -319,7 +317,9 @@ def render_output_type(
 def build_returns_section(output_schema: object) -> str:
     """Render the L3 Returns section from an MCP outputSchema, or the safe fallback."""
     if isinstance(output_schema, dict) and output_schema:
-        rendered = render_output_type(output_schema, defs=output_schema.get("$defs") or output_schema.get("definitions"))
+        rendered = render_output_type(
+            output_schema, defs=output_schema.get("$defs") or output_schema.get("definitions")
+        )
         if rendered != "?":
             return (
                 "## Returns\n\n"
@@ -333,7 +333,9 @@ def build_returns_section(output_schema: object) -> str:
         "## Returns\n\n"
         "Returns a **parsed Python object** (dict, list, str, int, etc.), NOT a JSON string.\n"
         "Do NOT call `json.loads()` on the result. Only access fields explicitly documented above; "
-        "if the return structure is not specified, print it as `[OBSERVATION]` first and continue in a later call."
+        "if the return structure is not specified, print the real value as `[OBSERVATION]` "
+        "and continue in the same block, and never index a field you have not seen documented or printed. "
+        "Split only when later arguments cannot be built without seeing the result."
     )
 
 
