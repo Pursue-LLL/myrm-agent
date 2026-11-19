@@ -52,4 +52,4 @@
 - `requestManager.ts`：全局请求管理 — 仍在等待响应的请求（流式请求的建立阶段、建议与标题生成）注册、跟踪，布局卸载时统一取消（AbortController 集合管理）；开始读取后的流由各自的 AbortController 管理。不监听 `beforeunload` / `unload`：页面离开时浏览器自行终止在途请求，`unload` 已被弃用，导航被用户取消时也不该误杀在途请求（单测 `__tests__/requestManager.test.ts`）。
 - `toast.ts`：Toast 统一包装 — 兼容 shadcn/ui 与 Sonner 双 API 形态，错误信息经 `errorRedactor` 脱敏后展示。
 - `scheduleWhenIdle.ts`：低优先级启动任务的调度 — `scheduleWhenIdle(task)` 在浏览器空闲时运行，没有 `requestIdleCallback` 的环境（macOS 的 WKWebView 即是）退化为 1ms 定时器，返回的取消函数在两条路径上都有效；应用壳层的延迟挂载、配置同步的后台 store、布局的特性开关与成长数据加载、通知文案预热共用它，不要各自再写一份回退。
-- `withTimeout.ts`：Promise 等待上限 — `withTimeout(promise, ms)` 上限内落定则原样返回，超时以 `Error` 拒绝；底层操作不会被取消，超时之后到达的结果（含拒绝）被丢弃，计时器在落定后清除；超时之后的去向（放行、降级、报错）由调用方在 catch 里决定。切断连接前的活跃会话查询（`useActiveSessionsGuard`）用它，需要等待上限的前置查询复用它，不要各自再写一份计时器；单测 `__tests__/withTimeout.test.ts`。
+- `withTimeout.ts`：Promise 等待上限 — `withTimeout(promise, ms)` 上限内落定则原样返回，超时以 `Error` 拒绝；底层操作不会被取消，超时之后到达的结果（含拒绝）被丢弃，计时器在落定后清除；超时之后的去向（放行、降级、报错）由调用方在 catch 里决定。切断连接前的活跃会话查询（`useActiveSessionsGuard`）与进入快速搜索前的搜索服务检查（`checkSearchServiceReady`）用它，需要等待上限的前置查询复用它，不要各自再写一份计时器；单测 `__tests__/withTimeout.test.ts`。

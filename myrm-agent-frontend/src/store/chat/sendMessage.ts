@@ -4,6 +4,7 @@
  * ./sendLifecycle (POS: Send lifecycle pure helpers)
  * ./modelSelection::validateChatModelConfig (POS: Model slot resolution)
  * ./searchRequirement::requiresSearchService (POS: Search-service prerequisite of a turn)
+ * @/store/config/searchServiceReady::checkSearchServiceReady (POS: The one gate in front of every entry into the Quick Search mode)
  *
  * [OUTPUT]
  * sendMessage: Submit user input into the chat stream lifecycle (sendBlocked toasts for a busy chat, missing chat, kanban board guard, processing lock; the search setup prompt when the turn needs a search service the account lacks); resolves whether the turn was dispatched (false when refused locally, by the server with a non-retryable HTTP error, or because the workspace stream was not ready before the first request; an ordinary send tells the user why, a resume with `resumeValue` does not and its store wrapper throws instead), a server busy refusal retracts the optimistic bubble, a text a risk rule holds retracts it too and resolves false with only the risk notice (no failure notice), a resume that someone else (the timeout or another device) already resolved rejects with `ApprovalAlreadyResolvedError` without a failure notice, queued messages send their own attachments, a turn that ends after a newer one took over leaves the turn state (loading, Stop handle, request id, attachments) to the newer one.
@@ -23,7 +24,6 @@ import type {
   QueuedAttachments,
   TurnCapabilityTerminalTelemetry,
 } from '@/store/chat/types';
-import useConfigStore from '../useConfigStore';
 import useCompanionStore from '../useCompanionStore';
 import useToolApprovalStore from '../useToolApprovalStore';
 import useWorkspaceStore, { type PaneConfig } from '../useWorkspaceStore';
@@ -119,14 +119,12 @@ export const sendMessage = async (
 
   try {
     // 搜索服务检查：快速搜索模式与手选「快速搜索」智能体靠搜索服务作答，服务端不放行无搜索服务的回合，
-    // 所以发送前拦截并引导配置；判定前先等搜索服务同步完（云端刷新后它在后台加载），免得把已配置的账号
-    // 误判为未配置。通用 agent 未配置 web_search 时由 stream preflight 的 SSE capability_gap
-    // 通知（避免与 client toast 重复）。
+    // 所以发送前拦截并引导配置；判定交给 checkSearchServiceReady（限时等搜索服务同步，取不到时放行由服务端裁决），
+    // 免得把云端刷新后还在后台加载的已配置账号误判为未配置。通用 agent 未配置 web_search 时由
+    // stream preflight 的 SSE capability_gap 通知（避免与 client toast 重复）。
     if (requiresSearchService(requestState.actionMode, requestState.agentConfig)) {
-      const { ensureSearchServicesLoaded, guardSearchServiceConfigured } = await import('@/store/config/searchService');
-      await ensureSearchServicesLoaded();
-      const { searchServiceConfigs } = useConfigStore.getState();
-      if (!guardSearchServiceConfigured(searchServiceConfigs)) {
+      const { checkSearchServiceReady } = await import('@/store/config/searchServiceReady');
+      if (!(await checkSearchServiceReady())) {
         return false;
       }
     }

@@ -35,14 +35,14 @@ function yoloOf(manager: ReturnType<typeof getConfigSyncManager>): boolean {
 }
 
 describe('ConfigSyncManager.ensureKeyLoaded', () => {
-  it('returns immediately when the key is already cached', async () => {
+  it('reports a cached key as known without asking the adapter', async () => {
     const adapter = { get: vi.fn() };
     const securityConfig = securityConfigValue({ yoloModeEnabled: true });
     const cache = new Map([['securityConfig', record('securityConfig', securityConfig)]]);
     const manager = seededManager(adapter);
     Object.assign(manager, { cache });
 
-    await manager.ensureKeyLoaded('securityConfig');
+    await expect(manager.ensureKeyLoaded('securityConfig')).resolves.toBe(true);
 
     expect(adapter.get).not.toHaveBeenCalled();
     expect(yoloOf(manager)).toBe(true);
@@ -55,19 +55,28 @@ describe('ConfigSyncManager.ensureKeyLoaded', () => {
     };
     const manager = seededManager(adapter);
 
-    await manager.ensureKeyLoaded('securityConfig');
+    await expect(manager.ensureKeyLoaded('securityConfig')).resolves.toBe(true);
 
     expect(adapter.get).toHaveBeenCalledWith('securityConfig');
     expect(yoloOf(manager)).toBe(true);
   });
 
-  it('does not throw when the adapter fetch fails (degraded to cached state)', async () => {
+  it('reports a key the server does not have as known, and leaves it out of the cache', async () => {
+    const adapter = { get: vi.fn().mockResolvedValue(null) };
+    const manager = seededManager(adapter);
+
+    await expect(manager.ensureKeyLoaded('securityConfig')).resolves.toBe(true);
+
+    expect(manager.getRecord('securityConfig')).toBeNull();
+  });
+
+  it('reports the key as unknown instead of throwing when the adapter fetch fails (degraded to cached state)', async () => {
     const adapter = {
       get: vi.fn().mockRejectedValue(new Error('network down')),
     };
     const manager = seededManager(adapter);
 
-    await expect(manager.ensureKeyLoaded('securityConfig')).resolves.toBeUndefined();
+    await expect(manager.ensureKeyLoaded('securityConfig')).resolves.toBe(false);
     expect(yoloOf(manager)).toBe(false);
   });
 });

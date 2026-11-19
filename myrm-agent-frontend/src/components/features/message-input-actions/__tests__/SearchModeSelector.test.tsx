@@ -1,18 +1,18 @@
 /**
- * The mode picker lets a user into the fast search mode only on a synced search service list: it waits for the sync
- * before it judges, and an account that really has none gets the setup notice instead of the mode.
+ * The mode picker asks the search-service gate before it lets a user into the fast search mode, keeps the mode the
+ * gate refuses, and lets only the latest click decide the mode while a slower gate answer is still on its way.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { toast } from '@/lib/utils/toast';
-import useConfigStore from '@/store/useConfigStore';
 import SearchModeSelector from '../SearchModeSelector';
 
-const sync = vi.hoisted(() => ({ ensureSearchServicesLoaded: vi.fn<() => Promise<void>>() }));
+const gate = vi.hoisted(() => ({ checkSearchServiceReady: vi.fn<() => Promise<boolean>>() }));
+
+const stableT = (key: string) => key;
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => stableT,
 }));
 
 vi.mock('@/components/primitives/tooltip', () => ({
@@ -22,19 +22,17 @@ vi.mock('@/components/primitives/tooltip', () => ({
   TooltipContent: () => null,
 }));
 
-vi.mock('@/store/config/searchService', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/store/config/searchService')>();
-  return { ...actual, ensureSearchServicesLoaded: sync.ensureSearchServicesLoaded };
-});
+vi.mock('@/store/config/searchServiceReady', () => ({
+  checkSearchServiceReady: gate.checkSearchServiceReady,
+}));
 
-const SEARCH_SERVICE = {
-  id: 'svc-1',
-  enabled: true,
-  priority: 1,
-  search_service: 'tavily',
-  api_key: 'key',
-  createdAt: 1,
-};
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 describe('SearchModeSelector', () => {
   const setActionMode = vi.fn();
@@ -47,44 +45,79 @@ describe('SearchModeSelector', () => {
 
   beforeEach(() => {
     setActionMode.mockReset();
-    useConfigStore.setState({ searchServiceConfigs: [] });
-    vi.spyOn(toast, 'warning').mockReturnValue(0);
-    sync.ensureSearchServicesLoaded.mockReset().mockResolvedValue(undefined);
+    gate.checkSearchServiceReady.mockReset().mockResolvedValue(true);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it('switches to the fast mode on the list it waited for', async () => {
-    sync.ensureSearchServicesLoaded.mockImplementation(async () => {
-      await Promise.resolve();
-      useConfigStore.setState({ searchServiceConfigs: [SEARCH_SERVICE] });
-    });
+  it('switches to the fast mode once the gate lets it through', async () => {
     render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
 
     await pick('fast');
 
+    expect(gate.checkSearchServiceReady).toHaveBeenCalledTimes(1);
     expect(setActionMode).toHaveBeenCalledWith('fast');
-    expect(toast.warning).not.toHaveBeenCalled();
   });
 
-  it('keeps the mode and shows the setup notice for an account that has no search service', async () => {
+  it('keeps the mode the gate refuses', async () => {
+    gate.checkSearchServiceReady.mockResolvedValue(false);
     render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
 
     await pick('fast');
 
-    expect(sync.ensureSearchServicesLoaded).toHaveBeenCalledTimes(1);
-    expect(toast.warning).toHaveBeenCalledTimes(1);
+    expect(gate.checkSearchServiceReady).toHaveBeenCalledTimes(1);
     expect(setActionMode).not.toHaveBeenCalled();
   });
 
-  it('switches to the agent mode without waiting for the search services', async () => {
+  it('switches to the agent mode without asking the gate', async () => {
     render(<SearchModeSelector actionMode="fast" setActionMode={setActionMode} />);
 
     await pick('agent');
 
     expect(setActionMode).toHaveBeenCalledWith('agent');
-    expect(sync.ensureSearchServicesLoaded).not.toHaveBeenCalled();
+    expect(gate.checkSearchServiceReady).not.toHaveBeenCalled();
+  });
+
+  it('does not ask the gate again for the mode it is already in', async () => {
+    render(<SearchModeSelector actionMode="fast" setActionMode={setActionMode} />);
+
+    await pick('fast');
+
+    expect(gate.checkSearchServiceReady).not.toHaveBeenCalled();
+    expect(setActionMode).toHaveBeenCalledWith('fast');
+  });
+
+  it('drops the answer of a click that a later click has already replaced', async () => {
+    const slowGate = deferred<boolean>();
+    gate.checkSearchServiceReady.mockReturnValue(slowGate.promise);
+    render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
+
+    await pick('fast');
+    await pick('agent');
+    await act(async () => {
+      slowGate.resolve(true);
+    });
+
+    expect(setActionMode.mock.calls).toEqual([['agent']]);
+  });
+
+  it('lets only the latest of two clicks on the fast mode set it, whichever answer comes back first', async () => {
+    const firstAnswer = deferred<boolean>();
+    const secondAnswer = deferred<boolean>();
+    gate.checkSearchServiceReady.mockReturnValueOnce(firstAnswer.promise).mockReturnValueOnce(secondAnswer.promise);
+    render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
+
+    await pick('fast');
+    await pick('fast');
+    await act(async () => {
+      secondAnswer.resolve(true);
+    });
+    await act(async () => {
+      firstAnswer.resolve(true);
+    });
+
+    expect(setActionMode.mock.calls).toEqual([['fast']]);
   });
 });

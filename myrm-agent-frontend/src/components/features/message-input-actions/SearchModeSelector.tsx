@@ -1,23 +1,22 @@
 /**
  * [INPUT]
- * @/store/useConfigStore (POS: Global config state manager)
- * @/store/config/searchService::guardSearchServiceConfigured, ensureSearchServicesLoaded (POS: Search service config validator and its sync wait)
+ * @/store/config/searchServiceReady::checkSearchServiceReady (POS: The one gate in front of every entry into the Quick Search mode)
  * @/store/chat/types::ActionMode (POS: Chat action mode type definitions)
  *
  * [OUTPUT]
  * SearchModeSelector: Segmented mode selector for Fast / Agent.
  *
  * [POS]
- * Action mode picker. Renders a segmented control with search-service guards.
+ * Action mode picker. Renders a segmented control that lets a user into the fast mode only through the search-service gate.
  */
 'use client';
 
+import { useRef } from 'react';
 import { AiNetworkIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
-import useConfigStore from '@/store/useConfigStore';
-import { ensureSearchServicesLoaded, guardSearchServiceConfigured } from '@/store/config/searchService';
+import { checkSearchServiceReady } from '@/store/config/searchServiceReady';
 import type { ActionMode } from '@/store/chat/types';
 
 interface SearchModeSelectorProps {
@@ -66,12 +65,14 @@ const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
+  // The gate can take longer than the next click: only the latest click may set the (global, persisted) mode.
+  const latestClick = useRef(0);
 
   const handleModeChange = async (mode: ActionMode) => {
+    const click = ++latestClick.current;
     if (SEARCH_REQUIRED_MODES.has(mode) && mode !== actionMode) {
-      await ensureSearchServicesLoaded();
-      const { searchServiceConfigs } = useConfigStore.getState();
-      if (!guardSearchServiceConfigured(searchServiceConfigs)) {
+      const ready = await checkSearchServiceReady();
+      if (!ready || click !== latestClick.current) {
         return;
       }
     }

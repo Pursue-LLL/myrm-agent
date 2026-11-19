@@ -1,23 +1,18 @@
 /**
  * [INPUT]
- * @/lib/deploy-mode::isLocalMode (POS: local vs cloud deploy mode)
  * @/lib/utils/toast::toast (POS: toast wrapper over the Sonner API)
- * @/services/config::getConfigSyncManager (POS: config sync manager, the write gateway of the synced configs)
  * @/services/i18nToastService::translateI18nKey (POS: store-safe i18n lookup)
  * ./types::SearchServiceConfigItem, SearchServiceConfig (POS: search service config types)
  * ./webSearchConfigGap::runWebSearchConfigGapAction (POS: SSOT for web search config-gap CTA)
  *
  * [OUTPUT]
  * normalizeSearchServiceConfigs, add/update/remove/enable helpers, getActiveSearchServiceConfig: the priority chain
- * ensureSearchServicesLoaded: waits until the account's search services are synced, before a gate decides on them
  * guardSearchServiceConfigured, showSearchNotConfiguredToast: setup notice for a turn that needs a search service
  *
  * [POS]
- * Search service config helpers shared by the config store, the settings UI, the send guard and the mode selector.
+ * Search service config helpers shared by the config store, the settings UI, the search-service gate and the E2E chat bridge.
  */
-import { isLocalMode } from '@/lib/deploy-mode';
 import { toast } from '@/lib/utils/toast';
-import { getConfigSyncManager } from '@/services/config';
 import { translateI18nKey } from '@/services/i18nToastService';
 import { SearchServiceConfigItem, SearchServiceConfig } from './types';
 import { runWebSearchConfigGapAction, resolveWebSearchConfigGapActionLabel } from './webSearchConfigGap';
@@ -225,15 +220,6 @@ export const showSearchNotConfiguredToast = (): void => {
     },
   });
 };
-
-/**
- * Cloud start-up returns the first screen's keys and loads the rest in the background, once and without a retry, so
- * a gate that reads the list right after start-up (or after a failed background load) would see an empty one: it
- * waits for the key first. Local mode returns every key with the first request, so there is nothing to wait for
- * (the wait would instead block on the local backend becoming ready).
- */
-export const ensureSearchServicesLoaded = (): Promise<void> =>
-  isLocalMode() ? Promise.resolve() : getConfigSyncManager().ensureKeyLoaded('searchServices');
 
 export const guardSearchServiceConfigured = (configs: SearchServiceConfigItem[]): boolean => {
   if (getActiveSearchServiceConfig(configs)) {

@@ -1,22 +1,19 @@
 /**
- * The send guard decides on the search services only after they have synced, so an account whose list is still on its
- * way (or whose background load failed) is not told that search is unconfigured; an account that really has none is
- * still refused before any request.
+ * The send guard hands every turn that needs a search service to the search-service gate and honours its verdict: a
+ * refused turn goes out as no request at all, a turn the gate lets through carries on to the model check, and a turn
+ * that needs no search service never asks.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { toast } from '@/lib/utils/toast';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
 import type { ActionMode, AgentConfig } from '@/store/chat/types';
-import useConfigStore from '@/store/useConfigStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
-const sync = vi.hoisted(() => ({ ensureSearchServicesLoaded: vi.fn<() => Promise<void>>() }));
+const gate = vi.hoisted(() => ({ checkSearchServiceReady: vi.fn<() => Promise<boolean>>() }));
 
-vi.mock('@/store/config/searchService', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/store/config/searchService')>();
-  return { ...actual, ensureSearchServicesLoaded: sync.ensureSearchServicesLoaded };
-});
+vi.mock('@/store/config/searchServiceReady', () => ({
+  checkSearchServiceReady: gate.checkSearchServiceReady,
+}));
 
 // The turn stops at the model check right after the guard, so nothing here reaches the network.
 vi.mock('@/services/i18nToastService', async (importOriginal) => {
@@ -26,14 +23,7 @@ vi.mock('@/services/i18nToastService', async (importOriginal) => {
 
 const CHAT_ID = 'chat-search-guard-wait';
 const REQUEST_ID = 'r-1';
-const SEARCH_SERVICE = {
-  id: 'svc-1',
-  enabled: true,
-  priority: 1,
-  search_service: 'tavily',
-  api_key: 'key',
-  createdAt: 1,
-};
+const MODEL_CHECK_TOAST = 'chat.modelNotConfigured.title';
 
 const agent = (agentId: string): AgentConfig => ({
   selectedSkillIds: [],
@@ -77,10 +67,8 @@ describe('sendMessage search guard', () => {
   beforeEach(() => {
     setGlobalTranslator((key: string) => key);
     useToolApprovalStore.getState().clearAll();
-    useConfigStore.setState({ searchServiceConfigs: [] });
     vi.mocked(showI18nToast).mockClear();
-    vi.spyOn(toast, 'warning').mockReturnValue(0);
-    sync.ensureSearchServicesLoaded.mockReset().mockResolvedValue(undefined);
+    gate.checkSearchServiceReady.mockReset().mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -90,30 +78,29 @@ describe('sendMessage search guard', () => {
   it.each([
     ['the fast search mode', 'fast', null],
     ['the Quick Search agent picked in agent mode', 'agent', agent('builtin-fast-search')],
-  ] as const)('judges %s on the services it waited for', async (_name, actionMode, agentConfig) => {
-    sync.ensureSearchServicesLoaded.mockImplementation(async () => {
-      await Promise.resolve();
-      useConfigStore.setState({ searchServiceConfigs: [SEARCH_SERVICE] });
-    });
+  ] as const)(
+    'carries %s on to the model check once the gate lets it through',
+    async (_name, actionMode, agentConfig) => {
+      await send(actionMode, agentConfig);
 
-    await send(actionMode, agentConfig);
+      expect(gate.checkSearchServiceReady).toHaveBeenCalledTimes(1);
+      expect(showI18nToast).toHaveBeenCalledWith(MODEL_CHECK_TOAST, undefined, expect.anything());
+    },
+  );
 
-    expect(sync.ensureSearchServicesLoaded).toHaveBeenCalledTimes(1);
-    expect(toast.warning).not.toHaveBeenCalled();
-  });
+  it('sends no request for a turn the gate refuses, and frees the message for the next send', async () => {
+    gate.checkSearchServiceReady.mockResolvedValue(false);
 
-  it('still refuses, after the wait, an account that has no search service', async () => {
     await expect(send('fast', null)).resolves.toBe(false);
 
-    expect(toast.warning).toHaveBeenCalledTimes(1);
-    expect(sync.ensureSearchServicesLoaded.mock.invocationCallOrder[0]).toBeLessThan(
-      vi.mocked(toast.warning).mock.invocationCallOrder[0],
-    );
+    expect(gate.checkSearchServiceReady).toHaveBeenCalledTimes(1);
+    expect(showI18nToast).not.toHaveBeenCalled();
+    expect(useToolApprovalStore.getState().isProcessing(REQUEST_ID)).toBe(false);
   });
 
-  it('does not wait for a turn that needs no search service', async () => {
+  it('does not ask the gate for a turn that needs no search service', async () => {
     await send('agent', agent('builtin-general'));
 
-    expect(sync.ensureSearchServicesLoaded).not.toHaveBeenCalled();
+    expect(gate.checkSearchServiceReady).not.toHaveBeenCalled();
   });
 });
