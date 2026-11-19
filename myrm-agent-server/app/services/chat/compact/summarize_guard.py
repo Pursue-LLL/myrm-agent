@@ -2,6 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness...generate_structured_summary (POS: harness summarize SSOT)
+- myrm_agent_harness...infra.schemas::StructuredSummary (POS: typed summary the guard takes and returns)
 - compact._constants::COMPACT_INACTIVITY_TIMEOUT_S, COMPACT_TOTAL_CEILING_S (POS: timeout bounds)
 
 [OUTPUT]
@@ -16,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time as time_module
+from typing import TYPE_CHECKING
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage
@@ -25,6 +27,11 @@ from app.services.chat.compact._constants import (
     COMPACT_TOTAL_CEILING_S,
 )
 
+if TYPE_CHECKING:
+    from myrm_agent_harness.agent.context_management.infra.schemas import (
+        StructuredSummary,
+    )
+
 logger = logging.getLogger(__name__)
 
 
@@ -32,10 +39,10 @@ async def guarded_compact_summarize(
     lc_messages: list[BaseMessage],
     llm: BaseChatModel,
     chat_id: str,
-    existing_summary: object | None,
+    existing_summary: StructuredSummary | None,
     focus_topic: str,
     max_context_tokens: int = 128000,
-) -> tuple[list[BaseMessage], object]:
+) -> tuple[list[BaseMessage], StructuredSummary]:
     """Wrap generate_structured_summary with progress-aware timeout for the API path."""
     from myrm_agent_harness.agent.context_management.infra.schemas import ContextConfig
     from myrm_agent_harness.agent.context_management.strategies.summary.progress_timeout import (
@@ -62,7 +69,7 @@ async def guarded_compact_summarize(
             if idle >= COMPACT_INACTIVITY_TIMEOUT_S:
                 raise InactivityTimeoutError(idle)
 
-    async def _summarize() -> tuple[list[BaseMessage], object]:
+    async def _summarize() -> tuple[list[BaseMessage], StructuredSummary]:
         return await generate_structured_summary(
             messages=lc_messages,
             llm=llm,
@@ -94,7 +101,7 @@ async def guarded_compact_summarize(
             if exc is not None:
                 raise exc
             if task is summarize_task:
-                return task.result()
+                return summarize_task.result()
 
         raise RuntimeError("Unexpected: no task completed with result")
     except (InactivityTimeoutError, TotalCeilingTimeoutError) as timeout_exc:

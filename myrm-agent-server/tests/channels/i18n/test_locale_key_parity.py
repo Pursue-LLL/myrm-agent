@@ -338,6 +338,7 @@ _RENDER_SAMPLES: dict[str, str | int] = {
     "today_cost": "$0.5",
     "tokens_saved": 100,
     "tools": "shell, write_file",
+    "topic": "billing",
     "topic_hint": "hint",
     "total_calls": 5,
     "total_tokens": 1000,

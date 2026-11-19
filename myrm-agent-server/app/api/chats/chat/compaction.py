@@ -30,14 +30,16 @@ async def compact_chat(
     """Compact chat context by generating a persistent summary.
 
     Original messages are preserved — the summary is used by the Agent
-    layer to reduce token cost on subsequent interactions.
+    layer to reduce token cost on subsequent interactions. The caller asked
+    for this compaction, so the anti-thrash guard that holds back automatic
+    attempts does not apply.
     """
     from app.services.chat.compact_service import compact_chat as do_compact
 
     focus_topic = body.focus_topic.strip() if body and body.focus_topic else ""
 
     try:
-        result = await do_compact(db, chat_id, focus_topic=focus_topic)
+        result = await do_compact(db, chat_id, focus_topic=focus_topic, explicit_request=True)
         return success_response(
             data={
                 "compacted": result.compacted,

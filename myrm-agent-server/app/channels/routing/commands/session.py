@@ -1,5 +1,6 @@
 """[INPUT]
 - app.channels.i18n::get_text (POS: Provides multi-language support for gateway slash command replies and system-generated channel messages (not Agent LLM output).)
+- app.channels.protocols.compact::MAX_FOCUS_TOPIC_LENGTH, CompactSkip (POS: Business-layer handler protocol for the /compact slash command; ``CompactSkip`` names why nothing was compacted, in terms a reply can word.)
 - app.channels.routing.router_keys::routing_state_key (POS: ``routing_state_key`` builds the key for the router's in-memory state maps.)
 - app.channels.types::InboundMessage / OutboundMessage (POS: Channel system domain types — pure data definitions, no I/O.)
 
@@ -18,6 +19,7 @@ import time
 from typing import TYPE_CHECKING
 
 from app.channels.i18n import get_text
+from app.channels.protocols.compact import MAX_FOCUS_TOPIC_LENGTH, CompactSkip
 from app.channels.routing.router_keys import routing_state_key
 from app.channels.types import (
     InboundMessage,
@@ -32,6 +34,14 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
+
+# The catalog message that words each way a compaction can fail to happen; the failure message also covers a handler that raised.
+_COMPACT_SKIP_MESSAGES: dict[CompactSkip, str] = {
+    CompactSkip.NOTHING_TO_COMPACT: "compact_skipped_nothing",
+    CompactSkip.BUSY: "compact_skipped_busy",
+    CompactSkip.PAUSED: "compact_skipped_paused",
+    CompactSkip.FAILED: "compact_failed",
+}
 
 
 async def handle_new_session(
@@ -68,10 +78,6 @@ async def handle_compact(
     When compact_handler is None, replies with "Compaction not configured."
     Business layer provides CompactHandler to perform DB/chat/compact operations.
     """
-    from app.channels.protocols.compact import (
-        MAX_FOCUS_TOPIC_LENGTH,
-    )
-
     peer_id = msg.chat_id or msg.sender_id
     effective_topic = focus_topic[:MAX_FOCUS_TOPIC_LENGTH].strip() if focus_topic else ""
 
@@ -104,7 +110,9 @@ async def handle_compact(
         result = await compact_handler(msg, user_id, focus_topic=effective_topic)
 
         if result.compacted:
-            topic_hint = f" (focus: {effective_topic})" if effective_topic else ""
+            topic_hint = ""
+            if effective_topic:
+                topic_hint = " " + get_text(msg, "compact_topic_hint", topic=effective_topic)
             content = get_text(
                 msg,
                 "compact_success",
@@ -113,10 +121,10 @@ async def handle_compact(
                 topic_hint=topic_hint,
             )
         else:
-            content = get_text(msg, "compact_skipped", reason=result.reason or "no action needed")
+            content = get_text(msg, _COMPACT_SKIP_MESSAGES[result.skip or CompactSkip.FAILED])
     except Exception as exc:
         logger.warning("AgentRouter: /compact failed for %s/%s: %s", msg.channel, peer_id, exc)
-        content = get_text(msg, "compact_failed", error="internal error")
+        content = get_text(msg, _COMPACT_SKIP_MESSAGES[CompactSkip.FAILED])
 
     reply = OutboundMessage(
         channel=msg.channel,

@@ -43,7 +43,7 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | `learn_handler.py` | ✅ 核心 | Learn SSOT：`parse_learn_slash_args` / `rewrite_learn_query_if_needed`（渠道与 WebUI 共用 `_build_learn_prompt`）；`_AUTHORING_STANDARDS` 含 Myrm-tool framing 块与 description good/bad 示例；ChannelLearnCommandHandler 注入 rewrite 后 prompt；`elevate_skill_manage_permission` 在 explore 等 preset 仍 deny 时将本 turn 的 `skill_manage` 升为 ASK（由 `core/security/session_overlay.py` 的 `SecurityOverlaySpec` 在叠加最后一层应用，渠道回合经 `build_security_overlay` 开启，每轮重载已保存配置后重放）；`params/enrichment/pipeline.py` 在 permission overlay 前调用 rewrite | ✅ |
 | `kanban_command_handler.py` | ✅ 核心 | ChannelKanbanCommandHandler：KanbanCommandHandler 协议的业务层实现。处理 /kanban (/kb) 斜杠命令的 10 个子命令（list/show/create/comment/edit/complete/block/unblock/archive/stats），调用 KanbanService 完成操作并格式化 Markdown 响应 | ✅ |
 | `turn_handler.py` | ✅ 核心 | ChannelRetryHandler / ChannelUndoHandler：`/retry`/`/undo` + RevertService + restore_inbox 通知；`RevertMessagesOutcome` 含 `not_revertible_count` 供 IM FTL 诚实警告 | ✅ |
-| `compact_handler.py` | ✅ 核心 | ChannelCompactHandler：CompactHandler 协议的业务层实现，处理 /compact 命令的会话压缩 | ✅ |
+| `compact_handler.py` | ✅ 核心 | ChannelCompactHandler：CompactHandler 协议的业务层实现，处理 /compact 命令的会话压缩；以人工请求调用 `compact_chat`（不受 anti-thrash 守卫拦截），服务层原因码转成框架的 `CompactSkip` 类别，只有已知的良性原因不算失败，未知原因按失败 | ✅ |
 
 ### 子目录
 

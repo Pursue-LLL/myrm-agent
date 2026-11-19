@@ -9,9 +9,9 @@ Server 业务层无损上下文压缩实现。`compact_service.py` 为对外 fac
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
 | `_constants.py` | 辅助 | 压缩/idle 阈值常量 | — |
-| `_types.py` | 核心 | `CompactResult` | ✅ |
+| `_types.py` | 核心 | `CompactResult`、`CompactReason`（没压缩时的原因码闭集；Web 与 IM 按原码取文案，码值是线上契约） | ✅ |
 | `_lock.py` | 辅助 | 每 chat 并发锁 | ✅ |
-| `service.py` | 核心 | `compact_chat`（circuit + anti-thrash + idle stale；`request_tokens_for_guard` 对齐 gate 口径） | ✅ |
+| `service.py` | 核心 | `compact_chat`（circuit + anti-thrash + idle stale；`request_tokens_for_guard` 对齐 gate 口径；人工请求 `explicit_request` 不经 anti-thrash 守卫，结果仍计入无效 streak；省下的 token = 旧摘要 + 其后消息 − 新摘要，下限 0；没压缩只回裸原因码，细节进日志） | ✅ |
 | `persist.py` | 核心 | DB 持久化 + failure cooldown | ✅ |
 | `compression_streak.py` | 核心 | Chat DB anti-thrash streak + harness store registration | ✅ |
 | `idle_estimate.py` | 核心 | idle gate token 估算与 floor | ✅ |

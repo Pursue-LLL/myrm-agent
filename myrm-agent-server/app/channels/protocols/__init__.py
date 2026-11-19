@@ -9,7 +9,7 @@ from app.channels.protocols.async_login import (
     LoginState,
     LoginStatus,
 )
-from app.channels.protocols.compact import CompactHandler, CompactResult
+from app.channels.protocols.compact import CompactHandler, CompactResult, CompactSkip
 from app.channels.protocols.inbound_profile import (
     CHANNEL_INBOUND_SPECS,
     ChannelInboundSpec,
@@ -57,6 +57,7 @@ __all__ = [
     "ChannelPolicyProvider",
     "CompactHandler",
     "CompactResult",
+    "CompactSkip",
     "DmPolicy",
     "GenericRequest",
     "GenericResponse",

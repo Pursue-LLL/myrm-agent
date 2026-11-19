@@ -40,7 +40,7 @@ Conversation Recall 通过会话摘要索引、消息段 SQLite/FTS5 索引与 `
 | `chat_compaction.py` | ✅ 核心 | `_ChatCompactionMixin`: compaction summary 更新、后台 drain 调度与 LLM 离线摘要（跟随真实模型窗口；送给摘要模型的内容由 harness 出站闸门按隐私策略脱敏，库内消息与召回归档保持原文） | ✅ |
 | `chat_helpers.py` | ✅ 辅助 | 用于内部解耦的通用 DTO 和静态辅助函数（如消息过滤、Snippet清理：`_sanitize_snippet` 只给界面，转义并保留 `<mark>`；模型读的是召回行的纯文本 `window`，不经它，转义会把引号包着的凭据变成实体而躲过脱敏；`strip_reasoning_tags` 去掉推理标签）；`WAKEUP_MESSAGE_ID_PREFIX` 标识系统注入的 wakeup 用户行，`is_wakeup_notice`（`extra_data` 里的 `wakeup_notice` 标记）是「这条用户行是系统写的后台完成通知、不是用户说的话」的唯一判定，轮次大纲、分享页、导出据此跳过；`SPILLOVER_EXTRA_KEY` 约定转存粘贴在 `extra_data` 里的键；`shown_user_text`（列表、轮次大纲展示预览）与 `exported_user_text`（导出、分享页：预览 + 字数说明，不暴露占位块与工作区路径）。 | ✅ |
 | `usage_cache.py` | ✅ 辅助 | `ChatUsageCache`: 进程内 TTL 缓存（默认 5s，key=chat_id），携带「最后聚合 assistant 消息 id」，同一会话连续消息落库/连续突变防抖；last_message_id 变化（新消息或 sibling 切换）强制重算 | ✅ |
-| `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
+| `compact_service.py` | ✅ 核心 | 无损上下文压缩 **facade**（实现见 `compact/` 子包）；导出 `compact_chat` / `CompactResult` / `CompactReason` / idle estimate / cooldown / anti-thrash 接线 | ✅ |
 | `compact/` | ✅ 核心 | 压缩子模块：`service.py`（compact_chat）、`persist.py`、`idle_estimate.py`、`message_io.py`、`summarize_guard.py`、`llm_config.py`、`archive.py` | ✅ |
 | `stale_compact_gate.py` | ✅ 核心 | Pre-reply idle stale compaction gate（`engine_params.idle_compact_after_seconds`，默认 0；idle 锚点=最后消息时间；**idle predicate：tokens>floor only（无 min_messages）**；request-level token floor（summary+tail+overhead）；gate 向 `compact_chat` 传递 `request_tokens_for_guard` 与 anti-thrash 同口径；**compression failure cooldown** + **anti-thrash**；**模型窗口不可用 fail-closed**；Web 经 `pre_reply_compact_sse` 发 active/completed/failure SSE；Channel 入站前 best-effort 调用） | ✅ |
 | `conversation_search_service.py` | ✅ 核心 | Agent 历史会话召回服务；FTS5 召回（候选取数在此，scope 与可见性过滤在仓储 SQL 层，命中的构造与打分交 `conversation_search_hits.py`）、索引覆盖度元数据注入、`expand_message_id` 窗口、source refs、CJK 两档平滑降级（CjkFtsQueryPlanner）；FTS 无命中时按模型键入的查询做子串回退（规划出的查询是词元表达式，不是原文），只随第一档规划查询执行一次，后续档只放宽 FTS 表达式、不重复扫表（`test_search_typed_text.py` 钉住）；交给模型的 snippet 取召回行的 `window`（存储原文的纯文本，不做 HTML 转义；用户自己写的 `<mark>` 原样保留，FTS 高亮是仓储层的非字符标记，不会与它混淆），FTS 命中的窗口在排名与 `min_score` 过滤之后交 `conversation_search_snippet.py` 重建，界面用的 `source_ref.snippet` 仍转义并带高亮；`test_conversation_search_service.py` 钉住两者的分工，`test_conversation_search_redaction.py` 钉住用户写的标签原样读回 | ✅ |
@@ -227,6 +227,7 @@ Chat 表新增多个字段用于支撑高级功能：
 
 **架构特点**：
 - 手动 `/compact` 和自动压缩使用相同的算法和 prompt
+- 人工请求（Web API、IM `/compact`）以 `explicit_request` 调用 `compact_chat`：anti-thrash 守卫只约束自动压缩，不拦人工请求，其结果照常计入连续无效次数
 - 摘要逻辑集中在框架层，强制使用 `with_structured_output` 获取结构化上下文摘要
 - 业务层通过协议调用
 - `_do_persist_to_db` 是 DB 操作核心，由两种路径共享

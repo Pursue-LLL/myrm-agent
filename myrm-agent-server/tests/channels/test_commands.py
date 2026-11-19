@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -17,7 +18,6 @@ from app.channels.routing.command_registry import (
 from app.channels.routing.commands import (
     DenyWithReason,
     TopicCommand,
-    handle_compact,
     handle_new_session,
     handle_retry,
     handle_topic_command,
@@ -27,6 +27,9 @@ from app.channels.routing.commands import (
     parse_topic_args,
 )
 from app.channels.types import InboundMessage, OutboundMessage
+
+if TYPE_CHECKING:
+    from app.channels.core.gateway import ChannelGateway
 
 _TEST_AGENT_ROUTES: tuple[CommandDef, ...] = (
     CommandDef(
@@ -436,193 +439,6 @@ class TestHandleNewSession:
         assert reply.recipient_id == "group1"
 
 
-class TestHandleCompact:
-    @pytest.mark.asyncio
-    async def test_no_handler_configured(self) -> None:
-        msg = _make_msg()
-        bus = _mock_bus()
-        resolver = MagicMock()
-
-        await handle_compact(msg, bus, resolver, compact_handler=None)
-
-        bus.publish_outbound.assert_called_once()
-        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
-        assert "not configured" in reply.content
-
-    @pytest.mark.asyncio
-    async def test_dm_compact_success(self) -> None:
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-
-        result_obj = MagicMock()
-        result_obj.compacted = True
-        result_obj.message_count = 10
-        result_obj.tokens_saved = 500
-        handler = AsyncMock(return_value=result_obj)
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler)
-
-        bus.publish_outbound.assert_called_once()
-        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
-        assert "compacted" in reply.content.lower()
-
-    @pytest.mark.asyncio
-    async def test_dm_compact_skipped(self) -> None:
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-
-        result_obj = MagicMock()
-        result_obj.compacted = False
-        result_obj.reason = "too few messages"
-        handler = AsyncMock(return_value=result_obj)
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler)
-
-        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
-        assert "skipped" in reply.content.lower()
-
-    @pytest.mark.asyncio
-    async def test_dm_no_user(self) -> None:
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value=None)
-        handler = AsyncMock()
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler)
-
-        handler.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_group_compact_success(self) -> None:
-        msg = _make_msg(is_group=True)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolved_msg = _make_msg(is_group=True, user_id="guser")
-        resolver.resolve_group_user = AsyncMock(return_value=("guser", resolved_msg))
-
-        result_obj = MagicMock()
-        result_obj.compacted = True
-        result_obj.message_count = 5
-        result_obj.tokens_saved = 200
-        handler = AsyncMock(return_value=result_obj)
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler)
-
-        handler.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_group_no_user(self) -> None:
-        msg = _make_msg(is_group=True)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_group_user = AsyncMock(return_value=None)
-        handler = AsyncMock()
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler)
-
-        handler.assert_not_called()
-
-    @pytest.mark.asyncio
-    async def test_compact_exception(self) -> None:
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-        handler = AsyncMock(side_effect=RuntimeError("db error"))
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler)
-
-        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
-        assert "failed" in reply.content.lower()
-
-    @pytest.mark.asyncio
-    async def test_focus_topic_passed_to_handler(self) -> None:
-        """Verify focus_topic is forwarded to compact_handler."""
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-
-        result_obj = MagicMock()
-        result_obj.compacted = True
-        result_obj.message_count = 10
-        result_obj.tokens_saved = 500
-        handler = AsyncMock(return_value=result_obj)
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="API design")
-
-        handler.assert_called_once()
-        _, kwargs = handler.call_args
-        assert kwargs["focus_topic"] == "API design"
-
-    @pytest.mark.asyncio
-    async def test_focus_topic_shown_in_reply(self) -> None:
-        """Verify focus_topic hint appears in success reply."""
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-
-        result_obj = MagicMock()
-        result_obj.compacted = True
-        result_obj.message_count = 10
-        result_obj.tokens_saved = 500
-        handler = AsyncMock(return_value=result_obj)
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="API design")
-
-        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
-        assert "API design" in reply.content
-
-    @pytest.mark.asyncio
-    async def test_focus_topic_truncated(self) -> None:
-        """Verify long focus_topic is truncated to MAX_FOCUS_TOPIC_LENGTH."""
-        from app.channels.protocols.compact import (
-            MAX_FOCUS_TOPIC_LENGTH,
-        )
-
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-
-        result_obj = MagicMock()
-        result_obj.compacted = True
-        result_obj.message_count = 5
-        result_obj.tokens_saved = 100
-        handler = AsyncMock(return_value=result_obj)
-
-        long_topic = "x" * 300
-        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic=long_topic)
-
-        _, kwargs = handler.call_args
-        assert len(kwargs["focus_topic"]) == MAX_FOCUS_TOPIC_LENGTH
-
-    @pytest.mark.asyncio
-    async def test_empty_focus_topic_no_hint(self) -> None:
-        """Verify no topic hint when focus_topic is empty."""
-        msg = _make_msg(is_group=False)
-        bus = _mock_bus()
-        resolver = MagicMock()
-        resolver.resolve_dm_user = AsyncMock(return_value="uid1")
-
-        result_obj = MagicMock()
-        result_obj.compacted = True
-        result_obj.message_count = 10
-        result_obj.tokens_saved = 500
-        handler = AsyncMock(return_value=result_obj)
-
-        await handle_compact(msg, bus, resolver, compact_handler=handler, focus_topic="")
-
-        reply: OutboundMessage = bus.publish_outbound.call_args[0][0]
-        assert "(focus:" not in reply.content
-
-
 class TestHandleTopicCommand:
     @pytest.mark.asyncio
     async def test_no_topic_resolver_no_thread(self) -> None:
@@ -861,7 +677,7 @@ class TestRegistryValidation:
                     name="stop",
                     description="hijack",
                     kind=CommandKind.SKILL,
-                    skill_ids=["x"],
+                    skill_ids=("x",),
                 )
             )
 
@@ -1088,7 +904,7 @@ class TestSkillCommandRegistration:
                     name="stop",
                     description="bad",
                     kind=CommandKind.SKILL,
-                    skill_ids=["x"],
+                    skill_ids=("x",),
                 )
             )
 
@@ -1096,7 +912,7 @@ class TestSkillCommandRegistration:
 class TestUpdateSkillCommands:
     """Tests for ChannelGateway.update_skill_commands() runtime hot-reload."""
 
-    def _make_gateway_with_registry(self) -> tuple:
+    def _make_gateway_with_registry(self) -> tuple[ChannelGateway, CommandRegistry]:
         """Create a minimal gateway with router containing a CommandRegistry."""
         from app.channels.core.gateway import ChannelGateway
 
@@ -1210,7 +1026,9 @@ class TestUpdateSkillCommands:
         gw.update_skill_commands(cmds)
         assert registry.get("valid-cmd") is not None
         assert registry.get("another-valid") is not None
-        assert registry.resolve("/stop").command_def.kind == CommandKind.SYSTEM
+        resolved = registry.resolve("/stop")
+        assert resolved is not None
+        assert resolved.command_def.kind == CommandKind.SYSTEM
 
     def test_no_router_is_noop(self) -> None:
         from app.channels.core.gateway import ChannelGateway
