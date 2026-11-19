@@ -139,10 +139,6 @@ class TestDangerousCommands:
         threats = analyze_command("mount /dev/sda1 /mnt")
         assert any(t.level == ThreatLevel.BLOCK for t in threats)
 
-    def test_ld_preload(self):
-        threats = analyze_command("export LD_PRELOAD=/tmp/evil.so")
-        assert any(t.level == ThreatLevel.BLOCK for t in threats)
-
 
 class TestSuspiciousPatterns:
     """ESCALATE-level: suspicious but potentially legitimate patterns."""
@@ -754,28 +750,6 @@ class TestInterpreterInlineExecution:
         """AWK inline program in single quotes: content is stripped by _strip_quoted_content,
         so the regex `awk\\s+'BEGIN\\s*\\{` no longer matches on the normalized string."""
         assert has_block_threat("awk 'BEGIN {system(\"id\")}'") is None
-
-
-class TestEnvironmentInjection:
-    """Environment variable injection beyond LD_PRELOAD."""
-
-    def test_node_options(self):
-        assert has_block_threat("export NODE_OPTIONS=--require=./evil.js")
-
-    def test_pythonpath(self):
-        assert has_block_threat("export PYTHONPATH=/tmp/evil")
-
-    def test_dyld_injection(self):
-        assert has_block_threat("export DYLD_INSERT_LIBRARIES=/tmp/evil.dylib")
-
-    def test_perl5opt(self):
-        assert has_block_threat("export PERL5OPT=-Mevil")
-
-    def test_rubyopt(self):
-        assert has_block_threat("export RUBYOPT=-revil")
-
-    def test_ld_library_path(self):
-        assert has_block_threat("export LD_LIBRARY_PATH=/tmp/evil")
 
 
 class TestUnicodeObfuscationCategories:

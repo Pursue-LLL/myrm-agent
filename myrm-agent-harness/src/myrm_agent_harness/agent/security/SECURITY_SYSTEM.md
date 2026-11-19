@@ -206,7 +206,7 @@ class SSRFResult:
 
 ### 3.2.1 Shell Command Analyzer
 
-**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `persistent_env.py`（持久 shell 的代码注入变量）· `protected_instruction_command.py`（受保护指令文件的写形态）
+**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `protected_instruction_command.py`（受保护指令文件的写形态）
 
 统一 Shell 命令安全分析模块，多层检测（带引号感知预处理）：
 

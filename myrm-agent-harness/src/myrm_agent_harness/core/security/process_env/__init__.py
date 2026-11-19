@@ -5,7 +5,7 @@
 - env_isolation::EnvInheritPolicy, DEFAULT_CHILD_SAFE_ENV_KEYS, FORBIDDEN_EXACT_KEYS, build_isolated_child_env, sanitize_env, is_non_inheritable_env_var (POS: What a child process inherits)
 
 [OUTPUT]
-- CODE_INJECTION_ENV_VARS / CODE_INJECTION_ENV_PREFIXES / is_code_injection_env_name — the names no credential, export or child environment may carry
+- CODE_INJECTION_ENV_VARS / CODE_INJECTION_ENV_PREFIXES / is_code_injection_env_name — the names no credential or child environment may carry
 - EnvInheritPolicy / build_isolated_child_env / sanitize_env / is_non_inheritable_env_var / DEFAULT_CHILD_SAFE_ENV_KEYS / FORBIDDEN_EXACT_KEYS — the environment a child process gets
 
 [POS]

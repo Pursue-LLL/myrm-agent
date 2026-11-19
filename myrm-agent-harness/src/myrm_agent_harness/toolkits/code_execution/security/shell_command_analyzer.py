@@ -18,8 +18,6 @@ Layer 2 (quote-stripped, BLOCK):
   (rm -rf /, sudo, fork bombs, etc.), and encoded/inline execution.
   Runs on quote-stripped input so ``echo "rm -rf /"`` won't false-positive.
   Includes ``find -exec {} \\;`` exemption for the escaped semicolon.
-  Also denies exporting a code-injection variable (``BASH_ENV``, ``LD_PRELOAD``, ``GIT_EXTERNAL_DIFF``...) into
-  the persistent shell; that check reads the shell words, so quoting does not hide the name.
 
 Layer 2.5 (ORIGINAL command, ESCALATE):
   SQL statement guard — detects destructive SQL in DB client commands
@@ -50,7 +48,6 @@ Consumers:
 [INPUT]
 - security.protected_instruction_command::protected_instruction_mutation_target (POS: The shell-side reading of the protected instruction files, shared with the permission engine and the allow-always guard)
 - security.shell_command_rules (POS: Pattern catalogue for layers 1-3; this module holds the engine)
-- security.persistent_env::persistent_env_injection (POS: Code-injection variables a command exports into the persistent shell)
 
 [OUTPUT]
 - ThreatLevel: Severity level of a detected command threat.
@@ -72,7 +69,6 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-from .persistent_env import persistent_env_injection
 from .protected_instruction_command import protected_instruction_mutation_target
 from .shell_command_rules import (
     ANSI_C_QUOTE_RE,
@@ -284,20 +280,6 @@ def analyze_command(command: str, *, _depth: int = 0) -> tuple[CommandThreat, ..
                     evidence=match.group(0),
                 )
             )
-
-    exported = persistent_env_injection(command)
-    if exported:
-        threats.append(
-            CommandThreat(
-                level=ThreatLevel.BLOCK,
-                category="dangerous_command",
-                detail=(
-                    "Exporting a code-injection environment variable into the persistent shell: it would stay set "
-                    "for every later command (set it for one command as `NAME=value cmd` instead)"
-                ),
-                evidence=exported,
-            )
-        )
 
     # Layer 2.5: SQL statement guard (uses ORIGINAL command for DB client extraction)
     from myrm_agent_harness.toolkits.code_execution.security.sql_statement_guard import (

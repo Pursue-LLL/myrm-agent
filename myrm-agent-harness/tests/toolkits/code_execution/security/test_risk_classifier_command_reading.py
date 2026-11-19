@@ -262,6 +262,26 @@ class TestEnvironmentAssignmentPrefix:
         assert classify_command_risk(command) is UNKNOWN
 
 
+class TestExportedEnvironment:
+    """An ``export`` is no read-only command, so a variable that makes a program run foreign code needs an approval."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "export LD_PRELOAD=/tmp/evil.so",
+            "export LD_LIBRARY_PATH=/tmp/evil",
+            "export DYLD_INSERT_LIBRARIES=/tmp/evil.dylib",
+            "export NODE_OPTIONS=--require=./evil.js",
+            "export PYTHONPATH=/tmp/evil",
+            "export PERL5OPT=-Mevil",
+            "export RUBYOPT=-revil",
+            "export BASH_ENV=./x.sh && ls",
+        ],
+    )
+    def test_exporting_it_is_not_vouched_for(self, command: str) -> None:
+        assert classify_command_risk(command) is UNKNOWN
+
+
 class TestSegmentReasonCodes:
     @pytest.mark.parametrize(
         ("segment", "level", "reason"),

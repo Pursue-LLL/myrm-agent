@@ -10,15 +10,15 @@
 
 [POS]
 The one definition of "this variable makes a later program run foreign code". Every place that must refuse such a
-name reads it from here: the persistent-shell export check, the child-process and MCP environment blacklists
-(``DANGEROUS_ENV_VARS`` is built from it) and the names a person may stage as a one-command credential. Proxies, TLS
-and package-source names are not part of it: they redirect traffic, and a person may legitimately set them.
+name reads it from here: the child-process and MCP environment blacklists (``DANGEROUS_ENV_VARS`` is built from it)
+and the names a person may stage as a one-command credential. Proxies, TLS and package-source names are not part of
+it: they redirect traffic, and a person may legitimately set them.
 """
 
 from __future__ import annotations
 
-# Names that make a later program run what their value names. Setting one in a shell that outlives the command
-# turns every following command, including ones judged read-only, into a way to run it.
+# Names that make a later program run what their value names. Handed to a process, one turns that process and
+# every program it starts, including ones judged read-only, into a way to run it.
 _LINKER_INJECTION_ENV_VARS: frozenset[str] = frozenset(
     {
         # Dynamic linker injection (Linux)
