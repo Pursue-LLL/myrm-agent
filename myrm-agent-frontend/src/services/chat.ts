@@ -831,53 +831,6 @@ export const batchDeleteChats = async (ids: string[]): Promise<{ deleted: number
   return data as { deleted: number; failed: number };
 };
 
-/**
- * 从 Conversation Recall 中排除或恢复聊天。
- */
-export const updateChatRecallExclusion = async (chatId: string, excluded: boolean): Promise<void> => {
-  await apiRequest(`/chats/${chatId}/recall-exclusion`, {
-    method: 'PATCH',
-    body: JSON.stringify({ excluded }),
-  });
-};
-
-export interface ConversationRecallEntry {
-  chat_id: string;
-  title: string | null;
-  agent_id: string | null;
-  source: string;
-  snippet: string;
-  summary: string | null;
-  last_message_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  is_excluded: boolean;
-}
-
-export interface ConversationRecallListResponse {
-  items: ConversationRecallEntry[];
-  pagination: PaginationInfo;
-}
-
-export const listConversationRecallEntries = async (params: {
-  excluded?: boolean;
-  page?: number;
-  pageSize?: number;
-}): Promise<ConversationRecallListResponse> => {
-  const query = new URLSearchParams({
-    page: String(params.page ?? 1),
-    page_size: String(params.pageSize ?? 20),
-  });
-  if (params.excluded !== undefined) {
-    query.set('excluded', String(params.excluded));
-  }
-  const data = (await apiRequest(`/chats/recall/entries?${query}`)) as ConversationRecallListResponse;
-  return {
-    items: data.items || [],
-    pagination: data.pagination,
-  };
-};
-
 export interface ExportChatOptions {
   redactSecrets?: boolean;
 }

@@ -2,7 +2,8 @@
 
 /**
  * [INPUT]
- * - @/services/chat (POS: Frontend chat and Conversation Recall API client)
+ * - @/services/conversationRecall (POS: Conversation Recall 管理 API 客户端)
+ * - @/services/chat::PaginationInfo (POS: 会话 REST 客户端与分页契约)
  * - ./ExternalHarnessSyncCard::ExternalHarnessSyncCard (POS: 外部 Agent 会话召回管理卡片)
  * - next-intl::useTranslations (POS: 多语言国际化钩子)
  *
@@ -20,12 +21,12 @@ import { useRouter } from 'next/navigation';
 
 import { toast } from '@/hooks/shared/useToast';
 import { cn } from '@/lib/utils/classnameUtils';
+import type { PaginationInfo } from '@/services/chat';
 import {
   listConversationRecallEntries,
   updateChatRecallExclusion,
   type ConversationRecallEntry,
-  type PaginationInfo,
-} from '@/services/chat';
+} from '@/services/conversationRecall';
 import ExternalHarnessSyncCard from './ExternalHarnessSyncCard';
 
 type RecallFilter = 'excluded' | 'active' | 'all';

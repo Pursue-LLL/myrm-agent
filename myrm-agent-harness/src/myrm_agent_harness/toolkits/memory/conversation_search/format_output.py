@@ -7,7 +7,7 @@
 - toolkits.memory.agent_surface.tool_result_sources::pack_tool_result_with_sources (POS: pack metadata.sources into memory_search results)
 
 [OUTPUT]
-- format_conversation_search_response: Render hits with conversation_history sources in tool metadata; an empty result run under an explicit since/until window ends with a note naming that window.
+- format_conversation_search_response: Render hits (each header ends with the hit's time) with conversation_history sources in tool metadata; an empty result run under an explicit since/until window ends with a note naming that window.
 
 [POS]
 Agent-facing formatter for memory_search conversation corpus results.

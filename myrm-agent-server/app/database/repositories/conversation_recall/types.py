@@ -19,7 +19,7 @@ Conversation Recall 类型转换层。集中维护索引仓储返回值 DTO 和�
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Mapping, TypeAlias
 
 from sqlalchemy.engine import RowMapping
@@ -31,7 +31,12 @@ RecallMapping: TypeAlias = Mapping[str, object] | RowMapping
 
 @dataclass(frozen=True, slots=True)
 class ConversationRecallRow:
-    """One recall hit. The snippet wraps matched terms in ``<mark>`` for display; the window is the same text without them."""
+    """One recall hit. The snippet wraps matched terms in ``<mark>`` for display; the window is the same text without them.
+
+    ``last_message_at`` is when the message the row names (``message_id``) was sent: the message a segment matched, or
+    the conversation's last message for a row about the conversation as a whole. ``created_at`` is when the chat was
+    created. Each is an aware UTC instant, or None when the index holds no readable time.
+    """
 
     chat_id: str
     title: str | None
@@ -43,7 +48,6 @@ class ConversationRecallRow:
     summary: str | None
     last_message_at: datetime | None
     created_at: datetime | None
-    updated_at: datetime | None
     rank: float
     fork_parent_id: str | None
 
@@ -64,8 +68,6 @@ class ConversationRecallDocumentRow:
     snippet: str
     summary: str | None
     last_message_at: datetime | None
-    created_at: datetime | None
-    updated_at: datetime | None
     is_excluded: bool
 
 
@@ -94,7 +96,6 @@ def recall_row(row: RecallMapping) -> ConversationRecallRow:
         summary=optional_str(row, "summary"),
         last_message_at=optional_datetime(row, "last_message_at"),
         created_at=optional_datetime(row, "created_at"),
-        updated_at=optional_datetime(row, "updated_at"),
         rank=float_value(row, "rank"),
         fork_parent_id=optional_str(row, "fork_parent_id"),
     )
@@ -109,8 +110,6 @@ def recall_document_row(row: RecallMapping) -> ConversationRecallDocumentRow:
         snippet=required_str(row, "snippet"),
         summary=optional_str(row, "summary"),
         last_message_at=optional_datetime(row, "last_message_at"),
-        created_at=optional_datetime(row, "created_at"),
-        updated_at=optional_datetime(row, "updated_at"),
         is_excluded=bool(int_value(row, "is_excluded")),
     )
 
@@ -129,8 +128,20 @@ def optional_str(row: RecallMapping, key: str) -> str | None:
 
 
 def optional_datetime(row: RecallMapping, key: str) -> datetime | None:
+    """Read a timestamp column as an aware UTC instant, or None when it holds no time.
+
+    The index is read with raw SQL, so SQLite returns a timestamp as the text it stored: UTC without an offset when the
+    database stamped it or a rebuild copied a message's time, with an offset when an append bound an aware datetime.
+    """
     value = row.get(key)
-    return value if isinstance(value, datetime) else None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return None
+    if not isinstance(value, datetime):
+        return None
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def float_value(row: RecallMapping, key: str) -> float:

@@ -61,7 +61,6 @@ export interface Source {
   surface?: string;
   fork_parent_id?: string;
   lineage?: string;
-  created_at?: string;
   updated_at?: string;
 }
 

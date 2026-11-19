@@ -78,7 +78,6 @@ class SearchMixin:
                             d.summary AS summary,
                             s.sent_at AS last_message_at,
                             d.created_at AS created_at,
-                            d.updated_at AS updated_at,
                             conversation_recall_segments_fts.rank AS rank,
                             f.parent_chat_id AS fork_parent_id
                         FROM conversation_recall_segments_fts
@@ -122,7 +121,6 @@ class SearchMixin:
                             d.summary AS summary,
                             d.last_message_at AS last_message_at,
                             d.created_at AS created_at,
-                            d.updated_at AS updated_at,
                             conversation_recall_fts.rank AS rank,
                             f.parent_chat_id AS fork_parent_id
                         FROM conversation_recall_fts
@@ -176,7 +174,6 @@ class SearchMixin:
                             d.summary AS summary,
                             s.sent_at AS last_message_at,
                             d.created_at AS created_at,
-                            d.updated_at AS updated_at,
                             -1.0 AS rank,
                             f.parent_chat_id AS fork_parent_id
                         FROM conversation_recall_segments s
@@ -238,8 +235,6 @@ class SearchMixin:
                         snippet,
                         summary,
                         last_message_at,
-                        created_at,
-                        updated_at,
                         is_excluded
                     FROM conversation_recall_documents
                     {filters}

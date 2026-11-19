@@ -5,7 +5,8 @@
  * @/store/chat/types::Source (POS: Chat state and SSE event type definitions)
  * @/lib/citations/sourceName::sourceKind, sourceName (POS: which kind a source is and what it is called)
  * @/services/wiki/sectionLabels::wikiSectionLabeler (POS: how a wiki section is worded)
- * @/services/chat::deleteChat, updateChatRecallExclusion (POS: Chat API client)
+ * @/services/chat::deleteChat (POS: Chat API client)
+ * @/services/conversationRecall::updateChatRecallExclusion (POS: Conversation Recall 管理 API 客户端)
  * @/hooks/agent/useAgentName::useAgentName (POS: Resolve agent_id to human-friendly name)
  *
  * [OUTPUT]
@@ -22,7 +23,8 @@ import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils/classnameUtils';
 import { ConfirmDialog } from '@/components/features/app-shell/confirm-dialog';
-import { deleteChat, updateChatRecallExclusion } from '@/services/chat';
+import { deleteChat } from '@/services/chat';
+import { updateChatRecallExclusion } from '@/services/conversationRecall';
 import { toast } from '@/hooks/shared/useToast';
 import type { Source } from '@/store/chat/types';
 import { resolveSourceClickUrl } from '@/store/chat/types/sources';

@@ -128,7 +128,6 @@ class QueriesMixin:
                         d.summary AS summary,
                         d.last_message_at AS last_message_at,
                         d.created_at AS created_at,
-                        d.updated_at AS updated_at,
                         0.0 AS rank,
                         f.parent_chat_id AS fork_parent_id
                     FROM conversation_recall_documents d
