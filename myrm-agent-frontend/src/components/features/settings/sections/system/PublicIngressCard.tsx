@@ -174,14 +174,14 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
   }, [passwordProtectionEnabled, tunnelStatus?.state, tunnelStatus?.publicUrl, publicIngressBaseUrl, mobileHubUrl]);
 
   return (
-    <div id="public-ingress" className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+    <div id="public-ingress" className="p-6 rounded-2xl bg-card border border-border space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-2 text-sm font-bold text-foreground">
           <IconGlobe className="w-4 h-4" />
           {t('access.ingress.title')}
         </div>
         {ingressRequired && (
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-400">
+          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-amber-500/20 text-amber-800 dark:text-amber-400">
             {t('access.ingress.requiredBadge')}
           </span>
         )}
@@ -199,9 +199,9 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
         </a>
       </p>
       {!passwordProtectionEnabled && (
-        <p className="text-xs text-amber-500/90">{t('access.ingress.passwordRequired')}</p>
+        <p className="text-xs text-amber-700 dark:text-amber-500/90">{t('access.ingress.passwordRequired')}</p>
       )}
-      <div className="rounded-xl border border-white/10 bg-black/10 p-4 space-y-3">
+      <div className="rounded-xl border border-border bg-muted/50 dark:bg-black/10 p-4 space-y-3">
         <p className="text-sm font-semibold text-foreground">{t('access.tunnel.title')}</p>
         <p className="text-xs text-muted-foreground leading-relaxed">
           {localeIsZh ? t('access.tunnel.cnHint') : t('access.tunnel.globalHint')}
@@ -223,15 +223,15 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
             type="button"
             onClick={() => void handleShareMobileLink()}
             disabled={!passwordProtectionEnabled}
-            className="px-4 py-2 rounded-xl border border-white/15 text-sm font-medium hover:bg-white/5 disabled:opacity-50"
+            className="px-4 py-2 rounded-xl border border-border text-sm font-medium hover:bg-muted dark:hover:bg-white/5 disabled:opacity-50"
           >
             {t('access.tunnel.shareMobile')}
           </button>
         </div>
         {tunnelStatus?.publicUrl ? (
           <div className="space-y-2">
-            <p className="text-xs text-emerald-400 break-all">{tunnelStatus.publicUrl}</p>
-            <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300">
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 break-all">{tunnelStatus.publicUrl}</p>
+            <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
               {t('access.tunnel.e2eeBadge')}
             </span>
             <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.e2eeHint')}</p>
@@ -239,11 +239,11 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
               <dl className="mt-1 space-y-1 text-[11px]">
                 <div className="flex gap-2">
                   <dt className="text-muted-foreground shrink-0">{t('access.tunnel.e2eeAlgorithm')}</dt>
-                  <dd className="font-mono text-emerald-300">{E2EE_ALGORITHM}</dd>
+                  <dd className="font-mono text-emerald-700 dark:text-emerald-300">{E2EE_ALGORITHM}</dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="text-muted-foreground shrink-0">{t('access.tunnel.e2eeFingerprint')}</dt>
-                  <dd className="font-mono tracking-wider text-emerald-300">
+                  <dd className="font-mono tracking-wider text-emerald-700 dark:text-emerald-300">
                     {computeE2EEFingerprintFromB64(e2eePublicKeyB64)}
                   </dd>
                 </div>
@@ -264,7 +264,7 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
                 <p className="text-xs font-medium text-foreground">{t('access.tunnel.pwaTitle')}</p>
                 <p className="text-xs text-muted-foreground leading-relaxed">{t('access.tunnel.pwaHint')}</p>
                 {isInstalled ? (
-                  <p className="text-xs text-emerald-400">{t('access.tunnel.pwaInstalled')}</p>
+                  <p className="text-xs text-emerald-700 dark:text-emerald-400">{t('access.tunnel.pwaInstalled')}</p>
                 ) : (
                   <Button
                     type="button"
@@ -287,7 +287,7 @@ export const PublicIngressCard = memo<PublicIngressCardProps>(({ webuiPort, requ
           value={publicIngressBaseUrl || ''}
           onChange={(e) => setPublicIngressBaseUrl(e.target.value)}
           placeholder="https://..."
-          className="flex-1 px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+          className="flex-1 px-4 py-2.5 bg-muted/50 dark:bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
         />
         <button
           type="button"

@@ -184,7 +184,7 @@ const AboutSection = memo(() => {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 bg-background/60 px-2.5 py-1 rounded-md border border-border/40">
-                <IconCode className="w-3.5 h-3.5 text-emerald-500" />
+                <IconCode className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                 <span>
                   {t('engineVersion')}: <span className="text-foreground font-medium">v{engineVersion ?? '...'}</span>
                 </span>
@@ -200,8 +200,8 @@ const AboutSection = memo(() => {
               >
                 {copied ? (
                   <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-emerald-500">{t('copiedDiagnostics')}</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
+                    <span className="text-emerald-700 dark:text-emerald-500">{t('copiedDiagnostics')}</span>
                   </>
                 ) : (
                   <>

@@ -86,7 +86,7 @@ export const AccessCard = memo<{
 
   if (!accessEnabled) {
     return (
-      <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center text-muted-foreground">
+      <div className="p-6 rounded-2xl bg-card border border-border text-center text-muted-foreground">
         <IconWifiOff className="w-8 h-8 mx-auto mb-3 opacity-30" />
         <p className="text-sm">{t('access.disabled')}</p>
       </div>
@@ -97,7 +97,7 @@ export const AccessCard = memo<{
     <div className="space-y-4">
       {showLocalIngress && (
         <div className="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/20 space-y-2">
-          <p className="text-sm font-bold text-indigo-300">{t('access.guide.title')}</p>
+          <p className="text-sm font-bold text-indigo-600 dark:text-indigo-300">{t('access.guide.title')}</p>
           <p className="text-xs text-muted-foreground leading-relaxed">{t('access.guide.lanFirst')}</p>
           {ingressResolved &&
             (ingressRequired ? (
@@ -108,7 +108,7 @@ export const AccessCard = memo<{
         </div>
       )}
 
-      <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+      <div className="p-6 rounded-2xl bg-card border border-border space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-bold text-foreground">
             <IconGlobe className="w-4 h-4" />
@@ -116,21 +116,23 @@ export const AccessCard = memo<{
           </div>
           <button
             onClick={() => handleOpen(localUrl)}
-            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted dark:hover:bg-white/5 rounded-lg transition-colors"
             title={t('access.open')}
           >
             <IconExternalLink className="w-4 h-4 text-muted-foreground" />
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <code className="flex-1 px-3 py-2 bg-black/20 rounded-lg text-xs font-mono text-indigo-400">{localUrl}</code>
+          <code className="flex-1 px-3 py-2 bg-muted/50 dark:bg-black/20 rounded-lg text-xs font-mono text-indigo-600 dark:text-indigo-400">
+            {localUrl}
+          </code>
           <button
             onClick={() => handleCopy(localUrl, 'local')}
-            className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted dark:hover:bg-white/5 rounded-lg transition-colors"
             title={t('access.copy')}
           >
             {copied === 'local' ? (
-              <IconCheck className="w-4 h-4 text-emerald-500" />
+              <IconCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
             ) : (
               <IconCopy className="w-4 h-4 text-muted-foreground" />
             )}
@@ -142,10 +144,10 @@ export const AccessCard = memo<{
         <div id="public-access" className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/25 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 text-sm font-bold text-foreground">
-              <IconWifi className="w-4 h-4 text-emerald-400" />
+              <IconWifi className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               {t('access.lan.title')}
             </div>
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-400">
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide bg-emerald-500/20 text-emerald-800 dark:text-emerald-400">
               {t('access.lan.recommended')}
             </span>
           </div>
@@ -153,13 +155,13 @@ export const AccessCard = memo<{
           {remoteUrl ? (
             <>
               <div className="flex items-center gap-2">
-                <code className="flex-1 min-w-0 px-3 py-2 bg-black/20 rounded-lg text-xs font-mono text-emerald-400 break-all">
+                <code className="flex-1 min-w-0 px-3 py-2 bg-muted/50 dark:bg-black/20 rounded-lg text-xs font-mono text-emerald-700 dark:text-emerald-400 break-all">
                   {remoteUrl}
                 </code>
                 <button
                   type="button"
                   onClick={() => handleOpen(remoteUrl)}
-                  className="p-2 hover:bg-white/5 rounded-lg transition-colors shrink-0"
+                  className="p-2 hover:bg-muted dark:hover:bg-white/5 rounded-lg transition-colors shrink-0"
                   title={t('access.open')}
                 >
                   <IconExternalLink className="w-4 h-4 text-muted-foreground" />
@@ -167,11 +169,11 @@ export const AccessCard = memo<{
                 <button
                   type="button"
                   onClick={() => handleCopy(remoteUrl, 'lan')}
-                  className="p-2 hover:bg-white/5 rounded-lg transition-colors shrink-0"
+                  className="p-2 hover:bg-muted dark:hover:bg-white/5 rounded-lg transition-colors shrink-0"
                   title={t('access.copy')}
                 >
                   {copied === 'lan' ? (
-                    <IconCheck className="w-4 h-4 text-emerald-500" />
+                    <IconCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
                   ) : (
                     <IconCopy className="w-4 h-4 text-muted-foreground" />
                   )}
@@ -187,10 +189,14 @@ export const AccessCard = memo<{
                 </div>
               ) : null}
               {!isTauriRuntime() && (
-                <p className="text-xs text-amber-500/80 leading-relaxed">{t('access.lan.webDevHint')}</p>
+                <p className="text-xs text-amber-700 dark:text-amber-500/80 leading-relaxed">
+                  {t('access.lan.webDevHint')}
+                </p>
               )}
               {isTauriRuntime() && !config.enableRemoteAccess && (
-                <p className="text-xs text-amber-500/80 leading-relaxed">{t('access.lan.tauriEnableRemote')}</p>
+                <p className="text-xs text-amber-700 dark:text-amber-500/80 leading-relaxed">
+                  {t('access.lan.tauriEnableRemote')}
+                </p>
               )}
             </>
           ) : (
@@ -203,8 +209,8 @@ export const AccessCard = memo<{
 
       {showLocalIngress && !config.requirePassword && isTauriRuntime() && config.enableRemoteAccess && (
         <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
-          <IconLock className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-amber-500/80 leading-relaxed">{t('access.securityWarning')}</p>
+          <IconLock className="w-4 h-4 text-amber-700 dark:text-amber-500 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-500/80 leading-relaxed">{t('access.securityWarning')}</p>
         </div>
       )}
 
