@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 import type { ToolApprovalRequest } from '@/store/chat/types';
@@ -49,7 +49,15 @@ interface SingleApprovalCardProps {
   compact?: boolean;
 }
 
-export default function SingleApprovalCard({
+/**
+ * One card answers one request: its working state (the text being edited, the folders ticked, the "always allow"
+ * scope) starts from that request and is dropped with it, so a card handed another request starts over.
+ */
+export default function SingleApprovalCard(props: SingleApprovalCardProps) {
+  return <ApprovalCardBody key={props.request.requestId} {...props} />;
+}
+
+function ApprovalCardBody({
   request,
   onResolve,
   isLoading,
@@ -57,8 +65,15 @@ export default function SingleApprovalCard({
   compact = false,
 }: SingleApprovalCardProps) {
   const t = useTranslations('toolApproval');
+  const inputEntries = useMemo(() => {
+    if (isShellApprovalTool(request.toolName)) {
+      return getShellEditInputEntries(request.toolInput);
+    }
+    return Object.entries(request.toolInput).slice(0, 8);
+  }, [request.toolInput, request.toolName]);
+
   const [mode, setMode] = useState<DialogMode>('default');
-  const [editedArgs, setEditedArgs] = useState<Record<string, string>>({});
+  const [editedArgs, setEditedArgs] = useState(() => initialEditedArgs(inputEntries));
   const [feedback, setFeedback] = useState('');
   const [showAlwaysAllowConfirm, setShowAlwaysAllowConfirm] = useState(false);
   const [allowAlwaysScope, setAllowAlwaysScope] = useState<AllowAlwaysScope>(() =>
@@ -74,13 +89,6 @@ export default function SingleApprovalCard({
   const [guidance, setGuidance] = useState('');
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [grantDirectoryAccess, setGrantDirectoryAccess] = useState(false);
-
-  const inputEntries = useMemo(() => {
-    if (isShellApprovalTool(request.toolName)) {
-      return getShellEditInputEntries(request.toolInput);
-    }
-    return Object.entries(request.toolInput).slice(0, 8);
-  }, [request.toolInput, request.toolName]);
 
   const isSingleStringParam = inputEntries.length === 1 && typeof inputEntries[0][1] === 'string';
 
@@ -118,16 +126,6 @@ export default function SingleApprovalCard({
       : request.toolName.startsWith('browser_')
         ? t('permissionTypes.browser')
         : t('permissionTypes.default');
-
-  useEffect(() => {
-    setEditedArgs(initialEditedArgs(inputEntries));
-  }, [inputEntries]);
-
-  useEffect(() => {
-    const nextScope = defaultAllowAlwaysScope(request.toolName);
-    setAllowAlwaysScope(nextScope);
-    setAllowAlwaysScopeInEdit(nextScope);
-  }, [request.requestId, request.toolName]);
 
   const { remainingSeconds, isExpired, isUrgent, progressPercent } = useApprovalCountdown(
     request.expiresAt,
