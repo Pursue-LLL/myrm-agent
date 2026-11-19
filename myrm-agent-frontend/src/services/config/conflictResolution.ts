@@ -6,6 +6,7 @@
  * [OUTPUT]
  * ConfigConflictResolution / ConfigConflictResolver: the context and hook through which the user settles a version conflict.
  * resolveConflicts: reconciles locally cached configs with the server after the backend rejected a write on version.
+ * RecordSink / adoptServerRecord: make a record the server holds the cached copy, the merge base and the subscribers' news.
  *
  * [POS]
  * Conflict tiers of the config sync layer (see `_ARCH.md`): a clean three-way merge is applied silently, a conflict on
@@ -34,13 +35,17 @@ export interface ConfigConflictResolution {
  */
 export type ConfigConflictResolver = (conflict: ConfigConflictResolution) => Promise<boolean> | boolean;
 
-export interface ConflictContext {
-  adapter: ConfigAdapter;
-  deviceId: string;
+/** Where a record adopted from the server lands: the cached copy, the merge base and the subscribers. */
+export interface RecordSink {
   cache: Map<ConfigKey, ConfigRecord>;
   baseCache: Map<ConfigKey, ConfigRecord>;
-  resolver: ConfigConflictResolver | null;
   notify: (key: ConfigKey, value: ConfigValueMap[ConfigKey], meta: ConfigRecord['meta']) => void;
+}
+
+export interface ConflictContext extends RecordSink {
+  adapter: ConfigAdapter;
+  deviceId: string;
+  resolver: ConfigConflictResolver | null;
   /** Queue changes whose retry failed so the next sync (and, for allowlisted keys, a reload) picks them up. */
   requeue: (changes: ConfigChange[]) => void;
 }
@@ -162,8 +167,8 @@ function rebaseLocalRecord(
   };
 }
 
-function adoptServerRecord(ctx: ConflictContext, key: ConfigKey, serverRecord: ConfigRecord): void {
-  ctx.cache.set(key, serverRecord);
-  ctx.baseCache.set(key, cloneDeep(serverRecord));
-  ctx.notify(key, serverRecord.value, serverRecord.meta);
+export function adoptServerRecord(sink: RecordSink, key: ConfigKey, serverRecord: ConfigRecord): void {
+  sink.cache.set(key, serverRecord);
+  sink.baseCache.set(key, cloneDeep(serverRecord));
+  sink.notify(key, serverRecord.value, serverRecord.meta);
 }

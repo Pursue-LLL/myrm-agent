@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { chooseAction } from '@/lib/app-dialog';
 import { confirmImportMemories, dryRunImportMemories, rollbackMemoryImport } from '@/services/memory/archive';
+import { reloadMigratedConfigs } from '@/services/memory/migratedConfigReload';
 import { discoverMigrationSources, type ExternalSource } from '@/services/migrationDiscovery';
 import MigrationWizardSection from '../MigrationWizardSection';
 
@@ -37,6 +38,7 @@ const agentState = { agents: [], fetchAgents: vi.fn() };
 vi.mock('@/store/useAgentStore', () => ({
   default: (select: (state: typeof agentState) => unknown) => select(agentState),
 }));
+vi.mock('@/services/memory/migratedConfigReload', () => ({ reloadMigratedConfigs: vi.fn() }));
 
 // The three steps are reduced to the one control that moves the wizard forward.
 const source: ExternalSource = {
@@ -154,5 +156,29 @@ describe('MigrationWizardSection rollback', () => {
       expect(rollbackMemoryImport).toHaveBeenCalledExactlyOnceWith('batch-1', { deleteImportedAgent: false }),
     );
     expect(chooseAction).not.toHaveBeenCalled();
+  });
+
+  it('reloads the settings once the rollback has restored them on the server', async () => {
+    const rollback = await reachResultStep(false);
+    vi.mocked(reloadMigratedConfigs).mockClear();
+
+    fireEvent.click(rollback);
+
+    await waitFor(() => expect(reloadMigratedConfigs).toHaveBeenCalledOnce());
+    expect(vi.mocked(rollbackMemoryImport).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(reloadMigratedConfigs).mock.invocationCallOrder[0],
+    );
+  });
+
+  it('reloads nothing when the question is dismissed, because nothing was undone', async () => {
+    vi.mocked(chooseAction).mockResolvedValue(null);
+    const rollback = await reachResultStep(true);
+    vi.mocked(reloadMigratedConfigs).mockClear();
+
+    fireEvent.click(rollback);
+    await waitFor(() => expect(chooseAction).toHaveBeenCalledTimes(1));
+    await settle();
+
+    expect(reloadMigratedConfigs).not.toHaveBeenCalled();
   });
 });

@@ -43,6 +43,7 @@ const agentState = { agents: [], fetchAgents: vi.fn() };
 vi.mock('@/store/useAgentStore', () => ({
   default: (select: (state: typeof agentState) => unknown) => select(agentState),
 }));
+vi.mock('@/services/memory/migratedConfigReload', () => ({ reloadMigratedConfigs: vi.fn() }));
 
 const archive = new File(['zip'], 'export.zip');
 

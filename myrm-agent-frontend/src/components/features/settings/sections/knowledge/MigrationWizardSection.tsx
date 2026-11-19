@@ -6,6 +6,7 @@
  * ./useMigrationDeepLink (POS: ?source= auto-preview)
  * @/services/migrationDiscovery (POS: external assistant auto-discovery client)
  * @/services/memory/archive (POS: memory import dry-run / confirm / rollback client)
+ * @/services/memory/migratedConfigReload (POS: refreshes the cached settings rows the import and its rollback write)
  *
  * [OUTPUT]
  * MigrationWizardSection: discover → preview → import; honors ?source= deep link auto-preview.
@@ -38,6 +39,7 @@ import {
   type MemoryImportDryRunResponse,
   type MemoryImportPendingSkill,
 } from '@/services/memory/archive';
+import { reloadMigratedConfigs } from '@/services/memory/migratedConfigReload';
 import { clearMigrationReadinessAnchor, type MigrationWorkspaceBindCandidate } from '@/lib/migrationChatHandoff';
 import { submitSkillMigration, type SkillMigrationSubmitResponse } from '@/services/skill/migration';
 import { chooseAction } from '@/lib/app-dialog';
@@ -220,6 +222,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         }
       }
 
+      await reloadMigratedConfigs();
       setStep('result');
       invalidateDiscoveryCache();
       onMigrationComplete?.();
@@ -294,6 +297,7 @@ const MigrationWizardSection = memo(({ onMigrationComplete }: MigrationWizardSec
         toast.success(t('rollbackSuccess'));
       }
       clearMigrationReadinessAnchor();
+      await reloadMigratedConfigs();
       setStep('scan');
       setDryRunResult(null);
       setImportResult(null);
