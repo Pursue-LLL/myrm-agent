@@ -20,4 +20,3 @@
 | `notification.py` | 核心 | 通知模式枚举与显式 @ 元数据 | ✅ |
 | `context_document.py` | 核心 | 渠道随一次 turn 附带的参考文档：`ContextDocument`（正文 Markdown 或纯文本 + `ContextDocumentStatus`：READY/DENIED（应用没被加进这篇文档）/SCOPE_MISSING（应用根本没有读文档的权限）/TOO_LARGE/UNSUPPORTED/UNAVAILABLE；`clamped` 截断、`as_metadata`/`from_metadata` 经 `InboundMessage.metadata[METADATA_CONTEXT_DOCUMENT_KEY]` 往返）。生产方是能读取消息所指文档的 provider，消费方是智能体执行器 | ✅ |
 | `status.py` | 核心 | 渠道状态与诊断类型：`ChannelStatus`、`StartMode`、`ChannelHealth`（熔断）、`ChannelActivity`（最近出入站时间，供 status API 消费）、`ChannelIssue`、`ChannelCapabilities`（`reaction_glyphs` 声明平台接受的反应表情，`None` 表示不限；`reaction_key` 去掉变体选择符）| ✅ |
-| `thread_sharing.py` | 核心 | 话题绑定的 thread 共享设置值（`isolated` / `shared`）：随绑定保存、由话题 API 回读，会话键不读取它 | ✅ |

@@ -99,13 +99,7 @@ HTTP/SSE 主链路在 `execute_stream_pipeline` 内 **INFO 记录解析后的投
 
 ---
 
-## 话题内会话共享（Thread Sharing Mode）
-
-### 功能概述
-
-`thread_sharing_mode`（`isolated` 为默认值，另有 `shared`）是 `TopicContext` 的一个配置项：随话题绑定保存，经话题 API 读写。会话键不读取它，所以它不改变任何一条消息落在哪份对话历史里。
-
-### 会话归属（与该设置无关）
+## 会话归属（Session Key）
 
 `agent_executor/session.py::_build_session_key` 用渠道、对端类型、对端、话题、智能体拼出会话键：群聊的对端取群 `chat_id`，私聊取发送者。因此：
 
@@ -115,11 +109,7 @@ HTTP/SSE 主链路在 `execute_stream_pipeline` 内 **INFO 记录解析后的投
 | 普通群聊 | 同一个群的成员共用一份 |
 | 私聊 DM | 每个发送者各一份 |
 
-`resolve_session_key` 与执行前导（`execute_preamble/session.py`）把该设置一路传到 `_build_session_key`，那里没有读它；`isolated` 所暗示的「每个用户各有一份历史」在群聊与话题里并不存在。
-
-### 前端配置
-
-在「设置 → 渠道路由」页面，每个 Topic 有一个共享模式开关，切换只保存配置值。
+`resolve_session_key` 在基础键上按重置策略追加 epoch：persistent 不追加，daily 按日，idle 按空闲时长，`/new` 强制新 epoch。上表的归属与键格式由 `tests/core/channel_bridge/test_session_key_ownership.py` 守卫。
 
 ---
 

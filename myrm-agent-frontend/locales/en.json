@@ -3576,14 +3576,6 @@
       "channelRouting": {
         "title": "Channel Routing",
         "description": "Manage agent bindings for different channel groups",
-        "threadSharing": {
-          "label": "Thread Sharing Mode",
-          "isolated": "Isolated",
-          "isolatedDesc": "Each user has their own conversation history",
-          "shared": "Shared",
-          "sharedDesc": "All users in thread share the same conversation history",
-          "tooltip": "Enable for collaborative scenarios like Discord Forums or Telegram Forum Topics"
-        },
         "replyMode": {
           "label": "Reply Mode",
           "auto": "Auto Send",
@@ -12708,7 +12700,6 @@
       },
       "toasts": {
         "agentBound": "Agent bound successfully",
-        "threadSharingUpdated": "Thread sharing mode updated",
         "globalAgentSet": "Global agent set successfully",
         "replyModeUpdated": "Reply mode updated",
         "draftTimeoutUpdated": "Draft timeout settings updated"
@@ -12717,18 +12708,9 @@
         "initialLoad": "Failed to load channels or agents",
         "topicsLoad": "Failed to load topics for this channel",
         "agentBind": "Failed to bind agent",
-        "threadSharing": "Failed to set sharing mode",
         "globalAgent": "Failed to set global agent",
         "replyMode": "Failed to set reply mode",
         "draftTimeout": "Failed to update draft timeout"
-      },
-      "threadSharing": {
-        "label": "Thread Sharing Mode",
-        "isolated": "Isolated",
-        "isolatedDesc": "Each user has independent conversation history",
-        "shared": "Shared",
-        "sharedDesc": "All users in a topic share the same conversation history",
-        "tooltip": "Suitable for collaborative scenarios like Discord forums or Telegram topics"
       },
       "replyMode": {
         "label": "Reply Mode",
@@ -21296,7 +21278,6 @@
         },
         "toasts": {
           "agentBound": "Agent bound successfully",
-          "threadSharingUpdated": "Thread sharing mode updated",
           "globalAgentSet": "Global agent set successfully",
           "replyModeUpdated": "Reply mode updated",
           "draftTimeoutUpdated": "Draft timeout settings updated",
@@ -21310,7 +21291,6 @@
           "initialLoad": "Failed to load channels or agents",
           "topicsLoad": "Failed to load topics for channel",
           "agentBind": "Failed to bind agent",
-          "threadSharing": "Failed to set sharing mode",
           "globalAgent": "Failed to set global agent",
           "replyMode": "Failed to set reply mode",
           "draftTimeout": "Failed to update draft timeout",
@@ -21322,14 +21302,6 @@
           "label": "Workspace",
           "none": "-- No workspace --",
           "emptyProjects": "Mount a project folder first in Projects"
-        },
-        "threadSharing": {
-          "label": "Thread Sharing Mode",
-          "isolated": "Isolated",
-          "isolatedDesc": "Each user has their own conversation history",
-          "shared": "Shared",
-          "sharedDesc": "All users in thread share the same conversation history",
-          "tooltip": "Enable for collaborative scenarios like Discord Forums or Telegram Forum Topics"
         },
         "replyMode": {
           "label": "Reply Mode",

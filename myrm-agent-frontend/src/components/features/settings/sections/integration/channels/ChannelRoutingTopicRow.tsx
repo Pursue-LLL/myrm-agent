@@ -4,18 +4,12 @@ import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Users, ShieldCheck, Zap, BadgeCheck, Ban, Undo2 } from 'lucide-react';
-import { IconAlertCircle, IconLoader, IconUser } from '@/components/features/icons/PremiumIcons';
+import { IconAlertCircle, IconLoader } from '@/components/features/icons/PremiumIcons';
 import { getBuiltinAgentName } from '@/components/agent/builtin-agent-i18n';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import type { AgentListItem } from '@/services/agent';
 import type { Project } from '@/services/projects';
-import type {
-  DraftTimeoutAction,
-  IdentityScopeMode,
-  ReplyMode,
-  ThreadSharingMode,
-  TopicBinding,
-} from '@/services/channels';
+import type { DraftTimeoutAction, IdentityScopeMode, ReplyMode, TopicBinding } from '@/services/channels';
 import useConfigStore from '@/store/useConfigStore';
 import { resolveTopicWorkspaceDisplayLabel } from './topicWorkspaceLabel';
 
@@ -27,7 +21,6 @@ interface ChannelRoutingTopicRowProps {
   onBindTopicWorkspace: (topicId: string, projectId: string | null) => void;
   onSetDraftTimeout: (topicId: string, minutes: number, action: DraftTimeoutAction) => void;
   onSetReplyMode: (topicId: string, mode: ReplyMode) => void;
-  onSetThreadSharingMode: (topicId: string, mode: ThreadSharingMode) => void;
   onSetIdentity: (topicId: string, name: string | null, scope: IdentityScopeMode) => void;
   onRevokeIdentity: (topicId: string, revoked: boolean) => void;
   onSetFollowUp: (topicId: string, completionReceipts: boolean, stallNudge: boolean) => void;
@@ -46,7 +39,6 @@ export function ChannelRoutingTopicRow({
   onBindTopicWorkspace,
   onSetDraftTimeout,
   onSetReplyMode,
-  onSetThreadSharingMode,
   onSetIdentity,
   onRevokeIdentity,
   onSetFollowUp,
@@ -137,46 +129,6 @@ export function ChannelRoutingTopicRow({
           </TooltipProvider>
         )}
         {projects.length === 0 && <span className="text-xs text-muted-foreground">{t('workspace.emptyProjects')}</span>}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <IconAlertCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-xs">
-              <p className="text-xs">{t('threadSharing.tooltip')}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-        <span className="text-xs text-muted-foreground">{t('threadSharing.label')}:</span>
-        <div className="flex flex-wrap gap-1">
-          <button
-            onClick={() => onSetThreadSharingMode(topic.topicId, 'isolated')}
-            disabled={isSaving}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-              topic.threadSharingMode === 'isolated'
-                ? 'bg-primary/10 text-primary font-medium'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <IconUser className="w-3 h-3" />
-            {t('threadSharing.isolated')}
-          </button>
-          <button
-            onClick={() => onSetThreadSharingMode(topic.topicId, 'shared')}
-            disabled={isSaving}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
-              topic.threadSharingMode === 'shared'
-                ? 'bg-primary/10 text-primary font-medium'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <Users className="w-3 h-3" />
-            {t('threadSharing.shared')}
-          </button>
-        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pl-11">

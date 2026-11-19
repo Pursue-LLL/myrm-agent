@@ -16,5 +16,5 @@
 
 ## 依赖关系
 
-- 上游：`app.channels.types`（`TopicContext` / `IdentityScopeMode` / `ReplyMode` …）、`app.channels.types.thread_sharing`
+- 上游：`app.channels.types`（`TopicContext` / `IdentityScopeMode` / `ReplyMode` …）
 - 下游：`app/core/channel_bridge/setup/`、`app/api/channels/topics.py`、`app/core/cron/adapters/*`

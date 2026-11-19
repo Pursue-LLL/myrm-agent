@@ -3576,14 +3576,6 @@
       "channelRouting": {
         "title": "渠道路由",
         "description": "管理不同渠道群组的专属 Agent 绑定",
-        "threadSharing": {
-          "label": "会话共享模式",
-          "isolated": "隔离",
-          "isolatedDesc": "每个用户拥有独立的对话历史",
-          "shared": "共享",
-          "sharedDesc": "话题内所有用户共享同一对话历史",
-          "tooltip": "适用于协作场景，如 Discord 论坛或 Telegram 话题"
-        },
         "replyMode": {
           "label": "回复模式",
           "auto": "自动发送",
@@ -12708,7 +12700,6 @@
       },
       "toasts": {
         "agentBound": "智能体绑定成功",
-        "threadSharingUpdated": "线程共享模式已更新",
         "globalAgentSet": "全局智能体设置成功",
         "replyModeUpdated": "回复模式已更新",
         "draftTimeoutUpdated": "草稿超时设置已更新"
@@ -12717,18 +12708,9 @@
         "initialLoad": "加载频道或智能体失败",
         "topicsLoad": "加载该频道的话题失败",
         "agentBind": "绑定智能体失败",
-        "threadSharing": "设置共享模式失败",
         "globalAgent": "设置全局智能体失败",
         "replyMode": "设置回复模式失败",
         "draftTimeout": "更新草稿超时失败"
-      },
-      "threadSharing": {
-        "label": "线程共享模式",
-        "isolated": "隔离",
-        "isolatedDesc": "每个用户拥有独立的对话历史",
-        "shared": "共享",
-        "sharedDesc": "话题中的所有用户共享同一份对话历史",
-        "tooltip": "适合 Discord 论坛或 Telegram 话题等协作场景"
       },
       "replyMode": {
         "label": "回复模式",
@@ -21296,7 +21278,6 @@
         },
         "toasts": {
           "agentBound": "Agent 绑定成功",
-          "threadSharingUpdated": "会话共享模式已更新",
           "globalAgentSet": "全局 Agent 设置成功",
           "replyModeUpdated": "回复模式已更新",
           "draftTimeoutUpdated": "草稿超时设置已更新",
@@ -21310,7 +21291,6 @@
           "initialLoad": "加载渠道或 Agent 失败",
           "topicsLoad": "加载该渠道的话题失败",
           "agentBind": "绑定 Agent 失败",
-          "threadSharing": "设置共享模式失败",
           "globalAgent": "设置全局 Agent 失败",
           "replyMode": "设置回复模式失败",
           "draftTimeout": "更新草稿超时设置失败",
@@ -21322,14 +21302,6 @@
           "label": "工作目录",
           "none": "-- 不绑定目录 --",
           "emptyProjects": "请先在项目中挂载文件夹"
-        },
-        "threadSharing": {
-          "label": "会话共享模式",
-          "isolated": "隔离",
-          "isolatedDesc": "每个用户拥有独立的对话历史",
-          "shared": "共享",
-          "sharedDesc": "话题内所有用户共享同一对话历史",
-          "tooltip": "适用于协作场景，如 Discord 论坛或 Telegram 话题"
         },
         "replyMode": {
           "label": "回复模式",

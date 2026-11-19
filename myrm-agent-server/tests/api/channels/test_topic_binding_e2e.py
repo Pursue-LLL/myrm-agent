@@ -100,7 +100,6 @@ def test_topic_binding_e2e(client):
             assert t["agentId"] == agent_id
             assert t["displayName"] == "E2E Test Group"
             assert t["avatarUrl"] == "http://example.com/e2e.png"
-            assert t["threadSharingMode"] == "isolated"  # Default value
             found = True
     assert found, "Topic not found in list"
 
@@ -184,74 +183,6 @@ def test_search_agent_channel_bind_rejected_e2e(client):
     sanitized = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
     assert sanitized.status_code == 200, sanitized.text
     assert sanitized.json()["globalAgentId"] is None
-
-
-def test_topic_thread_sharing_mode_e2e(client):
-    """End-to-end test for thread sharing mode configuration."""
-
-    unique_id = str(uuid.uuid4())[:8]
-
-    # Create an agent
-    agent_payload = {
-        "name": f"E2E Sharing Agent {unique_id}",
-        "description": "Agent for thread sharing testing",
-        "model": "gpt-4o",
-        "systemPrompt": "You are a collaborative assistant.",
-        "skills": [],
-    }
-    res = client.post("/api/v1/user-agents", json=agent_payload)
-    assert res.status_code == 200, res.text
-    agent_id = res.json()["data"]["id"]
-
-    channel_name = f"test_sharing_channel_{unique_id}"
-    topic_id = f"test_forum_{unique_id}:test_thread_{unique_id}"
-
-    # 1. Bind with shared mode
-    bind_shared_payload = {
-        "agentId": agent_id,
-        "displayName": "Shared Forum Topic",
-        "avatarUrl": "http://example.com/shared.png",
-        "threadSharingMode": "shared",
-    }
-
-    response = client.post(
-        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
-        json=bind_shared_payload,
-    )
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["threadSharingMode"] == "shared"
-
-    # 2. Verify shared mode in topics list
-    response = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
-    assert response.status_code == 200, response.text
-    data = response.json()
-
-    found = False
-    for t in data["topics"]:
-        if t["topicId"] == topic_id:
-            assert t["threadSharingMode"] == "shared"
-            found = True
-    assert found, "Topic with shared mode not found"
-
-    # 3. Update to isolated mode
-    bind_isolated_payload = {"agentId": agent_id, "threadSharingMode": "isolated"}
-
-    response = client.post(
-        f"/api/v1/channels/manage/{channel_name}/topics/{topic_id}/bind",
-        json=bind_isolated_payload,
-    )
-    assert response.status_code == 200, response.text
-    data = response.json()
-    assert data["threadSharingMode"] == "isolated"
-
-    # 4. Verify isolated mode
-    response = client.get(f"/api/v1/channels/manage/{channel_name}/topics")
-    data = response.json()
-
-    for t in data["topics"]:
-        if t["topicId"] == topic_id:
-            assert t["threadSharingMode"] == "isolated"
 
 
 def test_topic_team_identity_e2e(client):
@@ -471,5 +402,3 @@ def test_cron_delivery_revoked_identity_fails_closed(client):
 
     with __import__("pytest").raises(RuntimeError, match="identity revoked"):
         asyncio.run(ChannelResultDelivery().deliver(job, result))
-
-    print("Thread Sharing Mode E2E Test Passed!")

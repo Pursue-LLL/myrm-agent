@@ -1,7 +1,7 @@
 """Topic routing types: draft-review mode, identity scope and per-topic configuration.
 
 [INPUT]
-- channels.types.thread_sharing::ThreadSharingMode (POS: the per-topic thread sharing value)
+- (none)
 
 [OUTPUT]
 - TopicContext: per-topic routing configuration carried with inbound messages
@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-
-from .thread_sharing import ThreadSharingMode
 
 METADATA_ROUTE_AGENT_KEY = "route_agent_id"
 
@@ -59,10 +57,6 @@ class TopicContext:
     this context carries topic-specific overrides that affect Agent selection,
     reply delivery and team identity.
 
-    ``thread_sharing_mode``: stored with the topic binding and returned by the
-    topic API. Session keys do not read it, so the members of a group thread
-    share one conversation whichever value is set.
-
     ``reply_mode``: Controls outbound message delivery.
     - ``auto`` (default): Agent replies are sent immediately (existing behavior).
     - ``draft_review``: Agent replies are held as drafts for human approval
@@ -88,7 +82,6 @@ class TopicContext:
     enabled: bool = True
     bound_at: str | None = None
     matched_by: str | None = None
-    thread_sharing_mode: ThreadSharingMode = ThreadSharingMode.ISOLATED
     reply_mode: ReplyMode = ReplyMode.AUTO
     draft_timeout_minutes: int = 5
     draft_timeout_action: DraftTimeoutAction = DraftTimeoutAction.AUTO_REJECT

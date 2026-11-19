@@ -28,7 +28,6 @@ vi.mock('@/store/useConfigStore', () => ({
 vi.mock('@/components/features/icons/PremiumIcons', () => ({
   IconAlertCircle: () => <span data-testid="icon-alert" />,
   IconLoader: () => <span data-testid="icon-loader" />,
-  IconUser: () => <span data-testid="icon-user" />,
 }));
 
 vi.mock('@/components/agent/builtin-agent-i18n', () => ({
@@ -42,7 +41,6 @@ const baseTopic: TopicBinding = {
   agentId: null,
   displayName: 'Sales chat',
   avatarUrl: null,
-  threadSharingMode: 'isolated',
   replyMode: 'draft_review',
   draftTimeoutMinutes: 5,
   draftTimeoutAction: 'auto_reject',
@@ -65,7 +63,6 @@ function renderRow(topic: Partial<TopicBinding> = {}) {
       onBindTopicWorkspace={vi.fn()}
       onSetDraftTimeout={onSetDraftTimeout}
       onSetReplyMode={vi.fn()}
-      onSetThreadSharingMode={vi.fn()}
       onSetIdentity={vi.fn()}
       onRevokeIdentity={vi.fn()}
       onSetFollowUp={vi.fn()}
@@ -137,16 +134,13 @@ describe('ChannelRoutingTopicRow draft review', () => {
     expect(screen.queryByText('replyMode.noNotifyChannel')).toBeNull();
   });
 
-  it.each(['threadSharing.label:', 'replyMode.label:'])(
-    'lets the %s row and its buttons wrap, so long translations are not clipped on a narrow screen',
-    (labelText) => {
-      renderRow();
+  it('lets the reply mode row and its buttons wrap, so long translations are not clipped on a narrow screen', () => {
+    renderRow();
 
-      const label = screen.getByText(labelText);
-      expect(label.parentElement?.className).toContain('flex-wrap');
-      expect(label.nextElementSibling?.className).toContain('flex-wrap');
-    },
-  );
+    const label = screen.getByText('replyMode.label:');
+    expect(label.parentElement?.className).toContain('flex-wrap');
+    expect(label.nextElementSibling?.className).toContain('flex-wrap');
+  });
 
   it('lets the agent select shrink and the identity scope buttons wrap, so a long translation never leaves the card', () => {
     renderRow();

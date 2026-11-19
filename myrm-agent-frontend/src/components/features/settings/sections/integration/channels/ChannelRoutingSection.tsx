@@ -7,7 +7,7 @@
  * @/components/features/memory/shared-context/SharedContextTargetBinding (POS: Shared Context runtime binding component)
  *
  * [OUTPUT]
- * ChannelRoutingSection: Channel-level Agent routing, thread sharing, and Shared Context binding UI.
+ * ChannelRoutingSection: Channel-level Agent routing and Shared Context binding UI.
  *
  * [POS]
  * Settings section for configuring connected channel routing and inherited Shared Contexts.
@@ -36,7 +36,6 @@ export default function ChannelRoutingSection() {
     handleRevokeIdentity,
     handleSetFollowUp,
     handleSetReplyMode,
-    handleSetThreadSharingMode,
     loadingChannels,
     loadingTopics,
     saving,
@@ -50,8 +49,6 @@ export default function ChannelRoutingSection() {
     topicsLoadError: t('errors.topicsLoad'),
     agentBoundToast: t('toasts.agentBound'),
     agentBindError: t('errors.agentBind'),
-    threadSharingUpdatedToast: t('toasts.threadSharingUpdated'),
-    threadSharingError: t('errors.threadSharing'),
     replyModeUpdatedToast: t('toasts.replyModeUpdated'),
     replyModeError: t('errors.replyMode'),
     draftTimeoutUpdatedToast: t('toasts.draftTimeoutUpdated'),
@@ -175,7 +172,6 @@ export default function ChannelRoutingSection() {
                               isSaving={saving === topic.topicId}
                               onBindTopic={handleBindTopic}
                               onBindTopicWorkspace={handleBindTopicWorkspace}
-                              onSetThreadSharingMode={handleSetThreadSharingMode}
                               onSetReplyMode={handleSetReplyMode}
                               onSetDraftTimeout={handleSetDraftTimeout}
                               onSetIdentity={handleSetIdentity}

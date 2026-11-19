@@ -29,7 +29,6 @@ from app.channels.types import (
     SessionResetMode,
     TopicContext,
 )
-from app.channels.types.thread_sharing import ThreadSharingMode
 from app.core.channel_bridge.config_parsers import session_policy_from_agent_dict
 from app.core.channel_bridge.executor_helpers import (
     ChannelChatHistory,
@@ -85,13 +84,11 @@ async def resolve_channel_session_context(
         )
 
     force_new = bool(msg.metadata.get("force_new_epoch"))
-    thread_sharing_mode = topic_context.thread_sharing_mode if topic_context else ThreadSharingMode.ISOLATED
     session_key = await resolve_session_key(
         msg,
         session_policy,
         agent_id=resolved_agent_id,
         force_new_epoch=force_new,
-        thread_sharing_mode=thread_sharing_mode,
     )
 
     is_cold_start = await _detect_cold_start(session_key)

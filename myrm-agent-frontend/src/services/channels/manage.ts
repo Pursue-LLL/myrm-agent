@@ -259,8 +259,6 @@ export async function toggleChannel(channelName: string, enabled: boolean): Prom
 
 // ── Channel Routing ──
 
-export type ThreadSharingMode = 'isolated' | 'shared';
-
 export type ReplyMode = 'auto' | 'draft_review';
 export type DraftTimeoutAction = 'auto_send' | 'auto_reject';
 
@@ -274,7 +272,6 @@ export interface TopicBinding {
   workspaceLabel?: string | null;
   displayName: string | null;
   avatarUrl: string | null;
-  threadSharingMode: ThreadSharingMode;
   replyMode: ReplyMode;
   draftTimeoutMinutes: number;
   draftTimeoutAction: DraftTimeoutAction;
@@ -316,7 +313,6 @@ export async function bindTopicAgent(
   channel: string,
   topicId: string,
   agentId: string | null,
-  threadSharingMode?: ThreadSharingMode,
   replyMode?: ReplyMode,
   draftTimeoutMinutes?: number,
   draftTimeoutAction?: DraftTimeoutAction,
@@ -326,7 +322,6 @@ export async function bindTopicAgent(
 ): Promise<void> {
   const body: Record<string, unknown> = {
     agentId,
-    threadSharingMode,
     replyMode,
     draftTimeoutMinutes,
     draftTimeoutAction,

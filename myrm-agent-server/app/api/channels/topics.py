@@ -104,7 +104,6 @@ async def list_channel_topics(
                     boundAt=str(topic_cfg.get("boundAt", "")) or None,
                     displayName=str(topic_cfg.get("displayName", "")) or None,
                     avatarUrl=str(topic_cfg.get("avatarUrl", "")) or None,
-                    threadSharingMode=str(topic_cfg.get("threadSharingMode", "isolated")),
                     replyMode=str(topic_cfg.get("replyMode", "auto")),
                     draftTimeoutMinutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
                     draftTimeoutAction=str(topic_cfg.get("draftTimeoutAction", "auto_reject")),
@@ -180,7 +179,6 @@ async def bind_channel_topic(
             "agent_id": body.agent_id,
             "display_name": body.display_name,
             "avatar_url": body.avatar_url,
-            "thread_sharing_mode": body.thread_sharing_mode or "isolated",
             "reply_mode": reply_mode,
             "draft_timeout_minutes": body.draft_timeout_minutes or 5,
             "draft_timeout_action": draft_timeout_action,
@@ -222,7 +220,6 @@ async def bind_channel_topic(
         boundAt=ctx.bound_at,
         displayName=body.display_name,
         avatarUrl=body.avatar_url,
-        threadSharingMode=ctx.thread_sharing_mode,
         replyMode=ctx.reply_mode.value,
         draftTimeoutMinutes=ctx.draft_timeout_minutes,
         draftTimeoutAction=ctx.draft_timeout_action.value,
@@ -274,7 +271,6 @@ async def set_channel_default_agent(
             agent_id=body.agent_id,
             display_name=body.display_name,
             avatar_url=body.avatar_url,
-            thread_sharing_mode=body.thread_sharing_mode or "isolated",
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -286,7 +282,6 @@ async def set_channel_default_agent(
         boundAt=ctx.bound_at,
         displayName=body.display_name,
         avatarUrl=body.avatar_url,
-        threadSharingMode=body.thread_sharing_mode or "isolated",
         identityScope=ctx.identity_scope.value,
         identityId=ctx.identity_id,
         identityName=ctx.identity_name,

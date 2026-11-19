@@ -12,7 +12,6 @@ import {
   type IdentityScopeMode,
   type ReplyMode,
   type TopicBinding,
-  type ThreadSharingMode,
 } from '@/services/channels';
 import { listAgents, type AgentListItem } from '@/services/agent';
 import { getProjects, type Project } from '@/services/projects';
@@ -24,8 +23,6 @@ interface UseChannelRoutingOptions {
   topicsLoadError: string;
   agentBoundToast: string;
   agentBindError: string;
-  threadSharingUpdatedToast: string;
-  threadSharingError: string;
   replyModeUpdatedToast: string;
   replyModeError: string;
   draftTimeoutUpdatedToast: string;
@@ -122,24 +119,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     }
   };
 
-  const handleSetThreadSharingMode = async (topicId: string, mode: ThreadSharingMode) => {
-    if (!selectedChannel) {
-      return;
-    }
-    setSaving(topicId);
-    try {
-      const topic = topics.find((item) => item.topicId === topicId);
-      await bindTopicAgent(selectedChannel, topicId, topic?.agentId ?? null, mode);
-      setTopics((prev) => prev.map((item) => (item.topicId === topicId ? { ...item, threadSharingMode: mode } : item)));
-      toast.success(messages.threadSharingUpdatedToast);
-    } catch (error) {
-      console.error('Failed to set sharing mode:', error);
-      toast.error(messages.threadSharingError);
-    } finally {
-      setSaving(null);
-    }
-  };
-
   const handleSetReplyMode = async (topicId: string, mode: ReplyMode) => {
     if (!selectedChannel) {
       return;
@@ -151,7 +130,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         selectedChannel,
         topicId,
         topic?.agentId ?? null,
-        topic?.threadSharingMode,
         mode,
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
@@ -173,15 +151,7 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     setSaving(topicId);
     try {
       const topic = topics.find((item) => item.topicId === topicId);
-      await bindTopicAgent(
-        selectedChannel,
-        topicId,
-        topic?.agentId ?? null,
-        topic?.threadSharingMode,
-        topic?.replyMode,
-        minutes,
-        action,
-      );
+      await bindTopicAgent(selectedChannel, topicId, topic?.agentId ?? null, topic?.replyMode, minutes, action);
       setTopics((prev) =>
         prev.map((item) =>
           item.topicId === topicId ? { ...item, draftTimeoutMinutes: minutes, draftTimeoutAction: action } : item,
@@ -225,7 +195,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         selectedChannel,
         topicId,
         topic?.agentId ?? null,
-        topic?.threadSharingMode,
         topic?.replyMode,
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
@@ -269,7 +238,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         selectedChannel,
         topicId,
         topic?.agentId ?? null,
-        topic?.threadSharingMode,
         topic?.replyMode,
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
@@ -303,7 +271,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         selectedChannel,
         topicId,
         topic?.agentId ?? null,
-        topic?.threadSharingMode,
         topic?.replyMode,
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
@@ -333,7 +300,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
         selectedChannel,
         topicId,
         topic?.agentId ?? null,
-        topic?.threadSharingMode,
         topic?.replyMode,
         topic?.draftTimeoutMinutes,
         topic?.draftTimeoutAction,
@@ -366,7 +332,6 @@ export function useChannelRouting(messages: UseChannelRoutingOptions) {
     handleRevokeIdentity,
     handleSetFollowUp,
     handleSetReplyMode,
-    handleSetThreadSharingMode,
     loadingChannels,
     loadingTopics,
     saving,

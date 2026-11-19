@@ -13,7 +13,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from app.channels.types import DraftTimeoutAction, IdentityScopeMode, ReplyMode, TopicContext
-from app.channels.types.thread_sharing import ThreadSharingMode
 
 from .common import (
     _CHANNEL_LEVEL_KEY,
@@ -93,7 +92,6 @@ class BindingMixin:
             authorized_path=(str(topic_cfg["authorizedPath"]) if topic_cfg.get("authorizedPath") else None),
             enabled=bool(topic_cfg.get("enabled", True)),
             bound_at=str(topic_cfg["boundAt"]) if topic_cfg.get("boundAt") else None,
-            thread_sharing_mode=str(topic_cfg.get("threadSharingMode", "isolated")),
             reply_mode=reply_mode,
             draft_timeout_minutes=int(topic_cfg.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=timeout_action,
@@ -114,7 +112,6 @@ class BindingMixin:
         agent_id: str | None | object = _UNSET,
         display_name: str | None = None,
         avatar_url: str | None = None,
-        thread_sharing_mode: ThreadSharingMode | object = _UNSET,
         reply_mode: ReplyMode | object = _UNSET,
         draft_timeout_minutes: int | object = _UNSET,
         draft_timeout_action: DraftTimeoutAction | object = _UNSET,
@@ -156,11 +153,6 @@ class BindingMixin:
         if self._default_max_age_h is not None:
             topic_entry["maxAgeH"] = self._default_max_age_h
 
-        if thread_sharing_mode is not _UNSET:
-            mode_value = (
-                thread_sharing_mode.value if isinstance(thread_sharing_mode, ThreadSharingMode) else str(thread_sharing_mode)
-            )
-            topic_entry["threadSharingMode"] = mode_value
         if reply_mode is not _UNSET:
             topic_entry["replyMode"] = reply_mode.value
         if draft_timeout_minutes is not _UNSET:
@@ -253,7 +245,6 @@ class BindingMixin:
             authorized_path=resolved_authorized_path,
             enabled=True,
             bound_at=str(topic_entry.get("boundAt", now_iso)),
-            thread_sharing_mode=str(topic_entry.get("threadSharingMode", "isolated")),
             reply_mode=effective_reply_mode,
             draft_timeout_minutes=int(topic_entry.get("draftTimeoutMinutes", 5)),
             draft_timeout_action=effective_timeout_action,

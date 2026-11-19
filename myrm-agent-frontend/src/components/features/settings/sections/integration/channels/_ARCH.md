@@ -15,7 +15,7 @@
 | `ChannelConfigPanel.tsx`                                                      | 按渠道 id 选出对应的配置卡片，所有渠道卡片在此 dynamic import                                                                                                                                                                                               |
 | `ChannelRoutingSection.tsx`                                                   | 渠道路由页壳与布局                                                                                                                                                                                                                                          |
 | `useChannelRouting.ts`                                                        | 渠道路由状态与 API 绑定 handlers；暴露 `channelBindableAgents`（`filterChannelBindableAgents(agents)` 结果，General-only）                                                                                                                                  |
-| `ChannelRoutingTopicRow.tsx`                                                  | 单 Topic 绑定行（Agent / Project workspace / 线程共享 / 回复模式 / 团队身份名·作用域·冻结 / 主动跟进两档开关）；展示 `{项目名} · {路径}`；草稿审核通知提示                                                                                                  |
+| `ChannelRoutingTopicRow.tsx`                                                  | 单 Topic 绑定行（Agent / Project workspace / 回复模式 / 团队身份名·作用域·冻结 / 主动跟进两档开关）；展示 `{项目名} · {路径}`；草稿审核通知提示                                                                                                             |
 | `topicWorkspaceLabel.ts`                                                      | `resolveTopicWorkspaceDisplayLabel`：从已加载 projects 解析人类可读 workspace 路径                                                                                                                                                                          |
 | `issueMessages.ts`                                                            | `ISSUE_MESSAGE_PATTERNS`、`ISSUE_FIX_PATTERNS` 与 `resolveIssueKey`：服务端渠道诊断的英文消息与修复提示按先到先得的模式表对应到 `channels.issues` 的键（具体模式排在通用模式之前；Telegram 启动失败的「令牌被拒」「Bot API 不可达」各有消息键与修复提示键） |
 | `VoiceSection.tsx`                                                            | 语音设置页壳：加载与防抖保存 `/config/voice`；读取失败时只显示共享的 `ConfigLoadError`（带重试）而不出表单，避免默认值被下一次编辑存成用户设置；读取服务端能力（Edge TTS / 本地 STT / 本地 TTS）并在不可用时提示；提供商判定在此统一派生后交给三个区块组件  |
@@ -46,7 +46,7 @@
 
 - `__tests__/topicWorkspaceLabel.test.ts` — workspace 展示 label 解析
 - `__tests__/issueMessages.test.ts` — 诊断消息到本地化键的映射：Telegram 的错误、令牌被拒与 Bot API 不可达（及其修复提示）、轮询降级、HTTPS 与 webhook 配置失败消息各得其键，webhook 配置失败不被通用降级抢先，前缀型模式保留后半段，未知消息原样返回，表内每个键在 `channels.issues` 有文案
-- `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：线程共享、回复模式两行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文不撑出卡片
+- `__tests__/ChannelRoutingTopicRow.test.tsx` — 草稿审核：超时选项文案走 i18n、选择超时回传当前超时策略；未配置通知投递时提示去偏好设置（已配置、设置未加载、自动发送模式均不提示）；窄屏布局：回复模式行及团队身份作用域按钮可换行，Agent 下拉可收缩，长译文不撑出卡片
 - `__tests__/FeishuMultiAppSection.test.tsx` — 多应用区渲染/编辑/删除确认/重命名/上限 UX（删除确认：确认后真实调 `deleteChannelInstance`、取消保留实例）
 - `__tests__/ChannelConfigCards.placeholders.test.tsx` — Matrix 代理与 OneBot 令牌输入框的占位提示走 `channels` 本地化文案
 - `__tests__/ChannelPolicyOverride.test.tsx` — 群触发摘要区与「编辑全局」入口的无障碍标签走本地化文案
