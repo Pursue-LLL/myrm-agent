@@ -1,4 +1,5 @@
 """[INPUT]
+- myrm_agent_harness.agent.security.approval_reason::is_human_only (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist which asks are not theirs to answer.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.command_rules::command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
 - myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines exactly what this module re-exports, so the alias never widens the public API.)
@@ -22,6 +23,7 @@ from __future__ import annotations
 
 import logging
 
+from myrm_agent_harness.agent.security.approval_reason import is_human_only
 from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.command_rules import command_text
 from myrm_agent_harness.agent.security.path_security import (
@@ -60,6 +62,7 @@ def annotate_pending(ctx: BatchContext, call: CallState) -> None:
     _annotate_spend_or_social(call)
     _annotate_destructive(call)
     _annotate_protected_instruction(call)
+    _annotate_human_only(call)
     _annotate_script_digests(ctx, call)
 
 
@@ -136,6 +139,14 @@ def _annotate_protected_instruction(call: CallState) -> None:
             call.tool_name,
             raw_path_arg,
         )
+
+
+def _annotate_human_only(call: CallState) -> None:
+    """A write only a person may answer is never offered as "Allow Always", whatever paths the batch names."""
+    if is_human_only(call.reason):
+        extra_ctx = call.context()
+        extra_ctx["high_risk"] = True
+        extra_ctx["hide_allow_always"] = True
 
 
 def _annotate_script_digests(ctx: BatchContext, call: CallState) -> None:

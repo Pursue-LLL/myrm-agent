@@ -797,7 +797,7 @@ class AllowlistEntry:
    - PTC 调用先过路径策略
    - ASK 且为只读 MCP / PTC 工具（is_read_only && !is_open_world && !is_destructive）→ ALLOW
 3. ASK → Allowlist：用户 allowlist 条目命中，或可信工作区声明的命令前缀命中（仅 bash 工具启动的单条非复合命令）→ ALLOW
-   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件不可由两类命中放行；组织策略（MAP）可让该模型忽略 allowlist（前缀命中一并忽略）
+   批次高风险双保险、资金类工具、社交不可逆动作、受保护指令文件、其余只能由人答复的写入（git 钩子与配置，按引擎写下的码判定，审计 `PROTECTED_WRITE_ALLOWLIST_BLOCKED`）不可由两类命中放行；组织策略（MAP）可让该模型忽略 allowlist（前缀命中一并忽略）
 4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；资金类工具（审计 `FINANCIAL_GATE_ESCALATED`）；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破（定时运行除外）；
    污点冲突（auto-mode 下先交 LLM 审核：ALLOW 放行 / DENY 拒绝 / UNCERTAIN 回到 ASK）
    auto-mode 下，invoke_external_agent 与非平凡 shell 在放行前还要过一次 LLM 审核（拒绝或存疑时不放行）

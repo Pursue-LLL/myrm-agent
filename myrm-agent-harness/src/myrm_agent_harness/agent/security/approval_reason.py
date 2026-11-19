@@ -11,8 +11,8 @@
 [POS]
 The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the
 same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The
-same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) which asks are not
-theirs to answer.
+same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist
+which asks are not theirs to answer.
 """
 
 from __future__ import annotations
@@ -34,7 +34,8 @@ class ApprovalReasonCode(StrEnum):
 
 # The writes that decide what runs for the user later without their further say: the instruction files every session
 # obeys, and the hooks and settings git runs by itself. The automatic approvers judge a call by what the model says
-# about it, and a page the agent just read can have written that text, so a person alone answers these.
+# about it, a page the agent just read can have written that text, and an allowlist entry answers for a call the
+# user saw earlier, so a person alone answers these.
 HUMAN_ONLY_CODES: frozenset[ApprovalReasonCode] = frozenset(
     {ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE, ApprovalReasonCode.GIT_METADATA_WRITE}
 )

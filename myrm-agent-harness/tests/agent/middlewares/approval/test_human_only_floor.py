@@ -11,11 +11,16 @@ interrupt payload:
 3. An expiry set to allow becomes deny for a batch that holds such a write, a socially irreversible call or an
    irreversible destructive call; a payment (its digest already refuses an answer the timer sends), an ordinary ask
    and an expiry that was set to deny are unchanged.
+4. No allowlist entry, however broad, releases a git hook or config write, and its card offers no "Allow Always",
+   whether or not the batch risk gate flags the batch (``.git`` is one of its restricted paths): the gate that reads
+   the reason's code holds on its own. The instruction-file side is pinned in
+   ``test_protected_instruction_shell_floor.py``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -23,14 +28,18 @@ import pytest
 from langchain_core.messages import ToolCall
 
 import myrm_agent_harness.agent.security.approval_flow as approval_flow
+from myrm_agent_harness.agent.middlewares._session_context import get_approval_user_id
+from myrm_agent_harness.agent.middlewares.approval._allow_always import should_block_allow_always
 from myrm_agent_harness.agent.middlewares.approval._interrupt_payload import build_interrupt_payload
 from myrm_agent_harness.agent.middlewares.approval.batch_processor import evaluate_tool_batch
 from myrm_agent_harness.agent.middlewares.approval.helpers import reset_denial_counter
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.audit import get_audit_entries, reset_audit_log
 from myrm_agent_harness.agent.security.guards.taint_tracker import reset_taint_tracker
+from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
 from myrm_agent_harness.agent.security.types import PathPolicy, ReviewDecision, ReviewResult, SecurityConfig
 from myrm_agent_harness.agent.security.workspace_trust.context import clear_workspace_trust_context
+from myrm_agent_harness.core.security import device_policy
 
 _REVIEWER = "myrm_agent_harness.agent.middlewares.approval._batch_review._security_reviewer"
 _NO_ZONES = PathPolicy(forbidden_paths=frozenset(), access_roots=())
@@ -78,6 +87,22 @@ _OTHER_ASKS = pytest.mark.parametrize(
         pytest.param(lambda ws: _file_write(ws / ".env"), id="sensitive-file"),
     ],
 )
+_GIT_WRITES = pytest.mark.parametrize(
+    "make",
+    [
+        pytest.param(make, id=name)
+        for name, make, code in _HUMAN_ONLY_CASES
+        if code is ApprovalReasonCode.GIT_METADATA_WRITE
+    ],
+)
+# The two widest entries "Allow Always" can leave: one for the tool, one for every tool of the permission.
+_ALLOWLIST_ENTRIES = pytest.mark.parametrize(
+    "tool_level", [True, False], ids=["tool-level-entry", "permission-level-entry"]
+)
+# What the batch risk gate reports when it flags nothing in the batch.
+_NO_BATCH_RISK = device_policy.BatchRiskAssessment(
+    is_batch=False, batch_size=1, is_high_risk=False, requires_dual_insurance=False, allow_always_blocked=False
+)
 
 
 @pytest.fixture(autouse=True)
@@ -116,6 +141,15 @@ def _allow_reviewer() -> AsyncMock:
     reviewer = AsyncMock()
     reviewer.review = AsyncMock(return_value=ReviewResult(decision=ReviewDecision.ALLOW, reason="the user asked"))
     return reviewer
+
+
+async def _always_allow(call: ToolCall, *, tool_level: bool) -> None:
+    """Leave the allowlist entry the user would leave by choosing "Allow Always" for *call*, at the given width."""
+    entry = approval_flow.AllowlistEntry(
+        permission=resolve_permission_type(call["name"], call["args"]),
+        tool_name=call["name"] if tool_level else None,
+    )
+    await approval_flow.get_allowlist().add(get_approval_user_id() or approval_flow.DEFAULT_USER_ID, entry)
 
 
 class TestYoloHoldsTheWrite:
@@ -231,3 +265,42 @@ class TestAnExpirySetToAllowStopsShortOfTheWrite:
 
     async def test_an_expiry_set_to_deny_stays_deny(self, workspace: Path) -> None:
         assert await self.expiry(workspace, [_shell("curl http://unlisted.example/x")], configured="deny") == "deny"
+
+
+class TestNoAllowlistEntryReleasesTheGitWrite:
+    @_GIT_WRITES
+    @_ALLOWLIST_ENTRIES
+    @pytest.mark.parametrize(
+        "batch_risk_flags_it", [True, False], ids=["batch-risk-flags-it", "batch-risk-flags-nothing"]
+    )
+    async def test_the_write_still_waits_for_a_person_and_its_card_offers_no_allow_always(
+        self, workspace: Path, make: Callable[[Path], ToolCall], tool_level: bool, batch_risk_flags_it: bool
+    ) -> None:
+        call = make(workspace)
+        await _always_allow(call, tool_level=tool_level)
+        batch_risk = (
+            nullcontext()
+            if batch_risk_flags_it
+            else patch.object(device_policy, "evaluate_batch_risk", return_value=_NO_BATCH_RISK)
+        )
+
+        with patch(_REVIEWER, None), batch_risk:
+            approved, denied, pending = await _evaluate(_DEFAULT, [call], workspace)
+
+        assert (approved, denied) == ([], [])
+        assert [item[1] for item in pending] == [call]
+        extra_ctx = pending[0][4]
+        assert extra_ctx is not None
+        assert should_block_allow_always(call, extra_ctx)
+        card, _ = build_interrupt_payload(pending, "human-only")
+        assert card["reviewConfigs"][0]["hideAllowAlways"] is True
+
+    @_ALLOWLIST_ENTRIES
+    async def test_the_same_entry_still_releases_an_ordinary_ask(self, workspace: Path, tool_level: bool) -> None:
+        call = _file_write(workspace.parent / "outside" / "notes.txt")
+        await _always_allow(call, tool_level=tool_level)
+
+        with patch(_REVIEWER, None):
+            approved, denied, pending = await _evaluate(_DEFAULT, [call], workspace)
+
+        assert ([item[1] for item in approved], denied, pending) == ([call], [], [])

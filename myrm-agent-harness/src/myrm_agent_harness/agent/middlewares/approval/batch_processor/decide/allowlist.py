@@ -1,5 +1,6 @@
 """[INPUT]
 - myrm_agent_harness.agent.security.approval_flow::DEFAULT_USER_ID / get_allowlist (POS: Core component for "Always Allow" feature in Human-in-the-Loop approval system.)
+- myrm_agent_harness.agent.security.approval_reason::is_human_only (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist which asks are not theirs to answer.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines exactly what this module re-exports, so the alias never widens the public API.)
 - myrm_agent_harness.agent.security.types::PermissionAction (POS: Security type definitions — re-exported from core.security.types.)
@@ -19,7 +20,8 @@
 Third decision stage. Only an ASK is looked up. A match is an entry of the user's allowlist or, for a command the
 call starts in a trusted workspace, a prefix the repository declared and the user saw. Either kind of match is dropped
 when a gate that "always allow" must never lift applies (batch dual insurance, financial spend, irreversible social
-action, protected instruction file), and when the organization policy ignores the allowlist for the agent's model.
+action, protected instruction file, any other write only a person may answer), and when the organization policy
+ignores the allowlist for the agent's model.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from myrm_agent_harness.agent.security.approval_flow import (
     DEFAULT_USER_ID,
     get_allowlist,
 )
+from myrm_agent_harness.agent.security.approval_reason import is_human_only
 from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.command_rules import launch_command
 from myrm_agent_harness.agent.security.path_security import (
@@ -145,6 +148,15 @@ def _blocked_by_never_lifted_gate(ctx: BatchContext, call: CallState, effective_
             tool_name,
             "PROTECTED_INSTRUCTION_ALLOWLIST_BLOCKED",
             f"Protected instruction files cannot be bypassed via allowlist: {effective_tool_name}",
+        )
+        return True
+    # Any other write only a person may answer (a git hook or config): named by the reason's code, not by what the
+    # call's arguments spell.
+    if is_human_only(call.reason):
+        record_decision(
+            tool_name,
+            "PROTECTED_WRITE_ALLOWLIST_BLOCKED",
+            f"Writes only a person may answer cannot be bypassed via allowlist: {effective_tool_name}",
         )
         return True
     return False
