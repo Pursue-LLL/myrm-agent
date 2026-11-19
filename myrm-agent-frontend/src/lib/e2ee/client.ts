@@ -6,6 +6,9 @@ export type E2EEClientSession = {
   serverPublicKey: Uint8Array;
 };
 
+/** Cipher suite of the remote-access handshake; a protocol identifier, shown the same in every language. */
+export const E2EE_ALGORITHM = 'NaCl Box (Curve25519)';
+
 const E2EE_SESSION_STORAGE_KEY = 'mobile_e2ee_session';
 const E2EE_SERVER_PUB_FRAGMENT = 'e2ee';
 

@@ -6,6 +6,7 @@ import { IconGlobe } from '@/components/features/icons/PremiumIcons';
 import { Button } from '@/components/primitives/button';
 import { usePWAInstall } from '@/hooks/pwa/usePWAInstall';
 import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
+import { E2EE_ALGORITHM } from '@/lib/e2ee/client';
 import { computeE2EEFingerprintFromB64 } from '@/lib/e2ee/fingerprint';
 import { buildMobileHubUrl } from '@/lib/mobileRemote';
 import { writeToClipboard } from '@/lib/utils/clipboardUtils';
@@ -15,9 +16,6 @@ import { remoteAccessService, type TunnelStatus } from '@/services/remoteAccess'
 import { systemService } from '@/services/system';
 import { fetchWebuiProtection } from '@/services/webui-auth';
 import useConfigStore from '@/store/useConfigStore';
-
-/** Cipher suite of the remote-access handshake; a protocol identifier, shown the same in every language. */
-const E2EE_ALGORITHM = 'NaCl Box (Curve25519)';
 
 interface PublicIngressCardProps {
   webuiPort: number;
