@@ -47,6 +47,20 @@ logger = logging.getLogger(__name__)
 _PRIVILEGED_API_METHODS = frozenset({"get", "post", "put", "delete", "patch", "fetch", "head"})
 _PRIVILEGED_API_ATTRS = frozenset({"request", "context", "evaluate", "evaluate_handle", "new_page", "new_context"})
 
+# Wall-clock limit of one script run; the tool description states the same number to the model.
+_SCRIPT_TIMEOUT_S = 60.0
+
+# The only text the model sees for this tool. The usage contract lives here and nowhere else: with ``args_schema``
+# LangChain takes the description from this argument (or the function docstring), never from the schema class docstring.
+_TOOL_DESCRIPTION = (
+    "Run an async Python script to perform batch browser actions in one call.\n\n"
+    "The script is the body of `async def (session, refs)`: "
+    "`await session.interact(action, ref, text)` takes the same actions as browser_interact_tool, "
+    "and `refs` maps ref ID -> {role, name}. "
+    "`print()` output is returned as the result. "
+    f"Imports and `open` are unavailable; the script times out after {_SCRIPT_TIMEOUT_S:.0f} s."
+)
+
 
 class _PrivilegedAPIScanner(ast.NodeVisitor):
     """Detect Playwright privileged API access that bypasses domain filter / HITL guards.
@@ -159,24 +173,6 @@ def create_execute_script_tool(session: BrowserSession) -> BaseTool:
     """Create browser_execute_script tool bound to session."""
 
     class ExecuteScriptInput(BaseModel):
-        """Execute an async Python script for batch browser actions.
-
-        Use this tool to perform multiple steps (e.g., filling a form, scraping a list, sequential clicks)
-        in a single turn. Preferred over multiple single-step browser interactions when performing >= 3 sequential actions.
-        The script has access to `session` and `refs` (a dict mapping ref IDs to their role, name, nth metadata).
-
-        You can use `await session.interact(action, ref, text)` directly in the script.
-        Example:
-        ```python
-        await session.interact("fill", "e1", "John")
-        await session.interact("fill", "e2", "password")
-        await session.interact("click", "e3")
-        print("Form submitted successfully!")
-        ```
-
-        Use `print()` to output information; printed text will be returned as the tool execution result.
-        """
-
         script: str = Field(
             description="The async Python script to execute. Do not include `async def` wrapper, just the code body."
         )
@@ -185,10 +181,8 @@ def create_execute_script_tool(session: BrowserSession) -> BaseTool:
             description="Optional natural language description of expected visual outcome (e.g. 'Success message is shown'). Automatically verifies visual result and returns feedback.",
         )
 
-    @tool("browser_execute_script_tool", args_schema=ExecuteScriptInput)
+    @tool("browser_execute_script_tool", args_schema=ExecuteScriptInput, description=_TOOL_DESCRIPTION)
     async def browser_execute_script(script: str, verify_goal: str | None = None) -> str:
-        """Execute an async Python script to perform batch browser actions in a single turn."""
-
         # 1. Prepare the ARIA refs mapping
         refs_info = session.get_all_refs()
         refs_dict = {
@@ -296,11 +290,11 @@ def create_execute_script_tool(session: BrowserSession) -> BaseTool:
         session._hitl_caller_tool = "browser_execute_script_tool"
         try:
             await session.notify_progress("Starting browser script execution...")
-            # Run with a 60-second timeout; every step stays pinned to what the model had observed when it began
+            # Every step stays pinned to what the model had observed when the script began
             with planned_against(session.observed_generation):
-                await asyncio.wait_for(func(session, refs_dict), timeout=60.0)
+                await asyncio.wait_for(func(session, refs_dict), timeout=_SCRIPT_TIMEOUT_S)
         except TimeoutError:
-            output_buffer.write("\n[Error] Script execution timed out after 60 seconds.")
+            output_buffer.write(f"\n[Error] Script execution timed out after {_SCRIPT_TIMEOUT_S:.0f} seconds.")
         except UserTakeoverDuringScriptError as exc:
             output_buffer.write(f"\n{exc}")
         except Exception:

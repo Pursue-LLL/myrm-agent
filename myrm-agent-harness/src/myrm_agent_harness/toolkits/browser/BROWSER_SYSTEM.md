@@ -940,6 +940,7 @@ ToolError(
 - **沙箱隔离**：使用受限的 `__builtins__`（移除 `__import__`, `eval`, `exec`, `open`, `exit` 等），确保脚本无法逃逸或破坏主进程。
 - **流式输出**：重写 `print` 函数，将脚本的输出通过 `session.notify_progress` 实时推送到前端控制台。
 - **ARIA 映射**：脚本中可以直接使用 `await session.interact("click", "e1")`，底层自动解析 `e1` 对应的 Playwright Locator。
+- **模型可见契约**：工具描述 `_TOOL_DESCRIPTION` 写明脚本是 `async def (session, refs)` 的函数体、`session.interact` 与 `browser_interact_tool` 同一动作集、`refs` 是 ref ID 到 `{role, name}` 的映射、`print()` 输出即返回值、不可 import 也没有 `open`，以及超时秒数；超时秒数取自常量 `_SCRIPT_TIMEOUT_S`，描述与 `asyncio.wait_for` 共用同一个值。模型只看得到这段描述，`args_schema` 的类文档不会发送，因此不写；`tests/toolkits/browser/tools/test_execute_script_description.py` 同时守住这条描述与「浏览器工具的 `args_schema` 类不带文档」。
 
 **核心优势**：
 - **零延迟**：脚本在主进程的协程中运行，直接访问内存中的 `session` 对象，无需 CDP 连接或子进程通信。

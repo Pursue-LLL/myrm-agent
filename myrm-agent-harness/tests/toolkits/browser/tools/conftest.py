@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from types import MappingProxyType
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.browser.session.snapshot_result import SnapshotResult
+from myrm_agent_harness.toolkits.browser.snapshot import SnapshotMeta
 from myrm_agent_harness.utils.runtime.user_control import UserControl
 
 
@@ -22,7 +25,14 @@ def mock_session() -> MagicMock:
     active_page.title = AsyncMock(return_value="Example Page")
     session.get_active_page = MagicMock(return_value=active_page)
     session.inspect = AsyncMock(return_value="Total refs: 25\nRegions: main, form\nRecommended: #main")
-    session.snapshot = AsyncMock(return_value=('- button "Click" [ref=e0]', {"ref_count": 1}))
+    session.snapshot = AsyncMock(
+        return_value=SnapshotResult(
+            aria_tree='- button "Click" [ref=e0]',
+            refs=MappingProxyType({}),
+            meta=SnapshotMeta(ref_count=1, estimated_tokens=5),
+            is_incremental=False,
+        )
+    )
     session.interact = AsyncMock(return_value="Clicked element e0")
     session.extract_text = AsyncMock(return_value="Page text content")
     session.extract_screenshot = AsyncMock(return_value="data:image/jpeg;base64,abc123")

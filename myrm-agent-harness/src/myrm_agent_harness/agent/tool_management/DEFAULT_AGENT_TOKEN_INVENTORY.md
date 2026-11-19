@@ -130,7 +130,7 @@ glob_tool / grep_tool 登记在 CORE 层，Turn1 与 file 工具一并 bind。�
 | 40 | browser_extract_tool | 111 | `harness/toolkits/browser/tools/extract.py` | 内容提取 |
 | 41 | browser_inspect_tool | 65 | `harness/toolkits/browser/tools/inspect.py` | 元素检查 |
 | 42 | browser_manage_tool | 131 | `harness/toolkits/browser/tools/manage.py` | 浏览器管理（含 web_vitals 性能洞察） |
-| 43 | browser_execute_script_tool | 15 | `harness/toolkits/browser/tools/execute_script.py` | 单轮内以异步 Python 脚本批量执行浏览器动作（Code-as-Action） |
+| 43 | browser_execute_script_tool | 90 | `harness/toolkits/browser/tools/execute_script.py` | 单轮内以异步 Python 脚本批量执行浏览器动作（Code-as-Action） |
 | 44 | browser_ask_human_tool | 96 | `harness/toolkits/browser/tools/takeover.py` | 请求用户临时接管浏览器（2FA/MFA、支付凭据、自动求解器无法处理的验证码等） |
 
 ### 4.8 定时任务工具（启用 Cron 时加载）
@@ -315,11 +315,11 @@ Token 明细（tiktoken o200k_base）：
 | System Prompt 层 | **1,946** |
 | CORE 工具层 | **2,224** |
 | HIGH_PRIORITY 工具层 | **2,452** |
-| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,604（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,145 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
+| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,679（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,220 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,575** (55 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |
-| **tiktoken 小计** | **~18,500（粗估）** |
+| **tiktoken 小计** | **~18,580（粗估）** |
 
 > 工具数量以文件末尾 `TOOL_COUNT_BEGIN/END` 自动生成块为 SSOT（当前 55 LLM 工具 = CORE 8 + HIGH_PRIORITY 5 + EXTENDED 37 + EXTERNAL 5）。本场景假设全部 55 工具同轮 bind，EXTENDED / EXTERNAL 行为 §四 各行描述值求和，仅作量级参考：`delegate_task_tool` 只计固定部分，不含运行期名册；kanban 的 worker 与 orchestrator 两组工具按角色互斥挂载，此处同时计入。
 
@@ -334,7 +334,7 @@ Token 明细（tiktoken o200k_base）：
 [HIGH_PRIORITY: web_search + memory_* + skill_select (~2,452 tok)]
   ↑ web_search 优先；memory 组紧随；skill_select 承接；GUI 可关
 
-[EXTENDED: 可选工具 (~0~6,145+ tok)]
+[EXTENDED: 可选工具 (~0~6,220+ tok)]
   ↑ 按需变化，不影响 CORE/HIGH_PRIORITY 前缀
 
 [System Prompt: messages[0] 1,173 (ZH·full)]

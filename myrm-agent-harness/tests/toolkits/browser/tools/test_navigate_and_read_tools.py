@@ -5,7 +5,7 @@ The tools run against a scripted session; the real-browser proof is ``test_brows
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -91,23 +91,11 @@ async def test_browser_snapshot_default_params(mock_session: MagicMock) -> None:
     result = await snapshot_tool.ainvoke({})
 
     assert "button" in result
+    assert "UNTRUSTED_DATA" in result
     call_args = mock_session.snapshot.call_args
     assert call_args.kwargs["scope"] == "content"
     assert call_args.kwargs["diff"] is True
     assert call_args.kwargs["compact"] is False
-
-
-@pytest.mark.asyncio
-async def test_browser_snapshot_returns_string_only(mock_session: MagicMock) -> None:
-    """Test browser_snapshot when session returns string only (not tuple)."""
-    mock_session.snapshot = AsyncMock(return_value='- button "Click" [ref=e0]')
-    tools = create_browser_tools(mock_session)
-    snapshot_tool = next(t for t in tools if t.name == "browser_snapshot_tool")
-
-    result = await snapshot_tool.ainvoke({})
-
-    assert "button" in result
-    assert "UNTRUSTED_DATA" in result
 
 
 @pytest.mark.asyncio
