@@ -53,9 +53,9 @@ class PolicyDb:
         """Whether a unit queued for the write lock (``BEGIN IMMEDIATE``) or its first read has returned.
 
         A lock request counts once issued, because the request itself blocks until the holder commits. A read counts
-        only once it returned: only then does its session hold a snapshot that the holder's commit makes stale. Any
-        session's read counts, so a unit whose contended session is preceded by another session's read can outrun
-        this check.
+        only once it returned: the issue record is written before the driver runs the statement, and only a returned
+        read guarantees that its session holds the snapshot the holder's commit makes stale. What this check leaves
+        unwatched is described at ``run_while_another_writer_commits``.
         """
         return any(_begins(s, "BEGIN IMMEDIATE") for s in self.started) or any(_begins(s, "SELECT") for s in self.finished)
 
@@ -129,8 +129,14 @@ async def wait_until(condition: Callable[[], bool], timeout_s: float) -> None:
 async def run_while_another_writer_commits(db: PolicyDb, start_unit: Callable[[], Coroutine[object, object, object]]) -> None:
     """Start the unit while another writer holds the write lock, let that writer commit, and wait for the unit.
 
-    The writer commits only once the unit queued for the write lock or finished a read. Unprotected, the unit's read
-    snapshot then predates that commit and its write fails; protected, it queued first and reads after the commit.
+    The writer commits only once the unit queued for the write lock or finished a read. Unprotected, the unit's write
+    fails: on the lock the writer still holds, or after the commit on a read snapshot that predates it. Protected, the
+    unit queued first and reads after the commit.
+
+    Only the unit's first database interaction is guaranteed to contend with the writer. A unit that starts with a write
+    queues behind the writer, the writer commits, and every session the unit opens afterwards starts past the commit, so
+    a missing lock there goes unnoticed. A read in an earlier session lets the writer commit before the contended session
+    has read.
     """
     holder = await hold_write_lock(db)
     unit = asyncio.create_task(start_unit())
