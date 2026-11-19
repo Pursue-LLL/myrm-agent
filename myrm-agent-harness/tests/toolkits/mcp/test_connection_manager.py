@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,6 +18,7 @@ from myrm_agent_harness.toolkits.mcp.connection_manager import (
     MCPConnection,
     MCPConnectionManager,
 )
+from myrm_agent_harness.toolkits.mcp.session_actor import MCPSessionActor
 
 
 @dataclass
@@ -30,10 +33,17 @@ class _FakeConfig:
     description: str = "Test MCP server"
     headers: dict[str, str] | None = None
     extra_params: dict[str, object] | None = None
+    required_secrets: list[str] | None = None
     tool_include: list[str] | None = None
     tool_exclude: list[str] | None = None
     host_serial: bool = False
+    connect_timeout: float = 15.0
+    execute_timeout: float = 120.0
     keepalive_interval: float | None = None
+    ssl_verify: bool | str | None = None
+    client_cert: str | None = None
+    client_key: str | None = None
+    client_key_password: str | None = None
 
 
 class _FakeActor:
@@ -74,6 +84,11 @@ class _FakeActor:
         self.closed = True
 
 
+def _connection(config_hash: str, actors: Mapping[str, _FakeActor]) -> MCPConnection:
+    """A connection over fake actors, keyed by server name; the fakes implement every member it reads."""
+    return MCPConnection(config_hash, {name: cast("MCPSessionActor", fake) for name, fake in actors.items()})
+
+
 # ============================================================================
 # MCPConnection unit tests
 # ============================================================================
@@ -86,7 +101,7 @@ class TestMCPConnection:
 
     @pytest.fixture
     def connection(self, actor: _FakeActor) -> MCPConnection:
-        return MCPConnection("hash123", {"server_a": actor})
+        return _connection("hash123", {"server_a": actor})
 
     def test_initial_state(self, connection: MCPConnection) -> None:
         assert connection.status == ConnectionStatus.IDLE
@@ -107,7 +122,7 @@ class TestMCPConnection:
 
     @pytest.mark.asyncio
     async def test_call_resolves_server_name_variant(self, actor: _FakeActor) -> None:
-        conn = MCPConnection("h", {"my_server": _FakeActor("my_server")})
+        conn = _connection("h", {"my_server": _FakeActor("my_server")})
         result = await conn.call("my-server", "t", {})
         assert result == "result:t"
 
@@ -120,7 +135,7 @@ class TestMCPConnection:
     async def test_call_error_marks_unhealthy(self, actor: _FakeActor) -> None:
         actor.raise_on_call = ConnectionError("pipe broken")
         actor._healthy = False
-        conn = MCPConnection("h", {"server_a": actor})
+        conn = _connection("h", {"server_a": actor})
         with pytest.raises(ConnectionError):
             await conn.call("server_a", "t", {})
         assert conn.metrics.error_count == 1
@@ -133,7 +148,7 @@ class TestMCPConnection:
     @pytest.mark.asyncio
     async def test_health_check_one_unhealthy(self, actor: _FakeActor) -> None:
         bad = _FakeActor("server_b", healthy=False)
-        conn = MCPConnection("h", {"server_a": actor, "server_b": bad})
+        conn = _connection("h", {"server_a": actor, "server_b": bad})
         assert await conn.health_check() is False
         assert conn.status == ConnectionStatus.UNHEALTHY
 
@@ -143,7 +158,7 @@ class TestMCPConnection:
         assert await connection.health_check() is False
 
     def test_is_expired_uses_actor_activity(self, actor: _FakeActor) -> None:
-        conn = MCPConnection("h", {"server_a": actor})
+        conn = _connection("h", {"server_a": actor})
         # Metrics is stale but the actor is fresh → not expired.
         conn.metrics.last_used = time.time() - 700
         assert conn.is_expired(600) is False
@@ -163,12 +178,12 @@ class TestMCPConnection:
 
     @pytest.mark.asyncio
     async def test_is_bound_to_current_loop_inside_loop(self) -> None:
-        conn = MCPConnection("h", {"server_a": _FakeActor()})
+        conn = _connection("h", {"server_a": _FakeActor()})
         assert conn.is_bound_to_current_loop() is True
 
     @pytest.mark.asyncio
     async def test_close_idempotent_and_closes_actors(self, actor: _FakeActor) -> None:
-        conn = MCPConnection("h", {"server_a": actor})
+        conn = _connection("h", {"server_a": actor})
         await conn.close()
         assert conn.status == ConnectionStatus.CLOSED
         assert actor.closed is True

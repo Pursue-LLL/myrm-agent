@@ -64,7 +64,7 @@ class MCPConnectionManager:
     _instance: MCPConnectionManager | None = None
     _init_lock = asyncio.Lock()
 
-    def __init__(self, ttl: int = 600, cleanup_interval: int = 60) -> None:
+    def __init__(self, ttl: int = 600, cleanup_interval: float = 60) -> None:
         self._connections: dict[str, MCPConnection] = {}
         self._ttl = ttl
         self._cleanup_interval = cleanup_interval

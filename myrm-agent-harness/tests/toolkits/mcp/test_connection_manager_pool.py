@@ -14,8 +14,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager, suppress
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -30,6 +31,7 @@ from myrm_agent_harness.toolkits.mcp.connection_manager import (
     MCPStartupBackoff,
     get_mcp_connection,
 )
+from myrm_agent_harness.toolkits.mcp.session_actor import MCPSessionActor
 
 
 class _Actor:
@@ -95,9 +97,19 @@ def _cfg(name: str) -> MCPConfig:
     return MCPConfig(name=name, type="stdio", command="echo")
 
 
+def _as_actor(fake: _Actor) -> MCPSessionActor:
+    """The fake where the pool is typed for a session actor; it implements every member the pool reads."""
+    return cast("MCPSessionActor", fake)
+
+
+def _connection(config_hash: str, actors: Mapping[str, _Actor]) -> MCPConnection:
+    """A connection over fake actors, keyed by server name."""
+    return MCPConnection(config_hash, {name: _as_actor(fake) for name, fake in actors.items()})
+
+
 def _warm_connection(config_hash: str, *names: str) -> MCPConnection:
     """A healthy pooled connection bound to the running loop."""
-    return MCPConnection(config_hash, {name: _Actor(name) for name in names})
+    return _connection(config_hash, {name: _Actor(name) for name in names})
 
 
 async def _until(predicate: Callable[[], bool], *, timeout: float = 5.0) -> None:
@@ -130,7 +142,7 @@ class TestMCPConnectionRouting:
     @pytest.mark.asyncio
     async def test_read_resource_routes_to_the_named_server_and_rejects_unknown_ones(self) -> None:
         actor = _Actor("docs")
-        conn = MCPConnection("hash", {"docs": actor})
+        conn = _connection("hash", {"docs": actor})
 
         assert await conn.read_resource("docs", "file:///a") == b"resource:file:///a"
         assert actor.resource_reads == ["file:///a"]
@@ -139,7 +151,7 @@ class TestMCPConnectionRouting:
 
     def test_refresh_server_auth_updates_the_actor_and_reports_unknown_servers(self) -> None:
         actor = _Actor("my-server")
-        conn = MCPConnection("hash", {"my-server": actor})
+        conn = _connection("hash", {"my-server": actor})
 
         assert conn.refresh_server_auth("my-server", {"Authorization": "Bearer new"}) is True
         # Dash / underscore spellings resolve exactly like tool calls do.
@@ -308,7 +320,7 @@ class TestCreateConnection:
         self, manager: MCPConnectionManager
     ) -> None:
         actor = _Actor("srv")
-        warm = MCPConnection("h", {"srv": actor})
+        warm = _connection("h", {"srv": actor})
         requested: list[list[str]] = []
 
         async def fake_get_connection(config: list[MCPConfig]) -> MCPConnection:
@@ -321,7 +333,7 @@ class TestCreateConnection:
         configs.append(_cfg("added-later"))  # a later mutation of the caller's list must not leak in
 
         with patch.object(manager, "get_connection", fake_get_connection):
-            assert await resolver() is actor
+            assert await resolver() is _as_actor(actor)
             assert await missing() is None
 
         assert requested == [["srv"], ["srv"]]
@@ -330,9 +342,9 @@ class TestCreateConnection:
 class TestAuthRefresh:
     def test_refresh_updates_live_connections_and_resets_the_breaker(self, manager: MCPConnectionManager) -> None:
         live_actor, closed_actor = _Actor("srv"), _Actor("srv")
-        closed = MCPConnection("closed", {"srv": closed_actor})
+        closed = _connection("closed", {"srv": closed_actor})
         closed.status = ConnectionStatus.CLOSED
-        manager._connections |= {"live": MCPConnection("live", {"srv": live_actor}), "closed": closed}
+        manager._connections |= {"live": _connection("live", {"srv": live_actor}), "closed": closed}
         manager._backoff.record_failure("dead-config", "boom", ("srv",))
 
         assert manager.refresh_server_auth("srv", {"Authorization": "Bearer new"}) is True
