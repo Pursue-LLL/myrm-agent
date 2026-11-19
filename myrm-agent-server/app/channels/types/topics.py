@@ -1,7 +1,7 @@
 """Topic routing types: draft-review mode, identity scope and per-topic configuration.
 
 [INPUT]
-- channels.types.thread_sharing::ThreadSharingMode (POS: thread history sharing mode)
+- channels.types.thread_sharing::ThreadSharingMode (POS: the per-topic thread sharing value)
 
 [OUTPUT]
 - TopicContext: per-topic routing configuration carried with inbound messages
@@ -56,13 +56,12 @@ class TopicContext:
     """Per-topic configuration for forum-style thread routing.
 
     When a message arrives from a forum topic (e.g. Telegram supergroup topic),
-    this context carries topic-specific overrides that affect session isolation
-    and Agent selection.
+    this context carries topic-specific overrides that affect Agent selection,
+    reply delivery and team identity.
 
-    ``thread_sharing_mode``: Controls chat history visibility within a thread.
-    - ``isolated`` (default): Each user has their own conversation history.
-    - ``shared``: All users in the thread share the same conversation history,
-      enabling collaborative scenarios (Discord Forum, Telegram Forum Topics).
+    ``thread_sharing_mode``: stored with the topic binding and returned by the
+    topic API. Session keys do not read it, so the members of a group thread
+    share one conversation whichever value is set.
 
     ``reply_mode``: Controls outbound message delivery.
     - ``auto`` (default): Agent replies are sent immediately (existing behavior).

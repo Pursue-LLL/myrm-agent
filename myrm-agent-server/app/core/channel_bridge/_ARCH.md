@@ -103,34 +103,23 @@ HTTP/SSE 主链路在 `execute_stream_pipeline` 内 **INFO 记录解析后的投
 
 ### 功能概述
 
-`thread_sharing_mode` 是 `TopicContext` 的一个配置项，用于控制话题内的会话历史隔离策略：
+`thread_sharing_mode`（`isolated` 为默认值，另有 `shared`）是 `TopicContext` 的一个配置项：随话题绑定保存，经话题 API 读写。会话键不读取它，所以它不改变任何一条消息落在哪份对话历史里。
 
-- **`isolated`（默认）**：每个用户拥有独立的对话历史，适合普通 DM 或个人使用场景。
-- **`shared`**：话题内所有用户共享同一对话历史，适合协作场景（如 Discord Forum、Telegram Forum Topic）。
+### 会话归属（与该设置无关）
 
-### 实现原理
+`agent_executor/session.py::_build_session_key` 用渠道、对端类型、对端、话题、智能体拼出会话键：群聊的对端取群 `chat_id`，私聊取发送者。因此：
 
-当 `thread_sharing_mode="shared"` 时，`resolve_session_key()` 会将 `SessionKey` 的 `thread_id` 设为统一个值，从而让所有用户在同一话题中访问相同的 Chat 记录：
+| 场景 | 对话历史 |
+|------|----------|
+| Discord Forum Post、Telegram Forum Topic | 同一话题内的成员共用一份 |
+| 普通群聊 | 同一个群的成员共用一份 |
+| 私聊 DM | 每个发送者各一份 |
 
-```python
-# agent_executor/session.py — resolve_session_key()
-def resolve_session_key(..., thread_sharing_mode: str = "isolated"):
-    # Pseudo-code: shared mode omits per-user scoping on SessionKey
-    sk = SessionKey(thread_id=effective_thread_id, ...)
-```
-
-### 使用场景
-
-| 场景 | 推荐模式 | 说明 |
-|------|----------|------|
-| Discord Forum Post | shared | 论坛帖子内的多个用户协作讨论同一主题 |
-| Telegram Forum Topic | shared | 话题内共享上下文，便于团队协作 |
-| 普通群聊 | isolated | 每个用户有独立的对话历史 |
-| 私聊 DM | isolated | 默认隔离，无需配置 |
+`resolve_session_key` 与执行前导（`execute_preamble/session.py`）把该设置一路传到 `_build_session_key`，那里没有读它；`isolated` 所暗示的「每个用户各有一份历史」在群聊与话题里并不存在。
 
 ### 前端配置
 
-在「设置 → 渠道路由」页面，每个 Topic 可单独配置共享模式，支持实时切换。
+在「设置 → 渠道路由」页面，每个 Topic 有一个共享模式开关，切换只保存配置值。
 
 ---
 

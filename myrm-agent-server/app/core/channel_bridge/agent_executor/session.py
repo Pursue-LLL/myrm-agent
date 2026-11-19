@@ -58,11 +58,9 @@ def _build_session_key(
 ) -> str:
     """Build a structured session key (base, without epoch).
 
-    Dimensions: user + channel + peer_kind + peer + thread + agent.
-    Groups use chat_id; DMs use sender_id.
-
-    When thread_sharing_mode is SHARED, user identifier is removed from the key
-    to enable all users in the same thread to share the conversation history.
+    Dimensions: channel + peer_kind + peer + thread + agent. Groups use chat_id and DMs use sender_id, so the
+    members of a group (or of a thread in it) share one conversation and each DM sender has their own.
+    ``thread_sharing_mode`` is accepted but does not change the key.
     """
     peer_kind, peer_id = _resolve_peer(msg)
 
@@ -90,7 +88,7 @@ async def resolve_session_key(
     - daily: base key + date epoch (new Chat each day at reset_hour UTC)
     - idle: base key + time epoch (new Chat after idle_minutes of inactivity)
     - force_new_epoch: used by /new command to force a new Chat
-    - thread_sharing_mode: ISOLATED (default) or SHARED (collaborative history)
+    - thread_sharing_mode: passed to ``_build_session_key``, which does not use it
     """
     from datetime import UTC, datetime
 

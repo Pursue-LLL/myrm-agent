@@ -25,11 +25,12 @@ _SAFE_CHARS = re.compile(r"[^a-zA-Z0-9_-]")
 
 @dataclass(frozen=True, slots=True)
 class SessionKey:
-    """Structured session key with all isolation dimensions.
+    """Structured session key.
 
-    Encodes user, channel, peer, topic, and agent into a deterministic
-    string that serves as the conversation history DB key.  Structured
-    fields allow callers to inspect individual dimensions without parsing.
+    Encodes channel, peer, topic and agent into a deterministic string that serves as
+    the conversation history DB key. The peer of a group is its chat and the peer of a
+    DM is its sender; there is no tenant dimension. Structured fields allow callers to
+    inspect individual dimensions without parsing.
 
     Format: ``{channel}:{peer_kind}:{peer}[:thread:{thread}][:agent:{agent}]``
     """

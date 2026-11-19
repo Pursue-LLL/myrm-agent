@@ -1,13 +1,14 @@
-"""Thread sharing mode enumeration for topic-level session isolation.
+"""Thread sharing setting of a topic binding.
 
 [INPUT]
 - (none)
 
 [OUTPUT]
-- ThreadSharingMode: Controls chat history visibility within a thread.
+- ThreadSharingMode: the per-topic thread sharing value that is stored and returned by the topic API
 
 [POS]
-Thread sharing mode enumeration for topic-level session isolation.
+Value type of the per-topic ``thread_sharing_mode`` setting. Session keys do not read it: the members of a
+group thread share one conversation whichever value is set.
 """
 
 from __future__ import annotations
@@ -16,11 +17,11 @@ from enum import StrEnum
 
 
 class ThreadSharingMode(StrEnum):
-    """Controls chat history visibility within a thread.
+    """The per-topic thread sharing setting: ``isolated`` (default) or ``shared``.
 
-    - ISOLATED (default): Each user has their own conversation history.
-    - SHARED: All users in the thread share the same conversation history,
-      enabling collaborative scenarios (Discord Forum, Telegram Forum Topics).
+    Stored with the topic binding and returned by the topic API. The session key builder does not read it, so
+    both values give the same conversation scope: the members of a group or thread share one conversation and
+    each DM sender has their own.
     """
 
     ISOLATED = "isolated"
