@@ -18,8 +18,8 @@ import { cloneDeep } from 'lodash-es';
 import { valuesEqual } from './configFingerprint';
 import { ConfigListenerRegistry } from './configListeners';
 import type { ConfigChangeListener } from './configListeners';
-import { resolveConflicts } from './conflictResolution';
-import type { ConflictContext, ConfigConflictResolver } from './conflictResolution';
+import { adoptServerRecord, resolveConflicts } from './conflictResolution';
+import type { ConflictContext, ConfigConflictResolver, RecordSink } from './conflictResolution';
 import { isE2eBlockedKey, withoutBlockedSearchChanges } from './e2eSearchSyncGate';
 import { loadInitialConfigs } from './initialLoad';
 import {
@@ -31,6 +31,7 @@ import {
   takeUnpersistableOfflineEntries,
 } from './offlineQueue';
 import { mergeLatestChanges, partitionOfflineChanges } from './offlineReplay';
+import { reloadKeysFromServer } from './serverReload';
 import { runStartupNormalization } from './startupNormalization';
 import { isThemePersonalSettingsChange } from './themePersonalSettingsSync';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
@@ -128,15 +129,8 @@ class ConfigSyncManager {
       this._status = 'idle';
 
       loadRemaining?.().then(
-        (rest) => {
-          for (const [k, v] of rest) {
-            this.cache.set(k, v);
-            this.baseCache.set(k, cloneDeep(v));
-            // 通知订阅者：预加载写入不进 set()，不通知则依赖「配置就绪」的兜底逻辑
-            // （如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。
-            this.notifyListeners(k, v.value as ConfigValueMap[ConfigKey], v.meta);
-          }
-        },
+        // 预加载写入不进 set()，必须通知订阅者；否则依赖「配置就绪」的兜底逻辑（如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。
+        (rest) => rest.forEach((record, key) => adoptServerRecord(this.recordSink(), key, record)),
         (err) => {
           console.warn('[ConfigSync] Background preload failed:', err);
         },
@@ -174,13 +168,17 @@ class ConfigSyncManager {
     try {
       const record = await this.adapter.get(key);
       if (record) {
-        this.cache.set(key, record as ConfigRecord);
-        this.baseCache.set(key, cloneDeep(record));
-        this.notifyListeners(key, record.value as ConfigValueMap[K], record.meta);
+        adoptServerRecord(this.recordSink(), key, record as ConfigRecord);
       }
     } catch (error) {
       console.warn(`[ConfigSync] ensureKeyLoaded failed for '${key}':`, error);
     }
+  }
+
+  /** 后端在页面存活期间改了这些配置行时，换上后端的当前值（本地尚未同步的改动保留，见 `serverReload.ts`）。 */
+  async reloadKeys(keys: readonly ConfigKey[]): Promise<void> {
+    await this.initialize();
+    await reloadKeysFromServer({ ...this.recordSink(), adapter: this.adapter }, keys);
   }
 
   /** 已加密存储但密钥丢失、读不出内容的配置键（用户显式保存后即不再列出）。 */
@@ -403,14 +401,17 @@ class ConfigSyncManager {
     }
   }
 
+  /** 读取时才取 cache：`initialize()` 会整体替换两张缓存表。 */
+  private recordSink(): RecordSink {
+    return { cache: this.cache, baseCache: this.baseCache, notify: this.notifyListeners.bind(this) };
+  }
+
   private conflictContext(): ConflictContext {
     return {
+      ...this.recordSink(),
       adapter: this.adapter,
       deviceId: (this.adapter as BaseConfigAdapter).getDeviceId(),
-      cache: this.cache,
-      baseCache: this.baseCache,
       resolver: this.conflictResolver,
-      notify: (key, value, meta) => this.notifyListeners(key, value, meta),
       requeue: (changes) => this.enqueueOfflineChanges(changes),
     };
   }

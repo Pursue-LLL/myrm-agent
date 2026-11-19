@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { confirmImportMemories, dryRunImportMemories } from '@/services/memory/archive';
+import { reloadMigratedConfigs } from '@/services/memory/migratedConfigReload';
 import {
   discoverMigrationSources,
   importMigrationSecrets,
@@ -39,6 +40,7 @@ const agentState = { agents: [], fetchAgents: vi.fn() };
 vi.mock('@/store/useAgentStore', () => ({
   default: (select: (state: typeof agentState) => unknown) => select(agentState),
 }));
+vi.mock('@/services/memory/migratedConfigReload', () => ({ reloadMigratedConfigs: vi.fn() }));
 
 // The steps are reduced to the controls that drive the key import and the one that shows what it reported.
 let scanned: ExternalSource;
@@ -159,5 +161,26 @@ describe('MigrationWizardSection key import', () => {
     await runImport({ source: hermes({ has_api_keys: true, can_import_secrets: false }), ticked: true });
 
     expect(importMigrationSecrets).not.toHaveBeenCalled();
+  });
+
+  it('reloads the settings the server just changed after the keys are in, before the result shows', async () => {
+    const steps: string[] = [];
+    vi.mocked(importMigrationSecrets).mockImplementation(async () => {
+      steps.push('keys');
+      return { imported_keys: ['OPENAI_API_KEY'], skipped_keys: [] };
+    });
+    vi.mocked(reloadMigratedConfigs).mockImplementation(async () => {
+      steps.push('reload');
+    });
+
+    await runImport({ source: hermes(), ticked: true });
+
+    expect(steps).toEqual(['keys', 'reload']);
+  });
+
+  it('reloads the settings after an import that brought no keys, since the instructions and servers still changed', async () => {
+    await runImport({ source: hermes(), ticked: false });
+
+    expect(reloadMigratedConfigs).toHaveBeenCalledOnce();
   });
 });
