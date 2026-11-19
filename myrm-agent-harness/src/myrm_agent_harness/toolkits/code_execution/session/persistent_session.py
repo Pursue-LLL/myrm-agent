@@ -160,7 +160,7 @@ class PersistentSession(CommandStreamMixin, ABC):
         """
         timeout = timeout or self.config.timeout
         try:
-            await run_until_cancelled(self._command_lock.acquire())
+            await self._queue_for_shell()
         except OperationCancelledError:
             return _cancelled_before_start()
         try:
@@ -172,6 +172,24 @@ class PersistentSession(CommandStreamMixin, ABC):
             return dataclasses.replace(result, duration=time.perf_counter() - start_time)
         finally:
             self._command_lock.release()
+
+    async def _queue_for_shell(self) -> None:
+        """Take ``_command_lock``, or leave without it when the request is stopped on the way.
+
+        The wait runs as a task so ``run_until_cancelled`` can abandon it at once, and that task can finish (and so
+        own the lock) in the very iteration in which its waiter is stopped. A caller that leaves then would keep a
+        lock nobody releases and every later command would wait for it, so a lock the wait already took is given
+        back, and a wait that has not finished is cancelled before it can take the lock.
+        """
+        acquire = asyncio.ensure_future(self._command_lock.acquire())
+        try:
+            await run_until_cancelled(acquire)
+        except BaseException:
+            if not acquire.done():
+                acquire.cancel()
+            elif not acquire.cancelled():
+                self._command_lock.release()
+            raise
 
     async def _precheck_bash_syntax(self, command: str) -> str | None:
         """Return a bash syntax error message when *command* is malformed.

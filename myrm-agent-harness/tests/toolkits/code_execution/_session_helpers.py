@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import os
 from collections.abc import Iterator
@@ -9,7 +10,13 @@ from pathlib import Path
 from unittest.mock import patch
 
 from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession, SessionConfig
-from myrm_agent_harness.toolkits.code_execution.session.models import SessionState
+from myrm_agent_harness.toolkits.code_execution.session.models import (
+    CommandEnv,
+    SessionExecutionResult,
+    SessionState,
+)
+from myrm_agent_harness.toolkits.code_execution.session.persistent_session import PersistentSession
+from myrm_agent_harness.utils.runtime.cancellation import CancellationToken
 
 # The line that closes the command block of ``BashFlavor.build_wrapped_command`` and seals its stdin.
 BASH_BLOCK_CLOSE = "} </dev/null"
@@ -29,6 +36,53 @@ def state_of(session: LocalPersistentSession) -> SessionState:
 def hold_command(started: Path, gate: Path) -> str:
     """A command that signals it is running, keeps the shell until ``gate`` exists, then prints ``released``."""
     return f"touch {started}; while [ ! -f {gate} ]; do sleep 0.05; done; echo released"
+
+
+class GatedSession(PersistentSession):
+    """A session that runs no shell, so a test picks the moment a command gets or leaves it.
+
+    A command that starts with ``hold`` keeps the shell until ``release`` is called with the same text; any other
+    command answers ``ok`` at once. ``ran`` lists the commands in the order they got the shell.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(SessionConfig(session_id="gated", work_dir="/tmp", sandbox_mode="disable"))
+        self.ran: list[str] = []
+        self._gates: dict[str, asyncio.Event] = {}
+
+    @property
+    def is_alive(self) -> bool:
+        return True
+
+    def release(self, command: str) -> None:
+        self._gate(command).set()
+
+    def _gate(self, command: str) -> asyncio.Event:
+        return self._gates.setdefault(command, asyncio.Event())
+
+    async def _create_process(self) -> asyncio.subprocess.Process:
+        raise NotImplementedError("a gated session runs no shell")
+
+    async def start(self) -> None:
+        return None
+
+    async def _execute_core(
+        self,
+        command: str,
+        timeout: int,
+        cancel_token: CancellationToken | None = None,
+        env: CommandEnv | None = None,
+    ) -> SessionExecutionResult:
+        self.ran.append(command)
+        if command.startswith("hold"):
+            await self._gate(command).wait()
+        return SessionExecutionResult(True, "ok", "", 0)
+
+
+async def let_the_loop_run(ticks: int) -> None:
+    """Hand the event loop to the tasks that are ready, ``ticks`` times."""
+    for _ in range(ticks):
+        await asyncio.sleep(0)
 
 
 @contextlib.contextmanager
