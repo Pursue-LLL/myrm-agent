@@ -4,16 +4,16 @@ from unittest.mock import patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.code_execution.executors.models import (
-    ExecutionResult,
+from myrm_agent_harness.toolkits.code_execution.executors.error_hints import (
     _get_preferred_pip_installer,
     generate_error_hint,
 )
+from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionResult
 
-_MODELS = "myrm_agent_harness.toolkits.code_execution.executors.models"
+_HINTS = "myrm_agent_harness.toolkits.code_execution.executors.error_hints"
 
 # Mock _get_preferred_pip_installer to return "pip" for deterministic tests
-_PIP_MOCK = patch(f"{_MODELS}._get_preferred_pip_installer", return_value="pip")
+_PIP_MOCK = patch(f"{_HINTS}._get_preferred_pip_installer", return_value="pip")
 
 
 # ============================================================================
@@ -90,12 +90,12 @@ class TestImportHint:
 
 class TestPreferredInstaller:
     def test_uv_on_path_selects_uv_pip(self) -> None:
-        with patch(f"{_MODELS}.shutil.which", return_value="/usr/local/bin/uv") as which:
+        with patch(f"{_HINTS}.shutil.which", return_value="/usr/local/bin/uv") as which:
             assert _get_preferred_pip_installer() == "uv pip"
         which.assert_called_once_with("uv")
 
     def test_without_uv_selects_pip(self) -> None:
-        with patch(f"{_MODELS}.shutil.which", return_value=None):
+        with patch(f"{_HINTS}.shutil.which", return_value=None):
             assert _get_preferred_pip_installer() == "pip"
 
     def test_import_hint_names_uv_pip_when_uv_is_available(self) -> None:
@@ -104,7 +104,7 @@ class TestPreferredInstaller:
             stderr="ModuleNotFoundError: No module named 'PIL'",
             error_category="import",
         )
-        with patch(f"{_MODELS}.shutil.which", return_value="/usr/local/bin/uv"):
+        with patch(f"{_HINTS}.shutil.which", return_value="/usr/local/bin/uv"):
             assert generate_error_hint(result) == "Try: uv pip install Pillow"
 
     def test_import_hint_names_pip_without_uv(self) -> None:
@@ -113,7 +113,7 @@ class TestPreferredInstaller:
             stderr="ModuleNotFoundError: No module named 'PIL'",
             error_category="import",
         )
-        with patch(f"{_MODELS}.shutil.which", return_value=None):
+        with patch(f"{_HINTS}.shutil.which", return_value=None):
             assert generate_error_hint(result) == "Try: pip install Pillow"
 
 

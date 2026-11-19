@@ -22,7 +22,7 @@ bash/
   bash_code_execute_tool.py      # 门面：bash 工具 LangChain 工厂
   bash_process_tools.py          # 门面：bash 后台进程管理工具工厂（schema/能力校验/分发）
   _executor/                     # 执行器域（聚合根 + mixins + 会话管理）
-  _tool/                         # bash 工具能力域（描述/格式化/语义/多模态/监听/进程工具处理器）
+  _tool/                         # bash 工具能力域（描述/格式化/语义/多模态/监听/存储输出流告知/失败转 ToolError/进程工具处理器）
   _compression/                  # 输出压缩域（语义压缩/eviction/声明式过滤）
   _security/                     # 安全域（执行前预检）
   _background/                   # 后台任务域（registry/ledger/spill/progress）
@@ -37,7 +37,7 @@ bash/
 |------|------|-------------|-------|
 | `__init__.py` | Package | 包门面：聚合导出 5 个公共符号（`BashExecutor`、两个 tool 工厂、工具名常量、`BashExecutionError`）。 | — |
 | `_tool/tool_description.py` | Internal | 静态缓存稳定的工具描述 `TOOL_DESCRIPTION_EN` / `TOOL_DESCRIPTION_ZH`（合并/OBSERVATION 规则）。 | ✅ |
-| `bash_code_execute_tool.py` | Core | `create_bash_code_execute_tool` LangChain 工厂；静态工具描述 + OS hint；preflight ``ToolError`` 保留 ``guardrail_blocked``；游离 ``&`` 守卫只管 shell 会读的命令（Python 源码里的 ``a & b`` 是位运算；自动让出的 build/test 命令仍是 shell）；自动让出的命令在窗口内结束时，返回里已含完整结果，同样向唤醒处理器报告「已读」；``BashExecutionError`` 包装保留 stderr evicted ref。 | ✅ |
+| `bash_code_execute_tool.py` | Core | `create_bash_code_execute_tool` LangChain 工厂；静态工具描述 + OS hint；preflight ``ToolError`` 保留 ``guardrail_blocked``；游离 ``&`` 守卫只管 shell 会读的命令（Python 源码里的 ``a & b`` 是位运算；自动让出的 build/test 命令仍是 shell）；自动让出的命令在窗口内结束时，返回里已含完整结果，同样向唤醒处理器报告「已读」；被存下的输出流经 `_tool/evicted_emit.py` 告知 UI，失败路径交 `_tool/failure.py` 生成 `ToolError`（``BashExecutionError`` 的修复提示、错误类别与被存下的输出流都经它保留）。 | ✅ |
 | `bash_process_tools.py` | Core | 统一 ``bash_process_tool``（actions list/output/kill/wait/write_stdin/submit_stdin/close_stdin）。schema 的 `max_lines` 与 `timeout_seconds` 上限和描述里的数字取自 `_background/types.py` 的 `OUTPUT_RING_LINES`、`WAIT_MAX_SECONDS`、`INPUT_WAIT_IDLE_SECONDS`（`wait` 上限低于执行器给 `bash*` 工具的 120 s 截止，超过截止的调用会被切断并重试）。顶部描述（中英同步）说明自动转后台入口、`output` 立即返回、`kill` 的升级、`output` / `wait` 返回的 `partial_line`（作业运行时未结束的最后一行，通常是提示），并且是 `waiting_for_input` 处置规则（`partial_line` 或最新输出是个问句、或命令本应提问时 `submit_stdin` 应答，否则忽略）的唯一静态出处；执行工具的描述只列动作名并指向它。后台任务按会话归属，委派的子 Agent 与父共用会话，所以 kill / write_stdin / submit_stdin / close_stdin 在工具内部检查能力句柄的 EXECUTE（与启动任务的 `bash_code_execute_tool` 同一权限）：只读子 Agent 能 list / output / wait 父的任务，不能对其发信号或写 stdin。`kill` 的结果如实说明停止的效果：任务进程组内是否发现还有进程仍在运行（metadata 的 `leftover_processes`；Windows 无法列出进程组，只说发出了什么信号）；对已结束但留有后台进程的任务，`kill` 停的是它留下的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）。 | ✅ |
 
 ### `_executor/` 执行器域
@@ -71,6 +71,8 @@ bash/
 | `_tool/helpers.py` | Core | BashInput schema、OS hint、上下文恢复；`resolve_skill_storage_paths` 把技能的存储键（相对存储根）解析成宿主机绝对目录供暂存复制，本地技能的绝对目录原样保留。 |
 | `_tool/multimodal.py` | Core | Vision ContentBlock 内联返回。 |
 | `_tool/background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 |
+| `_tool/evicted_emit.py` | Core | 把被整份存下的 stdout / stderr 告知 UI；成功路径带预览（只对 stdout），失败路径不带，某条告知出错只记警告。 |
+| `_tool/failure.py` | Core | `build_failure_error`：异常变成交给模型的 `ToolError`，`BashExecutionError` 另带修复提示、错误类别和输出模式诊断。 |
 | `_tool/process_handlers.py` | Core | `bash_process_tool` 各 action 的处理器；`kill_report` 如实说明停止效果。 |
 
 ### `_compression/` 输出压缩域
