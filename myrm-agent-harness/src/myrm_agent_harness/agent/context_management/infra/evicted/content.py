@@ -242,7 +242,7 @@ def write_evicted_content_sync(
         abs_path.parent.mkdir(parents=True, exist_ok=True)
         # Bytes, not ``write_text``: text mode writes ``\n`` as ``\r\n`` on Windows, so the file would no longer hold
         # the text whose characters and lines were just counted. Written in place, not through ``atomic_write``: the
-        # name reaches no reader before this returns, so nobody can see a half-written file.
+        # name is made here and reaches no reader before this returns, so nothing refers to a half-written file.
         abs_path.write_bytes(capped.encode("utf-8"))
         logger.info("[EvictedContent] Saved %d chars to %s", len(capped), rel_path)
         return EvictedPersistResult(
