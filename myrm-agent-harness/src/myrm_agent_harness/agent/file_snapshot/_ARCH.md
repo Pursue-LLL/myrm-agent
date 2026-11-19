@@ -11,9 +11,9 @@ Workspace file versioning and rollback subsystem. Provides transparent file-leve
 | types.py | Types | SnapshotTrigger enum (only the triggers a producer reports; `from_stored` reads a stored value this version does not know as `manual`, so an older or newer snapshot is never hidden), FileSnapshotInfo, FileChange, FileDiff, RestoreResult dataclasses. | ✅ |
 | protocols.py | Protocol | FileSnapshotProtocol — runtime_checkable Protocol for snapshot operations. | ✅ |
 | shadow_git_store.py | Implementation | ShadowGitSnapshotStore — shared bare repo with env-variable isolation (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE). Preferred. | ✅ |
-| shadow_git_maintenance.py | Mixin | ShadowGitMaintenance — auto-pruning, orphan detection, repair, oversized workspace validation, project-commit lookup. `drop_unstorable_from_index` clears credential paths and oversized files from the staged index, so `git add --all` cannot commit a secret into the shadow repository. | ✅ |
+| shadow_git_maintenance.py | Mixin | ShadowGitMaintenance — first-use creation of the shared bare repo (`DEFAULT_EXCLUDES`, one initializer at a time), auto-pruning, orphan detection, repair, oversized workspace validation, project-commit lookup. `drop_unstorable_from_index` clears credential paths and oversized files from the staged index, so `git add --all` cannot commit a secret into the shadow repository. | ✅ |
 | local_store.py | Implementation | LocalFileSnapshotStore — file copy + JSON manifest (listing reads each manifest's trigger through `SnapshotTrigger.from_stored`, so a manifest naming an unknown trigger still lists and still gets cleaned up). Fallback when git is absent. The copy walk and the diff walk both skip credential paths via `core.security.path::is_sensitive_file`, so a snapshot never carries a secret out of the workspace and a credential does not read as a newly added file. | ✅ |
-| factory.py | Factory | create_file_snapshot_store() — auto-selects Shadow Git or Local File based on git availability. | ✅ |
+| factory.py | Factory | create_file_snapshot_store() — auto-selects Shadow Git or Local File based on git availability; callers that arrive together share one instance. | ✅ |
 | restore_inbox.py | Notification | In-process deque inbox. Server pushes restore events; agent_runtime drains them as HumanMessage on next turn. | ✅ |
 | sealed_io.py | Core I/O | Atomic write (temp+fsync+replace), SHA-256 integrity sealing, and .corrupted/ quarantine isolation. | ✅ |
 ## Key Dependencies
@@ -33,11 +33,12 @@ Workspace file versioning and rollback subsystem. Provides transparent file-leve
 - **State-root path derivation**: All storage paths derive from `infra.data_dir::resolve_data_dir()` (`MYRM_DATA_DIR`, default `~/.myrm`), compatible with SaaS persistent volumes; the file-copy fallback lives in `<state root>/file_snapshots/local/`.
 - **Auto-maintenance**: Orphan detection, dual-layer pruning (per-project + global size cap), git gc.
 - **Factory pattern**: create_file_snapshot_store() auto-detects git and caches the result.
+- **Serialized first use**: the API, a chat turn and the airbag reach the store on first use, often together. The factory builds one store for all of them, and the store lets one caller run `git init --bare` while the rest wait: two concurrent runs into one directory fail copying the git templates, and a caller that sees `HEAD` early would run git against a half-configured repo. The guard is per process; two processes sharing one state root are not coordinated.
 - **Max file size**: 10MB per file to avoid snapshotting large binaries.
 - **Max file count**: 50,000 files per workspace to prevent timeouts on oversized directories.
 - **Runtime excludes**: `.agent/` (artifact vault) and `.myrm/` (workspace runtime metadata) are excluded from shadow git and local snapshots.
 - **Structured commit messages**: Metadata stored as key=value in commit body for reliable parsing.
-- **Maintenance mixin separation**: Pruning, repair, and validation logic lives in the ShadowGitMaintenance mixin that ShadowGitSnapshotStore inherits.
+- **Maintenance mixin separation**: First-use setup of the bare repo, pruning, repair, and validation logic lives in the ShadowGitMaintenance mixin that ShadowGitSnapshotStore inherits.
 - **No-change skip**: `git diff-index --cached --quiet` avoids creating redundant commits when no files changed.
 - **CAS concurrency safety**: `git update-ref ref new old` prevents concurrent snapshot overwrites.
 - **Restore context injection**: `restore_inbox.py` bridges the server restore API and agent_runtime. After GUI rollback, a notification is pushed to the in-process deque; agent_runtime drains it as a HumanMessage at the end of the messages list (preserving prompt cache prefix). 600s TTL auto-expires stale notifications.

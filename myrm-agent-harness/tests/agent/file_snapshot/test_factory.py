@@ -6,6 +6,7 @@ Covers: create_file_snapshot_store git detection, fallback to local store,
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -25,12 +26,14 @@ from myrm_agent_harness.agent.file_snapshot.shadow_git_store import (
 
 @pytest.fixture(autouse=True)
 def _reset_cached_store():
-    """Clear factory cache between tests."""
+    """Clear factory cache between tests; each test runs in its own event loop, so the lock starts fresh too."""
     import myrm_agent_harness.agent.file_snapshot.factory as factory_mod
 
     factory_mod._cached_store = None
+    factory_mod._create_lock = asyncio.Lock()
     yield
     factory_mod._cached_store = None
+    factory_mod._create_lock = asyncio.Lock()
 
 
 # ------------------------------------------------------------------
@@ -114,6 +117,25 @@ async def test_factory_caches_result():
         store2 = await create_file_snapshot_store()
 
     assert store1 is store2
+    mock_detect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_factory_concurrent_first_callers_share_one_store():
+    """Callers that arrive together on first use must not each build a store."""
+
+    async def slow_probe() -> bool:
+        await asyncio.sleep(0.05)  # the real probe spawns a process, so it yields to the event loop
+        return True
+
+    with patch(
+        "myrm_agent_harness.agent.file_snapshot.factory._detect_git",
+        new=AsyncMock(side_effect=slow_probe),
+    ) as mock_detect:
+        stores = await asyncio.gather(*(create_file_snapshot_store() for _ in range(6)))
+
+    assert all(s is stores[0] for s in stores)
+    assert get_cached_store() is stores[0]
     mock_detect.assert_awaited_once()
 
 
