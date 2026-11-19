@@ -1,7 +1,7 @@
 """Humanized interaction helpers — delay distribution, Bézier trajectory, wheel-burst scroll.
 
 [INPUT]
-- pool.config::HumanizeConfig, HumanizeMode (POS: interaction humanization config)
+- pool.humanize_config::HumanizeConfig, HumanizeMode (POS: humanization parameters of the interaction layer)
 
 [OUTPUT]
 - INTERACTION_TIMEOUT_MS: shared default timeout for element interactions (ms)
@@ -30,7 +30,7 @@ import math
 import random
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig, HumanizeMode
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig, HumanizeMode
 
 if TYPE_CHECKING:
     from patchright.async_api import Page

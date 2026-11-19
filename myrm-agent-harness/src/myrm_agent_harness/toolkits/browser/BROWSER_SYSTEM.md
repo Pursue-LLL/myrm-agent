@@ -104,6 +104,7 @@ Extension Bridge 与 SessionVault 让 Agent 复用已登录会话，且无需读
 - **DevToolsActivePort 自动发现**：AUTO 模式通过 `chrome_discovery.py` 扫描 Chrome/Edge/Chromium/Brave/Canary 的 DevToolsActivePort 文件，自动发现用户本地浏览器的动态 CDP 端口。4 阶段策略：文件扫描 → HTTP probe（完整 CDP API）→ inspect WebSocket path + TCP（`chrome://inspect` 模式）→ 固定端口 9222 HTTP 兜底。
 - **Local 可见 fallback**：server 层 `get_browser_launch_options()` 在 Local 模式设 `headless=False`（SaaS 仍默认 headless）
 - **多租户隔离**：不同 ContextType（CRAWL / AGENT / STEALTH）使用独立 BrowserContext
+- **证书默认校验**：`ContextFactory` 对除扩展上下文之外的每种上下文（CRAWL / AGENT / STEALTH，含接入的 CDP 浏览器里新建的上下文）显式写入 `ignore_https_errors=False`：浏览器会拒绝的证书（自签、过期、主机名不符、根不受信任）让页面加载失败，抛出带 `net::ERR_CERT_*` 的 `BrowserNavigationError`，它的恢复建议只让模型核对域名并如实告知用户，不去找绕过校验的办法。放开校验是运营方的决定：`BrowserConfig.ignore_https_errors`（默认 `False`；服务端由环境变量 `MYRM_BROWSER_IGNORE_HTTPS_ERRORS` 设置）对所有这类上下文生效，池在构造与 `update_proxy_pool` 两处建工厂时都传入它；上下文的创建者仍可经 `context_kwargs` 的 `ignore_https_errors` 单独覆盖。`browser_source=extension` 的用户浏览器不受影响，沿用用户自己的证书设置。文档注入路由（`enhancers/inject_route.py`）取回文档时若 Node 侧拒绝证书，幂等请求交还浏览器自己加载，由浏览器自己的校验裁决；写请求中止，不交给浏览器。
 - **智能负载调度**：自动选择负载最低的 Context
 - **智能重试**：3次指数退避重试（2s/4s/8s），处理启动失败和网络异常
 - **并发安全销毁**：支持 `destroy_context` 显式回收资源，并具备严格的并发安全断言，防止销毁正在使用的页面。不拥有上下文的调用方用 `destroy_context(key, only_if_idle=True)`：上下文仍有页面在用时保留并返回 `False`，不抛异常。
@@ -852,7 +853,7 @@ BrowserError (root)
 
 浏览器导航重试由 `BrowserSession.navigate()` 内置完成：代理隔离重试、CAPTCHA 检测与引擎升级、blocked response 退避重试（见本节「CAPTCHA 检测与协调」及 navigation/ 章节）。middleware 层另有 `execute_with_retry` + circuit breaker 兜底整体环境故障。
 
-`Navigator._do_navigate` 内部错误分类：超时（builtin/patchright）先中止挂起的加载（`utils/page_health.abort_pending_navigation`：CDP `Page.stopLoading` 优先，`window.stop()` 兜底，均有界），再按 URL 是否已变化结算——已提交（文档已开始渲染）返回现有内容；**未提交**（服务端始终没有给出页面）抛 `BrowserNavigationError("… stalled: the server sent no page within …s.")` 并计入 circuit breaker；探活失败的页面抛 `PageUnresponsiveError`。非超时导航失败包装为 `BrowserNavigationError`（携带 url/error_text，智能诊断 + `format_for_llm`）；SSRF 安全拦截（`BrowserNavigationBlockedError`）原样透传不包装。页面就绪等待超时 soft-rescue（继续使用当前内容），consent 自动消除失败仅告警不阻断已成功的导航。
+`Navigator._do_navigate` 内部错误分类：超时（builtin/patchright）先中止挂起的加载（`utils/page_health.abort_pending_navigation`：CDP `Page.stopLoading` 优先，`window.stop()` 兜底，均有界），再按 URL 是否已变化结算——已提交（文档已开始渲染）返回现有内容；**未提交**（服务端始终没有给出页面）抛 `BrowserNavigationError("… stalled: the server sent no page within …s.")` 并计入 circuit breaker；探活失败的页面抛 `PageUnresponsiveError`。非超时导航失败包装为 `BrowserNavigationError`（携带 url/error_text；恢复建议由 `utils/navigation_recovery.py::navigation_recovery_suggestions` 按状态码与 Chromium 错误文本生成，`net::ERR_CERT_*` 是证书被浏览器拒绝的专门建议；`format_for_llm`）；SSRF 安全拦截（`BrowserNavigationBlockedError`）原样透传不包装。页面就绪等待超时 soft-rescue（继续使用当前内容），consent 自动消除失败仅告警不阻断已成功的导航。
 
 ### 卡死页面与 Stop 的恢复
 
@@ -1145,7 +1146,7 @@ browser/
 │   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
 │   ├── camoufox_launch.py (93 行) — Camoufox 启动（指纹持久化 + 损坏自愈）
-│   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
+│   ├── context_factory.py (328 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载、默认校验证书，运营方经 `BrowserConfig.ignore_https_errors` 放开）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
 │   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死，页面获取撞上它时按需巡检一次再重试；页面崩溃只为在用页面归还许可）
@@ -1200,10 +1201,11 @@ browser/
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
+│   ├── navigation_recovery.py — 导航失败的恢复建议（按状态码与 Chromium 错误文本生成，含 `net::ERR_CERT_*` 证书被浏览器拒绝的专门步骤）
 │   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error（含原因链）/ close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
 ├── domain_filter/ — 四层域名过滤（CSP + HTTP + 主线程硬化 + CDP）；支持 allowlist + 用户 blocklist
 ├── session_vault/ — 加密 Session 存储（O(1) LRU + 内存限制 + 并发锁 + Metrics + 批量 API）
-├── exceptions.py (约 150 行) — 异常类型
+├── exceptions.py (408 行) — 异常类型
 ```
 
 **总计**：约 4,100 行核心代码，SOLID 原则，单一职责，高度模块化。

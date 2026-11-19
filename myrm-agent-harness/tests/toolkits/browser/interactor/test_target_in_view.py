@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig, HumanizeMode
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig, HumanizeMode
 from myrm_agent_harness.toolkits.browser.session.interactor import Interactor
 from myrm_agent_harness.toolkits.browser.snapshot import RefInfo
 from tests.toolkits.browser.interactor._support import careful_interactor, doc_container, target_probe

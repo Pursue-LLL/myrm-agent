@@ -2,23 +2,28 @@
 
 [INPUT]
 - stdlib http.server (POS: in-process HTTP server)
+- stdlib ssl (POS: server-side TLS context for the HTTPS variant)
 
 [OUTPUT]
 - Reply / redirect: scripted response specs (``delay_s`` holds the answer back, like a slow business endpoint;
   ``declared_length`` promises more body than is sent and ``hold_open_s`` keeps the connection open after it, so a
   response can be cut short or left half-read)
 - Gated: a reply served only to a request that carries a given header (a page's own call versus a bare re-send)
-- serve: context manager yielding a ``Site`` (base URL + every request the server received)
+- serve: context manager yielding a ``Site`` (base URL + every request the server received); given a server-side
+  ``ssl.SSLContext`` it serves HTTPS
 
 [POS]
 Test support for browser integration tests that need real redirect chains. Every request (GET, POST,
 PUT, PATCH, DELETE) is recorded as ``(method, path)``, so a test can prove how many times — and whether
 at all — the server was reached instead of trusting the browser-side outcome. A page that hangs up mid-reply
-(an aborted fetch) is a scenario under test, so the handler ends quietly when the connection is gone.
+(an aborted fetch) is a scenario under test, so the handler ends quietly when the connection is gone. A browser
+that refuses the certificate of an HTTPS site hangs up during the handshake, so nothing is recorded for it.
 """
 
 from __future__ import annotations
 
+import socket
+import ssl
 import threading
 import time
 from collections.abc import Iterator, Mapping
@@ -73,9 +78,28 @@ class Site:
         return [path for hit_method, path in self.hits if method is None or hit_method == method]
 
 
+class _TlsServer(ThreadingHTTPServer):
+    """Handshakes each connection in its own thread, so a socket that never speaks cannot hold up the next one."""
+
+    def __init__(
+        self, address: tuple[str, int], handler: type[BaseHTTPRequestHandler], context: ssl.SSLContext
+    ) -> None:
+        super().__init__(address, handler)
+        self._context = context
+
+    def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
+        connection, address = super().get_request()
+        return self._context.wrap_socket(connection, server_side=True, do_handshake_on_connect=False), address
+
+    def handle_error(self, request: socket.socket | tuple[bytes, socket.socket], client_address: object) -> None:
+        """A client that refuses the certificate hangs up during the handshake, which is the scenario, not an error."""
+
+
 @contextmanager
-def serve(routes: Mapping[str, Reply | Gated], *, host: str = "127.0.0.1") -> Iterator[Site]:
-    """Serve ``routes`` (path -> Reply or Gated, query ignored) on a free loopback port."""
+def serve(
+    routes: Mapping[str, Reply | Gated], *, host: str = "127.0.0.1", tls: ssl.SSLContext | None = None
+) -> Iterator[Site]:
+    """Serve ``routes`` (path -> Reply or Gated, query ignored) on a free loopback port, over HTTPS given ``tls``."""
     site = Site(base_url="")
 
     class _Handler(BaseHTTPRequestHandler):
@@ -121,10 +145,10 @@ def serve(routes: Mapping[str, Reply | Gated], *, host: str = "127.0.0.1") -> It
         def do_DELETE(self) -> None:
             self._reply_after_body("DELETE")
 
-    server = ThreadingHTTPServer((host, 0), _Handler)
+    server = ThreadingHTTPServer((host, 0), _Handler) if tls is None else _TlsServer((host, 0), _Handler, tls)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    site.base_url = f"http://{host}:{server.server_address[1]}"
+    site.base_url = f"{'http' if tls is None else 'https'}://{host}:{server.server_address[1]}"
     try:
         yield site
     finally:

@@ -52,8 +52,6 @@ from .config import (
     BrowserMode,
     BrowserPoolConfig,
     CircuitBreakerConfig,
-    HumanizeConfig,
-    HumanizeMode,
     LaunchMode,
     MemoryGuardConfig,
     RateLimiterConfig,
@@ -70,6 +68,7 @@ from .extension_bridge import (
     ExtensionStatus,
     ExtensionTab,
 )
+from .humanize_config import HumanizeConfig, HumanizeMode
 from .page_pool import PagePool
 from .proxy import ProxyConfig, ProxyPool, RoundRobinProxyPool
 from .singleton import get_global_browser_pool, reset_global_browser_pool_for_tests

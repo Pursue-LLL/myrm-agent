@@ -5,7 +5,7 @@
 - snapshot::RefInfo (POS: element ref metadata)
 - snapshot::resolve_locator (POS: rebuild Locator from RefInfo)
 - exceptions::RefNotFoundError (POS: structured ref-not-found exception)
-- pool.config::HumanizeConfig (POS: interaction humanization config)
+- pool.humanize_config::HumanizeConfig (POS: humanization parameters of the interaction layer)
 - session.interactor_click_mixin::ClickInteractMixin (POS: Bézier-mouse click trajectory + reachability guard)
 - session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: humanized wheel-input scrolling behaviors)
 - session.interactor_scroll_targeting_mixin::ScrollTargetingMixin (POS: CAREFUL pre-interaction target centering)
@@ -46,7 +46,7 @@ from typing import TYPE_CHECKING
 
 from myrm_agent_harness.core.security.redact import redact_sensitive_text
 from myrm_agent_harness.toolkits.browser.exceptions import RefNotFoundError
-from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig
 from myrm_agent_harness.toolkits.browser.session.interactor_click_mixin import (
     ClickInteractMixin,
 )

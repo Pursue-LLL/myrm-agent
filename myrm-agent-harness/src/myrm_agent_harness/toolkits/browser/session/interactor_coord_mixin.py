@@ -1,7 +1,7 @@
 """Coordinate-based (Visual Mode) interactions for the Interactor.
 
 [INPUT]
-- pool.config::HumanizeConfig (POS: interaction humanization config)
+- pool.humanize_config::HumanizeConfig (POS: humanization parameters of the interaction layer)
 - session.humanize::bezier_move, click_delay, type_delay (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
 - session.interactor_scroll_mixin::ScrollHumanizeMixin (POS: humanized wheel-input scrolling behaviors)
 - session.viewport::page_viewport_size (POS: the area a coordinate may point at)
@@ -36,7 +36,7 @@ from myrm_agent_harness.toolkits.browser.wait import capped_note, settle_after_a
 if TYPE_CHECKING:
     from patchright.async_api import Page
 
-    from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig
 
 
 class CoordInteractMixin:

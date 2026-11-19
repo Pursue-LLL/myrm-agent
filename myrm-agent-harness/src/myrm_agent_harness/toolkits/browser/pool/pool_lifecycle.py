@@ -170,6 +170,7 @@ class PoolLifecycleMixin:
                 proxy_pool=proxy_pool,
                 default_emulation=self._config.default_emulation,
                 egress_guard=self._egress_guard,
+                ignore_https_errors=self._config.ignore_https_errors,
             )
             doh_flag = "--dns-over-https-templates=https://cloudflare-dns.com/dns-query"
             args = list(raw) if isinstance(raw := self._launch_options.get("args"), list) else []

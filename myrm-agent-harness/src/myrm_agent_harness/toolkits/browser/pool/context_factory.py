@@ -35,9 +35,11 @@ Dedicated to BrowserContext creation and configuration, including:
     one, no proxy applies and the context's policy keeps private networks closed: the context's proxy is the guard's
     loopback SOCKS5 proxy, so every connection of the page goes only to addresses the SSRF policy admitted. The first
     such context first proves that the browser honors it
-12. Ignoring certificate errors by default (``ignore_https_errors=True`` in every context kind of a launched browser): a
-    page whose certificate the browser would refuse still loads, so only a context whose owner passes
-    ``ignore_https_errors=False`` through ``extra_kwargs`` verifies certificates
+12. Verifying certificates by default (``ignore_https_errors=False`` in every context kind except the extension
+    contexts of item 10, which keep the user's browser settings): a page whose certificate the browser would refuse
+    fails to load. Only a factory built with ``ignore_https_errors=True`` (the operator's opt-in, carried by
+    ``BrowserConfig.ignore_https_errors``), or a context whose owner passes ``ignore_https_errors`` through
+    ``extra_kwargs``, opens such a page
 """
 
 from __future__ import annotations
@@ -69,7 +71,6 @@ _EXTENSION_CONTEXT_OPTIONS: dict[str, object] = {"no_viewport": True, "accept_do
 
 _DEFAULT_CONTEXT_OPTIONS: dict[str, object] = {
     "viewport": {"width": 1920, "height": 1080},
-    "ignore_https_errors": True,
     # The browser's own default saves every download a page starts and holds it until the context closes. A
     # context keeps downloads only when its owner, who has a download manager to judge them, asks for it.
     "accept_downloads": False,
@@ -130,6 +131,8 @@ class ContextFactory:
         proxy_pool: ProxyPool | None = None,
         default_emulation: EmulationConfig | None = None,
         egress_guard: EgressGuard | None = None,
+        *,
+        ignore_https_errors: bool = False,
     ) -> None:
         """Initialize context factory.
 
@@ -141,11 +144,14 @@ class ContextFactory:
                 (e.g. clipboard-read/write) across all contexts.
             egress_guard: Connection guard that the contexts of ``create_context(..., guard_egress=True)`` connect
                 through; a context that has a proxy of its own (the pool's or an explicit one) keeps it.
+            ignore_https_errors: Let every context except an extension-attached one open pages whose certificate the
+                browser would refuse. A context whose ``extra_kwargs`` carry ``ignore_https_errors`` keeps its own value.
 
         """
         self._proxy_pool = proxy_pool
         self._default_emulation = default_emulation
         self._egress_guard = egress_guard
+        self._ignore_https_errors = ignore_https_errors
 
     async def create_context(
         self,
@@ -289,6 +295,8 @@ class ContextFactory:
     ) -> dict[str, object]:
         """Options of a context in a browser the pool owns or may fully control: identity, proxy and emulation included."""
         ctx_opts = dict(_STEALTH_CONTEXT_OPTIONS if context_type == _STEALTH_TYPE else _DEFAULT_CONTEXT_OPTIONS)
+        # Always explicit: certificate checking is the operator's decision, not a property of the context kind.
+        ctx_opts["ignore_https_errors"] = self._ignore_https_errors
 
         if self._proxy_pool:
             session_id = context_key or context_type

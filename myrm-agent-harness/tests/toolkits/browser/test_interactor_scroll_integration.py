@@ -23,7 +23,7 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
-from myrm_agent_harness.toolkits.browser.pool.config import (
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
     HumanizeConfig,
     HumanizeMode,
 )

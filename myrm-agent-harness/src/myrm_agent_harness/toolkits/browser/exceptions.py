@@ -27,6 +27,8 @@ Usage:
 
 [INPUT]
 - urllib.parse::urlparse (POS: URL parsing and normalization)
+- core.security.redact::redact_for_llm, redact_sensitive_text (POS: public facade of the redaction domain)
+- utils.navigation_recovery::navigation_recovery_suggestions (POS: maps the HTTP status and Chromium error text of a failed navigation to the Agent's recovery steps)
 
 [OUTPUT]
 - BrowserError: Root exception for all browser operations
@@ -34,6 +36,7 @@ Usage:
 - BrowserLaunchError: Browser launch failures
 - EngineUnavailableError: Requested engine refused before any session state changed
 - BrowserSessionError: Session operation errors
+- BrowserNavigationError: Navigation failure with the url, status and error text and the recovery steps for them
 - BrowserToolError: Tool execution errors
 - RefNotFoundError: ref failure exception (structured diagnosis + URL change classification + smart suggestion generation + context refs sampling)
 - AriaError: ARIA snapshot errors
@@ -51,6 +54,7 @@ from myrm_agent_harness.core.security.redact import (
     redact_for_llm,
     redact_sensitive_text,
 )
+from myrm_agent_harness.toolkits.browser.utils.navigation_recovery import navigation_recovery_suggestions
 
 
 class BrowserError(Exception):
@@ -198,7 +202,7 @@ class BrowserNavigationError(BrowserSessionError):
         if error_text:
             diagnostic_info["error_text"] = error_text
 
-        recovery_suggestions = self._generate_suggestions(url, status_code, error_text)
+        recovery_suggestions = navigation_recovery_suggestions(status_code, error_text)
         error_code = f"BROWSER_NAV_{status_code}" if status_code else "BROWSER_NAV_FAILED"
 
         super().__init__(
@@ -209,91 +213,6 @@ class BrowserNavigationError(BrowserSessionError):
             recovery_suggestions=recovery_suggestions,
             error_code=error_code,
         )
-
-    @staticmethod
-    def _generate_suggestions(
-        url: str | None,
-        status_code: int | None,
-        error_text: str | None,
-    ) -> list[str]:
-        """Generate recovery suggestions based on failure type."""
-        suggestions = []
-
-        if status_code:
-            if status_code == 404:
-                suggestions.extend(
-                    [
-                        "URL not found - verify the URL is correct",
-                        "Check if the page has moved (try searching for the content)",
-                        "Try navigating to the site's homepage first",
-                    ]
-                )
-            elif status_code == 403:
-                suggestions.extend(
-                    [
-                        "Access forbidden - the site may require authentication",
-                        "Try logging in first if credentials are available",
-                        "Check if the site blocks automated browsers (may need stealth mode)",
-                    ]
-                )
-            elif status_code == 500:
-                suggestions.extend(
-                    [
-                        "Server error - the site may be temporarily down",
-                        "Wait a few seconds and retry",
-                        "Try a different page on the same site to verify server status",
-                    ]
-                )
-            elif status_code >= 400:
-                suggestions.append(f"HTTP {status_code} error - check the URL and server status")
-
-        if error_text:
-            if "net::ERR_NAME_NOT_RESOLVED" in error_text:
-                suggestions.extend(
-                    [
-                        "DNS resolution failed - check the domain name",
-                        "Verify internet connectivity",
-                        "Try a well-known site (e.g., google.com) to test connectivity",
-                    ]
-                )
-            elif "net::ERR_CONNECTION_REFUSED" in error_text:
-                suggestions.extend(
-                    [
-                        "Connection refused - the server may be down or unreachable",
-                        "Check if the port is correct (HTTP uses 80, HTTPS uses 443)",
-                        "Verify the URL scheme (http:// vs https://)",
-                    ]
-                )
-            elif "net::ERR_TIMED_OUT" in error_text:
-                suggestions.extend(
-                    [
-                        "Connection timed out - the server may be slow or unreachable",
-                        "Increase navigation timeout and retry",
-                        "Check if the site is accessible from your network",
-                    ]
-                )
-            elif "net::ERR_SOCKS_CONNECTION_FAILED" in error_text:
-                # The egress guard answers every connection it will not make this way: the browser cannot tell a refusal
-                # from an unresolvable or unreachable host.
-                suggestions.extend(
-                    [
-                        "The network policy refused the connection - only public internet hosts are reachable, so "
-                        "localhost, private network addresses and cloud metadata hosts are blocked",
-                        "If the host should be public, check that the domain exists and resolves to a public address",
-                        "Content on a private network cannot be opened from this environment",
-                    ]
-                )
-
-        if not suggestions:
-            suggestions.extend(
-                [
-                    "Verify the URL is correct and accessible",
-                    "Check browser console for detailed error messages",
-                    "Try navigating to a simpler page to isolate the issue",
-                ]
-            )
-
-        return suggestions
 
 
 class BrowserToolError(BrowserError):

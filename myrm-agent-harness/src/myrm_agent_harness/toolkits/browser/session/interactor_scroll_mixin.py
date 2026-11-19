@@ -1,7 +1,7 @@
 """Humanized wheel-burst scrolling behaviors for the Interactor.
 
 [INPUT]
-- pool.config::HumanizeMode (POS: interaction humanization config)
+- pool.humanize_config::HumanizeMode (POS: humanization parameters of the interaction layer)
 - session.humanize::bezier_move, wheel_burst, scroll_notch_delta, scroll_burst_break_ms, scroll_phase_steps (POS: humanized delay, Bézier mouse, and wheel-burst scroll helpers)
 - session.viewport::page_viewport_size (POS: the area the scroll cursor stays inside)
 
@@ -30,7 +30,7 @@ import random
 import time
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.browser.pool.config import HumanizeMode
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeMode
 from myrm_agent_harness.toolkits.browser.session.humanize import (
     bezier_move,
     scroll_burst_break_ms,
@@ -41,7 +41,9 @@ from myrm_agent_harness.toolkits.browser.session.humanize import (
 from myrm_agent_harness.toolkits.browser.session.viewport import page_viewport_size
 
 if TYPE_CHECKING:
-    from patchright.async_api import Locator
+    from patchright.async_api import Locator, Page
+
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,12 @@ def _parse_scroll_params(text: str) -> dict[str, int]:
 
 class ScrollHumanizeMixin:
     """Humanized wheel-input scrolling, shared by ref and coordinate interaction paths."""
+
+    # Provided by Interactor; declared so the mixin type-checks on its own.
+    _page: Page
+    _humanize: HumanizeConfig
+    _mouse_x: float
+    _mouse_y: float
 
     async def _scroll_cursor_target(self, locator: Locator) -> tuple[float, float]:
         """Pick the best cursor point to dispatch wheel events from.
