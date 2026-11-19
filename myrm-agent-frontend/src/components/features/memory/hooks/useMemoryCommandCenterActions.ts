@@ -6,6 +6,7 @@
  * @/services/memory/consolidationUndo::undoConsolidation (POS: 记忆自动整理撤销客户端)
  * @/services/memory/archive::dryRunRollbackMemoryImport, rollbackMemoryImport, exportMemoryArchive (POS: Frontend Memory Archive and import API client)
  * @/services/memory/pendingTargetChanged::isPendingTargetChanged (POS: 待审建议所针对的记忆已变化时给出本地化「已过期」提示)
+ * @/services/memory/migratedConfigReload::reloadMigratedConfigs (POS: 回滚还原了服务端的全局指令后，刷新前端缓存的设置行)
  *
  * [OUTPUT]
  * useMemoryCommandCenterActions: 命令中心写操作处理器与导入回滚弹窗状态
@@ -13,6 +14,7 @@
  * [POS]
  * 命令中心写操作：治理决策、冲突裁决、Doctor 修复、导入回滚（预演后确认）、自动整理撤销、归档导出与迁移向导跳转。
  * 每个动作通过 toast 反馈结果，改变服务端状态后刷新快照；自动整理撤销无论成败都刷新（该次整理可能已被消耗或取代）。
+ * 导入回滚成功后还要重载前端缓存的设置行，否则设置页继续显示已被回滚的全局指令。
  */
 
 import { useCallback, useState } from 'react';
@@ -34,6 +36,7 @@ import {
   type MemoryCommandGovernanceItem,
 } from '@/services/memory/commandCenter';
 import { undoConsolidation } from '@/services/memory/consolidationUndo';
+import { reloadMigratedConfigs } from '@/services/memory/migratedConfigReload';
 import { canDeepLinkMigrationSource } from '@/services/migrationDiscovery';
 import { isPendingTargetChanged } from '@/services/memory/pendingTargetChanged';
 import type { DoctorExecutableAction } from '../command-center/memoryDoctorModel';
@@ -168,6 +171,7 @@ export const useMemoryCommandCenterActions = ({
     setActionId(`migration:rollback:${importBatchId}`);
     try {
       const result = await rollbackMemoryImport(importBatchId);
+      await reloadMigratedConfigs();
       setRollbackResult(result);
       toast({
         title: t('commandCenter.rollbackSuccess'),
