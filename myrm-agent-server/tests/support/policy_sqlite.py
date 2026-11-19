@@ -1,14 +1,18 @@
 """A file SQLite database that runs the production transaction policy, for tests of read-then-write units.
 
 [INPUT]
+- app.database.connection::get_session_factory (POS: database connection management; the factory ``get_session()`` draws from)
 - app.database.factory::register_sqlite_transaction_events (POS: the deferred-read / immediate-write policy)
 - app.database.models::Base (POS: ORM metadata of every table)
+- app.database.models::UserConfig (POS: user configuration table; the row the lock-holding writer inserts)
 
 [OUTPUT]
 - policy_database: build the schema on a policy-running database that ``get_session()`` then hands out
 - hold_write_lock: a writer that keeps the write lock, uncommitted, until the caller lets go
 - PolicyDb.unit_waits_or_has_read / wait_until: observe that a unit queued for the write lock or already holds a read snapshot
-- run_while_another_writer_commits: run a unit that another writer commits in front of, and wait for it
+- PolicyDb.unit_starts_with_lock_then_read: observe that a unit's first statements are a write-lock request and a read
+- run_while_another_writer_commits: run a unit that another writer commits in front of, wait for it, and fail a pass that
+  cannot show the lock protects the unit
 
 [POS]
 The plain ``sqlite+aiosqlite`` engines most fixtures use do not run the policy, so a write lost to SQLITE_BUSY_SNAPSHOT
@@ -54,10 +58,20 @@ class PolicyDb:
 
         A lock request counts once issued, because the request itself blocks until the holder commits. A read counts
         only once it returned: the issue record is written before the driver runs the statement, and only a returned
-        read guarantees that its session holds the snapshot the holder's commit makes stale. What this check leaves
-        unwatched is described at ``run_while_another_writer_commits``.
+        read guarantees that its session holds the snapshot the holder's commit makes stale. It does not tell which
+        session arrived; ``run_while_another_writer_commits`` rejects a run that did not start with the unit's lock and read.
         """
         return any(_begins(s, "BEGIN IMMEDIATE") for s in self.started) or any(_begins(s, "SELECT") for s in self.finished)
+
+    def unit_starts_with_lock_then_read(self) -> bool:
+        """Whether the unit's first two statements are a write-lock request and a read.
+
+        The policy's own ``BEGIN`` and ``COMMIT`` are bookkeeping and do not count. A unit that starts with a write is
+        escalated to ``BEGIN IMMEDIATE`` as well, so the lock request alone does not tell a lock taken on purpose from an
+        escalated write; the read right after it does.
+        """
+        work = [s for s in self.started if s.strip().upper() not in ("BEGIN", "COMMIT")]
+        return len(work) >= 2 and _begins(work[0], "BEGIN IMMEDIATE") and _begins(work[1], "SELECT")
 
 
 def _set_sqlite_pragma(dbapi_conn: sqlite3.Connection, _record: object) -> None:
@@ -133,10 +147,14 @@ async def run_while_another_writer_commits(db: PolicyDb, start_unit: Callable[[]
     fails: on the lock the writer still holds, or after the commit on a read snapshot that predates it. Protected, the
     unit queued first and reads after the commit.
 
-    Only the unit's first database interaction is guaranteed to contend with the writer. A unit that starts with a write
-    queues behind the writer, the writer commits, and every session the unit opens afterwards starts past the commit, so
-    a missing lock there goes unnoticed. A read in an earlier session lets the writer commit before the contended session
-    has read.
+    Only the unit's first statements contend with the writer: once the unit has arrived the writer commits, so a session
+    opened later can start past the commit and pass without its lock. A passing run therefore has to start with a lock
+    request followed by a read; any other start fails the run, because that pass would not show that the lock protects
+    the write. A unit whose first transaction is other database work (a write, a read in a session of its own) has that
+    work stubbed out in the test.
+
+    Raises:
+        AssertionError: the unit never arrived, or it did not start with a write-lock request followed by a read.
     """
     holder = await hold_write_lock(db)
     unit = asyncio.create_task(start_unit())
@@ -147,6 +165,11 @@ async def run_while_another_writer_commits(db: PolicyDb, start_unit: Callable[[]
         assert db.unit_waits_or_has_read(), "the unit neither queued for the write lock nor finished a read"
         await holder.commit()
         await asyncio.wait_for(unit, timeout=BUSY_TIMEOUT_MS / 1000)
+        assert db.unit_starts_with_lock_then_read(), (
+            "the unit did not start with a write-lock request followed by a read (its lock is missing, comes after a read, or "
+            "other database work runs first), so the writer's commit was not placed in front of the read the lock protects: "
+            "this pass proves nothing about the lock"
+        )
     finally:
         unit.cancel()
         await asyncio.gather(unit, return_exceptions=True)
