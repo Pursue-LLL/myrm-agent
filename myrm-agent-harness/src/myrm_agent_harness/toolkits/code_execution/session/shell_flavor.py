@@ -107,7 +107,7 @@ class BashFlavor(ShellFlavor):
             # from an LLM-generated command returns from the block instead of
             # killing the persistent shell (which would silently lose cwd/env).
             "exit() { builtin return $(( ${1:-0} )); }",
-            f"cd '{work_dir}' || cd /tmp",
+            f"cd {shlex.quote(work_dir)} || cd /tmp",
             ulimit_cmd,
         ]
 
