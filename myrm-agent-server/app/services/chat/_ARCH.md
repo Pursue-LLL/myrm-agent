@@ -228,7 +228,7 @@ Chat 表新增多个字段用于支撑高级功能：
 
 **架构特点**：
 - 手动 `/compact` 和自动压缩使用相同的算法和 prompt
-- 人工请求（Web API、IM `/compact`）以 `explicit_request` 调用 `compact_chat`：anti-thrash 守卫只约束自动压缩，不拦人工请求，其结果照常计入连续无效次数
+- 人工请求（Web API、IM `/compact`）以 `explicit_request` 调用 `compact_chat`：anti-thrash 守卫只约束自动压缩，不拦人工请求，其结果计入连续无效次数但至多计到守卫上限（人工反复重试不会让会话被判为压缩出错）
 - 摘要逻辑集中在框架层，强制使用 `with_structured_output` 获取结构化上下文摘要
 - 业务层通过协议调用
 - `_do_persist_to_db` 是 DB 操作核心，由两种路径共享

@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - should_block_automatic_compression: skip when ineffective streak is high and below safety net
-- record_compression_effectiveness: update streak after a compaction attempt
+- record_compression_effectiveness: update streak after a compaction attempt (optionally capped by ``streak_ceiling``)
 
 [POS]
 Framework guard export shared by Pipeline CompressProcessor and server ``compact_chat``.
@@ -64,8 +64,14 @@ def record_compression_effectiveness(
     *,
     original_tokens: int,
     tokens_saved: int,
+    streak_ceiling: int | None = None,
 ) -> None:
-    """Update ineffective streak from compaction token savings."""
+    """Update ineffective streak from compaction token savings.
+
+    ``streak_ceiling`` caps how far an ineffective attempt extends the streak; a streak already above it is left as it
+    is. A compaction a person asked for passes the guard limit: it still arms the guard, but repeating it cannot push
+    the streak into the range other readers take for a stuck compaction, which only automatic attempts should reach.
+    """
     if not chat_id or original_tokens <= 0:
         return
     from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
@@ -82,6 +88,8 @@ def record_compression_effectiveness(
         next_streak = 0
     else:
         next_streak = current + 1
+        if streak_ceiling is not None:
+            next_streak = min(next_streak, max(current, streak_ceiling))
     store.set_streak(chat_id, next_streak)
 
     metrics = get_or_create_task_metrics(chat_id)

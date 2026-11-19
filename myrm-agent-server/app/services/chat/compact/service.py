@@ -10,7 +10,7 @@
 - compact._types::CompactReason, CompactResult (POS: closed decline reasons + outcome)
 
 [OUTPUT]
-- compact_chat: transactional compaction entry (``for_idle_stale`` idle predicate; ``request_tokens_for_guard`` aligns idle anti-thrash with gate; ``explicit_request`` marks a person's request, which the anti-thrash guard does not stop)
+- compact_chat: transactional compaction entry (``for_idle_stale`` idle predicate; ``request_tokens_for_guard`` aligns idle anti-thrash with gate; ``explicit_request`` marks a person's request, which the anti-thrash guard does not stop and which counts toward its streak only up to the guard limit)
 
 [POS]
 Server compaction orchestration; called by stale gate, /compact API, channel handler, idle worker.
@@ -56,7 +56,9 @@ async def compact_chat(
     """Compact a chat's context by generating a persistent summary.
 
     The anti-thrash guard stops automatic attempts from repeating a compaction that keeps saving little, so it does not
-    stop one a person asked for (``explicit_request``); that attempt still counts toward the guard's streak.
+    stop one a person asked for (``explicit_request``). That attempt still counts toward the guard's streak, but only up
+    to the guard's limit: a person retrying never makes the chat look like its compaction is failing, which is what a
+    streak beyond the limit reports.
     """
     lock = get_compaction_lock(chat_id)
     if lock.locked():
@@ -65,6 +67,7 @@ async def compact_chat(
 
     async with lock:
         from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
+            ANTI_THRASHING_STREAK_LIMIT,
             record_compression_effectiveness,
             should_block_automatic_compression,
         )
@@ -179,6 +182,7 @@ async def compact_chat(
                 chat_id,
                 original_tokens=original_tokens,
                 tokens_saved=tokens_saved,
+                streak_ceiling=ANTI_THRASHING_STREAK_LIMIT if explicit_request else None,
             )
             from myrm_agent_harness.agent.context_management.strategies.compression.compression_streak_store import (
                 get_compression_streak_store,

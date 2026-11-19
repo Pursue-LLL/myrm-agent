@@ -122,22 +122,57 @@ class TestExplicitRequest:
         env.summarize.assert_awaited_once()
 
     @pytest.mark.parametrize(
-        ("summary_tokens", "streak_after"),
+        ("streak_before", "summary_tokens", "streak_after"),
         [
-            pytest.param(2_000, 0, id="an-effective-compaction-clears-the-streak"),
-            pytest.param(9_500, ANTI_THRASHING_STREAK_LIMIT + 1, id="an-ineffective-one-extends-it"),
+            pytest.param(ANTI_THRASHING_STREAK_LIMIT, 2_000, 0, id="an-effective-compaction-clears-the-streak"),
+            pytest.param(
+                ANTI_THRASHING_STREAK_LIMIT - 1,
+                9_500,
+                ANTI_THRASHING_STREAK_LIMIT,
+                id="an-ineffective-one-extends-it-up-to-the-limit",
+            ),
+            pytest.param(
+                ANTI_THRASHING_STREAK_LIMIT,
+                9_500,
+                ANTI_THRASHING_STREAK_LIMIT,
+                id="an-ineffective-one-does-not-pass-the-limit",
+            ),
         ],
     )
-    async def test_a_request_counts_toward_the_streak_like_an_automatic_attempt(
-        self, chat_id: str, summary_tokens: int, streak_after: int
+    async def test_a_request_counts_toward_the_streak_up_to_the_guard_limit(
+        self, chat_id: str, streak_before: int, summary_tokens: int, streak_after: int
     ) -> None:
         store = get_compression_streak_store()
-        store.set_streak(chat_id, ANTI_THRASHING_STREAK_LIMIT)
+        store.set_streak(chat_id, streak_before)
 
         with _compaction_env(Chat(id=chat_id), summary_tokens=summary_tokens):
             await compact_chat(AsyncMock(), chat_id, explicit_request=True)
 
         assert store.get_streak(chat_id) == streak_after
+
+    async def test_repeated_requests_never_lift_the_streak_past_the_limit(self, chat_id: str) -> None:
+        """A person retrying a compaction that saves little arms the guard, but cannot make the chat look stuck."""
+        store = get_compression_streak_store()
+        streaks: list[int] = []
+
+        with _compaction_env(Chat(id=chat_id), summary_tokens=9_500):
+            for _ in range(6):
+                await compact_chat(AsyncMock(), chat_id, explicit_request=True)
+                streaks.append(store.get_streak(chat_id))
+
+        assert streaks == [min(attempt, ANTI_THRASHING_STREAK_LIMIT) for attempt in range(1, 7)]
+
+    async def test_an_automatic_attempt_released_by_the_safety_net_keeps_counting(self, chat_id: str) -> None:
+        """Past the limit only an automatic attempt on a context that is nearly full extends the streak: that is the stuck signal."""
+        store = get_compression_streak_store()
+        store.set_streak(chat_id, ANTI_THRASHING_STREAK_LIMIT)
+        chat = Chat(id=chat_id, compacted_summary=_stored_summary(int(_WINDOW * 0.9) + 100))
+
+        with _compaction_env(chat, messages=4, message_tokens=3_000, summary_tokens=118_000):
+            result = await compact_chat(AsyncMock(), chat_id)
+
+        assert result.compacted is True
+        assert store.get_streak(chat_id) == ANTI_THRASHING_STREAK_LIMIT + 1
 
 
 class TestSavingsMeasurement:
