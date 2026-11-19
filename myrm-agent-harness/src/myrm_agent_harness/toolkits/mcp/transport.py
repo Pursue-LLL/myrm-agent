@@ -11,6 +11,7 @@ Provides critical security and stability features for SaaS environments:
 [INPUT]
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 - toolkits.code_execution.executors.models::AsyncProcessProtocol (POS: Data models for code execution.)
+- toolkits.mcp.trust_gate::get_workspace_trust_gate (POS: Host workspace trust gate registry.)
 
 [OUTPUT]
 - ExecutorStdioTransport: A transport that runs an MCP server via a CodeExecutor.
@@ -24,7 +25,6 @@ import logging
 import pathlib
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
-from typing import Protocol
 
 import anyio
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
@@ -32,45 +32,9 @@ from mcp.client.stdio import StdioServerParameters
 
 from myrm_agent_harness.toolkits.code_execution.executors.base import CodeExecutor, ExecutionContext
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
+from myrm_agent_harness.toolkits.mcp.trust_gate import get_workspace_trust_gate
 
 logger = logging.getLogger(__name__)
-
-
-class WorkspaceTrustGate(Protocol):
-    """Host-provided workspace trust gate for MCP spawn decisions.
-
-    Implemented by the agent layer; the transport only depends on this
-    Protocol so toolkits/ never imports agent/ (see toolkits/_ARCH.md).
-    """
-
-    def get_trust_level(self) -> object:
-        """Return the current workspace trust level (opaque to the transport)."""
-        ...
-
-    def assert_mcp_spawn_allowed(
-        self,
-        *,
-        workspace_root: str | None,
-        cwd: str | None,
-        plugin_root: str | None,
-        trust_level: object,
-    ) -> None:
-        """Raise when spawning an MCP server from the workspace scope is blocked."""
-        ...
-
-
-_trust_gate: WorkspaceTrustGate | None = None
-
-
-def set_workspace_trust_gate(gate: WorkspaceTrustGate | None) -> None:
-    """Register (or clear) the host workspace trust gate. Agent layer owns this."""
-    global _trust_gate
-    _trust_gate = gate
-
-
-def get_workspace_trust_gate() -> WorkspaceTrustGate | None:
-    """Return the registered host workspace trust gate, if any."""
-    return _trust_gate
 
 
 class ExecutorStdioTransport:

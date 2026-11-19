@@ -202,7 +202,7 @@ async def check_actor_stdio_security_gates(actor: MCPSessionActor, conn: dict[st
     if str(conn.get("transport", "stdio")) != "stdio":
         return
     from .security import check_osv_malware
-    from .transport import get_workspace_trust_gate
+    from .trust_gate import get_workspace_trust_gate
 
     raw_cwd = conn.get("cwd")
     cwd_val = str(raw_cwd) if isinstance(raw_cwd, str) and raw_cwd else None

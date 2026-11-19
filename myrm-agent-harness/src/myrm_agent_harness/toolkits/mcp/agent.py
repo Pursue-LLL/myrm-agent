@@ -231,7 +231,7 @@ class MCPAgent:
 
         if getattr(server_config, "type", "stdio") == "stdio":
             from .security import check_osv_malware
-            from .transport import get_workspace_trust_gate
+            from .trust_gate import get_workspace_trust_gate
 
             extra_params = getattr(server_config, "extra_params", None)
             cwd_val: str | None = None

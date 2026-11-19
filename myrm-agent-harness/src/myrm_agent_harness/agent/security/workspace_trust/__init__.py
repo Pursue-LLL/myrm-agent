@@ -101,7 +101,7 @@ __all__ = [
 
 
 class _AgentWorkspaceTrustGate:
-    """Agent-layer WorkspaceTrustGate wired into the MCP toolkit transport.
+    """Agent-layer WorkspaceTrustGate registered with the MCP toolkit's spawn gate registry.
 
     Agent may import toolkits (never the reverse); registering here keeps
     toolkits/mcp free of agent imports while preserving spawn gating wherever
@@ -133,10 +133,10 @@ class _AgentWorkspaceTrustGate:
         )
 
 
-def _register_mcp_transport_gate() -> None:
-    from myrm_agent_harness.toolkits.mcp.transport import set_workspace_trust_gate
+def _register_mcp_spawn_gate() -> None:
+    from myrm_agent_harness.toolkits.mcp.trust_gate import set_workspace_trust_gate
 
     set_workspace_trust_gate(_AgentWorkspaceTrustGate())
 
 
-_register_mcp_transport_gate()
+_register_mcp_spawn_gate()

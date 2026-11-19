@@ -1,7 +1,7 @@
 """Stubs and patch targets for the stdio launch gates (workspace trust + OSV malware check).
 
 [INPUT]
-- myrm_agent_harness.toolkits.mcp.transport::get_workspace_trust_gate (POS: gate the actor and tool enumeration both consult)
+- myrm_agent_harness.toolkits.mcp.trust_gate::get_workspace_trust_gate (POS: gate the actor and tool enumeration both consult)
 - myrm_agent_harness.toolkits.mcp.security::check_osv_malware (POS: OSV advisory lookup run before spawning stdio servers)
 
 [OUTPUT]
@@ -15,7 +15,7 @@ Harness pytest-only helper shared by the actor and the enumeration launch-gate t
 from __future__ import annotations
 
 PATCH_OSV_CHECK = "myrm_agent_harness.toolkits.mcp.security.check_osv_malware"
-PATCH_TRUST_GATE = "myrm_agent_harness.toolkits.mcp.transport.get_workspace_trust_gate"
+PATCH_TRUST_GATE = "myrm_agent_harness.toolkits.mcp.trust_gate.get_workspace_trust_gate"
 
 
 class RecordingTrustGate:
