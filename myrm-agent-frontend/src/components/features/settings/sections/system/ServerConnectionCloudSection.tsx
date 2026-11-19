@@ -144,7 +144,7 @@ const ServerConnectionCloudSection = memo((props: ServerConnectionCloudSectionPr
         </button>
       </div>
       {providers !== null && providers.length === 0 && (
-        <p className="text-xs text-muted-foreground/70">{t('providersUnavailable')}</p>
+        <p className="text-xs text-muted-foreground">{t('providersUnavailable')}</p>
       )}
       {providers !== null && providers.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">

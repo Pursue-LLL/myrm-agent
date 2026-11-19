@@ -89,7 +89,7 @@ const RecoveryGuideCard = memo(() => {
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <IconWrench className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">{t('title')}</h2>
       </div>
 
       <div className="space-y-4 p-8 rounded-[2.5rem] bg-card border border-border">
@@ -125,7 +125,7 @@ const RecoveryGuideCard = memo(() => {
             {t('reinstall')}
           </a>
         </div>
-        <p className="text-xs text-muted-foreground/70">{t('dataSafeHint')}</p>
+        <p className="text-xs text-muted-foreground">{t('dataSafeHint')}</p>
       </div>
     </section>
   );

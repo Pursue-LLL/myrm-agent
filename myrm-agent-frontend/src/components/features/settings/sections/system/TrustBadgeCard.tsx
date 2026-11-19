@@ -58,7 +58,7 @@ const TrustBadgeCard = memo(() => {
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <IconShield className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">{t('title')}</h2>
       </div>
 
       <div className="space-y-6 p-8 rounded-[2.5rem] bg-card border border-border">
