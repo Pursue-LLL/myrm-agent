@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import FrozenInstanceError
 from unittest.mock import MagicMock, patch
 
@@ -26,8 +26,10 @@ _VERCEL_URL = "https://ai-gateway.vercel.sh/v1"
 _OPENROUTER_URL = "https://openrouter.ai/api/v1"
 
 
-def _extra_headers(model: str, base_url: str | None = None, **kwargs: object) -> dict[str, str] | None:
-    built = create_chat_model(model, base_url=base_url, api_key="sk-test", **kwargs)
+def _extra_headers(
+    model: str, base_url: str | None = None, model_kwargs: Mapping[str, object] | None = None
+) -> dict[str, str] | None:
+    built = create_chat_model(model, base_url=base_url, api_key="sk-test", model_kwargs=model_kwargs or {})
     return (built.model_kwargs or {}).get("extra_headers")
 
 
