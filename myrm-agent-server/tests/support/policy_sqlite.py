@@ -7,7 +7,7 @@
 [OUTPUT]
 - policy_database: build the schema on a policy-running database that ``get_session()`` then hands out
 - hold_write_lock: a writer that keeps the write lock, uncommitted, until the caller lets go
-- PolicyDb.read_issued / wait_until: observe whether a unit has started reading
+- PolicyDb.unit_waits_or_has_read / wait_until: observe that a unit queued for the write lock or already holds a read snapshot
 - run_while_another_writer_commits: run a unit that another writer commits in front of, and wait for it
 
 [POS]
@@ -34,17 +34,30 @@ from app.database.factory import register_sqlite_transaction_events
 from app.database.models import Base, UserConfig
 
 BUSY_TIMEOUT_MS = 5_000
-READ_GRACE_S = 0.5
+# Generous so that a loaded machine does not fail the run before the unit reaches its first database call; a unit that
+# never gets there still fails the run instead of passing without any contention.
+UNIT_ARRIVAL_TIMEOUT_S = 10.0
+
+
+def _begins(statement: str, keyword: str) -> bool:
+    return statement.lstrip().upper().startswith(keyword)
 
 
 @dataclass(frozen=True, slots=True)
 class PolicyDb:
     factory: async_sessionmaker[AsyncSession]
-    statements: list[str]
+    started: list[str]  # statements handed to the driver since the last ``hold_write_lock``
+    finished: list[str]  # statements the driver completed since then
 
-    def read_issued(self) -> bool:
-        """Whether any session ran a SELECT since the last ``hold_write_lock``."""
-        return any(statement.lstrip().upper().startswith("SELECT") for statement in self.statements)
+    def unit_waits_or_has_read(self) -> bool:
+        """Whether a unit queued for the write lock (``BEGIN IMMEDIATE``) or its first read has returned.
+
+        A lock request counts once issued, because the request itself blocks until the holder commits. A read counts
+        only once it returned: only then does its session hold a snapshot that the holder's commit makes stale. Any
+        session's read counts, so a unit whose contended session is preceded by another session's read can outrun
+        this check.
+        """
+        return any(_begins(s, "BEGIN IMMEDIATE") for s in self.started) or any(_begins(s, "SELECT") for s in self.finished)
 
 
 def _set_sqlite_pragma(dbapi_conn: sqlite3.Connection, _record: object) -> None:
@@ -65,18 +78,23 @@ async def policy_database(path: Path, monkeypatch: pytest.MonkeyPatch) -> AsyncI
     )
     event.listen(engine.sync_engine, "connect", _set_sqlite_pragma)
     register_sqlite_transaction_events(engine)
-    statements: list[str] = []
+    started: list[str] = []
+    finished: list[str] = []
 
     @event.listens_for(engine.sync_engine, "before_cursor_execute")
-    def _record(_conn: object, _cursor: object, statement: str, *_rest: object) -> None:
-        statements.append(statement)
+    def _record_started(_conn: object, _cursor: object, statement: str, *_rest: object) -> None:
+        started.append(statement)
+
+    @event.listens_for(engine.sync_engine, "after_cursor_execute")
+    def _record_finished(_conn: object, _cursor: object, statement: str, *_rest: object) -> None:
+        finished.append(statement)
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     monkeypatch.setattr("app.database.connection.get_session_factory", lambda: factory)
     try:
-        yield PolicyDb(factory, statements)
+        yield PolicyDb(factory, started, finished)
     finally:
         await engine.dispose()
 
@@ -95,7 +113,8 @@ async def hold_write_lock(db: PolicyDb) -> AsyncSession:
         )
     )
     await holder.flush()
-    db.statements.clear()
+    db.started.clear()
+    db.finished.clear()
     return holder
 
 
@@ -110,15 +129,19 @@ async def wait_until(condition: Callable[[], bool], timeout_s: float) -> None:
 async def run_while_another_writer_commits(db: PolicyDb, start_unit: Callable[[], Coroutine[object, object, object]]) -> None:
     """Start the unit while another writer holds the write lock, let that writer commit, and wait for the unit.
 
-    Unprotected, a read-then-write unit reads within milliseconds and keeps that snapshot, so the holder's commit fails
-    its write; protected, it waits for the lock first and issues no read until the holder is done.
+    The writer commits only once the unit queued for the write lock or finished a read. Unprotected, the unit's read
+    snapshot then predates that commit and its write fails; protected, it queued first and reads after the commit.
     """
     holder = await hold_write_lock(db)
+    unit = asyncio.create_task(start_unit())
     try:
-        unit = asyncio.create_task(start_unit())
-        await wait_until(db.read_issued, READ_GRACE_S)
+        await wait_until(lambda: unit.done() or db.unit_waits_or_has_read(), UNIT_ARRIVAL_TIMEOUT_S)
+        if unit.done():
+            unit.result()  # a unit that failed before contending shows its own error, not a wait timeout
+        assert db.unit_waits_or_has_read(), "the unit neither queued for the write lock nor finished a read"
         await holder.commit()
-
         await asyncio.wait_for(unit, timeout=BUSY_TIMEOUT_MS / 1000)
     finally:
+        unit.cancel()
+        await asyncio.gather(unit, return_exceptions=True)
         await holder.close()
