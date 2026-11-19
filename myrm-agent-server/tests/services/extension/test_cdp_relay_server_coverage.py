@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -28,6 +29,41 @@ async def test_start_returns_existing_endpoint_when_running() -> None:
     assert server.start is not None
     endpoint = await server.start()
     assert endpoint == "http://127.0.0.1:4321"
+
+
+@pytest.mark.asyncio
+async def test_concurrent_first_starts_share_one_listener() -> None:
+    """The extension connecting and tool calls asking for the endpoint reach a fresh server together."""
+    from unittest.mock import patch
+
+    from aiohttp import web
+
+    from app.services.extension.cdp_relay import server as server_module
+
+    runners: list[web.AppRunner] = []
+
+    class SlowRunner(web.AppRunner):
+        def __init__(self, app: web.Application) -> None:
+            super().__init__(app)
+            runners.append(self)
+
+        async def setup(self) -> None:
+            # Holds the first caller inside start() so the others arrive while the listener is still being built.
+            await asyncio.sleep(0.05)
+            await super().setup()
+
+    server = LoopbackCdpRelayServer(ExtensionCdpRelayBridge())
+    try:
+        with patch.object(server_module.web, "AppRunner", SlowRunner):
+            endpoints = await asyncio.gather(server.start(), server.start(), server.start())
+        assert len(runners) == 1
+        assert set(endpoints) == {server.http_endpoint}
+    finally:
+        # Without the guard every caller builds its own listener and all but the last are unreachable.
+        leaked = [runner for runner in runners if runner is not server._runner]  # noqa: SLF001
+        await server.stop()
+        for runner in leaked:
+            await runner.cleanup()
 
 
 @pytest.mark.asyncio
