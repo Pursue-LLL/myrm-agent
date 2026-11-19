@@ -3,12 +3,13 @@
 A pooled context registers the DOM enhancer as an init script, which puts patchright's document pipeline between the
 server and the page. The pipeline must leave the browser's own handling intact: a redirect changes the page URL and
 origin and stays visible to the SSRF checks, and no document is requested twice (a form POST would be submitted
-twice). Each scenario counts what reached the server. Run with:
-`pytest -m integration tests/toolkits/browser/test_document_redirect_integration.py`.
+twice), however long the answer takes and even when it never comes. Each scenario counts what reached the server.
+Run with: `pytest -m integration tests/toolkits/browser/test_document_redirect_integration.py`.
 """
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from contextlib import asynccontextmanager
 import pytest
 from patchright.async_api import Error as BrowserDriverError
 from patchright.async_api import Page
+from patchright.async_api import TimeoutError as BrowserTimeoutError
 
 from myrm_agent_harness.toolkits.browser.pool import ContextType, GlobalBrowserPool
 from myrm_agent_harness.toolkits.browser.utils.private_origins import private_origin_grants
@@ -134,6 +136,43 @@ async def test_form_post_redirected_to_a_page_is_submitted_once() -> None:
             assert tab.url == site.url("/receipt")
         assert site.paths("POST") == ["/order"]
         assert site.paths("GET") == ["/form", "/receipt"]
+
+
+_ORDER_FORM = '<form method="post" action="/order"><button id="go">go</button></form>'
+_CONTEXT_DEFAULT_TIMEOUT_MS = 1500
+_NAVIGATION_TIMEOUT_MS = 15_000
+
+
+def _order_routes(order: Reply) -> dict[str, Reply]:
+    return {"/form": Reply(body=f"<!DOCTYPE html><html><body>{_ORDER_FORM}</body></html>".encode()), "/order": order}
+
+
+async def test_slow_form_post_is_submitted_once_when_the_answer_outlasts_the_context_default_timeout() -> None:
+    receipt = Reply(body=b"<!DOCTYPE html><html><body>receipt</body></html>", delay_s=4.0)
+    with serve(_order_routes(receipt)) as site:
+        async with _tab(site) as tab:
+            # A slow business endpoint: the answer takes longer than the context's default timeout (shrunk so the
+            # test need not wait 30 seconds). Nothing in the driver may give up on the request or send it again.
+            tab.context.set_default_timeout(_CONTEXT_DEFAULT_TIMEOUT_MS)
+            await tab.goto(site.url("/form"), timeout=_NAVIGATION_TIMEOUT_MS)
+            async with tab.expect_navigation(timeout=_NAVIGATION_TIMEOUT_MS):
+                await tab.click("#go", timeout=_NAVIGATION_TIMEOUT_MS)
+            assert await tab.inner_text("body") == "receipt"
+        assert site.paths("POST") == ["/order"]
+
+
+async def test_unanswered_form_post_is_not_resent_and_does_not_wedge_teardown() -> None:
+    unanswered = Reply(body=b"<!DOCTYPE html><html><body>late</body></html>", delay_s=30.0)
+    with serve(_order_routes(unanswered)) as site:
+        async with asyncio.timeout(20):
+            async with _tab(site) as tab:
+                tab.context.set_default_timeout(_CONTEXT_DEFAULT_TIMEOUT_MS)
+                await tab.goto(site.url("/form"), timeout=_NAVIGATION_TIMEOUT_MS)
+                with pytest.raises(BrowserTimeoutError):
+                    async with tab.expect_navigation(timeout=4000):
+                        await tab.click("#go", timeout=_NAVIGATION_TIMEOUT_MS)
+                assert site.paths("POST") == ["/order"]
+        assert site.paths("POST") == ["/order"]
 
 
 async def test_attachment_download_still_works_with_a_single_request() -> None:
