@@ -3,7 +3,8 @@
 The repository reads the index with raw SQL, and SQLite hands such a column over as the text it stored: UTC without an
 offset when the database filled it in or a rebuild copied a message's time, with an offset when an append bound an aware
 datetime. A row that cannot read that text carries no time at all, so the mapper turns every form into an aware UTC
-instant, and a value that is no time into None rather than a guess.
+instant, and a value that is no time into None rather than a guess. A time with an offset can name an instant just past
+the last (or before the first) one UTC can write down; that reads as None too, never as an error.
 """
 
 from __future__ import annotations
@@ -57,6 +58,19 @@ def test_a_stored_timestamp_reads_back_as_the_utc_instant_it_names(stored: objec
 
 @pytest.mark.parametrize("stored", [None, "", "yesterday", "2026-13-45 99:99:99", 1_776_000_000, 1.5, b"2026-04-17"])
 def test_a_value_that_is_no_time_reads_as_none(stored: object) -> None:
+    assert optional_datetime({"at": stored}, "at") is None
+
+
+@pytest.mark.parametrize(
+    "stored",
+    [
+        "9999-12-31 23:59:59-05:00",
+        "0001-01-01 00:00:00+05:00",
+        datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone(timedelta(hours=-5))),
+    ],
+    ids=["text-past-the-last-instant", "text-before-the-first-instant", "datetime-past-the-last-instant"],
+)
+def test_an_instant_utc_cannot_write_down_reads_as_none(stored: object) -> None:
     assert optional_datetime({"at": stored}, "at") is None
 
 

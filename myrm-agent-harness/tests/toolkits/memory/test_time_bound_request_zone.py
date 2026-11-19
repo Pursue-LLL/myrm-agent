@@ -2,18 +2,20 @@
 
 A model that writes ``since=2026-04-14 until=2026-04-14`` means the user's 14th. Read in UTC, that window is off by the
 zone's offset: for a user in Shanghai a memory saved at 01:00 local on the 14th fell outside it, and one saved at 00:30
-on the 15th fell inside. The memory and sessions searches get the same two instants, parsed once at the tool entry.
+on the 15th fell inside. The memory and sessions searches get the same two instants, parsed once at the tool entry. A
+sessions hit comes back dated in that same zone, so the date its header shows is the one the model asked about.
 
 [INPUT]
 - core.context_vars::user_timezone_var, scoped_value (POS: the zone the request carries, and a scoped binding of it)
 - toolkits.memory.agent_surface.memory_recall_formatting::parse_time_bound (POS: the since/until parser of the recall tools)
 - toolkits.memory.agent_surface.memory_agent_tools::create_memory_tools (POS: facade of the agent memory tools)
 - toolkits.memory.agent_surface.memory_search_policy::MemorySearchBackends, MemorySearchPolicy (POS: corpus ACL with the optional wiki and sessions backends)
+- toolkits.memory.conversation_search.types::ConversationSearchHit, ConversationSearchResponse (POS: Conversation search DTOs)
 - toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
 - toolkits.memory.relational::SQLiteRelationalStore (POS: aiosqlite relational store that owns exact-fact search)
 
 [POS]
-Contract guard for the zone reading of since/until: at the parser, at the memory_search_tool entry for both corpora, and against a real store.
+Contract guard for the requester's zone: since/until read in it at the parser, at the memory_search_tool entry for both corpora and against a real store, and sessions hits dated in it.
 """
 
 from __future__ import annotations
@@ -34,7 +36,10 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_policy impor
     MemorySearchPolicy,
 )
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
-from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationSearchResponse
+from myrm_agent_harness.toolkits.memory.conversation_search.types import (
+    ConversationSearchHit,
+    ConversationSearchResponse,
+)
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
 
@@ -162,6 +167,40 @@ async def test_the_memory_and_sessions_searches_read_one_window(manager: MemoryM
     request = provider.search.call_args.args[0]
     assert (search.call_args.kwargs["since"], search.call_args.kwargs["until"]) == _SHANGHAI_DAY
     assert (request.since, request.until) == _SHANGHAI_DAY
+
+
+@pytest.mark.parametrize(
+    ("zone", "written"),
+    [
+        (SHANGHAI, "2026-04-14T01:00:00+08:00"),
+        (None, "2026-04-13T17:00:00+00:00"),
+        ("Not/AZone", "2026-04-13T17:00:00+00:00"),
+    ],
+    ids=["shanghai", "none", "unknown"],
+)
+async def test_a_sessions_hit_is_dated_in_the_requesters_zone(
+    manager: MemoryManager, zone: str | None, written: str
+) -> None:
+    """A hit sent at 01:00 local on the 14th is inside the window of the 14th, and its header dates it the 14th."""
+    hit = ConversationSearchHit(
+        conversation_id="chat-1", title="Plan", snippet="Redis.", score=0.5, updated_at=_utc("2026-04-13T17:00:00")
+    )
+    provider = AsyncMock()
+    provider.search.return_value = ConversationSearchResponse(mode="search", query="test", hits=[hit])
+    tools = create_memory_tools(
+        manager,
+        search_policy=MemorySearchPolicy(allow_sessions=True),
+        search_backends=MemorySearchBackends(conversation_provider=provider),
+    )
+    tool = next(t for t in tools if t.name == "memory_search_tool")
+
+    with scoped_value(user_timezone_var, zone):
+        reply = await tool.ainvoke(
+            {"query": "test", "corpus": "sessions", "since": "2026-04-14", "until": "2026-04-14"}
+        )
+
+    assert isinstance(reply, dict)
+    assert f", {written})" in str(reply["content"])
 
 
 async def test_an_empty_search_names_the_window_it_ran_in_utc(manager: MemoryManager) -> None:

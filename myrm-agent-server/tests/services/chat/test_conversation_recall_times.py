@@ -1,10 +1,12 @@
-"""Every read of the recall index shows the time of the message it names, on the real service stack.
+"""The reads of the recall index that carry a time show the time of the message they name, on the real service stack.
 
 The index keeps its timestamps as text in two forms (a rebuild copies a message's time as stored, an append binds the
 caller's aware datetime) and the repository reads them through raw SQL, so a hit, the management list, the ``@chat:``
 picker and the health summary each depend on turning that text into an instant. A search hit carries when the message it
-names was sent, a recent hit when its conversation's last message was, the tool prints that time in the hit's header so
-the model can tell when a conversation happened, and a hit is ranked by how well it matches, never by how old it is.
+names was sent, a recent hit when its conversation's last message was, the tool prints that time in the hit's header
+(in the requester's zone when the request carries one) so the model can tell when a conversation happened, and a hit is
+ranked by how well it matches, never by how old it is. A time no UTC instant can hold costs its hit the time, never the
+search. The message window of an expanded hit carries no time.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import search_sessions_corpus
@@ -29,9 +31,15 @@ from app.services.chat.conversation_search_service import ConversationHistorySea
 from tests.services.chat.search_support import seed_chat_with_text
 
 _CHAT = "chat-timed"
+_UNREADABLE = "chat-unreadable"
 _CREATED = datetime(2026, 3, 1, 8, 0, tzinfo=UTC)
 _LAST = datetime(2026, 4, 20, 18, 45, 5, tzinfo=UTC)
 _APPENDED = datetime(2026, 5, 1, 7, 8, 9, 125_000, tzinfo=UTC)
+# Five hours behind UTC, the last second of 9999 is an instant UTC has no year for.
+_PAST_UTC = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone(timedelta(hours=-5)))
+# A requester's zone that is UTC+8 all year, so the offset a header shows is written out rather than looked up.
+_ZONE = "Asia/Shanghai"
+_ZONE_OFFSET = timezone(timedelta(hours=8))
 # Message id to the time it was sent. The first message is the only one that says "zebra" or has "ze" in it.
 _SENT = {
     f"{_CHAT}-m1": datetime(2026, 4, 2, 9, 30, 15, 250_000, tzinfo=UTC),
@@ -110,14 +118,24 @@ async def test_a_message_appended_to_the_index_carries_its_own_time(fts_db: Asyn
     assert recent.updated_at == _APPENDED
 
 
+@pytest.mark.parametrize("zone", [None, _ZONE], ids=["utc", "requester-zone"])
 @pytest.mark.parametrize("query", ["zebra", "*"], ids=["search", "recent"])
 @pytest.mark.asyncio
-async def test_the_header_and_the_source_card_show_the_time_of_what_the_hit_stands_for(fts_db: AsyncSession, query: str) -> None:
+async def test_the_header_and_the_source_card_show_the_time_of_what_the_hit_stands_for(
+    fts_db: AsyncSession, query: str, zone: str | None
+) -> None:
     await _seed(fts_db)
     backends = MemorySearchBackends(conversation_provider=ConversationHistorySearchProvider(current_chat_id=None, agent_id=None))
 
     result = await search_sessions_corpus(
-        backends, query=query, limit=5, since=None, until=None, expand_conversation_id=None, expand_message_id=None
+        backends,
+        query=query,
+        limit=5,
+        since=None,
+        until=None,
+        expand_conversation_id=None,
+        expand_message_id=None,
+        zone=zone,
     )
 
     assert isinstance(result, dict)
@@ -125,13 +143,37 @@ async def test_the_header_and_the_source_card_show_the_time_of_what_the_hit_stan
     assert header is not None
     named = header["message_id"]
     stands_for = _SENT[named] if named else _LAST
-    assert header["when"] == stands_for.isoformat()
+    # The header writes the instant in the requester's zone (the last message crosses into the next day there).
+    assert header["when"] == (stands_for if zone is None else stands_for.astimezone(_ZONE_OFFSET)).isoformat()
     # The card under the answer shows that one time, not when the conversation began.
     metadata = result["metadata"]
     assert isinstance(metadata, dict)
     (source,) = metadata["sources"]
     assert datetime.fromisoformat(source["updated_at"]) == stands_for
     assert "created_at" not in source
+
+
+@pytest.mark.asyncio
+async def test_a_time_utc_cannot_write_down_costs_its_hit_the_time_and_not_the_search(fts_db: AsyncSession) -> None:
+    await _seed(fts_db)
+    await seed_chat_with_text(fts_db, _UNREADABLE, "Standup notes.", created_at=_CREATED)
+    await ConversationRecallIndexService.append_message(
+        fts_db,
+        chat_id=_UNREADABLE,
+        message_id="msg-unreadable",
+        role="user",
+        content="The quokka dashboard is live.",
+        sent_at=_PAST_UTC,
+    )
+    await fts_db.commit()
+
+    (found,) = await _hits(_QUOKKA)
+    (other,) = await _hits(_FTS)
+    recent = {hit.conversation_id: hit for hit in await _hits(_RECENT)}
+
+    assert (found.conversation_id, found.updated_at, found.created_at) == (_UNREADABLE, None, _CREATED)
+    assert other.updated_at == _SENT[other.message_id or ""]
+    assert (recent[_UNREADABLE].updated_at, recent[_CHAT].updated_at) == (None, _LAST)
 
 
 def _row(**times: datetime) -> ConversationRecallRow:

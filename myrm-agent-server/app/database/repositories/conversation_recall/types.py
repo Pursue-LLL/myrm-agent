@@ -132,16 +132,18 @@ def optional_datetime(row: RecallMapping, key: str) -> datetime | None:
 
     The index is read with raw SQL, so SQLite returns a timestamp as the text it stored: UTC without an offset when the
     database stamped it or a rebuild copied a message's time, with an offset when an append bound an aware datetime.
+    Text that names no instant, and an offset time just past the range UTC can write down, read as None: a row's time
+    only labels what it shows, so one that cannot be read must not fail the read.
     """
     value = row.get(key)
-    if isinstance(value, str):
-        try:
+    try:
+        if isinstance(value, str):
             value = datetime.fromisoformat(value)
-        except ValueError:
+        if not isinstance(value, datetime):
             return None
-    if not isinstance(value, datetime):
+        return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+    except (ValueError, OverflowError):
         return None
-    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
 
 
 def float_value(row: RecallMapping, key: str) -> float:

@@ -14,7 +14,7 @@
 - build_memory_search_tool: bind memory_search_tool to a manager, corpus policy and backends
 
 [POS]
-Read plane of the agent memory tools: unified search over memory, wiki and sessions, with ``since`` / ``until`` read once here, in the requester's zone, for every corpus; the write plane lives in save_tool / manage_tool.
+Read plane of the agent memory tools: unified search over memory, wiki and sessions, with ``since`` / ``until`` read once here, in the requester's zone, for every corpus and the sessions hit times written in that same zone; the write plane lives in save_tool / manage_tool.
 """
 
 from __future__ import annotations
@@ -116,7 +116,8 @@ def build_memory_search_tool(
 
         parsed_cats = parse_string_list(categories)
         category_names = [c for c in parsed_cats if c in CATEGORY_TO_TYPE] or None
-        # A date or time without an offset is read in the requester's zone: "the 14th" is the user's own 14th.
+        # A date or time without an offset is read in the requester's zone: "the 14th" is the user's own 14th. Sessions
+        # hits are dated in that zone too, so the date a hit shows is the one the model asked about.
         zone = request_timezone()
         parsed_since = _parse_time_bound(since, zone=zone)
         parsed_until = _parse_time_bound(until, is_upper_bound=True, zone=zone)
@@ -163,6 +164,7 @@ def build_memory_search_tool(
                     expand_message_id=expand_message_id,
                     expand_window=expand_window,
                     timeout_seconds=timeout_seconds,
+                    zone=zone,
                 )
                 session_text, session_sources = unpack_corpus_tool_result(session_result)
                 aggregated_sources.extend(session_sources)

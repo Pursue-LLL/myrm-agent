@@ -19,7 +19,7 @@
 - search_memory_corpus, search_wiki_corpus, search_sessions_corpus, drill_down_single_memory: Corpus-specific recall execution and by-id single-memory drill-down.
 
 [POS]
-Runtime execution layer for memory_search_tool corpus routing and formatting; an empty search explains rule matching and names the explicit time window it ran under.
+Runtime execution layer for memory_search_tool corpus routing and formatting; an empty search explains rule matching and names the explicit time window it ran under, and a sessions search writes its hit times in the requester's zone.
 """
 
 from __future__ import annotations
@@ -328,7 +328,9 @@ async def search_sessions_corpus(
     expand_message_id: str | None = None,
     expand_window: int = 5,
     timeout_seconds: float | None = None,
+    zone: str | None = None,
 ) -> str | dict[str, object]:
+    """Search past conversations; the hit times are written in ``zone``, the requester's IANA zone (UTC when None)."""
     provider = backends.conversation_provider
     if provider is None:
         return "Conversation history search is not available."
@@ -361,6 +363,7 @@ async def search_sessions_corpus(
         response,
         since=None if expanding else since,
         until=None if expanding else until,
+        zone=zone,
     )
 
 
