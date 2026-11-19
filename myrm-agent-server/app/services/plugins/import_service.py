@@ -10,8 +10,9 @@ persists the selected components:
   - optional binding of the imported skills/servers to an existing expert
 
 The import is fully offline (no LLM calls) and applies per-component failure
-isolation: a rejected skill, a blocked connector or an invalid expert is reported
-in ``failures`` and never aborts the rest, and nothing half-written is left behind.
+isolation: a rejected skill, a blocked connector, a connector the stored MCP list
+cannot take (its row cannot be read back) or an invalid expert is reported in
+``failures`` and never aborts the rest, and nothing half-written is left behind.
 
 [INPUT]
 - myrm_agent_harness.agent.plugins.parser::AgentPluginParser (POS: framework
@@ -184,7 +185,8 @@ async def confirm_plugin_import(
     imported_server_names: list[str] = []
     required_secret_keys: list[str] = []
     if server_configs:
-        imported_server_names = await _write_mcp_servers(server_configs)
+        imported_server_names, write_failures = await _write_mcp_servers(server_configs)
+        server_failures = [*server_failures, *write_failures]
         persisted_names = set(imported_server_names)
         required_secret_keys = _collect_required_secret_keys(
             [cfg for cfg in server_configs if str(cfg.get("name", "")) in persisted_names]

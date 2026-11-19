@@ -21730,6 +21730,7 @@
             "install_failed": "The skill could not be installed",
             "enable_failed": "Installed, but could not be turned on automatically - enable it in the skill list",
             "stdio_not_allowed": "Local-process MCP servers cannot run in this environment",
+            "mcp_config_unreadable": "The saved MCP server list could not be read, so this server was not added",
             "persist_failed": "The agent could not be saved",
             "invalid_agent": "The agent definition is not valid",
             "generic": "It could not be imported"
