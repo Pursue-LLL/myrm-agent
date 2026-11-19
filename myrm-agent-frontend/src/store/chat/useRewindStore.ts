@@ -9,6 +9,8 @@
  * [POS]
  * UI state manager for rewind dialog target. Decouples message action trigger
  * from top-level dialog rendering to maintain stability across chat re-renders.
+ * The chat view that hosts the dialog clears the target when it unmounts, so a target never
+ * outlives the chat it was opened for.
  */
 
 import { create } from 'zustand';

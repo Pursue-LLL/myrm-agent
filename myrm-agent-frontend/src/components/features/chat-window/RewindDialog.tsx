@@ -15,7 +15,8 @@
  * [POS]
  * Modal dialog for rollbacks. Provides scope choice (conversation vs conversation + files)
  * and file change preview before dispatching rewind request, then puts the rewound message
- * (its text and skill chip) back into the composer.
+ * (its text and skill chip) back into the composer with any unsent draft kept below it. The
+ * transcript, composer and plan are only touched while the dialog's chat is still the open one.
  */
 
 'use client';
@@ -71,6 +72,19 @@ interface FilePreview {
   fileCount: number;
   skippedCount: number;
   files: FileChangeItem[];
+}
+
+/**
+ * What the composer holds after a rewind: the restored message with the user's unsent draft kept below it, so a
+ * rewind never throws typing away. A blank draft, or one that repeats the restored text, adds nothing.
+ */
+function composeRewoundInput(restored: string, draft: string): { text: string; draftKept: boolean } {
+  const kept = draft.trim();
+  if (kept === '' || kept === restored.trim()) {
+    return { text: restored, draftKept: false };
+  }
+  const head = restored.trimEnd();
+  return { text: head === '' ? kept : `${head}\n\n${kept}`, draftKept: true };
 }
 
 export function RewindDialog({ open, onOpenChange, chatId, messageId, messageIndex }: RewindDialogProps) {
@@ -178,17 +192,26 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       const composerRaw = typeof payload.composer_text === 'string' ? payload.composer_text : '';
       const composer = splitUserMessageForComposer(composerRaw);
 
-      // One write for the transcript, the composer text and its skill chip. The object form keeps the store's field
-      // types checked, which a callback's returned object is not.
-      const { messages } = useChatStore.getState();
-      const authorIndex = messages.findIndex((m) => m.messageId === messageId);
-      const sliceIndex = authorIndex >= 0 ? authorIndex : messageIndex;
-      useChatStore.setState({
-        messages: messages.slice(0, sliceIndex),
-        inputMessage: composer.text,
-        pendingExplicitSkillActivation: composer.activation,
-      });
-      void usePlanStore.getState().fetchPlan(chatId);
+      // The request settles later than the click, and the chat store holds whichever chat is open by then. The server
+      // rewound this dialog's chat either way; the transcript, composer and plan on screen follow only while that chat
+      // is still the open one.
+      const live = useChatStore.getState();
+      const stillOpen = live.chatId === chatId;
+      if (stillOpen) {
+        const authorIndex = live.messages.findIndex((m) => m.messageId === messageId);
+        const sliceIndex = authorIndex >= 0 ? authorIndex : messageIndex;
+        const { text, draftKept } = composeRewoundInput(composer.text, live.inputMessage);
+        // One write for the transcript, the composer text and its skill chip. The object form keeps the store's field
+        // types checked, which a callback's returned object is not. A chip armed for the draft stays with the draft;
+        // with no draft to keep, only the restored message's own chip remains.
+        useChatStore.setState({
+          messages: live.messages.slice(0, sliceIndex),
+          inputMessage: text,
+          pendingExplicitSkillActivation:
+            composer.activation ?? (draftKept ? live.pendingExplicitSkillActivation : null),
+        });
+        void usePlanStore.getState().fetchPlan(chatId);
+      }
 
       const revertedCount = payload.reverted_files?.length ?? 0;
       const notices: string[] = [];
@@ -198,13 +221,14 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       if (payload.goal_paused) {
         notices.push(t('goalPausedNotice'));
       }
+      // `successDescription` sends the user to the composer, which holds the message only while the chat is open.
       toast({
         title: t('success'),
-        description: notices.length > 0 ? notices.join(' ') : t('successDescription'),
+        description: notices.length > 0 ? notices.join(' ') : stillOpen ? t('successDescription') : undefined,
       });
       onOpenChange(false);
 
-      if (typeof window !== 'undefined') {
+      if (stillOpen && typeof window !== 'undefined') {
         requestAnimationFrame(() => {
           const textarea = document.querySelector<HTMLTextAreaElement>(
             'textarea[data-testid="chat-input-textarea"], textarea',
@@ -270,6 +294,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
                 <button
                   key={option.value}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setScope(option.value)}
                   className={`rounded-lg border p-3 text-left transition-colors ${
                     active ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'
