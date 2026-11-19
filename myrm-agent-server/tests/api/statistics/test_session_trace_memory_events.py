@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from types import SimpleNamespace
@@ -12,16 +11,14 @@ import pytest
 
 from app.api.statistics.session_trace_enrichment import _build_session_memory_events
 from app.services.memory.ledger.operation_ledger import MemoryOperationLedgerService
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 
 @pytest.fixture
-def server_clock_at_utc_plus_8(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def server_clock_at_utc_plus_8() -> Iterator[None]:
     """Put the process clock at UTC+8, so reading a UTC wall time as local time is off by eight hours."""
-    monkeypatch.setenv("TZ", "Asia/Shanghai")
-    time.tzset()
-    yield
-    monkeypatch.undo()
-    time.tzset()
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 def _event(occurred_at: datetime) -> SimpleNamespace:

@@ -9,14 +9,15 @@ means "through March 31", but a bare date reads as 00:00, so a memory saved late
 - toolkits.memory.agent_surface.memory_agent_tools::create_memory_tools (POS: facade of the agent memory tools)
 - toolkits.memory.agent_surface.mcp_server::MemoryMCPServer (POS: MCP adapter exposing memory_recall)
 - toolkits.memory.relational::SQLiteRelationalStore (POS: aiosqlite relational store that owns exact-fact search)
+- tests.support.host_clock::pin_host_clock_to_utc_plus_8 (POS: holds the process clock at UTC+8 for the block it wraps)
 
 [POS]
-Contract guard for the end-of-day reading of a date-only until: at the parser, at the memory and MCP entries, and against a real store.
+Contract guard for the end-of-day reading of a date-only until: at the parser, at the memory and MCP entries, and against a real store. Every test runs with the process clock at UTC+8, so a day read in the host's zone instead of UTC is hours off on a UTC host too.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -31,9 +32,17 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
 from myrm_agent_harness.toolkits.memory.config import MemoryConfig
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _DAY_START = datetime(2026, 3, 31, tzinfo=UTC)
 _DAY_END = datetime(2026, 3, 31, 23, 59, 59, 999999, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 @pytest.mark.parametrize("value", ["2026-03-31", "20260331", "2026-W14-2"], ids=["extended", "basic", "week-date"])

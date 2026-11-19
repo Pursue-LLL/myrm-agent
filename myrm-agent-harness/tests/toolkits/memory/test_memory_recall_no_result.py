@@ -9,13 +9,15 @@ a client that is not told the window concludes the memory does not exist.
 - toolkits.memory.agent_surface.memory_recall_no_result::no_result_reply, describe_time_window (POS: the zero-hit reply both surfaces share, and its window renderer)
 - toolkits.memory.agent_surface.mcp_server::MemoryMCPServer (POS: MCP adapter exposing memory_recall)
 - toolkits.memory.agent_surface.memory_recall_budget::DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT (POS: the recall limits the reply quotes)
+- tests.support.host_clock::pin_host_clock_to_utc_plus_8 (POS: holds the process clock at UTC+8 for the block it wraps)
 
 [POS]
-Reply guard for the shared zero-hit reply; the agent tool's side is covered by test_memory_search_zero_hit_reply.py.
+Reply guard for the shared zero-hit reply; the agent tool's side is covered by test_memory_search_zero_hit_reply.py. Every test runs with the process clock at UTC+8, so a window written in the host's zone instead of UTC is hours off on a UTC host too.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -29,6 +31,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_no_result im
     no_result_reply,
 )
 from myrm_agent_harness.toolkits.memory.types import MemoryType
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _PLAIN = "No relevant memories found."
 _RULES_NOTE = (
@@ -39,6 +42,13 @@ _RULES_NOTE = (
 _RETRY_ADVICE = "If the memory may have been saved outside this period, retry without since/until."
 _MARCH_START = datetime(2026, 3, 1, tzinfo=UTC)
 _MARCH_END = datetime(2026, 3, 31, 23, 59, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 def _empty_manager(*, degraded: bool = False) -> AsyncMock:

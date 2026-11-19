@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
@@ -15,6 +14,7 @@ from myrm_agent_harness.toolkits.memory.types import (
     MemoryScope,
     ProceduralMemory,
 )
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 from tests.support.relational_records import make_rule
 
 
@@ -259,13 +259,10 @@ async def test_creation_times_in_different_offsets_order_by_the_instant(store: S
 
 
 @pytest.fixture
-def host_clock_at_utc_plus_8(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def host_clock_at_utc_plus_8() -> Iterator[None]:
     """Put the process clock at UTC+8, so reading a UTC wall time as local time is off by eight hours."""
-    monkeypatch.setenv("TZ", "Asia/Shanghai")
-    time.tzset()
-    yield
-    monkeypatch.undo()
-    time.tzset()
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 @pytest.mark.asyncio

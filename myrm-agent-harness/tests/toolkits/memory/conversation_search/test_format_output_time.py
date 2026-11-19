@@ -1,20 +1,31 @@
 """A conversation hit's header ends with the time of what the hit stands for, so the model can tell when it happened.
 
-The time is written in the requester's zone when the request carries one, in UTC otherwise.
+The time is written in the requester's zone when the request carries one, in UTC otherwise. Every test runs with the
+process clock at UTC+8, so a time without an offset that is read as the host's local time shows up as a header eight
+hours off, on a UTC host too.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 
 import pytest
 
 from myrm_agent_harness.toolkits.memory.conversation_search.format_output import format_conversation_hit
 from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationSearchHit
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _CREATED = datetime(2026, 3, 1, 8, 0, tzinfo=UTC)
 _CONTENT = datetime(2026, 4, 2, 9, 30, 15, tzinfo=UTC)
 _HEADER = "1. Planning (conversation_id: chat-1, score: 0.50, source: conversation_index"
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 def _hit(*, created_at: datetime | None = None, updated_at: datetime | None = None) -> ConversationSearchHit:

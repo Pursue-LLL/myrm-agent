@@ -4,11 +4,14 @@ The repository reads the index with raw SQL, and SQLite hands such a column over
 offset when the database filled it in or a rebuild copied a message's time, with an offset when an append bound an aware
 datetime. A row that cannot read that text carries no time at all, so the mapper turns every form into an aware UTC
 instant, and a value that is no time into None rather than a guess. A time with an offset can name an instant just past
-the last (or before the first) one UTC can write down; that reads as None too, never as an error.
+the last (or before the first) one UTC can write down; that reads as None too, never as an error. Every test runs with
+the process clock at UTC+8, so a time without an offset that is read as the host's local time comes back eight hours
+off, on a UTC host too.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -18,9 +21,17 @@ from app.database.repositories.conversation_recall.types import (
     recall_document_row,
     recall_row,
 )
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _INSTANT = datetime(2026, 4, 17, 12, 30, 45, tzinfo=UTC)
 _PLUS_EIGHT = timezone(timedelta(hours=8))
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 @pytest.mark.parametrize(

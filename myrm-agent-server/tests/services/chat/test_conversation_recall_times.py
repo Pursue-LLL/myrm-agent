@@ -6,14 +6,15 @@ picker and the health summary each depend on turning that text into an instant. 
 names was sent, a recent hit when its conversation's last message was, the tool prints that time in the hit's header
 (in the requester's zone when the request carries one) so the model can tell when a conversation happened, and a hit is
 ranked by how well it matches, never by how old it is. A time no UTC instant can hold costs its hit the time, never the
-search. The message window of an expanded hit carries no time.
+search. The message window of an expanded hit carries no time. Every test runs with the process clock at UTC+8, so a
+time without an offset that is read as the host's local time comes back eight hours off, on a UTC host too.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -29,6 +30,7 @@ from app.services.chat.conversation_recall_index_service import ConversationReca
 from app.services.chat.conversation_search_hits import fts_hit, recent_hit
 from app.services.chat.conversation_search_service import ConversationHistorySearchProvider, ConversationSearchService
 from tests.services.chat.search_support import seed_chat_with_text
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _CHAT = "chat-timed"
 _UNREADABLE = "chat-unreadable"
@@ -55,6 +57,13 @@ _FTS = ConversationSearchRequest(query="zebra", limit=5)
 _SUBSTRING = ConversationSearchRequest(query="ze", limit=5)
 _RECENT = ConversationSearchRequest(mode="recent", limit=5)
 _QUOKKA = ConversationSearchRequest(query="quokka", limit=5)
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 async def _seed(db: AsyncSession) -> None:

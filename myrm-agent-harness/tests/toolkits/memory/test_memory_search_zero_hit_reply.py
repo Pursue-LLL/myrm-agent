@@ -11,13 +11,15 @@ a model that is not told the window concludes the memory does not exist.
 - toolkits.memory.agent_surface.memory_recall_budget::DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT (POS: the recall limits the reply quotes)
 - toolkits.memory.agent_surface.memory_recall_formatting::parse_time_bound (POS: the since/until parser of the recall tools)
 - toolkits.memory.setup::create_local_memory_manager (POS: embeddings-less local memory manager)
+- tests.support.host_clock::pin_host_clock_to_utc_plus_8 (POS: holds the process clock at UTC+8 for the block it wraps)
 
 [POS]
-Reply guard for a memory search that returns nothing.
+Reply guard for a memory search that returns nothing. Every test runs with the process clock at UTC+8, so a window read or written in the host's zone instead of UTC is hours off on a UTC host too.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -31,6 +33,7 @@ from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting i
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import search_memory_corpus
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType, SemanticMemory
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _PLAIN = "No relevant memories found."
 _MARCH_WINDOW_NOTE = (
@@ -38,6 +41,13 @@ _MARCH_WINDOW_NOTE = (
     "since/until match when a memory was saved, not the date it describes. "
     "If the memory may have been saved outside this period, retry without since/until."
 )
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 async def _search(

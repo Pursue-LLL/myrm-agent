@@ -13,14 +13,15 @@ sessions hit comes back dated in that same zone, so the date its header shows is
 - toolkits.memory.conversation_search.types::ConversationSearchHit, ConversationSearchResponse (POS: Conversation search DTOs)
 - toolkits.memory.manager::MemoryManager (POS: memory lifecycle manager)
 - toolkits.memory.relational::SQLiteRelationalStore (POS: aiosqlite relational store that owns exact-fact search)
+- tests.support.host_clock::pin_host_clock_to_utc_plus_8 (POS: holds the process clock at UTC+8 for the block it wraps)
 
 [POS]
-Contract guard for the requester's zone: since/until read in it at the parser, at the memory_search_tool entry for both corpora and against a real store, and sessions hits dated in it.
+Contract guard for the requester's zone: since/until read in it at the parser, at the memory_search_tool entry for both corpora and against a real store, and sessions hits dated in it. Every test runs with the process clock at UTC+8, so a day read in the host's zone instead of the request's (or UTC when it has none) is hours off on a UTC host too.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -42,10 +43,18 @@ from myrm_agent_harness.toolkits.memory.conversation_search.types import (
 )
 from myrm_agent_harness.toolkits.memory.manager import MemoryManager
 from myrm_agent_harness.toolkits.memory.relational import SQLiteRelationalStore
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 SHANGHAI = "Asia/Shanghai"
 _SHANGHAI_DAY = (datetime(2026, 4, 13, 16, tzinfo=UTC), datetime(2026, 4, 14, 15, 59, 59, 999999, tzinfo=UTC))
 _UTC_DAY = (datetime(2026, 4, 14, tzinfo=UTC), datetime(2026, 4, 14, 23, 59, 59, 999999, tzinfo=UTC))
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 def _utc(text: str) -> datetime:
