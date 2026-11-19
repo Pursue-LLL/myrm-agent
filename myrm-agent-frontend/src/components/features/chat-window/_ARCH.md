@@ -127,7 +127,7 @@
 | `__tests__/trajectoryKit.ts` | 测试 | 轨迹对比测试的构造器（步骤 / 轮次 / 会话） | ✅ |
 | `__tests__/trajectoryDiffModel.test.ts` | 测试 | 对比规则：分歧按全部步骤计数、参数按内容比较、一方先结束、轮次起点 | ✅ |
 | `__tests__/TrajectoryDiffModal.test.tsx` | 测试 | 对比弹窗：关闭时不读取、当前会话逐轮展示、加载中、可选会话（不含当前）、B 侧占位与选择、分歧标记落在对应轮次、参数键序不算分歧、一方先结束、迟到的旧选择被丢弃、上一个选择不在加载期间显示、各处读取失败的提示、关闭 | ✅ |
-| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 回填（被回退消息的文字与技能 chip 一并还原，与截断后的转录一次写入；输入框里未发送的草稿留在回填文字下方，其技能 chip 随草稿保留，回填消息自带 chip 时以后者为准；请求返回时打开的若已不是本弹窗的聊天，则不动转录、输入框与计划，toast 也不再指向输入框）；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
+| `RewindDialog.tsx` | 组件 | Rewind 确认弹窗：scope 选择（conversation/both）+ 文件变更预览（按 path 去重计数）+ POST /rewind + goal 暂停与文件恢复 toast 反馈 + composer 回填（被回退消息的文字与技能 chip 一并还原，与截断后的转录一次写入；输入框里未发送的草稿留在回填文字下方，其技能 chip 随草稿保留，回填消息自带 chip 时以后者为准；请求返回时打开的若已不是本弹窗的聊天，则不动转录、输入框与计划，toast 也不再指向输入框；弹窗已卸载后才返回的请求不再去关闭回退目标，免得关掉更新的弹窗）；失败（含 409 会话忙）由本弹窗统一提示，`rewindToMessage` 为 silent，请求层不重复弹 | ✅ |
 | `LifeStatusCapsule.tsx` | 组件 | 后台空闲任务状态胶囊：按 `task_name` + `status` 本地化文案（`backgroundTasks.idleStatus.*`），未知任务回退通用文案 | ✅ |
 | `LinkDetectionDialog.tsx` | 组件 | 输入里出现没加 `@` 的链接时的询问对话框：「是」补上 `@`，「否」或任何其他关闭方式（Esc、点遮罩、右上角叉）都不改文本；可勾「不再提醒」；状态与落盘在 `useLinkAtPrompt`（`__tests__/LinkDetectionDialog.test.tsx`） | ✅ |
 | `InputHistoryPopup.tsx` | 组件 | 输入历史弹窗列表（absolute 定位于输入框上方、ARIA listbox、click-outside 关闭）；tooltip 里的时间按界面语言排版（一周内为相对时间，更早为日期），不随浏览器语言；按下即选中且不抢走输入框焦点，活动项随键盘移动滚入视野（`__tests__/InputHistoryPopup.test.tsx`） | ✅ |

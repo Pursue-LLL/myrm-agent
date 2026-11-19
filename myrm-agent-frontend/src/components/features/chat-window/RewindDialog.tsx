@@ -16,7 +16,8 @@
  * Modal dialog for rollbacks. Provides scope choice (conversation vs conversation + files)
  * and file change preview before dispatching rewind request, then puts the rewound message
  * (its text and skill chip) back into the composer with any unsent draft kept below it. The
- * transcript, composer and plan are only touched while the dialog's chat is still the open one.
+ * transcript, composer and plan are only touched while the dialog's chat is still the open one, and a
+ * request that settles after the dialog is gone does not close the target of a newer dialog.
  */
 
 'use client';
@@ -92,6 +93,14 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
   const t = useTranslations('chat.rewind');
   const [isRewinding, setIsRewinding] = useState(false);
   const rewindingRef = useRef(false);
+  // The request can settle after the dialog's view is gone; closing then would close a newer view's target.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const [scope, setScope] = useState<RewindScope>('both');
   const [preview, setPreview] = useState<FilePreview>({
     status: 'checking',
@@ -226,7 +235,9 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
         title: t('success'),
         description: notices.length > 0 ? notices.join(' ') : stillOpen ? t('successDescription') : undefined,
       });
-      onOpenChange(false);
+      if (mountedRef.current) {
+        onOpenChange(false);
+      }
 
       if (stillOpen && typeof window !== 'undefined') {
         requestAnimationFrame(() => {

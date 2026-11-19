@@ -43,10 +43,10 @@ const makeMessage = (id: string, role: Message['role']): Message => ({
 
 const renderDialog = (messageIndex = 2, messageId = 'u2') => {
   const onOpenChange = vi.fn();
-  render(
+  const { unmount } = render(
     <RewindDialog open onOpenChange={onOpenChange} chatId="c1" messageId={messageId} messageIndex={messageIndex} />,
   );
-  return { onOpenChange };
+  return { onOpenChange, unmount };
 };
 
 const composer = () => {
@@ -261,6 +261,29 @@ describe('RewindDialog', () => {
     expect(composer()).toEqual({ inputMessage: 'typing in c2', pendingExplicitSkillActivation: null });
     expect(fetchPlanMock).not.toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith({ title: 'success', description: undefined });
+  });
+
+  it('does not close what is shown now when the request settles after the dialog is gone', async () => {
+    useChatStore.setState({
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+      loading: false,
+    });
+    let settleRewind: ((value: unknown) => void) | undefined;
+    rewindToMessageMock.mockReturnValue(
+      new Promise((resolve) => {
+        settleRewind = resolve;
+      }),
+    );
+    const { onOpenChange, unmount } = renderDialog();
+    fireEvent.click(screen.getByText('confirm'));
+
+    unmount();
+    settleRewind?.({ data: { success: true, deleted_count: 2, composer_text: 'hello', message_index: 1 } });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalled();
+    });
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 
   it('marks the chosen scope as pressed', () => {
