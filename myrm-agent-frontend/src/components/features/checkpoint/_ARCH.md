@@ -28,6 +28,7 @@
 - `FileDiffViewer` 支持 checkbox 多选文件，调用 `restoreFileSnapshot(id, files)` 进行部分恢复
 - Diff 视图显示行数统计 `+X/-Y`（来自后端 `git diff --numstat`）
 - 恢复操作有二次确认 dialog 防止误操作
+- 只有图标的按钮（卡片的删除、diff 视图与侧滑面板的关闭）带 `aria-label`（`fileSnapshot.delete` / `fileSnapshot.close`）；恢复、删除、清理三处二次确认共用 `fileSnapshot.confirmYes`，这条文案只写「确认」，不带具体动作
 - 撤销对话框恒定声明「撤销只还原工作区文件，数据库/容器/网络请求/git push 等外部操作不会被撤销」；运行中检测到的外部影响类别（服务端记入安全气囊）另列一行，文案复用 `fileSnapshot.effects.*`
 - `GoalStatusHeader` 以 `status:turnsUsed` 作为胶囊 `refreshKey`，目标开始（首次布防）、每轮结束与状态变化时刷新；用户选择「保留改动」后服务端不再返回状态，胶囊随之消失
 - 文案在 `taskAirbag` 命名空间（zh/en），不暴露内部 ID 或快照术语

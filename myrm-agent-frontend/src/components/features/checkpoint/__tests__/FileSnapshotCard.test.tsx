@@ -83,7 +83,7 @@ describe('FileSnapshotCard', () => {
 
   it('requires confirmation before deleting a snapshot', () => {
     const onDelete = vi.fn();
-    const { container } = render(
+    render(
       <FileSnapshotCard
         snapshot={baseSnapshot()}
         onRestore={() => {}}
@@ -94,7 +94,7 @@ describe('FileSnapshotCard', () => {
     );
 
     expect(onDelete).not.toHaveBeenCalled();
-    fireEvent.click(container.querySelector('.lucide-trash') as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'delete' }));
     expect(screen.getByText('deleteConfirm')).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('confirmYes'));
@@ -103,7 +103,7 @@ describe('FileSnapshotCard', () => {
   });
 
   it('opens only one confirmation panel at a time', () => {
-    const { container } = render(
+    render(
       <FileSnapshotCard
         snapshot={baseSnapshot()}
         onRestore={() => {}}
@@ -116,7 +116,7 @@ describe('FileSnapshotCard', () => {
     fireEvent.click(screen.getByText('restore'));
     expect(screen.queryByText('restore')).not.toBeInTheDocument();
 
-    fireEvent.click(container.querySelector('.lucide-trash') as HTMLElement);
+    fireEvent.click(screen.getByRole('button', { name: 'delete' }));
     expect(screen.getByText('deleteConfirm')).toBeInTheDocument();
     expect(screen.getByText('restore')).toBeInTheDocument();
   });

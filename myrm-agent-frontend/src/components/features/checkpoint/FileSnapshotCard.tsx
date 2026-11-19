@@ -154,6 +154,7 @@ const FileSnapshotCard: React.FC<FileSnapshotCardProps> = ({
               setShowConfirmRestore(false);
             }}
             disabled={isLoading}
+            aria-label={t('delete')}
             className={cn(
               'flex items-center gap-1 px-2.5 py-1 text-xs rounded-full transition-colors',
               'bg-destructive/10 hover:bg-destructive/20 text-destructive-text disabled:opacity-50',

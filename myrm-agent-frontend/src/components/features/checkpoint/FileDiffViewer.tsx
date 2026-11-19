@@ -114,7 +114,7 @@ const FileDiffViewer: React.FC<FileDiffViewerProps> = ({ snapshotId, changes, on
           {added.length > 0 && <span className="text-green-600 dark:text-green-400">+{added.length}</span>}
           {modified.length > 0 && <span className="text-yellow-600 dark:text-yellow-400">~{modified.length}</span>}
           {deleted.length > 0 && <span className="text-red-600 dark:text-red-400">-{deleted.length}</span>}
-          <button onClick={onClose} className="p-0.5 rounded hover:bg-muted-foreground/10">
+          <button onClick={onClose} aria-label={t('close')} className="p-0.5 rounded hover:bg-muted-foreground/10">
             <X className="w-4 h-4" />
           </button>
         </div>

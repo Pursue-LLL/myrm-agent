@@ -10457,6 +10457,8 @@
     "restoreSelected": "Restore {count} selected",
     "confirmRestore": "Restore {count} file(s) to snapshot state?",
     "confirmYes": "Confirm",
+    "delete": "Delete",
+    "close": "Close",
     "deleteConfirm": "Delete this version? This cannot be undone.",
     "confirmNo": "Cancel",
     "restoring": "Restoring...",
