@@ -56,5 +56,7 @@ Limits that are accepted, each a deliberate trade:
 
 ## Key Dependencies
 
+- `core.security.redact` (`redact_sensitive_text`: credential masking for connector target URLs)
 - `infra`
 - `observability.tracing` (TracingContext for per-execution trace_id/session_id)
+- `utils.text_utils` (`smart_truncate`: the head-and-tail cut that bounds a stored error text)

@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * [INPUT] @/services/cron::PrerequisiteCheckResponse (POS: 前置验证查询结果 DTO)
+ * [OUTPUT] CronPrerequisiteCard: 前置验证门禁卡——显示手动验证成功次数与门槛，已满足（或已勾选越过）为绿色确认，未满足为琥珀色建议，并提供「明确越过」勾选与可展开的六问自检清单
+ * [POS] 创建弹窗 Custom 页签末尾的前置验证门禁卡：只展示父组件传入的查询结果并上报「明确越过」勾选；查询与去抖在 create-dialog/useCronPrerequisite，勾选随创建请求以 override_prerequisite 提交。
+ */
+
 import { memo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { ShieldAlert, ShieldCheck, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from 'lucide-react';
