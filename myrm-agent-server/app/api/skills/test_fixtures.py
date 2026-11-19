@@ -15,6 +15,7 @@
   Chrome E2E: a skill whose directory name and SKILL.md name the test chooses, a review result fed through the
   production growth lifecycle in place of the reviewer model's output, and removal of the directories the
   test created
+- GrowthDirName: the one-segment skill directory name those routes accept (the evolution proposal fixture reuses it)
 - seed_test_mock_drafts / seed_mock_drafts_for_e2e: local/test route (and the helper behind it) that resets and
   seeds two predictable pending drafts for the Instinct Inbox Chrome E2E; a ``namespace`` keeps parallel runs from
   denying each other's seeds
@@ -212,11 +213,11 @@ async def seed_upstream_update_pending() -> dict[str, object]:
 
 
 # A directory name the fixtures accept: one path component, so a test cannot write or remove outside the skills root.
-_GrowthDirName = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,62}$")]
+GrowthDirName = Annotated[str, Field(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,62}$")]
 
 
 class SeedGrowthSkillRequest(BaseModel):
-    dir_name: _GrowthDirName
+    dir_name: GrowthDirName
     skill_name: str = Field(min_length=1, max_length=120)
     marker: str = Field(min_length=1, max_length=120)
 
@@ -228,7 +229,7 @@ class SeedReviewResultRequest(BaseModel):
 
 
 class CleanupGrowthSkillsRequest(BaseModel):
-    dir_names: list[_GrowthDirName] = Field(max_length=16)
+    dir_names: list[GrowthDirName] = Field(max_length=16)
 
 
 def _write_growth_skill(directory: Path, skill_name: str, marker: str) -> None:

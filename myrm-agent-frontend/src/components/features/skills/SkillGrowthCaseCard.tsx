@@ -1,12 +1,12 @@
 /**
  * [INPUT] SkillGrowthCaseSummary via @/services/skill/growth; detail fetched on expand; ./growth-card (头部徽章、证据面板、修订编辑器);
  *         @/lib/skills/growthReason::parseApplyFailure (POS: 成长卡片原因码解析)
- * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝；应用失败后只提供能改变结果的操作）; SkillGrowthViewMode type
- * [POS] features/skills 单个技能进化提案的展示与交互卡片；持有展开、详情加载、修订与拒绝的交互状态
+ * [OUTPUT] SkillGrowthCaseCard: 技能进化提案卡片（Simple/Detailed 双视图、Monaco DiffEditor 就地修订、审批/拒绝；应用失败后只提供能改变结果的操作；根节点与批准/拒绝键带 data-testid 定位点供 Chrome E2E）; SkillGrowthViewMode type
+ * [POS] features/skills 单个技能进化提案的展示与交互卡片；持有展开、详情加载、修订与拒绝的交互状态，状态随案例存在（调用方以案例 id 作 key）
  */
 'use client';
 
-import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Check, ChevronDown, ChevronUp, Clock3, Edit3, ExternalLink, Loader2, X } from 'lucide-react';
@@ -74,14 +74,6 @@ export default function SkillGrowthCaseCard({
   const originalContent = detail?.originalContent ?? null;
   const proposedContent = detail?.proposedContent ?? null;
   const showDiff = Boolean(originalContent !== null && proposedContent);
-
-  useEffect(() => {
-    setDetail(null);
-    setDetailError(null);
-    setContentExpanded(false);
-    setIsEditing(false);
-    setEditedContent('');
-  }, [item.id]);
 
   const loadDetail = useCallback(async (): Promise<SkillGrowthCaseDetail | null> => {
     if (detail !== null) {
@@ -163,7 +155,12 @@ export default function SkillGrowthCaseCard({
   const showContentPanel = !isSimple || contentExpanded;
 
   return (
-    <div className="rounded-2xl border bg-background p-4">
+    <div
+      className="rounded-2xl border bg-background p-4"
+      data-testid="growth-case-card"
+      data-case-id={item.id}
+      data-case-status={item.status}
+    >
       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
         <div className="min-w-0 space-y-2">
           <GrowthCaseTitleRow item={item} isSimple={isSimple} />
@@ -222,12 +219,13 @@ export default function SkillGrowthCaseCard({
               className="border-red-300 text-red-700 hover:bg-red-50 dark:border-red-800 dark:text-red-300 dark:hover:bg-red-950/30"
               onClick={handleReject}
               disabled={isProcessing}
+              data-testid="growth-case-reject-btn"
             >
               <X className="mr-2 h-4 w-4" />
               {showRejectInput ? t('actions.confirmReject') : t('actions.reject')}
             </Button>
             {canApprove && (
-              <Button size="sm" onClick={onApprove} disabled={isProcessing}>
+              <Button size="sm" onClick={onApprove} disabled={isProcessing} data-testid="growth-case-approve-btn">
                 <Check className="mr-2 h-4 w-4" />
                 {approveLabel}
               </Button>
