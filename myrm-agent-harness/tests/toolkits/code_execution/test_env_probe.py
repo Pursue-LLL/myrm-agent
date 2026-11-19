@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import threading
 import time
+from collections.abc import Callable
 from unittest.mock import patch
 
 import pytest
@@ -243,11 +244,11 @@ class TestCaching:
 class TestConcurrency:
     """The interpreter probes overlap, and callers that arrive together share one build."""
 
-    def test_the_five_probes_run_at_the_same_time(self, monkeypatch: pytest.MonkeyPatch):
+    def test_the_five_probes_run_at_the_same_time(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The barrier opens only while all five probes are inside it; one after another, it times out."""
         barrier = threading.Barrier(5, timeout=5)
 
-        def at_the_barrier(answer: object):
+        def at_the_barrier(answer: object) -> Callable[..., object]:
             def probe(*_args: object) -> object:
                 barrier.wait()
                 return answer
@@ -259,24 +260,26 @@ class TestConcurrency:
         monkeypatch.setattr(env_probe, "_has_pip_module", at_the_barrier(True))
         monkeypatch.setattr(env_probe, "_detect_pep668", at_the_barrier(False))
         monkeypatch.setattr(env_probe, "_pip_python_version", at_the_barrier("3.12"))
-        monkeypatch.setattr(env_probe.shutil, "which", lambda name: None)
+        monkeypatch.setattr(shutil, "which", lambda name: None)
 
         assert env_probe._build_probe_line() == ""
 
-    def test_python3_missing_ignores_what_the_pip_and_pep_668_probes_answered(self, monkeypatch: pytest.MonkeyPatch):
+    def test_python3_missing_ignores_what_the_pip_and_pep_668_probes_answered(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Both checks of python3 start with the others; an answer about an interpreter that is not there is dropped."""
         monkeypatch.setattr(env_probe, "_python_version_of", lambda b: "3.12.4" if b == "python" else None)
         monkeypatch.setattr(env_probe, "_has_pip_module", lambda b: True)
         monkeypatch.setattr(env_probe, "_detect_pep668", lambda b: True)
         monkeypatch.setattr(env_probe, "_pip_python_version", lambda: None)
-        monkeypatch.setattr(env_probe.shutil, "which", lambda name: None)
+        monkeypatch.setattr(shutil, "which", lambda name: None)
 
         line = env_probe.get_environment_probe_line()
 
         assert "python3=missing" in line
         assert "PEP 668" not in line
 
-    def test_callers_that_arrive_together_share_one_build(self, monkeypatch: pytest.MonkeyPatch):
+    def test_callers_that_arrive_together_share_one_build(self, monkeypatch: pytest.MonkeyPatch) -> None:
         builds: list[int] = []
         first_started = threading.Event()
         second_started = threading.Event()
@@ -313,7 +316,7 @@ class TestConcurrency:
 class TestWarmUp:
     """The warm-up builds the line on a thread; the reader that follows finds it built or waits for it."""
 
-    def test_returns_before_the_build_ends_and_the_reader_gets_its_line(self, monkeypatch: pytest.MonkeyPatch):
+    def test_returns_before_the_build_ends_and_the_reader_gets_its_line(self, monkeypatch: pytest.MonkeyPatch) -> None:
         builds: list[int] = []
         release = threading.Event()
 
@@ -338,7 +341,7 @@ class TestWarmUp:
         assert lines == ["Python toolchain: pip=missing."]
         assert builds == [1]
 
-    def test_does_nothing_when_the_line_is_already_built(self, monkeypatch: pytest.MonkeyPatch):
+    def test_does_nothing_when_the_line_is_already_built(self, monkeypatch: pytest.MonkeyPatch) -> None:
         builds: list[int] = []
 
         def build() -> str:

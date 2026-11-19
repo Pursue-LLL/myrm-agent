@@ -68,6 +68,7 @@ async def test_warm_up_twice_builds_once(tmp_path: Path) -> None:
         executor.warm_up()
         first_task = executor._venv_warm_task
         executor.warm_up()
+        assert first_task is not None
         assert executor._venv_warm_task is first_task
         await first_task
 

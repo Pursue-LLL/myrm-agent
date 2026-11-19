@@ -164,7 +164,7 @@ class TestVenvManagerSingleFlight:
     """Callers that arrive during a creation wait for it instead of starting another."""
 
     @pytest.mark.asyncio
-    async def test_concurrent_callers_share_one_creation(self, tmp_path: Path):
+    async def test_concurrent_callers_share_one_creation(self, tmp_path: Path) -> None:
         config = MagicMock()
         config.local.shared_venv_path = str(tmp_path / "venvs")
         config.local.auto_create_venv = True
@@ -185,7 +185,7 @@ class TestVenvManagerSingleFlight:
         assert set(results) == {str(tmp_path / "venvs" / "bin" / "python")}
 
     @pytest.mark.asyncio
-    async def test_a_resolved_manager_does_not_spawn_again(self, tmp_path: Path):
+    async def test_a_resolved_manager_does_not_spawn_again(self, tmp_path: Path) -> None:
         config = MagicMock()
         config.local.shared_venv_path = str(tmp_path / "venvs")
         config.local.auto_create_venv = True

@@ -116,7 +116,7 @@ def _shape(items: list[dict[str, object]]) -> list[object]:
 
 
 def test_a_tool_only_turn_replays_its_reasoning_straight_into_the_function_calls() -> None:
-    messages = [
+    messages: list[dict[str, object]] = [
         {"role": "user", "content": "go"},
         {
             "role": "assistant",
