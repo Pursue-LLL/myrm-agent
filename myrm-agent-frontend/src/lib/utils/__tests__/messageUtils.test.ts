@@ -194,7 +194,8 @@ describe('splitUserMessageForComposer', () => {
     const split = splitUserMessageForComposer(wire);
 
     expect(split).toEqual(expected);
-    // Sending what the composer now holds reproduces the stored message byte for byte.
+    // Sending what the composer now holds reproduces the stored message byte for byte (no case here puts a closing
+    // bracket inside an instruction, which the tag grammar cannot carry).
     expect(split.activation ? buildExplicitSkillWireMessage(split.activation, split.text) : split.text).toBe(wire);
   });
 });

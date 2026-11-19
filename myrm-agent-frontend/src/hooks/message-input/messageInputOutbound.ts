@@ -7,7 +7,7 @@
  * - ./useMessageInputWikiEvidenceCore::recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess (POS: Wiki 证据复问口径)
  *
  * [OUTPUT]
- * - composeOutboundUserMessage: 把显式技能激活与工件局部选区并入待发文本
+ * - composeOutboundUserMessage: 把工件局部选区与显式技能激活并入待发文本（技能标签始终在最前）
  * - injectDirtyArtifacts: 把尚未保存的工件编辑附到消息末尾并清掉脏状态
  * - clearPendingExplicitSkillActivation: 发送后清掉待用的显式技能
  * - recordChatQueryMetric: 上报一次 chat 复问尝试
@@ -25,10 +25,6 @@ import { queuePendingChatWikiQuerySuccess, recordChatWikiQueryAttempt } from './
 
 export function composeOutboundUserMessage(rawInput: string): string {
   let outbound = rawInput;
-  const pending = useChatStore.getState().pendingExplicitSkillActivation;
-  if (pending) {
-    outbound = buildExplicitSkillWireMessage(pending, outbound);
-  }
 
   // 注入局部工件编辑选区语义 (Scoped Artifact)
   const scopedTarget = useScopedArtifactStore.getState().target;
@@ -39,7 +35,9 @@ export function composeOutboundUserMessage(rawInput: string): string {
     useScopedArtifactStore.getState().clearTarget();
   }
 
-  return outbound;
+  // harness 只认文本最开头的 `[use ...]` 标签，所以技能标签最后拼，前面不能再有选区头等任何前缀。
+  const pending = useChatStore.getState().pendingExplicitSkillActivation;
+  return pending ? buildExplicitSkillWireMessage(pending, outbound) : outbound;
 }
 
 export function clearPendingExplicitSkillActivation(): void {

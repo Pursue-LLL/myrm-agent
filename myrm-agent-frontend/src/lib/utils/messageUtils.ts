@@ -96,7 +96,9 @@ export const stripUserMessageDisplayText = (text: string): string => {
 
 /**
  * A stored user message as the composer holds it again: the text the user typed and, apart from it, the skill chip the
- * message was sent with. `buildExplicitSkillWireMessage` turns the pair back into the stored wire message.
+ * message was sent with. `buildExplicitSkillWireMessage` turns the pair back into the stored wire message, unless the
+ * instruction holds a closing bracket: the `[instruction: ...]` segment ends at the first one and the rest of the
+ * instruction comes back as text.
  */
 export const splitUserMessageForComposer = (
   wire: string,
