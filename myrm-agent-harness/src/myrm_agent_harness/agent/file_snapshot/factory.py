@@ -13,7 +13,8 @@ Both implementations conform to FileSnapshotProtocol.
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [POS]
-Factory for creating file snapshot store instances with automatic git detection.
+Factory for creating file snapshot store instances with automatic git detection;
+first callers that arrive together share one instance.
 """
 
 from __future__ import annotations
@@ -52,6 +53,9 @@ async def _detect_git() -> bool:
 
 
 _cached_store: FileSnapshotProtocol | None = None
+# The git probe yields to the event loop, so callers that arrive together on first use would each build
+# a store and initialize the same directory at once; the lock makes them share one.
+_create_lock: asyncio.Lock = asyncio.Lock()
 
 
 async def create_file_snapshot_store() -> FileSnapshotProtocol:
@@ -60,22 +64,26 @@ async def create_file_snapshot_store() -> FileSnapshotProtocol:
     Uses ShadowGitSnapshotStore when git is available (preferred),
     falls back to LocalFileSnapshotStore otherwise.
 
-    The result is cached for the process lifetime.
+    The result is cached for the process lifetime; concurrent first callers share one instance.
     """
     global _cached_store
     if _cached_store is not None:
         return _cached_store
 
-    base_path = _default_store_base()
+    async with _create_lock:
+        if _cached_store is not None:
+            return _cached_store
 
-    if await _detect_git():
-        logger.info("Git available — using ShadowGitSnapshotStore at %s", base_path)
-        _cached_store = ShadowGitSnapshotStore(store_path=base_path)
-    else:
-        logger.info("Git not found — using LocalFileSnapshotStore at %s", base_path / "local")
-        _cached_store = LocalFileSnapshotStore(storage_path=base_path / "local")
-
-    return _cached_store
+        base_path = _default_store_base()
+        store: FileSnapshotProtocol
+        if await _detect_git():
+            logger.info("Git available — using ShadowGitSnapshotStore at %s", base_path)
+            store = ShadowGitSnapshotStore(store_path=base_path)
+        else:
+            logger.info("Git not found — using LocalFileSnapshotStore at %s", base_path / "local")
+            store = LocalFileSnapshotStore(storage_path=base_path / "local")
+        _cached_store = store
+        return store
 
 
 def get_cached_store() -> FileSnapshotProtocol | None:

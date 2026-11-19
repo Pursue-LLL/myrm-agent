@@ -1,23 +1,26 @@
-"""Shadow Git maintenance utilities — pruning, repair, and workspace validation.
+"""Shadow Git maintenance utilities — first-use setup, pruning, repair, and workspace validation.
 
 [INPUT]
 shadow_git_store::_REFS_PREFIX, _PROJECTS_DIR (POS: Shadow Git constants.)
 core.security.path::is_sensitive_file (POS: path security domain)
 
 [OUTPUT]
-ShadowGitMaintenance: Mixin providing auto-prune, orphan detection, repair,
+DEFAULT_EXCLUDES: Ignore rules written into the shared bare repo when it is created.
+ShadowGitMaintenance: Mixin providing first-use creation of the shared bare repo
+    (one initializer at a time), auto-prune, orphan detection, repair,
     oversized workspace detection, and project-commit lookup. Its index cleanup
     drops credential paths alongside oversized files, so a staged worktree
     cannot commit a secret into the shadow repository.
 
 [POS]
-Maintenance mixin for shadow Git snapshot stores. Handles auto-pruning of
-    orphan projects, global size cap enforcement, corruption repair, and
-    workspace size validation.
+Maintenance mixin for shadow Git snapshot stores. Handles first-use creation of
+    the shared bare repo, auto-pruning of orphan projects, global size cap
+    enforcement, corruption repair, and workspace size validation.
 """
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import os
@@ -38,9 +41,17 @@ _MAX_TOTAL_SIZE_MB = 2048  # 2 GB global cap
 
 _SKIP_DIRS = {"node_modules", ".venv", "venv", "__pycache__"}
 
+DEFAULT_EXCLUDES = (
+    "node_modules/\n.venv/\nvenv/\nenv/\n__pycache__/\n.cache/\n.pytest_cache/\n"
+    ".mypy_cache/\n.ruff_cache/\ndist/\nbuild/\ntarget/\nout/\n.next/\n.nuxt/\n"
+    ".git/\n.hg/\n.svn/\n.DS_Store\nThumbs.db\n.myrm/\n.agent/\n"
+    "*.sqlite\n*.sqlite3\n*.db\n*.mp4\n*.mov\n*.avi\n*.zip\n*.tar.gz\n*.tar.bz2\n"
+    "*.7z\n*.rar\n*.jar\n*.war\n*.pyc\n*.pyo\n.idea/\n.vscode/\n*.log\n"
+)
+
 
 class ShadowGitMaintenance:
-    """Mixin providing maintenance operations for ShadowGitSnapshotStore.
+    """Mixin providing first-use setup and maintenance operations for ShadowGitSnapshotStore.
 
     Expects the host class to provide:
       - _git_dir: Path
@@ -48,6 +59,8 @@ class ShadowGitMaintenance:
       - _refs_prefix: str
       - _projects_dir: str
       - _indexes_dir: str
+      - _initialized: bool
+      - _init_lock: asyncio.Lock
       - _project_ref(hash) -> str
       - _project_index(hash) -> Path
       - _project_meta_path(hash) -> Path
@@ -60,6 +73,8 @@ class ShadowGitMaintenance:
     _refs_prefix: str
     _projects_dir: str
     _indexes_dir: str
+    _initialized: bool
+    _init_lock: asyncio.Lock
 
     def _project_ref(self, proj_hash: str) -> str:
         raise NotImplementedError
@@ -85,6 +100,45 @@ class ShadowGitMaintenance:
         for k in ("GIT_WORK_TREE", "GIT_INDEX_FILE"):
             env.pop(k, None)
         return env
+
+    async def _ensure_initialized(self) -> None:
+        """Create the shared bare repo on first use.
+
+        The API, a chat turn and the airbag all reach the store on first use, often together. Two
+        ``git init --bare`` runs into one directory fail copying the templates, and a caller that sees
+        ``HEAD`` while the first one is still configuring the repo would run git against a half-built
+        store, so one initializer runs and the rest wait for it.
+        """
+        if self._initialized:
+            return
+        async with self._init_lock:
+            if self._initialized:
+                return
+            self._git_dir.mkdir(parents=True, exist_ok=True)
+            head_file = self._git_dir / "HEAD"
+            if not head_file.exists() or head_file.stat().st_size == 0:
+                await self._init_bare_repo()
+            self._initialized = True
+
+    async def _init_bare_repo(self) -> None:
+        """Initialize the shared bare repo with proper excludes."""
+        init_env = os.environ.copy()
+        for k in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+            init_env.pop(k, None)
+        init_env["GIT_CONFIG_GLOBAL"] = os.devnull
+        init_env["GIT_CONFIG_SYSTEM"] = os.devnull
+        await self._run_cmd("git", "init", "--bare", str(self._git_dir), env=init_env)
+
+        await self._git_in_store("config", "gc.auto", "0")
+        await self._git_in_store("config", "user.name", "Myrm Snapshot")
+        await self._git_in_store("config", "user.email", "snapshot@myrm.local")
+
+        exclude_dir = self._git_dir / "info"
+        exclude_dir.mkdir(parents=True, exist_ok=True)
+        (exclude_dir / "exclude").write_text(DEFAULT_EXCLUDES)
+
+        (self._git_dir / self._indexes_dir).mkdir(exist_ok=True)
+        (self._git_dir / self._projects_dir).mkdir(exist_ok=True)
 
     async def is_oversized_workspace(self, working_dir: str) -> bool:
         """Check if workspace has too many files to snapshot safely."""
