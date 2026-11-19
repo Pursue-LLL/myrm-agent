@@ -168,8 +168,7 @@ async def try_spawn_background_pty(
                 cwd=str(effective_cwd) if effective_cwd else None,
                 env=env,
                 limit=_STREAM_LIMIT_BYTES,
-                # Windows has no fork hook: Popen refuses a preexec_fn there.
-                preexec_fn=None if os.name == "nt" else preexec_fn,
+                preexec_fn=preexec_fn,
                 **process_group_kwargs,
             )
         except OSError as exc:

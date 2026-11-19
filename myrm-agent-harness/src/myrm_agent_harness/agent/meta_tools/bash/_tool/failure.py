@@ -40,8 +40,7 @@ async def build_failure_error(error: Exception, *, command: str, config: Runnabl
 
         await emit_failure_evicted_refs(error, config=config)
 
-        error_text = f"{error}\n{getattr(error, 'stderr', '')}\n{getattr(error, 'stdout', '')}"
-        auto_hint = annotate_failure(command, getattr(error, "exit_code", 1), error_text)
+        auto_hint = annotate_failure(command, 1, str(error))
         if auto_hint:
             hint = f"{hint}\n\n[Diagnostic Hint] {auto_hint}" if hint else f"[Diagnostic Hint] {auto_hint}"
 
