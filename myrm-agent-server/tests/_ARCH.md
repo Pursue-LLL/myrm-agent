@@ -437,6 +437,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_goal_wait_orphan_recovery.py` | 模块 | 重启后孤儿作业释放等待中的目标：作业台账里的 `chat_<id>` 会话键按聊天 id 匹配目标（等同一个作业号但作业属于别的聊天的目标不被释放），匹配的 WAIT 目标转为待复核并发通知 |
 | `api/goals/test_goal_queue_callbacks.py` | 模块 | 目标终态回调之后的队列接续与 loop 重启（真实队列；回调在回合最后裁决处被排期，其时回合的 provider 可能已归还，这里取没有 provider 登记的形态）：下一个排队目标照常启动、空队列不启动、接续深度到限就停且队列原样不动、出队失败止于该处、事件总线失败不挡路、启动失败顺延到后一个排队目标；loop 重启重新触发目标 |
 | `services/chat/test_rewind_pauses_goal.py` | 模块 | rewind 后暂停会话的活动目标（真实管理器，会话空闲、没有 provider 登记）：ACTIVE 目标被暂停并记下 rewind 原因，非 ACTIVE 的目标与没有目标的聊天原样不动 |
+| `services/chat/test_rewind_holds_session.py` | 模块 | rewind 从头到尾占住聊天的网关会话（私有网关实例 + 真 DB）：文件回退期间新一轮的预留被拒，被回退的只有目标起的两条消息；回退完成或失败后释放；运行中的轮次占着或网关排空时得 `SESSION_BUSY` 且不放掉别人的占用；第二个 rewind 在第一个进行时被拒；被流接管的预留不被释放 |
 | `services/kanban/test_unblock_resumes_goal.py` | 模块 | 看板任务从 BLOCKED 解除阻塞时恢复其停放的目标（真实管理器，`kanban:<task_id>` 键）：暂停/等待/待复核/预算受限各自回到 ACTIVE，且不登记 provider |
 | `core/channel_bridge/test_goal_commands_between_turns.py` | 模块 | IM `/goal <目标>`（目标写入存储、不登记 provider）与 `/goal status`/`pause`/`resume`/`clear`/`wait`/`unwait`/`budget`/`constraint`、恢复 kickoff 在回合之间（没有注册 provider）作用于存储里的目标；聊天里没有目标时各命令回自己的「无目标」文案，且都不注册 provider |
 | `core/channel_bridge/test_goal_subgoal_command.py` | 模块 | IM `/subgoal add` 在回合之间落在存储里的目标上，且不注册 provider |

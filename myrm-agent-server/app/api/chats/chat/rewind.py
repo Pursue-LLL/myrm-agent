@@ -1,7 +1,8 @@
 """Chat rewind HTTP routes.
 
 [INPUT]
-- app.services.chat.session_continuity_service (POS: rewind execution)
+- app.services.chat.chat_service::ChatService (POS: Chat business facade; its rewind holds the chat's session and answers SESSION_BUSY when a turn holds it)
+- app.services.chat.session_continuity_service::CheckpointClearError (POS: checkpoint-clear failure after a history mutation)
 
 [OUTPUT]
 - router: POST /chats/{chat_id}/rewind endpoint
@@ -22,7 +23,7 @@ from app.core.utils.errors import internal_error, not_found_error, validation_er
 from app.core.utils.response_utils import success_response
 from app.schemas.responses import StandardSuccessResponse
 from app.services.chat.chat_service import ChatService
-from app.services.chat.session_continuity_service import CheckpointClearError, SessionBusyError
+from app.services.chat.session_continuity_service import CheckpointClearError
 
 router = APIRouter()
 
@@ -82,8 +83,6 @@ async def rewind_to_message(
         )
     except HTTPException:
         raise
-    except SessionBusyError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except CheckpointClearError as exc:
         raise internal_error(operation="Rewind conversation", exception=exc) from exc
     except Exception as exc:

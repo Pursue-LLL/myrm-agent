@@ -5,6 +5,7 @@
 - chat_helpers::RetryResult, RegenerateResult, UndoResult, TruncateResult, RewindResult (POS: 操作结果 DTO)
 - database.repositories.chat_repo::SiblingDetail (POS: 兄弟消息详情)
 - services.chat.chat_title::generate_chat_title, generate_fallback_title, call_llm_for_title (POS: Chat title generation layer decoupled from turn management)
+- services.chat.session_continuity_service::hold_session_for_continuity, pause_active_goal_for_rewind, invalidate_chat_checkpoint (POS: Server-layer adapter for truncate/undo/retry/rewind checkpoint consistency; holds the chat's session while a rewind runs)
 
 [OUTPUT]
 - _ChatTurnMixin: 重试、撤销、截断、重新生成、兄弟切换、原子回滚自愈
@@ -197,15 +198,15 @@ class _ChatTurnMixin(_ChatServiceBase):
 
         When ``revert_files`` is set, file changes made by the deleted messages are
         also reverted (newest first) so the workspace matches the pre-rewind state.
+
+        The chat's session is held from the first step to the last, so no turn starts in between and loses its
+        messages to the deletion. A chat a turn holds, or a draining gateway, yields ``SESSION_BUSY``.
         """
-        from app.services.chat.session_continuity_service import (
-            SessionBusyError,
-            assert_session_available_for_continuity,
-            pause_active_goal_for_rewind,
-        )
+        from app.services.chat.session_continuity_service import SessionBusyError, hold_session_for_continuity
 
         try:
-            assert_session_available_for_continuity(chat_id)
+            async with hold_session_for_continuity(chat_id):
+                return await _ChatTurnMixin._rewind_held(chat_id, message_id, revert_files)
         except SessionBusyError:
             return RewindResult(
                 success=False,
@@ -215,6 +216,11 @@ class _ChatTurnMixin(_ChatServiceBase):
                 goal_paused=False,
                 error="SESSION_BUSY",
             )
+
+    @staticmethod
+    async def _rewind_held(chat_id: str, message_id: str, revert_files: bool) -> RewindResult:
+        """The rewind itself, run while the chat's session is held."""
+        from app.services.chat.session_continuity_service import pause_active_goal_for_rewind
 
         async with UnitOfWork() as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)

@@ -2,17 +2,18 @@
 
 [INPUT]
 - app.platform_utils::get_checkpointer (POS: LangGraph checkpointer)
-- app.services.agent.gateway::get_agent_gateway (POS: active session guard)
+- app.services.agent.gateway::get_agent_gateway, AgentBusyError, AgentDrainingError (POS: Agent execution gateway; its session registry is the per-chat lock between turns)
 - app.services.agent.goals.goal_registry::GoalRegistry (POS: the chat's goal provider, for the goal pause on rewind)
 - app.services.agent.streaming_support.stream_collector::release_parked_hitl (POS: Agent API persistence helper. Converts transient SSE events into durable Message.extra_data metadata, and holds the registry of each chat's parked run)
 
 [OUTPUT]
-- SessionBusyError: raised when chat session is actively streaming
+- SessionBusyError: raised when a turn holds the chat's session or the gateway is draining
+- hold_session_for_continuity: async context manager that holds the chat's session while a history mutation runs,
+  so no turn starts in between (raises SessionBusyError)
 - invalidate_chat_checkpoint: drop the chat's checkpoint threads, and retire the card a parked run holds in them,
   so the next run rebuilds the threads from persisted history (propagates CheckpointClearError)
 - pause_active_goal_for_rewind: pause running goal after successful rewind mutation
 - CheckpointClearError: re-export harness checkpoint-clear failure
-- assert_session_available_for_continuity: guard against in-flight agent runs
 
 [POS]
 Server-layer adapter for truncate/undo/retry/rewind checkpoint consistency.
@@ -21,6 +22,8 @@ Server-layer adapter for truncate/undo/retry/rewind checkpoint consistency.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from myrm_agent_harness.agent.goals.types import GoalStatus
 from myrm_agent_harness.runtime.context.session.session_continuity import (
@@ -31,12 +34,12 @@ from myrm_agent_harness.runtime.context.session.session_continuity import (
 __all__ = [
     "CheckpointClearError",
     "SessionBusyError",
-    "assert_session_available_for_continuity",
+    "hold_session_for_continuity",
     "pause_active_goal_for_rewind",
     "invalidate_chat_checkpoint",
 ]
 
-from app.services.agent.gateway import get_agent_gateway
+from app.services.agent.gateway import AgentBusyError, AgentDrainingError, get_agent_gateway
 from app.services.agent.goals.goal_registry import GoalRegistry
 from app.services.agent.streaming_support.stream_collector import release_parked_hitl
 
@@ -44,14 +47,29 @@ logger = logging.getLogger(__name__)
 
 
 class SessionBusyError(Exception):
-    """Raised when continuity mutation is rejected because the agent is working."""
+    """Raised when a continuity mutation is rejected because a turn holds the chat's session or the gateway is draining."""
 
 
-def assert_session_available_for_continuity(chat_id: str) -> None:
-    """Fail fast when the chat session has an in-flight agent execution."""
+@asynccontextmanager
+async def hold_session_for_continuity(chat_id: str) -> AsyncIterator[None]:
+    """Hold the chat's session while its persisted history is rewritten in several steps.
+
+    Every turn entry (a message, a goal continuation, a wake turn) reserves the session first, so holding it keeps a
+    turn from starting between the steps and having the fresh messages deleted by the last one.
+
+    Raises:
+        SessionBusyError: a turn holds the session, or the gateway is draining.
+    """
     gateway = get_agent_gateway()
-    if gateway.is_session_active(chat_id):
-        raise SessionBusyError(f"Session {chat_id} is busy")
+    try:
+        gateway.reserve_session(chat_id)
+    except (AgentBusyError, AgentDrainingError) as exc:
+        raise SessionBusyError(f"Session {chat_id} is busy") from exc
+    try:
+        yield
+    finally:
+        # A stream that took the reservation over owns it from then on and releases it itself.
+        gateway.release_if_reserved_only(chat_id)
 
 
 async def invalidate_chat_checkpoint(chat_id: str) -> int:
@@ -71,8 +89,8 @@ async def invalidate_chat_checkpoint(chat_id: str) -> int:
 async def pause_active_goal_for_rewind(chat_id: str) -> bool:
     """Pause an active goal after a successful rewind mutation.
 
-    A rewind is refused while the chat runs (`assert_session_available_for_continuity`), so it always lands between
-    turns, when no provider is registered and the goal is read from storage.
+    A rewind holds the chat's session (`hold_session_for_continuity`), so it lands between turns, when no provider is
+    registered and the goal is read from storage.
     """
     provider = GoalRegistry.resolve_provider(chat_id)
 
