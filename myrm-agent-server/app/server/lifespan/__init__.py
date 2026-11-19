@@ -1,10 +1,14 @@
 """Server lifespan.
 
 [INPUT]
-- .app (POS: optimized_lifespan)
+- .app (POS: the FastAPI lifespan)
+- .shutdown (POS: graceful shutdown of the server lifespan)
+- .startup (POS: startup phases of the server lifespan)
+- .startup_tasks (POS: stand-alone boot tasks the startup phases and the background start run)
+- .state (POS: process-wide startup state shared by the lifespan phases)
 
 [OUTPUT]
-- optimized_lifespan plus the phase helpers the tests inspect.
+- optimized_lifespan plus the phases and boot tasks the tests inspect.
 
 [POS]
 Aggregate exit of the lifespan package.
@@ -14,11 +18,10 @@ from __future__ import annotations
 
 from .app import optimized_lifespan
 from .shutdown import _shutdown
-from .startup import (
+from .startup import _phase_1a_sequential, _phase_1b_parallel
+from .startup_tasks import (
     _apply_code_execution_config,
     _dispatch_startup_event,
-    _phase_1a_sequential,
-    _phase_1b_parallel,
     _preload_agent_tool_layers,
     _register_db_pool_metrics_task,
     _seed_trunk_templates,

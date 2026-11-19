@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.server.lifespan.background (POS: schedules the boot's background tasks)
+- app.server.lifespan.startup_tasks (POS: stand-alone boot tasks the startup phases and the background start run)
 
 [OUTPUT]
 - Coverage that recovery starts after the bind delay, that the warm-up waits for the first screen (readiness reporting the
@@ -22,7 +23,7 @@ from collections.abc import Awaitable, Callable, Iterator
 import pytest
 from fastapi import FastAPI
 
-from app.server.lifespan import background, startup
+from app.server.lifespan import background, startup_tasks
 from app.server.lifespan.state import logger
 
 _RECOVERY_TASKS = ("orphaned-goals",)
@@ -69,9 +70,9 @@ def _install_fakes(monkeypatch: pytest.MonkeyPatch, started: list[str], *, faili
     monkeypatch.setattr(background, "run_async_warmup", fake("warmup"))
     monkeypatch.setattr(background, "pause_orphaned_active_goals", fake("orphaned-goals"))
     monkeypatch.setattr(background, "start_kanban_dispatchers", fake("kanban-dispatchers"))
-    monkeypatch.setattr(startup, "_dispatch_startup_event", fake("startup-event"))
-    monkeypatch.setattr(startup, "_seed_trunk_templates", fake("trunk-templates"))
-    monkeypatch.setattr(startup, "_preload_agent_tool_layers", fake("tool-layers"))
+    monkeypatch.setattr(startup_tasks, "_dispatch_startup_event", fake("startup-event"))
+    monkeypatch.setattr(startup_tasks, "_seed_trunk_templates", fake("trunk-templates"))
+    monkeypatch.setattr(startup_tasks, "_preload_agent_tool_layers", fake("tool-layers"))
 
     async def fake_route_table(app: FastAPI) -> None:
         assert app is _APP

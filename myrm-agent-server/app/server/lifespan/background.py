@@ -3,7 +3,7 @@
 - app.lifecycle::pause_orphaned_active_goals (POS: goal recovery after an unclean stop)
 - app.lifecycle::start_kanban_dispatchers (POS: per-board kanban dispatchers)
 - app.startup.gc_policy::settle_collection_after (POS: ends the boot GC pause)
-- .startup (POS: boot housekeeping coroutines)
+- .startup_tasks (POS: stand-alone boot tasks the startup phases and the background start run)
 - .prebuilt_skills::verify_prebuilt_skills (POS: the reconciliation a boot that reused the last prebuilt sync skipped)
 - .route_warmup::warm_route_table (POS: builds the route state the first screen did not reach)
 
@@ -33,7 +33,7 @@ from app.lifecycle import pause_orphaned_active_goals, start_kanban_dispatchers
 from app.server.warmup import run_async_warmup
 from app.startup.gc_policy import settle_collection_after
 
-from . import startup
+from . import startup_tasks
 from .prebuilt_skills import verify_prebuilt_skills
 from .route_warmup import warm_route_table
 from .state import logger
@@ -111,11 +111,11 @@ def _start_warmup(app: FastAPI) -> None:
         _spawn(run_async_warmup()),
         _spawn(start_kanban_dispatchers()),
         # Trigger-bound cron jobs ("@startup") fire on boot.
-        _spawn(startup._dispatch_startup_event()),
-        _spawn(startup._seed_trunk_templates()),
+        _spawn(startup_tasks._dispatch_startup_event()),
+        _spawn(startup_tasks._seed_trunk_templates()),
         # Registering server-layer tools imports the full agent tool chain; the first agent turn awaits the same
         # idempotent bootstrap.
-        _spawn(startup._preload_agent_tool_layers()),
+        _spawn(startup_tasks._preload_agent_tool_layers()),
         # The routers below the first-screen block build their route state here instead of in the first request that
         # reaches them.
         _spawn(warm_route_table(app)),
