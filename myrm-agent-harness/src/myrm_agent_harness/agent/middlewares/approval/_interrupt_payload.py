@@ -20,8 +20,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from collections.abc import Mapping
-from typing import Any
+from collections.abc import Mapping, Sequence
 
 from langchain_core.messages import ToolCall
 
@@ -54,14 +53,14 @@ def _is_held_for_a_person(reason: str, extra_ctx: Mapping[str, object] | None) -
 
 
 def build_interrupt_payload(
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    pending_approval: Sequence[tuple[int, ToolCall, str, str, Mapping[str, object] | None]],
     session_key: str,
     *,
     approval_timeout_seconds: int | None = None,
     timeout_behavior: str = _DEFAULT_TIMEOUT_BEHAVIOR,
     workspace_root: str | None = None,
     path_policy: PathPolicy | None = None,
-) -> tuple[dict[str, Any], list[int]]:
+) -> tuple[dict[str, object], list[int]]:
     """Build LangChain-standard interrupt payload for batch approval.
 
     Args:
@@ -90,7 +89,7 @@ def build_interrupt_payload(
 
         action_name = tool_name
         if extra_ctx and "ptc_tool_name_full" in extra_ctx:
-            action_name = extra_ctx["ptc_tool_name_full"]
+            action_name = str(extra_ctx["ptc_tool_name_full"])
 
         redacted_args = redact_for_display(tool_input)
         action_request: dict[str, object] = {
@@ -217,24 +216,25 @@ def build_interrupt_payload(
     expires_at = time.time() + effective_timeout
     request_id = str(uuid.uuid4())
 
-    payload: dict[str, Any] = {
-        "actionRequests": action_requests,
-        "reviewConfigs": review_configs,
-        "extensions": {
-            "timeout": {
-                "seconds": effective_timeout,
-                "expiresAt": expires_at,
-                "behavior": timeout_behavior,
-            },
-            "approval": {
-                "requestId": request_id,
-                "sessionKey": session_key,
-                "batchSize": len(action_requests),
-            },
-            "displayMode": display_mode,
+    extensions: dict[str, object] = {
+        "timeout": {
+            "seconds": effective_timeout,
+            "expiresAt": expires_at,
+            "behavior": timeout_behavior,
         },
+        "approval": {
+            "requestId": request_id,
+            "sessionKey": session_key,
+            "batchSize": len(action_requests),
+        },
+        "displayMode": display_mode,
     }
     if workspace_root:
-        payload["extensions"]["workspaceRoot"] = workspace_root
+        extensions["workspaceRoot"] = workspace_root
 
+    payload: dict[str, object] = {
+        "actionRequests": action_requests,
+        "reviewConfigs": review_configs,
+        "extensions": extensions,
+    }
     return payload, interrupt_indices
