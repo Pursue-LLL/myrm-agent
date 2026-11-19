@@ -165,5 +165,9 @@ async def test_a_document_gets_its_policy_once(sites: tuple[Site, Site]) -> None
         assert await tab.evaluate(_OPEN_CHANNELS_TWICE, **_MAIN_WORLD) == 1
         popup = await _open_popup_in_reused_window(tab, inside)
         if popup is None:
-            pytest.skip(f"no popup reused the opener's window in {_REUSE_ATTEMPTS} opens")
+            # A skip would pass CI without anyone seeing that this half of the check never ran.
+            pytest.fail(
+                f"none of {_REUSE_ATTEMPTS} popups started without a policy: either Chromium stopped reusing the "
+                "opener's initial window, or a popup document now gets its policy before its page opens a channel"
+            )
         assert await popup.evaluate(_OPEN_CHANNELS_TWICE, **_MAIN_WORLD) == 1
