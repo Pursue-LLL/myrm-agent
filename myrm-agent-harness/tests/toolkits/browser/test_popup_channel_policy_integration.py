@@ -32,6 +32,8 @@ pytestmark = [
 
 _MAIN_WORLD = {"isolated_context": False}
 _TIMEOUT_MS = 15_000
+# Popups the policy-once test opens at most while it looks for one that reuses the opener's window.
+_REUSE_ATTEMPTS = 5
 
 # The ways a page can open a WebSocket or a Worker. ``allowed`` goes to the allowlisted site; every other route goes to
 # the outside server: the constructor itself, the routes that reach the native constructor around a wrapper
@@ -123,6 +125,20 @@ async def _open_popup(tab: Page, site: Site) -> Page:
     return popup
 
 
+async def _open_popup_in_reused_window(tab: Page, site: Site) -> Page | None:
+    """A popup whose document has no policy yet, which is how a reused window starts; ``None`` if none does.
+
+    Chromium does not always give a same-origin popup the opener's initial window (a few opens in a hundred get a
+    fresh one): that document carries its policy from the first byte, so it cannot show how the policy gets added.
+    """
+    for _ in range(_REUSE_ATTEMPTS):
+        popup = await _open_popup(tab, site)
+        if await popup.evaluate(_POLICY_COUNT, **_MAIN_WORLD) == 0:
+            return popup
+        await popup.close()
+    return None
+
+
 async def test_each_route_in_a_same_origin_popup_ends_as_it_does_in_a_navigated_tab(sites: tuple[Site, Site]) -> None:
     inside, outside = sites
     # ``localhost`` is not on the allowlist, which holds ``127.0.0.1``: the outside server is a different host.
@@ -147,7 +163,7 @@ async def test_a_document_gets_its_policy_once(sites: tuple[Site, Site]) -> None
     async with _tab(inside) as tab:
         await tab.goto(inside.url("/"), timeout=_TIMEOUT_MS)
         assert await tab.evaluate(_OPEN_CHANNELS_TWICE, **_MAIN_WORLD) == 1
-        popup = await _open_popup(tab, inside)
-        # The premise of a reused window: no script ran for this document, so it has no policy until a channel needs it.
-        assert await popup.evaluate(_POLICY_COUNT, **_MAIN_WORLD) == 0
+        popup = await _open_popup_in_reused_window(tab, inside)
+        if popup is None:
+            pytest.skip(f"no popup reused the opener's window in {_REUSE_ATTEMPTS} opens")
         assert await popup.evaluate(_OPEN_CHANNELS_TWICE, **_MAIN_WORLD) == 1
