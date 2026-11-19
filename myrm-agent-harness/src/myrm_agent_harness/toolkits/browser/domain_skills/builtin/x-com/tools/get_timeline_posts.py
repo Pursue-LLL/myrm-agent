@@ -1,7 +1,8 @@
 """Extract posts from X (Twitter) timeline via browser session.
 
-Designed for execution inside the browser_execute_script sandbox.
-Receives ``session`` (BrowserSession) and ``args`` dict as globals.
+Called by ``run_site_tool`` of ``browser_manage_tool`` in the host process, not inside the
+``browser_execute_script_tool`` runtime.
+Receives ``session`` (BrowserSession) and ``args`` dict as parameters.
 
 
 [POS]

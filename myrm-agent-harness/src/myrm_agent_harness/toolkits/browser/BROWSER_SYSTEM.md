@@ -621,7 +621,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 | `browser_interact_tool` | 15 种交互 + 可选 `steps[]` 批量 | click, dblclick, type, fill, fill_credential, press, hover, focus, select, scroll, scroll_to_bottom, upload_file, drag, check, uncheck；或 `steps[]` 一次调用多步 |
 | `browser_extract_tool` | 文本 + 截图 + 媒体URL + 结构化提取 + diff | text / screenshot / media / diff_fast / diff_accurate + extraction_schema |
 | `browser_manage_tool` | Tab + JS + 历史 + 对话框 + Session + Network + Web Vitals + 移动设备仿真 | 22 种 action（含 network_detail/network_replay/web_vitals/emulate + save/restore/list/delete_session；HITL 用 browser_ask_human_tool，无 wait_for_user） |
-| `browser_execute_script_tool` | **Code-as-Action 批量执行** + AST 特权API门禁 | _(执行 Python 脚本，AST 扫描 page.request/evaluate/context 等特权API → HITL 审批)_ |
+| `browser_execute_script_tool` | **Code-as-Action 批量执行**（隔离 worker） | _(脚本在 Monty worker 进程里运行，只能调用 `session.interact` 与 `session.evaluate`，两步都过语义 HITL 闸门)_ |
 | `browser_ask_human_tool` | **人类接管请求** | _(单一职责，Agent 触发 HITL interrupt + extension 横幅 / managed VNC)_ |
 
 #### browser_interact_tool — steps[] 批量模式
@@ -779,7 +779,7 @@ browser_ask_human_tool(reason=...)              → browser_human_handover → A
 
 ### 语义级 DOM 高危动作拦截 (Semantic DOM Guard)
 
-在 **BrowserSession.interact**（覆盖 `browser_interact_tool` 与 `browser_execute_script` 内 `session.interact()`）的 click/dblclick 执行前，基于目标元素的 ARIA role 和 name 进行语义风险分类。匹配五大高危类别（destructive/financial/account/admin/publish）时，通过 LangGraph `interrupt()` 强制触发 HITL 审批，无论当前权限配置如何。`browser_execute_script_tool` 执行期间通过 `BrowserSession._hitl_caller_tool` 将 HITL/audit 的 `tool_name` 归因到脚本入口（`finally` 复位）。
+在 **BrowserSession.interact**（覆盖 `browser_interact_tool` 与 `browser_execute_script` 内 `session.interact()`）的 click/dblclick 执行前，基于目标元素的 ARIA role 和 name 进行语义风险分类。匹配五大高危类别（destructive/financial/account/admin/publish）时，通过 LangGraph `interrupt()` 强制触发 HITL 审批，无论当前权限配置如何。`browser_execute_script_tool` 执行期间通过 `BrowserSession._hitl_caller_tool` 将 HITL/audit 的 `tool_name` 归因到脚本入口（`finally` 复位）。脚本无法等人审批（中断会让脚本展开，恢复后前面的步骤又会重跑），所以脚本计划内（`utils/runtime/user_control.py::in_plan`）这条通路不调用 `interrupt()`：高风险步骤记一条 DENY 审计并抛 `ScriptApprovalRequiredError`，脚本即使捕获它，后续每一步也被拒绝；输出注明此前步骤已执行，这一步须放到脚本之外由人审批（见 §14）。
 
 **browser_manage evaluate**：L1 默认 `browser_evaluate` → DENY（`core/security/types.py`）；经 YOLO/allowlist 放行后，L2 变异 JS（`.click()`、`submit()`、`innerHTML=` 等；网络写操作按 `method` 字面量判定——POST/PUT/PATCH/DELETE，不限于 `fetch(`、与选项顺序和键是否加引号无关——以及 `sendBeacon(`）经 `classify_js_eval_risk` 仍走 HITL；只读表达式（如 `document.title`）直接执行。识别只看表达式里的字面量：运行时才算出的方法名（`{method: m}`）、有副作用的 GET、WebSocket 发送都不在识别范围，该闸门减少误操作，不是对抗恶意页面的边界。WebUI `high_risk_dom_action` 审批卡展示 `tool_input.expression`（zh/en `jsExpression`）。
 
@@ -936,16 +936,18 @@ ToolError(
 **设计目标**：打破单步工具调用的性能瓶颈（网络延迟、LLM 推理延迟），允许 Agent 生成并执行包含多个动作的 Python 脚本。
 
 **架构设计**：
-- **AST 动态重写**：自动拦截 `while` 和 `for` 循环，注入 `await asyncio.sleep(0)`，彻底防止死循环阻塞主事件循环。
-- **沙箱隔离**：使用受限的 `__builtins__`（移除 `__import__`, `eval`, `exec`, `open`, `exit` 等），确保脚本无法逃逸或破坏主进程。
-- **流式输出**：重写 `print` 函数，将脚本的输出通过 `session.notify_progress` 实时推送到前端控制台。
-- **ARIA 映射**：脚本中可以直接使用 `await session.interact("click", "e1")`，底层自动解析 `e1` 对应的 Playwright Locator。
+- **隔离的 worker 进程**：脚本由 `tools/script_runtime.py` 交给 Pydantic Monty 的 worker 子进程执行，从不在宿主解释器里运行（不使用 `exec`）。worker 有自己的堆，没有文件系统、网络与宿主对象；`import` 在运行前由 `wrap_script` 拒绝。这是解释器级（语言层）的隔离，不是操作系统级的：worker 与宿主以同一用户运行。
+- **只有两步**：脚本里的 `session` 是 `ScriptSession`，只暴露 `interact(action, ref, text)` 与 `evaluate(expression)`，宿主侧的 `BrowserSession`、Playwright 页面与上下文都够不着，所以没有需要扫描的「特权 API」。`interact` 与 `browser_interact_tool` 同一动作集，`evaluate` 回到 `BrowserSession.evaluate`，同样先过 JS 评估闸门。
+- **有界**：墙钟 60 s（`asyncio.wait_for`）、worker CPU 时间 5 s（Monty 的 CPU 时钟在等浏览器步骤时暂停，慢页面不占额度）、worker 内存 64 MB、输出 20000 字符（超出截断并注明）。脚本因超时、出错或被止步而结束时，仍在进行的步骤被取消，不会在脚本结束后继续操作页面。
+- **流式输出**：`print` 的输出在脚本的下一步之前经 `session.notify_progress` 推送到前端控制台，最终输出也作为工具结果返回。
+- **ARIA 映射**：脚本中直接使用 `await session.interact("click", "e1")`，底层自动解析 `e1` 对应的 Playwright Locator；`refs` 是 ref ID 到 `{role, name, nth}` 的映射。
 - **模型可见契约**：工具描述 `_TOOL_DESCRIPTION` 写明脚本是 `async def (session, refs)` 的函数体、`session.interact` 与 `browser_interact_tool` 同一动作集、`refs` 是 ref ID 到 `{role, name}` 的映射、`print()` 输出即返回值、不可 import 也没有 `open`，以及超时秒数；超时秒数取自常量 `_SCRIPT_TIMEOUT_S`，描述与 `asyncio.wait_for` 共用同一个值。模型只看得到这段描述，`args_schema` 的类文档不会发送，因此不写；`tests/toolkits/browser/tools/test_execute_script_description.py` 同时守住这条描述与「浏览器工具的 `args_schema` 类不带文档」。
+- **运行时缺失**：`browser` extra 里的 `pydantic-monty` 没装，或平台没有它的 worker（Windows ARM64），或 worker 起不来时，工具照常注册，每次调用返回「运行时不可用」并建议改用 `browser_interact_tool` 的 `steps[]`，绝不退回进程内执行；其余浏览器工具不受影响。桌面安装包随带 worker（见桌面端 `DESKTOP_RELEASE_SYSTEM.md`）。
 
 **核心优势**：
-- **零延迟**：脚本在主进程的协程中运行，直接访问内存中的 `session` 对象，无需 CDP 连接或子进程通信。
-- **双重防护**：AST 注入和全局变量限制提供两层保障，开销很小。
-- **全栈兼容**：完美兼容 `LAUNCH`, `CONNECT`, `AUTO` 等所有浏览器启动模式（因为不依赖外部 CDP 端口）。
+- **隔离**：模型写的代码在独立进程的解释器里运行，碰不到宿主的内存、环境变量与文件；它在浏览器侧的全部能力是两个由闸门把守的步骤。
+- **批量**：一次调用跑完多步，省掉每步一次的 LLM 往返。
+- **与启动模式无关**：`LAUNCH`、`CONNECT`、`AUTO` 下都一样，步骤经 `BrowserSession` 执行，不依赖额外的 CDP 端口。
 
 ---
 
@@ -1021,7 +1023,7 @@ Frontend → POST /agents/agent-stream { resume_value: { action: "completed" } }
 
 - **围栏在工具层**（`tools/user_control_gate.py`，位于取消边界之内）：人占用期间，除 `browser_ask_human_tool` 外所有浏览器工具等待（含只读工具——此时截图会带出用户正在输入的内容）；等待超过 600s 抛 `UserTakeoverTimeoutError`，宁可锁住也不在人背后动手。Stop 结束一切对人的等待：等待原语 `UserControl.wait_released` 自身与运行的取消令牌赛跑（浏览器工具另有取消边界，桌面工具由围栏的 `cancelled_result` 返回「未执行」提示，见 `computer_use/_ARCH.md` §14）。
 - **交还后先看再动**：`browser_interact_tool` / `browser_execute_script_tool` 在模型成功执行 `browser_snapshot_tool` 之前返回固定提示（请重新 snapshot，并按页面现状决定，对方可能已完成其中一部分），不执行；在接管期间就已排队的动作一律不执行（模型没看到过新页面）。只有 snapshot 算「重新看过」：它是唯一会交回新 ref 的调用，`browser_inspect_tool` / `browser_extract_tool` / `browser_navigate_tool` / `browser_manage_tool` 只等待——读完文本后用旧 ref 点击，ref 仍会按角色加名称命中人换过的页面（实测：购物车页取 ref，人跳到支付页，extract 后旧 ref 点中了支付页的同名按钮）。`snapshot()` 在观察过期期间强制整树（`diff=False`），diff 会掩盖用户的改动。
-- **脚本跨越接管**：`browser_execute_script_tool` 一次调用内含多步 `session.interact`，工具围栏只在启动前把关一次。脚本以启动时模型已观察的交还代数为基准运行（`planned_against`），之后任一会话级步骤在等待结束后发现代数已变（人用过页面），即抛 `UserTakeoverDuringScriptError` 停止脚本，输出注明此前步骤已执行；脚本内自行 `session.snapshot()` 不会续期，需模型重新观察后重跑。脚本总预算 60s，更长的接管会因超时终止而不是续跑。
+- **脚本跨越接管**：`browser_execute_script_tool` 一次调用内含多步 `session.interact`，工具围栏只在启动前把关一次。脚本以启动时模型已观察的交还代数为基准运行（`planned_against`），之后任一会话级步骤在等待结束后发现代数已变（人用过页面），即抛 `UserTakeoverDuringScriptError` 停止脚本，输出注明此前步骤已执行；脚本里只有 `interact` 与 `evaluate` 两步、没有 `snapshot`，不存在脚本内自行续期，需模型重新观察后重跑。脚本总预算 60s，更长的接管会因超时终止而不是续跑。
 - **`browser_ask_human_tool` 豁免**：它是模型把浏览器交给人的入口，且 LangGraph `interrupt()` 恢复时会重跑该工具。
 - **围栏边界**：只拦模型能调用的工具，不拦 Agent 自己用 bash 起的进程；`UserControl` 是进程内状态，不支持多进程部署。
 - **谁置位**：由宿主调用 `get_user_control().acquire()/release()`（Server 的 `/webui/vnc/takeover`、`/resume` 经 `TakeoverCoordinator`，用户端 30s 心跳续租，300s 无心跳自动交还）。Harness 不含任何路由。
@@ -1130,7 +1132,8 @@ browser/
 │   ├── extract.py — browser_extract_tool
 │   ├── manage.py — browser_manage_tool
 │   ├── download_actions.py — download_url / list_downloads 的结果、点击（元素或坐标）与导航到文件之后的下载汇总、动作应答之后才落定的下载提示（文件名与原因按不可信内容包装）
-│   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
+│   ├── execute_script.py — browser_execute_script_tool（模型可见的脚本契约、`planned_against` 基准、`verify_goal`；脚本交给 script_runtime）
+│   ├── script_runtime.py — 脚本运行时（Monty worker 桥：只暴露 interact / evaluate 两步，墙钟 / CPU / 内存 / 输出上限，取消在途步骤，接管与审批止步）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
 │   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
 │   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消与 Playwright driver 退出同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）

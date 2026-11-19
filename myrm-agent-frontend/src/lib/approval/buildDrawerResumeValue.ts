@@ -8,7 +8,7 @@
  *
  * [POS]
  * Resume payload builder for ApprovalDrawer HITL (subagent batch, high-risk action,
- * privileged script, batch cost — incl. shell edit).
+ * batch cost — incl. shell edit).
  */
 
 import type { ApprovalPayload } from '@/store/useApprovalStore';
@@ -18,15 +18,10 @@ import {
   type ToolApprovalResolveExtra,
 } from '@/lib/approval/approvalDecision';
 
-const DRAWER_RESUME_ACTION_TYPES = new Set([
-  'subagent_approval',
-  'high_risk_dom_action',
-  'script_privileged_api',
-  'batch_cost_approval',
-]);
+const DRAWER_RESUME_ACTION_TYPES = new Set(['subagent_approval', 'high_risk_dom_action', 'batch_cost_approval']);
 
 /** Gates that answer a pause with one decision for the whole request (not one per item). */
-const SINGLE_DECISION_ACTION_TYPES = new Set(['high_risk_dom_action', 'script_privileged_api', 'batch_cost_approval']);
+const SINGLE_DECISION_ACTION_TYPES = new Set(['high_risk_dom_action', 'batch_cost_approval']);
 
 /**
  * [INPUT] Drawer approval record + user decision

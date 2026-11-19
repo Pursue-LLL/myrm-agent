@@ -17,6 +17,12 @@ importable name.
 The data files the harness reads by `__file__` are shipped by `--collect-data`; the build does not take that on trust
 either, and bundle_verify.py looks for the files this module lists.
 
+The scripts of `browser_execute_script_tool` run in a worker executable of the Monty interpreter. The
+`pydantic-monty-runtime` wheel installs it into the environment's scripts directory, where no import scan looks, and the
+compiled client imports one of its own modules by name from start-up code that the scan cannot read. The bundle takes
+both explicitly, because one that lacks either builds and starts and then answers every script that the runtime is
+unavailable.
+
 [INPUT]
 - The server's `app/` and the harness package source trees (POS: the first-party code the bundle must contain)
 - The build's Python interpreter (POS: asked where an installed package lives, without importing it)
@@ -27,6 +33,8 @@ either, and bundle_verify.py looks for the files this module lists.
 - domain_tool_scripts, script_data_options: the domain skills' tool scripts, shipped as data at their own relative path
 - harness_data_files, HARNESS_DATA_DIRS: the data files the harness reads by `__file__`
 - CHANNEL_SDKS_NOT_SHIPPED, exclude_options: the channel SDKs the bundle leaves out
+- installed_monty_worker, monty_options, monty_worker_name, MONTY_WORKER_DIR, MONTY_REQUIRED_MODULES: the Monty worker
+  and client the bundle must carry
 - installed_package_dir: the directory the build's Python imports a package from
 - HARNESS_PACKAGE, HOOKS_DIR: the harness package's import name and the directory name of the generated hooks
 
@@ -57,6 +65,14 @@ DOMAIN_SKILLS_DIR = PurePosixPath("toolkits/browser/domain_skills/builtin")
 # model catalog (context windows, prices and capabilities) and the token-count tables. A bundle that lacks one still
 # builds and starts, and the catalog then answers with nothing and token counts reach for the network.
 HARNESS_DATA_DIRS = (PurePosixPath("toolkits/llms/catalog/data"), PurePosixPath("utils/_tiktoken_tables"))
+
+# The Monty client package and the module of it that the compiled core imports by name while it starts, which
+# PyInstaller's scan of `import` statements cannot reach; bundle_verify.py requires both in the bundle.
+MONTY_PACKAGE = "pydantic_monty"
+MONTY_REQUIRED_MODULES = (MONTY_PACKAGE, f"{MONTY_PACKAGE}._binary")
+
+# Folder of the bundle's data directory that holds the worker; monty_runtime_hook.py names the same folder at run time.
+MONTY_WORKER_DIR = "monty_runtime"
 
 # Directories that hold no first-party code: caches, and what a developer's `npm install` leaves in the WhatsApp bridge.
 _PRUNED_DIRS = frozenset({"__pycache__", "node_modules"})
@@ -97,6 +113,33 @@ def installed_package_dir(python: Path, package: str) -> Path:
     if not found:
         raise FileNotFoundError(f"{package} is not installed for {python}")
     return Path(found)
+
+
+def monty_worker_name() -> str:
+    return "monty.exe" if os.name == "nt" else "monty"
+
+
+def installed_monty_worker(python: Path) -> Path:
+    """The worker `python` has installed, found where the `pydantic-monty-runtime` wheel puts it: its scripts directory.
+
+    A worker found on PATH or named by MONTY_BIN would make the bundle depend on the machine that built it.
+    """
+    probe = "import sysconfig; print(sysconfig.get_path('scripts'))"
+    scripts = subprocess.run(
+        [str(python), "-X", "utf8", "-c", probe], check=True, capture_output=True, encoding="utf-8"
+    ).stdout.strip()
+    worker = Path(scripts) / monty_worker_name()
+    if not worker.is_file():
+        raise FileNotFoundError(
+            f"The Monty worker is not installed for {python} ({worker} is missing): the harness `browser` extra "
+            "installs it with pydantic-monty-runtime, so sync the environment from uv.lock with all extras"
+        )
+    return worker
+
+
+def monty_options(worker: Path, data_sep: str) -> list[str]:
+    """`--add-binary` for the worker, into MONTY_WORKER_DIR, and every submodule of the client."""
+    return ["--add-binary", f"{worker}{data_sep}{MONTY_WORKER_DIR}", "--collect-submodules", MONTY_PACKAGE]
 
 
 def domain_tool_scripts(harness_dir: Path) -> list[Path]:

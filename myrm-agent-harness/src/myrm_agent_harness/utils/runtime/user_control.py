@@ -12,8 +12,9 @@
 - get_user_control: the process-wide instance every session defaults to
 - UserControlSurface: what the gate needs from a session (the control it consults + the generation the model last observed)
 - ToolRole: whether a tool call looks at the surface or changes it
-- planned_against / plan_is_stale: pin the steps of one multi-step plan (a script) to the hand-over they were planned
-  against, so a step that comes after a later hand-over can tell
+- planned_against / plan_is_stale / in_plan: pin the steps of one multi-step plan (a script) to the hand-over they were
+  planned against, so a step that comes after a later hand-over can tell; `in_plan` tells a shared gate that it runs
+  inside such a plan, where it cannot ask anyone
 - apply_user_control_gate: wrap tool coroutines so a held control stops every tool, and no action runs on a
   surface the person may have changed since the model last looked at it
 
@@ -173,6 +174,11 @@ def plan_is_stale(control: UserControl) -> bool:
     """Whether control changed hands since the plan this call belongs to was made; False outside a plan."""
     planned = _planned_against.get()
     return planned is not None and control.generation != planned
+
+
+def in_plan() -> bool:
+    """Whether this call is a step of a plan made in advance; nobody can be asked in the middle of one."""
+    return _planned_against.get() is not None
 
 
 class UserControlSurface(Protocol):

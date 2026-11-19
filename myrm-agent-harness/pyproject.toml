@@ -76,6 +76,10 @@ browser = [
   "patchright>=1.64.4",   # CDP 泄露修补浏览器引擎
   "camoufox>=0.5.9", # Firefox stealth fallback (auto-upgrade ladder)
   "orjson>=3.13.0",       # session vault / persistence JSON (browser toolkit only)
+  # Runs the scripts of browser_execute_script_tool in a worker process of its own. Pinned exactly: the isolation the
+  # tool promises is this interpreter's, so a new release is reviewed before it is taken. Its runtime ships no
+  # Windows ARM64 wheel; there the tool reports itself unavailable and every other browser tool still works.
+  "pydantic-monty==1.6.0; platform_system != 'Windows' or platform_machine != 'ARM64'",
 ]
 # toolkits/vector/ - 向量存储（Qdrant 嵌入式/远程）
 qdrant = [
