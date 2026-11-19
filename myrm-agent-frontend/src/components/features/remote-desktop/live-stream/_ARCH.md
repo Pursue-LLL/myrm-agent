@@ -6,10 +6,12 @@
 ## 2. 模块拓扑与职责划分
 - **`remoteDesktopTypes.ts`**：强类型契约定义连接状态 `StreamConnectionState`、控制模式 `ControlMode`、流媒体质量遥测指标 `StreamQualityMetrics`（FPS、延迟 RTT、码率、分辨率）、桌面动作日志 `DesktopActionTelemetry` 与时效凭据 `EphemeralShareTicket`；
 - **`ephemeralTokenSecurity.ts`**：时效安全签名纯函数引擎，处理凭证生成 `generateEphemeralShareTicket`、确定性签名校验 `verifyEphemeralShareTicket` 与剩余时间格式化 `formatTimeRemaining`；分享链接的默认基地址是保留域名 `share.example`（尚无对应的分享页，不指向任何真实站点），调用方传入真实基地址才会拼出可打开的链接；
-- **`useRemoteDesktopStore.ts`**：Zustand 集中式状态总线，管理 WebRTC 流推拉状态、双向控制权接管状态机、时效签名生成与事件派发，支持 `myrm:remote-desktop-takeover-changed` 与 `myrm:ephemeral-share-created` 全局事件；
-- **`LiveDesktopCanvasViewport.tsx`**：内嵌沙箱远程桌面实时视窗组件，自适应推流帧率（静止 1fps，操作 30fps）、呈现 Agent 虚拟鼠标坐标与近期动作滚动条；
+- **`useRemoteDesktopStore.ts`**：Zustand 集中式状态总线，持有连接状态与流质量指标、双向控制权接管状态机、时效分享凭据，并派发 `myrm:remote-desktop-takeover-changed` 与 `myrm:ephemeral-share-created` 全局事件；`connectStream` 只模拟状态迁移（等待 60 ms 后置为 `streaming`，延迟固定 22 ms），没有网络传输通道；
+- **`LiveDesktopCanvasViewport.tsx`**：远程桌面视窗组件，画面区是模拟的浏览器骨架（固定地址栏，不接收真实视频帧）；顶栏显示沙箱 ID、连接状态与延迟 / FPS / 分辨率读数，提供暂停 / 继续、时效分享、人工接管 / 交还与放大缩小；按最近一次动作的坐标（固定按 1920×1080 换算）画出 Agent 虚拟鼠标，底栏显示当前执行的动作描述；
 - **`HumanTakeoverControlOverlay.tsx`**：双向人工接管浮动控制条，在需要人工输入验证码或高危操作时发出警报，支持一键锁定控制权与无损交还 Agent；
-- **`EphemeralShareModal.tsx`**：采用 HTML5 原生 `<dialog open>`，提供 TTL 时长选择（1h/2h/24h）、双向接管授权与一次性销毁凭据配置，一键复制免登录专属分享链接。
+- **`EphemeralShareModal.tsx`**：采用 HTML5 原生 `<dialog open>`，提供 TTL 时长选择（1h/2h/24h）、双向接管授权与一次性销毁凭据配置，一键复制免登录专属分享链接；
+- **`index.ts`**：桶文件，`export *` 重导出上述六个模块（没有导入方，测试直接引用各文件）；
+- **接线状态**：整个目录除本目录测试外没有调用方，尚未挂入任何页面。
 
 ## 3. 极不友好 Code Review 12 项清单遵循度
 1. **零 Any**：全强类型 TypeScript 标注；

@@ -1,5 +1,26 @@
 'use client';
 
+/**
+ * [INPUT]
+ * - @/store/useConfigStore (POS: Client config store holding the public ingress base URL)
+ * - @/services/remoteAccess::remoteAccessService (POS: Tunnel status and start/stop, pairing token, E2EE public key)
+ * - @/services/system::systemService (POS: Ingress URL lookup and ingress health probe)
+ * - @/services/webui-auth::fetchWebuiProtection (POS: Live WebUI password-protection state from the server)
+ * - @/lib/deploy-mode::getDocsUrl, isTauriRuntime (POS: Runtime detection and docs URL helper)
+ * - @/lib/mobileRemote::buildMobileHubUrl (POS: Mobile Hub link carrying the pair path, tunnel origin and E2EE key)
+ * - @/lib/e2ee/client::E2EE_ALGORITHM, @/lib/e2ee/fingerprint::computeE2EEFingerprintFromB64 (POS: E2EE details)
+ * - @/lib/utils/urlUtils::isValidPublicIngressBaseUrl (POS: HTTPS-only check for the ingress address)
+ * - @/hooks/pwa/usePWAInstall (POS: PWA install prompt state)
+ *
+ * [OUTPUT]
+ * - PublicIngressCard: Public ingress card of the Access settings page (local mode only)
+ *
+ * [POS]
+ * Address input with connectivity test, tunnel start/stop, Mobile Hub link with QR code, PWA install hint and E2EE
+ * algorithm/fingerprint details. The tunnel and the mobile link stay disabled until password protection is on: a
+ * browser trusts the server's live answer, the desktop shell the stored setting.
+ */
+
 import { memo, useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { IconGlobe } from '@/components/features/icons/PremiumIcons';

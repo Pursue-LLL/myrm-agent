@@ -2,7 +2,9 @@
 
 /**
  * [INPUT]
- * fetch POST {audio file, chunk_seconds, max_parallel, auto_compile} -> /api/v1/wiki/meeting-notes/transcribe
+ * - @/services/wikiService::buildWikiApiPath (POS: Wiki endpoint path builder with optional agent_id query)
+ * - POST /wiki/meeting-notes/transcribe with the audio file as multipart form data (chunk size, parallelism and
+ *   auto-compile keep the server defaults)
  *
  * [OUTPUT]
  * MeetingNotesImportCard: meeting audio import card in knowledge settings.

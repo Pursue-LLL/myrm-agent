@@ -26,7 +26,7 @@ Next.js App Router 国际化：`next-intl` 路由与 cookie locale 读写。翻�
 ## 依赖
 
 - `locales/namespaces/` — 运行时按需读取（由 `split-locale-namespaces.mjs` 生成，gitignore）
-- `@/lib/utils/localeUtils` — `NEXT_LOCALE_COOKIE_NAME`、`negotiateLocale`
+- `@/lib/utils/locale` — `NEXT_LOCALE_COOKIE_NAME`、`parseLocaleQueryParam`
 - 根 `middleware.ts` — 营销站 `?locale=` 写 cookie + 首次 Accept-Language 自动检测写 cookie
 - `@/components/layout/PageLayout` — shell-first 页面壳
 
