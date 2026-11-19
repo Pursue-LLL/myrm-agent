@@ -7,17 +7,19 @@
 - ApprovalReasonCode: the stable code of each engine decision that waits for a human answer
 - CodedReason: the English reason text (for the model and the audit trail) that remembers its code and subject
 - HUMAN_ONLY_CODES / is_human_only: the asks no automatic approver may settle
+- is_protected_instruction_write: whether an ask is the one for a write to a protected instruction file
 
 [POS]
 The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the
 same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The
 same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist
-which asks are not theirs to answer.
+which asks are not theirs to answer, and the approval stages which ask is a write to an instruction file.
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import TypeGuard
 
 
 class ApprovalReasonCode(StrEnum):
@@ -69,3 +71,12 @@ def is_human_only(reason: str) -> bool:
     A reworded reason is a plain ``str`` with no code, so it is never human-only: the code is the engine's alone.
     """
     return isinstance(reason, CodedReason) and reason.code in HUMAN_ONLY_CODES
+
+
+def is_protected_instruction_write(reason: str) -> TypeGuard[CodedReason]:
+    """Whether the engine asked ``reason`` as it stands for a write to a protected instruction file.
+
+    The same contract as ``is_human_only``: the code is read, the English text never is. A true answer also gives the
+    ask's subject, the file name.
+    """
+    return isinstance(reason, CodedReason) and reason.code is ApprovalReasonCode.PROTECTED_INSTRUCTION_WRITE

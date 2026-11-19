@@ -6,7 +6,7 @@
 import type { ToolApprovalRequest } from '@/store/chat/types';
 import type { StreamCtx, StreamTurn } from '../streamContext';
 import { done } from '../streamContext';
-import { buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
+import { type ApprovalReviewConfig, buildToolApprovalRequest } from '@/lib/approval/buildToolApprovalRequest';
 import { notifyIdleApproval } from '@/lib/approval/approvalAlertService';
 import { getClarificationNotificationTitle, resolveClarificationFormFromEventData } from '../streamHelpers';
 import * as H from './handlerDeps';
@@ -311,8 +311,7 @@ export async function toolsProgressEvents(ctx: StreamCtx): Promise<StreamTurn | 
         execution_intent?: unknown;
         reviewerReason?: string;
       };
-      const reviewConfig = reviewConfigs?.[i] as
-        { domainApproval?: boolean; smartDenied?: boolean; hideAllowAlways?: boolean } | undefined;
+      const reviewConfig = reviewConfigs?.[i] as ApprovalReviewConfig | undefined;
       const requestId = isBatch ? `${batchId}_${i}` : requestIdFallback;
 
       const approvalRequest = buildToolApprovalRequest({

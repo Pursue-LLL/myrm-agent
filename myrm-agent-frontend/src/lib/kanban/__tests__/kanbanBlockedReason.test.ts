@@ -26,6 +26,12 @@ describe('blockedReasonText', () => {
     expect(blockedReasonText(blockedReasons.approvalNeeded, translate)).toBe('translated:blockedReason.approvalNeeded');
   });
 
+  it('shows the interface-language text for a task held because a step only the user may approve came up while no one is watching', () => {
+    expect(blockedReasonText(blockedReasons.personApprovalNeeded, translate)).toBe(
+      'translated:blockedReason.personApprovalNeeded',
+    );
+  });
+
   it('shows the interface-language text for a task held because the browser needs a person while no one is watching', () => {
     expect(blockedReasonText(blockedReasons.takeoverNeeded, translate)).toBe('translated:blockedReason.takeoverNeeded');
   });

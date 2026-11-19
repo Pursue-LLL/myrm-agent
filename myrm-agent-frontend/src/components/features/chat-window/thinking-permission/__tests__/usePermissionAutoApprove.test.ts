@@ -73,4 +73,46 @@ describe('usePermissionAutoApprove', () => {
     vi.advanceTimersByTime(500);
     expect(onApprove).not.toHaveBeenCalled();
   });
+
+  it('approves any call after the delay in full-auto mode', () => {
+    usePermissionTierStore.setState({ tier: 'full-auto' });
+    const onApprove = vi.fn();
+
+    const { result } = renderHook(() =>
+      usePermissionAutoApprove({
+        toolName: 'run_command',
+        toolInput: { command: 'rm -rf /workspace' },
+        onApprove,
+        autoApproveDelayMs: 200,
+      }),
+    );
+
+    expect(result.current.isAutoApproved).toBe(true);
+
+    vi.advanceTimersByTime(250);
+    expect(onApprove).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['semi-auto', 'full-auto'] as const)(
+    'leaves a call held for the user to the user in %s mode',
+    (tier) => {
+      usePermissionTierStore.setState({ tier });
+      const onApprove = vi.fn();
+
+      const { result } = renderHook(() =>
+        usePermissionAutoApprove({
+          toolName: 'write_to_file',
+          toolInput: { TargetFile: '/repo/AGENTS.md' },
+          onApprove,
+          held: true,
+          autoApproveDelayMs: 200,
+        }),
+      );
+
+      expect(result.current.isAutoApproved).toBe(false);
+
+      vi.advanceTimersByTime(500);
+      expect(onApprove).not.toHaveBeenCalled();
+    },
+  );
 });

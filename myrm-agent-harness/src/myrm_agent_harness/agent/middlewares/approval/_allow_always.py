@@ -3,18 +3,20 @@
 [INPUT]
 - agent.security.command_rules::command_text, launch_command (POS: the text a command-bearing tool runs, and the command a call starts)
 - agent.security.path_security::is_protected_instruction_file (POS: persona instruction files are never allow-always)
-- agent.security.tool_registry::resolve_permission_type (POS: the permission type a tool call asks for)
+- core.security.tool_registry::host_file_paths, resolve_permission_type, resolve_safety_metadata (POS: the files a call names under any argument spelling, the permission type it asks for, and whether its tool only reads)
 - toolkits.code_execution.security.protected_instruction_command::protected_instruction_mutation_target (POS: whether a command writes a protected instruction file)
 - toolkits.code_execution.security.shell_command_analyzer::is_integration_mutation_command (POS: whether a command mutates an integration)
 - .helpers::add_to_allowlist_if_needed (POS: the allowlist write)
 
 [OUTPUT]
+- protected_instruction_file_target: the protected instruction file a tool that is not read-only names in a file argument
 - should_block_allow_always: True when a call must never be remembered as always-allowed.
 - try_add_to_allowlist: Remember an approved call as always-allowed unless a guard blocks it.
 
 [POS]
 The allow-always half of applying an approval decision, kept apart from the decision branches so the guard
-list that decides what may be remembered reads in one place.
+list that decides what may be remembered reads in one place. The pending-approval annotation reads the same
+``protected_instruction_file_target``, so a card hides "Allow Always" exactly when this guard would refuse it.
 """
 
 from __future__ import annotations
@@ -28,11 +30,27 @@ from myrm_agent_harness.agent.security.command_rules import command_text, launch
 from myrm_agent_harness.agent.security.path_security import (
     is_protected_instruction_file,
 )
-from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
+from myrm_agent_harness.core.security.tool_registry import (
+    host_file_paths,
+    resolve_permission_type,
+    resolve_safety_metadata,
+)
 
 from .helpers import add_to_allowlist_if_needed
 
 logger = logging.getLogger(__name__)
+
+
+def protected_instruction_file_target(tool_name: str, tool_input: dict[str, object]) -> str | None:
+    """The protected instruction file a tool that is not read-only names in a file argument; None when it names none.
+
+    The engine asks for the writes it classifies (the file tools, shell commands) under a coded reason, and the
+    approval stages read that code. A tool it cannot classify, such as an MCP file server's write tool, is read by its
+    file arguments instead. A read-only tool names a file to open it, never to change it.
+    """
+    if resolve_safety_metadata(tool_name).is_read_only:
+        return None
+    return next((path for path in host_file_paths(tool_input) if is_protected_instruction_file(path)), None)
 
 
 def _command_of(tool_call: ToolCall | dict[str, object]) -> str:
@@ -71,10 +89,8 @@ def should_block_allow_always(
         return True
 
     raw_args = tool_call.get("args") or tool_call.get("arguments") or {}
-    if isinstance(raw_args, dict):
-        p = str(raw_args.get("path", "") or raw_args.get("file_path", "") or raw_args.get("filepath", "")).strip()
-        if p and is_protected_instruction_file(p):
-            return True
+    if isinstance(raw_args, dict) and protected_instruction_file_target(str(tool_call.get("name", "")), raw_args):
+        return True
 
     command = _command_of(tool_call)
     if not command:

@@ -289,3 +289,38 @@ class TestBatchProcessorAllowlistAndExemptionGuards:
             )
             is False
         )
+
+    @pytest.mark.asyncio
+    async def test_reading_a_protected_file_outside_the_zones_is_not_a_mutation(self, tmp_path: Path) -> None:
+        """A read names the file only to open it: its card is an ordinary outside-the-zones ask, not a write attempt."""
+        reset_audit_log()
+        workspace, outside = tmp_path / "ws", tmp_path / "outside"
+        workspace.mkdir()
+        outside.mkdir()
+        config = SecurityConfig(path_policy=PathPolicy(access_roots=(AccessRoot(path=str(workspace), writable=True),)))
+        read = {"id": "call_read_agents", "name": "file_read_tool", "args": {"path": str(outside / "AGENTS.md")}}
+
+        _approved, _denied, pending = await evaluate_tool_batch(
+            tool_calls=[read],
+            config=config,
+            is_cron=False,
+            workspace_root=str(workspace),
+            session_key="read_session",
+            args_hashes={},
+        )
+
+        assert len(pending) == 1
+        _idx, call, _perm_type, _reason, extra_ctx = pending[0]
+        flags = extra_ctx or {}
+        assert not (flags.get("protected_instruction") or flags.get("hide_allow_always") or flags.get("high_risk"))
+        assert "PROTECTED_INSTRUCTION_ATTEMPT" not in [entry.decision for entry in get_audit_entries()]
+        assert should_block_allow_always(tool_call=call, extra_ctx=extra_ctx) is False
+
+    def test_allow_always_is_not_refused_for_a_tool_that_only_reads(self) -> None:
+        for read_tool in ("file_read_tool", "grep_tool", "glob_tool"):
+            assert should_block_allow_always({"name": read_tool, "args": {"path": "AGENTS.md"}}, None) is False
+
+    def test_a_file_argument_under_any_spelling_names_the_file(self) -> None:
+        for key in ("path", "file_path", "filepath", "target_file", "paths"):
+            value: object = ["docs/SOUL.md"] if key == "paths" else "docs/SOUL.md"
+            assert should_block_allow_always({"name": "write_file", "args": {key: value}}, None) is True

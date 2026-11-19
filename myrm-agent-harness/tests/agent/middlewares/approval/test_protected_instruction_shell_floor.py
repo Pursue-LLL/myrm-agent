@@ -1,7 +1,7 @@
 """A shell command that rewrites a protected instruction file stays with a person, whatever approved it.
 
-The file tools report such a write as an ask under a fixed reason. The gates that "always allow" must never lift
-recognise it by that reason (the allowlist stage and the pending-approval annotation), and a scheduled run refuses any
+The file tools report such a write as an ask under a fixed code. The gates that "always allow" must never lift
+recognise it by that code (the allowlist stage and the pending-approval annotation), and a scheduled run refuses any
 path verdict that is not an allow. The shell tools carry the same verdict for a command line that rewrites one of the
 files, so a standing approval of the user cannot carry the rewrite past a person. Verifies, with the real engine and
 the real decision stages:

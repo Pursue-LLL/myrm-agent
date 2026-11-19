@@ -160,6 +160,7 @@ export default function SingleApprovalCard({
     toolInput: request.toolInput,
     onApprove: handleApprove,
     enabled: mode === 'default' && !isLoading && !isExpired,
+    held: request.heldForPerson === true,
   });
 
   const handleAlwaysAllow = useCallback(() => {

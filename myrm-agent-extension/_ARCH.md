@@ -89,7 +89,7 @@ Side Panel 通过 HTTP+SSE 直接与 server 通信（复用现有 chat API），
 | `tool_approval_request`（普通） | 弹窗逐项展示：shell 命令为白话说明（harness 的 `plain_explanation`，按界面语言取 zh/en）+ 完整命令 + 策略原因；其他工具列出参数 + 原因；一律不显示内部工具名。底部一行「HH:MM:SS 前未处理将自动拒绝/允许」，按事件到达时刻加 `extensions.timeout.seconds` 在面板自己的时钟上算（服务端 `expiresAt` 的时钟浏览器不一定共用），`behavior` 决定措辞。一次批准/拒绝应用于该中断的全部动作；答复回传事件的 `interruptId`；弹窗一次只显示最后到达的一张 |
 | shell 命令超过 2000 字符，或任一参数值超过 300 字符 | 展示被截断的内容并以 `…` 标明，只能拒绝：看不全的内容不批准，危险片段可能藏在被截去的部分 |
 | 某个动作没有任何可展示内容（无说明、无参数、无原因） | 只能拒绝：不盲批 |
-| `tool_approval_request` 且任一动作的 `reviewConfigs` 项带有 `allowedDecisions` / `hideAllowAlways` / `domainApproval` 之外的开启字段（如 `isSpend`、`requiresDualInsurance`、`irreversibleDestructive`、`smartDenied`、`batchImpactSummary`），或 `allowedDecisions` 不含 `approve`，或 `displayMode` 为 `handover` | 只能拒绝；批准须回 Web 端（Web 端有额外确认与信息展示，Side Panel 不绕过；未知新字段同样视为需要 Web 端，默认拒绝批准） |
+| `tool_approval_request` 且任一动作的 `reviewConfigs` 项带有 `allowedDecisions` / `hideAllowAlways` / `domainApproval` / `heldForPerson`（只能由用户答复的调用，面板从不替人答复，用户的点击就是那个答复）之外的开启字段（如 `isSpend`、`requiresDualInsurance`、`irreversibleDestructive`、`smartDenied`、`batchImpactSummary`），或 `allowedDecisions` 不含 `approve`，或 `displayMode` 为 `handover` | 只能拒绝；批准须回 Web 端（Web 端有额外确认与信息展示，Side Panel 不绕过；未知新字段同样视为需要 Web 端，默认拒绝批准） |
 | `approval_required` 等其他审批 | 仅提示去 Web 端处理，弹窗可忽略 |
 | 答复请求未送达（网络失败、服务端错误） | 提示「答复没有送达」并让弹窗重新出现，可再次答复；用户取消或开新会话时不重现 |
 | 答复请求返回 409（超时或已在别处处理） | 提示该审批已被处理，不再重试 |

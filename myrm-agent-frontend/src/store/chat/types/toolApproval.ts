@@ -72,6 +72,8 @@ export interface ToolApprovalRequest {
   smartDenied?: boolean;
   /** True when the approval involves high-risk operations — Always Allow is hidden */
   hideAllowAlways?: boolean;
+  /** True when the call is the user's alone to answer: no timer and no auto-approval, whatever the permission tier */
+  heldForPerson?: boolean;
   /** LLM reviewer's reason for denial */
   reviewerReason?: string;
   /** Folders the harness would add if the user also grants folder access; absent when the call needs none */

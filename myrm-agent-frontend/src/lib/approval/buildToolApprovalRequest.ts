@@ -38,14 +38,18 @@ interface ApprovalExtensionsPayload {
   workspaceRoot?: string;
 }
 
+/** What the harness says about one card of an approval payload (`reviewConfigs[i]`). */
+export interface ApprovalReviewConfig {
+  domainApproval?: boolean;
+  smartDenied?: boolean;
+  hideAllowAlways?: boolean;
+  heldForPerson?: boolean;
+  scriptOperandProtected?: boolean;
+}
+
 interface BuildToolApprovalRequestParams {
   action: ApprovalActionPayload;
-  reviewConfig?: {
-    domainApproval?: boolean;
-    smartDenied?: boolean;
-    hideAllowAlways?: boolean;
-    scriptOperandProtected?: boolean;
-  };
+  reviewConfig?: ApprovalReviewConfig;
   requestId: string;
   messageId: string;
   chatId: string;
@@ -144,6 +148,7 @@ export function buildToolApprovalRequest({
         : undefined,
     smartDenied: reviewConfig?.smartDenied === true ? true : undefined,
     hideAllowAlways: reviewConfig?.hideAllowAlways === true ? true : undefined,
+    heldForPerson: reviewConfig?.heldForPerson === true ? true : undefined,
     reviewerReason: action.reviewerReason,
     grantDirectories: parseGrantDirectories(action.grantDirectories),
     scriptOperandPath:

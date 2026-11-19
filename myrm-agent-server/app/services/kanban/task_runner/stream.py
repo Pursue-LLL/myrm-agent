@@ -4,8 +4,8 @@
 - myrm_agent_harness.toolkits.kanban.types (POS: Kanban domain types.)
 - myrm_agent_harness.agent.streaming.answer_draft::AnswerDraft (POS: Streamed answer text honouring the restart contract)
 - myrm_agent_harness.api::AgentEventType (POS: Stream event types)
-- app.services.agent.approval_payload::is_tool_stuck_pause, is_browser_takeover_request (POS: Tell a loop guard pause and a browser step that needs a person from an approval)
-- app.services.kanban.task_runner.outcomes::APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON (POS: The block reasons of the two requests nobody can answer)
+- app.services.agent.approval_payload::is_tool_stuck_pause, is_browser_takeover_request, is_held_for_person_request (POS: Tell a loop guard pause, a browser step that needs a person and an approval only the user may answer from an ordinary approval)
+- app.services.kanban.task_runner.outcomes::APPROVAL_NEEDED_BLOCK_REASON, PERSON_APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON (POS: The block reasons of the three requests nobody can answer)
 - app.core.storage.files_service (POS: 文件存储 SSOT；附件字节读取 via get_content)
 
 [OUTPUT]
@@ -27,13 +27,31 @@ from myrm_agent_harness.agent.streaming.answer_draft import AnswerDraft
 from myrm_agent_harness.api import AgentEventType
 from myrm_agent_harness.toolkits.kanban.types import KanbanTask
 
-from app.services.agent.approval_payload import is_browser_takeover_request, is_tool_stuck_pause
-from app.services.kanban.task_runner.outcomes import APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON
+from app.services.agent.approval_payload import (
+    is_browser_takeover_request,
+    is_held_for_person_request,
+    is_tool_stuck_pause,
+)
+from app.services.kanban.task_runner.outcomes import (
+    APPROVAL_NEEDED_BLOCK_REASON,
+    PERSON_APPROVAL_NEEDED_BLOCK_REASON,
+    TAKEOVER_NEEDED_BLOCK_REASON,
+)
 
 logger = logging.getLogger(__name__)
 
 # Both end the stream on an interrupt that waits for an answer; a kanban run has nobody to give it.
 _APPROVAL_STOP_EVENTS = frozenset({AgentEventType.TOOL_APPROVAL_REQUEST.value, AgentEventType.APPROVAL_REQUIRED.value})
+
+
+def _request_block_reason(request: object) -> str:
+    """What a task blocked on this request tells the user: what the request needs, and that nobody is there to give it."""
+    if is_browser_takeover_request(request):
+        return TAKEOVER_NEEDED_BLOCK_REASON
+    if is_held_for_person_request(request):
+        return PERSON_APPROVAL_NEEDED_BLOCK_REASON
+    return APPROVAL_NEEDED_BLOCK_REASON
+
 
 _IMAGE_EXTENSIONS = frozenset(
     {
@@ -106,9 +124,7 @@ class _StreamAccumulator:
         elif event_type in _APPROVAL_STOP_EVENTS and not is_tool_stuck_pause(data) and self.request_reason is None:
             # The loop guard's pause arrives as ``approval_required`` too, but it reports a failure and asks for no approval.
             # The first request names the reason; the run is held for a person either way.
-            self.request_reason = (
-                TAKEOVER_NEEDED_BLOCK_REASON if is_browser_takeover_request(data) else APPROVAL_NEEDED_BLOCK_REASON
-            )
+            self.request_reason = _request_block_reason(data)
 
     def to_result(self) -> tuple[bool, str]:
         if self.error:

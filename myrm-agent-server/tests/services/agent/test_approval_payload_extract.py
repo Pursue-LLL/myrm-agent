@@ -1,12 +1,14 @@
-"""Tests for the interrupt payload helpers: registry payload extraction and the loop guard pause check."""
+"""Tests for the interrupt payload helpers: registry payload extraction and the checks of what an interrupt asks."""
 
 from __future__ import annotations
 
 from app.services.agent.approval_payload import (
     extract_approval_registry_payload,
     is_browser_takeover_request,
+    is_held_for_person_request,
     is_tool_stuck_pause,
 )
+from tests.support.kanban_run_pauses import HELD_APPROVAL, MIXED_APPROVAL, TOOL_APPROVAL
 
 
 class TestExtractApprovalRegistryPayload:
@@ -95,3 +97,24 @@ class TestIsBrowserTakeoverRequest:
         assert not is_browser_takeover_request({})
         assert not is_browser_takeover_request(None)
         assert not is_browser_takeover_request("browser_takeover")
+
+
+class TestIsHeldForPersonRequest:
+    def test_a_card_holding_a_call_only_a_person_may_answer_is_held(self) -> None:
+        assert is_held_for_person_request(HELD_APPROVAL["data"])
+
+    def test_one_such_call_among_ordinary_ones_holds_the_card(self) -> None:
+        assert is_held_for_person_request(MIXED_APPROVAL["data"])
+
+    def test_an_ordinary_card_is_not(self) -> None:
+        assert not is_held_for_person_request(TOOL_APPROVAL["data"])
+
+    def test_a_card_that_says_it_is_not_held_or_carries_no_review_configs_is_not(self) -> None:
+        assert not is_held_for_person_request({"reviewConfigs": [{"heldForPerson": False}, {}]})
+        assert not is_held_for_person_request({"reviewConfigs": "heldForPerson"})
+        assert not is_held_for_person_request({"actionRequests": []})
+
+    def test_a_semantic_approval_or_something_that_is_no_dict_is_not(self) -> None:
+        assert not is_held_for_person_request({"action_type": "high_risk_dom_action", "tool_name": "browser_click"})
+        assert not is_held_for_person_request(None)
+        assert not is_held_for_person_request([{"heldForPerson": True}])

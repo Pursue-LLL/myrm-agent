@@ -8,10 +8,11 @@
 - toolkits.code_execution.security.command_explainer.extract::build_shell_approval_fields (POS: shell command spans and risks)
 
 [OUTPUT]
-- build_interrupt_payload: Build LangChain-standard interrupt payload for batch approval (includes optional command_spans for shell tools). A batch that holds a call only a person may answer expires into a denial, whatever expiry is configured.
+- build_interrupt_payload: Build LangChain-standard interrupt payload for batch approval (includes optional command_spans for shell tools). A call no automatic approver may answer carries `heldForPerson` on its review config, and a batch with such a call expires into a denial, whatever expiry is configured.
 
 [POS]
 The outbound half of batch approval; the user's answer comes back through `_batch_decisions.apply_approval_decisions`.
+`heldForPerson` is the one place the harness tells the client and the backend that a call is for a person alone.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any
 
 from langchain_core.messages import ToolCall
@@ -42,16 +43,14 @@ _DEFAULT_TIMEOUT_BEHAVIOR = "deny"
 _IRREVERSIBLE_FLAGS = ("socially_irreversible", "irreversible_destructive")
 
 
-def _held_for_a_person(pending_approval: Sequence[tuple[int, ToolCall, str, str, Mapping[str, object] | None]]) -> bool:
-    """Whether the batch holds a call no timer may release: a write only a person may answer, or one that cannot be undone.
+def _is_held_for_a_person(reason: str, extra_ctx: Mapping[str, object] | None) -> bool:
+    """Whether no automatic approver may answer the call: a write only a person may answer, or one that cannot be undone.
 
-    A payment is not among them: its approval must carry the action digest, which a timer never has, so a timer's
-    approval of it is refused when the answer is applied.
+    Neither a timer nor a client that approves on its own may release it. A payment is not among them: its approval
+    must carry the action digest, which an automatic approver never has, so its approval of it is refused when the
+    answer is applied.
     """
-    return any(
-        is_human_only(reason) or (extra_ctx is not None and any(extra_ctx.get(flag) for flag in _IRREVERSIBLE_FLAGS))
-        for _idx, _call, _permission, reason, extra_ctx in pending_approval
-    )
+    return is_human_only(reason) or (extra_ctx is not None and any(extra_ctx.get(flag) for flag in _IRREVERSIBLE_FLAGS))
 
 
 def build_interrupt_payload(
@@ -71,8 +70,8 @@ def build_interrupt_payload(
             so the card words it in the viewer's language instead of showing the English text
         session_key: session identifier for routing
         approval_timeout_seconds: seconds before auto-resolution (from SecurityConfig)
-        timeout_behavior: "deny" or "allow" — action taken when timeout expires; a batch that holds a call only a
-            person may answer (see ``_held_for_a_person``) expires into a denial whatever is set
+        timeout_behavior: "deny" or "allow" — action taken when timeout expires; a batch with a call held for a
+            person (its review config carries ``heldForPerson``) expires into a denial whatever is set
         workspace_root: the run's workspace, which relative paths resolve against
         path_policy: the configured path policy; with it, a file call naming directories outside the allowed
             zones carries ``grantDirectories`` — the folders "also grant folder access" would add
@@ -82,6 +81,7 @@ def build_interrupt_payload(
     action_requests = []
     review_configs = []
     interrupt_indices = []
+    any_held_for_a_person = False
     effective_policy = merge_path_policy_with_session_access(path_policy) if path_policy is not None else None
 
     for idx, tool_call, permission_type, reason, extra_ctx in pending_approval:
@@ -191,6 +191,9 @@ def build_interrupt_payload(
             review_config["scriptOperandProtected"] = True
         if domains:
             review_config["domainApproval"] = True
+        if _is_held_for_a_person(reason, extra_ctx):
+            review_config["heldForPerson"] = True
+            any_held_for_a_person = True
 
         action_requests.append(action_request)
         review_configs.append(review_config)
@@ -207,7 +210,7 @@ def build_interrupt_payload(
 
     # Every timer (the page, the channel card, the backend) reads this behavior and answers with nothing but the
     # decision, so an expiry that allows would release the call with nobody having looked at it.
-    if timeout_behavior == "allow" and _held_for_a_person(pending_approval):
+    if timeout_behavior == "allow" and any_held_for_a_person:
         timeout_behavior = _DEFAULT_TIMEOUT_BEHAVIOR
 
     effective_timeout = approval_timeout_seconds or _DEFAULT_APPROVAL_TIMEOUT_SECONDS

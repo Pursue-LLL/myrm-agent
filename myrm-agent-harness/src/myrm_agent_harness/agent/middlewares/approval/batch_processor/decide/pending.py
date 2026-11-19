@@ -1,8 +1,8 @@
 """[INPUT]
-- myrm_agent_harness.agent.security.approval_reason::is_human_only (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist which asks are not theirs to answer.)
+- myrm_agent_harness.agent.security.approval_reason::is_human_only / is_protected_instruction_write (POS: The seam between the engine, which writes a reason once in English, and the cards (web, channel), which word the same decision in the viewer's language. The code is read by whoever renders the card; the text is never parsed. The same code tells the automatic approvers (YOLO mode, the AI security reviewer, an approval expiry) and the allowlist which asks are not theirs to answer, and the approval stages which ask is a write to an instruction file.)
 - myrm_agent_harness.agent.security.audit::record_decision (POS: Security audit log — re-exported from core.security.audit.)
 - myrm_agent_harness.agent.security.command_rules::command_text (POS: Pure helpers of ``engine.py``, of the command-egress check in ``guards/taint_tracker.py`` and of the approval stages that read a command: the engine owns the order of the layers, this module owns which tool inputs carry a command, which field of them the tool runs and what a command line means to a rule, so every judge sees the command the shell will run and no other text.)
-- myrm_agent_harness.agent.security.path_security::is_protected_instruction_file (POS: Import-path shim. Holds no logic; `core.security.path.__all__` defines exactly what this module re-exports, so the alias never widens the public API.)
+- myrm_agent_harness.agent.middlewares.approval._allow_always::protected_instruction_file_target (POS: The allow-always half of applying an approval decision, kept apart from the decision branches so the guard list that decides what may be remembered reads in one place. The pending-approval annotation reads the same ``protected_instruction_file_target``, so a card hides "Allow Always" exactly when this guard would refuse it.)
 - myrm_agent_harness.core.security.remote_ops_ledger::derive_recovery_hint (POS: Foundation layer in core/security. Zero agent-internal dependencies.)
 - myrm_agent_harness.core.security.spend_governance::compute_action_digest / compute_script_content_hash / extract_script_file_target / is_financial_or_spend_tool / is_irreversible_social_action / parse_spend_amount (POS: Foundational Agent Commerce governance module in core/security/.)
 - myrm_agent_harness.toolkits.code_execution.security.ast_parser::is_destructive_shell_tool_call (POS: Shell execution security: AST semantic parsing and capability boundary gating.)
@@ -16,19 +16,17 @@
 [POS]
 Last decision stage. A call that waits for a person gets the facts the card shows and the approval flow checks again on
 resume: risk flags, the batch's impact, a recovery hint, spend or irreversibility markers, the rollback snapshot, and
-the content digests of the script files the command would run.
+the content digests of the script files the command would run. A write to an instruction file is recognised by the
+engine's code; a tool the engine cannot classify is judged by the file it names, and only when the tool is not read-only.
 """
 
 from __future__ import annotations
 
 import logging
 
-from myrm_agent_harness.agent.security.approval_reason import is_human_only
+from myrm_agent_harness.agent.security.approval_reason import is_human_only, is_protected_instruction_write
 from myrm_agent_harness.agent.security.audit import record_decision
 from myrm_agent_harness.agent.security.command_rules import command_text
-from myrm_agent_harness.agent.security.path_security import (
-    is_protected_instruction_file,
-)
 from myrm_agent_harness.core.security.remote_ops_ledger import derive_recovery_hint
 from myrm_agent_harness.core.security.spend_governance import (
     compute_action_digest,
@@ -42,6 +40,7 @@ from myrm_agent_harness.toolkits.code_execution.security.ast_parser import (
     is_destructive_shell_tool_call,
 )
 
+from ..._allow_always import protected_instruction_file_target
 from .._workspace_snapshot import pre_destructive_snapshot_id
 from .state import BatchContext, CallState
 
@@ -117,28 +116,31 @@ def _annotate_destructive(call: CallState) -> None:
         extra_ctx["snapshot_id"] = snapshot_id
 
 
+def _protected_instruction_target(call: CallState) -> str | None:
+    """The protected instruction file the call writes: the engine's coded ask, else a file argument of a tool it cannot classify."""
+    if is_protected_instruction_write(call.reason):
+        return call.reason.subject
+    return protected_instruction_file_target(call.tool_name, call.tool_input)
+
+
 def _annotate_protected_instruction(call: CallState) -> None:
-    tool_input = call.tool_input
-    raw_path_arg = str(
-        tool_input.get("path", "") or tool_input.get("file_path", "") or tool_input.get("filepath", "")
-    ).strip()
-    if "Protected instruction file write requires human approval" in call.reason or (
-        raw_path_arg and is_protected_instruction_file(raw_path_arg)
-    ):
-        extra_ctx = call.context()
-        extra_ctx["protected_instruction"] = True
-        extra_ctx["hide_allow_always"] = True
-        extra_ctx["high_risk"] = True
-        record_decision(
-            call.tool_name,
-            "PROTECTED_INSTRUCTION_ATTEMPT",
-            f"Attempted mutation of protected instruction file: {raw_path_arg}",
-        )
-        logger.warning(
-            "[PROTECTED_INSTRUCTION] Gate triggered for %s (path=%s): hide_allow_always enforced",
-            call.tool_name,
-            raw_path_arg,
-        )
+    target = _protected_instruction_target(call)
+    if target is None:
+        return
+    extra_ctx = call.context()
+    extra_ctx["protected_instruction"] = True
+    extra_ctx["hide_allow_always"] = True
+    extra_ctx["high_risk"] = True
+    record_decision(
+        call.tool_name,
+        "PROTECTED_INSTRUCTION_ATTEMPT",
+        f"Attempted mutation of protected instruction file: {target}",
+    )
+    logger.warning(
+        "[PROTECTED_INSTRUCTION] Gate triggered for %s (file=%s): hide_allow_always enforced",
+        call.tool_name,
+        target,
+    )
 
 
 def _annotate_human_only(call: CallState) -> None:

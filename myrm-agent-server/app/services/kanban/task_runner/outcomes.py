@@ -7,6 +7,7 @@
 [OUTPUT]
 - PROTOCOL_VIOLATION_MSG: Failure text of a run that ended without calling ``kanban_complete``.
 - APPROVAL_NEEDED_BLOCK_REASON: Written to a task whose run stopped on an approval nobody can give while it runs.
+- PERSON_APPROVAL_NEEDED_BLOCK_REASON: Written to a task whose run stopped on a step only the user may approve (for example a write to a project instruction file), which no security policy can allow.
 - TAKEOVER_NEEDED_BLOCK_REASON: Written to a task whose run stopped on a browser step (a login, a captcha) that needs a person.
 - map_goal_outcome: Maps a goal-mode run's terminal goal status to the kanban result and persists it.
 - resolve_run_outcome: Re-reads the task after a run and applies the completion gate and the stop on a request only a person can answer.
@@ -36,6 +37,9 @@ if TYPE_CHECKING:
 PROTOCOL_VIOLATION_MSG = "Protocol violation: agent finished without calling kanban_complete(summary=...)"
 APPROVAL_NEEDED_BLOCK_REASON = (
     "An action needs approval, but tasks run unattended; allow it in the security policy, then continue"
+)
+PERSON_APPROVAL_NEEDED_BLOCK_REASON = (
+    "This step can only be approved by you, but tasks run unattended; do it yourself, then continue"
 )
 TAKEOVER_NEEDED_BLOCK_REASON = (
     "The browser needs a person (a login or a captcha), but tasks run unattended; do that step yourself, then continue"
@@ -128,9 +132,10 @@ async def resolve_run_outcome(
 ) -> tuple[bool, str] | TaskExecutionResult:
     """Re-read task state after agent execution to enforce completion gate.
 
-    ``request_reason``: the block reason of the request the stream ended on (an approval, or a browser step that needs
-    a person), which nobody can answer while a task runs. A task that blocked itself or completed keeps that verdict;
-    otherwise the run is blocked for the user with this reason, since a retry would stop at the same request.
+    ``request_reason``: the block reason of the request the stream ended on (an approval, a step only the user may
+    approve, or a browser step that needs a person), which nobody can answer while a task runs. A task that blocked
+    itself or completed keeps that verdict; otherwise the run is blocked for the user with this reason, since a retry
+    would stop at the same request.
     """
     if isinstance(agent_result, TaskExecutionResult):
         return agent_result

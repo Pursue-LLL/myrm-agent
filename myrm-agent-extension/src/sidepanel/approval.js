@@ -16,11 +16,12 @@
  */
 
 /**
- * Review-config keys the Side Panel can honor. Any other key set on an action (spend digest, dual confirmation,
- * irreversible-action warning, impact summary, ...) means the Web UI shows or asks for more than one click, so the
- * Side Panel never approves such a request (it can still reject it). New keys therefore fail closed.
+ * Review-config keys the Side Panel can honor. `heldForPerson` marks a call only the user may answer; the panel never
+ * answers on its own, so the user's click on it is that answer. Any other key set on an action (spend digest, dual
+ * confirmation, irreversible-action warning, impact summary, ...) means the Web UI shows or asks for more than one
+ * click, so the Side Panel never approves such a request (it can still reject it). New keys therefore fail closed.
  */
-const PLAIN_REVIEW_KEYS = new Set(["allowedDecisions", "hideAllowAlways", "domainApproval"]);
+const PLAIN_REVIEW_KEYS = new Set(["allowedDecisions", "hideAllowAlways", "domainApproval", "heldForPerson"]);
 
 /** Denial reason handed to the agent, the same text the Web UI sends. */
 const REJECT_FEEDBACK = "User rejected this action.";

@@ -8,11 +8,13 @@
 - extract_approval_registry_payload: ApprovalRegistry payload SSOT for SSE interrupts
 - is_tool_stuck_pause: whether an interrupt is a loop guard pause, which is no approval
 - is_browser_takeover_request: whether an interrupt asks a person to act in the browser, which approves nothing
+- is_held_for_person_request: whether a tool approval holds a call only the user may answer, as the harness marked it
 
 [POS]
 Shared approval payload normalization for streaming.py, the stream collector, the voice bridge, the channel stream
 mapper, the phase stepper, the kanban run's stream accumulator and approval persistence tests. The web app and the
-browser extension side panel tell a loop guard pause apart on the client by the same ``action_type``.
+browser extension side panel tell a loop guard pause apart on the client by the same ``action_type``. Which calls are
+held for the user is the harness's verdict, read off the payload's review configs and never derived here.
 """
 
 from __future__ import annotations
@@ -55,6 +57,20 @@ def is_browser_takeover_request(interrupt_data: object) -> bool:
     It reaches the stream as an ``approval_required`` event too, yet there is nothing to approve: the person does the step.
     """
     return isinstance(interrupt_data, dict) and interrupt_data.get("action_type") == BROWSER_TAKEOVER_ACTION_TYPE
+
+
+def is_held_for_person_request(interrupt_data: object) -> bool:
+    """True for a tool approval that holds a call only the user may answer (a review config says ``heldForPerson``).
+
+    No timer, no automatic approver and no unattended run may answer such a card; the harness decides which calls
+    those are, so a card that holds even one makes the whole request one.
+    """
+    if not isinstance(interrupt_data, dict):
+        return False
+    review_configs = interrupt_data.get("reviewConfigs")
+    return isinstance(review_configs, list) and any(
+        isinstance(config, dict) and config.get("heldForPerson") is True for config in review_configs
+    )
 
 
 def extract_approval_registry_payload(approval_data: dict[str, object]) -> dict[str, object]:

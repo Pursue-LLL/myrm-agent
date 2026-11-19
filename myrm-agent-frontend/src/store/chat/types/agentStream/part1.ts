@@ -219,6 +219,7 @@ export interface ToolApprovalRequestStreamEvent extends BaseAgentEvent {
       domainApproval?: boolean;
       smartDenied?: boolean;
       hideAllowAlways?: boolean;
+      heldForPerson?: boolean;
       isSpend?: boolean;
       spendAmount?: number;
       spendCurrency?: string;

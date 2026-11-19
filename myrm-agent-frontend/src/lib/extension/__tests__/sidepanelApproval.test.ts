@@ -245,6 +245,17 @@ describe('describeApproval: whether the panel may approve', () => {
     expect(view.blocker).toBeUndefined();
   });
 
+  it('lets the user approve a call held for the user: the panel never answers on its own, the click is the answer', () => {
+    const view = describeApproval(
+      toolEvent([{ action: 'file_write_tool', description: 'Write AGENTS.md' }], {
+        reviewConfigs: [{ allowedDecisions: ['approve', 'reject', 'edit'], hideAllowAlways: true, heldForPerson: true }],
+      }),
+    );
+
+    expect(view.canApprove).toBe(true);
+    expect(view.blocker).toBeUndefined();
+  });
+
   it('ignores switched-off flags', () => {
     const view = describeApproval(
       toolEvent([{ action: 'a', description: 'Run a' }], { reviewConfigs: [{ isSpend: false, blastRadius: null }] }),

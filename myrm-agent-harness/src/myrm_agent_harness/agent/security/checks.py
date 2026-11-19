@@ -164,7 +164,7 @@ def _protected_write_reason(name: str) -> CodedReason:
     """The ask for a write to a protected instruction file, worded once for every tool that can make one.
 
     The gates an allow-always entry must never lift (allowlist stage, pending annotation) recognise the decision by
-    this text.
+    its code (``is_protected_instruction_write``), never by this text.
     """
     return CodedReason(
         f"Protected instruction file write requires human approval: {name}",

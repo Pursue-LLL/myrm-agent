@@ -15,6 +15,10 @@ interrupt payload:
    whether or not the batch risk gate flags the batch (``.git`` is one of its restricted paths): the gate that reads
    the reason's code holds on its own. The instruction-file side is pinned in
    ``test_protected_instruction_shell_floor.py``.
+5. A scheduled run refuses each of these writes whatever capability its job declares, and still runs an ordinary one.
+6. The card names each call held for a person (``heldForPerson``), so a client that approves for the user leaves
+   exactly these to the user; the same predicate turns the expiry into a denial, and the batch approval gate counts
+   such a card as high risk.
 """
 
 from __future__ import annotations
@@ -35,6 +39,8 @@ from myrm_agent_harness.agent.middlewares.approval.batch_processor import evalua
 from myrm_agent_harness.agent.middlewares.approval.helpers import reset_denial_counter
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.audit import get_audit_entries, reset_audit_log
+from myrm_agent_harness.agent.security.batch_risk import BatchApprovalItem, classify_batch_approval_risk
+from myrm_agent_harness.agent.security.channel_presets import build_channel_security_config
 from myrm_agent_harness.agent.security.guards.taint_tracker import reset_taint_tracker
 from myrm_agent_harness.agent.security.tool_registry import resolve_permission_type
 from myrm_agent_harness.agent.security.types import PathPolicy, ReviewDecision, ReviewResult, SecurityConfig
@@ -46,11 +52,10 @@ _NO_ZONES = PathPolicy(forbidden_paths=frozenset(), access_roots=())
 _DEFAULT = SecurityConfig(path_policy=_NO_ZONES)
 _YOLO = SecurityConfig(path_policy=_NO_ZONES, yolo_mode_enabled=True)
 
-Batch = tuple[
-    list[tuple[int, ToolCall]],
-    list[tuple[int, ToolCall, str]],
-    list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
-]
+Pending = list[tuple[int, ToolCall, str, str, dict[str, object] | None]]
+Batch = tuple[list[tuple[int, ToolCall]], list[tuple[int, ToolCall, str]], Pending]
+# What makes a call in a workspace.
+Maker = Callable[[Path], ToolCall]
 
 
 def _file_write(path: Path) -> ToolCall:
@@ -79,6 +84,17 @@ _HUMAN_ONLY = pytest.mark.parametrize(
 _HUMAN_ONLY_CALLS = pytest.mark.parametrize(
     "make", [pytest.param(make, id=name) for name, make, _code in _HUMAN_ONLY_CASES]
 )
+# Every call no timer, reviewer or client may answer for the user: the human-only writes and the irreversible calls.
+_HELD_CALLS = pytest.mark.parametrize(
+    "make",
+    [pytest.param(make, id=name) for name, make, _code in _HUMAN_ONLY_CASES]
+    + [
+        pytest.param(lambda _ws: _shell("git push origin main"), id="social"),
+        pytest.param(lambda _ws: _shell("rm -rf ./build"), id="destructive"),
+    ],
+)
+# A scheduled job that declares everything the calls below need: only the write itself can stop it.
+_CRON = build_channel_security_config("cron", declared_capabilities=("file_write", "code_interpreter"))
 # Asks the automatic approvers have always settled themselves.
 _OTHER_ASKS = pytest.mark.parametrize(
     "make",
@@ -125,15 +141,15 @@ def workspace(tmp_path: Path) -> Path:
     return tmp_path / "ws"
 
 
-async def _evaluate(config: SecurityConfig, calls: list[ToolCall], workspace: Path) -> Batch:
+async def _evaluate(config: SecurityConfig, calls: list[ToolCall], workspace: Path, *, is_cron: bool = False) -> Batch:
     return await evaluate_tool_batch(
         calls,
         config,
-        is_cron=False,
+        is_cron=is_cron,
         workspace_root=str(workspace),
         session_key="human-only",
         args_hashes={},
-        is_interactive=True,
+        is_interactive=not is_cron,
     )
 
 
@@ -155,7 +171,7 @@ async def _always_allow(call: ToolCall, *, tool_level: bool) -> None:
 class TestYoloHoldsTheWrite:
     @_HUMAN_ONLY
     async def test_the_write_waits_for_a_person_under_its_own_audit_label(
-        self, workspace: Path, make: Callable[[Path], ToolCall], code: ApprovalReasonCode
+        self, workspace: Path, make: Maker, code: ApprovalReasonCode
     ) -> None:
         call = make(workspace)
 
@@ -174,7 +190,7 @@ class TestYoloHoldsTheWrite:
 
     @_HUMAN_ONLY
     async def test_the_card_is_the_one_shown_without_yolo(
-        self, workspace: Path, make: Callable[[Path], ToolCall], code: ApprovalReasonCode
+        self, workspace: Path, make: Maker, code: ApprovalReasonCode
     ) -> None:
         call = make(workspace)
         with patch(_REVIEWER, None):
@@ -189,7 +205,7 @@ class TestYoloHoldsTheWrite:
         assert held_card["reviewConfigs"][0]["hideAllowAlways"] is True
 
     @_OTHER_ASKS
-    async def test_the_other_asks_are_still_approved(self, workspace: Path, make: Callable[[Path], ToolCall]) -> None:
+    async def test_the_other_asks_are_still_approved(self, workspace: Path, make: Maker) -> None:
         call = make(workspace)
 
         approved, denied, pending = await _evaluate(_YOLO, [call], workspace)
@@ -200,7 +216,7 @@ class TestYoloHoldsTheWrite:
 class TestTheReviewerIsKeptOutOfTheWrite:
     @_HUMAN_ONLY
     async def test_it_is_not_asked_and_the_write_waits_for_a_person(
-        self, workspace: Path, make: Callable[[Path], ToolCall], code: ApprovalReasonCode
+        self, workspace: Path, make: Maker, code: ApprovalReasonCode
     ) -> None:
         reviewer, call = _allow_reviewer(), make(workspace)
 
@@ -214,9 +230,7 @@ class TestTheReviewerIsKeptOutOfTheWrite:
         reviewer.review.assert_not_awaited()
 
     @_OTHER_ASKS
-    async def test_it_is_still_asked_about_the_other_asks(
-        self, workspace: Path, make: Callable[[Path], ToolCall]
-    ) -> None:
+    async def test_it_is_still_asked_about_the_other_asks(self, workspace: Path, make: Maker) -> None:
         reviewer, call = _allow_reviewer(), make(workspace)
 
         with patch(_REVIEWER, reviewer):
@@ -236,9 +250,7 @@ class TestAnExpirySetToAllowStopsShortOfTheWrite:
         return str(payload["extensions"]["timeout"]["behavior"])
 
     @_HUMAN_ONLY_CALLS
-    async def test_a_write_only_a_person_may_answer_expires_into_a_denial(
-        self, workspace: Path, make: Callable[[Path], ToolCall]
-    ) -> None:
+    async def test_a_write_only_a_person_may_answer_expires_into_a_denial(self, workspace: Path, make: Maker) -> None:
         assert await self.expiry(workspace, [make(workspace)]) == "deny"
 
     @pytest.mark.parametrize("command", ["git push origin main", "rm -rf ./build"], ids=["social", "destructive"])
@@ -258,9 +270,7 @@ class TestAnExpirySetToAllowStopsShortOfTheWrite:
             pytest.param(lambda ws: _file_write(ws.parent / "outside" / "notes.txt"), id="outside-the-zones"),
         ],
     )
-    async def test_every_other_ask_keeps_the_configured_expiry(
-        self, workspace: Path, make: Callable[[Path], ToolCall]
-    ) -> None:
+    async def test_every_other_ask_keeps_the_configured_expiry(self, workspace: Path, make: Maker) -> None:
         assert await self.expiry(workspace, [make(workspace)]) == "allow"
 
     async def test_an_expiry_set_to_deny_stays_deny(self, workspace: Path) -> None:
@@ -274,7 +284,7 @@ class TestNoAllowlistEntryReleasesTheGitWrite:
         "batch_risk_flags_it", [True, False], ids=["batch-risk-flags-it", "batch-risk-flags-nothing"]
     )
     async def test_the_write_still_waits_for_a_person_and_its_card_offers_no_allow_always(
-        self, workspace: Path, make: Callable[[Path], ToolCall], tool_level: bool, batch_risk_flags_it: bool
+        self, workspace: Path, make: Maker, tool_level: bool, batch_risk_flags_it: bool
     ) -> None:
         call = make(workspace)
         await _always_allow(call, tool_level=tool_level)
@@ -304,3 +314,74 @@ class TestNoAllowlistEntryReleasesTheGitWrite:
             approved, denied, pending = await _evaluate(_DEFAULT, [call], workspace)
 
         assert ([item[1] for item in approved], denied, pending) == ([call], [], [])
+
+
+class TestAScheduledRunRefusesTheWrite:
+    @_HUMAN_ONLY_CALLS
+    async def test_a_declared_capability_does_not_approve_it(self, workspace: Path, make: Maker) -> None:
+        approved, denied, pending = await _evaluate(_CRON, [make(workspace)], workspace, is_cron=True)
+
+        assert (approved, pending) == ([], [])
+        assert len(denied) == 1
+        assert "requires human approval" in denied[0][2]
+
+    async def test_the_same_declaration_still_approves_an_ordinary_write(self, workspace: Path) -> None:
+        call = _file_write(workspace / "notes.txt")
+
+        approved, denied, pending = await _evaluate(_CRON, [call], workspace, is_cron=True)
+
+        assert ([item[1] for item in approved], denied, pending) == ([call], [], [])
+
+
+class TestTheCardNamesTheCallsHeldForAPerson:
+    @staticmethod
+    async def pending(workspace: Path, calls: list[ToolCall]) -> Pending:
+        with patch(_REVIEWER, None):
+            return (await _evaluate(_DEFAULT, calls, workspace))[2]
+
+    @_HELD_CALLS
+    async def test_a_call_no_one_else_may_answer_is_held(self, workspace: Path, make: Maker) -> None:
+        payload, _ = build_interrupt_payload(await self.pending(workspace, [make(workspace)]), "human-only")
+
+        assert payload["reviewConfigs"][0]["heldForPerson"] is True
+
+    @pytest.mark.parametrize(
+        "make",
+        [
+            pytest.param(lambda _ws: _charge(), id="payment-guarded-by-its-digest"),
+            pytest.param(lambda _ws: _shell("curl http://unlisted.example/x"), id="ordinary-ask"),
+            pytest.param(lambda ws: _file_write(ws.parent / "outside" / "notes.txt"), id="outside-the-zones"),
+            pytest.param(lambda ws: _file_write(ws / ".env"), id="sensitive-file"),
+        ],
+    )
+    async def test_every_other_ask_is_not(self, workspace: Path, make: Maker) -> None:
+        payload, _ = build_interrupt_payload(await self.pending(workspace, [make(workspace)]), "human-only")
+
+        assert "heldForPerson" not in payload["reviewConfigs"][0]
+
+    async def test_it_is_said_of_each_call_not_of_the_batch(self, workspace: Path) -> None:
+        calls = [_shell("curl http://unlisted.example/x"), _file_write(workspace / "AGENTS.md")]
+
+        payload, _ = build_interrupt_payload(await self.pending(workspace, calls), "human-only")
+
+        assert [config.get("heldForPerson") for config in payload["reviewConfigs"]] == [None, True]
+
+    @_HELD_CALLS
+    async def test_the_expiry_agrees_with_the_card(self, workspace: Path, make: Maker) -> None:
+        pending = await self.pending(workspace, [make(workspace)])
+
+        payload, _ = build_interrupt_payload(pending, "human-only", timeout_behavior="allow")
+
+        assert payload["reviewConfigs"][0]["heldForPerson"] is True
+        assert payload["extensions"]["timeout"]["behavior"] == "deny"
+
+    @_HELD_CALLS
+    async def test_the_batch_approval_gate_counts_it_as_high_risk(self, workspace: Path, make: Maker) -> None:
+        call = make(workspace)
+        payload, _ = build_interrupt_payload(await self.pending(workspace, [call]), "human-only")
+
+        report = classify_batch_approval_risk(
+            [BatchApprovalItem(item_id="c1", action_type="tool_approval", tool_name=call["name"], payload=payload)]
+        )
+
+        assert report.has_high_risk

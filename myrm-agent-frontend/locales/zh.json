@@ -8252,6 +8252,7 @@
       "batchPause": "已随批量一起暂停，批量恢复后继续",
       "workdirTooBroad": "工作文件夹范围过大，请改选更具体的文件夹，再继续。",
       "approvalNeeded": "有操作需要审批，但任务在无人值守时运行。请先在安全策略中允许该操作，再继续。",
+      "personApprovalNeeded": "这一步只能由你本人批准，但任务在无人值守时运行。请先自己处理这一步，再继续。",
       "takeoverNeeded": "浏览器里有一步需要人来完成（比如登录或验证码），但任务在无人值守时运行。请先自己在浏览器里完成这一步，再继续。"
     },
     "blockKind": {
@@ -22010,7 +22011,7 @@
     "permissionTierSemiAuto": "半自动敏捷",
     "permissionTierSemiAutoDesc": "自动放行常规代码编辑与安全命令，高危命令强制拦截审批",
     "permissionTierFullAuto": "全自动无人值守",
-    "permissionTierFullAutoDesc": "受控在沙箱边界内全速自主执行，零弹窗秒级流转"
+    "permissionTierFullAutoDesc": "受控在沙箱边界内全速自主执行，仅少数必须由你本人决定的步骤仍会询问"
   },
   "dashboardWorkspace": {
     "renameHint": "点击重命名",

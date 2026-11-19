@@ -83,6 +83,24 @@ describe('buildToolApprovalRequest', () => {
     expect(request.interruptId).toBe('int-1');
   });
 
+  it('marks a call the harness holds for the user, and no other', () => {
+    const build = (reviewConfig?: { heldForPerson?: boolean }) =>
+      buildToolApprovalRequest({
+        action: { action: 'file_write_tool', args: { path: 'AGENTS.md' }, description: 'needs approval' },
+        reviewConfig,
+        requestId: 'req-held',
+        messageId: 'msg-held',
+        chatId: 'chat-held',
+        actionMode: 'agent',
+        extensions: { timeout: { seconds: 60, expiresAt: 1_700_000_000 }, displayMode: 'approval' },
+      });
+
+    expect(build({ heldForPerson: true }).heldForPerson).toBe(true);
+    expect(build({ heldForPerson: false }).heldForPerson).toBeUndefined();
+    expect(build({}).heldForPerson).toBeUndefined();
+    expect(build().heldForPerson).toBeUndefined();
+  });
+
   it('maps workspace root from extensions', () => {
     const request = buildToolApprovalRequest({
       action: {

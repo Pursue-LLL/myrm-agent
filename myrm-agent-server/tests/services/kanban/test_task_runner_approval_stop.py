@@ -3,15 +3,15 @@
 [INPUT]
 - app.services.kanban.task_runner::KanbanTaskRunner (POS: the production run entry; the agent stream is the only stand-in)
 - app.services.kanban.task_runner.stream::_StreamAccumulator (POS: reads the stop and its reason off the stream events)
-- app.services.kanban.task_runner.outcomes::resolve_run_outcome, APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON (POS: the verdict on a finished run)
+- app.services.kanban.task_runner.outcomes::resolve_run_outcome, APPROVAL_NEEDED_BLOCK_REASON, PERSON_APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON (POS: the verdict on a finished run)
 - myrm_agent_harness KanbanDispatcher + InMemoryKanbanStore (POS: the scheduler that retried such a run before it was blocked)
-- myrm_agent_harness interrupt_events + build_interrupt_payload + ToolStuckException (POS: build the pause events exactly as a paused run emits them)
+- tests.support.kanban_run_pauses (POS: the pause events, built exactly as a paused run emits them)
 
 [OUTPUT]
-Pins the path of one task: its stream ends on an approval or on a browser step that needs a person (a login, a captcha),
-which nobody can give while a task runs; the run blocks the task for the user with that request's fixed reason, and the
-dispatcher neither retries it nor counts a failure. A loop guard pause and a stream error stay failures; a task that blocked
-itself or completed keeps that verdict.
+Pins the path of one task: its stream ends on an approval, on an approval only the user may answer, or on a browser step
+that needs a person (a login, a captcha), which nobody can give while a task runs; the run blocks the task for the user
+with that request's fixed reason, and the dispatcher neither retries it nor counts a failure. A loop guard pause and a
+stream error stay failures; a task that blocked itself or completed keeps that verdict.
 
 [POS]
 tests/services/kanban/test_task_runner_approval_stop.py
@@ -20,17 +20,12 @@ tests/services/kanban/test_task_runner_approval_stop.py
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Iterator, Mapping
+from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import ExitStack, contextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from langchain_core.messages import ToolCall
-from langgraph.types import Interrupt
-from myrm_agent_harness.agent.errors import ToolStuckException
-from myrm_agent_harness.agent.middlewares.approval.batch_processor import build_interrupt_payload
 from myrm_agent_harness.agent.skill_agent import wait_all_background_tasks
-from myrm_agent_harness.agent.streaming.interrupt_events import interrupt_events
 from myrm_agent_harness.toolkits.kanban.dispatcher import KanbanDispatcher
 from myrm_agent_harness.toolkits.kanban.stores import InMemoryKanbanStore
 from myrm_agent_harness.toolkits.kanban.types import (
@@ -49,36 +44,30 @@ from app.core.types import ModelConfig
 from app.services.kanban.task_runner import KanbanTaskRunner
 from app.services.kanban.task_runner.outcomes import (
     APPROVAL_NEEDED_BLOCK_REASON,
+    PERSON_APPROVAL_NEEDED_BLOCK_REASON,
     PROTOCOL_VIOLATION_MSG,
     TAKEOVER_NEEDED_BLOCK_REASON,
     resolve_run_outcome,
 )
 from app.services.kanban.task_runner.stream import _StreamAccumulator
+from tests.support.kanban_run_pauses import (
+    BROWSER_TAKEOVER,
+    HELD_APPROVAL,
+    LOOP_GUARD_PAUSE,
+    OTHER_APPROVAL,
+    TASK_ID,
+    TOOL_APPROVAL,
+)
 
 _RUNNER = "app.services.kanban.task_runner.runner"
 BOARD_ID = "b1"
-TASK_ID = "task0001"
 WAIT_SECONDS = 20
 
-
-def _paused_on(interrupt_value: Mapping[str, object]) -> dict[str, object]:
-    """The stream event the harness emits when the graph pauses on this interrupt value."""
-    return interrupt_events([Interrupt(value=interrupt_value, id="interrupt-1")], "message-1")[0]
-
-
-_SHELL_CALL: ToolCall = {"name": "shell_exec", "args": {"command": "rm -rf build"}, "id": "call-1", "type": "tool_call"}
-TOOL_APPROVAL = _paused_on(
-    build_interrupt_payload([(0, _SHELL_CALL, "shell_exec", "requires approval", None)], f"kanban:{TASK_ID}")[0]
-)
-OTHER_APPROVAL = _paused_on(
-    {"action_type": "high_risk_dom_action", "tool_name": "browser_click", "reason": "Submits a payment form"}
-)
-# What `browser_ask_human` raises when the agent meets a login or a captcha.
-BROWSER_TAKEOVER = _paused_on(
-    {"action_type": "browser_takeover", "tool_name": "browser_ask_human_tool", "reason": "Log in to continue"}
-)
-LOOP_GUARD_PAUSE = _paused_on(ToolStuckException("The same call failed 5 times").interrupt_payload("shell_exec", "call-1"))
-STOPS = [(TOOL_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON), (BROWSER_TAKEOVER, TAKEOVER_NEEDED_BLOCK_REASON)]  # pause, reason
+STOPS = [  # pause, reason
+    (TOOL_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON),
+    (HELD_APPROVAL, PERSON_APPROVAL_NEEDED_BLOCK_REASON),
+    (BROWSER_TAKEOVER, TAKEOVER_NEEDED_BLOCK_REASON),
+]
 RUN_ERROR: dict[str, object] = {"type": "error", "error": "provider down", "error_type": "LLMError"}
 EMPTY_ANSWER = (False, "agent returned empty response")
 
@@ -116,10 +105,9 @@ class TestAccumulator:
     @pytest.mark.parametrize(
         ("event", "reason"),
         [
-            (TOOL_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON),
+            *STOPS,
             (OTHER_APPROVAL, APPROVAL_NEEDED_BLOCK_REASON),
             ({"type": "approval_required"}, APPROVAL_NEEDED_BLOCK_REASON),
-            (BROWSER_TAKEOVER, TAKEOVER_NEEDED_BLOCK_REASON),
         ],
     )
     def test_a_request_only_a_person_can_answer_ends_the_stream_with_its_reason(
@@ -161,7 +149,7 @@ async def _verdict(
 class TestVerdict:
     @pytest.mark.asyncio
     @pytest.mark.parametrize("agent_result", [(True, "I will run the build next"), EMPTY_ANSWER])
-    @pytest.mark.parametrize("reason", [APPROVAL_NEEDED_BLOCK_REASON, TAKEOVER_NEEDED_BLOCK_REASON])
+    @pytest.mark.parametrize("reason", [reason for _pause, reason in STOPS])
     async def test_a_stop_on_a_request_blocks_the_task_for_the_user_with_its_reason(
         self, agent_result: tuple[bool, str], reason: str
     ) -> None:

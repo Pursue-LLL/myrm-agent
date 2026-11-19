@@ -7,11 +7,12 @@
  *
  * [OUTPUT]
  * - usePermissionAutoApprove: Hook that evaluates tool approval requests against current tier
- *   and triggers safe autonomous approval or high-risk warnings.
+ *   and triggers safe autonomous approval or high-risk warnings. A call held for the user is never approved here.
  *
  * [POS]
  * Bridges the 3-Tier permission mode directly into tool approval dialogs and cards,
  * automatically approving safe file edits while forcefully flagging high-risk commands.
+ * No tier approves a call the harness holds for the user alone (`held`): that answer is the user's.
  */
 
 import { useEffect, useMemo, useRef } from 'react';
@@ -23,6 +24,8 @@ export interface UsePermissionAutoApproveOptions {
   toolInput: Record<string, unknown>;
   onApprove: () => Promise<void> | void;
   enabled?: boolean;
+  /** The call is the user's alone to answer (`ToolApprovalRequest.heldForPerson`); no tier approves it. */
+  held?: boolean;
   autoApproveDelayMs?: number;
 }
 
@@ -38,6 +41,7 @@ export function usePermissionAutoApprove({
   toolInput,
   onApprove,
   enabled = true,
+  held = false,
   autoApproveDelayMs = 400,
 }: UsePermissionAutoApproveOptions): UsePermissionAutoApproveResult {
   const tier = usePermissionTierStore((state) => state.tier);
@@ -49,7 +53,9 @@ export function usePermissionAutoApprove({
   }, [checkPermission, toolName, toolInput]);
 
   const isHighRiskIntercepted = checkResult.reason === 'semi_auto_high_risk_intercepted';
-  const isAutoApproved = checkResult.approved && tier !== 'strict';
+  // Folded into the result, not only the effect: the card shows "approving automatically" and disables its approve
+  // button while this is true, so a held call must not read as auto-approved at all.
+  const isAutoApproved = !held && checkResult.approved && tier !== 'strict';
 
   useEffect(() => {
     if (!enabled || !isAutoApproved || hasTriggeredRef.current) {
