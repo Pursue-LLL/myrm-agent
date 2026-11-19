@@ -8,7 +8,7 @@
 - CompactResult: Immutable dataclass for compaction attempt outcome
 
 [POS]
-Compaction 结果值对象。被 compact_service.py facade 与 service.py 引用；渠道桥接与 Web 端按 CompactReason 的取值归类呈现。
+Compaction 结果值对象。被 compact_service.py facade 与 service.py 引用；渠道桥接、Web 压缩接口与 Web 预压缩进度步骤按 CompactReason 的取值归类呈现。
 """
 
 from __future__ import annotations
@@ -39,8 +39,9 @@ class CompactResult:
     """Outcome of a compaction attempt.
 
     ``reason`` is a ``CompactReason`` value when ``compact_chat`` declined or failed. The idle gate, which decides
-    before it calls ``compact_chat``, stores its own free-text decisions there; only its log and the pre-reply SSE
-    phase lookup read them.
+    before it calls ``compact_chat``, stores its own free-text decisions there with ``attempted`` unset; only its log
+    reads them. ``attempted`` is set on the result of a compaction the gate started, and the pre-reply stream reports
+    only those.
     ``original_tokens`` counts what the compaction replaced: the stored summary plus the messages after it.
     """
 
