@@ -140,6 +140,11 @@ class BashFlavor(ShellFlavor):
         # shell actually exits; a healthy command leaves it dormant so markers
         # are emitted exactly once per execution.
         #
+        # A signal that ends the shell runs the EXIT trap too, and bash hands it the status of the last command that
+        # finished, not the signal's: a command that was terminated would come back as a success. So TERM, HUP and
+        # INT end the shell with the status a shell reports for them (128 + the signal number). ``builtin exit``,
+        # because ``exit`` is a function in this shell (see ``build_init_commands``).
+        #
         # The command's variables are exported inside the block, so the command sees them in the persistent shell
         # itself. The scoped ones are unset after the end marker rather than inside the block: ``exit`` leaves the
         # block early, and nothing after the markers can change the exit code the caller reads.
@@ -155,6 +160,9 @@ class BashFlavor(ShellFlavor):
             clean_command = f"( cd -- {shlex.quote(env.cwd)} && {{\n{clean_command}\n}} )"
         set_lines, unset_lines = self.env_commands(env)
         return (
+            "trap 'builtin exit 143' TERM\n"
+            "trap 'builtin exit 129' HUP\n"
+            "trap 'builtin exit 130' INT\n"
             f'trap \'echo "{exit_marker}"$?; echo "{end_marker}"\' EXIT\n'
             "{\n" + "".join(f"{line}\n" for line in set_lines) + f"{clean_command}\n"
             f"__myrm_rc__={exit_code_var}\n"

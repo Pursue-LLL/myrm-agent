@@ -132,13 +132,19 @@ class TestBashFlavorNoColor:
     def test_wrapped_command_multiline_rc_capture(self) -> None:
         """The wrapper captures rc inside the block so comment-only or empty
         commands cannot wedge an open brace block (which would hang the shell),
-        and an EXIT trap backs up the marker pair for errexit crashes."""
+        an EXIT trap backs up the marker pair for errexit crashes, and TERM,
+        HUP and INT end the shell with 128 + the signal so the trap reports it."""
         flavor = BashFlavor()
         wrapped = flavor.build_wrapped_command("echo hi", "EX", "END", "$?")
 
         before, block, after = split_bash_wrapper(wrapped)
 
-        assert before == ['trap \'echo "EX"$?; echo "END"\' EXIT']
+        assert before == [
+            "trap 'builtin exit 143' TERM",
+            "trap 'builtin exit 129' HUP",
+            "trap 'builtin exit 130' INT",
+            'trap \'echo "EX"$?; echo "END"\' EXIT',
+        ]
         assert block == ["echo hi", "__myrm_rc__=$?"]
         assert after == ["echo 'EX'\"$__myrm_rc__\"", "echo 'END'"]
 

@@ -297,9 +297,9 @@ class TestCoverageEdgeCases:
             await session.close()
 
     @pytest.mark.asyncio
-    async def test_a_shell_terminated_during_a_command_is_not_reported_as_a_crash(self) -> None:
-        """SIGTERM is catchable: the EXIT trap emits the marker pair so the
-        command finishes normally instead of being misreported as an unexpected crash."""
+    async def test_a_shell_terminated_during_a_command_fails_without_being_reported_as_a_crash(self) -> None:
+        """SIGTERM is catchable: the EXIT trap emits the marker pair with the signal's status, so the
+        command fails as terminated instead of being misreported as an unexpected crash or a success."""
         session = LocalPersistentSession(make_config())
         await session.start()
         try:
@@ -310,5 +310,7 @@ class TestCoverageEdgeCases:
             result = await running
 
             assert result.error is None
+            assert not result.success
+            assert result.exit_code == 143
         finally:
             await session.close()

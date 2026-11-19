@@ -15,9 +15,10 @@ CANCELLED_WHILE_RUNNING / CANCELLED_BEFORE_START / CANCELLED_EXIT_CODE: result o
 [POS]
 Output pump of the persistent shell. A command ends in one of four ways: its end marker, a dead shell, the timeout
 or a cancelled request. The last two share one exit: the shell tree is killed, the session is marked TERMINATED so
-the next command rebuilds it, and the output produced so far is returned. A dead shell ends its command as a failure
-that says the command may have run; the command is never replayed. The credentials delivered to a command
-(``CommandEnv.scoped``) are masked in everything it prints, before the output is teed, streamed or returned.
+the next command rebuilds it, and the output produced so far is returned. A dead shell (killed, crashed or closed
+under the command) ends its command as a failure that says the command may have run; the command is never
+replayed. The credentials delivered to a command (``CommandEnv.scoped``) are masked in everything it prints, before
+the output is teed, streamed or returned.
 """
 
 from __future__ import annotations
@@ -90,7 +91,10 @@ class CommandStreamMixin:
         cancel_token: CancellationToken | None = None,
         env: CommandEnv | None = None,
     ) -> SessionExecutionResult:
-        if not self.process or not self.process.stdin or not self.process.stdout:
+        # ``close()`` clears ``self.process`` while a command still reads from it, so the pump keeps its own handle:
+        # a shell closed under the command then ends it as a dead shell instead of failing on a missing process.
+        proc = self.process
+        if not proc or not proc.stdin or not proc.stdout:
             return SessionExecutionResult(False, "", "", 1, error="Process unavailable", is_armored=is_armored)
 
         end_marker = _generate_marker("END")
@@ -100,8 +104,8 @@ class CommandStreamMixin:
         )
 
         try:
-            self.process.stdin.write(full_cmd.encode("utf-8", errors="surrogateescape"))
-            await self.process.stdin.drain()
+            proc.stdin.write(full_cmd.encode("utf-8", errors="surrogateescape"))
+            await proc.stdin.drain()
         except Exception as e:
             logger.error("IPC write failure: %s", e)
             await self._discard_shell()
@@ -130,7 +134,7 @@ class CommandStreamMixin:
                 cut_deadline_on_cancel(cancel_token, deadline, cut),
             ):
                 while not stream_buf.done:
-                    chunk = await self.process.stdout.read(8192)
+                    chunk = await proc.stdout.read(8192)
                     if not chunk:
                         shell_ended = True
                         break
@@ -180,11 +184,13 @@ class CommandStreamMixin:
             raise
 
         if shell_ended:
-            # The shell died under the command (killed, crashed, ran out of memory). The next command starts a new
-            # shell; this one is not replayed, because it may already have run.
+            # The shell died under the command (killed, crashed, ran out of memory, closed). The next command starts
+            # a new shell; this one is not replayed, because it may already have run. A shell that has closed its
+            # output but is not reaped yet has no exit status to report.
             await self._discard_shell()
-            rc = self.process.returncode
-            err = f"Session process ended unexpectedly (rc={rc}). {_SESSION_DIED_NOTICE}"
+            rc = proc.returncode
+            status = f" (rc={rc})" if rc is not None else ""
+            err = f"Session process ended unexpectedly{status}. {_SESSION_DIED_NOTICE}"
             return SessionExecutionResult(
                 False,
                 stream_buf.get_final_output(),
