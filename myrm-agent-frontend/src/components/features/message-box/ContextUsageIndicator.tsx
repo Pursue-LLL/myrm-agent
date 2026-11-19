@@ -190,7 +190,8 @@ export default function ContextUsageIndicator() {
               {tooltipContent}
             </TooltipContent>
           </Tooltip>
-          <SheetContent side="bottom" className="max-h-[50vh] rounded-t-xl">
+          {/* A phone is shorter than the panel; the sheet scrolls so the compress control below the fold stays reachable. */}
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto rounded-t-xl">
             <SheetHeader>
               <SheetTitle className="text-sm font-medium">{t('strategy.title')}</SheetTitle>
             </SheetHeader>
@@ -212,7 +213,8 @@ export default function ContextUsageIndicator() {
             {tooltipContent}
           </TooltipContent>
         </Tooltip>
-        <PopoverContent side="top" align="center" className="w-auto p-0 border shadow-lg" sideOffset={8}>
+        {/* Radix sizes the popover to its widest line, so `w-auto` would stretch the card to the longest hint. */}
+        <PopoverContent side="top" align="center" className="w-80 p-0 border shadow-lg" sideOffset={8}>
           {panelContent}
         </PopoverContent>
       </Popover>

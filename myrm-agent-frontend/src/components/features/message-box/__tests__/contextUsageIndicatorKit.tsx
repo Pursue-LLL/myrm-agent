@@ -7,9 +7,10 @@
  * [OUTPUT]
  * - renderIndicator: 渲染被测组件，返回 testing-library 的渲染结果
  * - mockChatState / mockConfigState: 可变的会话 store 与配置 store 状态
+ * - mockIsMobile: 可变的窄屏开关（默认桌面）
  * - mockGetSessionAnalytics: 策略健康读取替身
  * - mockHealthy / mockCriticalHealth / mockAllInactiveHealth: 三份策略健康样本
- * - resetIndicatorKit: 还原默认状态（用量环可见、有一条健康的助手消息、策略健康为 healthy、无固定文件）
+ * - resetIndicatorKit: 还原默认状态（用量环可见、有一条健康的助手消息、策略健康为 healthy、无固定文件、桌面布局）
  *
  * [POS]
  * ContextUsageIndicator 组件测试的共享底座。文案、服务与 store 都是替身；vi.mock 在本模块求值时登记。
@@ -43,8 +44,10 @@ vi.mock('@/services/chat', () => ({
   setContextPins: mockSetContextPins,
 }));
 
+const mockIsMobile = vi.hoisted(() => ({ value: false }));
+
 vi.mock('@/hooks/ui/useMediaQuery', () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mockIsMobile.value,
 }));
 
 const mockConfigState = vi.hoisted(() => ({
@@ -213,6 +216,7 @@ export const mockAllInactiveHealth: ContextHealth = {
 export function resetIndicatorKit(): void {
   vi.clearAllMocks();
   mockConfigState.showContextUsage = true;
+  mockIsMobile.value = false;
   mockChatState.messages = [
     {
       role: 'assistant' as const,
@@ -233,4 +237,4 @@ export function renderIndicator() {
   return render(<ContextUsageIndicator />);
 }
 
-export { mockChatState, mockConfigState, mockGetSessionAnalytics };
+export { mockChatState, mockConfigState, mockGetSessionAnalytics, mockIsMobile };
