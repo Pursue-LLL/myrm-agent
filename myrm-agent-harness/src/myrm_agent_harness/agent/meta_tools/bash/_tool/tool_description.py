@@ -13,9 +13,11 @@ Kept apart from ``bash_code_execute_tool.py`` so the tool factory stays focused 
 
 [POS]
 Prompt content displayed to the LLM. Defines the contract for calling
-``bash_code_execute_tool``: capabilities with the rule for interactive programs, merge/OBSERVATION rules,
-native-tool routing, what a call leaves for the next one, background job stdin/eviction hints, output format,
-and prohibitions.
+``bash_code_execute_tool``: the four capabilities (shell with the rule for interactive programs, Python source,
+combining steps with the unknown-return-shape rule, the skill/MCP entrypoint), native-tool routing, what a call
+leaves for the next one, the two output markers with failure handling, and the progress markers of background
+jobs. Parameter limits live in the ``BashInput`` field texts, and how to manage a background job (including a
+job waiting for input) lives in the ``bash_process_tool`` description, so neither is repeated here.
 """
 
 from __future__ import annotations
@@ -27,148 +29,14 @@ from myrm_agent_harness.utils.locale import is_chinese
 DEFAULT_BASH_TOOL_DESCRIPTION_LOCALE: Final[str] = "en"
 
 TOOL_DESCRIPTION_ZH: Final[str] = """
-使用该工具执行准确的 Shell 命令或 Python 代码来高效精准地解决用户问题。严禁任何假设和猜测!
+执行 Shell 命令或 Python 代码。
 
 ## 能力
 
-1. **Shell 命令**:执行 shell 命令(mv/cp/rm、包管理、构建测试、git、curl 等)。必须使用非交互参数（如 `-y`、`--yes`、`git commit -m "..."`）:前台命令里的交互提示无法应答。确需应答的交互式程序,用 `run_in_background` 启动,再经 `bash_process_tool` 应答。
-2. **执行脚本**:运行已存在的脚本文件(python script.py / bash script.sh)。
-3. **执行 Python 代码**:**直接将 Python 源码作为 command 传入**（支持原生多行代码，无需压缩或转义）。
-   - 预装三方库:pandas, numpy, scipy, matplotlib, seaborn;Python 标准库(json, datetime, re 等)均可用。
-   - **不要**使用 `python -c "..."` / `python3 -c "..."` 包装器 — shell 转义易破坏引号与多行字符串。直接传原生 Python 源码作为 command 即可。
-4. **组合执行提效(管道思想)**: 单次调用内串联多步 — ① Python 源码(gather/串行/控制流,含技能批量); ② Shell 用 `&&`/`|` 串联,或执行已有脚本(见 #2)。独立调用、或可构造的依赖调用，应一次批量；返回结构不明确时在同一块打印 `[OBSERVATION]` 继续，不要单独开一轮；只有后续参数确实无法在观察前构造时才拆分。细则见「编写原则」。
-
-## 优先使用专用工具
-
-- 读/写/编辑:**必须**用 `file_read_tool` / `file_write_tool` / `file_edit_tool`,**不要** echo/cat/sed/awk/tee/perl。
-- 找文件/搜内容/列目录:**必须**用 `glob_tool` / `grep_tool`,**不要** bash `find/grep/ls` 递归扫描。参数与示例见各工具描述。
-
-bash_code_execute_tool 适用于:系统/运行时操作(mv/cp/rm、包管理、构建测试、git、curl)、Python/脚本/技能调用、后台长任务(见下) — 读文件/搜内容/列目录用上节专用工具。
-
-## 编写原则
-
-### 准确性优先,同时考虑效率
-
-合并多个任务可提高效率，但必须先做【依赖性分析】。**返回结构不明确不是拆分的理由**，未知字段只观察、不索引。
-
-流程：
-- 独立调用：必须合并到一次执行；
-- 依赖调用：能在同一段代码里先 `await` 前一步、再构造下一步，就合并；
-- 返回结构不明确：在同一块打印真实返回值 `[OBSERVATION]`，继续完成所有能构造的调用；
-- 只有后续参数确实必须依赖未知结构、且无法预先构造时，才拆成下一次执行。
-
-#### 返回值具体性判定
-
-- **具体**：文档明确写出字段名和类型，可以直接索引取值；仅说「返回字典/列表」不算具体。
-- **不具体**：可以调用并打印观察，但**不要索引未文档化字段**；不要为了看返回结构单独开一轮。
-
-#### 示例:可构造的依赖调用合并到一次执行
-
-无依赖调用用 `asyncio.gather` 并行；有依赖时先 await 前一步，再串行调用：
-
-```python
-import asyncio
-
-async def main():
-    first, second = await asyncio.gather(call_a(), call_b())
-    result = await call_c(x=first, y=second)
-    print(f"[RESULT] {result}")
-
-asyncio.run(main())
-```
-
-若 `first`/`second` 的结构不明确，先在同一块打印真实值：
-
-```python
-import asyncio
-
-async def main():
-    first, second = await asyncio.gather(call_a(), call_b())
-    print(f"[OBSERVATION] first={first}, second={second}")
-
-asyncio.run(main())
-```
-
-仍然遵守：能构造后续调用就继续；只有无法构造时才拆下一次。
-
-### 优化策略
-
-- 独立调用、或依赖可构造时，将多次操作合并进一次 Python 源码,用 while/if/try 控制流完成循环/条件/异常,避免多次往返调用。
-- 只输出所需数据:大数据(CSV/JSON/日志)用 Python 分析,只给摘要。
-- 超大输出 eviction 截断时,按返回路径用 ``file_read_tool`` 读 ``.context/.../evicted/``。
-- 命令失败时,先读 stdout/stderr/错误提示定位根因再修复,勿盲目重试同一命令（严禁在未调整参数或逻辑时连续重复执行同一失败操作）。
-
-### 异步写法
-
-技能/MCP 调用为 async — 必须 await。统一使用 `async def main(): ...` + `asyncio.run(main())` 入口(写法见上方示例)。
-
-### 路径
-
-- 命令与 Python 代码中的路径优先写 ``/workspace/...``(默认工作目录)。
-
-### 状态
-
-- **Python**:每次执行独立进程,变量/import/函数**不保持**。**优先合并到单次代码执行中**;确需跨轮持久化 → 写 ``/workspace/...`` 中间 JSON(``json.dump/load`` 或 ``file_write_tool``);**禁止**大 payload 进 ``[RESULT]``/``[OBSERVATION]``。
-- **Bash**:每次调用都当作全新开始,`cd`、`export`、Shell 函数不保证跨调用保留。需要时合并到一次调用(`cd 目录 && 命令`),或把中间数据写入文件。
-
-## 严格禁止
-
-- 严禁添加非必要的解释性注释，只输出纯净可执行代码。
-- 严禁盲目假设未知返回值结构，不得索引未文档化字段；遇到未知数据先在同一块用 `[OBSERVATION]` 探测，不要因此拆分独立调用。
-- 严禁输出多余的无意义 print，标准输出严格仅允许 `[OBSERVATION]` 与 `[RESULT]`。
-
-## Python 代码输出格式
-
-- `print(f"[OBSERVATION] {变量}")` — 观察未知返回值结构。
-- `print(f"[RESULT] {结果}")` — 输出最终结果（仅输出下游决策所需的关键字段或摘要，禁止 dump 超大无用原始对象）。
-
-## 后台长任务(可选)
-
-启动 dev server / 监听器 / 长任务时,传 `run_in_background=true`,立即返回 `{pid, status}` 而不阻塞当前轮。后台进程按 chat session 隔离,每会话最多 5 个并发。对测试构建等命令，亦可传 `yield_after_seconds=N`（默认 10s，0 为禁用），超时未结束自动转入后台。
-
-**注意**:传 `run_in_background=true` 时**不要**在命令末尾追加 `&` — 工具已自动后台化,追加 `&` 会导致进程脱离管理(pid 失效,无法 output/kill/wait)。
-
-配套工具 `bash_process_tool` 提供 7 个 action:list(会话内全部任务,含 `last_progress`) / output(增量轮询:传上次 `next_cursor` 为 `since_cursor`) / wait / kill / write_stdin / submit_stdin / close_stdin — 参数与规则详见其工具描述。
-
-**关键**:output/wait 返回 `waiting_for_input=true` 时,读 `input_wait_hint` 并用 `submit_stdin` 应答,勿盲轮询;`waiting_for_input=false` 时正常拉输出/等待即可。
-
-### 零 token 进度上报
-
-后台脚本若 `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'`(或 `{"current": 3, "total": 10}`),自动显示进度条,无需 LLM 参与。检查点用 `MYRM_CHECKPOINT {"message": "..."}`。
-""".strip()
-
-TOOL_DESCRIPTION_EN: Final[str] = """
-Execute Shell commands or Python code to solve problems accurately and efficiently. Do NOT make assumptions or guesses!
-
-## Capabilities
-
-1. **Shell commands**: Execute shell commands (mv/cp/rm, package management, build & test, git, curl, etc.). Always pass non-interactive flags (`-y`, `--yes`, `git commit -m "..."`): an interactive prompt in a foreground command cannot be answered. To answer an interactive program, start it with `run_in_background` and reply through `bash_process_tool`.
-2. **Execute scripts**: Run existing script files (`python script.py` / `bash script.sh`).
-3. **Execute Python code**: **Pass Python source code directly as `command`** (supports raw multi-line scripts without escaping or compression).
-   - Pre-installed libraries: pandas, numpy, scipy, matplotlib, seaborn; Python standard library (json, datetime, re, etc.) are available.
-   - **Do NOT** wrap with `python -c "..."` — shell escaping can break quotes and multi-line strings. Pass raw Python code directly as `command`.
-4. **Combined execution (pipelining)**: Chain multiple steps in a single call:
-   - ① Python source (asyncio.gather / sequential / control flow, including skill batching);
-   - ② Shell chaining with `&&`/`|`, or running existing scripts (see #2).
-   - Batch independent calls and constructible dependencies in one call; an unknown return shape is not a reason to split. Print `[OBSERVATION]` in the same block and continue; split only when later arguments genuinely cannot be constructed without first seeing a result (see "Principles").
-
-## Prefer Dedicated Tools
-
-- Read / Write / Edit: **MUST** use `file_read_tool` / `file_write_tool` / `file_edit_tool`. Do **NOT** use echo/cat/sed/awk/tee/perl.
-- Find files / search content / list dirs: **MUST** use `glob_tool` / `grep_tool`. Do **NOT** use bash `find/grep/ls` recursively.
-
-`bash_code_execute_tool` is for: system/runtime operations (mv/cp/rm, build, test, git, curl), Python/script execution, and background tasks.
-
-## Principles
-
-### Accuracy First, Efficiency Second
-
-Combining tasks improves efficiency, but analyze dependencies first. **An unknown return shape is NOT a reason to split**: call it, print the real value as `[OBSERVATION]`, and continue in the same block. Never index undocumented fields.
-
-- **Independent**: batch into one execution.
-- **Dependencies**: await the first result and construct the next call in the same block.
-- **Unknown shape**: print the actual value; keep constructible calls in that block.
-- **Split only** when later arguments cannot be constructed without inspecting an unknown result.
+1. **Shell**:git、构建测试、包管理、curl、mv/cp/rm。前台命令里的交互提示无法应答:请使用非交互参数(`-y`、`--yes`),或用 `run_in_background` 启动交互式程序,再经 `bash_process_tool` 应答。
+2. **Python**:把原生 Python 源码直接作为 `command` 传入(支持多行)。
+3. **合并步骤**:相关工作放进同一次调用(Python 的 `if`/`while`/`try`、`asyncio.gather`,或 `&&` / `|`)。**返回结构不明确不是拆分的理由**:在同一块打印真实值 `[OBSERVATION]` 后继续,且**严禁**索引既没有文档、也没打印过的字段。只有后续参数必须看到结果才能构造时才拆分。
+4. **Skill/MCP 函数**是 async:每次调用都要 `await`,并遵循该技能的调用约定。入口写法:
 
 ```python
 import asyncio
@@ -182,39 +50,62 @@ async def main():
 asyncio.run(main())
 ```
 
-### Optimization Strategies
+## 优先使用专用工具
 
-- When calls are independent or dependencies are constructible, combine multiple steps in one Python script with while/if/try control flow to avoid multiple tool roundtrips.
-- Output only necessary data: analyze large data (CSV/JSON/logs) in Python and print only summaries.
-- When large output is evicted/truncated, read the returned path under `.context/.../evicted/` using `file_read_tool`.
-- When a command fails, read stdout/stderr and error messages to identify root cause before fixing. Do not blindly retry the same failed command (never repeat identical failed operations without adjusting arguments or logic).
+- 读/写/编辑:**必须**用 `file_read_tool` / `file_write_tool` / `file_edit_tool`,**不要** echo/cat/sed/awk/tee/perl。
+- 找文件/搜内容/列目录:**必须**用 `glob_tool` / `grep_tool`,**不要** bash `find/grep/ls` 递归扫描。
 
-### Async Patterns
-Skill/async invocations must be awaited. Use `async def main(): ...` + `asyncio.run(main())` entrypoint.
+`bash_code_execute_tool` 适用于:系统/运行时操作(mv/cp/rm、包管理、构建测试、git、curl)、Python/脚本执行、后台长任务。
 
-### Paths
-Prefer `/workspace/...` (default working directory) in commands and Python code.
+## 状态
 
-### State
-- **Python**: Each execution runs in an independent process; variables and imports do not persist. **Prefer combining operations into a single execution**; for cross-turn persistence, write intermediate JSON under `/workspace/...` (`json.dump/load` or `file_write_tool`). Never put large payloads into `[RESULT]` or `[OBSERVATION]`.
-- **Bash**: Treat every call as a fresh start: `cd`, `export`, and shell functions are not guaranteed to carry over. Combine steps in one call (`cd dir && command`), or write intermediate data to a file.
+- **每次调用都当作全新开始**:Python 变量与 import 不会带到下一次调用,shell 的 `cd` / `export` / 函数也不保证保留。把步骤合并进同一次调用(`cd 目录 && 命令`),或把中间数据写到文件。
 
-## Prohibitions
-- Do NOT add unnecessary explanatory comments; output clean, executable code only.
-- NEVER assume unknown return structures or index undocumented fields; inspect unfamiliar data with `[OBSERVATION]` in the same block instead of splitting independent calls.
-- Do NOT emit superfluous print statements; stdout is strictly restricted to `[OBSERVATION]` and `[RESULT]`.
+## 输出与错误
 
-## Python Output Format
-- `print(f"[OBSERVATION] {variable}")` — Inspect unknown return value structures.
-- `print(f"[RESULT] {result}")` — Output final results (print only essential fields/summaries for downstream decisions; avoid dumping giant raw objects).
+- Python 只允许打印两类行:`print(f"[OBSERVATION] {变量}")` 查看未知值;`print(f"[RESULT] {结果}")` 输出最终结果。内容只放下一步需要的部分(大数据只给摘要,不要 dump 原始对象)。不要其他 print,不写解释性注释。
+- 失败时先读 stderr 定位根因再修复;**严禁**原样重跑同一命令。
 
-## Background Tasks (Optional)
-For dev servers, watchers, or long jobs, pass `run_in_background=true` to return `{pid, status}` immediately without blocking. Max 5 concurrent jobs per session. For long test/build commands, pass `yield_after_seconds=N` (default 10s, 0 to disable) to transition to background if still running.
-**Note**: Do NOT append `&` at the end of the command when `run_in_background=true` (the tool handles backgrounding automatically).
-Use `bash_process_tool` to manage background jobs: `list` (includes `last_progress`), `output` (incremental tail with `since_cursor`), `wait`, `kill`, `write_stdin`, `submit_stdin`, `close_stdin`.
-When output/wait returns `waiting_for_input=true`, check `input_wait_hint` and respond using `submit_stdin` (do not poll blindly); when `waiting_for_input=false`, continue polling output or waiting normally.
+## 后台任务
 
-### Progress Reporting
+后台脚本可以输出 `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'`(或 `{"current": 3, "total": 10}`),界面进度条会自动更新,无需 LLM 参与。检查点用 `MYRM_CHECKPOINT {"message": "..."}`。
+""".strip()
+
+TOOL_DESCRIPTION_EN: Final[str] = """
+Run a shell command or Python code.
+
+## Capabilities
+1. **Shell**: git, build/test, package install, curl, mv/cp/rm. An interactive prompt in a foreground command cannot be answered: pass non-interactive flags (`-y`, `--yes`), or start an interactive program with `run_in_background` and answer it through `bash_process_tool`.
+2. **Python**: pass raw Python source as `command` (multi-line is fine).
+3. **Combine steps**: do related work in ONE call (Python `if`/`while`/`try`, `asyncio.gather`, or `&&` / `|`). **An unknown return shape is NOT a reason to split**: print the real value as `[OBSERVATION]` and continue in the same block, and **NEVER** index a field you have not seen documented or printed. Split only when later arguments cannot be built without seeing the result.
+4. **Skill/MCP functions** are async: `await` every call and follow the skill's calling rules. Entrypoint:
+
+```python
+import asyncio
+
+async def main():
+    first, second = await asyncio.gather(call_a(), call_b())
+    print(f"[OBSERVATION] first={first}, second={second}")
+    result = await call_c(x=first, y=second)  # only if constructible
+    print(f"[RESULT] {result}")
+
+asyncio.run(main())
+```
+
+## Prefer Dedicated Tools
+- Read / Write / Edit: **MUST** use `file_read_tool` / `file_write_tool` / `file_edit_tool`. Do **NOT** use echo/cat/sed/awk/tee/perl.
+- Find files / search content / list dirs: **MUST** use `glob_tool` / `grep_tool`. Do **NOT** use bash `find/grep/ls` recursively.
+
+`bash_code_execute_tool` is for: system/runtime operations (mv/cp/rm, build, test, git, curl), Python/script execution, and background tasks.
+
+## State
+- **Treat every call as a fresh start**: Python variables and imports do not carry over, and shell `cd` / `export` / functions are not guaranteed to carry over either. Combine steps in one call (`cd dir && command`), or write intermediate data to a file.
+
+## Output and Errors
+- In Python, print only two kinds of lines: `print(f"[OBSERVATION] {variable}")` inspects an unknown value; `print(f"[RESULT] {result}")` gives the final output. Put in them only what the next step needs (summaries of large data, never raw dumps). No other prints, no explanatory comments.
+- On failure, read stderr and fix the cause; never rerun the same command unchanged.
+
+## Background Tasks
 Background scripts can emit `echo 'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}'` (or `{"current": 3, "total": 10}`) to automatically update UI progress bars without LLM turns. Use `MYRM_CHECKPOINT {"message": "..."}` for checkpoints.
 """.strip()
 

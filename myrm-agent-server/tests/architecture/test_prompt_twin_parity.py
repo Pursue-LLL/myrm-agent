@@ -38,11 +38,7 @@ _ROOTS = {
 _MIN_COMPARED = 45
 
 # Pairs whose Chinese text lags the English one. An entry fails as stale as soon as the two agree again.
-_KNOWN_DRIFT = {
-    "myrm_agent_harness.agent.meta_tools.bash._tool.tool_description.TOOL_DESCRIPTION_ZH": (
-        "names fewer actions than the English text, with an extra section and a second code example"
-    ),
-}
+_KNOWN_DRIFT: dict[str, str] = {}
 # Pairs the check cannot judge: the Chinese text carries the same rule in other words.
 _ACCEPTED = {
     "app.services.kanban.decompose.prompts.SYSTEM_PROMPT_ZH": (

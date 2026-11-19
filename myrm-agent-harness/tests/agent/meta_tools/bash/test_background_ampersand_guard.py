@@ -3,7 +3,7 @@
 `spawn_background` runs ``<shell> -c <command>``. A bare trailing ``&`` makes the shell
 return immediately while the real process keeps running detached, so the
 registered PID points at an exited shell and bash_process_tool cannot manage it.
-These tests lock the normalization and the prompt contract.
+These tests lock the normalization; the description does not warn about ``&`` because the code strips it.
 """
 
 from __future__ import annotations
@@ -17,10 +17,6 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.background_mixin import 
     strip_trailing_background_ampersand,
 )
 from myrm_agent_harness.agent.meta_tools.bash._executor.executor import BashExecutor
-from myrm_agent_harness.agent.meta_tools.bash._tool.tool_description import (
-    TOOL_DESCRIPTION_EN,
-    TOOL_DESCRIPTION_ZH,
-)
 
 
 def _mock_executor() -> MagicMock:
@@ -71,16 +67,6 @@ def test_strip_bare_trailing_ampersand(command: str, expected: str) -> None:
 def test_preserve_non_orphaning_commands(command: str) -> None:
     """``&&`` chains, mid-command ``&``, quotes, and plain commands are untouched."""
     assert strip_trailing_background_ampersand(command) == command
-
-
-def test_background_section_warns_against_trailing_ampersand() -> None:
-    """Prompt must tell the model not to append ``&`` when backgrounding."""
-    assert "run_in_background=true" in TOOL_DESCRIPTION_ZH
-    assert "不要" in TOOL_DESCRIPTION_ZH
-    assert "`&`" in TOOL_DESCRIPTION_ZH
-    assert "自动后台化" in TOOL_DESCRIPTION_ZH
-    assert "pid 失效" in TOOL_DESCRIPTION_ZH
-    assert "Do NOT append `&`" in TOOL_DESCRIPTION_EN
 
 
 @pytest.mark.asyncio

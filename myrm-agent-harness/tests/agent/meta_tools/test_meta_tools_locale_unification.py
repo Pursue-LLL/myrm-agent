@@ -110,11 +110,11 @@ def test_file_search_descriptions_locale_resolution() -> None:
 def test_bash_tools_descriptions_locale_resolution() -> None:
     # Bash execute
     bash_en = create_bash_code_execute_tool(locale="en")
-    assert "Execute Shell commands" in bash_en.description
+    assert "Run a shell command or Python code." in bash_en.description
     assert "OS:" in bash_en.description
 
     bash_zh = create_bash_code_execute_tool(locale="zh-CN")
-    assert "使用该工具执行准确的 Shell 命令" in bash_zh.description
+    assert "执行 Shell 命令或 Python 代码。" in bash_zh.description
     assert "## 当前系统" in bash_zh.description
 
     # Bash process
@@ -187,7 +187,7 @@ def test_get_meta_tools_passes_locale() -> None:
     assert "Edit a file with exact-text replacements" in descriptions_en["file_edit_tool"]
     assert "Search for matching files" in descriptions_en["glob_tool"]
     assert "Search file contents" in descriptions_en["grep_tool"]
-    assert "Execute Shell commands" in descriptions_en["bash_code_execute_tool"]
+    assert "Run a shell command or Python code." in descriptions_en["bash_code_execute_tool"]
     assert "Manage background bash processes" in descriptions_en["bash_process_tool"]
     assert "Call only when you can confidently deliver" in descriptions_en["request_answer_user_tool"]
 
@@ -206,7 +206,7 @@ def test_get_meta_tools_passes_locale() -> None:
     assert "用精确文本替换编辑文件" in descriptions_zh["file_edit_tool"]
     assert "搜索匹配的文件" in descriptions_zh["glob_tool"]
     assert "搜索文件内容" in descriptions_zh["grep_tool"]
-    assert "使用该工具执行准确的 Shell 命令" in descriptions_zh["bash_code_execute_tool"]
+    assert "执行 Shell 命令或 Python 代码。" in descriptions_zh["bash_code_execute_tool"]
     assert "管理通过 bash_code_execute_tool" in descriptions_zh["bash_process_tool"]
     assert "仅在当你可以自信地提供完美的满分答案时调用" in descriptions_zh["request_answer_user_tool"]
 

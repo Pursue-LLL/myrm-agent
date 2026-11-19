@@ -168,7 +168,7 @@ async def test_build_default_turn1_tools_resolves_default_profile() -> None:
 # 32 on ubuntu-latest, 31/36 on other Linux flavors) — so the gate pins the
 # host-independent static half and subtracts the locally measured hint instead.
 _BASH_TOOL_NAME = "bash_code_execute_tool"
-_BASH_STATIC_DESCRIPTION_TOKENS = 1395
+_BASH_STATIC_DESCRIPTION_TOKENS = 659
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
     "bash_process_tool": 107,
