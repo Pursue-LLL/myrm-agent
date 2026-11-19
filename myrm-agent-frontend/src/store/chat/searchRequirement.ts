@@ -8,7 +8,8 @@
  * requiresSearchService: Whether a turn needs a configured search service: the fast search mode, or the Quick Search agent picked in agent mode.
  *
  * [POS]
- * Search-service prerequisite of a turn. Imports no store, so the send guard and the request assembly share it without an import cycle.
+ * Search-service prerequisite of a turn. Imports no store, so the send guard uses it without an import cycle; the
+ * request assembly names the Quick Search agent by its own literal, and `searchRequirement.test.ts` pins that the two agree.
  */
 import { resolveVisibleBuiltinAgentId } from '@/lib/product-surface';
 import type { ActionMode, AgentConfig } from '@/store/chat/types';

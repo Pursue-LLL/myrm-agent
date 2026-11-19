@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * @/store/useConfigStore (POS: Global config state manager)
- * @/store/config/searchService::guardSearchServiceConfigured (POS: Search service config validator)
+ * @/store/config/searchService::guardSearchServiceConfigured, ensureSearchServicesLoaded (POS: Search service config validator and its sync wait)
  * @/store/chat/types::ActionMode (POS: Chat action mode type definitions)
  *
  * [OUTPUT]
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import useConfigStore from '@/store/useConfigStore';
-import { guardSearchServiceConfigured } from '@/store/config/searchService';
+import { ensureSearchServicesLoaded, guardSearchServiceConfigured } from '@/store/config/searchService';
 import type { ActionMode } from '@/store/chat/types';
 
 interface SearchModeSelectorProps {
@@ -67,8 +67,9 @@ const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
 
-  const handleModeChange = (mode: ActionMode) => {
+  const handleModeChange = async (mode: ActionMode) => {
     if (SEARCH_REQUIRED_MODES.has(mode) && mode !== actionMode) {
+      await ensureSearchServicesLoaded();
       const { searchServiceConfigs } = useConfigStore.getState();
       if (!guardSearchServiceConfigured(searchServiceConfigs)) {
         return;

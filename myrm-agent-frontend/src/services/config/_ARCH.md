@@ -50,7 +50,7 @@
 Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/personalSettings），
 其余 key（含 `securityConfig`）后台异步预加载。预加载写入缓存时**同步通知订阅者**——
 否则「配置就绪后兜底」类逻辑（如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。
-读取即决策的安全敏感路径应使用 `ensureKeyLoaded(key)` 显式等待目标 key 同步。
+读取即决策的路径（安全预设、本地模型密钥、发送前的搜索服务检查）应使用 `ensureKeyLoaded(key)` 显式等待目标 key 同步。
 
 ## 写入一致性（offline replay）
 
