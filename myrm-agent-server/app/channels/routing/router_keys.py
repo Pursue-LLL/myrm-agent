@@ -24,10 +24,6 @@ keys answer different questions and must not be substituted for one another.
 
 from __future__ import annotations
 
-# Marks the chat-wide (no topic) scope, matching SqlTopicManager's storage key for a binding
-# that applies to the whole group or DM.
-_CHAT_SCOPE = "__chat__"
-
 
 def routing_state_key(channel: str, peer_id: str, thread_id: str | None = None) -> str:
     """Return the router state-map key for one conversation scope.
