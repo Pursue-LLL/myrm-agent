@@ -6,7 +6,7 @@
 
 | 文件                     | 职责                                                                                                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `useVoiceSession.ts`     | 会话编排（barge-in、PTT context 与截图、TTS queue 安全插入）                                                                                                             |
+| `useVoiceSession.ts`     | 会话编排（barge-in、TTS queue 安全插入）；PTT context 与截图融合、传输状态同步、窗口事件桥与断句在 [`session/`](session/_ARCH.md)                                         |
 | `useSpeechInput.ts`      | 多后端 STT 输入与主机就绪零延迟门禁（防盲录）                                                                                                                            |
 | `useTTS.ts`              | TTS 输出（browser + API）                                                                                                                                                |
 | `useVoiceAgentBridge.ts` | 服务端 Agent WebSocket bridge 与主机就绪连接守卫                                                                                                                         |

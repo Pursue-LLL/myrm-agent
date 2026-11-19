@@ -2,15 +2,21 @@
  * [INPUT]
  * hooks/voice/useSpeechInput (POS: Speech-to-text input with multi-backend STT)
  * hooks/voice/useTTS (POS: Text-to-speech output with browser and API backends)
- * hooks/voice/useVoicePttListener (POS: Bridges Tauri PTT events to DOM, provides PttScreenContext type)
+ * hooks/voice/useLiveMeetingNotes (POS: In-meeting live notes session: transcript upload + rolling structured notes)
+ * hooks/voice/session/usePttScreenContext (POS: PTT screen context fusion into outgoing voice messages)
+ * hooks/voice/session/useSessionStateSync (POS: Mirrors the active transport's connection state into the session state)
+ * hooks/voice/session/useSessionEvents (POS: Window event bridge: toggle / interrupt / replay in, state broadcast out)
+ * hooks/voice/session/speakableSegments (POS: Pure sentence segmenter feeding the TTS queue)
  *
  * [OUTPUT]
  * useVoiceSession: Full-duplex voice session with barge-in, concurrent STT/TTS,
  * queue-safe TTS insertion, and PTT screen context
+ * VoiceSessionState / VoiceSessionMode: Public session state and transport vocabulary
  *
  * [POS]
  * Full-duplex voice session orchestrator. Manages concurrent listening + speaking with
- * automatic barge-in detection, queue-safe TTS insertion, and PTT screen context fusion (Tauri desktop).
+ * automatic barge-in detection and queue-safe TTS insertion; PTT context fusion, transport state sync
+ * and window events live in hooks/voice/session/.
  */
 
 'use client';
@@ -22,10 +28,13 @@ import { useLiveMeetingNotes, type UseLiveMeetingNotesReturn } from './useLiveMe
 import { useVoiceAgentBridge } from './useVoiceAgentBridge';
 import { useRealtimeVoice } from './useRealtimeVoice';
 import { useGeminiLiveVoice } from './useGeminiLiveVoice';
-import type { PttScreenContext } from './useVoicePttListener';
+import { extractSpeakableSegments } from './session/speakableSegments';
+import { useSessionEvents } from './session/useSessionEvents';
+import { usePttScreenContext } from './session/usePttScreenContext';
+import { useSessionStateSync } from './session/useSessionStateSync';
+import type { VoiceSessionMode, VoiceSessionState } from './session/types';
 
-export type VoiceSessionState = 'inactive' | 'listening' | 'processing' | 'speaking' | 'paused';
-export type VoiceSessionMode = 'audio_only' | 'agent_bridge' | 'openai_realtime' | 'gemini_live';
+export type { VoiceSessionMode, VoiceSessionState } from './session/types';
 
 interface UseVoiceSessionOptions {
   enabled: boolean;
@@ -76,34 +85,6 @@ interface UseVoiceSessionReturn {
   liveNotes: UseLiveMeetingNotesReturn;
 }
 
-const SENTENCE_END_PATTERN = /[.!?。！？\n]/;
-const TERMINATOR_ONLY_PATTERN = /^[.!?。！？\s]+$/;
-
-export function extractSpeakableSegments(text: string): string[] {
-  const segments: string[] = [];
-  let remaining = text;
-
-  while (remaining.length > 0) {
-    const match = SENTENCE_END_PATTERN.exec(remaining);
-    if (match && match.index !== undefined) {
-      const segment = remaining.slice(0, match.index + 1).trim();
-      if (segment && !TERMINATOR_ONLY_PATTERN.test(segment)) {
-        segments.push(segment);
-      }
-      remaining = remaining.slice(match.index + 1);
-    } else {
-      break;
-    }
-  }
-
-  const tail = remaining.trim();
-  if (tail && !TERMINATOR_ONLY_PATTERN.test(tail)) {
-    segments.push(tail);
-  }
-
-  return segments;
-}
-
 export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessionReturn {
   const {
     enabled,
@@ -138,33 +119,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   // F13 DoD: Last spoken TTS text cache for quick replay
   const lastSpokenTextRef = useRef<string | null>(null);
 
-  // PTT 屏幕上下文：Rust 端在 PTT 按下时异步截图后发射 voice-ptt-context DOM 事件
-  const pttScreenContextRef = useRef<PttScreenContext | null>(null);
-  const pttPendingPromiseRef = useRef<{ resolve: (ctx: PttScreenContext | null) => void } | null>(null);
-
-  useEffect(() => {
-    const handlePttStart = () => {
-      pttScreenContextRef.current = null;
-    };
-
-    const handlePttContext = (e: Event) => {
-      const detail = (e as CustomEvent<PttScreenContext>).detail;
-      if (detail?.screenshot || detail?.extractedText || detail?.selectedText) {
-        pttScreenContextRef.current = detail;
-        if (pttPendingPromiseRef.current) {
-          pttPendingPromiseRef.current.resolve(detail);
-          pttPendingPromiseRef.current = null;
-        }
-      }
-    };
-
-    window.addEventListener('voice-ptt-start', handlePttStart);
-    window.addEventListener('voice-ptt-context', handlePttContext);
-    return () => {
-      window.removeEventListener('voice-ptt-start', handlePttStart);
-      window.removeEventListener('voice-ptt-context', handlePttContext);
-    };
-  }, []);
+  const composeWithPttContext = usePttScreenContext(speechMode);
 
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
 
@@ -254,50 +209,10 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
       setSessionState('processing');
 
-      let visionFrames: string[] | undefined;
-      let finalText = text;
-
-      // PTT 屏幕上下文汇聚屏障锁（Barrier Sync）：
-      // 若当前处于 PTT 模式且截图仍在传输，等待最多 250ms 汇聚窗口
-      let pttCtx = pttScreenContextRef.current;
-      if (!pttCtx && speechMode === 'push-to-talk') {
-        pttCtx = await new Promise<PttScreenContext | null>((resolve) => {
-          const timer = setTimeout(() => {
-            pttPendingPromiseRef.current = null;
-            resolve(null);
-          }, 250);
-          pttPendingPromiseRef.current = {
-            resolve: (ctx) => {
-              clearTimeout(timer);
-              resolve(ctx);
-            },
-          };
-        });
-      }
-      pttScreenContextRef.current = null;
-
-      if (pttCtx && Date.now() - pttCtx.timestamp < 30_000) {
-        if (pttCtx.screenshot) {
-          visionFrames = [pttCtx.screenshot];
-        }
-
-        const contextParts: string[] = [];
-        if (pttCtx.windowTitle) {
-          contextParts.push(`[Active Window: ${pttCtx.windowTitle}]`);
-        }
-        if (pttCtx.selectedText && pttCtx.selectedText.trim()) {
-          contextParts.push(`[Selected Text: ${pttCtx.selectedText.trim().slice(0, 3000)}]`);
-        } else if (pttCtx.extractedText && pttCtx.extractedText.trim()) {
-          contextParts.push(`[Screen Text: ${pttCtx.extractedText.trim().slice(0, 2000)}]`);
-        }
-        if (contextParts.length > 0) {
-          finalText = `${contextParts.join('\n')}\n\n${text}`;
-        }
-      }
-
+      const { text: finalText, visionFrames } = await composeWithPttContext(text);
       onSendMessage?.(finalText, visionFrames);
     },
-    [autoSend, fullDuplex, tts, onSendMessage, mode, speechMode],
+    [autoSend, fullDuplex, tts, onSendMessage, mode, composeWithPttContext],
   );
 
   const handleInterimTranscript = useCallback(() => {
@@ -493,86 +408,14 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }
   }, [sessionState, tts, speech, fullDuplex, mode, agentBridge]);
 
-  // Sync agent bridge state → session state
-  useEffect(() => {
-    if (mode !== 'agent_bridge') {
-      return;
-    }
-    const bridgeState = agentBridge.state;
-    switch (bridgeState) {
-      case 'listening':
-        setSessionState('listening');
-        break;
-      case 'agent_thinking':
-        setSessionState('processing');
-        break;
-      case 'agent_speaking':
-        setSessionState('speaking');
-        break;
-      case 'disconnected':
-        if (sessionActiveRef.current) {
-          sessionActiveRef.current = false;
-          setSessionState('inactive');
-        }
-        break;
-    }
-  }, [mode, agentBridge.state]);
-
-  // Sync realtime voice state → session state
-  useEffect(() => {
-    if (mode !== 'openai_realtime') {
-      return;
-    }
-    const rtState = realtimeVoice.state;
-    switch (rtState) {
-      case 'connecting':
-        setSessionState('listening');
-        break;
-      case 'listening':
-        setSessionState('listening');
-        break;
-      case 'thinking':
-        setSessionState('processing');
-        break;
-      case 'speaking':
-        setSessionState('speaking');
-        break;
-      case 'error':
-      case 'idle':
-        if (sessionActiveRef.current) {
-          sessionActiveRef.current = false;
-          setSessionState('inactive');
-        }
-        break;
-    }
-  }, [mode, realtimeVoice.state]);
-
-  // Sync Gemini Live state → session state
-  useEffect(() => {
-    if (mode !== 'gemini_live') {
-      return;
-    }
-    const glState = geminiLive.state;
-    switch (glState) {
-      case 'connecting':
-      case 'listening':
-        setSessionState('listening');
-        break;
-      case 'thinking':
-        setSessionState('processing');
-        break;
-      case 'speaking':
-        setSessionState('speaking');
-        break;
-      case 'error':
-      case 'idle':
-        if (sessionActiveRef.current) {
-          sessionActiveRef.current = false;
-          setSessionState('inactive');
-        }
-        break;
-    }
-  }, [mode, geminiLive.state]);
+  useSessionStateSync({
+    mode,
+    agentBridgeState: agentBridge.state,
+    realtimeState: realtimeVoice.state,
+    geminiLiveState: geminiLive.state,
+    sessionActiveRef,
+    setSessionState,
+  });
 
   useEffect(() => {
     return () => {
@@ -581,60 +424,20 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     };
   }, []);
 
-  // External event bus listeners (from Tauri Pet companion or global shortcuts)
-  useEffect(() => {
-    const handleToggle = () => {
-      if (sessionActiveRef.current) {
-        stopSession();
-      } else {
-        startSession();
-      }
-    };
-
-    const handleInterrupt = () => {
-      interruptTTS();
-    };
-
-    const handleReplay = () => {
-      replayLastTTS();
-    };
-
-    window.addEventListener('myrm-voice-toggle', handleToggle);
-    window.addEventListener('myrm-voice-interrupt', handleInterrupt);
-    window.addEventListener('myrm-voice-replay', handleReplay);
-
-    return () => {
-      window.removeEventListener('myrm-voice-toggle', handleToggle);
-      window.removeEventListener('myrm-voice-interrupt', handleInterrupt);
-      window.removeEventListener('myrm-voice-replay', handleReplay);
-    };
-  }, [startSession, stopSession, interruptTTS, replayLastTTS]);
-
   const isRealtime = mode === 'openai_realtime';
   const isGeminiLive = mode === 'gemini_live';
   const isAgentBridge = mode === 'agent_bridge';
-  const currentAudioLevel = isAgentBridge ? agentBridge.audioLevel : speech.audioLevel;
+  const audioLevel = isAgentBridge ? agentBridge.audioLevel : speech.audioLevel;
 
-  // Broadcast unified voice state for satellites / companion / Pet overlay
-  useEffect(() => {
-    const mappedState =
-      sessionState === 'inactive'
-        ? 'idle'
-        : sessionState === 'speaking'
-          ? 'speaking'
-          : sessionState === 'processing'
-            ? 'processing'
-            : 'listening';
-
-    window.dispatchEvent(
-      new CustomEvent('myrm-voice-state-update', {
-        detail: {
-          voiceState: mappedState,
-          audioLevel: currentAudioLevel,
-        },
-      }),
-    );
-  }, [sessionState, currentAudioLevel]);
+  useSessionEvents({
+    sessionState,
+    audioLevel,
+    sessionActiveRef,
+    startSession,
+    stopSession,
+    interruptTTS,
+    replayLastTTS,
+  });
 
   return {
     sessionState,
@@ -651,7 +454,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
         : isAgentBridge
           ? agentBridge.interimText
           : speech.interimText,
-    audioLevel: isAgentBridge ? agentBridge.audioLevel : speech.audioLevel,
+    audioLevel,
     ttsState: tts.state,
     agentResponseText: isRealtime
       ? realtimeVoice.responseText
