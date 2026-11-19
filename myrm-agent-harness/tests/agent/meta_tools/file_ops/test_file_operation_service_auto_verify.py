@@ -31,12 +31,6 @@ async def test_create_appends_the_auto_verify_report() -> None:
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/workspace/main.py",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
@@ -105,12 +99,6 @@ async def test_str_replace_triggers_auto_verify_with_line_range() -> None:
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/workspace/main.py",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",

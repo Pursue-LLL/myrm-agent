@@ -4,7 +4,6 @@
 - ._background.registry::get_background_registry, BackgroundQuotaError (POS: Background job registry)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - agent.security.checks::check_shell_threats (POS: hidden-character and quoting layer, applied to the text a shell is about to read)
-- agent.artifacts.file_id_registry::resolve_file_ids_in_text (POS: File ID resolution)
 - toolkits.code_execution.executors.base::ExecutionContext, CodeExecutor (POS: Code executor base classes)
 - toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection and shell configuration)
 - toolkits.code_execution::ExecutionConfig (POS: Code execution configuration layer)
@@ -24,7 +23,6 @@ import logging
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids_in_text
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
@@ -110,7 +108,6 @@ class BashExecutorBackgroundMixin:
         progress_listener: ProgressListener | None = None,
     ) -> BackgroundProcessInfo:
         """Spawn a long-running shell command and immediately return its PID."""
-        command = resolve_file_ids_in_text(command)
         from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
 
         unwrapped = unwrap_markdown_fence(command)

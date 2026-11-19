@@ -48,7 +48,7 @@ class FileContent:
     """文件内容数据"""
 
     path: str  # 文件路径
-    display_path: str  # 显示路径（可能是短 ID）
+    display_path: str  # 显示路径（模型所写的路径，不含行号范围）
     lines: list[str]  # 文件行列表
     view_range: ViewRange | None = None  # 视图范围
 

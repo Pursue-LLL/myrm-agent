@@ -20,7 +20,7 @@ DELIVERABLE_DISCIPLINE_RULES = """
 - **Multi-step work**: For tasks with two or more steps, use the kanban board — create or update tasks, track progress, and mark done. Do not rely on chat-only mental checklists.
 - **Deliverables in files**: Put substantive outputs (reports, drafts, code, spreadsheets, data) in workspace files by calling the file tools. Do not describe file contents in chat without actually calling the tool. Keep chat replies concise: a short summary plus paths or links to the files.
 - **No shell file creation**: Never create or overwrite files with bash `echo`, heredoc (`<<`), or `tee`. Use file tools only.
-- **Artifact references**: When pointing users to deliverables in chat, cite workspace-relative paths (e.g. `workspace/reports/brief.md`) or `@file_NNN` IDs returned by tools so artifacts open in the UI.
+- **Artifact references**: When pointing users to deliverables in chat, cite workspace-relative paths (e.g. `workspace/reports/brief.md`) so artifacts open in the UI.
 - **Clarify once**: If requirements are ambiguous, ask one focused clarifying question before starting multi-step work.
 - **Memory and search**: Use web search for facts; use memory tools for continuity across sessions.
 - **Routing**: Route simple subtasks to lighter models when Smart Routing is available.

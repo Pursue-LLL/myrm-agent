@@ -82,12 +82,6 @@ async def test_execute_create_appends_conflict_notice() -> None:
     service = FileOperationService(context)
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/note.txt",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
@@ -140,10 +134,6 @@ async def test_execute_create_notifies_a_created_file_with_what_was_written() ->
     strategy.read_file = AsyncMock(return_value=["hello", ""])
     with (
         patch.object(context, "validate"),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-            return_value="/w/new.txt",
-        ),
         patch(f"{service_module}.FileSystemStrategyFactory.create_strategy", return_value=strategy),
         patch(f"{service_module}.ValidatorChain") as validator_chain,
         patch(f"{service_module}.check_conflict_pre_write", return_value=None),
@@ -169,12 +159,6 @@ async def test_execute_str_replace_delta_failure_rolls_back() -> None:
     old_flat = "old"
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/a.py",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
@@ -238,12 +222,6 @@ async def test_execute_str_replace_preserves_vault_frontmatter(tmp_path) -> None
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value=str(note),
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
@@ -308,12 +286,6 @@ async def test_execute_str_replace_appends_conflict_warning() -> None:
     guard.record_write = MagicMock()
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/a.py",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",

@@ -120,10 +120,7 @@ class FileOperationService:
             if not self.context.path:
                 raise ValueError(f"{self.context.operation} operation requires 'path' parameter")
 
-            from ..utils.path_utils import resolve_file_id_path
-
-            resolved_lock_path = resolve_file_id_path(self.context.path)
-            async with acquire_file_path_lock(resolved_lock_path):
+            async with acquire_file_path_lock(self.context.path):
                 if self.context.operation == OperationType.CREATE:
                     return await self._execute_create()
                 return await self._execute_str_replace()
@@ -137,52 +134,47 @@ class FileOperationService:
         if not self.context.path or self.context.file_text is None:
             raise ValueError("CREATE operation requires 'path' and 'file_text' parameters")
 
-        # 解析文件 ID
-        from ..utils.path_utils import resolve_file_id_path
-
-        resolved_path = resolve_file_id_path(self.context.path)
+        path = self.context.path
 
         # 创建策略
-        strategy = FileSystemStrategyFactory.create_strategy(
-            resolved_path, self.context.skills, executor=self.context.executor
-        )
+        strategy = FileSystemStrategyFactory.create_strategy(path, self.context.skills, executor=self.context.executor)
 
         # 验证(使用安全配置)
         validator_chain = ValidatorChain(strategy, io_config=self.io_config)
-        await validator_chain.validate(self.context, resolved_path)
+        await validator_chain.validate(self.context, path)
 
         # Concurrent subagent conflict detection (pre-write)
-        conflict_warning = check_conflict_pre_write(resolved_path, 1, self.context.file_text.count("\n") + 1)
+        conflict_warning = check_conflict_pre_write(path, 1, self.context.file_text.count("\n") + 1)
 
         # 增量容错语法校验 (Delta Syntax Validator)
         from ..validators.delta_syntax_validator import DeltaSyntaxValidator
 
-        DeltaSyntaxValidator.validate(resolved_path, self.context.file_text)
+        DeltaSyntaxValidator.validate(path, self.context.file_text)
 
         from ..validators.office_write_guard import OfficeWriteGuard
 
-        file_text, office_warnings = OfficeWriteGuard.apply(resolved_path, self.context.file_text)
+        file_text, office_warnings = OfficeWriteGuard.apply(path, self.context.file_text)
 
         # 写入文件
-        await strategy.write_file(resolved_path, file_text)
+        await strategy.write_file(path, file_text)
 
-        new_content = "\n".join(await strategy.read_file(resolved_path))
-        logger.info("Calling observer_manager.notify_file_created for %s", resolved_path)
-        await self.observer_manager.notify_file_created(resolved_path, new_content)
+        new_content = "\n".join(await strategy.read_file(path))
+        logger.info("Calling observer_manager.notify_file_created for %s", path)
+        await self.observer_manager.notify_file_created(path, new_content)
 
-        verify_report = await self._auto_verify(resolved_path)
+        verify_report = await self._auto_verify(path)
 
         # Record hash AFTER observers and verification so FormatObserver's changes are captured.
         # Re-read to get the post-formatted content; skip re-read when no
         # executor is available (guard would be None anyway).
         guard = get_file_integrity_guard(self.context.executor)
         if guard is not None:
-            final_content = "\n".join(await strategy.read_file(resolved_path))
-            guard.record_write(resolved_path, final_content)
+            final_content = "\n".join(await strategy.read_file(path))
+            guard.record_write(path, final_content)
 
-        logger.info("Created file: %s", resolved_path)
+        logger.info("Created file: %s", path)
 
-        response = ResultFormatter.format_success("created", resolved_path)
+        response = ResultFormatter.format_success("created", path)
         if conflict_warning:
             response = f"{response}\n\n{conflict_warning}"
         if verify_report:
@@ -194,80 +186,76 @@ class FileOperationService:
         if not self.context.path or not self.context.edits:
             raise ValueError("STR_REPLACE operation requires 'path' and non-empty 'edits' parameters")
 
-        from ..utils.path_utils import resolve_file_id_path
+        path = self.context.path
 
-        resolved_path = resolve_file_id_path(self.context.path)
-
-        strategy = FileSystemStrategyFactory.create_strategy(
-            resolved_path, self.context.skills, executor=self.context.executor
-        )
+        strategy = FileSystemStrategyFactory.create_strategy(path, self.context.skills, executor=self.context.executor)
 
         validator_chain = ValidatorChain(strategy, io_config=self.io_config)
-        await validator_chain.validate(self.context, resolved_path)
+        await validator_chain.validate(self.context, path)
 
         guard = get_file_integrity_guard(self.context.executor)
-        raise_if_integrity_rejection(guard, resolved_path, require_version=False)
+        raise_if_integrity_rejection(guard, path, require_version=False)
 
-        old_content = "\n".join(await strategy.read_file(resolved_path))
+        old_content = "\n".join(await strategy.read_file(path))
         target_anchors = [edit.old_str for edit in self.context.edits if edit.old_str] if self.context.edits else None
         raise_if_integrity_rejection(
             guard,
-            resolved_path,
+            path,
             disk_content=old_content,
             require_version=True,
             anchor=target_anchors,
         )
 
         line_start, line_end = compute_batch_edit_line_range(old_content, self.context.edits)
-        conflict_warning = check_conflict_pre_write(resolved_path, line_start, line_end)
+        conflict_warning = check_conflict_pre_write(path, line_start, line_end)
 
         new_content, strategies = apply_batch_str_replace(old_content, self.context.edits)
-        raise_if_masked_writeback(resolved_path, old_content, new_content)
+        raise_if_masked_writeback(path, old_content, new_content)
         if any(s != "exact" for s in strategies):
             logger.info(
                 "Batch str_replace applied with fuzzy strategies path=%s strategies=%s",
-                resolved_path,
+                path,
                 strategies,
             )
 
         from ..validators.markdown_vault_write_guard import MarkdownVaultWriteGuard
 
         new_content, vault_warnings = MarkdownVaultWriteGuard.apply(
-            resolved_path,
+            path,
             old_content,
             new_content,
         )
 
         from ..validators.office_write_guard import OfficeWriteGuard
 
-        new_content, office_warnings = OfficeWriteGuard.apply(resolved_path, new_content)
+        new_content, office_warnings = OfficeWriteGuard.apply(path, new_content)
 
-        await strategy.write_file(resolved_path, new_content)
+        await strategy.write_file(path, new_content)
 
         from ..validators.delta_syntax_validator import DeltaSyntaxValidator
 
         try:
-            DeltaSyntaxValidator.validate(resolved_path, new_content, pre_content=old_content)
+            DeltaSyntaxValidator.validate(path, new_content, pre_content=old_content)
         except ValueError as e:
-            await strategy.write_file(resolved_path, old_content)
+            await strategy.write_file(path, old_content)
             logger.warning(
                 "Delta Syntax Validation failed for %s, changes rolled back. Error: %s",
-                resolved_path,
+                path,
                 e,
             )
             raise
 
-        await self.observer_manager.notify_file_modified(resolved_path, old_content, new_content)
+        await self.observer_manager.notify_file_modified(path, old_content, new_content)
 
-        verify_report = await self._auto_verify(resolved_path, edit_line_start=line_start, edit_line_end=line_end)
+        verify_report = await self._auto_verify(path, edit_line_start=line_start, edit_line_end=line_end)
 
         if guard is not None:
-            final_content = "\n".join(await strategy.read_file(resolved_path))
-            guard.record_write(resolved_path, final_content)
+            final_content = "\n".join(await strategy.read_file(path))
+            guard.record_write(path, final_content)
 
-        logger.info("Replaced text in file: %s", resolved_path)
+        logger.info("Replaced text in file: %s", path)
 
-        response = ResultFormatter.format_success("replaced text in", resolved_path)
+        response = ResultFormatter.format_success("replaced text in", path)
         if conflict_warning:
             response = f"{response}\n\n{conflict_warning}"
         if verify_report:
@@ -279,7 +267,7 @@ class FileOperationService:
 
     async def _auto_verify(
         self,
-        resolved_path: str,
+        path: str,
         *,
         edit_line_start: int | None = None,
         edit_line_end: int | None = None,
@@ -296,7 +284,7 @@ class FileOperationService:
 
         return await run_auto_verify(
             executor,
-            resolved_path,
+            path,
             edit_line_start=edit_line_start,
             edit_line_end=edit_line_end,
         )

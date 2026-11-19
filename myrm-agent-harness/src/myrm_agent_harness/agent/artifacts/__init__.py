@@ -25,13 +25,9 @@ from .context import ArtifactContext, ArtifactContextManager, get_artifact_conte
 
 # File ID Registry
 from .file_id_registry import (
-    FILE_ID_PATTERN,
     FILE_ID_PREFIX,
     FileIdRegistry,
-    is_file_id,
     register_file,
-    resolve_file_id,
-    resolve_file_ids_in_text,
 )
 
 # Filters
@@ -60,7 +56,6 @@ __all__ = [
     "ACTIVE_CONTENT_MIME_TYPES",
     "EXTENSION_TO_ARTIFACT_TYPE",
     "EXTENSION_TO_LANGUAGE",
-    "FILE_ID_PATTERN",
     "FILE_ID_PREFIX",
     # Context
     "ArtifactContext",
@@ -90,14 +85,11 @@ __all__ = [
     "infer_language",
     "infer_language_from_extension",
     "is_active_content",
-    "is_file_id",
     "is_text_content",
     "push_inline_artifact",
     "push_realtime_content",
     "register_file",
     "register_generated_files",
-    "resolve_file_id",
-    "resolve_file_ids_in_text",
     # Filters
     "should_filter_skill_resource",
     "should_ignore_artifact",

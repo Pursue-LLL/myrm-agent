@@ -3,7 +3,6 @@
 [INPUT]
 - core.security.tool_registry::READ_RANGE_PATTERN (POS: the one grammar of a path argument's ``:START-END`` line range)
 - core.operation_context::ViewRange (POS: View line range for partial reads)
-- utils.path_utils::resolve_file_id_path (POS: resolves an ``@file_id`` to its path)
 
 [OUTPUT]
 - parse_path_with_range: the file path and the validated line range (positive numbers, ordered) of a path argument
@@ -11,7 +10,8 @@
 [POS]
 The validated reading of a path argument's range. Only a trailing ``:START-END`` or ``:START-`` is a range; every
 other colon, such as a drive letter or the one in ``notes:v2.md``, belongs to the file name. The grammar is the one
-the permission verdict strips ranges with (``strip_read_range``), so the file read is the file judged.
+the permission verdict strips ranges with (``strip_read_range``), so the file read is the file judged. The file name
+comes back as written: no spelling of a path (a short file id, for one) is swapped for another file after the verdict.
 """
 
 from __future__ import annotations
@@ -19,17 +19,15 @@ from __future__ import annotations
 from myrm_agent_harness.core.security.tool_registry import READ_RANGE_PATTERN
 
 from ..core.operation_context import ViewRange
-from .path_utils import resolve_file_id_path
 
 
 def parse_path_with_range(path_str: str) -> tuple[str, ViewRange | None]:
     """解析路径字符串，提取行号范围
 
-    支持文件 ID 格式：@file_001:1-50
     支持 vault 指针：vault://uuid:1-50
 
     Args:
-        path_str: 路径字符串，如 "file.py" 或 "file.py:1-50" 或 "@file_001:1-50"
+        path_str: 路径字符串，如 "file.py" 或 "file.py:1-50"
 
     Returns:
         (文件路径, 行号范围) 元组
@@ -58,10 +56,6 @@ def parse_path_with_range(path_str: str) -> tuple[str, ViewRange | None]:
                     f"Invalid line range in '{path_str}': end line ({end}) cannot be less than start line ({start})"
                 )
 
-        # 解析文件 ID
-        file_path = resolve_file_id_path(file_path)
         return file_path, ViewRange(start=start, end=end)
 
-    # 没有行号范围，直接解析文件 ID
-    resolved_path = resolve_file_id_path(path_str)
-    return resolved_path, None
+    return path_str, None

@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from langchain_core.runnables import RunnableConfig
 
+from myrm_agent_harness.agent.artifacts import ArtifactContextManager, register_file
 from myrm_agent_harness.agent.meta_tools.file_ops.file_read_tool import (
     FileReadInput,
     create_file_read_tool,
@@ -94,10 +95,16 @@ class TestParsePathWithRangeValidation:
         assert p == "app.py"
         assert r is None
 
-    def test_file_id_resolution(self) -> None:
-        p, r = parse_path_with_range("@file_001")
-        assert p == "@file_001"
-        assert r is None
+    def test_a_registered_file_id_is_an_ordinary_file_name(self) -> None:
+        with ArtifactContextManager():
+            register_file("/workspace/data.json")
+
+            assert parse_path_with_range("@file_001") == ("@file_001", None)
+            file_path, view_range = parse_path_with_range("@file_001:1-50")
+
+        assert file_path == "@file_001"
+        assert view_range is not None
+        assert (view_range.start, view_range.end) == (1, 50)
 
 
 class TestFileReadPreIODevicesAndUnicode:

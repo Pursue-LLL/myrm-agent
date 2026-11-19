@@ -13,7 +13,7 @@
 - create_file_write_tool: 创建文件写入工具的工厂函数
 
 [POS]
-File write tool. Creates new files; rejects empty/whitespace-only content; auto File ID resolution (@file_001), automatic artifact registration, and real-time frontend push.
+File write tool. Creates new files; rejects empty/whitespace-only content; automatic artifact registration, and real-time frontend push.
 
 """
 
@@ -91,7 +91,6 @@ def create_file_write_tool(
     """创建文件写入工具
 
     内部使用 FileOperationService，自动处理：
-    - File ID 解析（@file_001 → 实际路径）
     - Artifact 自动注册和实时推送
     - ArtifactTracker 记录
     - 路径安全验证
@@ -123,7 +122,7 @@ def create_file_write_tool(
         """创建新文件
 
         Args:
-            path: 文件路径（支持 File ID）
+            path: 文件路径
             content: 文件内容
             reason: 操作原因（可选，用于日志）
             config: LangChain 运行时配置，包含 context
@@ -165,7 +164,7 @@ def create_file_write_tool(
                 operation=OperationType.CREATE,
                 executor=executor,
                 skills=skills or [],
-                path=path,  # 支持 @file_001 格式
+                path=path,
                 file_text=content,
                 reason=reason,  # 操作原因（日志）
             )

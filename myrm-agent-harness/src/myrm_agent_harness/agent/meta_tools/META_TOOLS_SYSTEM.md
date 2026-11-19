@@ -97,7 +97,7 @@ Server 层通过 `factory.py` 的 `_setup_*_tools()` 注入 store/dispatcher 等
 
 - `agent/sub_agents/` — 委派执行
 - `agent/parallel/` — batch/swarm 并行 spawn
-- `agent/artifacts/` — `@file_*` 短 ID、vault、UI registry
+- `agent/artifacts/` — 交付物短 ID（只供事件流与界面链接，工具不解析）、vault、UI registry
 - `agent/middlewares/` — completion_guard、clarification_guard、tool_interceptor、skill_attenuation
 - `toolkits/` — 底层执行（browser、code_execution、kanban 等）
 

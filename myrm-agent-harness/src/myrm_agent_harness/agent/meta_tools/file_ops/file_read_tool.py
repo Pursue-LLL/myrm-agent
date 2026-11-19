@@ -17,7 +17,7 @@
 
 [OUTPUT]
 - create_file_read_tool(): 工厂函数，创建 file_read_tool（可选 path_policy=evicted_uploaded）
-- file_read_tool: LangChain Tool（本地/MCP/File ID/vault:// 路径、批量读取、行号范围、多模态、Office/Jupyter 解析）
+- file_read_tool: LangChain Tool（本地/MCP/vault:// 路径、批量读取、行号范围、多模态、Office/Jupyter 解析）
 
 [POS]
 File read tool factory and orchestration. Supports full workspace reads or Fast-track
@@ -89,7 +89,7 @@ class FileReadInput(BaseModel):
     paths: list[str] = Field(
         description=(
             "Files or directories. Line range suffix (text/code files only): 'f.py:1-50' or 'f.py:100-' (to the end). "
-            "Also accepts @file_id, vault://uuid[:range] and /mcp/... paths."
+            "Also accepts vault://uuid[:range] and /mcp/... paths."
         )
     )
 

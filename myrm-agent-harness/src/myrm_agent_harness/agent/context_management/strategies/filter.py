@@ -63,7 +63,6 @@ async def create_filtered_result(
     file_path: str,
     user_query: str,
     llm: BaseChatModel | None = None,
-    file_id: str | None = None,
     tool_name: str | None = None,
 ) -> FilteredResult:
     """创建过滤结果（纯内存，智能预览）
@@ -79,9 +78,8 @@ async def create_filtered_result(
     content_type: ContentType = "plain_text" if row_listing else detect_content_type(content)
     estimated_tokens = get_token_count(content)
 
-    display_path = file_id if file_id else file_path
     filter_context = FilterContext(
-        content=content, file_path=display_path, content_type=content_type, user_query=user_query
+        content=content, file_path=file_path, content_type=content_type, user_query=user_query
     )
 
     filter_instance: BaseFilter

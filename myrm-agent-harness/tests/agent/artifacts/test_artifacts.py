@@ -25,7 +25,7 @@ from myrm_agent_harness.agent.artifacts import (
 )
 from myrm_agent_harness.agent.artifacts.constants import ACTIVE_CONTENT_MIME_TYPES, get_all_mappings
 from myrm_agent_harness.agent.artifacts.context import ArtifactContext, ArtifactContextManager, get_artifact_context
-from myrm_agent_harness.agent.artifacts.file_id_registry import FileIdRegistry, is_file_id, resolve_file_ids_in_text
+from myrm_agent_harness.agent.artifacts.file_id_registry import FileIdRegistry, lookup_short_file_id, register_file
 
 
 class TestArtifactTypes:
@@ -551,7 +551,7 @@ class TestArtifactContextManager:
 
 
 class TestFileIdRegistry:
-    """Tests for FileIdRegistry register/resolve/dedup."""
+    """Tests for FileIdRegistry numbering, dedup and the id lookup artifact events use."""
 
     def test_register_returns_sequential_ids(self):
         registry = FileIdRegistry()
@@ -567,51 +567,18 @@ class TestFileIdRegistry:
         id2 = registry.register("/workspace/a.txt")
 
         assert id1 == id2
-        assert len(registry.id_to_path) == 1
+        assert len(registry.path_to_id) == 1
 
-    def test_resolve_existing(self):
-        registry = FileIdRegistry()
-        registry.register("/workspace/test.py")
-
-        path = registry.resolve("@file_001")
-        assert path == "/workspace/test.py"
-
-    def test_resolve_nonexistent(self):
-        registry = FileIdRegistry()
-        assert registry.resolve("@file_999") is None
-
-    def test_get_all_mappings(self):
-        registry = FileIdRegistry()
-        registry.register("/workspace/a.txt")
-        registry.register("/workspace/b.txt")
-
-        mappings = registry.get_all_mappings()
-        assert len(mappings) == 2
-        assert mappings["@file_001"] == "/workspace/a.txt"
-
-    def test_is_file_id(self):
-        assert is_file_id("@file_001") is True
-        assert is_file_id("@file_100") is True
-        assert is_file_id("/workspace/test.py") is False
-        assert is_file_id("file_001") is False
-
-    def test_resolve_file_ids_in_text_within_context(self):
+    def test_lookup_returns_the_id_of_a_registered_path(self):
         with ArtifactContextManager():
-            ctx = get_artifact_context()
-            assert ctx is not None
-            ctx.file_id_registry.register("/workspace/data.json")
+            assert register_file("/workspace/data.json") == "@file_001"
 
-            result = resolve_file_ids_in_text("cat @file_001 | jq '.data'")
-            assert result == "cat /workspace/data.json | jq '.data'"
+            assert lookup_short_file_id("/workspace/data.json") == "@file_001"
+            assert lookup_short_file_id("/workspace/other.json") is None
 
-    def test_resolve_file_ids_preserves_unknown(self):
-        with ArtifactContextManager():
-            result = resolve_file_ids_in_text("cat @file_999")
-            assert "@file_999" in result
-
-    def test_resolve_file_ids_no_context(self):
-        result = resolve_file_ids_in_text("cat @file_001")
-        assert result == "cat @file_001"
+    def test_lookup_and_register_without_a_context(self):
+        assert register_file("/workspace/data.json") is None
+        assert lookup_short_file_id("/workspace/data.json") is None
 
 
 class TestInlineArtifactQueue:

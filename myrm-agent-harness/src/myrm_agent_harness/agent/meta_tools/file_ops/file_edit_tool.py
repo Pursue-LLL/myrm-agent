@@ -14,7 +14,7 @@
 - create_file_edit_tool: 创建 file_edit_tool 工厂函数
 
 [POS]
-File edit tool. Batch atomic search-and-replace via edits[] with File ID resolution, whitespace-tolerant matching, integrity gates, and rollback of an edit that breaks the syntax of a Python, JSON, YAML or TOML file.
+File edit tool. Batch atomic search-and-replace via edits[] with whitespace-tolerant matching, integrity gates, and rollback of an edit that breaks the syntax of a Python, JSON, YAML or TOML file.
 
 """
 
@@ -68,7 +68,7 @@ class FileEditInput(BaseModel):
     """文件编辑工具输入参数"""
 
     # The parameter descriptions are the English schema every locale sends; only the tool description is localized.
-    path: str = Field(description="File path or @file_id.")
+    path: str = Field(description="File path.")
     edits: list[StrReplaceEditInput] = Field(
         description="Ordered replacements applied atomically (max 20, must not overlap)."
     )
@@ -113,7 +113,6 @@ def create_file_edit_tool(
     """创建文件编辑工具
 
     内部使用 FileOperationService，自动处理：
-    - File ID 解析（@file_001 → 实际路径）
     - Artifact 自动更新
     - ArtifactTracker 记录
     - 多重匹配检测（防止误替换）

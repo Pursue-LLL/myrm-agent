@@ -31,12 +31,6 @@ async def test_execute_str_replace_rejects_unread_file() -> None:
         stack.enter_context(patch.object(context, "validate"))
         stack.enter_context(
             patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/unread.py",
-            )
-        )
-        stack.enter_context(
-            patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
             )
         )
@@ -70,12 +64,6 @@ async def test_execute_str_replace_rejects_stale_version() -> None:
     guard.require_version_match.return_value = "File '/w/stale.py' has changed on disk since your last read."
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/w/stale.py",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",
@@ -128,12 +116,6 @@ async def test_file_operation_service_version_mismatch_raises_structured_tool_er
 
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value="/workspace/main.py",
-            )
-        )
         mock_factory = stack.enter_context(
             patch(
                 "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.FileSystemStrategyFactory.create_strategy",

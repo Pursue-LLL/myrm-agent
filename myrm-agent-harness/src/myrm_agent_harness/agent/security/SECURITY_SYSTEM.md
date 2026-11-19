@@ -433,6 +433,8 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validator 层的 `FORBIDDEN_PATHS` 是最后一道防线，硬编码拦截核心危险路径（`~/.ssh`, `/etc/shadow` 等），防止框架层被绕过。
 
+**判什么就打开什么**：引擎判定的是模型写下的路径串，文件工具与 bash 按原样执行这个串，不会在判定之后把它换成另一个文件。运行内的 `@file_NNN` 短 ID 只是事件流与界面链接用的标签（`agent/artifacts/file_id_registry.py`），工具不解析它：`file_write_tool`、`file_edit_tool`、`file_read_tool` 把它当作工作区里一个普通的文件名，bash 命令里的 `@file_001` 原样交给 shell。`tests/agent/meta_tools/file_ops/test_short_file_id_is_not_a_path.py` 与 `tests/agent/meta_tools/bash/test_bash_keeps_short_file_ids_as_typed.py` 用真实的文件工具与 ID 登记簿钉住这一点。
+
 ---
 
 ## 三-C、Workspace Trust L2 — Side-Channel Execution Gate

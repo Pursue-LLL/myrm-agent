@@ -91,11 +91,11 @@ async def test_file_path_lock_serializes_symlink_aliases(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_operation_service_create_uses_resolved_path_lock() -> None:
+async def test_file_operation_service_create_locks_the_path_it_writes() -> None:
     context = OperationContext(
         operation=OperationType.CREATE,
         executor=None,
-        path="@file_001",
+        path="/tmp/workspace/a.ts",
         file_text="hello",
     )
     service = FileOperationService(context)
@@ -109,10 +109,6 @@ async def test_file_operation_service_create_uses_resolved_path_lock() -> None:
     with (
         patch.object(context, "validate"),
         patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-            return_value="/tmp/workspace/a.ts",
-        ),
-        patch(
             "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.acquire_file_path_lock",
             fake_lock,
         ),
@@ -125,11 +121,11 @@ async def test_file_operation_service_create_uses_resolved_path_lock() -> None:
 
 
 @pytest.mark.asyncio
-async def test_file_operation_service_replace_uses_resolved_path_lock() -> None:
+async def test_file_operation_service_replace_locks_the_path_it_edits() -> None:
     context = OperationContext(
         operation=OperationType.STR_REPLACE,
         executor=None,
-        path="@file_002",
+        path="/tmp/workspace/b.ts",
         edits=(StrReplaceEdit(old_str="old", new_str="new"),),
     )
     service = FileOperationService(context)
@@ -142,10 +138,6 @@ async def test_file_operation_service_replace_uses_resolved_path_lock() -> None:
 
     with (
         patch.object(context, "validate"),
-        patch(
-            "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-            return_value="/tmp/workspace/b.ts",
-        ),
         patch(
             "myrm_agent_harness.agent.meta_tools.file_ops.core.file_operation_service.acquire_file_path_lock",
             fake_lock,

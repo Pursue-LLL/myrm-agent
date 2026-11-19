@@ -21,7 +21,7 @@ class TestDeliverableDisciplineSSOT:
         assert "Do not describe file contents" in rules
         assert "heredoc" in rules
         assert "workspace/" in rules
-        assert "@file_" in rules
+        assert "@file_" not in rules
         assert "ask one focused clarifying question" in rules
 
     def test_build_composes_identity_and_discipline(self) -> None:

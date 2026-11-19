@@ -1,15 +1,16 @@
 """文件 ID 注册表
 
-用于在 Agent 会话中管理大型工具结果的短 ID 映射。
+为本次运行写出的文件分配短 ID（如 @file_001），事件流用它把交付物卡片与文件对应起来。
 
-设计目的：
-- 大型工具结果转储到文件后，使用短 ID（如 @file_001）代替完整路径
-- 节省模型在后续调用中使用的 token 数量
+设计要点：
+- 短 ID 只在界面链路里使用：登记来自文件工具的观察者，反查来自工件事件（short_file_id）
+- 文件工具与 bash 不解析短 ID：权限引擎按模型写下的路径判定，工具必须打开同一个路径
+- 每次运行从 @file_001 重新编号，ID 不跨运行保留
 
 使用方式：
 1. 使用 ArtifactContextManager 初始化上下文
-2. 转储文件时注册映射
-3. file_read_tool、file_write_tool、file_edit_tool 和 bash_code_execute_tool 解析短 ID
+2. 文件写入后注册路径，得到短 ID
+3. 事件流按路径反查短 ID
 
 Example:
     ```python
@@ -25,19 +26,15 @@ Example:
 - (none)
 
 [OUTPUT]
-- FileIdRegistry: short-ID ↔ path bidirectional registry dataclass
+- FileIdRegistry: path → short-ID registry dataclass
 - register_file: module-level register helper (returns None if context unset)
 - lookup_short_file_id: resolve workspace path → @file_NNN when registered
-- resolve_file_id: module-level resolve helper
-- resolve_file_ids_in_text: replace all @file_* tokens in text with paths
-- is_file_id: predicate for @file_NNN pattern
 
 [POS]
-File ID registry. Maps short @file_* aliases to workspace paths for token-efficient tool follow-ups.
+File ID registry. Numbers the files a run wrote with short @file_* ids for artifact events; never a path alias for tools.
 """
 
 import logging
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -45,9 +42,6 @@ logger = logging.getLogger(__name__)
 
 # 文件 ID 前缀
 FILE_ID_PREFIX = "@file_"
-
-# 文件 ID 正则表达式（匹配 @file_001, @file_002 等）
-FILE_ID_PATTERN = re.compile(r"@file_(\d+)")
 
 
 def _normalize_registry_path(full_path: str) -> str:
@@ -61,13 +55,10 @@ def _normalize_registry_path(full_path: str) -> str:
 class FileIdRegistry:
     """文件 ID 注册表
 
-    维护短 ID 到完整路径的映射关系。
+    维护完整路径到短 ID 的映射关系。
     """
 
-    # 短 ID -> 完整路径
-    id_to_path: dict[str, str] = field(default_factory=dict)
-
-    # 完整路径 -> 短 ID（反向映射，用于去重）
+    # 完整路径 -> 短 ID（同一路径只登记一次）
     path_to_id: dict[str, str] = field(default_factory=dict)
 
     # 下一个可用的 ID 序号
@@ -94,27 +85,10 @@ class FileIdRegistry:
         file_id = f"{FILE_ID_PREFIX}{self.next_id:03d}"
         self.next_id += 1
 
-        # 存储映射
-        self.id_to_path[file_id] = full_path
         self.path_to_id[full_path] = file_id
 
         logger.info(f" 注册文件 ID: {file_id} -> {full_path}")
         return file_id
-
-    def resolve(self, file_id: str) -> str | None:
-        """解析短 ID 为完整路径
-
-        Args:
-            file_id: 短 ID，如 @file_001
-
-        Returns:
-            完整路径，如果 ID 不存在则返回 None
-        """
-        return self.id_to_path.get(file_id)
-
-    def get_all_mappings(self) -> dict[str, str]:
-        """获取所有映射（用于调试）"""
-        return dict(self.id_to_path)
 
 
 def lookup_short_file_id(full_path: str) -> str | None:
@@ -160,75 +134,9 @@ def register_file(full_path: str) -> str | None:
     return registry.register(full_path)
 
 
-def resolve_file_id(file_id: str) -> str | None:
-    """解析短 ID 为完整路径
-
-    便捷函数，自动获取当前注册表。
-
-    Args:
-        file_id: 短 ID，如 @file_001
-
-    Returns:
-        完整路径，如果 ID 不存在或注册表未初始化则返回 None
-    """
-    registry = _get_registry()
-    if registry is None:
-        return None
-    return registry.resolve(file_id)
-
-
-def resolve_file_ids_in_text(text: str) -> str:
-    """替换文本中所有的文件 ID 为完整路径
-
-    用于 bash_code_execute_tool 预处理代码。
-
-    Args:
-        text: 包含 @file_xxx 引用的文本
-
-    Returns:
-        替换后的文本
-    """
-    registry = _get_registry()
-    if registry is None:
-        return text
-
-    replaced_ids: list[str] = []
-
-    def replace_match(match: re.Match[str]) -> str:
-        file_id = match.group(0)
-        full_path = registry.resolve(file_id)
-        if full_path:
-            replaced_ids.append(file_id)
-            return full_path
-        return file_id  # 未找到则保持原样
-
-    result = FILE_ID_PATTERN.sub(replace_match, text)
-
-    # 如果有替换，输出日志
-    if replaced_ids:
-        logger.info(f" 解析文件 ID: {', '.join(replaced_ids)}")
-
-    return result
-
-
-def is_file_id(path: str) -> bool:
-    """检查路径是否是文件 ID 格式
-
-    Args:
-        path: 路径字符串
-
-    Returns:
-        是否是 @file_xxx 格式
-    """
-    return path.startswith(FILE_ID_PREFIX)
-
-
 __all__ = [
-    "FILE_ID_PATTERN",
     "FILE_ID_PREFIX",
     "FileIdRegistry",
-    "is_file_id",
+    "lookup_short_file_id",
     "register_file",
-    "resolve_file_id",
-    "resolve_file_ids_in_text",
 ]

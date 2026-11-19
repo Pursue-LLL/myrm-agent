@@ -6,7 +6,6 @@
 from .file_utils import parse_path_with_range
 from .image_reader import is_image_path, read_image_as_content_blocks
 from .line_endings import detect_line_ending, normalize_line_endings
-from .path_utils import resolve_file_id_path
 from .pdf_reader import is_pdf_path, read_pdf_as_content_blocks
 
 __all__ = [
@@ -17,5 +16,4 @@ __all__ = [
     "parse_path_with_range",
     "read_image_as_content_blocks",
     "read_pdf_as_content_blocks",
-    "resolve_file_id_path",
 ]

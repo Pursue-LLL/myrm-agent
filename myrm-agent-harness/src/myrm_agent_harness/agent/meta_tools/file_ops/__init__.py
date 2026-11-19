@@ -10,7 +10,7 @@
 - utils/: 工具函数（路径处理、文件工具）
 
 工具列表：
-- file_read_tool: 读取文件（支持批量、MCP、File ID）
+- file_read_tool: 读取文件（支持批量、MCP）
 - file_write_tool: 创建新文件（自动注册 Artifact）
 - file_edit_tool: 精确编辑文件（防止多重匹配）
 """

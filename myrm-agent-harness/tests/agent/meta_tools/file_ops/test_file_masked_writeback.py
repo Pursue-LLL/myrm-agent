@@ -95,12 +95,6 @@ async def _execute(context: OperationContext, strategy: AsyncMock) -> None:
     service = FileOperationService(context)
     with ExitStack() as stack:
         stack.enter_context(patch.object(context, "validate"))
-        stack.enter_context(
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.path_utils.resolve_file_id_path",
-                return_value=context.path,
-            )
-        )
         stack.enter_context(patch(f"{_SERVICE}.FileSystemStrategyFactory.create_strategy", return_value=strategy))
         stack.enter_context(patch(f"{_SERVICE}.ValidatorChain")).return_value.validate = AsyncMock()
         stack.enter_context(patch(f"{_SERVICE}.get_file_integrity_guard", return_value=None))

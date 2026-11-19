@@ -10,7 +10,7 @@ Artifacts system — artifact lifecycle management.
 | __init__.py | Package | Artifacts system — artifact lifecycle management. | — |
 | constants.py | Core | Provides ArtifactType, ArtifactMappings, is_active_content. | ✅ |
 | context.py | Core | Provides ArtifactContext, ArtifactContextManager, get_artifact_context. | ✅ |
-| file_id_registry.py | Core | Short `@file_*` ID registry; `register_file` + `lookup_short_file_id` for SSE `short_file_id`. | ✅ |
+| file_id_registry.py | Core | Numbers the files a run wrote with short `@file_NNN` ids (`register_file`, called by the file tools' artifact observer) and reports the id of a path (`lookup_short_file_id`) for the SSE `short_file_id`. A label for the UI only: the file tools and bash open the path they are given and never resolve an id, so the path the permission engine judged is the path that runs. | ✅ |
 | filters.py | Core | File filtering rules for artifact collection. | ✅ |
 | registry.py | Core | Provides GeneratedFile, ArtifactRegistry, RealtimeContentEvent. | ✅ |
 | types.py | Config | Provides ArtifactInfo, infer_language, infer_artifact_type. | ✅ |

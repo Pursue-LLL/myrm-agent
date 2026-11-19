@@ -1,7 +1,6 @@
 """BashExecutor synchronous execute() orchestration.
 
 [INPUT]
-- agent.artifacts.file_id_registry::resolve_file_ids_in_text (POS: File ID resolution)
 - .._compression.output_eviction::maybe_evict_large_output (POS: Provides maybe_evict_large_output and EvictionResult for stdout/stderr large-output persistence)
 - .mcp_citation_handler::MCPMetadataExtractor (POS: MCP citation handler)
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
@@ -29,7 +28,6 @@ from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.agent.artifacts.file_id_registry import resolve_file_ids_in_text
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
     BashExecutionError,
 )
@@ -117,8 +115,6 @@ class BashExecutorExecuteMixin:
         dict carries both ``evicted_ref`` (stdout) and ``stderr_evicted_ref`` so
         the GUI can offer independent "view full output" drawers per stream.
         """
-        command = resolve_file_ids_in_text(command)
-
         from myrm_agent_harness.agent.meta_tools.bash._compression.output_eviction import (
             maybe_evict_large_output,
         )
