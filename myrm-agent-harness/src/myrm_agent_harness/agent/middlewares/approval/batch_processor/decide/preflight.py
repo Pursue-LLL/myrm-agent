@@ -12,7 +12,7 @@
 
 [POS]
 First decision stage. Three gates that apply before any policy is read and that no rule, allowlist entry or YOLO
-setting lifts: a lone printable operator as a vision key name, a tool stripped under untrusted ingress, and a write
+setting lifts: a lone printable operator as a vision key name, a tool denied under untrusted ingress, and a write
 blocked by the read-only research lease.
 """
 

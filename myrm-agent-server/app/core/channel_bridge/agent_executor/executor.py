@@ -103,7 +103,7 @@ class ChannelAgentExecutor:
         effective_uid = user_id or msg.user_id or msg.sender_id
         set_approval_user_id(effective_uid)
 
-        # Security Fence: Enforce physical tool stripping for non-admin paired members and guests
+        # Security Fence: deny high-privilege tools at call time for non-admin paired members and guests
         is_untrusted_ingress = is_untrusted_sender(effective_uid, msg)
         # Only the owner in a direct chat may be told which account state to fix; guests and groups get the
         # generic wording.

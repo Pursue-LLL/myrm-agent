@@ -35,7 +35,7 @@ class PairingRole(StrEnum):
     """Authorization role for channel pairings.
 
     ADMIN: Full sandbox owner privileges (root access, arbitrary code execution, file mutation).
-    MEMBER: Restricted collaboration member (UntrustedIngressFence enforced, destructive tools stripped).
+    MEMBER: Restricted collaboration member (UntrustedIngressFence enforced: the fenced tools are denied at call time).
     """
 
     ADMIN = "admin"
@@ -118,9 +118,7 @@ class PairingStore(Protocol):
         """
         ...
 
-    async def get_pairing_detail(
-        self, channel: str, sender_id: str
-    ) -> tuple[PairingStatus, PairingRole, int | None] | None:
+    async def get_pairing_detail(self, channel: str, sender_id: str) -> tuple[PairingStatus, PairingRole, int | None] | None:
         """Get the full pairing detail (status, role, daily_quota) for a channel identity."""
         ...
 

@@ -793,7 +793,7 @@ class AllowlistEntry:
 
 ```
 0. YOLO 生效、组织策略允许该模型且不是定时运行 → 走 5.0 的 YOLO 分支（DENY 仍然拒绝；资金类、社交不可逆、破坏性与受保护写入仍待人审批）；定时运行不走此分支
-1. 前置拒绝（直接 DENY）：桌面视觉按键只给了单个可打印运算符；不可信入口栅栏剥离的工具；只读研究租约不允许的工具
+1. 前置拒绝（直接 DENY）：桌面视觉按键只给了单个可打印运算符；不可信入口栅栏拒绝的工具；只读研究租约不允许的工具
 2. resolve_permission_type(tool_name, tool_input) → evaluate_tool_call(permission, tool_input, config, workspace_root=..., tool_name=...) → (action, reason)
    - tool_name 用于 mcp_invoke 的 per-tool target resolution（如 mcp__gmail__send_email）
    - PTC 调用先过路径策略

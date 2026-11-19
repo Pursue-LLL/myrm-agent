@@ -74,15 +74,15 @@ class ChannelDataPlaneService:
     ) -> ChannelMessageModel | None:
         """Sanitize, tag, and persist an inbound message to the channel DWD ledger.
 
-        Security gate: Unauthenticated or unpaired senders are strictly disqualified from
-        learning_eligible, preventing malicious prompt injection and memory poisoning attacks.
+        Security gate: unauthenticated senders, guests and non-admin paired members are never marked
+        learning_eligible, so the ledger's learning-candidate query never returns their messages.
         """
         try:
             chat_id = msg.chat_id or msg.sender_id
             if not chat_id:
                 return None
 
-            # Guest/unpaired identities and non-admin paired members are barred from memory learning
+            # Guest identities and non-admin paired members are never marked learning_eligible
             is_guest = is_untrusted_sender(msg.user_id or "", msg)
             raw_content = str(msg.content or "")
             redacted_content = redact_sensitive_text(raw_content)

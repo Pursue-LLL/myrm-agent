@@ -1,11 +1,13 @@
-"""Untrusted Ingress Fence — runtime tool privilege stripping for external inbound messages.
+"""Untrusted Ingress Fence — call-time tool denial for external inbound messages.
 
 When an Agent session processes untrusted external input (e.g., messages from
 external peers, webhook triggers, public bot mentions), this fence denies high-privilege
 destructive tools (arbitrary execution, file mutation, persistent-memory mutation,
 desktop control and screen capture, subagent escalation, cron backdoors, and
-skill manipulation) at tool-call time, restricting the Agent to read-only exploration
-and safe operations. Memory mutations are fenced independently of how a host scopes the
+skill manipulation) at tool-call time. Tools outside these lists, MCP tools included, pass
+the fence and stay under the regular approval pipeline.
+
+Memory mutations are fenced independently of how a host scopes the
 memory namespaces: a persisted instruction steers every later turn that reads that
 namespace, and memory_manage_tool resolves ids across the whole bound namespace chain
 (including shared contexts) and applies delete/update without a pending review.
@@ -24,9 +26,9 @@ namespace, and memory_manage_tool resolves ids across the whole bound namespace 
 
 [POS]
 Layer 2 runtime security guard. Sits between Inbound Task Ingress and Agent Tool Registry.
-Enforces physical least-privilege tool stripping to prevent prompt-injection attacks
-from executing arbitrary system commands, destroying user workspace source code, or
-rewriting the owner's long-term memory.
+Denies the listed tools at call time, so an injected instruction cannot run shell commands, write or edit
+files, or rewrite the owner's long-term memory through them. The tools stay registered, and the fence
+does not cover a tool outside the lists.
 """
 
 from __future__ import annotations
@@ -84,7 +86,7 @@ def set_untrusted_ingress(active: bool = True) -> None:
     """Set the untrusted ingress status for the current async execution context."""
     _untrusted_ingress_var.set(active)
     if active:
-        logger.warning("[INGRESS_FENCE] Untrusted ingress context activated. Destructive tools stripped.")
+        logger.warning("[INGRESS_FENCE] Untrusted ingress context activated. Fenced tools are denied at call time.")
 
 
 def reset_untrusted_ingress() -> None:
