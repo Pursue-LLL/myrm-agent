@@ -19,7 +19,9 @@ Every one of those pauses names its reason on the job (``paused_reason``). A job
 paused is reported once as a ``CronNotice``, whichever branch paused it. Because
 it writes onto the stored job, a pause, an edit or a delete made while the run was in flight is neither undone nor
 resurrected. A manual run decides nothing about the schedule or the job's state: it only becomes the job's latest
-run. Every decision reads the run's full error; the run record and ``last_error`` keep it bounded (``stored_error``).
+run. ``last_error`` is the latest run's error and a success clears it, recurring or one-time (a schedule that cannot be
+computed names its own reason there). Every decision reads the run's full error; the run record and ``last_error`` keep
+it bounded (``stored_error``).
 """
 
 from __future__ import annotations
@@ -176,6 +178,10 @@ class RunCloserMixin:
             await self._store.delete_job(job.id)
             return
 
+        # The job shows the run's own outcome: its error, or nothing once a retry succeeds. Written before the branches
+        # because the failure alert the last one sends quotes it.
+        job.last_error = stored_error(result.error if not result.success else None)
+
         if result.success:
             job.status = JobStatus.COMPLETED
             job.consecutive_failures = 0
@@ -191,7 +197,6 @@ class RunCloserMixin:
             backoff = error_backoff_ms(new_failures)
             job.next_run_at = finished + timedelta(milliseconds=backoff)
             job.consecutive_failures = new_failures
-            job.last_error = stored_error(result.error)
             logger.warning(
                 "One-shot job %s: transient error, retrying in %dms (attempt %d/%d)",
                 job.id,
@@ -202,7 +207,6 @@ class RunCloserMixin:
         else:
             pause_job(job, PauseReason.CIRCUIT_BREAK if result.circuit_broken else PauseReason.RUN_FAILURES)
             job.consecutive_failures = new_failures
-            job.last_error = stored_error(result.error)
             self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
 
         if job.status != JobStatus.ACTIVE:

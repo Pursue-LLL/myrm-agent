@@ -33,6 +33,18 @@ describe('CronJobProblemBanner', () => {
     expect(screen.getByText('Last Error: pump is dry')).toBeInTheDocument();
   });
 
+  it('keeps the line breaks of a multi-line error and scrolls a long one inside a fixed height', () => {
+    const traceback = 'Traceback (most recent call last):\n  File "job.py", line 3\nValueError: pump is dry';
+
+    render(<CronJobProblemBanner job={{ last_error: traceback }} />);
+
+    expect(screen.getByText(/ValueError: pump is dry/)).toHaveClass(
+      'whitespace-pre-wrap',
+      'max-h-40',
+      'overflow-y-auto',
+    );
+  });
+
   it.each<[PauseReason, string, string]>([
     ['run_failures', 'The latest run failed, so it was paused automatically.', '最近一次执行失败，已自动暂停。'],
     ['schedule_error', 'Its schedule is invalid, so it was paused automatically.', '执行计划无效，已自动暂停。'],

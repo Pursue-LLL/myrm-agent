@@ -1,8 +1,10 @@
-"""A one-shot whose delivery failed keeps its job and its run record: they hold the only copy of the result.
+"""What closing a one-shot run leaves on its job and on its run record.
 
 The executor deletes a one-time job after a successful run only when ``delete_after_run`` is set and the delivery did
-not fail. A failed delivery leaves the job completed, with the run recorded as ok and its delivery as failed. These
-scenarios run the real executor over the in-memory store; only the runner and the delivery are stand-ins.
+not fail. A failed delivery leaves the job completed, with the run recorded as ok and its delivery as failed: they hold
+the only copy of the result. A retry that succeeds leaves no error on the completed job; the failed attempt stays in its
+run record. These scenarios run the real executor over the in-memory store; only the runner and the delivery are
+stand-ins.
 """
 
 from __future__ import annotations
@@ -25,10 +27,17 @@ from myrm_agent_harness.toolkits.cron.types import (
     ScheduleKind,
 )
 
+_RATE_LIMITED = "HTTP 429: rate limit exceeded"  # a transient error: a one-shot that fails with it is retried
+
 
 class _Runner:
+    """Plays the scripted results one run at a time; a runner without a script always succeeds."""
+
+    def __init__(self, *script: JobResult) -> None:
+        self._script = list(script)
+
     async def run(self, job: CronJob, *, context: str = "") -> JobResult:
-        return JobResult(success=True, output="the reminder text")
+        return self._script.pop(0) if self._script else JobResult(success=True, output="the reminder text")
 
 
 class _Delivery:
@@ -40,9 +49,7 @@ class _Delivery:
             raise RuntimeError("webhook returned HTTP 500")
 
 
-async def _run_once_job(
-    *, delivery_fails: bool, delete_after_run: bool, channel: str = "chat"
-) -> tuple[InMemoryCronStore, CronJob]:
+async def _stored_once_job(*, delete_after_run: bool, channel: str = "chat") -> tuple[InMemoryCronStore, CronJob]:
     store = InMemoryCronStore()
     job = CronJob(
         id="reminder",
@@ -54,6 +61,13 @@ async def _run_once_job(
         delete_after_run=delete_after_run,
     )
     await store.save_job(job)
+    return store, job
+
+
+async def _run_once_job(
+    *, delivery_fails: bool, delete_after_run: bool, channel: str = "chat"
+) -> tuple[InMemoryCronStore, CronJob]:
+    store, job = await _stored_once_job(delete_after_run=delete_after_run, channel=channel)
     executor = JobExecutor(store=store, delivery=_Delivery(fails=delivery_fails))
     await executor.run_and_record(job, _Runner())
     return store, job
@@ -89,3 +103,26 @@ class TestDeletionOfAOneShot:
         kept = await store.get_job(job.id)
         assert kept is not None
         assert kept.status == JobStatus.COMPLETED
+
+
+class TestErrorOfAOneShot:
+    async def test_a_retry_that_succeeds_leaves_no_error_on_the_job(self) -> None:
+        store, job = await _stored_once_job(delete_after_run=False)
+        executor = JobExecutor(store=store, delivery=_Delivery(fails=False))
+        runner = _Runner(JobResult(success=False, error=_RATE_LIMITED))
+
+        await executor.run_and_record(job, runner)
+
+        waiting = await store.get_job(job.id)
+        assert waiting is not None
+        assert waiting.status == JobStatus.ACTIVE
+        assert waiting.last_error == _RATE_LIMITED
+
+        await executor.run_and_record(waiting, runner)
+
+        done = await store.get_job(job.id)
+        assert done is not None
+        assert done.status == JobStatus.COMPLETED
+        assert done.last_status == RunStatus.OK
+        assert done.last_error is None
+        assert [run.error for run in await store.list_runs(job.id) if run.status == RunStatus.ERROR] == [_RATE_LIMITED]
