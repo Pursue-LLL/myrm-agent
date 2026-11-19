@@ -15147,7 +15147,7 @@
       "approvalTimeoutDesc": "等待用户审批的秒数，超时后自动处理。",
       "seconds": "秒",
       "timeoutBehavior": "超时行为",
-      "timeoutBehaviorDesc": "审批超时后的处理方式。「拒绝」将拒绝工具调用；「允许」将自动批准，但只能由你本人批准的操作一律拒绝：付款、不可逆的对外动作、破坏性命令，以及对受保护指令文件和 git 钩子的修改。",
+      "timeoutBehaviorDesc": "审批超时后的处理方式。「拒绝」将拒绝工具调用；「允许」将自动批准，但只能由你本人批准的操作一律拒绝：付款、不可逆的对外动作、破坏性命令，以及对受保护指令文件、git 钩子和 git 配置的修改。",
       "timeoutDeny": "拒绝",
       "timeoutAllow": "允许",
       "rulesTitle": "权限规则",
