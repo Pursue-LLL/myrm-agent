@@ -27,7 +27,7 @@ dragging in the singleton's ``atexit`` hook. Stopping, reaping and the
 - agent.meta_tools.bash._background.consume::BackgroundRegistryEntry / consume_background_entry (POS: I/O consumer for BackgroundProcessRegistry — keeps registry orchestration separate from pipe reading)
 - agent.meta_tools.bash._background.lifecycle::RegistryLifecycleMixin (POS: kill / reap / shutdown half of the registry.)
 - agent.meta_tools.bash._background.output_spill::BackgroundOutputSpillWriter (POS: full-output half of the output chain: the job's log, every line as printed, at the foreground evicted-file location)
-- agent.meta_tools.bash._background.output_window::cap_window / redact_window (POS: egress half of the output chain: the window of one stream a read shows, capped to a size budget, then masked)
+- agent.meta_tools.bash._background.output_window::view_stream (POS: egress half of the output chain: the window of one stream a read shows, capped to a size budget, masked, then cut to the lines asked for)
 - agent.meta_tools.bash._background.poll::snapshot_entry / unfinished_line / wait_for_exit (POS: read-side views of jobs.)
 - agent.meta_tools.bash._background.termination::leader_identity / own_identity (POS: group-level stop primitives; record a job leader's, and this server's, pid with its start stamp.)
 
@@ -36,7 +36,8 @@ dragging in the singleton's ``atexit`` hook. Stopping, reaping and the
   SIGTERM→SIGKILL grace escalation, 32 Ki-character line truncation, 300 s reap of
   exited entries, ``last_progress`` snapshot on ``BackgroundProcessInfo``,
   ``get_output`` (the one place the rings are read: each stream's window is capped, masked as a whole,
-  then cut to the lines asked for; ``log_file`` names the job's log when lines are missing),
+  then cut to the lines asked for; ``omitted_lines`` counts the lines the view leaves out and ``log_file`` names
+  the job's log then; the last view is reused while the job prints nothing new),
   ``get_partial_line`` (the unfinished last line of a running job, computed per read)
   and ``kill_session_jobs`` for cooperative cleanup when an agent session
   is cancelled. A finished job whose children keep running stays listed with
@@ -60,11 +61,12 @@ from typing import TYPE_CHECKING
 from myrm_agent_harness.agent.context_management.infra.evicted import evicted_rel_path
 from myrm_agent_harness.agent.meta_tools.bash._background.consume import (
     BackgroundRegistryEntry,
+    OutputView,
     consume_background_entry,
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.lifecycle import RegistryLifecycleMixin
 from myrm_agent_harness.agent.meta_tools.bash._background.output_spill import BackgroundOutputSpillWriter
-from myrm_agent_harness.agent.meta_tools.bash._background.output_window import cap_window, redact_window
+from myrm_agent_harness.agent.meta_tools.bash._background.output_window import view_stream
 from myrm_agent_harness.agent.meta_tools.bash._background.poll import snapshot_entry, unfinished_line, wait_for_exit
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import leader_identity, own_identity
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
@@ -86,6 +88,14 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_PER_SESSION_LIMIT = 5  # Soft cap; raise via env if a power-user complains.
 _DEFAULT_REAP_DELAY_SECONDS = 300.0  # Exited entries are purged from the registry after this idle window.
+
+
+def _copy_tail(tail: OutputTail) -> OutputTail:
+    """A copy of ``tail`` that shares no list with it, so a caller can edit what it got without touching the cache."""
+    copy = tail.copy()
+    copy["stdout"] = list(tail["stdout"])
+    copy["stderr"] = list(tail["stderr"])
+    return copy
 
 
 class BackgroundProcessRegistry(RegistryLifecycleMixin):
@@ -221,30 +231,41 @@ class BackgroundProcessRegistry(RegistryLifecycleMixin):
     def get_output(self, pid: int, *, max_lines: int = 100) -> OutputTail:
         """Return the newest ``max_lines`` lines of each stream, with secrets masked: the one place the rings are read.
 
-        The rings hold the text as the program printed it. Each stream's window is capped first (``cap_window``),
-        then masked as a whole (``redact_window``), and only then cut to ``max_lines``: a key block whose opening line
-        lies outside the lines asked for is still seen whole.
+        The rings hold the text as the program printed it. Each stream's window is capped, masked as a whole and only
+        then cut to ``max_lines`` (``view_stream``): a key block whose opening line lies outside the lines asked for
+        is still seen whole.
 
         ``dropped`` is ``True`` once the oldest lines are missing from the view, because a ring turned over or the
-        window was cut; ``log_file`` then names the log that holds them, when the job has one.
+        window was cut. ``omitted_lines`` counts every line the view leaves out, those older than the lines asked for
+        included; ``log_file`` then names the log that holds them, when the job has one.
+
+        A read repeated while the job prints nothing new reuses the last view. The key is read together with the
+        rings and before them: a line the reader task appends in between can only make the cached view newer than
+        its key, so a repeated read never returns a view older than what was printed.
         """
         with self._lock:
             entry = self._entries.get(pid)
             if entry is None:
                 return {"stdout": [], "stderr": [], "dropped": False}
+            key = (entry.stdout_total, entry.stderr_total, max_lines)
+            cached = entry.output_view
+            if cached is not None and cached.key == key:
+                return _copy_tail(cached.tail)
             stdout, stderr = list(entry.stdout_buffer), list(entry.stderr_buffer)
-            dropped = entry.output_dropped
+            ring_dropped = entry.output_dropped
             session_id, log_ref = entry.info.session_id, entry.info.vault_log_ref
-        stdout, cut_stdout = cap_window(stdout)
-        stderr, cut_stderr = cap_window(stderr)
-        dropped = dropped or cut_stdout or cut_stderr
+        out, err = view_stream(stdout, key[0], max_lines), view_stream(stderr, key[1], max_lines)
         payload: OutputTail = {
-            "stdout": redact_window(stdout)[-max_lines:],
-            "stderr": redact_window(stderr)[-max_lines:],
-            "dropped": dropped,
+            "stdout": out.lines,
+            "stderr": err.lines,
+            "dropped": ring_dropped or out.cut or err.cut,
         }
-        if dropped and session_id and log_ref:
-            payload["log_file"] = evicted_rel_path(session_id, log_ref)
+        if omitted := out.omitted + err.omitted:
+            payload["omitted_lines"] = omitted
+            if session_id and log_ref:
+                payload["log_file"] = evicted_rel_path(session_id, log_ref)
+        with self._lock:
+            entry.output_view = OutputView(key, _copy_tail(payload))
         return payload
 
     async def wait_for_process(

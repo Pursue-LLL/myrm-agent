@@ -188,3 +188,31 @@ async def test_a_capped_log_ends_with_the_marker_the_evicted_reader_reports(
     assert page.storage_truncated is True
     assert page.original_chars == sum(len(f"line-{i}") + 1 for i in range(1, printed + 1))
     assert page.content.splitlines()[0] == "line-1"
+
+
+@pytest.mark.asyncio
+async def test_a_read_that_leaves_lines_out_names_the_log_that_holds_them(
+    jobs: list[FakeProc], workspace: Path
+) -> None:
+    """120 lines, 100 shown: none fell off the ring, yet 20 are not in the read, and the log has them."""
+    await _finished_job(jobs, 73009, 120)
+
+    content = await _output(73009)
+
+    assert content["dropped"] is False
+    assert content["omitted_lines"] == 20
+    assert _log_lines(workspace, content) == [f"line-{i}" for i in range(1, 121)]
+
+
+@pytest.mark.asyncio
+async def test_a_read_that_shows_every_line_names_no_log_though_the_job_has_one(
+    jobs: list[FakeProc], workspace: Path
+) -> None:
+    await _finished_job(jobs, 73010, 120)
+
+    content = await _output(73010, max_lines=120)
+
+    assert list(workspace.rglob("output_*.txt"))
+    assert content["dropped"] is False
+    assert "omitted_lines" not in content
+    assert "log_file" not in content

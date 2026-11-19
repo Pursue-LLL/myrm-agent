@@ -3,7 +3,8 @@
 Some defects live between layers: the header the persistent shell session injects, how a foreground run differs
 from a background spawn, what the path guard sees. A mocked executor cannot show them, so tests of that kind drive
 the real stack end to end: ``bash_code_execute_tool`` -> ``BashExecutor`` -> ``LocalExecutor`` -> a real shell or
-Python subprocess. There is no OS sandbox, no model and no network.
+Python subprocess. There is no OS sandbox, no model and no network. A background job therefore runs on a
+pseudo-terminal, as it does in a container; on a Mac with the sandbox on, the production path starts it on pipes.
 """
 
 from __future__ import annotations
@@ -112,14 +113,18 @@ class RealBashStack:
                 {"action": "wait", "pid": pid, "timeout_seconds": _BACKGROUND_WAIT_SECONDS}, config=self.config
             )
             content = await self.read_job(pid)
-            stdout = "\n".join(content["stdout"])
-            stderr = "\n".join(content["stderr"])
-            if content["exit_code"] is None:
+            out, err, exit_code = content["stdout"], content["stderr"], content["exit_code"]
+            assert isinstance(out, list)
+            assert isinstance(err, list)
+            stdout = "\n".join(out)
+            stderr = "\n".join(err)
+            if exit_code is None:
                 raise TimeoutError(
                     f"background job {command!r} had not ended after {_BACKGROUND_WAIT_SECONDS}s; "
                     f"stdout={stdout!r} stderr={stderr!r}"
                 )
-            return BackgroundRun(exit_code=content["exit_code"], stdout=stdout, stderr=stderr)
+            assert isinstance(exit_code, int)
+            return BackgroundRun(exit_code=exit_code, stdout=stdout, stderr=stderr)
         finally:
             await self.stop_job(pid)
 

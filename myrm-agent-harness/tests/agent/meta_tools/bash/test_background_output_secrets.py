@@ -19,7 +19,13 @@ from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import create_b
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
 from tests.agent.meta_tools.bash.fake_background_proc import FakeProc, wait_until
 from tests.agent.meta_tools.bash.guardrail_view import shown_to_model
-from tests.agent.meta_tools.bash.secret_shapes import FORM_KEYS, KEY_KINDS, key_block, key_body
+from tests.agent.meta_tools.bash.secret_shapes import (
+    FORM_KEYS,
+    KEY_KINDS,
+    LINE_ONLY_FORM_KEYS,
+    key_block,
+    key_body,
+)
 
 pytestmark = pytest.mark.usefixtures("jobs")
 
@@ -106,6 +112,34 @@ async def test_a_form_body_with_twenty_credential_keys_is_masked_in_every_key(jo
     assert [value for value in values if value in read_text] == []
     assert [value for value in values if value in shown_to_model(content)] == []
     assert "lang=en" in read_text
+
+
+@pytest.mark.asyncio
+async def test_a_form_body_between_other_lines_is_masked_in_every_key(jobs: list[FakeProc]) -> None:
+    """The form-body rule reads a line that stands alone: a window of several lines is masked line by line first."""
+    values = [f"val{i:02d}Zq9xK7" for i in range(len(LINE_ONLY_FORM_KEYS))]
+    body = "&".join(f"{key}={value}" for key, value in zip(LINE_ONLY_FORM_KEYS, values, strict=True))
+
+    await _settled(jobs, 72010, stdout=["building", f"{body}&lang=en", "done"])
+
+    content = await _read(72010)
+
+    read_text = json.dumps(content["stdout"])
+    assert [value for value in values if value in read_text] == []
+    assert "lang=en" in read_text
+    assert "done" in read_text
+
+
+@pytest.mark.asyncio
+async def test_a_key_block_masking_folds_into_fewer_lines_is_not_counted_as_missing(jobs: list[FakeProc]) -> None:
+    """55 lines printed and all in the window: the masked view has fewer, and not one of the 55 is left out."""
+    await _settled(jobs, 72011, stdout=["before", *key_block(), "after"])
+
+    content = await _read(72011)
+
+    assert len(cast(list[str], content["stdout"])) < 55
+    assert content["dropped"] is False
+    assert "omitted_lines" not in content
 
 
 @pytest.mark.asyncio

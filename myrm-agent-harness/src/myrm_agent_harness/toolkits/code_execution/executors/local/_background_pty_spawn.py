@@ -25,7 +25,6 @@ import threading
 from collections.abc import Callable
 from contextlib import suppress
 from pathlib import Path
-from typing import Any
 
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
@@ -147,7 +146,7 @@ async def try_spawn_background_pty(
     effective_cwd: Path | None,
     env: dict[str, str],
     preexec_fn: Callable[[], None] | None,
-    process_group_kwargs: dict[str, Any],  # os_compat's platform-specific Popen kwargs; unpacked into asyncio below
+    process_group_kwargs: os_compat.ProcessGroupKwargs,
 ) -> AsyncProcessProtocol | None:
     """Spawn via PTY; returns None when the platform cannot create a PTY pair."""
     import pty  # POSIX-only: a module-level import would make this module unimportable on Windows
@@ -160,11 +159,6 @@ async def try_spawn_background_pty(
 
     master_open = slave_open = True
     try:
-        kwargs = dict(process_group_kwargs)
-        kwargs.setdefault("limit", _STREAM_LIMIT_BYTES)
-        if os.name != "nt" and preexec_fn is not None:
-            kwargs["preexec_fn"] = preexec_fn
-
         try:
             proc = await asyncio.create_subprocess_exec(
                 *full_cmd_array,
@@ -173,7 +167,10 @@ async def try_spawn_background_pty(
                 stderr=slave_fd,
                 cwd=str(effective_cwd) if effective_cwd else None,
                 env=env,
-                **kwargs,
+                limit=_STREAM_LIMIT_BYTES,
+                # Windows has no fork hook: Popen refuses a preexec_fn there.
+                preexec_fn=None if os.name == "nt" else preexec_fn,
+                **process_group_kwargs,
             )
         except OSError as exc:
             logger.warning("PTY subprocess spawn failed: %s", exc)

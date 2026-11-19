@@ -16,7 +16,7 @@ so that:
 [OUTPUT]
 - BackgroundProcessInfo: Snapshot dataclass exposed to UI/LLM.
 - BackgroundQuotaError: Per-session concurrency cap breach.
-- OutputTail: What a job's output read returns: the newest lines of each stream, whether older ones are missing, and the path of the log that holds them.
+- OutputTail: What a job's output read returns: the newest lines of each stream, whether older ones fell off a ring or out of the window, how many lines the view leaves out, and the path of the log that holds them.
 - FinishListener / ProgressListener: Async callback type aliases used by
   the bash tool to bridge registry lifecycle events into ``ptc_notify`` UI
   updates.
@@ -100,7 +100,10 @@ class OutputTail(TypedDict):
     stderr: list[str]
     # True once the oldest lines are missing from this view: a stream's ring turned over or its window was cut.
     dropped: bool
-    # Workspace-relative path of the log that holds them; present only when ``dropped`` and the job has a log.
+    # Lines the job printed that this view does not show: fallen off a ring, left out of the window, or older than the
+    # lines asked for. Present only when above zero.
+    omitted_lines: NotRequired[int]
+    # Workspace-relative path of the log that holds them; present only when ``omitted_lines`` is and the job has a log.
     log_file: NotRequired[str]
 
 

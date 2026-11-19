@@ -51,6 +51,24 @@ class TestAValueStopsAtTheBreak:
         assert "high_entropy_token" in scan_for_leaks(_json_text("above", RANDOM_TOKEN, "below"))
 
 
+class TestEveryBreakAndEveryJsonShapeIsRead:
+    @pytest.mark.parametrize(
+        "text",
+        [
+            json.dumps({"content": f"key: {RANDOM_TOKEN}\tkeep_me_visible"}),
+            json.dumps({"content": f"key: {RANDOM_TOKEN}\rkeep_me_visible"}),
+            "  " + _json_text(f"key: {RANDOM_TOKEN}", "keep_me_visible"),
+            json.dumps(f"key: {RANDOM_TOKEN}\nkeep_me_visible"),
+        ],
+        ids=["tab", "carriage-return", "blanks-before-the-value", "bare-string"],
+    )
+    def test_a_secret_is_masked_and_the_text_after_the_break_is_kept(self, text: str) -> None:
+        shown = redact_leaks(text)
+
+        assert RANDOM_TOKEN not in shown
+        assert "keep_me_visible" in shown
+
+
 class TestTheBreaksComeBack:
     def test_every_break_is_where_it_was_and_no_stand_in_is_left(self) -> None:
         text = _json_text("a", f"key: {RANDOM_TOKEN}", "b\tc", "d\r")

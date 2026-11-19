@@ -6,7 +6,7 @@
 
 [OUTPUT]
 - DEFAULT_YIELD_AFTER_SECONDS: Profile-aligned default when arg omitted
-- build_auto_yield_return: Compose tool payload after yield window (the output lines, then the unfinished last line of a job still running)
+- build_auto_yield_return: Compose tool payload after yield window (a note of the lines left out and the log that holds them, the output lines, then the unfinished last line of a job still running)
 
 [POS]
 Bash-tool helper — keeps bash_code_execute_tool aggregate root thin.
@@ -22,7 +22,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessRegistry,
     get_background_registry,
 )
-from myrm_agent_harness.agent.meta_tools.bash._background.types import BackgroundProcessInfo
+from myrm_agent_harness.agent.meta_tools.bash._background.types import BackgroundProcessInfo, OutputTail
 
 DEFAULT_YIELD_AFTER_SECONDS = 10
 _POLL_INTERVAL_SECONDS = 0.25
@@ -65,6 +65,17 @@ async def wait_for_yield_window(
     return registry.get(pid)
 
 
+def _omitted_note(streams: OutputTail) -> str:
+    """The line that tells the model how many lines the receipt leaves out and where the whole output is, or ``""``."""
+    omitted = streams.get("omitted_lines", 0)
+    if not omitted:
+        return ""
+    count = f"{omitted} line" if omitted == 1 else f"{omitted} lines"
+    log_file = streams.get("log_file")
+    where = f" Full output: {log_file} (read it with file_read_tool)" if log_file else ""
+    return f"[Earlier {count} not shown.{where}]"
+
+
 def build_auto_yield_return(
     *,
     info: BackgroundProcessInfo,
@@ -76,9 +87,12 @@ def build_auto_yield_return(
     streams = reg.get_output(info.pid, max_lines=50)
     stdout_text = "\n".join(streams["stdout"])
     stderr_text = "\n".join(streams["stderr"])
+    note = _omitted_note(streams)
 
     if info.status != "running":
         parts = [f"Command finished during auto-yield window (pid={info.pid})."]
+        if note:
+            parts.append(note)
         if stdout_text:
             parts.append(stdout_text)
         if stderr_text:
@@ -103,6 +117,8 @@ def build_auto_yield_return(
     )
     if stdout_text or stderr_text:
         hint += "\n\nPartial output:\n"
+        if note:
+            hint += f"{note}\n"
         if stdout_text:
             hint += stdout_text
         if stderr_text:

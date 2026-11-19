@@ -9,7 +9,7 @@
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
-- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, ``log_file`` when lines are missing and the job has a log), ``list`` names each job's ``log_file``; ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero); an ``output`` or ``wait`` that returns a job's own exit reports the result read, ``list`` and a running job's ``output`` never do
+- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, ``omitted_lines`` when the view leaves lines out, and then ``log_file`` when the job has a log), ``list`` names each job's ``log_file``; ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero); an ``output`` or ``wait`` that returns a job's own exit reports the result read, ``list`` and a running job's ``output`` never do
 - kill_report: the text a kill returns to the model, stating what the stop actually achieved
 
 [POS]
@@ -38,12 +38,16 @@ _NONE_FOUND = "no process it started was found still running (programs that deta
 
 
 def _stream_fields(streams: OutputTail) -> dict[str, object]:
-    """What a read of a job's output adds to a result: both streams, whether older lines are missing, the log with them."""
+    """What a read of a job's output adds to a result: both streams, whether older lines are missing, how many the
+    view leaves out, and the log that holds them."""
     fields: dict[str, object] = {
         "stdout": streams["stdout"],
         "stderr": streams["stderr"],
         "dropped": streams["dropped"],
     }
+    omitted_lines = streams.get("omitted_lines")
+    if omitted_lines:
+        fields["omitted_lines"] = omitted_lines
     log_file = streams.get("log_file")
     if log_file:
         fields["log_file"] = log_file

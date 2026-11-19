@@ -11,6 +11,7 @@
 [OUTPUT]
 - BackgroundRegistryEntry: Live registry row with ring buffers, the unfinished last line of each stream, log writer, the leader's recorded identity and the processes the job left running
 - UnfinishedTail: What a stream printed after its last newline, with the time it last changed
+- OutputView: The last view of a job's output that a read built, with the line counts and the number of lines asked for that it was built from
 - consume_background_entry: Read pipes in blocks until exit (whole lines go to the log and the ring as printed and through progress parsing; the unfinished line stays visible), record what the job left running, persist terminal state, close the log, invoke finish hook
 
 [POS]
@@ -37,6 +38,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.termination import (
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     BackgroundProcessInfo,
     FinishListener,
+    OutputTail,
     ProgressListener,
 )
 from myrm_agent_harness.agent.security.redact import redact_sensitive_text
@@ -74,6 +76,16 @@ class UnfinishedTail(NamedTuple):
 _NO_TAIL = UnfinishedTail(0.0, "")
 
 
+class OutputView(NamedTuple):
+    """The last view of a job's output that a read built, with what it was built from.
+
+    ``key`` is the lines printed on stdout, the lines printed on stderr and the number of lines asked for.
+    """
+
+    key: tuple[int, int, int]
+    tail: OutputTail
+
+
 @dataclass
 class BackgroundRegistryEntry:
     """Internal registry record (carries the live process handle).
@@ -85,6 +97,10 @@ class BackgroundRegistryEntry:
     ``stdout_unfinished`` and ``stderr_unfinished`` hold what each stream printed after its last newline (a prompt
     waits here until it is answered). They are fixed slots that the reader task replaces as a whole and other
     threads read, so no reader ever sees a half-written value.
+
+    ``output_view`` is the last view a read of the output built. A ring only ever gains lines, so while neither
+    total has moved the same number of lines asked for gives the same view: a repeated read reuses it instead of
+    masking the window again.
 
     ``leader`` is the job leader as it was at registration; it tells a later
     signal whether the leader's pid still belongs to this job.
@@ -105,6 +121,7 @@ class BackgroundRegistryEntry:
     stderr_total: int = 0
     stdout_unfinished: UnfinishedTail = _NO_TAIL
     stderr_unfinished: UnfinishedTail = _NO_TAIL
+    output_view: OutputView | None = None
     stdin_lock: asyncio.Lock | None = None
     stdin_closed: bool = False
     last_progress_emit_at: float = 0.0
@@ -274,4 +291,4 @@ async def consume_background_entry(
         schedule_reap(entry.info.pid)
 
 
-__all__ = ["BackgroundRegistryEntry", "UnfinishedTail", "consume_background_entry"]
+__all__ = ["BackgroundRegistryEntry", "OutputView", "UnfinishedTail", "consume_background_entry"]

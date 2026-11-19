@@ -28,6 +28,10 @@ FORM_KEYS = (
     "signing_key",
 )
 
+# Form keys that only the form-body rule knows: no other rule masks their value, and that rule reads a line that
+# stands alone, so a window of several lines has to be masked line by line as well as one text.
+LINE_ONLY_FORM_KEYS = ("api-key", "authorization", "code", "jwt", "key", "x-api-key", "x-goog-api-key")
+
 KEY_KINDS = (
     "RSA PRIVATE KEY",
     "PRIVATE KEY",

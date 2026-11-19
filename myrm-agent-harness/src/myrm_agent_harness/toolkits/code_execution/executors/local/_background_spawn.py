@@ -192,9 +192,7 @@ async def spawn_background_process(
 
     from myrm_agent_harness.utils import os_compat
 
-    kwargs = os_compat.get_process_group_kwargs()
-    if os.name != "nt" and preexec_fn:
-        kwargs["preexec_fn"] = preexec_fn
+    group = os_compat.get_process_group_kwargs()
 
     if use_pty:
         from myrm_agent_harness.toolkits.code_execution.executors.local._background_pty_spawn import (
@@ -208,7 +206,7 @@ async def spawn_background_process(
                 effective_cwd=effective_cwd,
                 env=env,
                 preexec_fn=preexec_fn,
-                process_group_kwargs=kwargs,
+                process_group_kwargs=group,
             )
             if pty_proc is not None:
                 return pty_proc
@@ -218,7 +216,6 @@ async def spawn_background_process(
     # The limit sets how much a job may buffer before the transport pauses its pipe (twice the limit): the
     # default 64 KiB would throttle a job that prints bursts (docker manifest JSON, pytest -vv dumps) while the
     # reader redacts and spills each line. 8 MiB is far above any burst we have seen and tiny next to a job's RSS.
-    kwargs.setdefault("limit", 8 * 1024 * 1024)
     process = await asyncio.create_subprocess_exec(
         *full_cmd_array,
         stdin=asyncio.subprocess.PIPE,
@@ -226,7 +223,10 @@ async def spawn_background_process(
         stderr=asyncio.subprocess.PIPE,
         cwd=str(effective_cwd) if effective_cwd else None,
         env=env,
-        **kwargs,
+        limit=8 * 1024 * 1024,
+        # Windows has no fork hook: Popen refuses a preexec_fn there.
+        preexec_fn=None if os.name == "nt" else preexec_fn,
+        **group,
     )
 
     return _AsyncioProcessWrapper(process)
