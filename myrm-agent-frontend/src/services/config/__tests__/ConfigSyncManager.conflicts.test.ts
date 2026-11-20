@@ -55,12 +55,16 @@ describe('ConfigSyncManager version conflicts', () => {
   let get: ReturnType<typeof vi.fn>;
   let listener: ReturnType<typeof vi.fn<ConfigChangeListener<typeof KEY>>>;
 
-  /** A manager that already holds `base` as the confirmed server value of KEY, then edits it locally to `local`. */
-  const editLocally = (base: Doc, local: Doc) => {
+  /**
+   * A manager that already holds `base` as the confirmed server value of KEY (nothing when `base` is null: the key was
+   * never loaded, so there is no baseline), then edits it locally to `local`.
+   */
+  const editLocally = (base: Doc | null, local: Doc) => {
+    const confirmed = () => new Map(base ? [[KEY, record(KEY, base, '1000_0', deviceId)]] : []);
     Object.assign(manager, {
       adapter: { getDeviceId: () => deviceId, sync, get },
-      cache: new Map([[KEY, record(KEY, base, '1000_0', deviceId)]]),
-      baseCache: new Map([[KEY, record(KEY, base, '1000_0', deviceId)]]),
+      cache: confirmed(),
+      baseCache: confirmed(),
       _isInitialized: true,
     });
     manager.subscribe(KEY, listener);
@@ -204,6 +208,32 @@ describe('ConfigSyncManager version conflicts', () => {
     expect(JSON.parse(String(localStorageMock.getItem(OFFLINE_QUEUE_KEY)))).toEqual([
       expect.objectContaining({ key: KEY, value: { a: 2 } }),
     ]);
+  });
+
+  it('adds what the server holds and the local value lacks when no baseline was ever loaded', async () => {
+    editLocally(null, { a: 2 });
+    serverHolds({ b: 3 }, 'dev-remote');
+    sync.mockResolvedValueOnce(conflictOn(KEY)).mockResolvedValueOnce(accepted('1000_9'));
+
+    await manager.forceSync();
+
+    expect(syncedChanges(sync, 1)).toEqual([
+      expect.objectContaining({ value: { a: 2, b: 3 }, expectedVersion: '1000_5' }),
+    ]);
+    expect(manager.get(KEY)).toEqual({ a: 2, b: 3 });
+  });
+
+  it('asks the user about a clash even when the same device wrote the server version, if no baseline was ever loaded', async () => {
+    editLocally(null, { a: 2 });
+    serverHolds({ a: 3 }, deviceId);
+    sync.mockResolvedValueOnce(conflictOn(KEY));
+    const resolver = vi.fn().mockResolvedValue(false);
+    manager.setConflictResolver(resolver);
+
+    await manager.forceSync();
+
+    expect(resolver).toHaveBeenCalledTimes(1);
+    expect(manager.get(KEY)).toEqual({ a: 3 });
   });
 
   it('adopts the server record for a conflicting key it holds no local value for', async () => {

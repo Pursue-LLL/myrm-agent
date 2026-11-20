@@ -407,7 +407,7 @@ class ConfigSyncManager {
     };
   }
 
-  /** 首屏之后才到的记录（后台预加载、按需读取单个 key）统一从这里落进缓存。 */
+  /** 首屏之后才到的记录（后台预加载、按需读取单个 key）统一从这里落进缓存空缺；缓存已有的 key 不被迟到的答复覆盖。 */
   private landLate(records: Iterable<[ConfigKey, ConfigRecord]>): void {
     landLateRecords(records, this.cache, this.baseCache, (key, record) =>
       this.notifyListeners(key, record.value as ConfigValueMap[ConfigKey], record.meta),

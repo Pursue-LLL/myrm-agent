@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { resetConfigSyncManager, getConfigSyncManager } from '@/services/config/ConfigSyncManager';
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -38,35 +38,32 @@ const nonCoreEntries: Array<[string, unknown]> = [
   ['personalSettings', {}],
 ];
 
-describe('ConfigSyncManager progressive preload notifies listeners', () => {
+const okResponse = (body: unknown) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }) as Response;
+
+const isCoreRequest = (url: RequestInfo | URL) => CORE_KEYS.every((k) => String(url).includes(encodeURIComponent(k)));
+
+const coreResponse = configsResponse([
+  ['providers', { providers: [] }],
+  ['chatSettings', {}],
+  ['personalSettings', {}],
+]);
+
+describe('ConfigSyncManager progressive preload', () => {
   beforeEach(() => {
     resetConfigSyncManager();
     vi.restoreAllMocks();
   });
 
-  it('fires subscribe callbacks once background-preloaded keys land in the cache', async () => {
-    const coreResponse = configsResponse([
-      ['providers', { providers: [] }],
-      ['chatSettings', {}],
-      ['personalSettings', {}],
-    ]);
-    const restResponse = configsResponse(nonCoreEntries);
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
 
-    const mockFetch = vi.fn((url: RequestInfo | URL) => {
-      const path = String(url);
-      if (CORE_KEYS.every((k) => path.includes(encodeURIComponent(k)))) {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(coreResponse),
-        } as Response);
-      }
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(restResponse),
-      } as Response);
-    });
+  it('fires subscribe callbacks once background-preloaded keys land in the cache', async () => {
+    const restResponse = configsResponse(nonCoreEntries);
+    const mockFetch = vi.fn((url: RequestInfo | URL) =>
+      Promise.resolve(okResponse(isCoreRequest(url) ? coreResponse : restResponse)),
+    );
     global.fetch = mockFetch as unknown as typeof fetch;
 
     const manager = getConfigSyncManager();
@@ -82,6 +79,34 @@ describe('ConfigSyncManager progressive preload notifies listeners', () => {
     expect(manager.get('securityConfig')).not.toBeNull();
     expect(listener).toHaveBeenCalled();
     expect(listener.mock.calls[0]?.[0]).toBe('securityConfig');
+    expect(manager.get('securityConfig')).toEqual(expect.objectContaining({ yoloModeEnabled: true }));
+  });
+
+  it('keeps a value the user saved while the preload was in flight, and does not announce the older one', async () => {
+    vi.useFakeTimers();
+    const staleServices = { searchServiceConfigs: [{ id: 'stale' }] };
+    const savedServices = { searchServiceConfigs: [{ id: 'saved' }] };
+    let landPreload: (response: Response) => void = () => {};
+    global.fetch = vi.fn((url: RequestInfo | URL) =>
+      isCoreRequest(url)
+        ? Promise.resolve(okResponse(coreResponse))
+        : new Promise<Response>((resolve) => {
+            landPreload = resolve;
+          }),
+    ) as unknown as typeof fetch;
+
+    const manager = getConfigSyncManager();
+    await manager.initialize();
+    const listener = vi.fn();
+    manager.subscribe('searchServices', listener);
+    manager.set('searchServices', savedServices as never);
+    listener.mockClear();
+
+    landPreload(okResponse(configsResponse([...nonCoreEntries, ['searchServices', staleServices]])));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(manager.get('searchServices')).toEqual(savedServices);
+    expect(listener).not.toHaveBeenCalled();
     expect(manager.get('securityConfig')).toEqual(expect.objectContaining({ yoloModeEnabled: true }));
   });
 });

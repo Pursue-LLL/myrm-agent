@@ -4,7 +4,7 @@
  *
  * [OUTPUT]
  * loadInitialConfigs: first fetch of the user's configuration, with retry; optionally core-first.
- * landLateRecords: writes records that arrive after the first screen into the caches and tells subscribers.
+ * landLateRecords: writes records that arrive after the first screen into the gaps of the caches and tells subscribers.
  *
  * [POS]
  * Loading half of `ConfigSyncManager.initialize()`. Sandbox mode returns only the core keys so the first screen is not
@@ -45,6 +45,8 @@ async function fetchAllWithRetry(
 }
 
 /**
+ * A late answer can be older than the cache by the time it arrives: the user saved the key meanwhile, or an answer for
+ * the same key came back first. A key the cache already holds therefore keeps its value; only the gaps are filled.
  * These writes do not go through `ConfigSyncManager.set()`, so subscribers are told here; without it, logic that waits
  * for a configuration to become ready (such as the securityConfig and YOLO mutual-exclusion replay) is never triggered.
  */
@@ -55,6 +57,9 @@ export function landLateRecords(
   notify: (key: ConfigKey, record: ConfigRecord) => void,
 ): void {
   for (const [key, record] of records) {
+    if (cache.has(key)) {
+      continue;
+    }
     cache.set(key, record);
     baseCache.set(key, cloneDeep(record));
     notify(key, record);
@@ -70,6 +75,6 @@ export async function loadInitialConfigs(adapter: ConfigAdapter, coreFirst: bool
   const remainingKeys = ALL_CONFIG_KEYS.filter((key) => !CORE_CONFIG_KEYS.includes(key));
   return {
     configs,
-    loadRemaining: remainingKeys.length > 0 ? () => adapter.getAll(remainingKeys) : null,
+    loadRemaining: remainingKeys.length > 0 ? () => fetchAllWithRetry(() => adapter.getAll(remainingKeys)) : null,
   };
 }
