@@ -36,9 +36,10 @@ class TestInjectionVectors:
         threats = analyze_command("echo ${PATH}")
         assert any(t.level == ThreatLevel.BLOCK and "${}" in t.detail for t in threats)
 
-    def test_semicolon_chaining(self):
+    def test_semicolon_chain_is_no_vector_but_its_commands_are_read(self):
         threats = analyze_command("ls; rm -rf /")
-        assert any(t.level == ThreatLevel.BLOCK and "semicolon" in t.detail for t in threats)
+        assert any(t.level == ThreatLevel.BLOCK and t.category == "dangerous_command" for t in threats)
+        assert not any("semicolon" in t.detail for t in threats)
 
     def test_process_substitution_input(self):
         threats = analyze_command("diff <(ls dir1) <(ls dir2)")
@@ -239,8 +240,8 @@ class TestAnsiCAndLocaleQuoting:
         assert not any("Locale" in t.detail for t in threats)
 
 
-class TestFindExecExemption:
-    """find -exec/-execdir uses `\\;` as a terminator — must not false-positive."""
+class TestFindExecTerminator:
+    """find -exec/-execdir ends with `\\;`, which is no threat; what follows it is still read."""
 
     def test_find_exec_rm(self):
         assert analyze_command(r'find . -name "*.py" -exec rm {} \;') == ()
@@ -251,19 +252,13 @@ class TestFindExecExemption:
     def test_find_execdir(self):
         assert analyze_command(r"find . -type d -execdir ls {} \;") == ()
 
-    def test_find_exec_no_exemption_for_chained(self):
-        """Exemption must NOT apply when \\; is followed by more commands."""
+    def test_a_dangerous_command_after_find_exec_is_blocked(self):
         threats = analyze_command(r"find . -exec rm {} \; && rm -rf /")
-        assert any(t.level == ThreatLevel.BLOCK and "semicolon" in t.detail for t in threats)
+        assert any(t.level == ThreatLevel.BLOCK and t.category == "dangerous_command" for t in threats)
 
-    def test_plain_semicolon_still_blocked(self):
-        threats = analyze_command("ls; rm -rf /")
-        assert any(t.level == ThreatLevel.BLOCK and "semicolon" in t.detail for t in threats)
-
-    def test_find_without_exec_semicolon_blocked(self):
-        """find without -exec — semicolon should still be blocked."""
+    def test_a_dangerous_command_after_find_without_exec_is_blocked(self):
         threats = analyze_command(r"find . -name '*.py'; rm -rf /")
-        assert any(t.level == ThreatLevel.BLOCK and "semicolon" in t.detail for t in threats)
+        assert any(t.level == ThreatLevel.BLOCK and t.category == "dangerous_command" for t in threats)
 
 
 class TestThreatSorting:

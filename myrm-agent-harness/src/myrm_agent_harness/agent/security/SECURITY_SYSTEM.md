@@ -214,13 +214,13 @@ class SSRFResult:
 |------|---------|---------|
 | Layer 1: 二进制/Unicode | BLOCK | `\r`, `\0`, 12 种不可见 Unicode 字符（零宽空格、方向控制等）；与语言无关，shell 命令和 Python 源码都检（`analyze_hidden_characters`） |
 | Layer 1.5: 编码绕过 | BLOCK | ANSI-C quoting `$'...'`、locale quoting `$"..."`；只检 shell 读取的文本 |
-| Layer 2: 注入/危险命令 | BLOCK | 6 注入向量（`$()`, `` ` ``, `${}`, `;`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
+| Layer 2: 注入/危险命令 | BLOCK | 5 注入向量（`$()`, `` ` ``, `${}`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
 | Layer 2.5: SQL 语句守卫 | ESCALATE | 数据库客户端命令（`psql`/`mysql`/`sqlite3`/`sqlcmd`/`mongosh`）中的破坏性 SQL；作用于引号剥离前的原始命令，以捕获单引号内的 SQL（`sql_statement_guard.py`） |
 | Layer 3: 可疑模式 | ESCALATE | `curl \| sh`, `eval`, `base64 -d`, `kill`/`pkill`/`killall` 等 |
 | Layer 3c: 受保护指令文件改写 | ESCALATE | 重定向写入，或 `sed -i`、`tee`、`cp`、`mv`、`rm`、`truncate`（及其 PowerShell / cmd 写法：`Set-Content`、`Remove-Item`、`copy`、`del` 等）点名，或解释器（`python`/`node`/`ruby`/`perl`）在同一条命令里以写方式打开 `AGENTS.md`、`CLAUDE.md`、`SOUL.md`、`.cursor/rules` 等受保护指令文件（bash 工具里按 Python 源码运行的文本不在此列，见下）；只读分类器判为 SAFE 的命令不算改写；作用于原始命令，证据是匹配到的名字（`protected_instruction_command.py`） |
-| Layer 4: 递归展开 | BLOCK / ESCALATE | 把载荷藏在单引号里的包装（`bash -c '...'`、`sh -c '...'`、`trap '...' SIGNAL`）取出后递归分析，深度有上限（`_MAX_RECURSIVE_DEPTH`）防 DoS |
+| 读法：逐条命令、逐层包装 | 同各层 | Layer 2 到 3c 对命令的每一种读法各判一遍：原文；原文里的每条命令（`split_command_spans` 按 `;`、`&&`、`\|\|`、`\|`、`&`、换行切开，所以 `rm -rf ~&&echo done` 与 `ls; rm -rf ~` 都在命令处收尾，规则照样命中）；包装把控制权交出去的命令（`deny_readings`：`sh -c` / `eval` 的脚本不论怎么加引号，`sudo` / `env` / `timeout` / `xargs` 之后的命令，`$(...)` 的命令体），另加 `trap` 的处理脚本。读法总数有上限（`MAX_COMMAND_READINGS`）防 DoS；同一条威胁只报一次，原文的威胁排在包装里的之前；快照触发（`is_destructive_command`）与集成写入判定（`is_integration_mutation_command`）读的是同一组文本。紧贴命令的分组括号（`(rm -rf ~)`）不拆开读，`deny_readings` 也不拆 |
 
-引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`find -exec {} \;` 的转义分号通过 `shell_command_rules.FIND_EXEC_TERMINATOR_RE` 精确豁免。
+引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`;` 与 `&&`、`||`、`\|` 一样只是连接命令的符号，不是威胁：`find -exec {} \;` 的转义分号、`for … do …; done` 不触发任何规则，连在后面的每条命令各自照规则判定。
 
 BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`, `&&`, `||`, `>` 等合法 Shell 操作符。
 

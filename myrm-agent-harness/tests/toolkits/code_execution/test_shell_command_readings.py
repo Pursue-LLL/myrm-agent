@@ -1,0 +1,190 @@
+"""The analyzer judges every command a line runs, not only the line as written.
+
+A rule written for ``rm -rf ~`` has to fire wherever the shell runs that command: behind a separator it is glued to,
+inside a script handed to a shell, behind a prefix such as ``sudo``, in a group or a ``trap`` handler.
+"""
+
+from __future__ import annotations
+
+import pytest
+
+from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
+    PROTECTED_WRITE_CATEGORY,
+    ThreatLevel,
+    analyze_command,
+    has_block_threat,
+    is_destructive_command,
+)
+
+_BLOCKED_BASES = (
+    "rm -rf ~",
+    "rm -rf /",
+    "rm -rf $HOME",
+    "rm --force --recursive ~",
+    "mkfs.ext4 /dev/sda1",
+    "dd if=/dev/zero of=/dev/sda",
+    "shutdown now",
+    "echo x >> ~/.ssh/authorized_keys",
+)
+_ESCALATED_BASES = ("kill 123", "pkill node", "eval x")
+
+# The command sits beside another one, glued to a separator or inside a compound command.
+_SEPARATOR_FORMS = (
+    "{d};echo done",
+    "{d} ; echo done",
+    "{d}&&echo done",
+    "{d}||echo done",
+    "{d}|cat",
+    "{d}&",
+    "{d};",
+    "{d}\necho done",
+    "echo hi;{d}",
+    "echo hi&&{d}",
+    "echo hi\n{d}",
+    "echo hi|{d}",
+    "if true; then {d}; fi",
+    "for i in 1 2; do {d}; done",
+    "while true; do {d}; done",
+    "{{ {d}; }}",
+)
+
+# Another command runs it: a script handed to a shell, ``eval``, a prefix, a ``trap`` handler.
+_WRAPPER_FORMS = (
+    "sh -c '{d}'",
+    'sh -c "{d}"',
+    "bash -lc '{d}'",
+    "/bin/bash -c '{d}'",
+    "eval '{d}'",
+    'eval "{d}"',
+    "sudo {d}",
+    "env X=1 {d}",
+    "timeout 5 {d}",
+    "nohup {d}",
+    "xargs {d}",
+    "trap '{d}' EXIT",
+    'trap "{d}" EXIT',
+    "sudo bash -c '{d}'",
+    "sh -c 'echo a; {d}'",
+    "bash -c '{d}&&echo done'",
+    "sh -c 'bash -c \"{d}\"'",
+)
+
+_FORMS = _SEPARATOR_FORMS + _WRAPPER_FORMS
+
+
+def _verdict(command: str) -> set[ThreatLevel]:
+    """The levels the rules other than the shell-syntax style policy give *command*."""
+    return {threat.level for threat in analyze_command(command) if threat.category != "injection"}
+
+
+@pytest.mark.parametrize("form", _FORMS)
+@pytest.mark.parametrize("base", _BLOCKED_BASES)
+def test_a_blocked_command_stays_blocked_in_every_form(base: str, form: str) -> None:
+    assert ThreatLevel.BLOCK in _verdict(form.format(d=base))
+
+
+@pytest.mark.parametrize("form", _FORMS)
+@pytest.mark.parametrize("base", _ESCALATED_BASES)
+def test_an_escalated_command_stays_escalated_in_every_form(base: str, form: str) -> None:
+    assert ThreatLevel.ESCALATE in _verdict(form.format(d=base))
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "ls; pwd",
+        "cd build; make",
+        "echo a;echo b",
+        "for i in 1 2 3; do echo $i; done",
+        "if [ -f x ]; then echo y; else echo n; fi",
+        "while read line; do echo $line; done < notes.txt",
+        "find . -name '*.pyc' -exec rm {} \\;",
+        "find . -type f -exec chmod 644 {} \\; && echo done",
+        "git log --format=%H; git status",
+    ],
+)
+def test_chaining_with_a_semicolon_is_no_threat_of_its_own(command: str) -> None:
+    assert analyze_command(command) == ()
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo 'rm -rf /'",
+        "echo 'a; rm -rf ~'",
+        "echo 'sudo rm -rf ~' | cat",
+        'grep -Ei "rm |rm -|unlink|remove|data/|delete|shred|version|cache" notes.txt',
+        "sh -c 'echo hello; ls -la'",
+        "bash -c 'echo \"rm -rf build\" > plan.txt'",
+        "trap 'echo cleanup done' EXIT",
+        "xargs echo",
+        "env FOO=1 python script.py",
+        "timeout 5 ls",
+    ],
+)
+def test_quoted_text_and_harmless_wrapped_commands_are_not_blocked(command: str) -> None:
+    assert has_block_threat(command) is None
+
+
+def test_a_threat_found_in_several_readings_is_reported_once() -> None:
+    threats = analyze_command("rm -rf ~; sh -c 'rm -rf ~'")
+    assert len(threats) == len(set(threats))
+    assert [t for t in threats if t.detail == "Deleting home directory"]
+
+
+def test_the_threat_of_the_line_as_written_comes_first() -> None:
+    first = analyze_command("echo $(whoami) && sh -c 'rm -rf ~'")[0]
+    assert first.category == "injection"
+
+
+def test_a_script_handed_to_a_shell_is_read_by_the_sql_guard() -> None:
+    threats = analyze_command("sh -c \"psql -c 'DROP TABLE users'\"")
+    assert any(t.category == "destructive_sql" and t.level is ThreatLevel.ESCALATE for t in threats)
+
+
+def test_a_script_handed_to_a_shell_is_read_for_protected_instruction_writes() -> None:
+    threats = analyze_command("bash -c 'echo x > AGENTS.md'")
+    assert any(t.category == PROTECTED_WRITE_CATEGORY for t in threats)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "".join("sh -c '" for _ in range(40)) + "rm -rf ~" + "'" * 40,
+        "".join('sh -c "' for _ in range(40)) + "rm -rf ~" + '"' * 40,
+        "echo " + "$(echo x) " * 400,
+        "; ".join(["sh -c 'echo a'"] * 300),
+    ],
+    ids=["nested-single-quotes", "nested-double-quotes", "many-substitutions", "many-statements"],
+)
+def test_a_line_built_to_nest_deeply_or_branch_widely_is_read_within_bounds(command: str) -> None:
+    assert isinstance(analyze_command(command), tuple)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "sh -c 'rm -rf build'",
+        'bash -c "git reset --hard"',
+        "eval 'git clean -fd'",
+        "sudo bash -c 'mv a b'",
+        "(rm -rf build)",
+        "trap 'rm -rf build' EXIT",
+        "echo ok;rm -rf build",
+    ],
+)
+def test_a_destructive_command_is_found_behind_a_wrapper(command: str) -> None:
+    assert is_destructive_command(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "echo 'rm -rf build'",
+        "sh -c 'echo hi'",
+        "sudo ls",
+        "git status; git log --oneline",
+    ],
+)
+def test_a_harmless_command_is_not_destructive_behind_a_wrapper(command: str) -> None:
+    assert not is_destructive_command(command)

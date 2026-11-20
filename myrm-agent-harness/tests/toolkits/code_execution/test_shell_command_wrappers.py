@@ -12,8 +12,8 @@ from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer 
 )
 
 
-class TestRecursiveShellWrapperAnalysis:
-    """Layer 4: recursive analysis of bash -c / sh -c / trap wrappers."""
+class TestShellWrapperReading:
+    """The analyzer reads the commands that bash -c / sh -c / trap wrappers hand control to."""
 
     def test_bash_c_rm_rf_root(self):
         assert has_block_threat("bash -c 'rm -rf /'")
@@ -81,11 +81,11 @@ class TestRecursiveShellWrapperAnalysis:
         assert has_block_threat("trap 'echo cleanup done' EXIT") is None
 
     def test_bash_c_double_quote_already_caught(self):
-        """Double-quoted bash -c is already caught by Layer 2 (not stripped)."""
+        """A double-quoted script is read like a single-quoted one."""
         assert has_block_threat('bash -c "rm -rf /"')
 
     def test_nested_bash_c(self):
-        """Nested shell wrappers with complex quoting are still caught recursively."""
+        """Nested shell wrappers with complex quoting are still caught."""
         assert has_block_threat("bash -c 'sh -c '\\''rm -rf /'\\'''") is not None
 
     def test_bash_c_fork_bomb(self):

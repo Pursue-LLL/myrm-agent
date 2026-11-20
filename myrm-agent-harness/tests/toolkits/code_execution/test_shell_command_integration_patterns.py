@@ -54,3 +54,47 @@ class TestIntegrationMutationDetection:
     def test_readonly_calendar_today_not_mutation(self) -> None:
         cmd = "python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today"
         assert is_integration_mutation_command(cmd) is False
+
+
+_GMAIL_SEND = (
+    "python3 .claude/skills/google-workspace/scripts/google_api.py gmail-send --to a@b.com --subject Hi --body Hello"
+)
+_CALENDAR_TODAY = "python3 .claude/skills/google-workspace/scripts/google_api.py calendar-today"
+
+
+class TestIntegrationMutationBehindWrappersAndSeparators:
+    """An integration write is found in every command a line runs, however another command hands control to it."""
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            "echo start; {c}",
+            "echo start;{c}",
+            "{c};echo done",
+            "{c}&&echo done",
+            "ls | {c}",
+            "sudo {c}",
+            "env LANG=C {c}",
+            "timeout 30 {c}",
+            "for i in 1; do {c}; done",
+            "if true; then {c}; fi",
+        ],
+    )
+    def test_the_write_is_found(self, template: str) -> None:
+        command = template.format(c=_GMAIL_SEND)
+
+        assert is_integration_mutation_command(command) is True
+        threat = has_escalate_threat(command)
+        assert threat is not None
+        assert threat.category == "integration_mutation"
+
+    @pytest.mark.parametrize("quote", ["'", '"'])
+    def test_the_write_is_found_in_a_script_handed_to_a_shell(self, quote: str) -> None:
+        assert is_integration_mutation_command(f"bash -c {quote}{_GMAIL_SEND}{quote}") is True
+
+    @pytest.mark.parametrize("template", ["echo start; {c}", "sudo {c}", "{c} && echo done", "bash -c '{c}'"])
+    def test_a_read_only_call_is_no_mutation_whatever_wraps_it(self, template: str) -> None:
+        assert is_integration_mutation_command(template.format(c=_CALENDAR_TODAY)) is False
+
+    def test_text_that_only_mentions_the_write_is_no_mutation(self) -> None:
+        assert is_integration_mutation_command(f"echo '{_GMAIL_SEND}'") is False

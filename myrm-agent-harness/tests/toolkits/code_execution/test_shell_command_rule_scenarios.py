@@ -64,11 +64,11 @@ class TestUnicodeObfuscationCategories:
         assert any("carriage return" in t.detail for t in threats)
 
 
-class TestFindExecExemptionExtended:
+class TestFindExecTerminatorExtended:
     """Additional find -exec edge cases."""
 
     def test_find_exec_with_plus_terminator(self):
-        """find -exec with + terminator instead of \\; — no semicolon, should pass."""
+        """find -exec with + terminator instead of \\;."""
         assert analyze_command("find . -name '*.py' -exec chmod 644 {} +") == ()
 
     def test_find_exec_grep(self):
@@ -130,10 +130,10 @@ class TestCommandThreatImmutable:
 
 
 class TestSystemManagementScenarios:
-    """Validate system management commands that cover Marvis Computer Agent capabilities.
+    """Validate the system management commands a computer agent runs.
 
-    Proves our shell execution + security analysis handles all competitor scenarios:
-    startup management, process monitoring, disk analysis, resolution changes, power plans.
+    Proves our shell execution + security analysis handles them: startup management, process monitoring,
+    disk analysis, resolution changes, power plans.
     """
 
     def test_list_startup_items_safe(self):
