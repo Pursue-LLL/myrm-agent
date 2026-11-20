@@ -7,17 +7,18 @@
 - semantic_gate, safety (POS: coordinate landing gate, hard blocks)
 
 [OUTPUT]
-- DesktopVisionMixin: desktop_vision_capture (screenshot), desktop_vision_action (coordinate click, type, key, scroll, drag, move, wait), _build_multimodal_response (text plus image result)
+- DesktopVisionMixin: desktop_vision_capture (screenshot; refused while the screen is locked or asleep or a sensitive app is in front), desktop_vision_action (coordinate click, type, key, scroll, drag, move, wait), _build_multimodal_response (text plus image result)
 
 [POS]
-Coordinate-based entry for canvas areas and windows without an AX tree; argument safety, sensitive-app, mirror,
-approval and semantic gates all run before any pixel is touched.
+Coordinate-based entry for canvas areas and windows without an AX tree; screen, sensitive-app and (for input) argument,
+mirror, approval and semantic gates all run before any pixel is read or touched.
 """
 
 from __future__ import annotations
 
 import logging
 
+from myrm_agent_harness.toolkits.computer_use import safety
 from myrm_agent_harness.toolkits.computer_use.iphone_mirror import (
     is_iphone_mirror_app,
     probe_iphone_mirror_state,
@@ -40,10 +41,30 @@ class DesktopVisionMixin(DesktopSessionHost):
     """Screenshot capture and coordinate actions of the desktop session."""
 
     async def desktop_vision_capture(self) -> str | list[object]:
+        """Screenshot for the model, behind the same screen and sensitive-app checks as the AX snapshot."""
+        if (refusal := await self._screen_guard.refusal(snapshot=True)) is not None:
+            return refusal
+        fg_app, fg_title, fg_app_id = self._foreground_identity()
+        if blocked := safety.is_sensitive_app(fg_app, fg_title, fg_app_id):
+            logger.warning("[SECURITY] Sensitive app guard (vision capture): %s", blocked)
+            return f"Safety: Cannot view the screen. {blocked}"
+        return await self._capture_response()
+
+    async def _capture_response(self) -> str | list[object]:
+        """Screenshot as the tool result; callers have already run the guards."""
         result = await self.take_screenshot()
         if not result.success:
             return f"Capture failed: {result.error}"
         return self._build_multimodal_response(result, "Desktop vision capture.")
+
+    def _foreground_identity(self) -> tuple[str, str, str]:
+        """Frontmost app name, window title and app id from the lightweight foreground probe."""
+        info = inspect_backend(self._backend)
+        return (
+            str(info.get("app_name", "") or ""),
+            str(info.get("window_title", "") or ""),
+            str(info.get("app_id", "") or ""),
+        )
 
     async def desktop_vision_action(
         self,
@@ -60,8 +81,6 @@ class DesktopVisionMixin(DesktopSessionHost):
         if (refusal := await self._screen_guard.refusal()) is not None:
             return refusal
         async with self._action_lock:
-            from myrm_agent_harness.toolkits.computer_use import safety
-
             # Reject invalid key / type payloads before any display I/O —
             # argument safety must not require a capturable display to fail closed.
             if action == "key":
@@ -86,10 +105,7 @@ class DesktopVisionMixin(DesktopSessionHost):
                     return f"Safety: {text_blocked}"
 
             # [SECURITY] Sensitive app guard — lightweight foreground app check.
-            fg_info = inspect_backend(self._backend)
-            fg_app = str(fg_info.get("app_name", "") or "")
-            fg_title = str(fg_info.get("window_title", "") or "")
-            fg_app_id = str(fg_info.get("app_id", "") or "")
+            fg_app, fg_title, fg_app_id = self._foreground_identity()
 
             blocked = safety.is_sensitive_app(fg_app, fg_title, fg_app_id)
             if blocked:
@@ -207,7 +223,7 @@ class DesktopVisionMixin(DesktopSessionHost):
                     return "Error: coordinate [x, y] is required for mouse_move"
                 result = await self.mouse_move_to(coordinate[0], coordinate[1])
             elif action in ("capture", "screenshot"):
-                return await self.desktop_vision_capture()
+                return await self._capture_response()
             elif action == "wait":
                 result = await self.wait_seconds(duration)
             else:

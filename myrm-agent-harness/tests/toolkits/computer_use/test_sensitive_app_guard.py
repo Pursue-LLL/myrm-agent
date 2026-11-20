@@ -1,9 +1,9 @@
-"""Tests for sensitive application guardrail in safety.py and desktop_session.py.
+"""Tests for sensitive application guardrail in safety.py and the desktop_session package.
 
 Covers:
 - is_sensitive_app: blocklist matching (financial, communication, password managers)
 - Custom blocked/allowed list overrides
-- Integration with desktop_snapshot, desktop_interact, desktop_vision_action
+- Integration with desktop_snapshot, desktop_interact, desktop_vision_action, desktop_vision_capture
 """
 
 from __future__ import annotations
@@ -280,3 +280,90 @@ class TestDesktopVisionActionSensitiveGuard:
             )
 
         assert not isinstance(result, str) or "Safety" not in result
+
+
+class TestDesktopVisionCaptureSensitiveGuard:
+    """Integration: the screenshot entry refuses what the snapshot and the input entries refuse."""
+
+    @pytest.fixture
+    def session(self):
+        from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+        from myrm_agent_harness.toolkits.computer_use.types import (
+            ActionResult,
+            ComputerUseConfig,
+            ScreenContext,
+            ScreenInfo,
+        )
+
+        backend = MagicMock()
+        backend.screen_info.return_value = ScreenInfo(width=1920, height=1080, dpi_scale=1.0)
+        backend.screen_context.return_value = ScreenContext(active_window="Front", mouse_x=1, mouse_y=2)
+        session = DesktopSession(backend=backend, config=ComputerUseConfig())
+        session.take_screenshot = AsyncMock(
+            return_value=ActionResult(success=True, screenshot_base64="img", screenshot_size=(1920, 1080)),
+        )
+        return session
+
+    @staticmethod
+    def _foreground(app_name: str, window_title: str = ""):
+        return patch(
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
+            return_value={"app_name": app_name, "window_title": window_title, "app_id": ""},
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("app_name", ["1Password 7", "WeChat", "Keychain Access"])
+    async def test_capture_refused_for_sensitive_app(self, session, app_name: str) -> None:
+        with self._foreground(app_name):
+            result = await session.desktop_vision_capture()
+
+        assert isinstance(result, str)
+        assert result.startswith("Safety: Cannot view the screen.")
+        assert "sensitive application" in result
+        session.take_screenshot.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_capture_refused_for_sensitive_window_title(self, session) -> None:
+        with self._foreground("Google Chrome", "招商银行 - 个人网银"):
+            result = await session.desktop_vision_capture()
+
+        assert isinstance(result, str)
+        assert result.startswith("Safety: Cannot view the screen.")
+        assert "Window title" in result
+        session.take_screenshot.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_capture_allowed_for_safe_app(self, session) -> None:
+        with self._foreground("Microsoft Excel", "Sheet1"):
+            result = await session.desktop_vision_capture()
+
+        assert isinstance(result, list)
+        assert result[0]["text"].startswith("Desktop vision capture.")
+        session.take_screenshot.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_unknown_foreground_is_not_a_match(self, session) -> None:
+        """Without a readable foreground identity the list cannot match, so the capture proceeds."""
+        with self._foreground(""):
+            result = await session.desktop_vision_capture()
+
+        assert isinstance(result, list)
+        session.take_screenshot.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_screenshot_action_still_refused_for_sensitive_app(self, session) -> None:
+        with self._foreground("1Password 7"):
+            result = await session.desktop_vision_action(action="screenshot")
+
+        assert isinstance(result, str)
+        assert "Blocked" in result
+        session.take_screenshot.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_screenshot_action_probes_the_foreground_once(self, session) -> None:
+        with self._foreground("Microsoft Excel") as probe:
+            result = await session.desktop_vision_action(action="screenshot")
+
+        assert isinstance(result, list)
+        assert probe.call_count == 1
+        session.take_screenshot.assert_awaited_once()

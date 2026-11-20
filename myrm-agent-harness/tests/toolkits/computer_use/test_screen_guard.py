@@ -24,6 +24,7 @@ _LOCKED_REFUSAL = "Safety: Screen is locked"
 _SNAPSHOT_REFUSAL = "Safety: Desktop screen is locked"
 _TYPE_PAYLOAD_ERROR = "Error: text (key combo) is required for key action"
 _APPROVAL_STOP = ActionResult(success=False, error="stop-after-guard")
+_VISION_PROBE = "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend"
 
 
 def _backend(*, locked: bool = False, asleep: bool = False) -> MagicMock:
@@ -326,3 +327,44 @@ class TestDesktopSessionOnDemandUnlock:
         assert _LOCKED_REFUSAL in str(vision)
         assert backend.click.await_count == 0
         assert host.calls == 3
+
+    async def test_capture_refuses_a_locked_screen_before_probing_or_capturing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = _backend(locked=True)
+        session = _desktop_session(backend, monkeypatch)
+        take_screenshot = AsyncMock(return_value=ActionResult(success=True))
+        monkeypatch.setattr(session, "take_screenshot", take_screenshot)
+
+        with patch(_VISION_PROBE, return_value={}) as probe:
+            result = await session.desktop_vision_capture()
+
+        assert _SNAPSHOT_REFUSAL in str(result)
+        probe.assert_not_called()
+        take_screenshot.assert_not_awaited()
+
+    async def test_capture_refuses_a_sleeping_display(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = _backend(asleep=True)
+        session = _desktop_session(backend, monkeypatch)
+        take_screenshot = AsyncMock(return_value=ActionResult(success=True))
+        monkeypatch.setattr(session, "take_screenshot", take_screenshot)
+
+        with patch(_VISION_PROBE, return_value={}):
+            result = await session.desktop_vision_capture()
+
+        assert result == "Safety: Display is sleeping. Snapshot aborted."
+        take_screenshot.assert_not_awaited()
+
+    async def test_capture_proceeds_after_on_demand_unlock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = _backend(locked=True)
+        session = _desktop_session(backend, monkeypatch)
+        host = _Host(backend, unlocks=True)
+        session.set_screen_unlock_callback(host)
+        take_screenshot = AsyncMock(return_value=ActionResult(success=False, error="stop-after-guard"))
+        monkeypatch.setattr(session, "take_screenshot", take_screenshot)
+
+        with patch(_VISION_PROBE, return_value={}):
+            result = await session.desktop_vision_capture()
+
+        assert result == "Capture failed: stop-after-guard"
+        assert host.calls == 1

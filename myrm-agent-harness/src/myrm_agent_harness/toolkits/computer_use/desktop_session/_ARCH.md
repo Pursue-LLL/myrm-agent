@@ -12,7 +12,7 @@
 | host.py | Contract | `DesktopSessionHost`: typed host of the mixins (state + stubs of the methods they call on each other); type-checking only, `object` at runtime; `ViewUpdateCallback` | ✅ |
 | snapshot.py | Core | `desktop_snapshot`: screen guard, sensitive-app guard, registry replace, diff or full tree, optional SoM screenshot | ✅ |
 | interact.py | Core | `desktop_interact`: per-app approval, revalidation, semantic gate, credential fill, native action with bbox fallback, follow-up snapshot | ✅ |
-| vision.py | Core | `desktop_vision_capture`, `desktop_vision_action` (argument safety, sensitive-app, mirror, approval and semantic gates before any pixel is touched), `_build_multimodal_response` | ✅ |
+| vision.py | Core | `desktop_vision_capture` (screen guard and sensitive-app guard, then the screenshot; shared by the agent tool and the MCP tool), `desktop_vision_action` (argument safety, sensitive-app, mirror, approval and semantic gates before any pixel is touched), `_foreground_identity` (the one foreground probe both use), `_build_multimodal_response` | ✅ |
 | views.py | Core | `DESKTOP_VIEW_UPDATE` emission, inspector exports (`export_registry_view`, `export_inspector_snapshot`), SoM annotation, `refs_for_view_update` (refs as the overlay payload; `nth` from the SoM map) | ✅ |
 | guards.py | Core | `_revalidate_if_stale_after_approval` (re-read the screen when an approval delayed the action), `_capture_guard_screenshot` (evidence for the semantic gate's approval cards) | ✅ |
 
