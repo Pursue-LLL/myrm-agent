@@ -12,7 +12,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist, agent_world
+from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist, agent_world, scripts
 from myrm_agent_harness.toolkits.browser.domain_filter.agent_world import agent_world_expression
 from myrm_agent_harness.toolkits.browser.domain_filter.context_lists import DomainListPolicy, bind_domain_lists
 
@@ -42,7 +42,8 @@ def _inner_expression(armed: str) -> str:
     run = armed.removeprefix(_arm_of(armed))
     assert run.startswith(agent_world._RUN_HEAD), run[:40]
     assert run.endswith(agent_world._RUN_TAIL), run[-40:]
-    return json.loads(run.removeprefix(agent_world._RUN_HEAD).removesuffix(agent_world._RUN_TAIL))
+    text: str = json.loads(run.removeprefix(agent_world._RUN_HEAD).removesuffix(agent_world._RUN_TAIL))
+    return text
 
 
 @pytest.fixture(autouse=True)
@@ -79,7 +80,7 @@ class TestTheArm:
 
     def test_it_is_built_once_per_allowlist_whatever_the_context(self, monkeypatch: pytest.MonkeyPatch) -> None:
         builds: list[DomainAllowlist] = []
-        real = agent_world.build_csp_meta_script
+        real = scripts.build_csp_meta_script
 
         def counting(allowlist: DomainAllowlist) -> str:
             builds.append(allowlist)
