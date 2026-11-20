@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 
 import pytest
@@ -16,6 +17,21 @@ _needs_tzset = pytest.mark.skipif(not hasattr(time, "tzset"), reason="the proces
 
 def _clock_offset() -> timedelta | None:
     return datetime(2026, 1, 1).astimezone().utcoffset()
+
+
+@pytest.fixture(autouse=True)
+def _host_zone_is_utc() -> Iterator[None]:
+    """Start every test from a UTC host, so a pin that leaves its zone behind shows up as a clock stuck at UTC+8."""
+    if not hasattr(time, "tzset"):
+        yield
+        return
+    # Kept in a name: a test may hide time.tzset, and that monkeypatch can outlive this fixture.
+    tzset = time.tzset
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("TZ", "UTC")
+        tzset()
+        yield
+    tzset()
 
 
 @_needs_tzset
