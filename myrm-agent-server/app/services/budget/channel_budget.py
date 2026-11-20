@@ -5,17 +5,18 @@
 - myrm_agent_harness.utils.token_economics::BudgetStatus (POS: Budget status enum)
 - app.database.models.chat::Chat, Message (POS: Session/message models)
 - app.database.models.config::UserConfig (POS: User config persistence)
+- app.database.factory::acquire_write_lock (POS: Write lock taken before a read-modify-write unit's first read)
 - app.services.budget.budget_day::budget_day_start_utc (POS: Budget day boundary as naive UTC)
 - app.services.budget.channel_budget_key::normalize_channel_budget_key (POS: Canonical channel budget key)
+- app.services.budget.channel_budget_policy::ChannelBudgetPolicy, ChannelBudgetPolicyPatch, ChannelBudgetPoliciesConfig (POS: Policy models)
 
 [OUTPUT]
-- ChannelBudgetPolicy: Per-channel budget configuration model; its key is always canonical
 - ChannelBudgetRegistry: Process-scoped registry of per-channel DailyBudgetGuard instances
 - load_channel_budget_policies: Load all channel policies from DB
-- save_channel_budget_policy: Persist a single channel policy
+- save_channel_budget_policy: Persist a single channel policy, replacing the stored one
+- patch_channel_budget_policy: Change named fields of a stored policy, merged into it at write time
 - should_block_channel: Check if a specific channel should be blocked
 - record_channel_cost: Record cost against a channel's budget guard
-- ChannelBudgetPoliciesConfig: Aggregate config for all channel budget policies; policies of one canonical key are merged
 - get_channel_budget_registry: Process-wide ChannelBudgetRegistry accessor
 - delete_channel_budget_policy: Remove a single channel policy
 - initialize_channel_budgets: Initialize the budget registry from the DB on startup
@@ -31,68 +32,31 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
+from collections.abc import Callable
 from datetime import datetime
-from typing import Self
 
 from myrm_agent_harness.utils.token_economics.budget_guard import (
     BudgetStatus,
     DailyBudgetGuard,
 )
-from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import and_, func, select
 
+from app.database.factory import acquire_write_lock
 from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
 from app.database.repositories.channel_key_match import channel_key_extends
 from app.platform_utils import get_session_factory
 from app.services.budget.budget_day import budget_day_start_utc
 from app.services.budget.channel_budget_key import normalize_channel_budget_key
+from app.services.budget.channel_budget_policy import (
+    ChannelBudgetPoliciesConfig,
+    ChannelBudgetPolicy,
+    ChannelBudgetPolicyPatch,
+)
 
 logger = logging.getLogger(__name__)
 
 CHANNEL_BUDGET_CONFIG_KEY = "channel_budget_policies"
-
-
-class ChannelBudgetPolicy(BaseModel):
-    """Per-channel daily budget configuration."""
-
-    channel_key: str
-    daily_limit_usd: float = Field(default=2.0, ge=0.01, le=10000.0)
-    warning_threshold: float = Field(default=0.8, ge=0.1, le=1.0)
-    enabled: bool = True
-    label: str = ""
-
-    @field_validator("channel_key", mode="before")
-    @classmethod
-    def _canonical_channel_key(cls, value: object) -> object:
-        """Rows stored and keys typed in any spelling meet only the canonical key of a live message."""
-        return normalize_channel_budget_key(value) if isinstance(value, str) else value
-
-
-def _stricter(a: ChannelBudgetPolicy, b: ChannelBudgetPolicy) -> ChannelBudgetPolicy:
-    """The enabled policy, then the one with the lower limit; ``a`` wins a tie."""
-    if a.enabled != b.enabled:
-        return a if a.enabled else b
-    return b if b.daily_limit_usd < a.daily_limit_usd else a
-
-
-class ChannelBudgetPoliciesConfig(BaseModel):
-    """Aggregate config for all channel budget policies."""
-
-    policies: list[ChannelBudgetPolicy] = Field(default_factory=list)
-
-    @model_validator(mode="after")
-    def _merge_colliding_keys(self) -> Self:
-        """Policies whose keys canonicalise to one key are one policy; the stricter one is kept."""
-        merged: dict[str, ChannelBudgetPolicy] = {}
-        for policy in self.policies:
-            kept = merged.get(policy.channel_key)
-            if kept is not None:
-                logger.warning("Channel budget policies collide on %s; keeping the stricter one", policy.channel_key)
-            merged[policy.channel_key] = policy if kept is None else _stricter(kept, policy)
-        if len(merged) < len(self.policies):
-            self.policies = list(merged.values())
-        return self
 
 
 class ChannelBudgetRegistry:
@@ -276,61 +240,92 @@ async def load_channel_budget_policies() -> ChannelBudgetPoliciesConfig:
             return ChannelBudgetPoliciesConfig()
 
 
-async def save_channel_budget_policy(policy: ChannelBudgetPolicy) -> None:
-    """Save or update a single channel budget policy."""
+async def _rewrite_policies[Result](
+    change: Callable[[dict[str, ChannelBudgetPolicy]], Result | None],
+    apply_to_registry: Callable[[Result], None],
+) -> Result | None:
+    """Rewrite the stored policies with ``change``, then bring the enforced budgets in line.
+
+    One row holds every channel's policy, so each write reads that row and writes it back. The write lock comes first: a
+    writer that commits in between would otherwise abort this write (SQLITE_BUSY_SNAPSHOT) or have its change overwritten.
+    ``change`` edits the policies by key and returns what the registry needs, or None to leave the row as it is.
+    ``apply_to_registry`` runs right after the commit with nothing awaited in between, so the enforced budgets follow the
+    writes in commit order.
+    """
     session_factory = get_session_factory()
     async with session_factory() as session:
+        await acquire_write_lock(session)
         result = await session.execute(select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY))
         row = result.scalar_one_or_none()
-        now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
+        config = ChannelBudgetPoliciesConfig() if row is None else ChannelBudgetPoliciesConfig.model_validate(row.config_value)
+        by_key = {p.channel_key: p for p in config.policies}
+        changed = change(by_key)
+        if changed is None:
+            return None
 
-        if row is not None:
-            config = ChannelBudgetPoliciesConfig.model_validate(row.config_value)
-            existing = {p.channel_key: p for p in config.policies}
-            existing[policy.channel_key] = policy
-            config.policies = list(existing.values())
+        config.policies = list(by_key.values())
+        now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
+        if row is None:
+            session.add(
+                UserConfig(
+                    id=str(uuid.uuid4()),
+                    config_key=CHANNEL_BUDGET_CONFIG_KEY,
+                    config_value=config.model_dump(),
+                    version=now_version,
+                    last_device_id="server",
+                    is_encrypted=False,
+                )
+            )
+        else:
             row.config_value = config.model_dump()
             row.version = now_version
-        else:
-            config = ChannelBudgetPoliciesConfig(policies=[policy])
-            new_config = UserConfig(
-                id=str(uuid.uuid4()),
-                config_key=CHANNEL_BUDGET_CONFIG_KEY,
-                config_value=config.model_dump(),
-                version=now_version,
-                last_device_id="server",
-                is_encrypted=False,
-            )
-            session.add(new_config)
         await session.commit()
+        apply_to_registry(changed)
+    return changed
 
+
+async def save_channel_budget_policy(policy: ChannelBudgetPolicy) -> None:
+    """Save a channel budget policy, replacing the stored one of the same key."""
+    # The spend is read before the write so that the registry can be updated right after the commit.
     initial_cost = await _query_channel_today_cost(policy.channel_key)
-    get_channel_budget_registry().configure(policy, initial_cost=initial_cost)
+
+    def replace(by_key: dict[str, ChannelBudgetPolicy]) -> ChannelBudgetPolicy:
+        by_key[policy.channel_key] = policy
+        return policy
+
+    await _rewrite_policies(replace, lambda saved: get_channel_budget_registry().configure(saved, initial_cost=initial_cost))
+
+
+async def patch_channel_budget_policy(channel_key: str, patch: ChannelBudgetPolicyPatch) -> ChannelBudgetPolicy | None:
+    """Change the named fields of a stored policy and return the result; None when no policy has this key.
+
+    The fields are merged into the policy as stored when the write happens, not into a copy the caller read earlier, so an
+    edit of one field cannot put back what another writer changed in the others, nor bring back a deleted channel.
+    """
+    key = normalize_channel_budget_key(channel_key)
+    initial_cost = await _query_channel_today_cost(key)
+
+    def merge(by_key: dict[str, ChannelBudgetPolicy]) -> ChannelBudgetPolicy | None:
+        stored = by_key.get(key)
+        if stored is None:
+            return None
+        merged = ChannelBudgetPolicy.model_validate({**stored.model_dump(), **patch.model_dump(exclude_unset=True)})
+        by_key[key] = merged
+        return merged
+
+    return await _rewrite_policies(
+        merge, lambda merged: get_channel_budget_registry().configure(merged, initial_cost=initial_cost)
+    )
 
 
 async def delete_channel_budget_policy(channel_key: str) -> bool:
     """Remove a channel budget policy; the key may be given in any spelling that canonicalises to the stored one."""
     key = normalize_channel_budget_key(channel_key)
-    session_factory = get_session_factory()
-    async with session_factory() as session:
-        result = await session.execute(select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY))
-        row = result.scalar_one_or_none()
-        if row is None:
-            return False
 
-        config = ChannelBudgetPoliciesConfig.model_validate(row.config_value)
-        original_len = len(config.policies)
-        config.policies = [p for p in config.policies if p.channel_key != key]
-        if len(config.policies) == original_len:
-            return False
+    def remove(by_key: dict[str, ChannelBudgetPolicy]) -> str | None:
+        return key if by_key.pop(key, None) is not None else None
 
-        now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
-        row.config_value = config.model_dump()
-        row.version = now_version
-        await session.commit()
-
-    get_channel_budget_registry().remove(key)
-    return True
+    return await _rewrite_policies(remove, lambda removed: get_channel_budget_registry().remove(removed)) is not None
 
 
 async def initialize_channel_budgets() -> None:

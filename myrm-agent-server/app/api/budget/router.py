@@ -3,6 +3,7 @@
 [INPUT]
 - app.services.budget.enforcer (POS: Budget enforcement service)
 - app.services.budget.channel_budget (POS: Per-channel budget enforcement)
+- app.services.budget.channel_budget_policy (POS: Channel budget policy models)
 - app.services.budget.channel_budget_key (POS: Canonical channel budget key)
 - app.services.budget.budget_day (POS: Budget day boundary as naive UTC)
 
@@ -11,7 +12,8 @@
 - PUT /policy: Update budget policy
 - GET /status: Current day's budget usage status (multi-dimensional)
 - GET /channels: All channel budget policies and statuses
-- PUT /channels/{channel_key}: Create/update a channel budget policy; the key must be {channel}:group:{chat id}, stored canonical
+- PUT /channels/{channel_key}: Create or replace a channel budget policy, fields left out taking their defaults; the key must be {channel}:group:{chat id}, stored canonical
+- PATCH /channels/{channel_key}: Change the named fields of an existing channel budget policy, the others keep their stored values; 404 when none exists; any spelling of its key
 - DELETE /channels/{channel_key}: Remove a channel budget policy; any spelling of its key
 - GET /channels/{channel_key}/audit: Audit log for a channel's spending over the last `days` budget days (1 to 90, today included); any spelling of its key
 
@@ -30,8 +32,9 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app.api.budget.spend_control_router import router as spend_control_router
-from app.core.utils.errors import internal_error, validation_error
+from app.core.utils.errors import internal_error, not_found_error, validation_error
 from app.core.utils.response_utils import success_response
+from app.services.budget.channel_budget_policy import ChannelBudgetPolicyPatch
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -194,13 +197,11 @@ async def get_channel_budgets() -> JSONResponse:
 
 @router.put("/channels/{channel_key:path}")
 async def update_channel_budget(channel_key: str, req: ChannelBudgetPolicyRequest) -> JSONResponse:
-    """Create or update a channel budget policy; the key is stored in its canonical form."""
+    """Create a channel budget policy, or replace the stored one whole; the key is stored in its canonical form."""
     try:
-        from app.services.budget.channel_budget import (
-            ChannelBudgetPolicy,
-            save_channel_budget_policy,
-        )
+        from app.services.budget.channel_budget import save_channel_budget_policy
         from app.services.budget.channel_budget_key import parse_channel_budget_key
+        from app.services.budget.channel_budget_policy import ChannelBudgetPolicy
 
         policy = ChannelBudgetPolicy(
             channel_key=parse_channel_budget_key(channel_key),
@@ -215,6 +216,23 @@ async def update_channel_budget(channel_key: str, req: ChannelBudgetPolicyReques
         raise validation_error(str(e)) from e
     except Exception as e:
         raise internal_error(operation="Update channel budget", exception=e) from e
+
+
+@router.patch("/channels/{channel_key:path}")
+async def patch_channel_budget(channel_key: str, req: ChannelBudgetPolicyPatch) -> JSONResponse:
+    """Change the named fields of a channel budget policy; the fields left out keep their stored values."""
+    try:
+        from app.services.budget.channel_budget import patch_channel_budget_policy
+        from app.services.budget.channel_budget_key import parse_channel_budget_key
+
+        policy = await patch_channel_budget_policy(parse_channel_budget_key(channel_key), req)
+    except ValueError as e:
+        raise validation_error(str(e)) from e
+    except Exception as e:
+        raise internal_error(operation="Patch channel budget", exception=e) from e
+    if policy is None:
+        raise not_found_error("Channel budget policy")
+    return success_response(data=policy.model_dump())
 
 
 @router.delete("/channels/{channel_key:path}")

@@ -3,7 +3,7 @@
  * @/lib/api::apiRequest (POS: HTTP client wrapper)
  *
  * [OUTPUT]
- * Budget policy CRUD and status APIs.
+ * Budget policy CRUD and status APIs; a channel policy is created whole (PUT) and edited field by field (PATCH).
  *
  * [POS]
  * Frontend budget service. Bridges budget API endpoints with multi-dimensional support.
@@ -91,14 +91,30 @@ export async function getChannelBudgets(): Promise<ChannelBudgetsResponse> {
   return apiRequest<ChannelBudgetsResponse>('/budget/channels', { silent: true });
 }
 
-export async function updateChannelBudget(
+/** The fields of a policy the URL does not already carry. */
+export type ChannelBudgetPolicyFields = Omit<ChannelBudgetPolicy, 'channel_key'>;
+
+/** Creates the policy of a channel; a policy stored under that key is replaced whole. */
+export async function createChannelBudget(
   channelKey: string,
-  policy: Omit<ChannelBudgetPolicy, 'channel_key'>,
+  policy: ChannelBudgetPolicyFields,
 ): Promise<ChannelBudgetPolicy> {
   return apiRequest<ChannelBudgetPolicy>(`/budget/channels/${encodeURIComponent(channelKey)}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(policy),
+  });
+}
+
+/** Changes only the named fields of a stored policy; the rest keep the values stored when the request lands. */
+export async function updateChannelBudget(
+  channelKey: string,
+  patch: Partial<ChannelBudgetPolicyFields>,
+): Promise<ChannelBudgetPolicy> {
+  return apiRequest<ChannelBudgetPolicy>(`/budget/channels/${encodeURIComponent(channelKey)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(patch),
   });
 }
 

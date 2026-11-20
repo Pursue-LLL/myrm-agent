@@ -9,11 +9,11 @@ from __future__ import annotations
 from myrm_agent_harness.utils.token_economics.budget_guard import BudgetStatus
 
 from app.services.budget.channel_budget import (
-    ChannelBudgetPolicy,
     ChannelBudgetRegistry,
     record_channel_cost,
     should_block_channel,
 )
+from app.services.budget.channel_budget_policy import ChannelBudgetPolicy
 
 
 class TestChannelBudgetPolicy:
