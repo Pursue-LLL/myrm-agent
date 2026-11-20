@@ -244,6 +244,7 @@ export const validateSearchServiceConfig = async (config: SearchServiceConfig): 
   }
 };
 
+/** One tool of a server, with the hints the server declared for it; a hint the server did not declare is false. */
 export interface MCPToolDetail {
   name: string;
   description: string;

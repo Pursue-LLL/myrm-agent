@@ -173,7 +173,7 @@ describe('MCPToolSelector destructive tools', () => {
     renderSelector({ selectedTools: ['read'] });
     await expandFilter();
 
-    expect(screen.getByText('dangerDisabled {"count":2}')).toBeInTheDocument();
+    expect(screen.getByText('destructiveOff {"count":2}')).toBeInTheDocument();
   });
 
   it('counts only the destructive tools that are off', async () => {
@@ -181,7 +181,7 @@ describe('MCPToolSelector destructive tools', () => {
     renderSelector({ selectedTools: ['read', 'wipe'] });
     await expandFilter();
 
-    expect(screen.getByText('dangerDisabled {"count":1}')).toBeInTheDocument();
+    expect(screen.getByText('destructiveOff {"count":1}')).toBeInTheDocument();
   });
 
   it('says nothing when every destructive tool is on', async () => {
@@ -189,7 +189,7 @@ describe('MCPToolSelector destructive tools', () => {
     renderSelector({ selectedTools: ['wipe', 'drop'] });
     await expandFilter();
 
-    expect(screen.queryByText(/dangerDisabled/)).toBeNull();
+    expect(screen.queryByText(/destructiveOff/)).toBeNull();
   });
 
   it('says nothing while nothing was chosen', async () => {
@@ -197,11 +197,11 @@ describe('MCPToolSelector destructive tools', () => {
     renderSelector();
     await expandFilter();
 
-    expect(screen.queryByText(/dangerDisabled/)).toBeNull();
+    expect(screen.queryByText(/destructiveOff/)).toBeNull();
   });
 });
 
-describe('MCPToolSelector risk', () => {
+describe('MCPToolSelector declared risk', () => {
   beforeAll(() => {
     // The tooltip arrow measures itself.
     vi.stubGlobal(
@@ -220,24 +220,26 @@ describe('MCPToolSelector risk', () => {
         readOnlyTool('look'),
         writableTool('edit'),
         destructiveTool('wipe'),
+        // Repeatable, but its server does not declare it read-only.
         readOnlyTool('put', { readOnlyHint: false }),
+        // Declared read-only, though it cannot be repeated.
         readOnlyTool('peek', { idempotentHint: false }),
       ),
     );
 
   const riskOf = (name: string) => {
     const label = toolBox(name).closest('label') as HTMLElement;
-    return within(label).getByText(/^(readOnly|writable|destructive)$/).textContent;
+    return within(label).getByText(/^(declaredReadOnly|notDeclaredReadOnly|declaredDestructive)$/).textContent;
   };
 
-  it('tells a tool that only reads, one that writes and one that destroys apart', async () => {
+  it('tells a tool declared read-only, one that is not and one declared destructive apart', async () => {
     mixedRisk();
     renderSelector();
     await expandFilter();
 
-    expect(riskOf('look')).toBe('readOnly');
-    expect(riskOf('edit')).toBe('writable');
-    expect(riskOf('wipe')).toBe('destructive');
+    expect(riskOf('look')).toBe('declaredReadOnly');
+    expect(riskOf('edit')).toBe('notDeclaredReadOnly');
+    expect(riskOf('wipe')).toBe('declaredDestructive');
   });
 
   it('reads the risk out once, and leaves the icon itself to those who see it', async () => {
@@ -247,27 +249,27 @@ describe('MCPToolSelector risk', () => {
 
     const label = toolBox('edit').closest('label') as HTMLElement;
 
-    expect(within(label).getAllByText('writable')).toHaveLength(1);
+    expect(within(label).getAllByText('notDeclaredReadOnly')).toHaveLength(1);
     expect(label.querySelector('svg[data-state]')).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('counts a read that cannot be repeated as safe', async () => {
+  it('takes a tool declared read-only for read-only whether or not it can be repeated', async () => {
     mixedRisk();
     renderSelector();
     await expandFilter();
 
-    expect(riskOf('peek')).toBe('readOnly');
+    expect(riskOf('peek')).toBe('declaredReadOnly');
   });
 
-  it('counts a repeatable write as safe, and a destructive hint over everything else', async () => {
+  it('never takes a repeatable tool for read-only, and lets a destructive claim win over a read-only one', async () => {
     kit.fetchMCPTools.mockResolvedValue(
       toolsRead(readOnlyTool('put', { readOnlyHint: false }), readOnlyTool('both', { destructiveHint: true })),
     );
     renderSelector();
     await expandFilter();
 
-    expect(riskOf('put')).toBe('readOnly');
-    expect(riskOf('both')).toBe('destructive');
+    expect(riskOf('put')).toBe('notDeclaredReadOnly');
+    expect(riskOf('both')).toBe('declaredDestructive');
   });
 
   const focusRiskOf = (name: string) => {
@@ -281,7 +283,7 @@ describe('MCPToolSelector risk', () => {
     renderSelector();
     await expandFilter();
 
-    expect(await focusRiskOf('wipe')).toHaveTextContent('destructivewipe description');
+    expect(await focusRiskOf('wipe')).toHaveTextContent('declaredDestructivewipe description');
   });
 
   it('cuts the description at 120 characters', async () => {
@@ -291,7 +293,7 @@ describe('MCPToolSelector risk', () => {
 
     const tip = await focusRiskOf('long');
 
-    expect(tip.textContent).toBe(`readOnly${'x'.repeat(120)}`);
+    expect(tip.textContent).toBe(`declaredReadOnly${'x'.repeat(120)}`);
   });
 
   it('shows no description line for a tool without one', async () => {

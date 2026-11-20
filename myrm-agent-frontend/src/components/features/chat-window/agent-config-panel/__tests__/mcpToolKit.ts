@@ -16,7 +16,7 @@ export const llmConfigMock = () => ({ fetchMCPTools: hoisted.fetchMCPTools });
 
 export const nextIntlMock = () => ({ useTranslations: () => hoisted.t });
 
-/** A tool that changes nothing and can be repeated: the safe kind. */
+/** A tool its server declares read-only and repeatable. */
 export const readOnlyTool = (name: string, overrides: Partial<MCPToolDetail> = {}): MCPToolDetail => ({
   name,
   description: `${name} description`,
@@ -27,9 +27,11 @@ export const readOnlyTool = (name: string, overrides: Partial<MCPToolDetail> = {
   ...overrides,
 });
 
+/** A tool its server declares nothing about. */
 export const writableTool = (name: string): MCPToolDetail =>
   readOnlyTool(name, { readOnlyHint: false, idempotentHint: false });
 
+/** A tool its server declares destructive. */
 export const destructiveTool = (name: string): MCPToolDetail =>
   readOnlyTool(name, { readOnlyHint: false, idempotentHint: false, destructiveHint: true });
 

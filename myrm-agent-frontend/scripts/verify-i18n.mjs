@@ -3,7 +3,7 @@
  * 翻译完整性验证脚本（i18n 质量门禁）。
  *
  * - metadata.settingsTabs / settings.menu / settings.developer 完整性
- * - agent.configPanel / kanban / artifacts / cron 关键 string 键在全部语言（zh / en）均存在（防 MISSING_MESSAGE）
+ * - agent.configPanel（含 mcpTools）/ kanban / artifacts / cron 关键 string 键在全部语言（zh / en）均存在（防 MISSING_MESSAGE）
  * - SSR shell 组件不得 useTranslations(deferred namespace)（与 locale-manifest.ts 对齐）
  * - home-route settings i18n shell contract（scan-home-i18n-shell.mjs）
  * - zh vs en：key parity（缺键=ERROR / 孤儿键=ERROR）、叶子类型一致、ICU 占位符变量一致、
@@ -33,6 +33,7 @@ import {
   verifyCronBlueprint,
   verifyCronExecutionPolicy,
   verifyKanbanClosure,
+  verifyMcpToolSelector,
 } from './verify-i18n/namespace-keys.mjs';
 import {
   readSettingsTabs,
@@ -60,6 +61,7 @@ verifySettingsTabs(ctx, settingsTabs);
 verifySettingsMenu(ctx, settingsTabs);
 verifyDeveloperKeys(ctx);
 verifyAgentConfigPanel(ctx);
+verifyMcpToolSelector(ctx);
 verifyKanbanClosure(ctx);
 verifyArtifactsCenter(ctx);
 verifyCronBlueprint(ctx);
