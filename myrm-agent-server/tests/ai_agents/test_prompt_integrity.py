@@ -199,6 +199,14 @@ class TestDesktopControlRules:
         assert "calculator/@dref" in DESKTOP_CONTROL_RULES
         assert "action=press activates" in DESKTOP_CONTROL_RULES
 
+    def test_rules_ask_user_to_grant_accessibility_when_permission_missing(self) -> None:
+        """A snapshot that reports a missing macOS permission must lead the model to ask the user for Accessibility access."""
+        assert "Accessibility" in DESKTOP_CONTROL_RULES
+
+    def test_rules_disclose_first_control_approval(self) -> None:
+        """The model must be told that the first control of each desktop app waits for the user's approval."""
+        assert "user approval" in DESKTOP_CONTROL_RULES
+
 
 class TestPromptBilingualSupport:
     """Validates full bilingual (EN/ZH) system prompt support with English default."""
