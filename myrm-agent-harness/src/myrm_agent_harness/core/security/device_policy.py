@@ -140,7 +140,8 @@ def _high_risk_commands(line: str, high_risk_verbs: frozenset[str]) -> list[str]
     """The commands of a shell line whose program is high-risk, each as written.
 
     Commands are told apart the way the shell does (``;`` ``&&`` ``||`` ``|`` ``&`` and line breaks outside quotes), so
-    a separator inside a quoted argument starts no command and a program behind ``then`` or ``do`` still counts.
+    a separator inside a quoted argument starts no command and a program behind ``then``, ``do``, a function
+    definition's head or a ``case`` arm's label still counts.
     """
     return [command.text for command in read_commands(line) if command.words[0].lower() in high_risk_verbs]
 

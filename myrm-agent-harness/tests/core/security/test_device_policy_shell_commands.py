@@ -60,6 +60,26 @@ def test_a_verb_behind_a_shell_keyword_counts(command: str) -> None:
 @pytest.mark.parametrize(
     "command",
     [
+        "f() { rm -rf build; }; f",
+        "f () { rm -rf build; }; f",
+        "function clean { rm -rf build; }; clean",
+        "function clean() { rm -rf build; }; clean",
+        "f() ( rm -rf build ); f",
+        "case $x in a) rm -rf build;; esac",
+        "case $x in a) echo no;; b|c) kill $pid;; esac",
+        "case $x in\n  a) echo no ;;\n  *) rm -rf build ;;\nesac",
+    ],
+)
+def test_a_verb_in_a_function_body_or_a_case_arm_counts(command: str) -> None:
+    assessment = _assess(command)
+
+    assert assessment.is_high_risk is True
+    assert assessment.requires_dual_insurance is True
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
         'echo "done; rm -rf build"',
         "echo 'a && rm -rf build'",
         'grep -E "a|rm -rf" notes.txt',
@@ -71,6 +91,9 @@ def test_a_verb_behind_a_shell_keyword_counts(command: str) -> None:
         "cd build\nmake\nls",
         "if true; then echo yes; fi",
         "for f in a b; do echo $f; done",
+        "f() { echo hi; }; f",
+        "case $x in a) echo yes;; esac",
+        "case $x in rm) echo a verb as a label;; kill) echo too;; esac",
     ],
 )
 def test_text_that_only_mentions_a_verb_stays_clear(command: str) -> None:

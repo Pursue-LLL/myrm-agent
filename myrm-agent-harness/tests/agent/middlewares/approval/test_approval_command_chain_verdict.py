@@ -72,6 +72,8 @@ async def test_a_semicolon_chain_is_judged_like_an_and_chain(first: str, second:
         "if true; then rm -rf build; fi",
         "for f in a b; do rm -f $f; done",
         "kill -9 1234; sleep 1",
+        "f() { rm -rf build; }; f",
+        "case $x in a) rm -rf build;; esac",
     ],
 )
 async def test_a_standing_approval_does_not_carry_a_high_risk_command_of_the_line(command: str) -> None:
@@ -89,6 +91,7 @@ async def test_a_standing_approval_does_not_carry_a_high_risk_command_of_the_lin
         "(cd repo;git push)",
         "gh pr create --fill; true",
         "docker push img:1&&echo done",
+        "case $x in a) git push;; esac",
     ],
 )
 async def test_a_standing_approval_does_not_carry_an_irreversible_command_of_the_line(command: str) -> None:
@@ -104,6 +107,8 @@ async def test_a_standing_approval_does_not_carry_an_irreversible_command_of_the
         "echo 'done; rm -rf build'",
         "if true; then echo yes; fi",
         "pwd; ls -la; echo done",
+        "f() { ls -la; }; f",
+        "case $x in a) echo yes;; esac",
     ],
 )
 async def test_a_standing_approval_covers_a_line_of_read_only_commands(command: str) -> None:
