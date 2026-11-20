@@ -13,6 +13,7 @@ from langgraph.types import Command
 
 from myrm_agent_harness.agent.skill_agent import SkillAgent
 from myrm_agent_harness.agent.types import AgentRuntimeConfig
+from myrm_agent_harness.toolkits.wiki import WikiCompiler
 from myrm_agent_harness.toolkits.wiki.wiki_tool_descriptions import (
     resolve_wiki_apply_description,
     resolve_wiki_ingest_description,
@@ -279,109 +280,51 @@ class TestMaybeArchiveToWiki:
         agent._maybe_archive_to_wiki("test", ["x" * 499])
 
 
-class TestRegisterLargeDocIngest:
-    """Tests for _register_large_doc_ingest and the _ingest_large_doc closure."""
+class TestPdfReadIsIndependentOfTheWiki:
+    """Mounting the wiki tools changes nothing about what a long PDF read does or says."""
 
-    def teardown_method(self) -> None:
-        from myrm_agent_harness.agent.meta_tools.file_ops.utils.pdf_reader import (
-            unregister_large_doc_ingest_callback,
-        )
+    @staticmethod
+    async def _read_long_pdf() -> str:
+        from myrm_agent_harness.agent.meta_tools.file_ops.utils.pdf_reader import read_pdf_as_content_blocks
+        from myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor import PDFExtractResult
 
-        unregister_large_doc_ingest_callback()
-
-    def test_registers_callback(self, mock_llm: AsyncMock, wiki_dir: Path) -> None:
-        """After _create_wiki_tools, the pdf_reader callback should be registered."""
-        from myrm_agent_harness.agent.meta_tools.file_ops.utils import pdf_reader
-
-        agent = _make_agent(mock_llm, wiki_base_dir=wiki_dir)
-        agent._create_wiki_tools()
-
-        assert pdf_reader._ingest_callback is not None
-
-    @pytest.mark.asyncio
-    async def test_atomic_file_creation_dedup(self, wiki_dir: Path) -> None:
-        """_ingest_large_doc uses atomic O_CREAT|O_EXCL — duplicate is a no-op."""
-        from myrm_agent_harness.agent.meta_tools.file_ops.utils import pdf_reader
-        from myrm_agent_harness.agent.skill_agent.tools import SkillAgentToolsMixin
-
-        mock_structure = MagicMock()
-        mock_path = MagicMock()
-        mock_path.parent.mkdir = MagicMock()
-        mock_structure.get_raw_file_path.return_value = mock_path
-        mock_compiler = MagicMock()
-
-        SkillAgentToolsMixin._register_large_doc_ingest(mock_structure, mock_compiler)
-        cb = pdf_reader._ingest_callback
-        assert cb is not None
-
+        executor = AsyncMock()
+        executor.read_file_bytes = AsyncMock(return_value=b"%PDF-1.4 mock")
+        long_pdf = PDFExtractResult(text="[Page 1]\nbody", page_count=25, parsed_pages=20, strategy="text")
         with patch(
-            "myrm_agent_harness.agent.skill_agent.tools.os.open",
-            side_effect=FileExistsError,
+            "myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor.extract_pdf_content",
+            new_callable=AsyncMock,
+            return_value=long_pdf,
         ):
-            await cb("test.pdf", "full text", "hash123")
-
-        mock_compiler.enqueue_file.assert_not_called()
+            result = await read_pdf_as_content_blocks("/tmp/long.pdf", executor, supports_vision=False)
+        # A background ingest, had the read started one, would have finished by now.
+        await asyncio.sleep(0.2)
+        assert isinstance(result, str)
+        return result
 
     @pytest.mark.asyncio
-    async def test_successful_ingest_enqueues_file(self, wiki_dir: Path) -> None:
-        """Successful ingest writes file and enqueues for compilation."""
-        from myrm_agent_harness.agent.meta_tools.file_ops.utils import pdf_reader
-        from myrm_agent_harness.agent.skill_agent.tools import SkillAgentToolsMixin
+    async def test_a_long_pdf_read_writes_and_queues_nothing_in_the_wiki(
+        self, mock_llm: AsyncMock, wiki_dir: Path
+    ) -> None:
+        agent = _make_agent(mock_llm, wiki_base_dir=wiki_dir)
+        with patch.object(WikiCompiler, "enqueue_file") as enqueue:
+            agent._create_wiki_tools()
+            assert agent._wiki_structure is not None
+            files_before = sorted(agent._wiki_structure.raw_dir.rglob("*"))
 
-        mock_structure = MagicMock()
-        mock_path = MagicMock()
-        mock_path.parent.mkdir = MagicMock()
-        mock_path.__str__ = MagicMock(return_value="/tmp/fake_raw_path.md")
-        mock_structure.get_raw_file_path.return_value = mock_path
-        mock_compiler = MagicMock()
+            await self._read_long_pdf()
 
-        SkillAgentToolsMixin._register_large_doc_ingest(mock_structure, mock_compiler)
-        cb = pdf_reader._ingest_callback
-        assert cb is not None
-
-        fake_fd = 42
-        with (
-            patch(
-                "myrm_agent_harness.agent.skill_agent.tools.os.open",
-                return_value=fake_fd,
-            ) as mock_open,
-            patch("myrm_agent_harness.agent.skill_agent.tools.os.write") as mock_write,
-            patch("myrm_agent_harness.agent.skill_agent.tools.os.close") as mock_close,
-        ):
-            await cb("report.pdf", "full content", "abc123")
-
-        mock_open.assert_called_once()
-        mock_write.assert_called_once_with(fake_fd, b"# report.pdf\n\nfull content")
-        mock_close.assert_called_once_with(fake_fd)
-        mock_compiler.enqueue_file.assert_called_once_with(mock_path)
+        assert sorted(agent._wiki_structure.raw_dir.rglob("*")) == files_before
+        enqueue.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_ingest_does_not_publish_to_tool_broadcast_bus(self, wiki_dir: Path) -> None:
-        """Large-doc ingest must not use ToolBroadcastBus (chat UI uses EventLogger path)."""
-        from myrm_agent_harness.agent.meta_tools.file_ops.utils import pdf_reader
-        from myrm_agent_harness.agent.skill_agent.tools import SkillAgentToolsMixin
+    async def test_the_read_says_the_same_before_and_after_the_wiki_is_mounted(
+        self, mock_llm: AsyncMock, wiki_dir: Path
+    ) -> None:
+        agent = _make_agent(mock_llm, wiki_base_dir=wiki_dir)
+        before = await self._read_long_pdf()
+        agent._create_wiki_tools()
+        after = await self._read_long_pdf()
 
-        mock_structure = MagicMock()
-        mock_path = MagicMock()
-        mock_path.parent.mkdir = MagicMock()
-        mock_path.__str__ = MagicMock(return_value="/tmp/fake_raw_path.md")
-        mock_structure.get_raw_file_path.return_value = mock_path
-        mock_compiler = MagicMock()
-
-        SkillAgentToolsMixin._register_large_doc_ingest(mock_structure, mock_compiler)
-        cb = pdf_reader._ingest_callback
-        assert cb is not None
-
-        with (
-            patch("myrm_agent_harness.agent.skill_agent.tools.os.open", return_value=99),
-            patch("myrm_agent_harness.agent.skill_agent.tools.os.write"),
-            patch("myrm_agent_harness.agent.skill_agent.tools.os.close"),
-            patch(
-                "myrm_agent_harness.agent.streaming.broadcast.event_bus.ToolBroadcastBus.get_instance",
-                new_callable=AsyncMock,
-            ) as mock_bus,
-        ):
-            await cb("report.pdf", "content", "hash789")
-
-        mock_bus.assert_not_called()
-        mock_compiler.enqueue_file.assert_called_once()
+        assert after == before
+        assert "wiki_query" not in after

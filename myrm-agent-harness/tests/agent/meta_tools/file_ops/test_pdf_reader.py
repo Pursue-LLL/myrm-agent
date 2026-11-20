@@ -9,12 +9,24 @@ import pytest
 
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.pdf_reader import (
     _FALLBACK_MAX_CHARS,
+    STRUCTURE_OUTLINE_MAX_ENTRIES,
     _write_to_temp,
     is_pdf_path,
     read_pdf_as_content_blocks,
-    unregister_large_doc_ingest_callback,
 )
-from tests.agent.meta_tools.file_ops.pdf_reader_support import FakeConfig, FakeImage, FakePDFResult
+from tests.agent.meta_tools.file_ops.pdf_reader_support import (
+    FakeConfig,
+    FakeImage,
+    FakePDFResult,
+    read_pdf_with_extraction,
+)
+
+# The one hint a read carries when the document is longer than the 20-page window.
+PARTIAL_READ_HINT = (
+    "\n\n[Partial Read] This document has {pages} pages; only the first 20 pages were read and "
+    "file_read cannot open the rest. Do not assume what the unread pages contain; "
+    "`parse_mode='structure'` lists the headings with their page numbers."
+)
 
 # ---------------------------------------------------------------------------
 # is_pdf_path
@@ -71,12 +83,6 @@ class TestWriteToTemp:
 
 
 class TestReadPdfAsContentBlocks:
-    def setup_method(self) -> None:
-        unregister_large_doc_ingest_callback()
-
-    def teardown_method(self) -> None:
-        unregister_large_doc_ingest_callback()
-
     @pytest.mark.asyncio
     async def test_file_not_found_propagates(self) -> None:
         executor = AsyncMock()
@@ -261,30 +267,49 @@ class TestReadPdfAsContentBlocks:
         assert "image-only" in result
 
     @pytest.mark.asyncio
-    async def test_windowed_read_without_wiki_says_that_pages_were_not_read(self) -> None:
-        """With no knowledge base to divert to, the window really is all the model gets."""
-        executor = AsyncMock()
-        executor.read_file_bytes = AsyncMock(return_value=b"bytes")
-        large = FakePDFResult(text="body " * 100, page_count=40, parsed_pages=20)
-        with (
-            patch(
-                "myrm_agent_harness.agent.meta_tools.file_ops.utils.pdf_reader._write_to_temp",
-                new_callable=AsyncMock,
-                return_value="/tmp/t.pdf",
-            ),
-            patch("os.unlink"),
-            patch(
-                "myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor.extract_pdf_content",
-                new_callable=AsyncMock,
-                return_value=large,
-            ),
-            patch(
-                "myrm_agent_harness.toolkits.file_parsers.pdf.pdf_content_extractor.PDFExtractConfig",
-                FakeConfig,
-            ),
-        ):
-            result = await read_pdf_as_content_blocks("/tmp/large.pdf", executor, False)
+    async def test_a_document_that_fits_the_window_carries_no_partial_read_hint(self) -> None:
+        result = await read_pdf_with_extraction(FakePDFResult(text="Hello world", page_count=20))
+
+        assert "Hello world" in result
+        assert "[Partial Read]" not in result
+
+    @pytest.mark.asyncio
+    async def test_partial_read_hint_states_the_coverage_and_points_to_the_outline(self) -> None:
+        """It says what was read, promises no way to read on, and names the one tool that lists the rest."""
+        result = await read_pdf_with_extraction(FakePDFResult(text="body " * 100, page_count=40, parsed_pages=20))
 
         assert isinstance(result, str)
-        assert "[Partial Read]" in result
-        assert "only the first 20 pages were read" in result
+        assert result.endswith(PARTIAL_READ_HINT.format(pages=40))
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("page_count", [21, 2000, 2001, 5000])
+    async def test_the_hint_does_not_change_with_the_length_of_the_document(self, page_count: int) -> None:
+        """No page count has a wording of its own, and none of them mentions a knowledge base."""
+        result = await read_pdf_with_extraction(FakePDFResult(text="body", page_count=page_count, parsed_pages=20))
+
+        assert isinstance(result, str)
+        assert result.endswith(PARTIAL_READ_HINT.format(pages=page_count))
+        assert "wiki" not in result.lower()
+        assert "index" not in result.lower()
+
+    @pytest.mark.asyncio
+    async def test_structure_outline_past_the_entry_cap_only_counts_the_omitted_headings(self) -> None:
+        from myrm_agent_harness.toolkits.file_parsers.base import PDFHeading, PDFParseResult
+
+        executor = AsyncMock()
+        executor.read_file_bytes = AsyncMock(return_value=b"%PDF-1.4 mock")
+        omitted = 50
+        headings = [
+            PDFHeading(level=1, title=f"Section {n}", page_num=n)
+            for n in range(1, STRUCTURE_OUTLINE_MAX_ENTRIES + omitted + 1)
+        ]
+        parsed = PDFParseResult(text="", tables=[], metadata={"page_count": 300}, headings=headings)
+
+        with patch("myrm_agent_harness.toolkits.file_parsers.pdf.pdf.PDFPlumberParser.parse_sync", return_value=parsed):
+            outline = await read_pdf_as_content_blocks("/tmp/long.pdf", executor, False, parse_mode="structure")
+
+        assert isinstance(outline, str)
+        assert f"Page {STRUCTURE_OUTLINE_MAX_ENTRIES}: Section {STRUCTURE_OUTLINE_MAX_ENTRIES}" in outline
+        assert f"Section {STRUCTURE_OUTLINE_MAX_ENTRIES + 1}" not in outline
+        assert outline.endswith(f"… ({omitted} more headings omitted)")
+        assert "wiki" not in outline.lower()

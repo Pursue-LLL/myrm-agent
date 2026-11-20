@@ -10,18 +10,11 @@ from myrm_agent_harness.agent.meta_tools.file_ops.utils.pdf_reader import (
     _build_coverage_note,
     _format_page_ranges,
     read_pdf_as_content_blocks,
-    unregister_large_doc_ingest_callback,
 )
 from tests.agent.meta_tools.file_ops.pdf_reader_support import FakeConfig, FakeImage, FakePDFResult
 
 
 class TestReadPdfCoverageDisclosure:
-    def setup_method(self) -> None:
-        unregister_large_doc_ingest_callback()
-
-    def teardown_method(self) -> None:
-        unregister_large_doc_ingest_callback()
-
     @pytest.mark.asyncio
     async def test_mixed_document_discloses_pages_the_text_layer_cannot_read(self) -> None:
         """A partly scanned PDF must name the unread pages instead of implying full coverage."""
