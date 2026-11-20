@@ -3575,17 +3575,7 @@
       },
       "channelRouting": {
         "title": "Channel Routing",
-        "description": "Manage agent bindings for different channel groups",
-        "replyMode": {
-          "label": "Reply Mode",
-          "auto": "Auto Send",
-          "draftReview": "Draft Review",
-          "tooltip": "When set to Draft Review, AI replies are held for your approval before being sent to the channel. Recommended for customer-facing scenarios.",
-          "timeout": "Timeout",
-          "onExpiry": "On expiry",
-          "autoReject": "Discard draft",
-          "autoSend": "Send automatically"
-        }
+        "description": "Manage agent bindings for different channel groups"
       },
       "voice": {
         "title": "Voice Settings",
@@ -12681,49 +12671,6 @@
     "disabledSuccess": "Disabled feature {name}",
     "toggleError": "Failed to toggle feature {name}"
   },
-  "sections": {
-    "channelRouting": {
-      "title": "Channel Routing",
-      "description": "Manage dedicated Agent bindings for different channel groups",
-      "connectedChannels": "Connected Channels",
-      "noConnectedChannels": "No connected channels",
-      "routingFor": "Routing for {channel}",
-      "globalDefaultAgent": "Global Default Agent",
-      "globalDefaultAgentDesc": "Threads without dedicated bindings will fall back to this Agent.",
-      "noDefaultAgent": "-- No Default Agent --",
-      "topicBindings": "Topic Bindings",
-      "noActiveTopics": "No active topics in this channel.",
-      "inheritGlobalDefault": "-- Inherit Global Default --",
-      "selectChannelPrompt": "Select a channel to configure routing",
-      "sharedContexts": {
-        "targetLabel": "Channel"
-      },
-      "toasts": {
-        "agentBound": "Agent bound successfully",
-        "globalAgentSet": "Global agent set successfully",
-        "replyModeUpdated": "Reply mode updated",
-        "draftTimeoutUpdated": "Draft timeout settings updated"
-      },
-      "errors": {
-        "initialLoad": "Failed to load channels or agents",
-        "topicsLoad": "Failed to load topics for this channel",
-        "agentBind": "Failed to bind agent",
-        "globalAgent": "Failed to set global agent",
-        "replyMode": "Failed to set reply mode",
-        "draftTimeout": "Failed to update draft timeout"
-      },
-      "replyMode": {
-        "label": "Reply Mode",
-        "auto": "Auto Send",
-        "draftReview": "Draft Review",
-        "tooltip": "When set to Draft Review, AI replies are held for your approval before being sent to the channel. Recommended for customer-facing scenarios.",
-        "timeout": "Timeout",
-        "onExpiry": "On expiry",
-        "autoReject": "Discard draft",
-        "autoSend": "Send automatically"
-      }
-    }
-  },
   "sessionAnalytics": {
     "duration": "Duration",
     "messages": "Messages",
@@ -21262,7 +21209,7 @@
     "sections": {
       "channelRouting": {
         "title": "Channel Routing",
-        "description": "Manage agent bindings for different channel groups",
+        "description": "Manage agent bindings for different channel groups. Everyone in a group chat or topic shares one conversation with the agent.",
         "connectedChannels": "Connected Channels",
         "noConnectedChannels": "No connected channels",
         "routingFor": "Routing for {channel}",

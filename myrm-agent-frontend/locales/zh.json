@@ -3575,17 +3575,7 @@
       },
       "channelRouting": {
         "title": "渠道路由",
-        "description": "管理不同渠道群组的专属 Agent 绑定",
-        "replyMode": {
-          "label": "回复模式",
-          "auto": "自动发送",
-          "draftReview": "草稿审核",
-          "tooltip": "草稿审核模式下，AI 生成的回复需人工确认后才会发送，适用于销售/客服等合规场景",
-          "timeout": "超时时间",
-          "onExpiry": "超时策略",
-          "autoReject": "自动丢弃",
-          "autoSend": "自动发送"
-        }
+        "description": "管理不同渠道群组的专属 Agent 绑定"
       },
       "voice": {
         "title": "语音设置",
@@ -12681,49 +12671,6 @@
     "disabledSuccess": "已禁用功能 {name}",
     "toggleError": "切换功能 {name} 失败"
   },
-  "sections": {
-    "channelRouting": {
-      "title": "频道路由",
-      "description": "为不同频道分组管理专属的智能体绑定",
-      "connectedChannels": "已连接频道",
-      "noConnectedChannels": "没有已连接的频道",
-      "routingFor": "路由：{channel}",
-      "globalDefaultAgent": "全局默认智能体",
-      "globalDefaultAgentDesc": "没有专属绑定的会话线程将回退到该智能体。",
-      "noDefaultAgent": "-- 无默认智能体 --",
-      "topicBindings": "话题绑定",
-      "noActiveTopics": "该频道中没有活跃的话题。",
-      "inheritGlobalDefault": "-- 继承全局默认 --",
-      "selectChannelPrompt": "选择频道以配置路由",
-      "sharedContexts": {
-        "targetLabel": "频道"
-      },
-      "toasts": {
-        "agentBound": "智能体绑定成功",
-        "globalAgentSet": "全局智能体设置成功",
-        "replyModeUpdated": "回复模式已更新",
-        "draftTimeoutUpdated": "草稿超时设置已更新"
-      },
-      "errors": {
-        "initialLoad": "加载频道或智能体失败",
-        "topicsLoad": "加载该频道的话题失败",
-        "agentBind": "绑定智能体失败",
-        "globalAgent": "设置全局智能体失败",
-        "replyMode": "设置回复模式失败",
-        "draftTimeout": "更新草稿超时失败"
-      },
-      "replyMode": {
-        "label": "回复模式",
-        "auto": "自动发送",
-        "draftReview": "草稿审核",
-        "tooltip": "设置为草稿审核后，AI 生成的回复需经你确认后才会发送到频道。适用于面向客户的场景。",
-        "timeout": "超时",
-        "onExpiry": "到期时",
-        "autoReject": "自动丢弃",
-        "autoSend": "自动发送"
-      }
-    }
-  },
   "sessionAnalytics": {
     "duration": "时长",
     "messages": "消息数",
@@ -21262,7 +21209,7 @@
     "sections": {
       "channelRouting": {
         "title": "渠道路由",
-        "description": "管理不同渠道群组的专属 Agent 绑定",
+        "description": "管理不同渠道群组的专属 Agent 绑定。群聊或话题里的所有成员共用同一份对话。",
         "connectedChannels": "已连接渠道",
         "noConnectedChannels": "暂无已连接渠道",
         "routingFor": "{channel} 的路由配置",
