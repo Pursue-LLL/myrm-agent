@@ -1,7 +1,7 @@
 """desktop_interact: act on one @dref element through the accessibility API.
 
 [INPUT]
-- host::DesktopSessionHost (POS: typed session state, approval revalidation, guard screenshots, follow-up snapshot)
+- host::DesktopSessionHost (POS: typed session state with the secrets the vault filled, approval revalidation, guard screenshots, follow-up snapshot)
 - dref.registry::DRefRegistry.resolve (POS: the element a reference names with the snapshot that registered it)
 - perception.ax_dispatch::invoke_element (POS: native AX action on an element)
 - perception.ax_result::AxFailure (POS: what a failed native action proves about delivery)
@@ -17,13 +17,15 @@ Mutating semantic entry of the desktop tools; every gate that can refuse the act
 element. The approval is asked for the application the registry holds; after the re-read, the gates, the delivery and
 the follow-up snapshot all use the one capture the element was resolved from. A native failure that is stale or of
 unknown outcome is reported and never retried or clicked by coordinates; a text entry the native route declines is
-gated once more, as the click the coordinate fallback delivers.
+gated once more, as the click the coordinate fallback delivers. A credential the vault filled is remembered before it
+is delivered, so no capture shows it back, and the errors a reply quotes never carry it.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import replace
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
@@ -169,6 +171,8 @@ class DesktopInteractMixin(DesktopSessionHost):
                     except Exception:
                         return f"Failed to retrieve credential for label '{text}'"
                     effective_action = "fill"
+                    # Remembered before delivery: the follow-up snapshot already reads the filled value back.
+                    self._filled_secrets.remember(effective_text)
                 elif action == "set_value":
                     effective_action = "set_value"
 
@@ -180,6 +184,7 @@ class DesktopInteractMixin(DesktopSessionHost):
                     app_name=meta.app_name,
                 )
                 if not ax_result.success:
+                    ax_result = replace(ax_result, error=self._filled_secrets.redact(ax_result.error))
                     if ax_result.failure is not AxFailure.UNSUPPORTED:
                         return _stopped_without_fallback(element, meta, ax_result)
                     # The fallback clicks the element before it types, so a text entry reaches the control as an
@@ -191,9 +196,10 @@ class DesktopInteractMixin(DesktopSessionHost):
                         return click_blocked
                     bbox_result = await try_bbox_click(self, element, effective_action, effective_text, modifiers)
                     if not bbox_result.success:
+                        bbox_error = self._filled_secrets.redact(bbox_result.error)
                         remedy_hint = (
                             f"[REMEDY_HINT: Action '{action}' on @{element.ref_id} failed via accessibility invocation "
-                            f"({ax_result.error}) and bounding-box fallback ({bbox_result.error}). "
+                            f"({ax_result.error}) and bounding-box fallback ({bbox_error}). "
                             "The target window may be minimized, occluded, or scrolled off-screen. "
                             "Suggested remedies: 1) Call desktop_snapshot_tool(scope='foreground') to verify window state; "
                             "2) Call desktop_snapshot_tool(scope='target', app_name='...') to bring the app window forward; "
@@ -201,7 +207,7 @@ class DesktopInteractMixin(DesktopSessionHost):
                         )
                         return (
                             f"desktop_interact failed for @{element.ref_id}: "
-                            f"{ax_result.error}; bbox fallback: {bbox_result.error}\n{remedy_hint}"
+                            f"{ax_result.error}; bbox fallback: {bbox_error}\n{remedy_hint}"
                         )
 
                 base_delay = self._config.screenshot_delay

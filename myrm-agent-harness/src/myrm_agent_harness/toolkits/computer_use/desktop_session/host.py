@@ -5,6 +5,7 @@
 - dref.registry::DRefRegistry (POS: @dref registry the mixins read; it is written only through _adopt_capture)
 - dref.types::ElementRef, SnapshotMeta, SnapshotScope (POS: element and snapshot types of the cross-mixin signatures)
 - adopt::Adoption (POS: result of registering a capture)
+- secrecy::FilledSecrets (POS: the secrets the vault filled, redacted from every capture before it is registered)
 
 [OUTPUT]
 - ViewUpdateCallback: receiver of the WebUI view payloads
@@ -31,9 +32,11 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 
     from .adopt import Adoption
+    from .secrecy import FilledSecrets
 
     class DesktopSessionHost(ComputerSession):
         _refs: DRefRegistry
+        _filled_secrets: FilledSecrets
         _view_update_callback: ViewUpdateCallback | None
         _last_tree_text: str
         _last_snapshot_time: float

@@ -4,13 +4,15 @@
 - adopt, snapshot, interact, vision, views, guards (POS: the mixins that implement the tool entry points and their support)
 - session::ComputerSession, create_computer_session (POS: physical-input base the desktop session extends)
 - dref.registry::DRefRegistry (POS: @dref registry owned by the session)
+- secrecy::FilledSecrets (POS: the secrets the vault filled, owned by the session)
 
 [OUTPUT]
 - DesktopSession: AX snapshot, @dref registry, interact/vision, permissions, inspector export
 - create_desktop_session(...) -> DesktopSession
 
 [POS]
-Aggregate root of the desktop tools: owns the registry, the snapshot clock and the action lock, and composes the mixins.
+Aggregate root of the desktop tools: owns the registry, the secrets the vault filled, the snapshot clock and the
+action lock, and composes the mixins.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from .adopt import DesktopRegistryMixin
 from .guards import DesktopGuardSupportMixin
 from .host import ViewUpdateCallback
 from .interact import DesktopInteractMixin
+from .secrecy import FilledSecrets
 from .snapshot import DesktopSnapshotMixin
 from .views import DesktopViewMixin
 from .vision import DesktopVisionMixin
@@ -53,6 +56,7 @@ class DesktopSession(
     ) -> None:
         super().__init__(backend=backend, config=config, permission_callback=permission_callback)  # type: ignore[arg-type]
         self._refs = DRefRegistry()
+        self._filled_secrets = FilledSecrets()
         self._view_update_callback = view_update_callback
         self._last_tree_text: str = ""
         self._last_snapshot_time: float = 0.0

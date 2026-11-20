@@ -5,7 +5,7 @@
 - dref.errors::AXPermissionRequiredError, AXTreeEmptyError (POS: accessibility error hierarchy)
 - ax_result::{AxFailure, AxInvokeResult} (POS: typed outcome of a native action)
 - windows_process::process_name_by_pid (POS: Win32 executable name of a process id)
-- windows_ax_actions::apply_uia_toggle, apply_uia_expand_collapse, apply_uia_invoke (POS: UIA pattern actions with Click fallback)
+- windows_ax_actions::apply_uia_toggle, apply_uia_expand_collapse, apply_uia_invoke, send_uia_text (POS: UIA element actions: pattern calls with Click fallback, literal text entry)
 
 [OUTPUT]
 - WindowsAxSnapshot: Windows accessibility snapshot container with metadata and refs
@@ -38,6 +38,7 @@ from myrm_agent_harness.toolkits.computer_use.perception.windows_ax_actions impo
     apply_uia_expand_collapse,
     apply_uia_invoke,
     apply_uia_toggle,
+    send_uia_text,
 )
 from myrm_agent_harness.toolkits.computer_use.perception.windows_process import process_name_by_pid
 
@@ -328,7 +329,7 @@ def invoke_ax_element(
     normalized = action.lower()
     try:
         if normalized in {"fill", "type", "set_value"}:
-            target.SendKeys(text)  # type: ignore[attr-defined]
+            send_uia_text(target, text)
         elif normalized in {"toggle", "check", "uncheck"}:
             apply_uia_toggle(target, normalized, auto)
         elif normalized in {"expand", "collapse"}:

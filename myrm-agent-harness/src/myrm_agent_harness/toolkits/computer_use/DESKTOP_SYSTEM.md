@@ -66,6 +66,10 @@ When an approval delays an action, `desktop_interact` re-reads the application o
 
 A native action that failed reports what it proves about delivery (`perception/ax_result.py`), and `desktop_interact` acts on that class alone. **Unsupported** (no permission, no such action, no editable text): nothing reached the element, so the bbox click takes over (for a text entry, which clicks the element before it types, only after the destructive-control gate a click passes). **Stale** (the element or its window is gone or changed): the old coordinates may belong to something else, so nothing is clicked and the model is told to read the application again. **Unknown** (timeout, killed script, an exception during the action): the action may have been delivered, so it is neither retried nor clicked, and the model is told to check the screen before repeating it. macOS classifies by the AppleScript error number because the message text is localized; see `perception/_ARCH.md`.
 
+### Credential fill
+
+`fill_credential` takes the secret from the vault and never from the model, but the control that holds it reports it as its value in the next capture, and the follow-up snapshot is part of every `desktop_interact` reply. The session therefore remembers each secret the vault filled (`desktop_session/secrecy.py`, the vault's own strings) from before the delivery, and `_adopt_capture` replaces it with `[REDACTED]` wherever it occurs in a control's value, not only when it is the whole value, because typing does not always replace what the control held (a retried fill, or text typed at the caret on Windows and in the bbox fallback). The follow-up snapshot, a later snapshot, the diff, the registry and the inspector all read the masked value. A backend error that a reply quotes (native failure, bbox fallback failure) is redacted the same way. A secret the page shows only in pieces, or as an image, is not recognized. On Windows a text entry goes to `SendKeys` as the key script that types the value literally (`{` as `{{}`, `}` as `{}}`), because a brace in a value would otherwise be read as a key name such as `{Win}`.
+
 ---
 
 ## Core Components

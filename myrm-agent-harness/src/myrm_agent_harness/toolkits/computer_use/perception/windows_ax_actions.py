@@ -1,4 +1,4 @@
-"""Windows UI Automation pattern actions — toggle, expand/collapse and invoke on one element.
+"""Windows UI Automation element actions — toggle, expand/collapse, invoke and text entry on one element.
 
 [INPUT]
 - None (operates on the UIA control object handed in by windows_ax)
@@ -7,13 +7,23 @@
 - apply_uia_toggle: Idempotent check/uncheck via ToggleState; toggle always flips
 - apply_uia_expand_collapse: ExpandCollapsePattern expand/collapse with Click fallback
 - apply_uia_invoke: InvokePattern invoke with Click fallback
+- send_uia_text: Text entry through SendKeys, escaped so the value is typed literally
 
 [POS]
-Pattern-level element actions for Windows accessibility invocation. Each action prefers the
-UIA pattern and falls back to a Click when the control does not expose it.
+Element actions for Windows accessibility invocation. Each pattern action prefers the UIA pattern and falls back to
+a Click when the control does not expose it; text entry has no pattern and goes through the key-script API.
 """
 
 from __future__ import annotations
+
+# SendKeys reads `{` and `}` as the delimiters of key names (`{Win}r` presses the Windows key), so a value is sent as
+# the key script that types it literally. One translate pass keeps the escape of `{` from being escaped again as `}`.
+_SEND_KEYS_LITERAL_BRACES = str.maketrans({"{": "{{}", "}": "{}}"})
+
+
+def send_uia_text(target: object, text: str) -> None:
+    """Type `text` into the control exactly as given, whatever characters it holds."""
+    target.SendKeys(text.translate(_SEND_KEYS_LITERAL_BRACES))  # type: ignore[attr-defined]
 
 
 def apply_uia_toggle(target: object, normalized: str, auto: object) -> None:

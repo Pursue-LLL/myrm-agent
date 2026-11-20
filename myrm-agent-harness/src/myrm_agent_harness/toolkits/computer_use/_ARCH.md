@@ -67,7 +67,7 @@ Agent → desktop_agent_tools (3 tools)
 4. **Multimodal responses**: Vision capture/actions return text + JPEG image blocks
 5. **Platform auto-detection**: reuses `detect_platform()` from code_execution
 6. **Security & Re-validation**: shared `_revalidate_if_stale_after_approval()` after approval delay — interact re-reads the application of the approved @dref and verifies the element; vision refreshes screenshot/scaler
-7. **Credential Vault integration**: `fill_credential` resolves secrets without exposing them in LLM context
+7. **Credential Vault integration**: `fill_credential` resolves secrets without exposing them in LLM context: the control that holds the filled value is registered as redacted in every later capture, and backend errors in the reply never quote it
 8. **Permission probing**: `check_permissions(probe_capture=False|True)` — default grant-only; `probe_capture=True` sets `screen_recording_capturable`. Doctor always probes capture; Inline first paint is grant-only, Recheck uses `?probe_capture=true` (also on verified tone to re-probe stale grants). `all_granted` = OS grants only; `capture_ready` is True **only** when `capturable is True` (None = not probed ≠ ready). Missing Pillow ⇒ capturable False (cannot verify). Inline four-state UX: verified / unverified (`capturable is None`) / capture_failed (`grants OK` + `capturable is False`, title must not say “missing permissions”) / missing (OS grants incomplete). While `loading`, shell uses muted/neutral tokens (not missing amber). Windows deeplinks point at OS/docs URLs only.
 9. **Native API routing hints**: `inspect_foreground()` appends AppleScript/COM/D-Bus hints in snapshot recommendation text
 10. **Background input (cua-driver)**: optional focus-free input proxy
