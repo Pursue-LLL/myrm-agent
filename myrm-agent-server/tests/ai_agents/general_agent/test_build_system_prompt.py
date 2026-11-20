@@ -50,7 +50,7 @@ def _create_wrapper(model_cfg: ModelConfig) -> GeneralAgent:
 def _build(*, computer_use: bool, locale: str | None, model_cfg: ModelConfig = _STRONG_MODEL) -> str:
     wrapper = _create_wrapper(model_cfg)
     plan = ResolvedMountPlan(mount_browser=False, mount_computer_use=computer_use, mount_widget_capability=False)
-    return build_system_prompt(wrapper, mount_plan=plan, channel_notify_tool_loaded=False, prompt_locale=locale)
+    return build_system_prompt(wrapper, mount_plan=plan, prompt_locale=locale)
 
 
 @pytest.mark.parametrize("locale", [None, "zh-CN"])

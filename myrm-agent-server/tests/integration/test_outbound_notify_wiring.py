@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from app.channels.core.base import BaseChannel
 from app.channels.core.gateway import ChannelGateway
@@ -19,6 +20,8 @@ from app.services.agent.outbound_notify import (
     create_channel_notify_tool,
     create_notification_sender,
 )
+
+DESTINATION = "telegram:My TG"
 
 
 class RecordingChannel(BaseChannel):
@@ -76,7 +79,7 @@ def _make_tool(
     assert sender_result is not None
     sender, config = sender_result
     limited = NotifyToolConfig(
-        allowed_targets=config.allowed_targets,
+        destinations=config.destinations,
         rate_limit_per_session=rate_limit,
         max_body_length=max_body_length,
     )
@@ -84,7 +87,7 @@ def _make_tool(
 
 
 class FailingSendChannel(RecordingChannel):
-    """Channel whose send() always fails (send_tracked returns None)."""
+    """Channel whose send() reports no message id, which the bus treats as a failed delivery."""
 
     async def send(self, msg: OutboundMessage) -> str | None:
         return None
@@ -92,11 +95,11 @@ class FailingSendChannel(RecordingChannel):
 
 @pytest.mark.asyncio
 async def test_tool_delivery_through_real_channel_gateway() -> None:
-    """channel_notify_tool → ChannelNotificationSender → bus.send_tracked."""
+    """channel_notify_tool → ChannelNotificationSender → bus.send_now."""
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
-        result = await tool.ainvoke({"channel": "telegram", "target": "", "body": "integration hello"})
+        result = await tool.ainvoke({"destination": DESTINATION, "body": "integration hello"})
         assert "success" in result.lower()
         assert len(channel.sent) == 1
         assert channel.sent[0].recipient_id == "chat_123"
@@ -118,15 +121,10 @@ async def test_chat_channel_delivery_through_real_channel_gateway() -> None:
     sender_result = create_notification_sender(targets)
     assert sender_result is not None
     sender, config = sender_result
-    limited = NotifyToolConfig(
-        allowed_targets=config.allowed_targets,
-        rate_limit_per_session=10,
-        max_body_length=4000,
-    )
-    tool = create_channel_notify_tool(sender, limited)
+    tool = create_channel_notify_tool(sender, config)
 
     async with wired_gateway(channel):
-        result = await tool.ainvoke({"channel": "chat", "target": "", "body": "chat gateway hello"})
+        result = await tool.ainvoke({"destination": "chat:Wiring", "body": "chat gateway hello"})
         assert "success" in result.lower()
 
     async with get_session() as session:
@@ -161,12 +159,7 @@ def test_profile_resolver_filtering_then_factory() -> None:
     sender_result = create_notification_sender(notify_targets)
     assert sender_result is not None
     sender, config = sender_result
-    assert len(config.allowed_targets) == 1
-    assert config.allowed_targets[0] == NotifyTarget(
-        channel="telegram",
-        recipient_id="123",
-        label="",
-    )
+    assert config.destinations == {"telegram#1": NotifyTarget(channel="telegram", recipient_id="123", label="")}
     assert sender is not None
 
 
@@ -175,8 +168,8 @@ async def test_rate_limit_blocks_second_burst_through_gateway() -> None:
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel, rate_limit=1)
-        first = await tool.ainvoke({"channel": "", "target": "", "body": "one"})
-        second = await tool.ainvoke({"channel": "", "target": "", "body": "two"})
+        first = await tool.ainvoke({"destination": DESTINATION, "body": "one"})
+        second = await tool.ainvoke({"destination": DESTINATION, "body": "two"})
 
         assert "success" in first.lower()
         assert "rate limit" in second.lower()
@@ -188,19 +181,18 @@ async def test_empty_body_rejected_without_gateway_send() -> None:
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
-        result = await tool.ainvoke({"channel": "telegram", "target": "", "body": "   "})
+        result = await tool.ainvoke({"destination": DESTINATION, "body": "   "})
         assert "empty" in result.lower()
         assert len(channel.sent) == 0
 
 
 @pytest.mark.asyncio
-async def test_target_not_found_without_gateway_send() -> None:
+async def test_destination_outside_the_configured_set_is_rejected_without_gateway_send() -> None:
     channel = RecordingChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
-        result = await tool.ainvoke({"channel": "discord", "target": "", "body": "hello"})
-        assert "not found" in result.lower() or "not allowed" in result.lower()
-        assert "telegram:chat_123" in result
+        with pytest.raises(ValidationError, match=DESTINATION):
+            await tool.ainvoke({"destination": "telegram:chat_123", "body": "hello"})
         assert len(channel.sent) == 0
 
 
@@ -210,7 +202,7 @@ async def test_body_truncation_through_gateway() -> None:
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel, max_body_length=50)
         long_body = "x" * 120
-        result = await tool.ainvoke({"channel": "", "target": "", "body": long_body})
+        result = await tool.ainvoke({"destination": DESTINATION, "body": long_body})
         assert "success" in result.lower()
         assert len(channel.sent) == 1
         assert channel.sent[0].content.endswith("[...truncated]")
@@ -218,12 +210,12 @@ async def test_body_truncation_through_gateway() -> None:
 
 
 @pytest.mark.asyncio
-async def test_send_tracked_failure_surfaces_delivery_error() -> None:
-    """AB' guard: send_tracked returning None must not report success."""
+async def test_channel_send_failure_surfaces_delivery_error() -> None:
+    """AB' guard: a channel that returns no message id must not be reported as delivered."""
     channel = FailingSendChannel()
     async with wired_gateway(channel):
         tool, _ = _make_tool(channel=channel)
-        result = await tool.ainvoke({"channel": "telegram", "target": "", "body": "hello"})
+        result = await tool.ainvoke({"destination": DESTINATION, "body": "hello"})
         assert "error" in result.lower()
         assert "failed" in result.lower()
         assert len(channel.sent) == 0
@@ -237,7 +229,7 @@ async def test_gateway_not_initialized_surfaces_error() -> None:
     channel_bridge.channel_gateway = None
     try:
         tool, _ = _make_tool()
-        result = await tool.ainvoke({"channel": "", "target": "", "body": "hello"})
+        result = await tool.ainvoke({"destination": DESTINATION, "body": "hello"})
         assert "error" in result.lower()
         assert "not initialized" in result.lower()
     finally:
@@ -268,8 +260,7 @@ async def test_attachment_delivered_through_real_channel_gateway() -> None:
             )
             result = await tool.ainvoke(
                 {
-                    "channel": "telegram",
-                    "target": "",
+                    "destination": DESTINATION,
                     "body": "Report ready",
                     "attachments": [tmp_file],
                 }
@@ -296,8 +287,7 @@ async def test_url_attachment_delivered_through_gateway() -> None:
         tool, _ = _make_tool(channel=channel)
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "See image",
                 "attachments": ["https://example.com/chart.png"],
             }
@@ -318,8 +308,7 @@ async def test_attachment_only_no_body_through_gateway() -> None:
         tool, _ = _make_tool(channel=channel)
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "",
                 "attachments": ["https://example.com/report.pdf"],
             }
@@ -351,8 +340,7 @@ async def test_multiple_attachments_through_gateway() -> None:
             )
             result = await tool.ainvoke(
                 {
-                    "channel": "",
-                    "target": "",
+                    "destination": DESTINATION,
                     "body": "Multiple files",
                     "attachments": [
                         tmp_file,
@@ -383,8 +371,7 @@ async def test_attachment_file_not_found_blocks_gateway_send(tmp_path: Path) -> 
         tool, _ = _make_tool(channel=channel, allowed_roots=(str(tmp_path),))
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "Report",
                 "attachments": [missing],
             }

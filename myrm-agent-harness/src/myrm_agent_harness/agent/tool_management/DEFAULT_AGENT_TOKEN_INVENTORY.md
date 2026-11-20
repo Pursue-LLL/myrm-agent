@@ -40,7 +40,7 @@
 > 默认组合（中文用户 + full）：`messages[0]` 1,173 + widget 能力声明 348 + 跟随用户输入的三条独立 SystemMessage（canary ≈53 + 安全边界 299 + 可访问目录 ≈73）= **1,946 tokens**。
 >
 > **运行时条件追加**（默认不注入，按需叠加，不计入上表；均来自 `server/ai_agents/general_agent/factory/prompt.py` 的 `system_prompt +=` 分支）：
-> `DESKTOP_CONTROL_RULES` 538（只有英文版，挂载桌面控制工具时追加，`mount_computer_use`）· `SEARCH_DEEP_SUFFIX`（search 深研模式，EN 113 / ZH 132）· unattended 声明 33 · `get_worker_lifecycle_guidance()`（kanban worker 模式，默认参数 282）· `CHANNEL_NOTIFY_SYSTEM_APPENDIX`（通知工具挂载，45）· `[Mounted Workspace Directories]` 清单（session roots，随目录数浮动）。用户自定义指令不在 `system_prompt` 里，由 `user_instructions_middleware` 作为独立 SystemMessage 注入。
+> `DESKTOP_CONTROL_RULES` 538（只有英文版，挂载桌面控制工具时追加，`mount_computer_use`）· `SEARCH_DEEP_SUFFIX`（search 深研模式，EN 113 / ZH 132）· unattended 声明 33 · `get_worker_lifecycle_guidance()`（kanban worker 模式，默认参数 282）· `[Mounted Workspace Directories]` 清单（session roots，随目录数浮动）。用户自定义指令不在 `system_prompt` 里，由 `user_instructions_middleware` 作为独立 SystemMessage 注入。
 
 **`enable_answer_tool` 影响**（该 flag 在 `general_agent_prompt._PROMPT_MAPS` 预构建时二分，改变 CORE 主体本身）：full 模式 EN +76 / ZH +82，search 模式**无差异**。server 默认 `False`（`server/ai_agents/agent_params.py:147`），上表已按 False 计量。
 
@@ -212,7 +212,7 @@ Token 明细（tiktoken o200k_base）：
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
-| 88 | channel_notify_tool | 102 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 主动 IM 出站（白名单+频控+附件） | Agent 配置 `notify_targets` 时 [Turn1] |
+| 88 | channel_notify_tool | 82 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 点名投递 IM 出站（必填 `destination` 封闭枚举+频控+附件）；参数模式随目的地数浮动（标签较短时 1/3/6 个目的地约 195/210/233），系统提示不追加段落 | Agent 配置 `notify_targets` 且有可用的行时 [Turn1] |
 | 89 | image_tool | 120 | `server/ai_agents/media_tools/image_agent_tool.py` | 图像生成与编辑工具；描述不含模型名，所有内置档案均为 120；没有默认模型 | enabled_builtin_tools: image_generation，且已选图像模型、凭证或网关就绪 |
 | 90 | video_tool | 106 | `server/ai_agents/media_tools/video_agent_tool.py` | 视频生成工具；描述不含供应商与模型名，所有内置供应商均为 106（参数 schema 按供应商能力裁剪，不计入描述）；没有默认供应商 | enabled_builtin_tools: video_generation，且已选供应商与模型、凭证或网关就绪 |
 | 91 | tts_generate | 53 | `server/ai_agents/media_tools/tts_agent_tool.py` | 语音合成工具；没有默认供应商与音色 | enabled_builtin_tools: tts，且已选供应商与音色、凭证或网关就绪 |

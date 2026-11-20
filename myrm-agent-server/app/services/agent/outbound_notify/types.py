@@ -5,7 +5,7 @@
 
 [OUTPUT]
 - NotifyTarget: Channel + recipient target for outbound delivery.
-- NotifyToolConfig: channel_notify_tool configuration.
+- NotifyToolConfig: channel_notify_tool configuration (closed destination set, limits).
 - NotifyResult: Send attempt result.
 - NotifySessionState: Per-session rate-limit state.
 
@@ -15,7 +15,8 @@ Data types for agent-initiated outbound channel notifications.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from collections.abc import Mapping
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,18 +30,15 @@ class NotifyTarget:
 
 @dataclass(frozen=True, slots=True)
 class NotifyToolConfig:
-    """Configuration for channel_notify_tool."""
+    """Configuration for channel_notify_tool.
 
-    allowed_targets: tuple[NotifyTarget, ...] = ()
+    ``destinations`` is the closed set the model can choose from: the name it passes as ``destination``
+    mapped to the target that name delivers to, in the order the user configured them.
+    """
+
+    destinations: Mapping[str, NotifyTarget]
     rate_limit_per_session: int = 10
     max_body_length: int = 4000
-
-
-CHANNEL_NOTIFY_SYSTEM_APPENDIX = (
-    "\n\n[Outbound Notifications] This agent has pre-configured notification targets. "
-    "Use channel_notify_tool to push task results, alerts, or attachments to those "
-    "external channels when the user asks to be notified or when async delivery is needed."
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -58,4 +56,3 @@ class NotifySessionState:
     """Per-session state for rate limiting."""
 
     send_count: int = 0
-    targets_used: list[str] = field(default_factory=list)
