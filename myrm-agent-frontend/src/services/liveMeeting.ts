@@ -1,7 +1,7 @@
 /**
  * [INPUT]
  * - @/lib/api::apiRequest (POS: frontend API request helper that owns the base URL, so callers pass endpoint paths)
- * - @/services/wikiService::buildWikiApiPath (POS: Wiki API path constructor)
+ * - @/services/wikiService::buildWikiApiPath (POS: Wiki API path constructor carrying the agent scope of the vault)
  *
  * [OUTPUT]
  * - LiveMeetingSnapshot: live meeting rolling-notes DTO
@@ -10,6 +10,8 @@
  * [POS]
  * Frontend live meeting notes API client. `/wiki/meeting-notes/live/*` REST contract
  * for in-meeting rolling structured notes (summary / decisions / action items).
+ * Ingest and finalize are best-effort side traffic of a voice session, so their failures
+ * never raise a toast; finalize publishes into the vault of the given agent scope.
  */
 
 import { apiRequest } from '@/lib/api';
@@ -44,33 +46,45 @@ export interface LiveMeetingSnapshot {
   error: string;
 }
 
-function sessionPath(sessionId: string): string {
-  return buildWikiApiPath(`/wiki/meeting-notes/live/${encodeURIComponent(sessionId)}`);
-}
+const LIVE_NOTES_PATH = '/wiki/meeting-notes/live';
 
 /**
- * Send one finalized transcript line. `lineId` must be stable for the lifetime of that
+ * Send one finalized transcript line. `line.id` must be stable for the lifetime of that
  * utterance: a retried request with the same id is ignored by the server instead of
- * duplicating the line in the transcript and the distilled minutes.
+ * duplicating the line in the transcript and the distilled minutes. `agentId` keeps the
+ * session on the same agent vault archiver as its finalize.
  */
-export async function ingestLiveTranscript(sessionId: string, line: LiveTranscriptLine): Promise<LiveMeetingSnapshot> {
-  return apiRequest<LiveMeetingSnapshot>(`${sessionPath(sessionId)}/ingest`, {
-    method: 'POST',
-    body: JSON.stringify({
-      text: line.text,
-      line_id: line.id,
-      ...(line.timestamp !== undefined ? { timestamp: line.timestamp } : {}),
-    }),
-  });
+export async function ingestLiveTranscript(
+  sessionId: string,
+  line: LiveTranscriptLine,
+  agentId?: string | null,
+): Promise<LiveMeetingSnapshot> {
+  return apiRequest<LiveMeetingSnapshot>(
+    buildWikiApiPath(`${LIVE_NOTES_PATH}/${encodeURIComponent(sessionId)}/ingest`, agentId),
+    {
+      method: 'POST',
+      silent: true,
+      body: JSON.stringify({
+        text: line.text,
+        line_id: line.id,
+        ...(line.timestamp !== undefined ? { timestamp: line.timestamp } : {}),
+      }),
+    },
+  );
 }
 
 export async function getLiveMeetingSnapshot(sessionId: string): Promise<LiveMeetingSnapshot> {
-  return apiRequest<LiveMeetingSnapshot>(sessionPath(sessionId), { method: 'GET' });
+  return apiRequest<LiveMeetingSnapshot>(`${LIVE_NOTES_PATH}/${encodeURIComponent(sessionId)}`, { method: 'GET' });
 }
 
-export async function finalizeLiveMeeting(sessionId: string): Promise<LiveMeetingSnapshot> {
-  return apiRequest<LiveMeetingSnapshot>(`${sessionPath(sessionId)}/finalize`, {
-    method: 'POST',
-    body: JSON.stringify({}),
-  });
+/** Publish the minutes into the vault of `agentId` (the default vault when omitted) and drop the live session. */
+export async function finalizeLiveMeeting(sessionId: string, agentId?: string | null): Promise<LiveMeetingSnapshot> {
+  return apiRequest<LiveMeetingSnapshot>(
+    buildWikiApiPath(`${LIVE_NOTES_PATH}/${encodeURIComponent(sessionId)}/finalize`, agentId),
+    {
+      method: 'POST',
+      silent: true,
+      body: JSON.stringify({}),
+    },
+  );
 }

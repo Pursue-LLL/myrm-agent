@@ -123,7 +123,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
 
-  const liveNotes = useLiveMeetingNotes(chatId);
+  const liveNotes = useLiveMeetingNotes(chatId, agentId);
 
   const agentBridge = useVoiceAgentBridge({
     enabled: mode === 'agent_bridge',
@@ -353,8 +353,8 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   }, [enabled, speech, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const stopSession = useCallback(() => {
-    // Publish/archive the in-meeting rolling notes when the session ends and reset
-    // the live session so the next session starts fresh.
+    // Publish the in-meeting rolling notes when the session ends; a successful finalize
+    // also clears the board so the next session starts fresh.
     void liveNotes.finalize();
     sessionActiveRef.current = false;
     pendingTTSRef.current = [];

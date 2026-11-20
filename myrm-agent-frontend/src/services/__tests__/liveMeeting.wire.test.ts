@@ -38,4 +38,16 @@ describe('liveMeeting requests on the wire', () => {
     expect(url).toBe(getApiUrl(`/wiki/meeting-notes/live/meeting%201${suffix}`));
     expect(init).toMatchObject({ method });
   });
+
+  it.each([
+    ['ingest', () => ingestLiveTranscript('meeting 1', { id: 'line-1', text: 'hi' }, 'agent 1'), '/ingest'],
+    ['finalize', () => finalizeLiveMeeting('meeting 1', 'agent 1'), '/finalize'],
+  ])('puts the agent scope of the %s request in the query, after the action segment', async (_name, call, suffix) => {
+    await call();
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      getApiUrl(`/wiki/meeting-notes/live/meeting%201${suffix}?agent_id=agent%201`),
+    );
+  });
 });

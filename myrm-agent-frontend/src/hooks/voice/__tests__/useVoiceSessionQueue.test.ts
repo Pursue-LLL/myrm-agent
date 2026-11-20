@@ -29,6 +29,23 @@ const geminiMock = vi.hoisted(() => ({
   disconnect: vi.fn(),
 }));
 
+const liveNotesMock = vi.hoisted(() => {
+  const finalize = vi.fn();
+  return {
+    hook: vi.fn(),
+    finalize,
+    // Stable identity, like the memoised return of the real hook.
+    value: { sessionId: 'live-test', snapshot: null, ingest: vi.fn(), finalize },
+  };
+});
+
+vi.mock('../useLiveMeetingNotes', () => ({
+  useLiveMeetingNotes: (...args: unknown[]) => {
+    liveNotesMock.hook(...args);
+    return liveNotesMock.value;
+  },
+}));
+
 vi.mock('../useTTS', () => ({
   useTTS: () => ({
     // speak() flips state to 'speaking' like the real TTS; the idle→next effect
@@ -340,5 +357,36 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     expect(mockOnSendMessage).toHaveBeenCalledExactlyOnceWith(expect.stringContaining('what is on my screen'), [
       'SCREENSHOT_BASE64',
     ]);
+  });
+});
+
+describe('useVoiceSession live meeting notes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    ttsState.value = 'idle';
+  });
+
+  it('keys the live notes to the chat and to the agent whose vault receives the minutes', () => {
+    renderHook(() =>
+      useVoiceSession({ enabled: true, mode: 'agent_bridge', fullDuplex: true, chatId: 'chat-1', agentId: 'agent-1' }),
+    );
+
+    expect(liveNotesMock.hook).toHaveBeenLastCalledWith('chat-1', 'agent-1');
+  });
+
+  it('publishes the live notes once when the session stops, not when it starts', () => {
+    const { result } = renderHook(() =>
+      useVoiceSession({ enabled: true, mode: 'agent_bridge', fullDuplex: true, chatId: 'chat-1' }),
+    );
+
+    act(() => {
+      result.current.startSession();
+    });
+    expect(liveNotesMock.finalize).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.stopSession();
+    });
+    expect(liveNotesMock.finalize).toHaveBeenCalledOnce();
   });
 });
