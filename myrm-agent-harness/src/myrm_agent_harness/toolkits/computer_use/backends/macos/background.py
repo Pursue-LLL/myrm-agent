@@ -5,13 +5,12 @@
 
 [OUTPUT]
 - resolve_app_pid, _capture_window_png, guard_foreground
-- _check_post_event_access, _request_post_event_access, _set_enhanced_ui
+- _check_post_event_access, _request_post_event_access
 - _capture_screen_excluding_titles (POS: overlay-excluded fullscreen capture)
 
 [POS]
 Background-operation primitives for the macOS backend. Imported by
-backends.macos.backend (screenshot/permissions), perception.macos_ax.capture (EnhancedUI)
-and execution.healer (routed input + guard).
+backends.macos.backend (screenshot/permissions) and execution.healer (routed input + guard).
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import subprocess
-import sys
 import tempfile
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -155,7 +153,7 @@ def _capture_screen_excluding_titles(titles: frozenset[str]) -> bytes | None:
         return None
 
     try:
-        from AppKit import NSBitmapImageFileTypePNG, NSBitmapImageRep  # type: ignore[import-untyped]
+        from AppKit import NSBitmapImageFileTypePNG, NSBitmapImageRep
 
         rep = NSBitmapImageRep.alloc().initWithCGImage_(image)
         png = rep.representationUsingType_properties_(NSBitmapImageFileTypePNG, None)
@@ -280,57 +278,3 @@ def ensure_post_event_access() -> bool:
         return False
     _post_event_prompted = True
     return _request_post_event_access()
-
-
-_ENHANCED_UI_SNIPPET = (
-    "import ctypes,ctypes.util,sys;"
-    "ax=ctypes.cdll.LoadLibrary(ctypes.util.find_library('ApplicationServices'));"
-    "cf=ctypes.cdll.LoadLibrary(ctypes.util.find_library('CoreFoundation'));"
-    "ax.AXUIElementCreateApplication.argtypes=[ctypes.c_int32];"
-    "ax.AXUIElementCreateApplication.restype=ctypes.c_void_p;"
-    "ref=ax.AXUIElementCreateApplication(int(sys.argv[1]));"
-    "ax.AXUIElementSetAttributeValue.argtypes=[ctypes.c_void_p,ctypes.c_char_p,ctypes.c_void_p];"
-    "ax.AXUIElementSetAttributeValue.restype=ctypes.c_int32;"
-    "flag=ctypes.c_void_p.in_dll(cf,'kCFBooleanTrue' if sys.argv[2]=='1' else 'kCFBooleanFalse');"
-    "sys.exit(0 if ax.AXUIElementSetAttributeValue(ref,b'AXEnhancedUserInterface',flag)==0 else 1)"
-)
-
-_enhanced_ui_usable: bool | None = None
-
-
-def _set_enhanced_ui(pid: int, enabled: bool = True) -> bool:
-    """Enable AXEnhancedUserInterface so Electron apps expose full AX trees.
-
-    Fail-soft: returns False when the app refuses; capture continues.
-    The attribute write runs in a throwaway subprocess because a denied
-    write kills the calling process outright (uncatchable SIGTRAP), which
-    try/except cannot contain. Success is cached; denial re-probes so a
-    later grant takes effect without a restart.
-    """
-    import ctypes
-    import ctypes.util
-
-    global _enhanced_ui_usable
-    if pid <= 0:
-        return False
-    if _enhanced_ui_usable is True:
-        return True
-    if not ctypes.util.find_library("ApplicationServices") or not ctypes.util.find_library("CoreFoundation"):
-        return False
-    try:
-        result = subprocess.run(
-            [
-                sys.executable,
-                "-c",
-                _ENHANCED_UI_SNIPPET,
-                str(pid),
-                "1" if enabled else "0",
-            ],
-            capture_output=True,
-            timeout=10,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    _enhanced_ui_usable = result.returncode == 0
-    return _enhanced_ui_usable

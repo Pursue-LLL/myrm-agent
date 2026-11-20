@@ -13,7 +13,6 @@ Invoking an element is covered in test_macos_ax_invoke.py.
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -214,15 +213,6 @@ class TestParseAxOutput:
 
 
 class TestCaptureAxSnapshot:
-    @pytest.fixture(autouse=True)
-    def _no_desktop_probe(self) -> Iterator[None]:
-        """Targeted capture resolves the app pid through Quartz; keep these tests off the real window list."""
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos.background.resolve_app_pid",
-            return_value=None,
-        ):
-            yield
-
     def _mock_snapshot_stdout(self, app_name: str = "App") -> str:
         return f"{app_name}|||META|||Win|||com.test|||99\n1|||AXButton|||OK||||||10|||20|||80|||30\n"
 

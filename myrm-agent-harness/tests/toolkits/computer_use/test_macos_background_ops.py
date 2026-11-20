@@ -1,5 +1,5 @@
 """Tests for macOS background operations: PID-targeted input, window capture,
-foreground guard, post-event permission, EnhancedUI, and origin-aware scaling.
+foreground guard, post-event permission, and origin-aware scaling.
 
 All macOS-only APIs (Quartz, CoreGraphics) are mocked: this suite runs on
 Linux CI. Covers:
@@ -8,7 +8,6 @@ Linux CI. Covers:
 - _resolve_target_window: match / missing / malformed entries
 - MacOSBackend.screenshot: targeted window vs fullscreen vs missing window
 - post-event access probe/request incl. unavailable-API None path
-- EnhancedUI fail-soft behavior
 - CoordinateScaler origin mapping for window captures
 - try_bbox_click macOS branch: routes, guards, and always clears target
 """
@@ -25,7 +24,6 @@ from myrm_agent_harness.toolkits.computer_use.backends.macos.background import (
     _check_post_event_access,
     _request_post_event_access,
     _resolve_target_window,
-    _set_enhanced_ui,
     guard_foreground,
 )
 from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import (
@@ -263,17 +261,6 @@ class TestPostEventBranches:
             assert _check_post_event_access() is None
             assert _request_post_event_access() is False
 
-    def test_enhanced_ui_spawn_error_disables(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
-
-        macos_background._enhanced_ui_usable = None
-        with (
-            patch("ctypes.util.find_library", return_value="lib"),
-            patch("subprocess.run", side_effect=OSError("no")),
-        ):
-            assert _set_enhanced_ui(9999) is False
-        macos_background._enhanced_ui_usable = None
-
 
 class TestTargetedScreenshot:
     def test_missing_window_raises_no_silent_fullscreen(self, quartz_stub: MagicMock) -> None:
@@ -334,35 +321,6 @@ class TestPostEventAccess:
         # Post-event denial must not flip the existing readiness gates.
         status = PermissionStatus(accessibility=True, screen_recording=True, post_event_access=False)
         assert status.all_granted is True
-
-
-class TestEnhancedUI:
-    def test_fail_soft_without_library(self) -> None:
-        with patch("ctypes.util.find_library", return_value=None):
-            assert _set_enhanced_ui(1234) is False
-
-    def test_denied_write_is_contained_and_reprobed(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
-
-        macos_background._enhanced_ui_usable = None
-        crashed = MagicMock(returncode=-5, stdout=b"", stderr=b"")
-        granted = MagicMock(returncode=0, stdout=b"", stderr=b"")
-        with (
-            patch("ctypes.util.find_library", return_value="lib"),
-            patch("subprocess.run", side_effect=[crashed, granted]) as run,
-        ):
-            # Denial is contained (parent survives) and NOT cached, so a
-            # later grant takes effect without a restart.
-            assert _set_enhanced_ui(9999) is False
-            assert _set_enhanced_ui(9999) is True
-            # Success is cached: no third subprocess.
-            assert _set_enhanced_ui(9999) is True
-            assert run.call_count == 2
-        macos_background._enhanced_ui_usable = None
-
-    def test_rejects_bad_pid(self) -> None:
-        assert _set_enhanced_ui(0) is False
-        assert _set_enhanced_ui(-1) is False
 
 
 class TestOriginAwareScaling:
