@@ -9,10 +9,10 @@
  *
  * [POS]
  * Per-channel budget configuration UI. Displays each channel's daily budget usage
- * and allows configuring per-channel limits to prevent cost explosion; a channel takes
- * one save at a time, so an edit made while its save is in flight is dropped. Unfolding
- * a channel lists each sender's spend over the audit window, with bars sized by their
- * share of that window's total.
+ * and allows configuring per-channel limits to prevent cost explosion; each edit is sent
+ * as a patch of the one field it changes, so edits made close together, or from another
+ * page, do not put each other's values back. Unfolding a channel lists each sender's
+ * spend over the audit window, with bars sized by their share of that window's total.
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -31,10 +31,12 @@ import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   getChannelBudgets,
+  createChannelBudget,
   updateChannelBudget,
   deleteChannelBudget,
   getChannelAudit,
   type ChannelBudgetPolicy,
+  type ChannelBudgetPolicyFields,
   type ChannelBudgetStatus,
   type ChannelAuditEntry,
 } from '@/services/budget';
@@ -110,16 +112,13 @@ const ChannelBudgetSection = memo(() => {
     fetchData();
   }, [fetchData]);
 
+  // Only the field the user changed is sent: the rest of the policy shown here may be older than the stored one (another
+  // page, or an edit still in flight), and sending it back would undo what changed meanwhile.
   const handleSave = useCallback(
-    async (channelKey: string, policy: Omit<ChannelBudgetPolicy, 'channel_key'>) => {
-      // An edit is built from the policy as last loaded, which a save in flight has already outdated. Dropping it keeps
-      // that save from being overwritten; the user repeats the edit once the reload has landed.
-      if (saving === channelKey) {
-        return;
-      }
+    async (channelKey: string, patch: Partial<ChannelBudgetPolicyFields>) => {
       setSaving(channelKey);
       try {
-        await updateChannelBudget(channelKey, policy);
+        await updateChannelBudget(channelKey, patch);
         await fetchData();
       } catch {
         /* silent */
@@ -127,7 +126,7 @@ const ChannelBudgetSection = memo(() => {
         setSaving(null);
       }
     },
-    [fetchData, saving],
+    [fetchData],
   );
 
   const handleDelete = useCallback(
@@ -151,7 +150,7 @@ const ChannelBudgetSection = memo(() => {
     }
     setSaving('new');
     try {
-      await updateChannelBudget(newEntry.channel_key, {
+      await createChannelBudget(newEntry.channel_key, {
         daily_limit_usd: newEntry.daily_limit_usd,
         warning_threshold: newEntry.warning_threshold,
         enabled: newEntry.enabled,
@@ -301,7 +300,7 @@ const ChannelBudgetSection = memo(() => {
                     onBlur={(e) => {
                       const v = parseFloat(e.target.value);
                       if (!isNaN(v) && v !== policy.daily_limit_usd) {
-                        handleSave(st.channel_key, { ...policy, daily_limit_usd: v });
+                        handleSave(st.channel_key, { daily_limit_usd: v });
                       }
                     }}
                     className="w-20 text-right text-xs font-mono px-1.5 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -313,7 +312,7 @@ const ChannelBudgetSection = memo(() => {
                     role="switch"
                     aria-checked={policy.enabled}
                     aria-label={t('enabled')}
-                    onClick={() => handleSave(st.channel_key, { ...policy, enabled: !policy.enabled })}
+                    onClick={() => handleSave(st.channel_key, { enabled: !policy.enabled })}
                     className={cn(
                       'relative w-8 h-5 rounded-full transition-colors',
                       policy.enabled ? 'bg-accent-warm' : 'bg-input dark:bg-muted',

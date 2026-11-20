@@ -2,13 +2,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
 import {
+  createChannelBudget,
   getChannelAudit,
   getChannelBudgets,
   updateChannelBudget,
   type ChannelAuditEntry,
   type ChannelBudgetPolicy,
   type ChannelBudgetStatus,
-  type ChannelBudgetsResponse,
 } from '@/services/budget';
 
 const stableT = (key: string) => key;
@@ -19,6 +19,7 @@ vi.mock('next-intl', () => ({
 
 vi.mock('@/services/budget', () => ({
   getChannelBudgets: vi.fn(),
+  createChannelBudget: vi.fn(),
   updateChannelBudget: vi.fn(),
   deleteChannelBudget: vi.fn(),
   getChannelAudit: vi.fn(),
@@ -108,14 +109,12 @@ describe('ChannelBudgetSection saving', () => {
     vi.clearAllMocks();
   });
 
-  // The limit field saves on blur and the switch on click, each from the policy last loaded. A switch click that lands
-  // while the limit is still being saved would send the old limit back and undo that save.
-  it('ignores an edit made while a save is in flight and builds the next one from the saved values', async () => {
-    const reload = deferred<ChannelBudgetsResponse>();
-    vi.mocked(getChannelBudgets)
-      .mockResolvedValueOnce({ policies: [policyOf(2)], statuses: [channelStatus(0)] })
-      .mockReturnValueOnce(reload.promise);
-    vi.mocked(updateChannelBudget).mockResolvedValue(policyOf(5));
+  // The limit field saves on blur and the switch on click, each from the policy last loaded. A save that carried the
+  // whole policy would send the old limit back from a switch click that lands while the limit is still being saved.
+  it('sends each edit as a patch of its own field, even while an earlier save is in flight', async () => {
+    const limitSave = deferred<ChannelBudgetPolicy>();
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [policyOf(2)], statuses: [channelStatus(0)] });
+    vi.mocked(updateChannelBudget).mockReturnValueOnce(limitSave.promise).mockResolvedValue(policyOf(5));
 
     render(<ChannelBudgetSection />);
     const limitInput = await screen.findByDisplayValue('2');
@@ -123,18 +122,31 @@ describe('ChannelBudgetSection saving', () => {
     fireEvent.blur(limitInput);
     fireEvent.click(screen.getByRole('switch'));
 
-    expect(updateChannelBudget).toHaveBeenCalledTimes(1);
+    expect(updateChannelBudget).toHaveBeenCalledTimes(2);
+    expect(updateChannelBudget).toHaveBeenNthCalledWith(1, CHANNEL_KEY, { daily_limit_usd: 5 });
+    expect(updateChannelBudget).toHaveBeenNthCalledWith(2, CHANNEL_KEY, { enabled: false });
 
     await act(async () => {
-      reload.resolve({ policies: [policyOf(5)], statuses: [channelStatus(0)] });
+      limitSave.resolve(policyOf(5));
     });
-    await screen.findByDisplayValue('5');
-    fireEvent.click(screen.getByRole('switch'));
+  });
 
-    await waitFor(() => expect(updateChannelBudget).toHaveBeenCalledTimes(2));
-    expect(updateChannelBudget).toHaveBeenLastCalledWith(
-      CHANNEL_KEY,
-      expect.objectContaining({ daily_limit_usd: 5, enabled: false }),
-    );
+  it('creates a channel with its whole policy in one call and never patches it', async () => {
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [], statuses: [] });
+    vi.mocked(createChannelBudget).mockResolvedValue(policyOf(2));
+
+    render(<ChannelBudgetSection />);
+    fireEvent.click(await screen.findByRole('button', { name: 'add' }));
+    fireEvent.change(screen.getByPlaceholderText('channelKeyPlaceholder'), { target: { value: CHANNEL_KEY } });
+    fireEvent.click(screen.getByRole('button', { name: 'save' }));
+
+    await waitFor(() => expect(createChannelBudget).toHaveBeenCalledTimes(1));
+    expect(createChannelBudget).toHaveBeenCalledWith(CHANNEL_KEY, {
+      daily_limit_usd: 2,
+      warning_threshold: 0.8,
+      enabled: true,
+      label: '',
+    });
+    expect(updateChannelBudget).not.toHaveBeenCalled();
   });
 });
