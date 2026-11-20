@@ -284,11 +284,11 @@ const resumeValue = { decisions };
 ### 目录授权（path-ASK grant）
 文件工具点名工作区与允许根之外的目录时，PathPolicy 返回 ASK，审批卡片提供「同时授予文件夹访问」勾选项：
 
-- **一份计划**：`session_access.plan_directory_grants` 统一规划授权目录（每个目录一次；写入类工具为可读写，其余只读）。`build_interrupt_payload` 把计划放进动作请求的 `grantDirectories`（`[{path, writable}]`），卡片只展示不推断；用户批准并勾选时，`apply_approval_decisions` 按同一计划授权，与审批理由的语言无关。禁区目录与超出每会话 5 个授权根上限的目录不会被提供。
+- **一份计划**：`session_access.plan_directory_grants` 统一规划授权目录（每个目录一次；写入类工具为可读写，其余只读；规划的对象是调用可能打开的文件，即写下的路径，读取还包括写下的路径不存在时改开的那个写法，见 `SECURITY_SYSTEM.md`「纵深防御」的「判什么就打开什么」）。`build_interrupt_payload` 把计划放进动作请求的 `grantDirectories`（`[{path, writable}]`），卡片只展示不推断；用户批准并勾选时，`apply_approval_decisions` 按同一计划授权，与审批理由的语言无关。禁区目录与超出每会话 5 个授权根上限的目录不会被提供。
 - **升级**：对已持有的只读根发起写入时，计划提供升级为可读写，授权后原地改为可写，不占名额；授权永远不会把可写根降为只读。
 - **范围**：只有 `approve` 决议授权，`edit` 与 `reject` 不授权；「全部批准」不携带授权。
 - **生效面**：授权根存放在本次运行的 `AccessGrants` 容器（`core.context_vars.access_grants_var`；运行入口 `open_access_grants` 打开一次，之后只原地修改，因为图的每个节点在复制的上下文里运行，重新绑定的 ContextVar 对后续节点不可见），权限引擎与沙箱执行器共用（执行器边界见 `EXECUTION_SYSTEM.md`「文件操作边界」）。容器分三层：`declared`（`PathPolicy.access_roots`，整个运行固定）、`session`（用户选择记住的目录，业务层在运行前也会预置）、`once`（见下）。
-- **仅本次与本会话记住**：批准一次调用，就为这次调用点名的路径开一次门：`grant_paths_once` 把该调用点名、且 PathPolicy 判为 ASK 的路径所在目录登记为 `once` 根（写入类工具为可读写，审计记 `PATH_OPENED_ONCE`），否则执行器会拒绝一个刚被人批准的调用；`once` 根在下一次模型响应到达 `ToolApprovalMiddleware.aafter_model` 时丢弃，不延续到后续调用。勾选「同时授予文件夹访问」才登记 `session` 根（记住）。`edit` 决议不开门（改写后的路径没有被人看过）；被拒绝的路径（禁区、锁定策略）与工作区内的路径不登记；bash 只认 `declared` 与 `session` 根，不认 `once` 根。
+- **仅本次与本会话记住**：批准一次调用，就为这次调用点名的路径开一次门：`grant_paths_once` 把该调用会打开（点名的路径，读取还包括改开的那个写法）、且 PathPolicy 判为 ASK 的路径本身登记为 `once` 根（写入类工具为可读写，审计记 `PATH_OPENED_ONCE`），否则执行器会拒绝一个刚被人批准的调用；`once` 根在下一次模型响应到达 `ToolApprovalMiddleware.aafter_model` 时丢弃，不延续到后续调用。勾选「同时授予文件夹访问」才登记 `session` 根（记住）。`edit` 决议不开门（改写后的路径没有被人看过）；被拒绝的路径（禁区、锁定策略）与工作区内的路径不登记；bash 只认 `declared` 与 `session` 根，不认 `once` 根。
 - **撤销的生效时机**：撤销（`PATCH session-access-roots`）改的是会话记录，不改正在进行的那次运行：运行入口打开的授权容器在这次运行里不会被撤销改动；下一次运行（含审批恢复）起跑时 `bootstrap_session_access_roots` 按会话记录重新预置，所以撤销自下一次运行起生效。
 - **不提供的授权**：可写且包含危险根的目录（主目录、盘符根、`/`，经其子树可触达 `~/.ssh`）不会被提供，也不会被授权；同一目录的只读授权不受影响。计划与授权共用这条判断，卡片不会承诺一个勾选后被丢弃的文件夹。
 - **锁定**：`PathPolicy.allow_directory_grants=False`（配置键 `pathPolicy.allowDirectoryGrants`）供需要把运行限制在工作区与声明根之内的宿主使用（如把执行范围钉在单一工作区的部署）：工作区与声明根之外的路径由引擎直接 DENY（没有任何审批能放宽它，所以不会弹出注定失败的询问），计划为空、授权被拒。

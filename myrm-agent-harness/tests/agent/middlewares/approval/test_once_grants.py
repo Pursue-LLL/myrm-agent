@@ -93,6 +93,33 @@ async def test_approving_a_write_opens_the_named_file_writable(run: tuple[Path, 
     assert _once_paths(grants) == [(os.path.join(outside, "out.csv"), True)]
 
 
+async def test_approving_a_read_opens_the_file_it_opens_in_place_of_a_quoted_path(
+    run: tuple[Path, Path, AccessGrants],
+) -> None:
+    # The quoted text names nothing below the workspace, so the engine asks about the file the quotes wrap and the
+    # approval has to open that one: the read tool opens it, and the executor refuses a file nothing has opened.
+    _, outside, grants = run
+    (outside / "a.csv").write_text("x", encoding="utf-8")
+    call = _call("file_read_tool", {"paths": [f'"{outside}/a.csv"']})
+
+    await _decide(call, "file_read", {"type": "approve", "extensions": {}}, _POLICY)
+
+    assert _once_paths(grants) == [(os.path.join(outside, "a.csv"), False)]
+    assert reachable_access_roots() == grants.once
+
+
+async def test_approving_a_write_opens_nothing_for_a_quoted_path_since_it_opens_exactly_that_text(
+    run: tuple[Path, Path, AccessGrants],
+) -> None:
+    _, outside, grants = run
+    (outside / "out.csv").write_text("x", encoding="utf-8")
+    call = _call("file_write_tool", {"file_path": f'"{outside}/out.csv"'})
+
+    await _decide(call, "file_write", {"type": "approve", "extensions": {}}, _POLICY)
+
+    assert grants.once == ()
+
+
 async def test_the_toggle_also_keeps_the_folder_for_the_session(run: tuple[Path, Path, AccessGrants]) -> None:
     _, outside, grants = run
     call = _call("file_read_tool", {"paths": [f"{outside}/a.csv"]})
@@ -125,7 +152,7 @@ def test_a_path_inside_the_workspace_opens_nothing(run: tuple[Path, Path, Access
     workspace, _, grants = run
 
     opened = grant_paths_once(
-        {"file_path": f"{workspace}/AGENTS.md"}, policy=_POLICY, workspace_root=str(workspace), writable=True
+        {"file_path": f"{workspace}/AGENTS.md"}, policy=_POLICY, workspace_root=str(workspace), permission="file_write"
     )
 
     assert opened == []
@@ -136,7 +163,7 @@ def test_a_path_inside_the_workspace_opens_nothing(run: tuple[Path, Path, Access
 def test_a_text_no_file_can_be_named_by_opens_nothing(run: tuple[Path, Path, AccessGrants], text: str) -> None:
     workspace, _, grants = run
 
-    opened = grant_paths_once({"paths": [text]}, policy=_POLICY, workspace_root=str(workspace), writable=False)
+    opened = grant_paths_once({"paths": [text]}, policy=_POLICY, workspace_root=str(workspace), permission="file_read")
 
     assert opened == []
     assert grants.once == ()
@@ -147,7 +174,7 @@ def test_a_host_that_keeps_the_run_inside_its_zones_opens_nothing(run: tuple[Pat
     locked = PathPolicy(forbidden_paths=frozenset(), access_roots=(), allow_directory_grants=False)
 
     opened = grant_paths_once(
-        {"paths": [f"{outside}/a.csv"]}, policy=locked, workspace_root=str(workspace), writable=False
+        {"paths": [f"{outside}/a.csv"]}, policy=locked, workspace_root=str(workspace), permission="file_read"
     )
 
     assert opened == []
@@ -158,7 +185,7 @@ def test_a_writable_grant_over_a_home_directory_is_refused(run: tuple[Path, Path
     workspace, _, grants = run
 
     opened = grant_paths_once(
-        {"file_path": os.path.expanduser("~")}, policy=_POLICY, workspace_root=str(workspace), writable=True
+        {"file_path": os.path.expanduser("~")}, policy=_POLICY, workspace_root=str(workspace), permission="file_write"
     )
 
     assert opened == []
@@ -168,7 +195,10 @@ def test_a_writable_grant_over_a_home_directory_is_refused(run: tuple[Path, Path
 def test_a_run_that_never_opened_grants_has_nowhere_to_keep_them(tmp_path: Path) -> None:
     with scoped_value(access_grants_var, None):
         opened = grant_paths_once(
-            {"paths": [f"{tmp_path}/a.csv"]}, policy=_POLICY, workspace_root=str(tmp_path / "ws"), writable=False
+            {"paths": [f"{tmp_path}/a.csv"]},
+            policy=_POLICY,
+            workspace_root=str(tmp_path / "ws"),
+            permission="file_read",
         )
 
     assert opened == []
@@ -178,11 +208,11 @@ def test_the_same_file_is_opened_once_and_a_write_upgrades_it(run: tuple[Path, P
     workspace, outside, grants = run
     args: dict[str, object] = {"paths": [f"{outside}/a.csv"]}
 
-    grant_paths_once(args, policy=_POLICY, workspace_root=str(workspace), writable=False)
-    grant_paths_once(args, policy=_POLICY, workspace_root=str(workspace), writable=False)
+    grant_paths_once(args, policy=_POLICY, workspace_root=str(workspace), permission="file_read")
+    grant_paths_once(args, policy=_POLICY, workspace_root=str(workspace), permission="file_read")
     assert _once_paths(grants) == [(os.path.join(outside, "a.csv"), False)]
 
-    grant_paths_once(args, policy=_POLICY, workspace_root=str(workspace), writable=True)
+    grant_paths_once(args, policy=_POLICY, workspace_root=str(workspace), permission="file_write")
     assert _once_paths(grants) == [(os.path.join(outside, "a.csv"), True)]
 
 
@@ -213,7 +243,9 @@ async def test_calls_of_one_response_approved_together_stay_open_until_the_next_
 
 def test_the_next_model_response_closes_what_an_approval_opened(run: tuple[Path, Path, AccessGrants]) -> None:
     workspace, outside, grants = run
-    grant_paths_once({"paths": [f"{outside}/a.csv"]}, policy=_POLICY, workspace_root=str(workspace), writable=False)
+    grant_paths_once(
+        {"paths": [f"{outside}/a.csv"]}, policy=_POLICY, workspace_root=str(workspace), permission="file_read"
+    )
     assert reachable_access_roots() == grants.once != ()
 
     drop_once_grants()
@@ -226,7 +258,9 @@ async def test_the_approval_node_closes_them_when_a_new_model_response_arrives(
     run: tuple[Path, Path, AccessGrants],
 ) -> None:
     workspace, outside, grants = run
-    grant_paths_once({"paths": [f"{outside}/a.csv"]}, policy=_POLICY, workspace_root=str(workspace), writable=False)
+    grant_paths_once(
+        {"paths": [f"{outside}/a.csv"]}, policy=_POLICY, workspace_root=str(workspace), permission="file_read"
+    )
 
     await ToolApprovalMiddleware().aafter_model({"messages": []}, None)
 

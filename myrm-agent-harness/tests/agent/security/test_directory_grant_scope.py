@@ -78,8 +78,8 @@ def test_a_locked_policy_offers_no_folder_and_grants_none(dirs: tuple[Path, Path
     workspace, outside = dirs
     args: dict[str, object] = {"file_path": str(outside / "spec.md")}
 
-    assert plan_directory_grants(args, policy=_LOCKED, workspace_root=str(workspace), writable=False) == []
-    assert grant_directories_for_call(args, policy=_LOCKED, workspace_root=str(workspace), writable=False) == []
+    assert plan_directory_grants(args, policy=_LOCKED, workspace_root=str(workspace), permission="file_read") == []
+    assert grant_directories_for_call(args, policy=_LOCKED, workspace_root=str(workspace), permission="file_read") == []
     assert get_session_access_roots() == ()
 
 
@@ -115,7 +115,7 @@ class TestWriteGrantOverADangerousRoot:
             {"file_path": os.path.join(os.sep, "no-such-file.txt")},
             policy=PathPolicy(),
             workspace_root=str(tmp_path),
-            writable=True,
+            permission="file_write",
         )
 
         assert plan == []
@@ -125,7 +125,7 @@ class TestWriteGrantOverADangerousRoot:
             {"file_path": os.path.join(os.path.expanduser("~"), "no-such-notes.txt")},
             policy=PathPolicy(),
             workspace_root=str(tmp_path),
-            writable=True,
+            permission="file_write",
         )
 
         assert plan == []
@@ -137,7 +137,7 @@ class TestWriteGrantOverADangerousRoot:
             {"file_path": os.path.join(home, "no-such-notes.txt")},
             policy=PathPolicy(),
             workspace_root=str(tmp_path),
-            writable=False,
+            permission="file_read",
         )
 
         assert [(root.path, root.writable) for root in plan] == [(home, False)]

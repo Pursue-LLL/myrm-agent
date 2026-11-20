@@ -8,7 +8,7 @@
 - judged_file_paths(permission, tool_input, workspace_root) -> list[str]: the typed host files, then the spelling a read opens in place of each
 
 [POS]
-Target set of the permission engine's rule matching and zone check for file tools: a superset of the files the tool can open, so a respelling can only tighten a verdict.
+Target set of the permission engine's rule matching and zone check for file tools and of the directory grants an approval plans and opens: a superset of the files the tool can open, so a respelling can only tighten a verdict, and what an approval opens is what the tool opens.
 """
 
 from __future__ import annotations
