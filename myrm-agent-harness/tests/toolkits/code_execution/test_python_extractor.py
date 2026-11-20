@@ -219,11 +219,23 @@ class TestValidatePythonSyntax:
         code = "from __future__ import annotations\n\nres = await fetch_data()\nprint(res)"
         assert validate_python_syntax(code) is None
 
+    def test_top_level_async_comprehension_allowed(self):
+        code = "vals = [i async for i in gen()]\nprint(vals)"
+        assert validate_python_syntax(code) is None
+
     def test_top_level_return_outside_function_still_fails(self):
         code = "return 42"
         error = validate_python_syntax(code)
         assert error is not None
         assert "SyntaxError" in error
+
+    def test_top_level_return_after_an_await_is_refused_like_one_before_it(self):
+        after = validate_python_syntax("x = await fetch()\nreturn x")
+        before = validate_python_syntax("return 1\nx = await fetch()")
+        assert after is not None
+        assert "'return' outside function" in after
+        assert before is not None
+        assert "'return' outside function" in before
 
     def test_top_level_await_with_actual_syntax_error_still_fails(self):
         code = "res = await fetch_data(\nprint(res)"

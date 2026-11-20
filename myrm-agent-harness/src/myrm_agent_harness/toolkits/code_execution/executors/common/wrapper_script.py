@@ -1,7 +1,7 @@
 """Unified execution wrapper script.
 
 Shared wrapper for all executors. Handles:
-1. Execution mode detection (asyncio.run vs top-level await)
+1. Execution mode dispatch (own asyncio.run, undriven async main(), or code compiled with top-level await allowed)
 2. C-level PEP 578 Audit Sandbox injection
 3. Unified JSON output format
 4. Matplotlib inline figure capture (Jupyter-grade, via vault:// zero-copy pointers)
@@ -22,6 +22,9 @@ Unified execution wrapper script. User-code stderr is not captured inside the
 wrapper (only stdout is bounded); parse_execution_output therefore merges the
 subprocess stderr pipe (user sys.stderr writes) with the JSON stderr key
 (wrapper-captured traceback) so neither diagnostic stream is discarded.
+User code is compiled with ``ast.PyCF_ALLOW_TOP_LEVEL_AWAIT`` instead of being
+rewritten into a function, so its line numbers, string literals and name scoping
+are those of plain execution.
 """
 
 import json
@@ -139,15 +142,17 @@ class BoundedStringIO(io.StringIO):
 """Unified execution wrapper script.
 
 Auto-detects execution mode:
-1. asyncio.run() mode: direct execution
-2. Top-level await mode: wrapped execution
+1. asyncio.run() mode: the script drives its own event loop
+2. async main() mode: the script defines main() and calls it undriven; main() is run with asyncio.run
+3. Plain mode: compiled with top-level await allowed; a script that awaits at module level runs as a coroutine
 """
 
+import ast
 import asyncio
+import inspect
 import io
 import json
 import os
-import re
 import sys
 import traceback
 
@@ -328,16 +333,17 @@ def main():
                 result["result"] = asyncio.run(main_func())
             else:
                 result["result"] = None
-        elif _has_top_level_await(user_code):
-            # Top-level await mode: wrap in async function while preserving future imports at file top
-            wrapped_code = _wrap_top_level_async_user_code(user_code)
-            exec(wrapped_code, exec_globals, exec_globals)
-            user_func = exec_globals.get("__user_code__")
-            if user_func:
-                result["result"] = asyncio.run(user_func())
         else:
-            # Synchronous code: direct execution
-            exec(user_code, exec_globals, exec_globals)
+            # Compiled with top-level await allowed, as the asyncio REPL does: the code keeps module scope,
+            # its own line numbers and string literals, and a script that awaits at module level compiles to
+            # a coroutine that asyncio.run drives.
+            code_object = compile(
+                user_code, "<string>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT, dont_inherit=True
+            )
+            if code_object.co_flags & inspect.CO_COROUTINE:
+                asyncio.run(eval(code_object, exec_globals, exec_globals))
+            else:
+                exec(code_object, exec_globals, exec_globals)
             result["result"] = None
 
         result["success"] = True

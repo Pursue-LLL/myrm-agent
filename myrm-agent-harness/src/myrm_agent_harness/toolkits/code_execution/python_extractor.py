@@ -10,8 +10,9 @@ Quote-aware parsing prevents greedy-regex extraction errors.
 - extract_python_from_bash: Extract Python code from bash commands (quote-aware).
 - extract_python_from_pipe_stdin: Extract Python fed via ``quoted_payload | python3`` stdin.
 - extract_cat_py_paths_from_pipe_feeders: Resolve ``.py`` paths from ``cat`` pipe feeder segments.
-- validate_python_syntax: Pre-check extracted Python; an error names the line and column and quotes that line
-  (cut to a window of 160 characters around the column).
+- validate_python_syntax: Pre-check extracted Python, compiled as the execution wrapper compiles it (top-level
+  await allowed); an error names the line and column and quotes that line (cut to a window of 160 characters
+  around the column).
 - SKILL_IMPORT_RE: Compiled pattern for ``from skills.xxx_skill import`` detection.
 - TOOLS_IMPORT_RE: Compiled pattern for ``from tools.xxx import`` detection.
 - SKILLS_NAMESPACE_ADVICE: Guidance for a failed ``No module named 'skills'`` import.
@@ -99,27 +100,6 @@ def extract_cat_py_paths_from_pipe_feeders(command: str) -> list[str]:
     return list(dict.fromkeys(paths))
 
 
-def _wrap_top_level_async_code(code: str) -> str:
-    """Wrap code with an async function while keeping file-level headers at the top."""
-    import textwrap
-
-    header_lines: list[str] = []
-    body_lines: list[str] = []
-    in_header = True
-    for line in code.splitlines():
-        stripped = line.strip()
-        if in_header:
-            if not stripped or stripped.startswith("#") or stripped.startswith("from __future__ import"):
-                header_lines.append(line)
-                continue
-            in_header = False
-        body_lines.append(line)
-
-    header_part = "\n".join(header_lines)
-    body_part = textwrap.indent("\n".join(body_lines), "    ")
-    return f"{header_part}\nasync def __syntax_check__():\n{body_part}\n"
-
-
 _SYNTAX_EXCERPT_CHARS = 160
 
 
@@ -151,30 +131,16 @@ def _excerpt(line: str, column: int | None) -> str:
 def validate_python_syntax(code: str) -> str | None:
     """Return ``None`` if *code* is valid Python, otherwise a human-readable error.
 
-    Supports top-level await, async for, and async with syntax (used in interactive execution
-    and Jupyter-style PTC scripts), falling back to wrapped async function check if top-level
-    async constructs are detected.
+    Compiled the way the execution wrapper compiles user code, with top-level ``await``,
+    ``async for``, ``async with`` and async comprehensions allowed: a script the sandbox can
+    run passes, and a construct it cannot run (a top-level ``return``) is refused wherever it
+    appears in the script.
     """
     try:
-        compile(code, "<string>", "exec")
-        return None
+        compile(code, "<string>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT, dont_inherit=True)
     except SyntaxError as exc:
-        # If the syntax error is caused by top-level async constructs ('await', 'async for', 'async with' outside function),
-        # re-validate wrapped in an async function to allow valid top-level async code while preserving __future__ headers.
-        msg = str(exc.msg).lower()
-        if (
-            ("outside" in msg or "function" in msg)
-            and any(kw in msg for kw in ("'await'", "'async for'", "'async with'", "await", "async for", "async with"))
-            and "return" not in msg
-        ):
-            try:
-                wrapped = _wrap_top_level_async_code(code)
-                compile(wrapped, "<string>", "exec")
-                return None
-            except SyntaxError:
-                pass
-
         return _describe_syntax_error(exc, code)
+    return None
 
 
 SKILL_IMPORT_RE = re.compile(r"from\s+(?:skills\.)?([\w]+_skill)(?:\.\w+)?\s+import")
