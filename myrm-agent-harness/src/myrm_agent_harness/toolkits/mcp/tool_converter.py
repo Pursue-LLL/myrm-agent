@@ -32,9 +32,10 @@ owned by ``result_processing.normalize_mcp_result`` /
 - mcp.types::Tool (POS: MCP tool schema type)
 - mcp.ClientSession (POS: MCP SDK 2.x high-level client over stream transports)
 - schema::collapse_const_unions, flatten_top_level_composite, flatten_json_schema, prepare_mcp_call_arguments (POS: MCP inbound tool schema normalization)
+- annotations::ANNOTATIONS_METADATA_KEY, declared_annotations (POS: the hints a server declares about its own tools)
 
 [OUTPUT]
-- convert_mcp_tools: MCP Tool list → LangChain SafeStructuredTool list
+- convert_mcp_tools: MCP Tool list → LangChain SafeStructuredTool list; a tool's declared hints ride along in its metadata
 
 [POS]
 MCP-to-LangChain tool schema bridge using ``mcp`` SDK 2.x natively.
@@ -47,6 +48,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from myrm_agent_harness.toolkits.mcp.annotations import ANNOTATIONS_METADATA_KEY, declared_annotations
 from myrm_agent_harness.toolkits.mcp.schema import (
     collapse_const_unions,
     flatten_json_schema,
@@ -110,6 +112,8 @@ def convert_mcp_tools(
         metadata: dict[str, object] = {}
         if isinstance(output_schema, dict) and output_schema:
             metadata["mcp_output_schema"] = output_schema
+        if declared := declared_annotations(tool):
+            metadata[ANNOTATIONS_METADATA_KEY] = declared
 
         def _make_invoker(
             invoke_name: str = captured_name,

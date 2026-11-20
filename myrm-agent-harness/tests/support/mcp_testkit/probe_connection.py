@@ -4,12 +4,13 @@
 - myrm_agent_harness.toolkits.mcp.connection_manager::MCPConnectionManager (POS: warm connection pool; the path a session takes)
 - myrm_agent_harness.toolkits.mcp.config::MCPConfig (POS: MCP server configuration)
 - myrm_agent_harness.toolkits.mcp.tool_processing::register_tool_annotations (POS: the registration step the pool runs on every tool list)
+- myrm_agent_harness.core.security.tool_registry::get_ptc_safety_metadata, register_ptc_safety_metadata (POS: what that registration recorded, and the loosest record a consumer could ever meet)
 - tests.support.mcp_testkit.annotations_probe_server::build_annotations_probe_server (POS: the probe server)
 - tests.support.mcp_testkit.live_server::start_live_server, HTTP_ENDPOINT_PATH (POS: loopback HTTP hosting)
 
 [OUTPUT]
 - SERVER_NAME: the name the probe server is configured under
-- ProbeServer: the tools the pool hands to a session, by the name the server declares them under
+- ProbeServer: the tools the pool hands to a session, by the name the server declares them under, and the safety records registered for them (the judged ones, or the loosest ones)
 - connect_probe_server: connect over stdio or streamable HTTP and yield the ProbeServer
 
 [POS]
@@ -28,6 +29,12 @@ from typing import Literal
 
 from langchain_core.tools import BaseTool
 
+from myrm_agent_harness.core.security.tool_registry import (
+    MCPAnnotations,
+    SafetyMetadata,
+    get_ptc_safety_metadata,
+    register_ptc_safety_metadata,
+)
 from myrm_agent_harness.toolkits.mcp.config import MCPConfig
 from myrm_agent_harness.toolkits.mcp.connection_manager import MCPConnectionManager
 from myrm_agent_harness.toolkits.mcp.tool_processing import register_tool_annotations
@@ -56,9 +63,26 @@ class ProbeServer:
         """The name the model calls the tool by."""
         return f"{_CALL_PREFIX}{declared_name}"
 
+    def registered(self) -> dict[str, tuple[SafetyMetadata, MCPAnnotations]]:
+        """The safety record and claim slot the registry holds for each tool right now."""
+        entries = {name: get_ptc_safety_metadata(self.skill_name, tool.name) for name, tool in self.tools.items()}
+        return {name: entry for name, entry in entries.items() if entry is not None}
+
     def register(self) -> None:
         """Run the pool's registration step again; ``tests/conftest.py`` empties the registry between tests."""
         register_tool_annotations(list(self.tools.values()), SERVER_NAME, self.host_serial)
+
+    def register_loosest(self) -> None:
+        """Overwrite every tool's record with the loosest one, under both spellings of its name.
+
+        This is what a consumer would face if the hand-off from a server's claims ever stopped judging: the
+        records a claim can never produce, filed where each consumer looks (the declared name a script uses and
+        the prefixed name the model calls).
+        """
+        loosest = SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True)
+        for name in self.tools:
+            for spelling in (name, self.call_name(name)):
+                register_ptc_safety_metadata(self.skill_name, spelling, loosest, {})
 
 
 @asynccontextmanager

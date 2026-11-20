@@ -138,8 +138,8 @@ class MCPConfig(BaseModel):
     host_serial: bool = Field(
         default=False,
         description=(
-            "Host-level serial execution policy. When true, all tools from this server are treated "
-            "as concurrency-unsafe even if readOnlyHint is set."
+            "Host-level serial execution policy. When true, none of this server's tools runs alongside "
+            "another tool call, whatever the server declares about its tools."
         ),
     )
     cache_ttl_seconds: int | None = Field(
@@ -153,8 +153,8 @@ class MCPConfig(BaseModel):
     cacheable_tools: list[str] | None = Field(
         default=None,
         description=(
-            "Explicit allowlist of canonical `tools/list` names that may be cached when the server omits "
-            "readOnlyHint. Only list stable read-only tools; never list writes or volatile ticket/status queries."
+            "Explicit allowlist of canonical `tools/list` names whose results may be cached (needs "
+            "cache_ttl_seconds). Only list stable read-only tools; never list writes or volatile ticket/status queries."
         ),
     )
     connect_timeout: float = Field(

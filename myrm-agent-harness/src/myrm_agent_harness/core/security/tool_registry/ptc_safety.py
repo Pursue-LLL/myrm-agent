@@ -4,7 +4,7 @@
 - safety_table::SafetyMetadata (POS: tool safety attribute model)
 
 [OUTPUT]
-- MCPAnnotations: native MCP tool annotations (hint flags)
+- MCPAnnotations: the claims a server made about a tool that make a person more careful (destructive, open world)
 - register_ptc_safety_metadata / get_ptc_safety_metadata / unregister_ptc_safety_metadata / evict_skill_safety_metadata: thread-safe per-skill registration, lookup and eviction
 - _PTC_SAFETY_METADATA / _PTC_TOOL_FLAT_INDEX / _PTC_LOCK: the per-skill tree, the flat name index read by ``resolve_safety_metadata``, and the lock guarding both
 
@@ -23,10 +23,12 @@ from .safety_table import SafetyMetadata
 
 
 class MCPAnnotations(TypedDict, total=False):
-    """Native MCP tool annotations."""
+    """What a server claims about a tool that calls for more care; a claim that would reassure is never kept.
 
-    readOnlyHint: bool
-    idempotentHint: bool
+    Approval cards and review prompts show these, so a server's own statement that a tool is harmless can never
+    reach the person or the model deciding whether to run it.
+    """
+
     destructiveHint: bool
     openWorldHint: bool
 

@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from myrm_agent_harness.toolkits.mcp.annotations import ANNOTATIONS_METADATA_KEY
 from myrm_agent_harness.toolkits.mcp.security import MCPResponseError, URLValidationError
 
 from app.api.integrations.mcp import inspection as mcp_mod
@@ -59,7 +60,7 @@ class _StubAgent:
         return self._instructions
 
 
-def _tool(name: str, description: str, metadata: dict[str, bool] | None = None) -> MagicMock:
+def _tool(name: str, description: str, metadata: dict[str, object] | None = None) -> MagicMock:
     tool = MagicMock()
     tool.name = name
     tool.description = description
@@ -148,7 +149,7 @@ class TestMCPVerifyRuntimePosture:
 class TestMCPVerifySingleHandshake:
     def test_success_reuses_the_enumeration_handshake_for_instructions(self, client: TestClient) -> None:
         agent = _StubAgent(
-            tools=[_tool("mcp__clean__ping", "safe ping tool", {"readOnlyHint": True})],
+            tools=[_tool("mcp__clean__ping", "safe ping tool", {ANNOTATIONS_METADATA_KEY: {"readOnlyHint": True}})],
             instructions="Use ping for healthcheck.",
         )
 
@@ -169,6 +170,47 @@ class TestMCPVerifySingleHandshake:
 
         assert response.status_code == 200, response.text
         assert response.json()["data"]["instructions"] is None
+
+
+class TestMCPVerifyDeclaredHints:
+    """The response reports what each server declared, read from the field the converter records it in."""
+
+    def test_each_declared_hint_is_reported_and_every_other_one_is_false(self, client: TestClient) -> None:
+        agent = _StubAgent(
+            tools=[
+                _tool(
+                    "mcp__s__remove",
+                    "remove",
+                    {ANNOTATIONS_METADATA_KEY: {"readOnlyHint": False, "destructiveHint": True, "openWorldHint": True}},
+                ),
+                _tool("mcp__s__ping", "ping", {ANNOTATIONS_METADATA_KEY: {"readOnlyHint": True, "idempotentHint": True}}),
+                _tool("mcp__s__plain", "plain"),
+            ]
+        )
+
+        tools = _verify(client, agent, name="s").json()["data"]["tools"]
+
+        hints = {
+            tool["name"]: (
+                tool["read_only_hint"],
+                tool["destructive_hint"],
+                tool["idempotent_hint"],
+                tool["open_world_hint"],
+            )
+            for tool in tools
+        }
+        assert hints == {
+            "mcp__s__remove": (False, True, False, True),
+            "mcp__s__ping": (True, False, True, False),
+            "mcp__s__plain": (False, False, False, False),
+        }
+
+    def test_a_hint_stored_anywhere_but_the_declaration_field_is_not_a_declaration(self, client: TestClient) -> None:
+        agent = _StubAgent(tools=[_tool("mcp__s__flat", "flat", {"readOnlyHint": True, "destructiveHint": True})])
+
+        tool = _verify(client, agent, name="s").json()["data"]["tools"][0]
+
+        assert (tool["read_only_hint"], tool["destructive_hint"]) == (False, False)
 
 
 class TestMCPVerifyRequestBody:

@@ -199,8 +199,8 @@ class MCPServerConfig(BaseModel):
     cacheable_tools: list[str] | None = Field(
         default=None,
         description=(
-            "Explicit allowlist of canonical tools/list names that may be cached when the "
-            "server omits readOnlyHint. Only stable read-only tools belong here."
+            "Explicit allowlist of canonical tools/list names whose results may be cached "
+            "(needs cache_ttl_seconds). Only stable read-only tools belong here."
         ),
     )
     connect_timeout: float = Field(
