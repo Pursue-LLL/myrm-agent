@@ -207,8 +207,7 @@ class _WorkflowASTVisitor(ast.NodeVisitor):
                     severity=LintSeverity.FATAL,
                     issue_code="UNBOUNDED_LOOP",
                     message=(
-                        f"Loop condition at line {node.lineno} never changes inside the body, "
-                        "so it cannot terminate."
+                        f"Loop condition at line {node.lineno} never changes inside the body, so it cannot terminate."
                     ),
                     line=node.lineno,
                 )
@@ -295,16 +294,16 @@ class _WorkflowASTVisitor(ast.NodeVisitor):
                 and kw.value.value > DEFAULT_MAX_CONCURRENT_SPAWNS
             ):
                 self.issues.append(
-                        LintIssue(
-                            severity=LintSeverity.WARNING,
-                            issue_code="EXCESSIVE_WORKERS",
-                            message=(
-                                f"`ThreadPoolExecutor` configured with max_workers={kw.value.value}, "
-                                f"which exceeds recommended cap ({DEFAULT_MAX_CONCURRENT_SPAWNS})."
-                            ),
-                            line=node.lineno,
-                        )
+                    LintIssue(
+                        severity=LintSeverity.WARNING,
+                        issue_code="EXCESSIVE_WORKERS",
+                        message=(
+                            f"`ThreadPoolExecutor` configured with max_workers={kw.value.value}, "
+                            f"which exceeds recommended cap ({DEFAULT_MAX_CONCURRENT_SPAWNS})."
+                        ),
+                        line=node.lineno,
                     )
+                )
 
     def finalize_dataflow_checks(self) -> None:
         """Verify that assigned subagent output variables are referenced downstream."""
