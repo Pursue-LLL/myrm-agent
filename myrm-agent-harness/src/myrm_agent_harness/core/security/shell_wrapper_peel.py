@@ -18,6 +18,9 @@ is that reading. It owns both wrapper tables so they cannot drift apart:
   ``timeout``.
 - substitution_bodies: the command text inside each ``$(...)`` and backtick the shell would run. An
   arithmetic ``$((...))`` runs no command of its own, so only a substitution nested inside it is returned.
+- SHELLS / shell_script: the names of the shell interpreters, and the script a shell ``-c`` or ``eval`` at one
+  word index hands to the shell, for callers that scan every word of a command instead of reading only what
+  stands at its start.
 - direct_command_readings: the commands one line hands control to in one step — the command at the bottom of
   the prefix chain, a ``-c`` script or ``eval``, a substitution body. The chain is peeled with an index, so
   its length never hides the command it runs nor costs more than the text to read.
@@ -57,7 +60,7 @@ DENY_WRAPPER_DEPTH: Final = 64
 MAX_COMMAND_READINGS: Final = 256
 
 _ASSIGNMENT_RE: Final = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
-_SHELLS: Final = frozenset({"sh", "bash", "zsh", "dash", "ksh", "ash", "mksh"})
+SHELLS: Final = frozenset({"sh", "bash", "zsh", "dash", "ksh", "ash", "mksh"})
 
 # Commands whose only job is to run the command they are given; they are read through in both directions.
 TRANSPARENT_WRAPPERS: Final[frozenset[str]] = frozenset({"command", "time", "timeout"})
@@ -298,7 +301,7 @@ def _peel_transparent_index(words: Sequence[str], start: int) -> int | None:
     return _transparent_inner(words, rest + 1, base)
 
 
-def _shell_script_index(words: Sequence[str], start: int) -> str | None:
+def shell_script(words: Sequence[str], start: int) -> str | None:
     """The script text the shell ``-c`` form or ``eval`` at *start* runs as its own command line.
 
     None means the form is not such a one, or names a script file whose text this layer cannot read. A shell
@@ -314,7 +317,7 @@ def _shell_script_index(words: Sequence[str], start: int) -> str | None:
         while index < len(words) and words[index] == "--":
             index += 1
         return " ".join(words[index:]) if index < len(words) else None
-    if base not in _SHELLS:
+    if base not in SHELLS:
         return None
     index = rest + 1
     while index < len(words):
@@ -442,7 +445,7 @@ def direct_command_readings(command: str) -> tuple[str, ...]:
         index = 0
         peeled = False
         while index < len(words):
-            script = _shell_script_index(words, index)
+            script = shell_script(words, index)
             if script is not None:
                 found.append(script.strip())
                 break
