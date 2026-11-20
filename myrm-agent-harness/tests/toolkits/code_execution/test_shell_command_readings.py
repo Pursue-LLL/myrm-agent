@@ -72,7 +72,24 @@ _WRAPPER_FORMS = (
     "sh -c 'bash -c \"{d}\"'",
 )
 
-_FORMS = _SEPARATOR_FORMS + _WRAPPER_FORMS
+# The command sits in a group: the opener and the closer are glued to the words around it, and the two can belong
+# to different statements of the line.
+_GROUP_FORMS = (
+    "({d})",
+    "( {d} )",
+    "(({d}))",
+    "{d})",
+    "then ({d})",
+    "echo hi && ({d})",
+    "(cd /tmp && {d})",
+    "(cd /tmp; {d})",
+    "if true; then ({d}); fi",
+    "{{ ({d}); }}",
+    "(sudo {d})",
+    "(env X=1 {d})",
+)
+
+_FORMS = _SEPARATOR_FORMS + _WRAPPER_FORMS + _GROUP_FORMS
 
 # The shell that runs a script stands behind something no prefix table names: a reserved word, a group, a
 # redirection, a command that runs its arguments, a ``case`` arm or a function body.
@@ -166,6 +183,32 @@ def test_quoted_text_and_harmless_wrapped_commands_are_not_blocked(command: str)
     assert has_block_threat(command) is None
 
 
+_PREFIXES = ("env", "env X=1", "nohup", "time", "timeout 5", "xargs", "command", "nice -n 5", "watch -n1")
+_QUOTED_FORMS = ("echo '{d}'", "git commit -m 'never run {d}'", "grep -rn '{d}' docs/")
+
+
+@pytest.mark.parametrize("form", _QUOTED_FORMS)
+@pytest.mark.parametrize("prefix", _PREFIXES)
+@pytest.mark.parametrize("base", _BLOCKED_BASES + _ESCALATED_BASES)
+def test_dangerous_text_quoted_behind_a_prefix_is_no_threat(base: str, prefix: str, form: str) -> None:
+    """A prefix hands control to the command behind it, so the quoted text of that command stays text."""
+    command = f"{prefix} {form.format(d=base)}"
+    assert analyze_command(command) == ()
+    assert not is_destructive_command(command)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "(echo x > uv.lock)",
+        "(cd d && echo x > package-lock.json)",
+        "(sed -i s/a/b/ yarn.lock)",
+    ],
+)
+def test_a_rule_that_ends_at_a_file_name_sees_through_a_group_closer(command: str) -> None:
+    assert has_block_threat(command) is not None
+
+
 def test_a_threat_found_in_several_readings_is_reported_once() -> None:
     threats = analyze_command("rm -rf ~; sh -c 'rm -rf ~'")
     assert len(threats) == len(set(threats))
@@ -237,6 +280,7 @@ def test_a_shell_script_behind_a_long_chain_of_evals_is_still_read() -> None:
         "eval 'git clean -fd'",
         "sudo bash -c 'mv a b'",
         "(rm -rf build)",
+        "(cd d && git reset)",
         "trap 'rm -rf build' EXIT",
         "echo ok;rm -rf build",
     ],
@@ -252,6 +296,9 @@ def test_a_destructive_command_is_found_behind_a_wrapper(command: str) -> None:
         "sh -c 'echo hi'",
         "sudo ls",
         "git status; git log --oneline",
+        "env echo 'rm -rf build'",
+        "timeout 30 grep -rn 'rm -rf /' scripts/",
+        "nice git log --grep='git reset --hard'",
     ],
 )
 def test_a_harmless_command_is_not_destructive_behind_a_wrapper(command: str) -> None:

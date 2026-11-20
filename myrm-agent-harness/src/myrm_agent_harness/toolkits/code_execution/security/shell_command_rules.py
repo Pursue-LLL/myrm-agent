@@ -87,17 +87,24 @@ INJECTION_VECTORS_COMPILED: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern), desc) for pattern, desc in _INJECTION_VECTORS
 )
 
+# An ``rm`` operand ends at white space, at the end of the command, or at a character that ends it with no space
+# between (``rm -fr / >log``, ``rm -rf ~;ls``, the ``)`` of ``(rm -rf ~)``), so ``rm -fr / # note`` and
+# ``find . -exec rm -rf / \;`` end it as ``rm -rf /`` does.
+_OPERAND_END = r"(?=\s|$|[;&|<>)])"
+_ROOT_OPERAND = rf"/{_OPERAND_END}"
+_HOME_OPERAND = rf"~(?:/|{_OPERAND_END})"
+
 _DANGEROUS_COMMANDS: tuple[tuple[str, str], ...] = (
-    (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*/\s*$", "Deleting root directory"),
+    (rf"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*{_ROOT_OPERAND}", "Deleting root directory"),
     (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*/\*", "Deleting all files in root"),
-    (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*~(/|\s|$)", "Deleting home directory"),
+    (rf"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*{_HOME_OPERAND}", "Deleting home directory"),
     (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*\$HOME\b", "Deleting home directory"),
     (r"\brm\s+-rf\s+/(?!\w)", "Recursive force delete from root"),
     # Long-form options: --force, --recursive, --no-preserve-root
     (r"\brm\s+(\S+\s+)*--no-preserve-root\b", "Bypassing rm safety with --no-preserve-root"),
-    (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*/\s*$", "Deleting root (long-form options)"),
+    (rf"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*{_ROOT_OPERAND}", "Deleting root (long-form options)"),
     (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*/\*", "Deleting root files (long-form options)"),
-    (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*~(/|\s|$)", "Deleting home (long-form options)"),
+    (rf"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*{_HOME_OPERAND}", "Deleting home (long-form options)"),
     (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*\$HOME\b", "Deleting home (long-form options)"),
     # Options-after-operand: rm /path -rf, rm ~ -rf
     (r"\brm\s+/\s+-[a-zA-Z]*[rf][a-zA-Z]*", "Deleting root (options after path)"),
