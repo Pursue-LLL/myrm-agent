@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
+from typing import NoReturn
 
 import pytest
 from pydantic import ValidationError
@@ -53,6 +54,12 @@ def _limit(usd: float) -> ChannelBudgetPolicyRequest:
 
 async def _stored() -> dict[str, ChannelBudgetPolicy]:
     return {policy.channel_key: policy for policy in (await load_channel_budget_policies()).policies}
+
+
+def _spent() -> object:
+    status = get_channel_budget_registry().get_status(KEY)
+    assert status is not None
+    return status["today_cost_usd"]
 
 
 @pytest.mark.asyncio
@@ -102,6 +109,38 @@ async def test_a_patch_takes_effect_on_the_budget_being_enforced() -> None:
 
     await patch_channel_budget(KEY, ChannelBudgetPolicyPatch(enabled=False))
     assert should_block_channel(KEY) is False
+
+
+@pytest.mark.asyncio
+async def test_a_patch_keeps_the_cost_a_turn_added_after_the_spend_was_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    await update_channel_budget(KEY, _limit(5.0))
+    read_spend = channel_budget._query_channel_today_cost
+
+    async def read_spend_then_finish_a_turn(channel_key: str) -> float:
+        spent = await read_spend(channel_key)
+        record_channel_cost(KEY, 0.7)  # stored and counted after the spend was read, before the edit is written
+        return spent
+
+    monkeypatch.setattr(channel_budget, "_query_channel_today_cost", read_spend_then_finish_a_turn)
+
+    await patch_channel_budget(KEY, ChannelBudgetPolicyPatch(daily_limit_usd=3.0))
+
+    assert _spent() == pytest.approx(0.7)
+
+
+@pytest.mark.asyncio
+async def test_a_patch_keeps_the_cost_when_the_spend_cannot_be_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    await update_channel_budget(KEY, _limit(5.0))
+    record_channel_cost(KEY, 0.7)
+
+    def unreadable_day_start(days_ago: int = 0) -> NoReturn:
+        raise OSError("the spend cannot be read")
+
+    monkeypatch.setattr(channel_budget, "budget_day_start_utc", unreadable_day_start)
+
+    await patch_channel_budget(KEY, ChannelBudgetPolicyPatch(daily_limit_usd=3.0))
+
+    assert _spent() == pytest.approx(0.7)
 
 
 @pytest.mark.asyncio

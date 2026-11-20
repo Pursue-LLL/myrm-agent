@@ -121,7 +121,7 @@ const ChannelBudgetSection = memo(() => {
         await updateChannelBudget(channelKey, patch);
         await fetchData();
       } catch {
-        /* silent */
+        // apiRequest has already shown the failure.
       } finally {
         setSaving(null);
       }
@@ -136,7 +136,7 @@ const ChannelBudgetSection = memo(() => {
         await deleteChannelBudget(channelKey);
         await fetchData();
       } catch {
-        /* silent */
+        // apiRequest has already shown the failure.
       } finally {
         setSaving(null);
       }
@@ -160,7 +160,7 @@ const ChannelBudgetSection = memo(() => {
       setNewEntry({ channel_key: '', daily_limit_usd: 2.0, warning_threshold: 0.8, enabled: true, label: '' });
       await fetchData();
     } catch {
-      /* silent */
+      // apiRequest has already shown the failure.
     } finally {
       setSaving(null);
     }
