@@ -5,9 +5,10 @@
 - perception.ax_dispatch::inspect_backend, run_ax_call (POS: foreground app probe, awaited off the event loop on macOS)
 - iphone_mirror::is_iphone_mirror_app, probe_iphone_mirror_state (POS: connect-prompt gate, awaited off the event loop on macOS)
 - semantic_gate, safety (POS: coordinate landing gate, hard blocks)
+- action_log::log_capture_refused (POS: the log line of a refused screenshot)
 
 [OUTPUT]
-- DesktopVisionMixin: desktop_vision_capture (screenshot; refused while the screen is locked or asleep or a sensitive app is in front), desktop_vision_action (coordinate click, type, key, scroll, drag, move, wait), _build_multimodal_response (text plus image result)
+- DesktopVisionMixin: desktop_vision_capture (screenshot; refused, and logged, while the screen is locked or asleep or a sensitive app is in front), desktop_vision_action (coordinate click, type, key, scroll, drag, move, wait), _build_multimodal_response (text plus image result)
 
 [POS]
 Coordinate-based entry for canvas areas and windows without an AX tree; screen, sensitive-app and (for input) argument,
@@ -32,6 +33,7 @@ from myrm_agent_harness.toolkits.computer_use.types import (
     ScrollDirection,
 )
 
+from .action_log import log_capture_refused
 from .host import DesktopSessionHost
 
 logger = logging.getLogger(__name__)
@@ -43,10 +45,12 @@ class DesktopVisionMixin(DesktopSessionHost):
     async def desktop_vision_capture(self) -> str | list[object]:
         """Screenshot for the model, behind the same screen and sensitive-app checks as the AX snapshot."""
         if (refusal := await self._screen_guard.refusal(snapshot=True)) is not None:
+            log_capture_refused("screen")
             return refusal
         fg_app, fg_title, fg_app_id = await run_ax_call(self._backend, self._foreground_identity)
         if blocked := safety.is_sensitive_app(fg_app, fg_title, fg_app_id):
             logger.warning("[SECURITY] Sensitive app guard (vision capture): %s", blocked)
+            log_capture_refused("sensitive_app")
             return f"Safety: Cannot view the screen. {blocked}"
         return await self._capture_response()
 
@@ -147,9 +151,9 @@ class DesktopVisionMixin(DesktopSessionHost):
                     if permission_denied is not None:
                         return f"Permission denied: {permission_denied.error}"
 
-                    stale_error = await self._revalidate_if_stale_after_approval()
-                    if stale_error is not None:
-                        return stale_error
+                    revalidation = await self._revalidate_if_stale_after_approval()
+                    if revalidation.refusal is not None:
+                        return revalidation.refusal
                 finally:
                     self.clear_operation_foreground_waiver()
 

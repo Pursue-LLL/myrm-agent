@@ -8,9 +8,10 @@
 - execution.healer::try_bbox_click (POS: coordinate fallback for an action the native route cannot perform)
 - semantic_gate, safety, core.security.credential_vault (POS: destructive-action gate, hard blocks, credential fill)
 - types::DESKTOP_TEXT_ACTIONS (POS: the verbs that only enter text; the others reach the element as an activation)
+- action_log::InteractOutcome, InteractTrace (POS: the one structured log line of a call: verb, outcome, fallback, re-read, duration)
 
 [OUTPUT]
-- DesktopInteractMixin: desktop_interact (screen guard, per-app approval, revalidation, gates, native action with bbox fallback only after an unsupported action, follow-up snapshot)
+- DesktopInteractMixin: desktop_interact (screen guard, per-app approval, revalidation, gates, native action with bbox fallback only after an unsupported action, follow-up snapshot; one log line per call)
 
 [POS]
 Mutating semantic entry of the desktop tools; every gate that can refuse the action runs before anything reaches the
@@ -18,7 +19,8 @@ element. The approval is asked for the application the registry holds; after the
 the follow-up snapshot all use the one capture the element was resolved from. A native failure that is stale or of
 unknown outcome is reported and never retried or clicked by coordinates; a text entry the native route declines is
 gated once more, as the click the coordinate fallback delivers. A credential the vault filled is remembered before it
-is delivered, so no capture shows it back, and the errors a reply quotes never carry it.
+is delivered, so no capture shows it back, and the errors a reply quotes never carry it. Every call writes one log
+line on every way out, which names the verb and how the call ended and never an element, a text or a value.
 """
 
 from __future__ import annotations
@@ -34,6 +36,7 @@ from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invo
 from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import DESKTOP_TEXT_ACTIONS, DesktopInteractAction, ModifierKey
 
+from .action_log import InteractOutcome, InteractTrace
 from .host import DesktopSessionHost
 
 logger = logging.getLogger(__name__)
@@ -105,6 +108,19 @@ class DesktopInteractMixin(DesktopSessionHost):
         modifiers: list[ModifierKey] | None = None,
         wait_seconds: float = 0.0,
     ) -> str | list[object]:
+        with InteractTrace(action) as trace:
+            return await self._interact(trace, ref, action, text, modifiers, wait_seconds)
+
+    async def _interact(
+        self,
+        trace: InteractTrace,
+        ref: str,
+        action: DesktopInteractAction,
+        text: str,
+        modifiers: list[ModifierKey] | None,
+        wait_seconds: float,
+    ) -> str | list[object]:
+        """The body of desktop_interact; `trace` learns how far it got, and a return without a verdict is a refusal."""
         await self._ensure_not_user_takeover()
         if (refusal := await self._screen_guard.refusal()) is not None:
             return refusal
@@ -122,9 +138,10 @@ class DesktopInteractMixin(DesktopSessionHost):
                 return f"Control denied: {app_denied.error}"
 
             try:
-                stale_error = await self._revalidate_if_stale_after_approval(interact_ref=ref)
-                if stale_error is not None:
-                    return stale_error
+                revalidation = await self._revalidate_if_stale_after_approval(interact_ref=ref)
+                trace.revalidated = revalidation.triggered
+                if revalidation.refusal is not None:
+                    return revalidation.refusal
 
                 try:
                     element, meta = self._refs.resolve(ref)
@@ -188,6 +205,9 @@ class DesktopInteractMixin(DesktopSessionHost):
                 if not ax_result.success:
                     ax_result = replace(ax_result, error=self._filled_secrets.redact(ax_result.error))
                     if ax_result.failure is not AxFailure.UNSUPPORTED:
+                        trace.outcome = (
+                            InteractOutcome.STALE if ax_result.failure is AxFailure.STALE else InteractOutcome.UNKNOWN
+                        )
                         return _stopped_without_fallback(element, meta, ax_result)
                     # The fallback clicks the element before it types, so a text entry reaches the control as an
                     # activation here; an activation verb was gated before the native attempt.
@@ -196,8 +216,10 @@ class DesktopInteractMixin(DesktopSessionHost):
                         and (click_blocked := await self._semantic_block(element, meta, "click", text)) is not None
                     ):
                         return click_blocked
+                    trace.fallback = True
                     bbox_result = await try_bbox_click(self, element, effective_action, effective_text, modifiers)
                     if not bbox_result.success:
+                        trace.outcome = InteractOutcome.UNSUPPORTED
                         bbox_error = self._filled_secrets.redact(bbox_result.error)
                         remedy_hint = (
                             f"[REMEDY_HINT: Action '{action}' on @{element.ref_id} failed via accessibility invocation "
@@ -212,6 +234,7 @@ class DesktopInteractMixin(DesktopSessionHost):
                             f"{ax_result.error}; bbox fallback: {bbox_error}\n{remedy_hint}"
                         )
 
+                trace.outcome = InteractOutcome.DELIVERED
                 base_delay = self._config.screenshot_delay
                 if wait_seconds > 0:
                     base_delay += min(max(float(wait_seconds), 0.0), 10.0)

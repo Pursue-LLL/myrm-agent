@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from myrm_agent_harness.toolkits.computer_use.desktop_session.guards import Revalidation
 from myrm_agent_harness.toolkits.computer_use.safety import (
     _BLOCKED_KEY_COMBOS,
     _DANGEROUS_TYPE_PATTERNS,
@@ -335,7 +336,7 @@ class TestComputerActionSafetyIntegration:
     ) -> None:
         """Lone operators fail closed without needing a capturable display."""
         session._revalidate_if_stale_after_approval = AsyncMock(
-            return_value="Safety Re-validation failed: screencapture failed"
+            return_value=Revalidation(triggered=True, refusal="Safety Re-validation failed: screencapture failed")
         )
         session.check_foreground_permission = AsyncMock(return_value=None)
         session.check_app_approval = AsyncMock(return_value=None)
@@ -353,7 +354,7 @@ class TestComputerActionSafetyIntegration:
         session.check_app_approval = AsyncMock(return_value=None)
         session.check_foreground_permission = AsyncMock(return_value=None)
         session._revalidate_if_stale_after_approval = AsyncMock(
-            return_value="Safety Re-validation failed: screencapture failed"
+            return_value=Revalidation(triggered=True, refusal="Safety Re-validation failed: screencapture failed")
         )
         result = await action_tool.ainvoke({"action": "key", "text": "+"})
         assert isinstance(result, str)

@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+from myrm_agent_harness.toolkits.computer_use.desktop_session.guards import Revalidation
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.recording.capture_driver import DesktopCaptureDriver
@@ -135,7 +136,7 @@ class TestDesktopSessionCallSites:
         with patch(f"{_SESSION}.guards.capture_snapshot", reread):
             outcome = await session._revalidate_if_stale_after_approval(interact_ref=ref_id)
 
-        assert outcome is None
+        assert outcome == Revalidation(triggered=True)
         _ran_once_where_expected(reread, platform)
 
     async def test_foreground_identity_of_a_vision_capture(self, platform: str) -> None:

@@ -5,6 +5,7 @@
 - dref.registry::DRefRegistry (POS: @dref registry the mixins read; it is written only through _adopt_capture)
 - dref.types::ElementRef, SnapshotMeta, SnapshotScope (POS: element and snapshot types of the cross-mixin signatures)
 - adopt::Adoption (POS: result of registering a capture)
+- guards::Revalidation (POS: result of the approval-delay check)
 - secrecy::FilledSecrets (POS: the secrets the vault filled, redacted from every capture before it is registered)
 
 [OUTPUT]
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 
     from .adopt import Adoption
+    from .guards import Revalidation
     from .secrecy import FilledSecrets
 
     class DesktopSessionHost(ComputerSession):
@@ -54,7 +56,7 @@ if TYPE_CHECKING:
 
         def _adopt_capture(self, meta: SnapshotMeta, capture: Mapping[str, ElementRef]) -> Adoption | str: ...
 
-        async def _revalidate_if_stale_after_approval(self, *, interact_ref: str | None = None) -> str | None: ...
+        async def _revalidate_if_stale_after_approval(self, *, interact_ref: str | None = None) -> Revalidation: ...
 
         async def _capture_guard_screenshot(self) -> tuple[str, tuple[int, int]]: ...
 

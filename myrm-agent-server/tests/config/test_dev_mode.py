@@ -56,6 +56,17 @@ def test_a_silent_clarification_resume_is_visible_at_the_production_log_level() 
     assert ask_question_result.logger.isEnabledFor(logging.INFO)
 
 
+def test_the_desktop_action_log_is_visible_at_the_production_log_level() -> None:
+    """The lines that count how each desktop tool call ends must survive the WARNING default, or the count is always zero."""
+    from myrm_agent_harness.toolkits.computer_use.desktop_session import action_log
+
+    with patch.dict(os.environ, {"DEBUG": "false"}, clear=False):
+        configure_logging()
+
+    assert logging.getLogger().level == logging.WARNING
+    assert action_log.logger.isEnabledFor(logging.INFO)
+
+
 def test_error_traceback_in_debug_mode() -> None:
     """Test MyrmError returns traceback in debug mode."""
     with patch.dict(os.environ, {"DEBUG": "true"}, clear=False):
