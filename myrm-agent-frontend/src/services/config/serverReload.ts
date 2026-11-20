@@ -8,11 +8,13 @@
  * reloadKeysFromServer: replaces the cached copies of the given keys with what the server holds now.
  *
  * [POS]
- * The sync layer reads the server once, at startup. A backend writer that runs while the page is open (the migration
- * wizard edits model slots, MCP servers and global instructions) leaves the cache behind: the settings pages show the
- * old values, and the next save carries the old merge base into a version conflict that, for a list such as the
- * providers, can only be settled by dropping one side. Callers hand in the live caches through `RecordSink`; nothing
- * here holds state.
+ * The sync layer neither polls nor subscribes to the backend: it reads the configuration at startup (progressively in
+ * Sandbox mode) and afterwards reads a key again only when one of its own writes hits a version conflict or a caller
+ * asks for a reload. A backend writer that runs while the page is open (the migration wizard edits model slots, MCP
+ * servers and global instructions; a plugin import or uninstall edits the MCP servers) leaves the cache behind: the
+ * settings pages show the old values, and the next save carries the old merge base into a version conflict that, for a
+ * list such as the providers, can only be settled by dropping one side. Callers hand in the live caches through
+ * `RecordSink`; nothing here holds state.
  */
 import { valuesEqual } from './configFingerprint';
 import { adoptServerRecord } from './conflictResolution';
