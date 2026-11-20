@@ -24,7 +24,6 @@ Detailed design: [DESKTOP_SYSTEM.md](DESKTOP_SYSTEM.md).
 | coordinate_scaler.py | Core | DPI-aware coordinate transformer | ✅ |
 | som_overlay.py | Core | SOM numbered overlay on JPEG; agent path when `include_screenshot=True`, inspector refresh when screenshot captured; stable [N]↔@dref map (cap 80) | ✅ |
 | session.py | Core | ComputerSession orchestrator (coordinate I/O, app + foreground gates, operation-scoped foreground waiver) | ✅ |
-| desktop_session.py | Core | DesktopSession: AX snapshot, @dref registry, action lock serialization, self-healing remedy hints, shared approval revalidation, iPhone Mirroring connect-prompt gate (interact hard-deny / vision probe gate / snapshot gate banner), DESKTOP_VIEW_UPDATE, export_inspector_snapshot | ✅ |
 | desktop_agent_tools.py | Core | 3 LangChain tools: snapshot / interact / vision | ✅ |
 | envelope.py | Core | Intent envelope contracts (`IntentEnvelopeSpec`), keystroke sanitizer (`KeystrokeSanitizer`), modal window trust hierarchy, and boundary checker (`check_envelope_action`) | ✅ |
 | mcp_server.py | Surface | MCP server adapter exposing desktop tools (DesktopMCPServer, register_desktop_mcp_tools) to external agents | ✅ |
@@ -32,6 +31,7 @@ Detailed design: [DESKTOP_SYSTEM.md](DESKTOP_SYSTEM.md).
 | Submodule | Description |
 |-----------|-------------|
 | backends/ | Platform I/O: one subpackage per platform (macos/, linux/, windows/) plus cua_driver/ — see [backends/_ARCH.md](backends/_ARCH.md) |
+| desktop_session/ | DesktopSession: AX snapshot, @dref registry, action lock serialization, self-healing remedy hints, shared approval revalidation, iPhone Mirroring connect-prompt gate (interact hard-deny / vision probe gate / snapshot gate banner), DESKTOP_VIEW_UPDATE, export_inspector_snapshot; one mixin per tool entry point — see [desktop_session/_ARCH.md](desktop_session/_ARCH.md) |
 | perception/ | AX tree capture, incremental diff, overlay role SSOT, renderer, ax_dispatch — see [perception/_ARCH.md](perception/_ARCH.md) |
 | execution/ | BBox click healer fallback — see [execution/_ARCH.md](execution/_ARCH.md) |
 | dref/ | @dref types, registry, errors (internal submodule) |

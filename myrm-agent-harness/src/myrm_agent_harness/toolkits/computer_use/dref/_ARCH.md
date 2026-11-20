@@ -16,6 +16,6 @@ Owned by `computer_use/` — not a standalone toolkit.
 
 ## Consumers
 
-- `computer_use/desktop_session.py`
+- `computer_use/desktop_session/`
 - `computer_use/perception/*`
 - `computer_use/execution/healer.py`

@@ -17,9 +17,7 @@ class TestMacOSNativeApiHint:
     """Tests for macOS _native_api_hint and _SCRIPTABLE_APPS."""
 
     def test_known_app_returns_hint(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _native_api_hint,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _native_api_hint
 
         result = _native_api_hint("Finder")
         assert "AppleScript" in result
@@ -27,17 +25,13 @@ class TestMacOSNativeApiHint:
         assert "osascript" in result
 
     def test_unknown_app_returns_empty(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _native_api_hint,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _native_api_hint
 
         result = _native_api_hint("SomeRandomApp")
         assert result == ""
 
     def test_office_apps_in_list(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _SCRIPTABLE_APPS,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _SCRIPTABLE_APPS
 
         for app in [
             "Microsoft Excel",
@@ -48,17 +42,13 @@ class TestMacOSNativeApiHint:
             assert app in _SCRIPTABLE_APPS
 
     def test_core_macos_apps_in_list(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _SCRIPTABLE_APPS,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _SCRIPTABLE_APPS
 
         for app in ["Finder", "Mail", "Safari", "Calendar", "Notes", "Terminal"]:
             assert app in _SCRIPTABLE_APPS
 
     def test_adobe_apps_in_list(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _SCRIPTABLE_APPS,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _SCRIPTABLE_APPS
 
         for app in [
             "Adobe Photoshop",
@@ -69,9 +59,7 @@ class TestMacOSNativeApiHint:
             assert app in _SCRIPTABLE_APPS
 
     def test_creative_dev_apps_in_list(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _SCRIPTABLE_APPS,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _SCRIPTABLE_APPS
 
         for app in [
             "Sketch",
@@ -84,31 +72,25 @@ class TestMacOSNativeApiHint:
             assert app in _SCRIPTABLE_APPS
 
     def test_case_sensitive_matching(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _native_api_hint,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _native_api_hint
 
         assert _native_api_hint("finder") == ""
         assert _native_api_hint("FINDER") == ""
         assert "AppleScript" in _native_api_hint("Finder")
 
     def test_hint_includes_app_name(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _native_api_hint,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _native_api_hint
 
         result = _native_api_hint("Mail")
         assert "'Mail'" in result
 
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot"
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot"
     )
     def test_inspect_foreground_appends_hint(self, mock_snapshot):
         from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            MacAxSnapshot,
-            inspect_foreground,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture import MacAxSnapshot
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
 
         meta = SnapshotMeta(
             ref_count=5, app_name="Finder", window_title="Desktop", scope="foreground"
@@ -124,14 +106,12 @@ class TestMacOSNativeApiHint:
         assert "bash_code_execute_tool" in rec
 
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot"
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot"
     )
     def test_inspect_foreground_no_hint_for_unknown(self, mock_snapshot):
         from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            MacAxSnapshot,
-            inspect_foreground,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture import MacAxSnapshot
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
 
         meta = SnapshotMeta(
             ref_count=3, app_name="UnknownApp", window_title="", scope="foreground"
@@ -145,24 +125,20 @@ class TestMacOSNativeApiHint:
         assert "AppleScript" not in rec
 
     def test_empty_string_returns_empty(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _native_api_hint,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _native_api_hint
 
         assert _native_api_hint("") == ""
 
     def test_substring_not_matched_macos(self):
         """macOS uses exact match, not substring."""
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _native_api_hint,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _native_api_hint
 
         assert _native_api_hint("Finder - Documents") == ""
         assert _native_api_hint("My Finder App") == ""
 
     def test_all_scriptable_apps_produce_hint(self):
         """Every app in the frozenset must produce a non-empty hint."""
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
             _SCRIPTABLE_APPS,
             _native_api_hint,
         )
@@ -173,15 +149,13 @@ class TestMacOSNativeApiHint:
             assert "AppleScript" in result
 
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot"
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot"
     )
     def test_inspect_foreground_adobe_photoshop(self, mock_snapshot):
         """New app Adobe Photoshop should trigger hint in inspect flow."""
         from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            MacAxSnapshot,
-            inspect_foreground,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture import MacAxSnapshot
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
 
         meta = SnapshotMeta(
             ref_count=10,
@@ -413,7 +387,7 @@ class TestCrossPlatformConsistency:
         from myrm_agent_harness.toolkits.computer_use.perception.linux_ax import (
             _DBUS_AUTOMATABLE_APPS as linux_apps,  # noqa: N811 语义别名
         )
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
             _SCRIPTABLE_APPS as mac_apps,  # noqa: N811 语义别名
         )
         from myrm_agent_harness.toolkits.computer_use.perception.windows_ax import (
@@ -425,7 +399,7 @@ class TestCrossPlatformConsistency:
         assert "Firefox" in linux_apps
 
     def test_vscode_on_mac_and_windows(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
             _SCRIPTABLE_APPS as mac_apps,  # noqa: N811 语义别名
         )
         from myrm_agent_harness.toolkits.computer_use.perception.windows_ax import (
@@ -439,7 +413,7 @@ class TestCrossPlatformConsistency:
         from myrm_agent_harness.toolkits.computer_use.perception.linux_ax import (
             _DBUS_AUTOMATABLE_APPS as linux_apps,  # noqa: N811 语义别名
         )
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
             _SCRIPTABLE_APPS as mac_apps,  # noqa: N811 语义别名
         )
         from myrm_agent_harness.toolkits.computer_use.perception.windows_ax import (
@@ -451,7 +425,7 @@ class TestCrossPlatformConsistency:
         assert "WPS Office" in linux_apps
 
     def test_adobe_photoshop_on_mac_and_windows(self):
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
             _SCRIPTABLE_APPS as mac_apps,  # noqa: N811 语义别名
         )
         from myrm_agent_harness.toolkits.computer_use.perception.windows_ax import (

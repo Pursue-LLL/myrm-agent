@@ -41,7 +41,7 @@ async def test_export_inspector_snapshot_permission_includes_screen_fields() -> 
     session = DesktopSession(backend=backend, config=ComputerUseConfig())
 
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
         side_effect=AXPermissionRequiredError("macOS"),
     ):
         payload = await session.export_inspector_snapshot()

@@ -12,7 +12,7 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 | ax_diff.py | Core | Incremental AX tree diff: `compute_ref_diff` compares two snapshots via (role, name) identity matching + bbox proximity, produces `RefDiff` with 4-layer full-view fallback (first snapshot / app change / high change ratio / low identity confidence) | ✅ |
 | overlay_roles.py | Core | Cross-platform overlay role SSOT for SOM + Inspector | ✅ |
 | renderer.py | Core | AX tree text rendering: `render_snapshot_tree` (full) + `render_diff_tree` (incremental diff with +/~/- markers); optional `[N]` SOM line prefixes | ✅ |
-| macos_ax.py | Platform | macOS Accessibility API snapshot + invoke + native API routing hints; targeted capture by app name (exact name with contains fallback, auto-restores minimized windows, bypasses frontmost; not found falls back to foreground with `scope` reflecting `foreground`); `refs_for_view_update` fills `nth` from SOM map. A password field is identified by its **subrole** (`AXSecureTextField`) and its `value` is never read | ✅ |
+| macos_ax/ | Platform | macOS Accessibility API snapshot + invoke + native API routing hints (package; see its `_ARCH.md`); targeted capture by app name (exact name with contains fallback, auto-restores minimized windows, bypasses frontmost; not found falls back to foreground with `scope` reflecting `foreground`). A password field is identified by its **subrole** (`AXSecureTextField`) and its `value` is never read | ✅ |
 | windows_ax.py | Platform | Windows UI Automation snapshot + invoke (pattern actions delegated to `windows_ax_actions`) + COM/PowerShell routing hints; targeted capture by process name via shared `_locate_window` with auto-restore of minimized windows and rendering settle wait (capture and invoke reuse it for index consistency). A password edit (`IsPassword`) skips the ValuePattern read and is reported as `PasswordBox`. The snapshot `app_id` (`win:<exe>`, the stable trust key) and the process-name window match both resolve the executable through `windows_process` | ✅ |
 | windows_ax_actions.py | Platform | UIA pattern actions on one element: `apply_uia_toggle` (**idempotent** `check`/`uncheck` via ToggleState; `toggle` always flips), `apply_uia_expand_collapse`, `apply_uia_invoke`; each falls back to Click when the control lacks the pattern | ✅ |
 | windows_process.py | Platform | `process_name_by_pid`: executable file name of a process id via Win32 `OpenProcess` + `QueryFullProcessImageNameW` (UI Automation has no pid-to-name lookup); declares ctypes prototypes so the 64-bit HANDLE is not truncated; returns `""` for protected processes and non-Windows platforms | ✅ |
@@ -24,7 +24,7 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 - `computer_use/dref/types.py` (POS: @dref types)
 - `computer_use/dref/registry.py` (POS: @dref registry; diff reads current refs via `all_refs()`/`meta` before `replace()`)
 - `computer_use/backends/protocols.py` (POS: ComputerBackend protocol)
-- Used by `desktop_session.py` (POS: semantic desktop orchestrator)
+- Used by `desktop_session/` (POS: semantic desktop orchestrator; `snapshot.py`, `interact.py`, `vision.py`, `views.py`, `guards.py` call into this package)
 
 ## Key Design: Incremental AX Tree Diff
 

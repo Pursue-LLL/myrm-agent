@@ -151,7 +151,7 @@ class TestDesktopSnapshotSensitiveGuard:
             scope="foreground",
         )
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             return_value=(mock_meta, {}),
         ):
             result = await session.desktop_snapshot()
@@ -171,11 +171,11 @@ class TestDesktopSnapshotSensitiveGuard:
         )
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+                "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
                 return_value=(mock_meta, {}),
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.desktop_session.render_snapshot_tree",
+                "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.render_snapshot_tree",
                 return_value=("tree text", mock_meta),
             ),
         ):
@@ -204,7 +204,7 @@ class TestDesktopInteractSensitiveGuard:
             scope="foreground",
         )
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
             return_value=(mock_meta, {"btn1": MagicMock()}),
         ):
             result = await session.desktop_interact(ref="btn1", action="click")
@@ -227,7 +227,7 @@ class TestDesktopVisionActionSensitiveGuard:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={
                 "app_name": "1Password 7",
                 "window_title": "Vault",
@@ -265,7 +265,7 @@ class TestDesktopVisionActionSensitiveGuard:
         )
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={
                 "app_name": "Google Chrome",
                 "window_title": "Search",

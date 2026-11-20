@@ -48,9 +48,7 @@ async def test_desktop_vision_tool_rejects_operator_key_deterministic(op: str) -
 
     backend = MagicMock()
     backend.screen_info.return_value = ScreenInfo(width=1920, height=1080, dpi_scale=1.0)
-    backend.screen_context.return_value = ScreenContext(
-        active_window="Calculator", mouse_x=100, mouse_y=200
-    )
+    backend.screen_context.return_value = ScreenContext(active_window="Calculator", mouse_x=100, mouse_y=200)
     session = DesktopSession(backend=backend, config=ComputerUseConfig())
     session._last_snapshot_time = time.time()
     session.key_press = AsyncMock()
@@ -59,16 +57,14 @@ async def test_desktop_vision_tool_rejects_operator_key_deterministic(op: str) -
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={
                 "app_name": "Calculator",
                 "window_title": "Calculator",
                 "app_id": "",
             },
         ),
-        patch.object(
-            session, "check_foreground_permission", new=AsyncMock(return_value=None)
-        ),
+        patch.object(session, "check_foreground_permission", new=AsyncMock(return_value=None)),
         patch.object(session, "check_app_approval", new=AsyncMock(return_value=None)),
     ):
         result = await vision.ainvoke({"action": "key", "text": op})
@@ -160,7 +156,7 @@ def test_agent_stream_rejects_operator_as_vision_key(
             new=_fake_screenshot,
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={
                 "app_name": "Calculator",
                 "window_title": "Calculator",

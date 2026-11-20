@@ -104,9 +104,15 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
         "agentConfig": {"enabledBuiltinTools": ["computer_use"]},
     }
 
-    with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
-        side_effect=_fake_capture_snapshot,
+    with (
+        patch(
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
+            side_effect=_fake_capture_snapshot,
+        ),
+        patch(
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
+            side_effect=_fake_capture_snapshot,
+        ),
     ):
         invoked: set[str] = set()
         try:

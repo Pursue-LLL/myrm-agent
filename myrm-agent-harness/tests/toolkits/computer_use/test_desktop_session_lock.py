@@ -64,7 +64,7 @@ async def test_desktop_interact_serializes_concurrent_calls(mock_backend: MagicM
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             side_effect=slow_invoke,
         ),
         patch.object(session, "desktop_snapshot", AsyncMock(return_value="tree text")),
@@ -110,7 +110,7 @@ async def test_desktop_interact_and_vision_action_mutual_exclusion(
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             side_effect=slow_invoke,
         ),
         patch.object(session, "desktop_snapshot", AsyncMock(return_value="snapshot")),
@@ -156,11 +156,11 @@ async def test_interact_failure_returns_structured_remedy_hint(mock_backend: Mag
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             return_value=mock_ax_result,
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.try_bbox_click",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.try_bbox_click",
             AsyncMock(return_value=mock_bbox_result),
         ),
     ):

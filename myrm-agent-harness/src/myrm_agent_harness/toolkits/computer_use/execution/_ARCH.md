@@ -14,7 +14,7 @@ Coordinate-based fallback execution when semantic AX invoke fails on a @dref ele
 
 - `computer_use/dref/types.py` (POS: ElementRef with BBox)
 - `types.py` (POS: ActionResult, ModifierKey)
-- Used by `desktop_session.py::desktop_interact` (POS: semantic desktop orchestrator)
+- Used by `desktop_session/interact.py::desktop_interact` (POS: semantic desktop orchestrator)
 
 ## Architecture Overview
 

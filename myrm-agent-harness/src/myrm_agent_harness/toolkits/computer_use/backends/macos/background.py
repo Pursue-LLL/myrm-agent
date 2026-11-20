@@ -10,7 +10,7 @@
 
 [POS]
 Background-operation primitives for the macOS backend. Imported by
-backends.macos.backend (screenshot/permissions), perception.macos_ax (EnhancedUI)
+backends.macos.backend (screenshot/permissions), perception.macos_ax.capture (EnhancedUI)
 and execution.healer (routed input + guard).
 """
 

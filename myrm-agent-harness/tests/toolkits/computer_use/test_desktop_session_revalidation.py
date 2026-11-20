@@ -34,10 +34,10 @@ async def test_desktop_interact_revalidation_success(mock_backend, mock_config):
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
             return_value=(mock_meta, mock_refs),
         ) as mock_capture,
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
     ):
         mock_invoke.return_value.success = True
         session.desktop_snapshot = AsyncMock(return_value="Follow up")
@@ -63,7 +63,8 @@ async def test_desktop_interact_revalidation_failure_ref_missing(mock_backend, m
     }  # e0 is missing
 
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot", return_value=(mock_meta, mock_refs)
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
+        return_value=(mock_meta, mock_refs),
     ):
         result = await session.desktop_interact(ref="e0", action="click")
 
@@ -78,7 +79,7 @@ async def test_desktop_vision_action_refreshes_stale_screenshot(mock_backend, mo
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={"app_name": "Test", "window_title": "Test"},
         ),
         patch.object(session, "take_screenshot", new_callable=AsyncMock) as mock_shot,
@@ -111,7 +112,7 @@ async def test_desktop_vision_action_requires_app_approval(mock_backend, mock_co
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={"app_name": "Safari", "window_title": "Example"},
         ),
         patch.object(session, "click_at", new_callable=AsyncMock) as mock_click,
@@ -144,7 +145,7 @@ async def test_desktop_interact_revalidation_capture_error(mock_backend, mock_co
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time() - 10.0
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
         side_effect=RuntimeError("capture failed"),
     ):
         result = await session.desktop_interact(ref="e0", action="click")
@@ -192,7 +193,7 @@ async def test_export_inspector_snapshot_success(mock_backend, mock_config):
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
             return_value=(meta, refs),
         ),
         patch.object(session, "take_screenshot", new_callable=AsyncMock, return_value=shot),

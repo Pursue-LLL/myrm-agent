@@ -272,7 +272,7 @@ class TestDesktopSessionReanchor:
         session.set_screen_unlock_callback(_Host(backend, unlocks=True))
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             side_effect=AXTreeEmptyError("unlocked"),
         ):
             await session.desktop_snapshot()
@@ -289,7 +289,7 @@ class TestDesktopSessionOnDemandUnlock:
         session.set_screen_unlock_callback(host)
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             side_effect=AXTreeEmptyError("unlocked"),
         ):
             result = await session.desktop_snapshot()

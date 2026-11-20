@@ -99,7 +99,7 @@ async def test_snapshot_api_real_export_inspector_snapshot_som_nth(
     with (
         patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
             return_value=(meta, refs),
         ),
     ):

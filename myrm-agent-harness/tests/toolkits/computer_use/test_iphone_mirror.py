@@ -286,9 +286,7 @@ def _make_interact_session() -> DesktopSession:
 async def test_desktop_interact_blocks_mirror_connect_click() -> None:
     """Element named 'Connect' inside the mirror app is hard-denied before invoke."""
     session = _make_interact_session()
-    with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element"
-    ) as mock_invoke:
+    with patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke:
         result = await session.desktop_interact(ref="d1", action="click")
     assert result.startswith("Safety:")
     assert "must NOT automatically click connect" in result
@@ -299,16 +297,10 @@ async def test_desktop_interact_blocks_mirror_connect_click() -> None:
 async def test_desktop_interact_allows_mirror_normal_click() -> None:
     """Normal in-mirror content clicks proceed to AX invoke."""
     session = _make_interact_session()
-    session._refs.meta = replace(
-        session._refs.meta, window_title="iPhone (Pursue's iPhone)"
-    )
-    with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element"
-    ) as mock_invoke:
+    session._refs.meta = replace(session._refs.meta, window_title="iPhone (Pursue's iPhone)")
+    with patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke:
         mock_invoke.return_value = ActionResult(success=True)
-        with patch.object(
-            session, "desktop_snapshot", new=AsyncMock(return_value="view")
-        ):
+        with patch.object(session, "desktop_snapshot", new=AsyncMock(return_value="view")):
             result = await session.desktop_interact(ref="d1", action="click")
     assert "succeeded" in result
     mock_invoke.assert_called_once()
@@ -325,7 +317,7 @@ async def test_desktop_vision_blocked_when_connect_prompt_active() -> None:
     )
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={
                 "app_name": "iPhone Mirroring",
                 "window_title": "Connect",
@@ -333,15 +325,13 @@ async def test_desktop_vision_blocked_when_connect_prompt_active() -> None:
             },
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.probe_iphone_mirror_state",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.probe_iphone_mirror_state",
             return_value=probe_result,
         ),
         patch.object(DesktopSession, "click_at", new_callable=AsyncMock) as mock_click,
     ):
         session = DesktopSession(backend=MagicMock(), config=MagicMock())
-        result = await session.desktop_vision_action(
-            action="left_click", coordinate=[10, 10]
-        )
+        result = await session.desktop_vision_action(action="left_click", coordinate=[10, 10])
     assert result.startswith("Safety:")
     assert "User must confirm" in result
     mock_click.assert_not_called()
@@ -374,11 +364,11 @@ async def test_desktop_snapshot_appends_mirror_gate_banner() -> None:
     }
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             return_value=(meta, refs),
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.probe_iphone_mirror_state",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.probe_iphone_mirror_state",
             return_value=probe_result,
         ),
     ):

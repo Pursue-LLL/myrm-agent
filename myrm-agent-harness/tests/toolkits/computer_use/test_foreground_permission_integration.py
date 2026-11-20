@@ -98,7 +98,7 @@ class TestDesktopVisionActionPermissionIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -115,7 +115,7 @@ class TestDesktopVisionActionPermissionIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -140,7 +140,7 @@ class TestDesktopVisionActionPermissionIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -159,7 +159,7 @@ class TestDesktopVisionActionPermissionIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -180,7 +180,7 @@ class TestDesktopVisionActionPermissionIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -202,7 +202,7 @@ class TestDesktopVisionActionPermissionIntegration:
 
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+                "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
                 return_value=_NON_SENSITIVE_FG_INFO,
             ),
             patch.object(session, "wait_seconds", new_callable=AsyncMock) as mock_wait,
@@ -222,7 +222,7 @@ class TestDesktopVisionActionPermissionIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -338,7 +338,7 @@ class TestDesktopInteractPermissionIntegration:
 
         failed_invoke = ActionResult(success=False, error="AX invoke not available")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             return_value=failed_invoke,
         ):
             result = await session.desktop_interact(ref="e0", action="click")
@@ -372,15 +372,15 @@ class TestDesktopInteractPermissionIntegration:
         failed_invoke = ActionResult(success=False, error="AX invoke not available")
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+                "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
                 return_value=failed_invoke,
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+                "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
                 return_value=(meta, {"de0": element}),
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.desktop_session.render_snapshot_tree",
+                "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.render_snapshot_tree",
                 return_value=("tree text", meta),
             ),
         ):
@@ -403,7 +403,7 @@ class TestVisionActionVariantsPermission:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="type", text="hello")
@@ -419,7 +419,7 @@ class TestVisionActionVariantsPermission:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="key", text="Return")
@@ -435,7 +435,7 @@ class TestVisionActionVariantsPermission:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(
@@ -453,7 +453,7 @@ class TestVisionActionVariantsPermission:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(
@@ -473,7 +473,7 @@ class TestVisionActionVariantsPermission:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             result = await session.desktop_vision_action(action="mouse_move", coordinate=[100, 100])
@@ -496,7 +496,7 @@ class TestAlwaysScopePersistence:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             await session.desktop_vision_action(action="left_click", coordinate=[50, 50])
@@ -542,7 +542,7 @@ class TestCallbackArgsIntegration:
         session._last_snapshot_time = time.time()
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value=_NON_SENSITIVE_FG_INFO,
         ):
             await session.desktop_vision_action(action="left_click", coordinate=[50, 50])

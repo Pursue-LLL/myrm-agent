@@ -8,8 +8,8 @@ import io
 from PIL import Image
 
 from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import CoordinateScaler
+from myrm_agent_harness.toolkits.computer_use.desktop_session.views import refs_for_view_update
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
-from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import refs_for_view_update
 from myrm_agent_harness.toolkits.computer_use.perception.renderer import render_snapshot_tree
 from myrm_agent_harness.toolkits.computer_use.som_overlay import (
     MAX_SOM_OVERLAY_ELEMENTS,

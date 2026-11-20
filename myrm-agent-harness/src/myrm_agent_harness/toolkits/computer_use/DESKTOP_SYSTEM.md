@@ -62,14 +62,14 @@ desktop_vision_tool (only when AX empty or interact failed)
 
 | Component | Location | Role |
 |-----------|----------|------|
-| `DesktopSession` | `desktop_session.py` | Orchestrator: registry, snapshot, interact, view updates |
+| `DesktopSession` | `desktop_session/` | Orchestrator: registry, snapshot, interact, vision, view updates (one mixin per entry point, composed in `core.py`) |
 | `create_desktop_tools` | `desktop_agent_tools.py` | LangChain tool factory |
 | `DRefRegistry` | `computer_use/dref/registry.py` | Session-scoped @dref map with previous snapshot for diff |
 | `perception/` | `ax_dispatch.py`, `ax_diff.py`, platform AX | Capture AX tree, incremental diff, invoke elements |
 | `recording/` | `synthesizer.py`, `capture_driver.py` | Skill synthesis from events, and `DesktopCaptureDriver`: polls the AX tree, diffs frames into click / type / window-focus events (skipping sensitive apps) |
 | `execution/healer.py` | BBox click fallback | When AX invoke fails |
-| `_action_lock` | `desktop_session.py` | Session-level async mutex | Serializes mutating interact/vision actions |
-| `[REMEDY_HINT]` | `desktop_session.py` | Self-healing diagnosis | Structured recovery guidance for stale refs and execution failures |
+| `_action_lock` | `desktop_session/core.py` | Session-level async mutex | Serializes mutating interact/vision actions |
+| `[REMEDY_HINT]` | `desktop_session/interact.py`, `desktop_session/vision.py` | Self-healing diagnosis | Structured recovery guidance for stale refs and execution failures |
 | `ComputerSession` | `session.py` | Screenshot + coordinate I/O |
 | `backends/` | Platform I/O | macOS, Windows, Linux |
 

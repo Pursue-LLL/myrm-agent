@@ -3,7 +3,7 @@
 ## Overview
 macOS desktop backend: screencapture + Quartz CGEvent input, window-targeted capture, clipboard-paste typing, TCC permission probes.
 
-macOS-only. Loaded by `session.py` when `detect_platform().os_type == "macos"`; `perception/macos_ax.py` also imports `permissions.py` (deeplinks) and `background.py` (EnhancedUI).
+macOS-only. Loaded by `session.py` when `detect_platform().os_type == "macos"`; `perception/macos_ax/capture.py` also imports `permissions.py` (deeplinks) and `background.py` (EnhancedUI).
 
 ## File Index
 
@@ -15,4 +15,4 @@ macOS-only. Loaded by `session.py` when `detect_platform().os_type == "macos"`; 
 | pasteboard.py | Core | macOS 剪贴板借用原语 — `snapshot` 读取全部 item 的全部类型、`write_text` 写临时文本（带 `TransientType`，失败抛 `RuntimeError`）、`restore` 以 `changeCount` 守卫还原（用户在粘贴期间新复制则放弃）；`paste_text` 在一个同步函数里完成快照、写入、按键回调、等待、`finally` 还原，模块锁串行重叠调用（`backend.py:_paste_text` 只用一次 `to_thread` 调用它）；AppKit 调用期惰性导入. | ✅ |
 | background.py | Core | macOS background ops — window resolve, `screencapture -l` capture, foreground guard, post-event permission, EnhancedUI (crash-contained probe); `_capture_screen_excluding_titles` Quartz below-window 截图通道（帷幕窗排除，失败降级原 screencapture 路径）. | ✅ |
 | ax_scripts.py | Core | macOS accessibility probe scripts — AppleScript sources (`AX_TEXT_SCRIPT` window text, `AX_DIALOG_SCRIPT` blocking dialog) consumed by `backend.py`; parsing and timeouts stay with the callers. | — |
-| permissions.py | Core | macOS TCC permission probes — Accessibility (`AXIsProcessTrusted` + osascript capability probe), Screen Recording (`CGPreflightScreenCaptureAccess`), optional capture-usability probe, post-event access, System Settings deeplinks (`_MACOS_DEEPLINKS`, also consumed by `perception/macos_ax.py`); consumed by `backend.py` `check_permissions`. | ✅ |
+| permissions.py | Core | macOS TCC permission probes — Accessibility (`AXIsProcessTrusted` + osascript capability probe), Screen Recording (`CGPreflightScreenCaptureAccess`), optional capture-usability probe, post-event access, System Settings deeplinks (`_MACOS_DEEPLINKS`, also consumed by `perception/macos_ax/capture.py`); consumed by `backend.py` `check_permissions`. | ✅ |

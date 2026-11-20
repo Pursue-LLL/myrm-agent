@@ -51,7 +51,7 @@ async def test_fill_credential_resolves_password(mock_backend, mock_config):
     elem = _setup_session_with_ref(session)
 
     with (
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
         patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
     ):
         vault = MagicMock()
@@ -77,7 +77,7 @@ async def test_fill_credential_resolves_totp(mock_backend, mock_config):
     elem = _setup_session_with_ref(session)
 
     with (
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
         patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
     ):
         vault = MagicMock()
@@ -139,7 +139,7 @@ async def test_fill_credential_success_message_with_multimodal_blocks(mock_backe
     block.text = "tree text"
 
     with (
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
         patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
     ):
         vault = MagicMock()
@@ -161,8 +161,8 @@ async def test_fill_credential_ax_fail_falls_back_to_bbox(mock_backend, mock_con
     elem = _setup_session_with_ref(session)
 
     with (
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.try_bbox_click") as mock_bbox,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.try_bbox_click") as mock_bbox,
         patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
     ):
         vault = MagicMock()
@@ -189,7 +189,7 @@ async def test_fill_credential_secret_reaches_backend_type_text(mock_backend, mo
     session._refs.get.return_value = replace(elem, bbox=BBox(x=10, y=20, width=100, height=30))
 
     with (
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
         patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
     ):
         vault = MagicMock()
@@ -213,8 +213,8 @@ async def test_fill_credential_both_ax_and_bbox_fail(mock_backend, mock_config):
     _setup_session_with_ref(session)
 
     with (
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.try_bbox_click") as mock_bbox,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.try_bbox_click") as mock_bbox,
         patch("myrm_agent_harness.core.security.credential_vault.get_global_credential_vault") as mock_get_vault,
     ):
         vault = MagicMock()

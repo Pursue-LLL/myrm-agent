@@ -62,7 +62,7 @@ async def test_desktop_snapshot_include_screenshot_applies_som_and_nth(session: 
     )
 
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
         return_value=(meta, refs),
     ):
         result = await session.desktop_snapshot(include_screenshot=True)
@@ -112,7 +112,7 @@ async def test_export_inspector_snapshot_fills_nth(session: DesktopSession) -> N
     )
 
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
         return_value=(meta, refs),
     ):
         payload = await session.export_inspector_snapshot()
@@ -154,7 +154,7 @@ async def test_desktop_snapshot_text_only_has_no_nth(session: DesktopSession) ->
 
     try:
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             return_value=(meta, refs),
         ):
             result = await session.desktop_snapshot(include_screenshot=False)
