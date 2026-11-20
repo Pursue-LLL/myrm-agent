@@ -44,14 +44,33 @@ class FakeConfig:
         self.extract_embedded_images = extract_embedded_images
 
 
-async def read_pdf_with_extraction(result: FakePDFResult, *, supports_vision: bool = False) -> str | list[ContentBlock]:
-    """Read a PDF through ``read_pdf_as_content_blocks`` while the extractor returns ``result``."""
+async def read_pdf_with_extraction(
+    result: FakePDFResult,
+    *,
+    supports_vision: bool = False,
+    described_pages: str | None = None,
+    extractor: AsyncMock | None = None,
+) -> str | list[ContentBlock]:
+    """Read a PDF through ``read_pdf_as_content_blocks`` while the extractor returns ``result``.
+
+    ``described_pages`` stands in for what the auxiliary vision chain says about the page
+    images, and switches the reader to that route; ``extractor`` lets a test see how the
+    reader called the extractor.
+    """
+    extract = extractor if extractor is not None else AsyncMock()
+    extract.return_value = result
     executor = AsyncMock()
     executor.read_file_bytes = AsyncMock(return_value=b"bytes")
     with (
         patch(f"{_READER}._write_to_temp", new_callable=AsyncMock, return_value="/tmp/t.pdf"),
         patch("os.unlink"),
-        patch(f"{_EXTRACTOR}.extract_pdf_content", new_callable=AsyncMock, return_value=result),
+        patch(f"{_EXTRACTOR}.extract_pdf_content", extract),
         patch(f"{_EXTRACTOR}.PDFExtractConfig", FakeConfig),
+        patch(f"{_READER}._describe_pdf_pages", new_callable=AsyncMock, return_value=described_pages),
     ):
-        return await read_pdf_as_content_blocks("/tmp/t.pdf", executor, supports_vision)
+        return await read_pdf_as_content_blocks(
+            "/tmp/t.pdf",
+            executor,
+            supports_vision,
+            vision_fallback_model_cfg=object() if described_pages is not None else None,
+        )

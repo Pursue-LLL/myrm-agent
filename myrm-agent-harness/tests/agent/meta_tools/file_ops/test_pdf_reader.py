@@ -6,9 +6,11 @@ import os
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from langchain_core.messages.content import ContentBlock
 
 from myrm_agent_harness.agent.meta_tools.file_ops.utils.pdf_reader import (
     _FALLBACK_MAX_CHARS,
+    PDF_READ_PAGE_WINDOW,
     STRUCTURE_OUTLINE_MAX_ENTRIES,
     _write_to_temp,
     is_pdf_path,
@@ -27,6 +29,27 @@ PARTIAL_READ_HINT = (
     "file_read cannot open the rest. Do not assume what the unread pages contain; "
     "`parse_mode='structure'` lists the headings with their page numbers."
 )
+
+# The three shapes a read takes: the PDF text alone, that text ahead of the page images, or
+# that text ahead of the vision chain's description of the page images.
+_EVERY_DELIVERY = pytest.mark.parametrize(
+    ("supports_vision", "with_images", "described_pages"),
+    [
+        pytest.param(False, False, None, id="text"),
+        pytest.param(True, True, None, id="page_images"),
+        pytest.param(False, True, "Page 1: a bar chart.", id="described_pages"),
+    ],
+)
+
+
+def _text_of(result: str | list[ContentBlock]) -> str:
+    """The PDF text of a read: the string itself, or the leading text block ahead of the page content."""
+    if isinstance(result, str):
+        return result
+    first = result[0]
+    assert first["type"] == "text"
+    return first["text"]
+
 
 # ---------------------------------------------------------------------------
 # is_pdf_path
@@ -291,6 +314,38 @@ class TestReadPdfAsContentBlocks:
         assert result.endswith(PARTIAL_READ_HINT.format(pages=page_count))
         assert "wiki" not in result.lower()
         assert "index" not in result.lower()
+
+    @pytest.mark.asyncio
+    @_EVERY_DELIVERY
+    async def test_every_delivery_shape_ends_its_text_with_the_partial_read_hint(
+        self, supports_vision: bool, with_images: bool, described_pages: str | None
+    ) -> None:
+        """However the pages reach the model, a document longer than the window says the rest was not read."""
+        pdf = FakePDFResult(text="body", page_count=40, parsed_pages=20, images=[FakeImage()] if with_images else [])
+
+        result = await read_pdf_with_extraction(pdf, supports_vision=supports_vision, described_pages=described_pages)
+
+        assert _text_of(result).endswith(PARTIAL_READ_HINT.format(pages=40))
+
+    @pytest.mark.asyncio
+    @_EVERY_DELIVERY
+    async def test_no_delivery_shape_carries_the_hint_for_a_document_that_fits_the_window(
+        self, supports_vision: bool, with_images: bool, described_pages: str | None
+    ) -> None:
+        pdf = FakePDFResult(text="body", page_count=20, images=[FakeImage()] if with_images else [])
+
+        result = await read_pdf_with_extraction(pdf, supports_vision=supports_vision, described_pages=described_pages)
+
+        assert "[Partial Read]" not in _text_of(result)
+
+    @pytest.mark.asyncio
+    async def test_the_extractor_is_asked_for_exactly_the_window_the_hint_speaks_of(self) -> None:
+        """A wider window would hand the model pages that the hint says were not read."""
+        extractor = AsyncMock()
+
+        await read_pdf_with_extraction(FakePDFResult(text="body", page_count=40, parsed_pages=20), extractor=extractor)
+
+        assert extractor.await_args.args[1].max_pages == PDF_READ_PAGE_WINDOW
 
     @pytest.mark.asyncio
     async def test_structure_outline_past_the_entry_cap_only_counts_the_omitted_headings(self) -> None:
