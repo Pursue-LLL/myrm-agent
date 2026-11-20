@@ -16,6 +16,9 @@ vi.mock('@/store/useAgentStore', () => ({
 
 vi.mock('@/hooks/shared/useToast', () => ({ toast: vi.fn() }));
 
+// The MCP server cache refresh is pinned in usePluginImportFlow.mcpReload.test.tsx; here it must not reach the real config layer.
+vi.mock('../reloadPluginMcpServers', () => ({ reloadPluginMcpServers: vi.fn() }));
+
 const { mockReadiness } = vi.hoisted(() => ({ mockReadiness: vi.fn() }));
 vi.mock('@/services/agentReadiness', () => ({ getAgentReadiness: mockReadiness }));
 

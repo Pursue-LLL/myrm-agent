@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import PluginManagerDialog from '../PluginManagerDialog';
 
 const stableT: (key: string) => string = (key) => {
@@ -36,6 +36,9 @@ const mockToast = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/shared/useToast', () => ({
   toast: mockToast,
 }));
+
+const { reloadKeys } = vi.hoisted(() => ({ reloadKeys: vi.fn() }));
+vi.mock('@/services/config', () => ({ getConfigSyncManager: () => ({ reloadKeys }) }));
 
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), {
@@ -84,6 +87,29 @@ vi.stubGlobal('fetch', mockFetch);
 const baseProps = { open: true, onOpenChange: vi.fn(), onPluginChanged: vi.fn() };
 
 describe('PluginManagerDialog', () => {
+  beforeEach(() => {
+    reloadKeys.mockReset();
+    reloadKeys.mockResolvedValue(undefined);
+    baseProps.onPluginChanged.mockClear();
+  });
+
+  /** Lists `demo-plugin`, then confirms its uninstall; the DELETE request answers with `deleteResponse`. */
+  async function uninstallDemoPlugin(deleteResponse: unknown) {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => [{ name: 'demo-plugin', servers: ['pdf-server'], has_bundled_files: false }],
+      })
+      .mockResolvedValueOnce(deleteResponse);
+
+    render(<PluginManagerDialog {...baseProps} />);
+    await screen.findByText('demo-plugin');
+    fireEvent.click(screen.getByRole('button', { name: 'Uninstall' }));
+    // The confirmation's action carries the same label; it is the last "Uninstall" button.
+    const actions = await screen.findAllByRole('button', { name: 'Uninstall' });
+    fireEvent.click(actions[actions.length - 1]);
+  }
+
   it('renders server status badges from server_meta', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -158,19 +184,8 @@ describe('PluginManagerDialog', () => {
 
   it('shows only the localized title when uninstalling fails, never the server sentence', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [{ name: 'demo-plugin', servers: ['pdf-server'], has_bundled_files: false }],
-      })
-      .mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({ detail: 'database is locked' }) });
 
-    render(<PluginManagerDialog {...baseProps} />);
-    await screen.findByText('demo-plugin');
-    fireEvent.click(screen.getByRole('button', { name: 'Uninstall' }));
-    // The confirmation's action carries the same label; it is the last "Uninstall" button.
-    const actions = await screen.findAllByRole('button', { name: 'Uninstall' });
-    fireEvent.click(actions[actions.length - 1]);
+    await uninstallDemoPlugin({ ok: false, status: 500, json: async () => ({ detail: 'database is locked' }) });
 
     await waitFor(() =>
       expect(mockToast).toHaveBeenCalledWith({ title: 'Failed to uninstall the plugin', variant: 'destructive' }),
@@ -179,6 +194,28 @@ describe('PluginManagerDialog', () => {
       'Plugin uninstall failed:',
       expect.objectContaining({ message: 'database is locked' }),
     );
+    // Nothing was removed on the server, so the cached MCP servers are still right.
+    expect(reloadKeys).not.toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+
+  it('reloads the cached MCP servers after an uninstall that removed servers, so they are not saved back', async () => {
+    await uninstallDemoPlugin({
+      ok: true,
+      json: async () => ({ plugin_name: 'demo-plugin', removed_servers: 2, unbound_agents: 0, removed_files: false }),
+    });
+
+    await waitFor(() => expect(reloadKeys).toHaveBeenCalledExactlyOnceWith(['mcpServers']));
+    expect(baseProps.onPluginChanged).toHaveBeenCalled();
+  });
+
+  it('leaves the cached MCP servers alone when the uninstall removed none', async () => {
+    await uninstallDemoPlugin({
+      ok: true,
+      json: async () => ({ plugin_name: 'demo-plugin', removed_servers: 0, unbound_agents: 1, removed_files: false }),
+    });
+
+    await waitFor(() => expect(baseProps.onPluginChanged).toHaveBeenCalled());
+    expect(reloadKeys).not.toHaveBeenCalled();
   });
 });

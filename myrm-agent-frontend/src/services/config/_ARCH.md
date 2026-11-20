@@ -55,10 +55,11 @@ Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/p
 
 ## 后端写入后的重载
 
-同步层只在启动时读取后端。页面存活期间若后端自己写了配置（迁移向导写模型槽位、已导入的密钥、MCP 服务器与全局指令），
-缓存会落后：设置页继续显示旧值，下一次保存带着旧基线与后端版本冲突——`providers` 这类列表只能整体取舍，
-可能覆盖刚导入的密钥。写入方在后端完成后调用 `getConfigSyncManager().reloadKeys(keys)`：
-迁移向导与命令中心的导入回滚经 `@/services/memory/migratedConfigReload` 重载 `providers` / `mcpServers` / `personalSettings`。
+同步层只在启动时读取后端。页面存活期间若后端自己写了配置（迁移向导写模型槽位、已导入的密钥、MCP 服务器与全局指令；
+插件导入与卸载写 MCP 服务器），缓存会落后：设置页继续显示旧值，下一次保存带着旧基线与后端版本冲突——
+`providers` / `mcpServers` 这类列表只能整体取舍，可能覆盖刚导入的密钥或连接器。写入方在后端完成后调用 `getConfigSyncManager().reloadKeys(keys)`：
+迁移向导与命令中心的导入回滚经 `@/services/memory/migratedConfigReload` 重载 `providers` / `mcpServers` / `personalSettings`；
+插件导入与卸载经 `@/components/features/plugins/reloadPluginMcpServers` 重载 `mcpServers`。
 本地尚未同步的改动不被覆盖，仍由常规同步对账（见 `serverReload.ts`）。
 
 ## 写入一致性（offline replay）

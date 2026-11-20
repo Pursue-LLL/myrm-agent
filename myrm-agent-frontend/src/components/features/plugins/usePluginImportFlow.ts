@@ -17,6 +17,7 @@ import {
   type PluginPreviewPayload,
   type Resolution,
 } from './pluginImportTypes';
+import { reloadPluginMcpServers } from './reloadPluginMcpServers';
 
 const MAX_ARCHIVE_BYTES = 20 * 1024 * 1024;
 
@@ -173,6 +174,10 @@ export function usePluginImportFlow({ onOpenChange, onImportComplete }: UsePlugi
       const data = (await res.json()) as PluginConfirmResult;
       setResult(data);
       onImportComplete();
+      // The servers were written on the backend; the settings pages read the cached list.
+      if (data.imported_servers > 0) {
+        void reloadPluginMcpServers();
+      }
       if (data.agents.length > 0) {
         fetchAgents(true).catch(() => {});
       }
