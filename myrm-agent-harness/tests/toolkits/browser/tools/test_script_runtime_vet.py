@@ -31,10 +31,25 @@ class TestWhatIsRefusedBeforeAnythingRuns:
         [
             pytest.param("print('\ud800')", id="lone-surrogate"),
             pytest.param("x = " + " + ".join(["1"] * 100_000), id="expression-nested-too-deeply"),
+            pytest.param("x = " + "-" * 100_000 + "1", id="unary-operators-fill-the-parser-stack"),
+            pytest.param("f = " + "lambda: " * 50_000 + "1", id="lambdas-fill-the-parser-stack"),
         ],
     )
     def test_text_the_parser_cannot_take_is_rejected_instead_of_escaping(self, script: str) -> None:
         with pytest.raises(ScriptRejectedError, match=r"^\[Error\] The script cannot be parsed: "):
+            vet_script(script)
+
+    @pytest.mark.parametrize(
+        "script",
+        [
+            pytest.param("", id="empty"),
+            pytest.param(" \n\t\n", id="blank"),
+            pytest.param("# nothing to do\n", id="only-a-comment"),
+            pytest.param("\x0c", id="only-a-form-feed"),
+        ],
+    )
+    def test_a_script_without_a_statement_is_rejected_instead_of_reporting_success(self, script: str) -> None:
+        with pytest.raises(ScriptRejectedError, match=r"^\[Error\] The script has no statements "):
             vet_script(script)
 
 
@@ -48,6 +63,8 @@ class TestWhatReachesTheInterpreter:
             pytest.param('x = "a\u2028b"', id="unicode-line-separator"),
             pytest.param('x = "a\x0cb"', id="form-feed"),
             pytest.param("if True:\n  \x0c  x = 1", id="form-feed-inside-indentation"),
+            pytest.param("pass", id="pass-is-a-statement"),
+            pytest.param('"""notes"""', id="a-docstring-is-a-statement"),
         ],
     )
     def test_a_script_that_passes_the_checks_reaches_the_interpreter_as_written(self, script: str) -> None:

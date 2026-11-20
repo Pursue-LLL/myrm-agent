@@ -7,8 +7,8 @@
 - semantic_dom_hitl::ScriptApprovalRequiredError (POS: a script's step needs a person's approval, which a script cannot ask for)
 
 [OUTPUT]
-- ScriptRejectedError: the script cannot run at all (a syntax error, an import, text that cannot be parsed); the message is what the model is told
-- vet_script: the source Monty runs for a script (the text the model wrote, newlines normalized), after the checks the tool contract states
+- ScriptRejectedError: the script cannot run at all (a syntax error, an import, no statement, text that cannot be parsed); the message is what the model is told
+- vet_script: the source Monty runs for a script (the text the model wrote, newlines normalized), unless a refusal applies to it
 - BrowserSteps: the two session steps a script can take
 - ScriptSession: what a script sees as `session`
 - run_script: run the vetted script and return what it printed, followed by how it ended
@@ -66,25 +66,30 @@ class BrowserSteps(Protocol):
 
 
 def vet_script(script: str) -> str:
-    """The source Monty runs: the script as the model wrote it, once it passes the checks the tool contract states.
+    """The source Monty runs: the script as the model wrote it, unless one of the refusals below applies.
 
     The tool description calls the script the body of `async def (session, refs)`. Monty runs it at the top level
     with `session` and `refs` bound, where `await` and `return` work as they do in such a body. Two corners differ:
     a helper function rebinds a name of the script with `global` (not `nonlocal`), and the script's first line must
     not be indented.
 
-    Imports are refused here so that the description ("Imports and `open` are unavailable") stays true even for
-    modules the interpreter would allow. Newlines are normalized the way the compiler reads them, so a carriage
-    return inside a string reaches a step as a line feed.
+    A script is refused when it has a syntax error, when it has no statement (it is empty or has only comments, so
+    it would report success for doing nothing), when the parser cannot take it at all, and when it imports. Imports
+    are refused so that the description ("Imports and `open` are unavailable") stays true even for modules the
+    interpreter would allow. Newlines are normalized the way the compiler reads them, so a carriage return inside a
+    string reaches a step as a line feed.
     """
     source = io.StringIO(script, newline=None).read()  # \n, \r\n and \r each end one line
     try:
         tree = ast.parse(source)
     except SyntaxError as exc:
         raise ScriptRejectedError(f"SyntaxError in script: {exc.msg} (line {exc.lineno or 1})") from exc
-    except (ValueError, RecursionError) as exc:
-        # Text the parser cannot take at all: one that cannot be encoded (a lone surrogate) or nests too deeply
+    except (ValueError, MemoryError, RecursionError) as exc:
+        # Text the parser cannot take at all: one that cannot be encoded (a lone surrogate), or one nested so deeply
+        # that it gives up with RecursionError or, once its own stack is full, MemoryError
         raise ScriptRejectedError(f"[Error] The script cannot be parsed: {exc}") from exc
+    if not tree.body:
+        raise ScriptRejectedError("[Error] The script has no statements (it is empty or has only comments).")
     for node in ast.walk(tree):
         if isinstance(node, ast.Import | ast.ImportFrom):
             raise ScriptRejectedError(f"[Error] Imports are unavailable in scripts (line {node.lineno}).")
