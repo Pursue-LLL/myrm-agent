@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from myrm_agent_harness.agent.security.script_operand_verifier import (
     compute_file_content_digest,
     extract_script_file_operand,
@@ -89,15 +91,59 @@ class TestScriptOperandExtraction:
 
         script2 = tmp_path / "setup.sh"
         script2.write_text("#!/bin/sh\necho setup")
-        extracted2 = extract_script_file_operand(
-            "sudo bash setup.sh", workspace_root=str(tmp_path)
-        )
+        extracted2 = extract_script_file_operand("sudo bash setup.sh", workspace_root=str(tmp_path))
         assert extracted2 == str(script2.resolve())
 
     def test_python_module_flag_does_not_extract_module_as_script(self, tmp_path: Path) -> None:
         """python3 -m unittest should not treat unittest as a script file."""
         cmd = "python3 -m unittest discover"
         assert extract_script_file_operand(cmd, workspace_root=str(tmp_path)) is None
+
+
+class TestScriptOperandBehindAnyJoin:
+    """The script is pinned whatever joins its command to the rest of the line."""
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "python deploy.py; echo done",
+            "python deploy.py;echo done",
+            "cd d; python deploy.py",
+            "cd d;python deploy.py",
+            "echo a;python deploy.py",
+            "python deploy.py|tee log",
+            "python deploy.py&",
+            "(python deploy.py)",
+            "(cd d && python deploy.py)",
+            "(cd d;python deploy.py)",
+            "for f in a; do python deploy.py; done",
+            "if true; then python deploy.py; fi",
+            "while true; do python deploy.py; done",
+            "! python deploy.py",
+            "time python deploy.py",
+            "python 'deploy.py'; echo done",
+            "python deploy.py <<EOF\nit's\nEOF",
+            "python deploy.py\necho it's",
+            'echo "it\'s" && python deploy.py',
+        ],
+    )
+    def test_the_script_operand_is_found(self, tmp_path: Path, command: str) -> None:
+        script = tmp_path / "deploy.py"
+        script.write_text("print('deploy')")
+
+        assert extract_script_file_operand(command, workspace_root=str(tmp_path)) == str(script.resolve())
+
+    def test_a_script_run_directly_before_a_separator_is_found(self, tmp_path: Path) -> None:
+        script = tmp_path / "run.sh"
+        script.write_text("echo run")
+
+        assert extract_script_file_operand("./run.sh;echo done", workspace_root=str(tmp_path)) == str(script.resolve())
+
+    @pytest.mark.parametrize("command", ["echo deploy.py; ls", "ls;cat deploy.py", "echo 'python deploy.py'"])
+    def test_a_script_that_is_only_named_is_not_an_operand(self, tmp_path: Path, command: str) -> None:
+        (tmp_path / "deploy.py").write_text("print('deploy')")
+
+        assert extract_script_file_operand(command, workspace_root=str(tmp_path)) is None
 
 
 class TestScriptDigestAndIntegrity:

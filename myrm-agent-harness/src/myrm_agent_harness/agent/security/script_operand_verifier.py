@@ -3,6 +3,7 @@
 [INPUT]
 - command string from tool input (e.g., bash/shell execution)
 - workspace_root / cwd for resolving relative file operands
+- core.security.shell_command_lexer::read_commands (POS: Shared lexical layer of the shell command security checks)
 
 [OUTPUT]
 - extract_script_file_operand: Extract and resolve canonical real path of mutable script operand.
@@ -20,8 +21,10 @@ import hashlib
 import logging
 import os
 import re
-import shlex
+from collections.abc import Sequence
 from pathlib import Path
+
+from myrm_agent_harness.core.security.shell_command_lexer import read_commands
 
 logger = logging.getLogger(__name__)
 
@@ -60,16 +63,6 @@ _WRAPPER_COMMANDS = frozenset(
     }
 )
 
-_CLAUSE_DELIMITERS = frozenset(
-    {
-        "&&",
-        "||",
-        ";",
-        "|",
-        "&",
-    }
-)
-
 _SCRIPT_EXTENSIONS = frozenset(
     {
         ".sh",
@@ -86,23 +79,7 @@ _SCRIPT_EXTENSIONS = frozenset(
 )
 
 
-def _split_into_clauses(tokens: list[str]) -> list[list[str]]:
-    """Split token list by shell clause separators (&&, ||, ;, |, &)."""
-    clauses: list[list[str]] = []
-    current: list[str] = []
-    for token in tokens:
-        if token in _CLAUSE_DELIMITERS:
-            if current:
-                clauses.append(current)
-                current = []
-        else:
-            current.append(token)
-    if current:
-        clauses.append(current)
-    return clauses
-
-
-def _extract_candidate_token_from_clause(clause: list[str]) -> str | None:
+def _extract_candidate_token_from_clause(clause: Sequence[str]) -> str | None:
     """Extract candidate mutable script file token from a single command clause."""
     idx = 0
     # Step 1: Skip leading environment variable assignments
@@ -162,7 +139,8 @@ def extract_script_file_operand(
     Handles:
     - Environment variable prefixes: ``VAR=val python script.py``
     - Wrapper prefixes: ``nohup python script.py``, ``sudo bash ./run.sh``
-    - Compound pipelines / chains: ``cd /dir && python3 main.py``, ``python app.py || true``
+    - Compound pipelines / chains, whatever joins the commands: ``cd /dir && python3 main.py``, ``python app.py;echo``,
+      ``(cd /dir; python3 main.py)``, ``for f in a; do python3 main.py; done``
     - Interpreter invocations: ``bash ./run.sh``, ``python3 main.py``
     - Inline evaluation flags: ``python -c '...'`` -> returns None (inline, not a file operand)
     - Python module executions: ``python -m pytest`` -> returns None (module, not script file)
@@ -176,18 +154,8 @@ def extract_script_file_operand(
     if not stripped:
         return None
 
-    try:
-        tokens = shlex.split(stripped)
-    except ValueError:
-        # Malformed quoting; cannot reliably extract file operand
-        return None
-
-    if not tokens:
-        return None
-
-    clauses = _split_into_clauses(tokens)
-    for clause in clauses:
-        candidate = _extract_candidate_token_from_clause(clause)
+    for clause in read_commands(stripped):
+        candidate = _extract_candidate_token_from_clause(clause.words)
         if candidate:
             resolved = _resolve_existing_real_path(candidate, workspace_root)
             if resolved:
