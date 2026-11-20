@@ -6,10 +6,12 @@
 
 [OUTPUT]
 - build_csp_meta_script: script that puts the allowlist's Content-Security-Policy ``<meta>`` at the top of a
-  document's head and puts it there again before a page opens a WebSocket or Worker; raises ``ValueError`` for an
-  empty allowlist. As an init script its value is dropped; evaluated as an expression it is a function that makes the
-  current document carry the policy and says whether it does
-- build_init_script: init script that hardens WebRTC, WebTransport and Service Worker registration
+  document's head (a document with a root element but no head, such as an XML or SVG document, is given one) and
+  puts it there again before a page opens a WebSocket or Worker; raises ``ValueError`` for an empty allowlist. As an
+  init script its value is dropped; evaluated as an expression it is a function that makes the current document
+  carry the policy and says whether it does
+- build_init_script: init script that hardens WebRTC, WebTransport and Service Worker registration; a window that
+  is already hardened keeps what it has
 
 [POS]
 The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script`` for the page's main world,
@@ -32,6 +34,7 @@ if TYPE_CHECKING:
 _CSP_SCRIPT_TEMPLATE = """(function() {
   'use strict';
   var policy = __POLICY__;
+  var xhtml = 'http://www.w3.org/1999/xhtml';
   var construct = Reflect.construct;
   var carriers = new WeakSet();
 
@@ -43,14 +46,25 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
     return false;
   }
 
+  function headOf(doc) {
+    if (!doc.head && doc.documentElement) {
+      var created = doc.createElementNS(xhtml, 'head');
+      doc.documentElement.insertBefore(created, doc.documentElement.firstChild);
+      if (!doc.head) created.remove();
+    }
+    return doc.head;
+  }
+
   function ensurePolicy() {
     var doc = document;
-    if (carriers.has(doc) || !doc.head) return;
+    if (carriers.has(doc)) return;
+    var head = headOf(doc);
+    if (!head) return;
     if (!carries(doc)) {
-      var meta = doc.createElement('meta');
+      var meta = doc.createElementNS(xhtml, 'meta');
       meta.httpEquiv = 'Content-Security-Policy';
       meta.content = policy;
-      doc.head.insertBefore(meta, doc.head.firstChild);
+      head.insertBefore(meta, head.firstChild);
     }
     carriers.add(doc);
   }
@@ -103,9 +117,13 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
 
     An init script runs before the parser has created the document's ``<head>``, so the script waits for it: a
     ``MutationObserver`` on the document inserts the policy as the head's first child, ahead of the page's own scripts,
-    and is dropped once it has done so or the document is fully parsed (a document that never gets a head, such as an SVG,
-    gets no policy and no lingering observer; one that is already parsed when the script runs gets no observer at all).
-    Creating a head here instead would leave a stray element in such documents.
+    and is dropped once it has done so or the document is fully parsed (one that is already parsed when the script
+    runs gets no observer at all). A document that has a root element but never gets a head, such as an SVG or an
+    XML document, is given one when the policy is first needed, because a policy ``<meta>`` is enforced only inside
+    the head; the observer never makes one, it waits for the head the parser builds. The head and the ``<meta>`` are
+    created in the XHTML namespace, since ``createElement`` in an XML document makes an element without a namespace,
+    which is not a ``meta`` element. A head the engine does not read as the document's head is removed again, so a
+    document never keeps an element that does nothing.
 
     A window the browser reuses for a same-origin popup keeps what this script set on it, but its new document normally
     gets no init-script run of its own and so no policy. WebSocket, Worker and SharedWorker are the channels no request
@@ -118,8 +136,8 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     The page's world and the agent's world (``domain_filter.agent_world`` runs this script there too) each keep a record
     of the documents they have dealt with and cannot see the other's, so the DOM decides: a document gets the policy
     only when none of its head's ``<meta>`` elements already carries it. The script evaluates to a function that does
-    the same for the current document and returns whether the document then carries the policy; a document that cannot
-    hold the element never does (SVG has no head, and an element created in an XML document is not a ``meta`` element).
+    the same for the current document and returns whether the document then carries the policy; a document with no
+    root element to hold a head never does.
 
     Raises:
         ValueError: ``allowlist`` is empty. An empty allowlist installs no filter, so there is no policy to build.
@@ -155,11 +173,17 @@ def build_init_script() -> str:
     - Service Worker registration
 
     Web Workers are not hardened, which keeps anti-bot checks quiet; the Layer 1 route filter stops their HTTP requests.
+
+    Both worlds of a window can run this script (``domain_filter.agent_world`` runs it in the world the agent's own
+    JavaScript uses, which on some engines is the page's own), so a property that is already locked down is left as
+    it is: defining it again would throw.
     """
     return """(function() {
   'use strict';
 
   function _harden(obj, prop, value) {
+    var held = Object.getOwnPropertyDescriptor(obj, prop);
+    if (held && !held.configurable && held.writable === false) return;
     try {
       Object.defineProperty(obj, prop, {
         value: value,

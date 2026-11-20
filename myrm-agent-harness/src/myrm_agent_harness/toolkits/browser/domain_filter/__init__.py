@@ -13,6 +13,8 @@ Layer 0 — CSP Core Defense (``<meta http-equiv="Content-Security-Policy">``, d
     A Worker started from a URL answers to its own response's policy, so Layer 1 is what stops its HTTP requests
     and a WebSocket it opens itself is judged by none of the layers.
     Does NOT restrict img/style/font/media (allows CDN resources for compatibility).
+    A policy ``<meta>`` is enforced only inside the head, so an XML or SVG document, which has a root element but no
+    head, is given one.
     The policy is document-scoped, and the first document of a same-origin popup opened with ``window.open`` normally
     gets no init-script run of its own: it reuses the popup's initial window. The script therefore wraps the WebSocket,
     Worker and SharedWorker constructors, which puts the policy on the current document before the browser runs one.
@@ -33,10 +35,11 @@ Layer 3 — CDP Audit Monitor (``Network.webSocketCreated``)
     Detects WebSocket connections of page targets at the Chrome DevTools Protocol level.
     Does not block — provides audit visibility for all layers.
 
-The init scripts of Layers 0 and 2 run in the page's main world, and the agent's own JavaScript runs in the driver's
-isolated world, where neither is present. ``agent_world`` (called by ``BrowserSession.evaluate``, not re-exported)
-runs the same two scripts there, so an expression gets the policy and the hardening too (``BROWSER_SYSTEM.md``
-section 10).
+The init scripts of Layers 0 and 2 run in the page's main world. The agent's own JavaScript runs in the driver's
+isolated world on the default engine, where neither is present, and in the main world on stock Playwright (Camoufox).
+``agent_world`` (called by ``BrowserSession.evaluate``, not re-exported) runs the same two scripts in whichever world
+the expression runs in, once per window, so an expression gets the policy and the hardening on both
+(``BROWSER_SYSTEM.md`` section 10).
 
 
 [INPUT]
