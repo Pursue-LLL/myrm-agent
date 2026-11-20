@@ -90,13 +90,20 @@ def _indent_body(script: str) -> str:
     """The script's lines indented into the function body, except those inside a multi-line string.
 
     Indenting a line that continues a string would change the string, and with it what a step receives
-    (a JavaScript snippet in a triple-quoted string, for one).
+    (a JavaScript snippet in a triple-quoted string, for one). An f-string counts as a whole, because the `=`
+    of `f"{x=}"` prints the field's source text, spaces included.
     """
     source = io.StringIO(script, newline=None).read()  # the newlines the compiler reads: \n, \r\n and \r
     inside_token: set[int] = set()
+    open_fstrings: list[int] = []  # the line each f-string still open began on
     try:
         for token in tokenize.generate_tokens(io.StringIO(source).readline):
-            inside_token.update(range(token.start[0] + 1, token.end[0] + 1))
+            first_line = token.start[0]
+            if token.type == tokenize.FSTRING_START:
+                open_fstrings.append(first_line)
+            elif token.type == tokenize.FSTRING_END:
+                first_line = open_fstrings.pop()
+            inside_token.update(range(first_line + 1, token.end[0] + 1))
     except (tokenize.TokenError, SyntaxError, ValueError):
         # Not tokenizable (a ValueError is text that cannot be encoded, a lone surrogate for one): `ast.parse`
         # judges it next, exactly as it would the text indented as a whole.

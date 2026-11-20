@@ -139,6 +139,7 @@ class TestTheScriptContract:
             pytest.param('x = """a\n  b\nc"""', id="triple-quoted"),
             pytest.param('x = r"""a\\n\n  b"""', id="raw-triple-quoted"),
             pytest.param('v = 1\nx = f"""a {v}\n  b {v}"""', id="f-string"),
+            pytest.param('v = 1\nx = f"{\nv=}"', id="f-string-debug-field-across-lines"),
             pytest.param('x = "a\\\n  b"', id="backslash-continued"),
             pytest.param("if True:\n\tx = '''a\n\t  b'''", id="tab-indented"),
             pytest.param("x = '''a\r\n  b'''\r\ny = 1", id="crlf"),
