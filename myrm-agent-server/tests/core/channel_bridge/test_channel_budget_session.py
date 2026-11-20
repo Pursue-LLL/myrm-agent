@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+import pytest
+
 from app.channels.types import InboundMessage
 from app.core.channel_bridge.agent_executor.session import (
+    _build_session_key,
     _resolve_peer,
     build_channel_budget_key,
 )
+from tests.support.channel_budget_fixtures import GROUP_IDS
 
 
 def _msg(
@@ -72,8 +78,6 @@ class TestBuildChannelBudgetKey:
 
     def test_key_format_matches_session_key_prefix(self) -> None:
         """Ensure budget key prefix matches SessionKey.to_str() prefix."""
-        from app.core.channel_bridge.agent_executor.session import _build_session_key
-
         msg = _msg(channel="slack", is_group=True, chat_id="C123")
         budget_key = build_channel_budget_key(msg)
         session_key = _build_session_key(msg)
@@ -99,3 +103,16 @@ class TestBuildChannelBudgetKey:
         msg = _msg(channel="Telegram", is_group=True, chat_id="Chat-ABC")
         key = build_channel_budget_key(msg)
         assert key == key.lower()
+
+    @pytest.mark.parametrize(("channel", "peer"), GROUP_IDS)
+    def test_key_is_the_session_key_of_the_group(self, channel: str, peer: str) -> None:
+        """Punctuated and capitalised chat ids are sanitised exactly as in the stored session key."""
+        msg = _msg(channel=channel, chat_id=peer, is_group=True)
+
+        assert build_channel_budget_key(msg) == _build_session_key(msg)
+
+    @pytest.mark.parametrize(("channel", "peer"), GROUP_IDS)
+    def test_key_prefixes_the_session_key_of_every_topic_and_agent_of_the_group(self, channel: str, peer: str) -> None:
+        msg = replace(_msg(channel=channel, chat_id=peer, is_group=True), thread_id="T-9")
+
+        assert _build_session_key(msg, agent_id="a1") == f"{build_channel_budget_key(msg)}:thread:t-9:agent:a1"

@@ -3,15 +3,16 @@
 [INPUT]
 - app.services.budget.enforcer (POS: Budget enforcement service)
 - app.services.budget.channel_budget (POS: Per-channel budget enforcement)
+- app.services.budget.channel_budget_key (POS: Canonical channel budget key)
 
 [OUTPUT]
 - GET /policy: Current budget policy
 - PUT /policy: Update budget policy
 - GET /status: Current day's budget usage status (multi-dimensional)
 - GET /channels: All channel budget policies and statuses
-- PUT /channels/{channel_key}: Create/update a channel budget policy
-- DELETE /channels/{channel_key}: Remove a channel budget policy
-- GET /channels/{channel_key}/audit: Audit log for a channel's spending
+- PUT /channels/{channel_key}: Create/update a channel budget policy; the key must name a group and is stored canonical
+- DELETE /channels/{channel_key}: Remove a channel budget policy; any spelling of its key
+- GET /channels/{channel_key}/audit: Audit log for a channel's spending; any spelling of its key
 
 [POS]
 Budget management API. Exposes global and per-channel policy CRUD, real-time spend status,
@@ -191,15 +192,16 @@ async def get_channel_budgets() -> JSONResponse:
 
 @router.put("/channels/{channel_key:path}")
 async def update_channel_budget(channel_key: str, req: ChannelBudgetPolicyRequest) -> JSONResponse:
-    """Create or update a channel budget policy."""
+    """Create or update a channel budget policy; the key is stored in its canonical form."""
     try:
         from app.services.budget.channel_budget import (
             ChannelBudgetPolicy,
             save_channel_budget_policy,
         )
+        from app.services.budget.channel_budget_key import parse_channel_budget_key
 
         policy = ChannelBudgetPolicy(
-            channel_key=channel_key,
+            channel_key=parse_channel_budget_key(channel_key),
             daily_limit_usd=req.daily_limit_usd,
             warning_threshold=req.warning_threshold,
             enabled=req.enabled,
@@ -238,7 +240,9 @@ async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
         from app.database.models.chat import Chat, Message
         from app.database.repositories.channel_key_match import channel_key_extends
         from app.platform_utils import get_session_factory
+        from app.services.budget.channel_budget_key import normalize_channel_budget_key
 
+        channel_key = normalize_channel_budget_key(channel_key)
         session_factory = get_session_factory()
         since = datetime.combine(date.today() - timedelta(days=days), datetime.min.time())
         cost_expr = func.json_extract(Message.extra_data, "$.costUsd")

@@ -7,6 +7,7 @@ from app.channels.types import (
     SessionResetMode,
     compute_daily_epoch,
 )
+from app.services.budget.channel_budget_key import group_budget_key
 
 
 def _resolve_peer(msg: InboundMessage) -> tuple[str, str]:
@@ -23,16 +24,15 @@ def _resolve_peer(msg: InboundMessage) -> tuple[str, str]:
 
 
 def build_channel_budget_key(msg: InboundMessage) -> str:
-    """Build the channel budget key prefix for budget guard lookup.
+    """Build the channel budget key of a group message for the budget guard lookup.
 
-    Returns empty string for non-group messages (DM / WebUI).
-    Format matches SessionKey.to_str() prefix: ``{channel}:{peer_kind}:{peer_id}``.
-    Lowercased to match SessionKey.to_str() which applies .lower().
+    Returns empty string for non-group messages (DM / WebUI). The key is the session key of the group without epoch,
+    topic or agent (``group_budget_key``), so it prefixes the session key of every conversation of the group.
     """
     if not msg.is_group:
         return ""
-    peer_kind, peer_id = _resolve_peer(msg)
-    return f"{msg.channel}:{peer_kind}:{peer_id}".lower()
+    _, peer_id = _resolve_peer(msg)
+    return group_budget_key(msg.channel, peer_id)
 
 
 def build_channel_session_key(

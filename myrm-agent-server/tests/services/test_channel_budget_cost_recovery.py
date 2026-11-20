@@ -7,15 +7,14 @@ topic or agent appended. ``g-1`` and ``g-10`` are two groups, and ``g_1`` must n
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncGenerator, Callable, Iterator
-from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from unittest.mock import patch
+from collections.abc import Iterator
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.budget.router import get_channel_audit
 from app.services.budget.channel_budget import _query_channel_today_cost
+from tests.support.channel_budget_fixtures import budget_database
 from tests.support.channel_chat_rows import seed_channel_chat, seed_costed_reply
 
 _GROUP = "telegram:group:g-1"
@@ -23,17 +22,7 @@ _GROUP = "telegram:group:g-1"
 
 @pytest.fixture(autouse=True)
 def _database(db_session: AsyncSession) -> Iterator[None]:
-    @asynccontextmanager
-    async def session() -> AsyncGenerator[AsyncSession, None]:
-        yield db_session
-
-    def factory() -> Callable[[], AbstractAsyncContextManager[AsyncSession]]:
-        return session
-
-    with (
-        patch("app.services.budget.channel_budget.get_session_factory", factory),
-        patch("app.platform_utils.get_session_factory", factory),
-    ):
+    with budget_database(db_session):
         yield
 
 

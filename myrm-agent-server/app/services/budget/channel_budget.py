@@ -5,15 +5,16 @@
 - myrm_agent_harness.utils.token_economics::BudgetStatus (POS: Budget status enum)
 - app.database.models.chat::Chat, Message (POS: Session/message models)
 - app.database.models.config::UserConfig (POS: User config persistence)
+- app.services.budget.channel_budget_key::normalize_channel_budget_key (POS: Canonical channel budget key)
 
 [OUTPUT]
-- ChannelBudgetPolicy: Per-channel budget configuration model
+- ChannelBudgetPolicy: Per-channel budget configuration model; its key is always canonical
 - ChannelBudgetRegistry: Process-scoped registry of per-channel DailyBudgetGuard instances
 - load_channel_budget_policies: Load all channel policies from DB
 - save_channel_budget_policy: Persist a single channel policy
 - should_block_channel: Check if a specific channel should be blocked
 - record_channel_cost: Record cost against a channel's budget guard
-- ChannelBudgetPoliciesConfig: Aggregate config for all channel budget policies
+- ChannelBudgetPoliciesConfig: Aggregate config for all channel budget policies; policies of one canonical key are merged
 - get_channel_budget_registry: Process-wide ChannelBudgetRegistry accessor
 - delete_channel_budget_policy: Remove a single channel policy
 - initialize_channel_budgets: Initialize the budget registry from the DB on startup
@@ -30,18 +31,20 @@ import logging
 import threading
 import uuid
 from datetime import date, datetime
+from typing import Self
 
 from myrm_agent_harness.utils.token_economics.budget_guard import (
     BudgetStatus,
     DailyBudgetGuard,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy import and_, func, select
 
 from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
 from app.database.repositories.channel_key_match import channel_key_extends
 from app.platform_utils import get_session_factory
+from app.services.budget.channel_budget_key import normalize_channel_budget_key
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +60,37 @@ class ChannelBudgetPolicy(BaseModel):
     enabled: bool = True
     label: str = ""
 
+    @field_validator("channel_key", mode="before")
+    @classmethod
+    def _canonical_channel_key(cls, value: object) -> object:
+        """Rows stored and keys typed in any spelling meet only the canonical key of a live message."""
+        return normalize_channel_budget_key(value) if isinstance(value, str) else value
+
+
+def _stricter(a: ChannelBudgetPolicy, b: ChannelBudgetPolicy) -> ChannelBudgetPolicy:
+    """The enabled policy, then the one with the lower limit; ``a`` wins a tie."""
+    if a.enabled != b.enabled:
+        return a if a.enabled else b
+    return b if b.daily_limit_usd < a.daily_limit_usd else a
+
 
 class ChannelBudgetPoliciesConfig(BaseModel):
     """Aggregate config for all channel budget policies."""
 
     policies: list[ChannelBudgetPolicy] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _merge_colliding_keys(self) -> Self:
+        """Policies whose keys canonicalise to one key are one policy; the stricter one is kept."""
+        merged: dict[str, ChannelBudgetPolicy] = {}
+        for policy in self.policies:
+            kept = merged.get(policy.channel_key)
+            if kept is not None:
+                logger.warning("Channel budget policies collide on %s; keeping the stricter one", policy.channel_key)
+            merged[policy.channel_key] = policy if kept is None else _stricter(kept, policy)
+        if len(merged) < len(self.policies):
+            self.policies = list(merged.values())
+        return self
 
 
 class ChannelBudgetRegistry:
@@ -278,7 +307,8 @@ async def save_channel_budget_policy(policy: ChannelBudgetPolicy) -> None:
 
 
 async def delete_channel_budget_policy(channel_key: str) -> bool:
-    """Remove a channel budget policy."""
+    """Remove a channel budget policy; the key may be given in any spelling that canonicalises to the stored one."""
+    key = normalize_channel_budget_key(channel_key)
     session_factory = get_session_factory()
     async with session_factory() as session:
         result = await session.execute(select(UserConfig).where(UserConfig.config_key == CHANNEL_BUDGET_CONFIG_KEY))
@@ -288,7 +318,7 @@ async def delete_channel_budget_policy(channel_key: str) -> bool:
 
         config = ChannelBudgetPoliciesConfig.model_validate(row.config_value)
         original_len = len(config.policies)
-        config.policies = [p for p in config.policies if p.channel_key != channel_key]
+        config.policies = [p for p in config.policies if p.channel_key != key]
         if len(config.policies) == original_len:
             return False
 
@@ -297,7 +327,7 @@ async def delete_channel_budget_policy(channel_key: str) -> bool:
         row.version = now_version
         await session.commit()
 
-    get_channel_budget_registry().remove(channel_key)
+    get_channel_budget_registry().remove(key)
     return True
 
 
