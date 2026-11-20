@@ -1,8 +1,26 @@
+/**
+ * [INPUT]
+ * - ../streamContext::StreamCtx (POS: Shared context for messageStream/handlers/* event slices)
+ * - ../../types/agentStream/part1::AgentEventType, part2::StatusStreamEvent (POS: SSE event types of the chat stream)
+ * - ./handlerDeps (POS: Shared imports for messageStream handler slices)
+ * - ./loopGuardStepKey (POS: Wording SSOT for loop guard STATUS events)
+ * - ./statusStreamItemText (POS: Detail wording of the STATUS progress steps that is derived from the event payload)
+ *
+ * [OUTPUT]
+ * - isStatusProgressStep(): whether a STATUS step_key is one this reducer turns into a progress step
+ * - applyStatusProgressStep(): folds one STATUS event into the assistant message's progress steps, drops the draft a
+ *   restarting recovery supersedes, and raises the toasts some steps carry
+ *
+ * [POS]
+ * STATUS reducer: turns the `step_key` of a STATUS event into a progress step on the assistant message.
+ */
+
 import type { StreamCtx } from '../streamContext';
 import { AgentEventType } from '../../types/agentStream/part1';
 import type { StatusStreamEvent } from '../../types/agentStream/part2';
 import * as H from './handlerDeps';
 import { LOOP_GUARD_BREAK_TOAST_KEY, isLoopGuardStep, loopGuardProgressStepKey } from './loopGuardStepKey';
+import { formatCompactionItemText, formatMoaSkipReason, formatMoaTriggerReason } from './statusStreamItemText';
 
 function requireStatusStreamEvent(event: StreamCtx['data']): StatusStreamEvent {
   if (event.type !== AgentEventType.STATUS) {
@@ -94,38 +112,6 @@ function isEarlyRecoveryProgressStep(stepKey: string): boolean {
   );
 }
 
-function formatMoaTriggerReason(reason: unknown): string {
-  if (typeof reason !== 'string' || !reason) {
-    return '';
-  }
-  switch (reason) {
-    case 'consecutive_tool_failures':
-      return '执行自适应协同 · ';
-    case 'loop_guard_warning':
-      return '循环优化协同 · ';
-    case 'multi_tool_failures':
-      return '多维诊断协同 · ';
-    default:
-      return '协同决策 · ';
-  }
-}
-
-function formatMoaSkipReason(reason: unknown): string {
-  if (typeof reason !== 'string' || !reason) {
-    return '';
-  }
-  switch (reason) {
-    case 'risk_trigger_timeout':
-      return '协同超时回退';
-    case 'budget_pressure':
-      return 'Token预算保护';
-    case 'insufficient_refs':
-      return '参考模型未就绪';
-    default:
-      return String(reason);
-  }
-}
-
 export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): Promise<void> {
   const data = requireStatusStreamEvent(ctx.data);
   const { actions } = ctx;
@@ -162,7 +148,7 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
     (stepKey === 'model_failover' || stepKey === 'safety_fallback_active') && data.fallback_model
       ? data.fallback_model
       : stepKey === 'context_compaction' && data.data?.phase
-        ? _formatCompactionItemText(data.data as Record<string, unknown>)
+        ? formatCompactionItemText(data.data as Record<string, unknown>)
         : (stepKey === 'memory_archived' || stepKey === 'context_pruned') && data.tokens_saved
           ? `(Tokens saved: ${data.tokens_saved})`
           : (stepKey === 'context_preflight_compact' ||
@@ -493,26 +479,5 @@ export async function applyStatusProgressStep(ctx: StreamCtx, stepKey: string): 
         },
       },
     });
-  }
-}
-
-function _formatCompactionItemText(data: Record<string, unknown>): string {
-  const phase = data.phase as string;
-  const elapsedS = typeof data.elapsed_s === 'number' ? data.elapsed_s : 0;
-  const tokensSaved = typeof data.tokens_saved === 'number' ? data.tokens_saved : 0;
-
-  switch (phase) {
-    case 'active':
-      return `(${elapsedS}s)`;
-    case 'timeout':
-      return `(${elapsedS}s)`;
-    case 'circuit_open':
-      return '';
-    case 'fallback':
-      return '';
-    case 'completed':
-      return tokensSaved > 0 ? `(Tokens saved: ${tokensSaved})` : '';
-    default:
-      return '';
   }
 }
