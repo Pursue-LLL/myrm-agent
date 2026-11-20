@@ -13,8 +13,8 @@ from app.services.budget.channel_budget_key import group_budget_key
 def _resolve_peer(msg: InboundMessage) -> tuple[str, str]:
     """Derive (peer_kind, peer_id) from an inbound message.
 
-    Single source of truth for session key and channel budget key construction.
-    Groups use chat_id; DMs use sender_id.
+    Single source of truth for the peer of an inbound message: the session key and the channel budget key are both
+    built from it. Groups use chat_id; DMs use sender_id.
     """
     peer_kind = "group" if msg.is_group else "dm"
     peer_id = msg.chat_id if msg.is_group and msg.chat_id else msg.sender_id

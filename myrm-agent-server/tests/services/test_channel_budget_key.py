@@ -2,7 +2,7 @@
 
 A policy is looked up by the key of the live message, and its spend is recovered from the chats stored under the session
 key. Both only match the canonical key, so a key typed with capitals, spaces or a punctuated chat id has to be brought
-to it, and a key that no group can produce must not become a policy that never applies.
+to it, and a key that is not of the form {channel}:group:{chat id} must not become a policy that never applies.
 """
 
 from __future__ import annotations
@@ -63,10 +63,10 @@ class TestPolicyKey:
     def test_it_is_canonical(self) -> None:
         assert ChannelBudgetPolicy(channel_key="  Slack:group:C024BE91L ").channel_key == "slack:group:c024be91l"
 
-    def test_a_legacy_key_of_a_punctuated_id_reaches_the_key_of_live_messages(self) -> None:
-        legacy = "matrix:group:!abcdef:matrix.org"
+    def test_a_stored_key_of_a_punctuated_id_reaches_the_key_of_live_messages(self) -> None:
+        stored = "matrix:group:!abcdef:matrix.org"
 
-        assert ChannelBudgetPolicy(channel_key=legacy).channel_key == group_budget_key("matrix", "!AbCdEf:matrix.org")
+        assert ChannelBudgetPolicy(channel_key=stored).channel_key == group_budget_key("matrix", "!AbCdEf:matrix.org")
 
     def test_a_key_that_is_not_text_is_still_a_validation_error(self) -> None:
         with pytest.raises(ValidationError):

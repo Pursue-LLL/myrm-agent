@@ -10,7 +10,7 @@
 - PUT /policy: Update budget policy
 - GET /status: Current day's budget usage status (multi-dimensional)
 - GET /channels: All channel budget policies and statuses
-- PUT /channels/{channel_key}: Create/update a channel budget policy; the key must name a group and is stored canonical
+- PUT /channels/{channel_key}: Create/update a channel budget policy; the key must be {channel}:group:{chat id}, stored canonical
 - DELETE /channels/{channel_key}: Remove a channel budget policy; any spelling of its key
 - GET /channels/{channel_key}/audit: Audit log for a channel's spending; any spelling of its key
 

@@ -505,7 +505,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/test_execute_preamble_resume_session.py` | 模块 | 审批续跑对真实 SQLite：纪元已翻篇后仍接回提问回合的聊天、纪元内首条消息的续跑不被当成新对话（不播报 reset）、聊天已不存在时回一条标记失败的说明、工作区打不开时回失败回合；没有会话键的续跑仍按本条消息自己的会话解析 |
 | `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
 | `services/test_channel_budget_key.py` | 单元 | 渠道预算键就是群组的会话键：8 种渠道群 ID 的写法（含大写、标点、域名、`+/=`）对 `SessionKey.to_str()` 逐字一致；手输的四种写法（原样、渠道大写、首尾空格、手工小写）规范化后同一个键且再规范化不变；不成群组形态的键只修剪并转小写、写入口用的解析以英文拒绝；策略的键总是规范键、非文本键仍是校验错误；同一群的多条策略合并（启用者优先、再取低限额、平局取先者）并记一条 WARNING，不同群组各自保留且顺序不变 |
-| `services/test_channel_budget_policy_keys.py` | 模块 | 策略对真实 SQLite 与真实预算接口、真实入站消息的会话键：按群 ID 原写法手输的键能拦住本群、重启后恢复本群当日支出（8 种群 ID 写法各一），旧版本按原样存下的行读出即规范并生效，两种写法存下的同群策略在下一次写入时并成一条，审计与删除接受与存下的键写法不同的键（大小写、首尾空格），不成群组形态的键以 400 拒绝且不入库 |
+| `services/test_channel_budget_policy_keys.py` | 模块 | 策略对真实 SQLite 与真实预算接口、真实入站消息的会话键：按群 ID 原写法手输的键能拦住本群、重启后恢复本群当日支出（8 种群 ID 写法各一），重启后停用的策略仍按停用状态列出且不建守卫，库里按任意写法存下的行读出即规范并生效，两种写法存下的同群策略在下一次写入时并成一条，审计与删除接受与存下的键写法不同的键（大小写、首尾空格），不成群组形态的键以 400 拒绝且不入库 |
 | `support/channel_budget_fixtures.py` | 辅助 | 渠道预算测试共用：各渠道群 ID 的真实写法（`GROUP_IDS`）与把预算服务、预算接口和审计查询接到测试库的 `budget_database` |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务；数据库维护任务 `db_maintenance` 每 6 小时、首次在启动后约 3 分钟（不与首屏请求抢事件循环） |

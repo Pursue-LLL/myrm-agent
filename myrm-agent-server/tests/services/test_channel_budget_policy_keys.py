@@ -1,8 +1,9 @@
 """A policy meets the messages and the spend of its group however its key was typed or stored.
 
 Real SQLite, the real budget API handlers and the real session keys of inbound messages: the key typed in the settings
-page, the row stored before keys were canonical, the chats stored under the session key and the key of the live message
-all have to agree. A key that no group can produce is rejected instead of becoming a policy that never applies.
+page, the row stored with its key in any spelling, the chats stored under the session key and the key of the live
+message all have to agree. A key that is not of the form {channel}:group:{chat id} is rejected instead of becoming a
+policy that never applies. Every stored policy, enabled or not, is listed after a restart.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from app.api.budget.router import (
     ChannelBudgetPolicyRequest,
     delete_channel_budget,
     get_channel_audit,
+    get_channel_budgets,
     update_channel_budget,
 )
 from app.channels.types import InboundMessage
@@ -68,7 +70,7 @@ async def _spend_in_group(db: AsyncSession, msg: InboundMessage, cost_usd: float
 
 
 async def _store_raw_policies(db: AsyncSession, *entries: tuple[str, float]) -> None:
-    """Store a policy row the way an earlier version wrote it: keys exactly as typed."""
+    """Store a policy row with its keys exactly as typed."""
     policies = [{"channel_key": key, "daily_limit_usd": limit} for key, limit in entries]
     db.add(
         UserConfig(
@@ -107,6 +109,18 @@ async def test_a_restart_recovers_the_spend_of_the_group(
     await initialize_channel_budgets()
 
     assert should_block_channel(build_channel_budget_key(msg)) is True
+
+
+@pytest.mark.asyncio
+async def test_a_disabled_policy_is_still_listed_after_a_restart(monkeypatch: pytest.MonkeyPatch) -> None:
+    await update_channel_budget("telegram:group:g-1", ChannelBudgetPolicyRequest(enabled=False))
+
+    monkeypatch.setattr(channel_budget, "_registry", ChannelBudgetRegistry())
+    await initialize_channel_budgets()
+
+    listed = json.loads(bytes((await get_channel_budgets()).body))["data"]
+    assert [(s["channel_key"], s["status"]) for s in listed["statuses"]] == [("telegram:group:g-1", "disabled")]
+    assert should_block_channel("telegram:group:g-1") is False
 
 
 @pytest.mark.asyncio

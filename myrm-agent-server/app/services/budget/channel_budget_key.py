@@ -6,7 +6,7 @@
 [OUTPUT]
 - group_budget_key: Budget key of a group, built the way the session keys of its chats are
 - normalize_channel_budget_key: Canonical form of a stored or typed key; never raises
-- parse_channel_budget_key: Canonical form of a typed key; rejects keys that no group can produce
+- parse_channel_budget_key: Canonical form of a typed key; rejects keys that are not of the form {channel}:group:{chat id}
 
 [POS]
 Single definition of the channel budget key. The chats of a group are stored under ``SessionKey.to_str()`` with an

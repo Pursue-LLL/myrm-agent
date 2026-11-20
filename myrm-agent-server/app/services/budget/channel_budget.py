@@ -97,7 +97,7 @@ class ChannelBudgetRegistry:
     """Process-scoped registry of per-channel DailyBudgetGuard instances.
 
     Thread-safe via threading.Lock (matches MultidimensionalBudgetGuard pattern).
-    Each channel_session_key maps to an independent DailyBudgetGuard.
+    Each channel budget key maps to an independent DailyBudgetGuard.
     """
 
     def __init__(self) -> None:
@@ -232,8 +232,8 @@ def _emit_channel_budget_sse(status: str, cost: float, limit: float, channel_key
         logger.warning("Failed to emit channel budget SSE alert: %s", e)
 
 
-async def _query_channel_today_cost(channel_session_key: str) -> float:
-    """Sum costUsd from today's messages for a specific channel session."""
+async def _query_channel_today_cost(channel_budget_key: str) -> float:
+    """Sum today's assistant costUsd across every chat of the group with this channel budget key."""
     try:
         session_factory = get_session_factory()
         today_start = datetime.combine(date.today(), datetime.min.time())
@@ -244,7 +244,7 @@ async def _query_channel_today_cost(channel_session_key: str) -> float:
                 .join(Chat, Message.chat_id == Chat.id)
                 .where(
                     and_(
-                        channel_key_extends(channel_session_key),
+                        channel_key_extends(channel_budget_key),
                         Message.role == "assistant",
                         Message.extra_data.isnot(None),
                         Message.created_at >= today_start,
@@ -255,7 +255,7 @@ async def _query_channel_today_cost(channel_session_key: str) -> float:
             total: float = float(result.scalar_one())
         return total
     except Exception as e:
-        logger.warning("Failed to recover channel cost from DB for %s: %s", channel_session_key, e)
+        logger.warning("Failed to recover channel cost from DB for %s: %s", channel_budget_key, e)
         return 0.0
 
 
@@ -332,34 +332,37 @@ async def delete_channel_budget_policy(channel_key: str) -> bool:
 
 
 async def initialize_channel_budgets() -> None:
-    """Initialize channel budget registry from DB on startup."""
+    """Initialize channel budget registry from DB on startup.
+
+    Every stored policy is registered so listings show it; only an enabled policy gets a guard
+    seeded with today's recovered spend, a disabled one has no guard and costs no query.
+    """
     config = await load_channel_budget_policies()
     registry = get_channel_budget_registry()
     for policy in config.policies:
-        if policy.enabled:
-            initial_cost = await _query_channel_today_cost(policy.channel_key)
-            registry.configure(policy, initial_cost=initial_cost)
-            if initial_cost > 0:
-                logger.info("Channel budget recovered for %s: $%.4f", policy.channel_key, initial_cost)
+        initial_cost = await _query_channel_today_cost(policy.channel_key) if policy.enabled else 0.0
+        registry.configure(policy, initial_cost=initial_cost)
+        if initial_cost > 0:
+            logger.info("Channel budget recovered for %s: $%.4f", policy.channel_key, initial_cost)
 
 
-def should_block_channel(channel_session_key: str) -> bool:
+def should_block_channel(channel_budget_key: str) -> bool:
     """Check if a specific channel should be blocked due to budget exceeded.
 
     Fail-open: returns False if no guard configured or any error occurs.
     """
     try:
-        status = get_channel_budget_registry().check_budget(channel_session_key)
+        status = get_channel_budget_registry().check_budget(channel_budget_key)
         return status == BudgetStatus.EXCEEDED
     except Exception:
         return False
 
 
-def record_channel_cost(channel_session_key: str, cost: float) -> None:
+def record_channel_cost(channel_budget_key: str, cost: float) -> None:
     """Record cost against a channel's budget guard (fire-and-forget)."""
     if cost <= 0:
         return
     try:
-        get_channel_budget_registry().record_cost(channel_session_key, cost)
+        get_channel_budget_registry().record_cost(channel_budget_key, cost)
     except Exception as e:
-        logger.warning("Failed to record channel cost for %s: %s", channel_session_key, e)
+        logger.warning("Failed to record channel cost for %s: %s", channel_budget_key, e)
