@@ -4,7 +4,7 @@ Single-source extractor for all Python-from-bash extraction needs.
 Quote-aware parsing prevents greedy-regex extraction errors.
 
 [INPUT]
-- (none)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - extract_python_from_bash: Extract Python code from bash commands (quote-aware).
@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import ast
 import re
+
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 
 def extract_python_from_bash(command: str) -> str | None:
@@ -140,6 +142,11 @@ def validate_python_syntax(code: str) -> str | None:
         compile(code, "<string>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT, dont_inherit=True)
     except SyntaxError as exc:
         return _describe_syntax_error(exc, code)
+    except PYTHON_PARSE_ERRORS as exc:
+        return (
+            f"Python code cannot be parsed ({type(exc).__name__}): "
+            "it is nested or chained too deeply, or holds text that cannot be encoded"
+        )
     return None
 
 
@@ -192,7 +199,7 @@ def detect_ptc_imports(code: str) -> tuple[bool, str | None] | None:
     """
     try:
         tree = ast.parse(code)
-    except SyntaxError:
+    except PYTHON_PARSE_ERRORS:
         return None
 
     skill_name: str | None = None

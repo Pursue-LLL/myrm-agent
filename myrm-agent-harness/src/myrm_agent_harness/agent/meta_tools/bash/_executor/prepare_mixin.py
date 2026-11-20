@@ -180,7 +180,7 @@ class BashExecutorPrepareMixin:
 
     @staticmethod
     def _validate_python_syntax(code: str, original_command: str) -> None:
-        """Pre-check extracted Python code via ``ast.parse`` before execution."""
+        """Pre-check extracted Python code before execution, compiled the way the wrapper compiles it."""
         from myrm_agent_harness.toolkits.code_execution.python_extractor import (
             validate_python_syntax,
         )

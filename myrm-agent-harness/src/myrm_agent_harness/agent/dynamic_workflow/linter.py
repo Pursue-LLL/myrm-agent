@@ -2,6 +2,7 @@
 
 [INPUT]
 - dynamic_workflow.tools::DEFAULT_MAX_CONCURRENT_SPAWNS (POS: Per-workflow concurrency cap)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - WorkflowLintReport: Comprehensive lint result with severity, issues, and counts
@@ -10,7 +11,8 @@
 [POS]
 Compiles and statically inspects dynamic workflow scripts before PTC sandbox execution.
 Detects syntax errors, unbounded loops, uncaught spawn exceptions, and dataflow false edges
-(subagent outputs assigned but never consumed downstream).
+(subagent outputs assigned but never consumed downstream). A script the parser or the tree
+walk cannot take (too deeply nested or chained, or unencodable text) is a fatal issue, not a crash.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from typing import ClassVar
 from myrm_agent_harness.agent.dynamic_workflow.tools import (
     DEFAULT_MAX_CONCURRENT_SPAWNS,
 )
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 
 class LintSeverity(StrEnum):
@@ -317,6 +320,25 @@ class _WorkflowASTVisitor(ast.NodeVisitor):
                 )
 
 
+def _unanalysable_script_issue(exc: Exception) -> LintIssue:
+    """The fatal issue for a script the parser, or the walk over its tree, could not take."""
+    if isinstance(exc, SyntaxError):
+        return LintIssue(
+            severity=LintSeverity.FATAL,
+            issue_code="SYNTAX_ERROR",
+            message=f"Python syntax error at line {exc.lineno}, col {exc.offset}: {exc.msg}",
+            line=exc.lineno,
+        )
+    return LintIssue(
+        severity=LintSeverity.FATAL,
+        issue_code="SYNTAX_ERROR",
+        message=(
+            f"Python script cannot be analyzed ({type(exc).__name__}): "
+            "it is nested or chained too deeply, or holds text the parser cannot read."
+        ),
+    )
+
+
 def lint_workflow_script(script_code: str, query: str = "") -> WorkflowLintReport:
     """Parse and lint a dynamic workflow Python script using standard library AST.
 
@@ -341,15 +363,13 @@ def lint_workflow_script(script_code: str, query: str = "") -> WorkflowLintRepor
             steer_child_calls_found=0,
         )
 
+    visitor = _WorkflowASTVisitor()
     try:
         tree = ast.parse(cleaned_code)
-    except SyntaxError as exc:
-        fatal_issue = LintIssue(
-            severity=LintSeverity.FATAL,
-            issue_code="SYNTAX_ERROR",
-            message=f"Python syntax error at line {exc.lineno}, col {exc.offset}: {exc.msg}",
-            line=exc.lineno,
-        )
+        visitor.visit(tree)
+        visitor.finalize_dataflow_checks()
+    except PYTHON_PARSE_ERRORS as exc:
+        fatal_issue = _unanalysable_script_issue(exc)
         return WorkflowLintReport(
             is_valid=False,
             issues=(fatal_issue,),
@@ -360,10 +380,6 @@ def lint_workflow_script(script_code: str, query: str = "") -> WorkflowLintRepor
             summary=f"Static lint failed: {fatal_issue.message}",
             steer_child_calls_found=0,
         )
-
-    visitor = _WorkflowASTVisitor()
-    visitor.visit(tree)
-    visitor.finalize_dataflow_checks()
 
     # Derive goal brief from docstring or query
     docstring = ast.get_docstring(tree)

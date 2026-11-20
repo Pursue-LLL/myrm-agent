@@ -6,6 +6,7 @@ This enables fine-grained Path Policy enforcement and Fast-Path Auto-Approve for
 
 [INPUT]
 - toolkits.code_execution.python_extractor::extract_python_from_bash (POS: Unified Python extraction with quote-aware parsing)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - PTCArgumentValue: Type alias for argument values extracted from PTC scripts.
@@ -19,10 +20,13 @@ Fast-Path Auto-Approve for read-only tools while preventing RCE bypass.
 from __future__ import annotations
 
 import ast
+from types import EllipsisType
 
 from myrm_agent_harness.toolkits.code_execution.python_extractor import extract_python_from_bash
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
-PTCArgumentValue = str | int | float | bool | list[object] | dict[str, object] | None
+# A keyword argument written as a literal: ``ast.Constant`` also holds bytes, complex numbers and ``...``.
+PTCArgumentValue = str | bytes | int | float | complex | bool | EllipsisType | list[object] | dict[str, object] | None
 
 # System modules that must not be imported in a pure PTC MCP script.
 # Any script importing these modules will fall back to full human approval (PermissionAction.ASK).
@@ -136,7 +140,7 @@ def extract_ptc_intent(command: str) -> tuple[str, str, dict[str, PTCArgumentVal
 
     try:
         tree = ast.parse(python_code)
-    except SyntaxError:
+    except PYTHON_PARSE_ERRORS:
         return None
 
     # CRITICAL: Validate that the script contains NO dangerous statements.

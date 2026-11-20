@@ -75,6 +75,25 @@ Run safely.
         assert item["is_safe"] is True
 
 
+def test_provider_preview_flags_a_skill_whose_python_the_scan_cannot_take() -> None:
+    """A script the scanner is blind to must not preview as safe: the scan never raises, so it cannot default to safe."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        (tmp_path / "SKILL.md").write_text(
+            "---\nname: blind-skill\ndescription: Skill with a script the scanner cannot read\n---\n# Instructions\n",
+            encoding="utf-8",
+        )
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "deep.py").write_text("x = " + " + ".join(["1"] * 30_000) + "\n", encoding="utf-8")
+
+        _, exists, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
+
+        assert exists
+        assert items[0]["is_safe"] is False
+        assert items[0]["security_score"] < 50
+
+
 def test_provider_preview_parent_dir_with_sub_skills_and_conflict() -> None:
     with tempfile.TemporaryDirectory() as tmp_dir:
         tmp_path = Path(tmp_dir)

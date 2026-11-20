@@ -38,6 +38,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_no_star_imports.py` | Gate | 禁止 star import | — |
 | `test_lazy_exports_typed.py` | Gate | 带模块级 `__getattr__` 的包：`__all__` 必须是字面量，每个导出名都要有静态绑定（`if TYPE_CHECKING:` 镜像），镜像与惰性表（`_EXPORTS` / `_LAZY_IMPORTS`）一一对应，且每个导出名运行时可解析（否则类型检查器把它当 `object`，或首次使用才 AttributeError）；`api/` 由 `__init__.pyi` 镜像、由 `tests/api/test_public_surface.py` 校验，`retriever` 两个在 `__getattr__` 里现造的预加载函数登记为例外并有失效检查；自带检测器正反例 | — |
 | `test_no_delta_channel.py` | Gate | AST：harness `src/` 不得使用 `DeltaChannel`（检查点历史剪枝会让其丢失状态；含检测器正反例自证） | — |
+| `test_python_parse_errors.py` | Gate | AST：`ast.parse` / `compile` / `ast.literal_eval` 外的处理器一旦写了 `SyntaxError`，就必须同时覆盖 `utils.python_parse` 里解析器对退化文本的其余失败（`PYTHON_PARSE_ERRORS`，`literal_eval` 为 `PYTHON_LITERAL_ERRORS`）；含检测器正反例自证 | — |
 | `test_event_bus_naming_boundary.py` | Gate | 禁止 stale `EventBus` import（pubsub/broadcast rename 回归） | — |
 | `test_manager_shared_barrel.py` | Gate | manager 共享 barrel 约束 | — |
 | `test_tool_registry.py` | Gate | tool registry 与 `_TOOL_LAYERS` 一致 | — |

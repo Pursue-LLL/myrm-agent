@@ -2,6 +2,7 @@
 
 [INPUT]
 - agent.skills.evolution.core.types::SkillRecord (POS: Data types for skill evolution system.)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - filter_variants_by_regression: Baseline-relative regression gate that applies score penalties.
@@ -22,6 +23,8 @@ import ast
 import logging
 import re
 from typing import Any
+
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 from .types import SkillRecord
 
@@ -98,7 +101,7 @@ def _run_single_case(case_dict: dict[str, Any], variant_code: str) -> bool:
         elif a_type == "ast_valid":
             try:
                 ast.parse(variant_code)
-            except SyntaxError:
+            except PYTHON_PARSE_ERRORS:
                 return False
         elif a_type == "imports_module":
             if not _check_imports(variant_code, target):
@@ -126,7 +129,7 @@ def _check_imports(code: str, module_name: str) -> bool:
     """Check if code imports a specific module."""
     try:
         tree = ast.parse(code)
-    except SyntaxError:
+    except PYTHON_PARSE_ERRORS:
         return False
 
     for node in ast.walk(tree):

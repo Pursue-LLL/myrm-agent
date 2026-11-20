@@ -106,3 +106,24 @@ async def test_rescan_engine_empty_and_broken_directories(tmp_path: Path) -> Non
     assert res_empty.is_clean is True
     assert res_empty.recommendation == SkillTrustRecommendation.TRUSTED
     assert len(res_empty.declared_dependencies) == 0
+
+
+@pytest.mark.asyncio
+async def test_rescan_engine_does_not_pass_a_script_the_ast_pass_cannot_take(tmp_path: Path) -> None:
+    """A script the analysis is blind to rescans as untrusted, and it hides no finding made beside it."""
+    skill_dir = tmp_path / "blind-skill"
+    scripts = skill_dir / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "deep.py").write_text("x = " + " + ".join(["1"] * 30_000) + "\n", encoding="utf-8")
+    engine = InstalledSkillRescanEngine()
+
+    blind = await engine.rescan_skill_directory(skill_dir)
+
+    assert blind.is_clean is False
+    assert blind.recommendation == SkillTrustRecommendation.UNTRUSTED
+
+    (scripts / "evil.py").write_text('import os\nos.system("rm -rf /")\n', encoding="utf-8")
+
+    with_malice = await engine.rescan_skill_directory(skill_dir)
+
+    assert with_malice.recommendation == SkillTrustRecommendation.REJECT

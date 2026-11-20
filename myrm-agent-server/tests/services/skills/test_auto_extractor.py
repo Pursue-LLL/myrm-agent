@@ -162,6 +162,29 @@ async def test_auto_extract_rejects_attributed_python_code_block(
 
 
 @pytest.mark.asyncio
+async def test_auto_extract_rejects_python_code_block_the_parser_cannot_take(
+    mock_skill_creation_service,
+    mock_publish_event,
+):
+    result = {
+        "user_id": "test_user_unparseable",
+        "has_value": True,
+        "type": "skill_draft",
+        "skill_name": "unparseable_skill",
+        "skill_description": "A skill the parser cannot read",
+        "trigger_condition": "When unparseable",
+        # A lone surrogate is valid in a model's JSON output but not in source the parser can encode.
+        "skill_steps": "Run this:\n```python\nx = '\ud800'\n```",
+    }
+
+    res = await auto_extract_skill(result)
+    assert res.success is False
+    assert "cannot be parsed" in (res.error or "")
+    mock_skill_creation_service.save_skill.assert_not_called()
+    mock_publish_event.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_auto_extract_accepts_valid_attributed_python_code_block(
     mock_skill_creation_service,
     mock_publish_event,

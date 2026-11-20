@@ -8,7 +8,7 @@ Skill content security scanning — regex patterns, Python AST analysis, package
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Re-exports scanning APIs for agent and backend consumers. | — |
-| ast_analyzer.py | Core | AST-level Python security analysis (eval, subprocess, pickle, etc.). | ✅ |
+| ast_analyzer.py | Core | AST-level Python security analysis (eval, subprocess, pickle, etc.). A syntax error yields an `info` `ast_parse_error` finding (the file cannot run); source the parser or the tree walk cannot take at all (nested or chained too deeply, unencodable text) yields a `high` one next to the findings made before the failure, so a file the analysis is blind to never reads as clean and the scan never raises on it. | ✅ |
 | archive_security.py | Core | Canonical archive security contract (error code/message), executable signature detection, and structured logs/metrics. | ✅ |
 | cvss.py | Core | CVSS v3.x base score computed from an OSV vector string (v4 and malformed vectors yield `None`). | ✅ |
 | dependency_extractor.py | Core | Manifest and lockfile dependency extractor for package.json (npm), requirements.txt (PyPI), pyproject.toml (PyPI), uv.lock (PyPI), bun.lock (npm; JSONC, resolved registry versions only), and package-lock.json (npm). | ✅ |

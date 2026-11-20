@@ -31,6 +31,8 @@ import re
 import warnings
 from dataclasses import dataclass
 
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
+
 # Matches line gutter emitted by ResultFormatter (e.g. "     12|def foo():")
 _GUTTER_LINE_RE = re.compile(r"^\s*(\d+)\|")
 
@@ -180,7 +182,7 @@ def _extract_python_ast_symbols(numbered: list[tuple[int, str]], start_line_thre
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", SyntaxWarning)
             tree = ast.parse(source)
-    except (SyntaxError, ValueError, MemoryError, RecursionError):
+    except PYTHON_PARSE_ERRORS:
         return []
 
     symbols: list[OutlineSymbol] = []

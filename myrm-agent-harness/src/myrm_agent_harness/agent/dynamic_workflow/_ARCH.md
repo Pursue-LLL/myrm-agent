@@ -58,13 +58,13 @@ SSE events (message / message_end / status)
 
 | File | Role | Description |
 |------|------|-------------|
-| `linter.py` | Static Lint | `WorkflowScriptASTLinter` — AST 语法合法性检验、无界循环检测、异常隔离捕获校验、Def-Use 数据流假边分析（Dead Output Detection）、Goal Brief 提取。 |
+| `linter.py` | Static Lint | `WorkflowScriptASTLinter` — AST 语法合法性检验、无界循环检测、异常隔离捕获校验、Def-Use 数据流假边分析（Dead Output Detection）、Goal Brief 提取。解析器或遍历无法处理的脚本（嵌套/链式过深、不可编码文本）与语法错误同样报 FATAL `SYNTAX_ERROR`，不向调用方抛异常。 |
 | `preflight.py` | Trust | Static spawn + llm_query counting, AST lint report integration, batch cost estimate, plan preview formatting, approval gate protocol. |
 | `prompts.py` | Prompts | `ORCHESTRATOR_PROMPT` (script generation guidance) / `SUMMARIZATION_PROMPT` (output → user Markdown) / `_MAX_STDOUT_FOR_SUMMARY`. |
 | `__init__.py` | Engine | Core entry point (`run_dynamic_workflow_stream`). Script generation (orchestrator 响应经 `utils.chat_utils::extract_answer_text` 提取，兼容内联 think 剥离与 reasoning 模型), preflight, optional `approval_gate`, PTC execution, summarization. Re-exports prompts from `prompts.py`. |
 | `store.py` | Persistence | `WorkflowEventStore` — `identity_hash` indexed cross-run/fork readonly replay + fingerprinted sub-agent cache + `.workflow-journal.jsonl` sidecar (path-guarded via `coerce_filesystem_path`) + orchestration script persistence. |
 | `template_store.py` | Template library | `WorkflowTemplateStore` — user-named orchestration scripts for pinned reruns (`workflow_templates` table). |
-| `template_validation.py` | Template library | Script validation, `extract_template_placeholders`, `validate_template_args`, AST `script_all_spawns_readonly`, placeholder substitution, trust-latch plan-confirm skip guardrails. |
+| `template_validation.py` | Template library | Script validation, `extract_template_placeholders`, `validate_template_args`, AST `script_all_spawns_readonly` (a script the parser cannot take is not read-only), placeholder substitution, trust-latch plan-confirm skip guardrails. |
 | `paths.py` | Template library | `resolve_workflow_events_db_path` — SQLite path SSOT under `{harness_root}/.myrm/workflow_events.db`. |
 | `spawn_cache.py` | Cache SSOT | `SpawnCacheParams` fingerprint for durable replay. |
 | `tools/` | PTC Tools | PTC 工具族子包：`spawn.py`（SpawnSubagentTool、WorkflowRunGuard、验证模式）、`notify.py`（进度通知）、`human.py`（human_ask）、`steer.py`（steer_child）；门面保持原导入面。详见 [tools/_ARCH.md](tools/_ARCH.md) | ✅ |

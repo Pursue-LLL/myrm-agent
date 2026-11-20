@@ -4,6 +4,7 @@
 - app.core.skills.models::LOCAL_SKILLS_DIR (POS: single definition of the primary local skills root)
 - creation_protocols::SkillWriteBackend, SkillSaveResult, SkillDeleteResult, SkillResourceWriteResult
 - myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE, SKILL_NAME_PATTERN
+- myrm_agent_harness.utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - SkillCreationService: local filesystem implementation of SkillWriteBackend
@@ -11,7 +12,7 @@
 
 [POS]
 Business-layer implementation of SkillWriteBackend protocol.
-Stores skills and their resource files in LOCAL_SKILLS_DIR/{name}/ (the catalog's primary scan root), with syntax validation for .py, .json, and .yaml/.yml resources.
+Stores skills and their resource files in LOCAL_SKILLS_DIR/{name}/ (the catalog's primary scan root), with syntax validation for .py, .json, and .yaml/.yml resources (a .py resource the parser cannot take at all is refused like one with a syntax error).
 Handles auto-enable/disable in user config on save/delete.
 Security scanning is handled by the framework-layer ScanningSkillWriteBackend wrapper.
 """
@@ -36,6 +37,7 @@ from myrm_agent_harness.backends.skills.creation_protocols import (
     SkillResourceWriteResult,
     SkillSaveResult,
 )
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 from app.core.skills.models import LOCAL_SKILLS_DIR
 
@@ -173,6 +175,13 @@ class SkillCreationService:
                     skill_name=skill_name,
                     resource_path=resource_path,
                     error=f"Python syntax error in '{resource_path}': {e}",
+                )
+            except PYTHON_PARSE_ERRORS as e:
+                return SkillResourceWriteResult(
+                    success=False,
+                    skill_name=skill_name,
+                    resource_path=resource_path,
+                    error=f"Python file '{resource_path}' cannot be parsed: {type(e).__name__}",
                 )
         elif target.suffix == ".json":
             try:

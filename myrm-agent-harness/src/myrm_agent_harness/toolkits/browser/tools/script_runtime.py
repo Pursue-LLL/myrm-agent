@@ -32,6 +32,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
+
 from ..exceptions import BrowserError
 from ..session.takeover import UserTakeoverDuringScriptError
 from .semantic_dom_hitl import ScriptApprovalRequiredError
@@ -84,9 +86,10 @@ def vet_script(script: str) -> str:
         tree = ast.parse(source)
     except SyntaxError as exc:
         raise ScriptRejectedError(f"SyntaxError in script: {exc.msg} (line {exc.lineno or 1})") from exc
-    except (ValueError, MemoryError, RecursionError) as exc:
-        # Text the parser cannot take at all: one that cannot be encoded (a lone surrogate), or one nested so deeply
-        # that it gives up with RecursionError or, once its own stack is full, MemoryError
+    except PYTHON_PARSE_ERRORS as exc:
+        # Not a SyntaxError (handled above): text the parser cannot take at all, one that cannot be encoded
+        # (a lone surrogate) or one nested so deeply that it gives up with RecursionError or, once its own
+        # stack is full, MemoryError
         raise ScriptRejectedError(f"[Error] The script cannot be parsed: {exc}") from exc
     if not tree.body:
         raise ScriptRejectedError("[Error] The script has no statements (it is empty or has only comments).")
