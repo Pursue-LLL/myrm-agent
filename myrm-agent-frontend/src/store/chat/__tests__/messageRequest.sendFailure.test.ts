@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { createAISearchStream } from '@/services/chat';
+import { getConfigSyncManager } from '@/services/config';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
 import { AgentBusyError, ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
@@ -365,9 +366,18 @@ describe('sendMessage failure handling', () => {
 
     beforeEach(() => {
       vi.spyOn(toast, 'warning').mockReturnValue(0);
-      useConfigStore.setState({ searchServiceConfigs: [] });
+      // The account's configuration has arrived and holds no search service, so the gate decides on the store's list
+      // at once instead of waiting for a backend this test does not have.
+      const manager = getConfigSyncManager();
+      vi.spyOn(manager, 'ensureKeyLoaded').mockResolvedValue(true);
+      vi.spyOn(manager, 'isInitialized', 'get').mockReturnValue(true);
+      useConfigStore.setState({ searchServiceConfigs: [], _configStoreReady: true });
       // A request that slips past the guard is answered at once, so a missing guard fails the test instead of hanging it.
       refusedWith(401, JSON.stringify({ detail: 'Session expired' }));
+    });
+
+    afterEach(() => {
+      useConfigStore.setState({ _configStoreReady: false });
     });
 
     it.each([
