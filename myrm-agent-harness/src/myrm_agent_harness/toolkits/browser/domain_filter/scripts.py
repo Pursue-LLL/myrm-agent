@@ -5,15 +5,17 @@
 - stdlib json (POS: the policy text is embedded as a JSON string literal)
 
 [OUTPUT]
-- build_csp_meta_script: init script that puts the allowlist's Content-Security-Policy ``<meta>`` at the top of a
+- build_csp_meta_script: script that puts the allowlist's Content-Security-Policy ``<meta>`` at the top of a
   document's head and puts it there again before a page opens a WebSocket or Worker; raises ``ValueError`` for an
-  empty allowlist
+  empty allowlist. As an init script its value is dropped; evaluated as an expression it is a function that makes the
+  current document carry the policy and says whether it does
 - build_init_script: init script that hardens WebRTC, WebTransport and Service Worker registration
 
 [POS]
-The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script``. The browser runs an init
-script in every document it creates, before the page's own scripts, whatever fetched the document. A popup that keeps
-its opener is the exception: the driver lets its page start before the init scripts are registered, so the page's
+The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script`` for the page's main world,
+and that ``domain_filter.agent_world`` runs again in the world the agent's own JavaScript runs in. The browser runs an
+init script in every document it creates, before the page's own scripts, whatever fetched the document. A popup that
+keeps its opener is the exception: the driver lets its page start before the init scripts are registered, so the page's
 first script can run first, and a same-origin popup's reused window runs them once, on ``about:blank``; the Layer 0
 script covers the reused-window case itself (see Layer 0 in the package docstring and ``BROWSER_SYSTEM.md`` section 10).
 """
@@ -33,19 +35,29 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
   var construct = Reflect.construct;
   var carriers = new WeakSet();
 
+  function carries(doc) {
+    var held = doc.head ? doc.head.querySelectorAll('meta[http-equiv="Content-Security-Policy" i]') : [];
+    for (var i = 0; i < held.length; i++) {
+      if (held[i].content === policy) return true;
+    }
+    return false;
+  }
+
   function ensurePolicy() {
     var doc = document;
     if (carriers.has(doc) || !doc.head) return;
-    var meta = doc.createElement('meta');
-    meta.httpEquiv = 'Content-Security-Policy';
-    meta.content = policy;
-    doc.head.insertBefore(meta, doc.head.firstChild);
+    if (!carries(doc)) {
+      var meta = doc.createElement('meta');
+      meta.httpEquiv = 'Content-Security-Policy';
+      meta.content = policy;
+      doc.head.insertBefore(meta, doc.head.firstChild);
+    }
     carriers.add(doc);
   }
 
   if (document.head) {
     ensurePolicy();
-  } else {
+  } else if (document.readyState === 'loading') {
     var observer = new MutationObserver(function() {
       if (document.head) {
         observer.disconnect();
@@ -68,11 +80,16 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
     Object.defineProperty(Native.prototype, 'constructor', { value: guarded });
     Object.defineProperty(window, name, { value: guarded });
   });
+
+  return function() {
+    ensurePolicy();
+    return carries(document);
+  };
 })();"""
 
 
 def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
-    """Generate the init script that gives every document the allowlist's CSP ``<meta>`` and keeps it there.
+    """Generate the script that gives every document the allowlist's CSP ``<meta>`` and keeps it there.
 
     The policy is enforced by the browser for the connections the document itself makes, and cannot be bypassed
     by page scripts. Directives:
@@ -87,7 +104,8 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     An init script runs before the parser has created the document's ``<head>``, so the script waits for it: a
     ``MutationObserver`` on the document inserts the policy as the head's first child, ahead of the page's own scripts,
     and is dropped once it has done so or the document is fully parsed (a document that never gets a head, such as an SVG,
-    gets no policy and no lingering observer). Creating a head here instead would leave a stray element in such documents.
+    gets no policy and no lingering observer; one that is already parsed when the script runs gets no observer at all).
+    Creating a head here instead would leave a stray element in such documents.
 
     A window the browser reuses for a same-origin popup keeps what this script set on it, but its new document normally
     gets no init-script run of its own and so no policy. WebSocket, Worker and SharedWorker are the channels no request
@@ -96,6 +114,12 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     the way it is in a document that had the policy from the start. A page can tell the wrapper from the native
     constructor in two ways: the ``toString`` text lacks the function name, and a ``TypeError`` the native constructor
     throws gains a stack frame.
+
+    The page's world and the agent's world (``domain_filter.agent_world`` runs this script there too) each keep a record
+    of the documents they have dealt with and cannot see the other's, so the DOM decides: a document gets the policy
+    only when none of its head's ``<meta>`` elements already carries it. The script evaluates to a function that does
+    the same for the current document and returns whether the document then carries the policy; a document that cannot
+    hold the element never does (SVG has no head, and an element created in an XML document is not a ``meta`` element).
 
     Raises:
         ValueError: ``allowlist`` is empty. An empty allowlist installs no filter, so there is no policy to build.

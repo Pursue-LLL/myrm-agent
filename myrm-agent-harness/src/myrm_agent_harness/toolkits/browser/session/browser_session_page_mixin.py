@@ -2,9 +2,11 @@
 
 [INPUT]
 - session.extractor::_PDF_HEADER_TEMPLATE, _PDF_FOOTER_TEMPLATE, _PDF_MARGIN (POS: PDF metadata templates)
+- domain_filter.agent_world::agent_world_expression (POS: puts the context's domain allowlist ahead of the agent's JavaScript)
+- session.session_host::SessionHost (POS: typed host contract the mixin builds on)
 
 [OUTPUT]
-- BrowserSessionPageMixin: evaluate, navigation helpers, PDF to temp path, viewport, load state, dialogs.
+- BrowserSessionPageMixin: evaluate (the agent's JavaScript, run under the context's domain allowlist), navigation helpers, PDF to temp path, viewport, load state, dialogs.
 
 [POS]
 Viewport, dialog, and misc page-level helpers for BrowserSession.
@@ -17,11 +19,13 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.toolkits.browser.domain_filter.agent_world import agent_world_expression
 from myrm_agent_harness.toolkits.browser.session.extractor import (
     _PDF_FOOTER_TEMPLATE,
     _PDF_HEADER_TEMPLATE,
     _PDF_MARGIN,
 )
+from myrm_agent_harness.toolkits.browser.session.session_host import SessionHost
 
 if TYPE_CHECKING:
     from patchright.async_api import Page
@@ -29,7 +33,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class BrowserSessionPageMixin:
+class BrowserSessionPageMixin(SessionHost):
     """evaluate, navigation helpers, PDF to temp path, viewport, load state, dialogs."""
 
     def get_active_page(self) -> Page:
@@ -41,7 +45,7 @@ class BrowserSessionPageMixin:
         return self._tab_controller.get_active_page()
 
     async def evaluate(self, expression: str) -> str:
-        """Execute JavaScript code"""
+        """Run the agent's JavaScript in the active page, under the context's domain allowlist when it has one."""
         if hasattr(self, "_ensure_not_user_takeover"):
             await self._ensure_not_user_takeover()
         await self._ensure_components()
@@ -58,7 +62,7 @@ class BrowserSessionPageMixin:
 
         page = self._tab_controller.get_active_page()
 
-        result = await page.evaluate(expression)
+        result = await page.evaluate(agent_world_expression(page.context, expression))
         logger.info("BrowserSession: evaluated JS expression")
         return str(result)
 

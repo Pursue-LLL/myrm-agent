@@ -33,6 +33,11 @@ Layer 3 — CDP Audit Monitor (``Network.webSocketCreated``)
     Detects WebSocket connections of page targets at the Chrome DevTools Protocol level.
     Does not block — provides audit visibility for all layers.
 
+The init scripts of Layers 0 and 2 run in the page's main world, and the agent's own JavaScript runs in the driver's
+isolated world, where neither is present. ``agent_world`` (called by ``BrowserSession.evaluate``, not re-exported)
+runs the same two scripts there, so an expression gets the policy and the hardening too (``BROWSER_SYSTEM.md``
+section 10).
+
 
 [INPUT]
 - pool.config::ResourceBlockConfig (POS: resource blocking config, includes block_ad_domains flag)

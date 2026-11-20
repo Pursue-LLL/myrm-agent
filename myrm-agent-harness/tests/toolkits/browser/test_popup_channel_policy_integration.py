@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist
 from myrm_agent_harness.toolkits.browser.pool import BrowserPoolConfig, ContextType, GlobalBrowserPool
 from myrm_agent_harness.toolkits.browser.utils.private_origins import private_origin_grants
 from tests.toolkits.browser._browser_available import chromium_available
+from tests.toolkits.browser._channel_probe import CHANNEL_PROBE, CHANNEL_ROUTES
 from tests.toolkits.browser._redirect_servers import Site, page, serve
 
 pytestmark = [
@@ -36,52 +37,6 @@ _TIMEOUT_MS = 15_000
 # machine needs many tries because the init script then often reaches a popup's document after its page's first script.
 _POPUP_ATTEMPTS = 20
 
-# The ways a page can open a WebSocket or a Worker. ``allowed`` goes to the allowlisted site; every other route goes to
-# the outside server: the constructor itself, the routes that reach the native constructor around a wrapper
-# (``prototype.constructor``, an instance's ``constructor``, a subclass, ``Reflect.construct``, another realm) and the
-# Workers whose script comes from a blob or data URL and opens the socket itself. A refusal arrives as a policy
-# violation, not as an exception, so the verdict keeps both.
-_ROUTES = (
-    "allowed",
-    "direct",
-    "prototype_constructor",
-    "instance_constructor",
-    "subclass",
-    "reflect",
-    "frame_realm",
-    "blob_worker",
-    "data_worker",
-    "blob_shared_worker",
-)
-_PROBE = r"""
-async ([route, outsideBase, insideBase]) => {
-  const outside = (path) => `${outsideBase.replace('http', 'ws')}/${path}`;
-  const inside = (path) => `${insideBase.replace('http', 'ws')}/${path}`;
-  const script = `new WebSocket('${outside('worker')}')`;
-  const blob = () => URL.createObjectURL(new Blob([script], {type: 'text/javascript'}));
-  const routes = {
-    allowed: () => new WebSocket(inside('allowed')),
-    direct: () => new WebSocket(outside(route)),
-    prototype_constructor: () => new WebSocket.prototype.constructor(outside(route)),
-    instance_constructor: () => new (new WebSocket.prototype.constructor(inside('seed'))).constructor(outside(route)),
-    subclass: () => { class Tap extends WebSocket {} return new Tap(outside(route)); },
-    reflect: () => Reflect.construct(WebSocket, [outside(route)]),
-    frame_realm: () => {
-      const frame = document.body.appendChild(document.createElement('iframe'));
-      return new frame.contentWindow.WebSocket(outside(route));
-    },
-    blob_worker: () => new Worker(blob()),
-    data_worker: () => new Worker(`data:text/javascript,${encodeURIComponent(script)}`),
-    blob_shared_worker: () => new SharedWorker(blob()),
-  };
-  const violations = [];
-  document.addEventListener('securitypolicyviolation', (e) => violations.push(e.violatedDirective));
-  let outcome;
-  try { routes[route](); outcome = 'opened'; } catch (e) { outcome = e.name; }
-  await new Promise((resolve) => setTimeout(resolve, 400));
-  return {outcome, violations};
-}
-"""
 _POLICY_COUNT = "document.head.querySelectorAll('meta[http-equiv]').length"
 _OPEN_CHANNELS_TWICE = f"""() => {{
   new WebSocket(location.origin.replace('http', 'ws') + '/a');
@@ -149,11 +104,11 @@ async def test_each_route_in_a_same_origin_popup_ends_as_it_does_in_a_navigated_
     tab_verdicts: dict[str, object] = {}
     popup_verdicts: dict[str, object] = {}
     async with _tab(inside) as tab:
-        for route in _ROUTES:
+        for route in CHANNEL_ROUTES:
             await tab.goto(inside.url("/"), timeout=_TIMEOUT_MS)
-            tab_verdicts[route] = await tab.evaluate(_PROBE, [route, *targets], **_MAIN_WORLD)
+            tab_verdicts[route] = await tab.evaluate(CHANNEL_PROBE, [route, *targets], **_MAIN_WORLD)
             popup = await _open_popup(tab, inside)
-            popup_verdicts[route] = await popup.evaluate(_PROBE, [route, *targets], **_MAIN_WORLD)
+            popup_verdicts[route] = await popup.evaluate(CHANNEL_PROBE, [route, *targets], **_MAIN_WORLD)
             await popup.close()
 
     assert outside.hits == []

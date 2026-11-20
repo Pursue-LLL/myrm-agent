@@ -74,6 +74,23 @@ def test_build_csp_meta_script_applies_the_policy_before_the_channels_no_request
     assert script.count("connect-src 'self' example.com") == 1
 
 
+def test_build_csp_meta_script_adds_no_second_policy_to_a_document_that_already_carries_it() -> None:
+    """The page's world and the agent's world each run this script with a record of their own: the document decides."""
+    script = build_csp_meta_script(DomainAllowlist(patterns=("example.com",)))
+    ensure = script[script.index("function ensurePolicy()") : script.index("if (document.head)")]
+
+    assert ensure.index("if (!carries(doc))") < ensure.index("createElement('meta')")
+
+
+def test_build_csp_meta_script_evaluates_to_a_check_of_the_current_document() -> None:
+    """The agent's world runs the script as an expression and asks it whether the document carries the policy."""
+    script = build_csp_meta_script(DomainAllowlist(patterns=("example.com",)))
+    returned = script[script.rindex("return function()") :]
+
+    assert "ensurePolicy();" in returned
+    assert "return carries(document);" in returned
+
+
 def test_build_csp_meta_script_wildcard_domain_expansion() -> None:
     """Test wildcard domain generates both bare and wildcard entries."""
     allowlist = DomainAllowlist(patterns=("*.github.com",))
