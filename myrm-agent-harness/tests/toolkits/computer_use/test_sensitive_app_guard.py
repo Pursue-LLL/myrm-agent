@@ -190,28 +190,28 @@ class TestDesktopInteractSensitiveGuard:
     @pytest.mark.asyncio
     async def test_interact_revalidation_blocks_sensitive_app(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
-        from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
+        from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
         from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig
 
         backend = MagicMock()
         session = DesktopSession(backend=backend, config=ComputerUseConfig())
+        go = ElementRef(ref_id="c0", role="AXButton", name="Go", bbox=BBox(0, 0, 10, 10), backend_key="k")
+        browsing = SnapshotMeta(ref_count=1, app_name="Safari", window_title="Start Page", scope="foreground", pid=7)
+        (ref,) = session._refs.adopt({"c0": go}, browsing)
         session._last_snapshot_time = time.time() - 10.0
 
-        mock_meta = SnapshotMeta(
-            ref_count=2,
-            app_name="WeChat",
-            window_title="Chat",
-            scope="foreground",
-        )
+        # The same browser process now shows a sensitive page: the re-read must refuse it.
+        sensitive_page = SnapshotMeta(ref_count=1, app_name="Safari", window_title="1Password", scope="target", pid=7)
         with patch(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
-            return_value=(mock_meta, {"btn1": MagicMock()}),
+            return_value=(sensitive_page, {"c0": go}),
         ):
-            result = await session.desktop_interact(ref="btn1", action="click")
+            result = await session.desktop_interact(ref=ref, action="click")
 
         assert isinstance(result, str)
         assert "Safety" in result
         assert "Blocked" in result
+        assert session.ref_registry.meta == browsing
 
 
 class TestDesktopVisionActionSensitiveGuard:

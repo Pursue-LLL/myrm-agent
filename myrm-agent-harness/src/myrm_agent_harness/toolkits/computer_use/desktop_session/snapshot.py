@@ -11,7 +11,8 @@
 - DesktopSnapshotMixin: desktop_snapshot (screen guard, registration of the capture, diff or full tree, optional annotated screenshot)
 
 [POS]
-Read-only perception entry of the semantic desktop tools; it registers each capture through _adopt_capture.
+Read-only perception entry of the semantic desktop tools; it registers each capture through _adopt_capture and is the
+only place that records what the model was shown.
 """
 
 from __future__ import annotations
@@ -103,6 +104,7 @@ class DesktopSnapshotMixin(DesktopSessionHost):
             probe = probe_iphone_mirror_state()
             if probe.state == IPhoneMirrorState.BLOCKED_CONNECT_PROMPT:
                 header = f"{header}\n[IPHONE_MIRROR_GATE] {probe.detail} {probe.remedy_hint}"
+        self._refs.mark_shown()
         if include_screenshot and screenshot_b64:
             from langchain_core.messages.content import create_image_block, create_text_block
 

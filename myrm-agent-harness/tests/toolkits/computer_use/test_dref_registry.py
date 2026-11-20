@@ -11,12 +11,12 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef
 _MAIL = SnapshotMeta(ref_count=0, app_name="Mail", window_title="Inbox", scope="foreground", pid=100)
 
 
-def _element(name: str, *, role: str = "AXButton", backend_key: str | None = None) -> ElementRef:
+def _element(name: str, *, role: str = "AXButton", backend_key: str | None = None, y: int = 0) -> ElementRef:
     return ElementRef(
         ref_id="provisional",
         role=role,
         name=name,
-        bbox=BBox(0, 0, 10, 10),
+        bbox=BBox(0, y, 100, 30),
         backend_key=backend_key if backend_key is not None else f"key-{name}",
     )
 
@@ -66,7 +66,7 @@ class TestIssuingIds:
 
         assert _names(adopted) == {"d1": "A"}
         with pytest.raises(DRefStaleError):
-            registry.get("d0")
+            registry.resolve("d0")
 
     def test_generation_counts_every_write(self) -> None:
         registry = DRefRegistry()
@@ -94,7 +94,7 @@ class TestCarryingIds:
 
         registry.adopt(_capture(_element("Reply", backend_key="new")), _MAIL)
 
-        assert registry.get("d0").backend_key == "new"
+        assert registry.resolve("d0").element.backend_key == "new"
 
     def test_an_element_inserted_above_does_not_shift_the_ids_of_the_others(self) -> None:
         registry = DRefRegistry()
@@ -105,7 +105,15 @@ class TestCarryingIds:
         )
 
         assert _names(after) == {"d3": "Banner", "d0": "Reply", "d1": "Delete", "d2": "Archive"}
-        assert registry.get("d1").name == "Delete"
+        assert registry.resolve("d1").element.name == "Delete"
+
+    def test_a_unique_element_keeps_its_id_wherever_it_moves(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply", y=0), _element("Delete", y=40)), _MAIL)
+
+        after = registry.adopt(_capture(_element("Delete", y=0), _element("Reply", y=40)), _MAIL)
+
+        assert _names(after) == {"d1": "Delete", "d0": "Reply"}
 
     def test_a_removed_element_is_stale_and_its_neighbour_is_not_aliased(self) -> None:
         registry = DRefRegistry()
@@ -114,41 +122,8 @@ class TestCarryingIds:
         registry.adopt(_capture(_element("Reply"), _element("Archive")), _MAIL)
 
         with pytest.raises(DRefStaleError):
-            registry.get("d1")
-        assert registry.get("d2").name == "Archive"
-
-    def test_twins_get_new_ids_on_every_capture(self) -> None:
-        registry = DRefRegistry()
-        registry.adopt(_capture(_element("OK"), _element("OK")), _MAIL)
-
-        second = registry.adopt(_capture(_element("OK"), _element("OK")), _MAIL)
-
-        assert set(second) == {"d2", "d3"}
-
-    def test_an_element_that_gained_a_twin_is_not_carried(self) -> None:
-        registry = DRefRegistry()
-        registry.adopt(_capture(_element("OK")), _MAIL)
-
-        after = registry.adopt(_capture(_element("OK"), _element("OK")), _MAIL)
-
-        assert set(after) == {"d1", "d2"}
-
-    def test_an_element_that_lost_its_twin_is_not_carried(self) -> None:
-        registry = DRefRegistry()
-        registry.adopt(_capture(_element("OK"), _element("OK")), _MAIL)
-
-        after = registry.adopt(_capture(_element("OK")), _MAIL)
-
-        assert set(after) == {"d2"}
-
-    @pytest.mark.parametrize("name", ["", "   "], ids=["empty", "blank"])
-    def test_an_unnamed_element_has_no_identity_and_is_never_carried(self, name: str) -> None:
-        registry = DRefRegistry()
-        registry.adopt(_capture(_element(name)), _MAIL)
-
-        after = registry.adopt(_capture(_element(name)), _MAIL)
-
-        assert set(after) == {"d1"}
+            registry.resolve("d1")
+        assert registry.resolve("d2").element.name == "Archive"
 
     def test_the_same_name_with_another_role_is_another_element(self) -> None:
         registry = DRefRegistry()
@@ -191,7 +166,7 @@ class TestCarryingIds:
 
         assert set(after) == {"d1"}
         with pytest.raises(DRefStaleError):
-            registry.get("d0")
+            registry.resolve("d0")
 
     def test_another_window_of_the_same_application_is_still_the_same_application(self) -> None:
         registry = DRefRegistry()
@@ -203,13 +178,171 @@ class TestCarryingIds:
         assert set(after) == {"d0"}
 
 
+class TestElementsWithoutAUniqueName:
+    """Unnamed elements and elements sharing a name are identified by where they are."""
+
+    @pytest.mark.parametrize("name", ["", "   "], ids=["empty", "blank"])
+    def test_an_unnamed_element_that_did_not_move_keeps_its_id(self, name: str) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element(name, y=0), _element("Reply", y=40)), _MAIL)
+
+        after = registry.adopt(_capture(_element(name, y=0), _element("Reply", y=40)), _MAIL)
+
+        assert set(after) == {"d0", "d1"}
+
+    def test_an_unnamed_element_that_moved_is_a_new_element(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("", y=0)), _MAIL)
+
+        after = registry.adopt(_capture(_element("", y=40)), _MAIL)
+
+        assert set(after) == {"d1"}
+        with pytest.raises(DRefStaleError):
+            registry.resolve("d0")
+
+    def test_an_unnamed_element_that_was_resized_is_a_new_element(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt({"d0": _element("")}, _MAIL)
+        wider = ElementRef(ref_id="x", role="AXButton", name="", bbox=BBox(0, 0, 160, 30), backend_key="k")
+
+        after = registry.adopt({"d0": wider}, _MAIL)
+
+        assert set(after) == {"d1"}
+
+    def test_twins_that_did_not_move_keep_their_ids(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40)), _MAIL)
+
+        after = registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40)), _MAIL)
+
+        assert {ref_id: element.bbox.y for ref_id, element in after.items()} == {"d0": 0, "d1": 40}
+
+    def test_twins_that_moved_get_new_ids(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40)), _MAIL)
+
+        after = registry.adopt(_capture(_element("OK", y=20), _element("OK", y=60)), _MAIL)
+
+        assert set(after) == {"d2", "d3"}
+
+    def test_one_twin_moving_does_not_retire_the_other(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40)), _MAIL)
+
+        after = registry.adopt(_capture(_element("OK", y=0), _element("OK", y=80)), _MAIL)
+
+        assert {ref_id: element.bbox.y for ref_id, element in after.items()} == {"d0": 0, "d2": 80}
+
+    def test_an_element_that_gained_a_twin_keeps_its_id_while_it_stays_in_place(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("OK", y=0)), _MAIL)
+
+        after = registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40)), _MAIL)
+
+        assert {ref_id: element.bbox.y for ref_id, element in after.items()} == {"d0": 0, "d1": 40}
+
+    def test_elements_that_cannot_be_told_apart_are_never_carried(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("OK"), _element("OK")), _MAIL)
+
+        after = registry.adopt(_capture(_element("OK"), _element("OK")), _MAIL)
+
+        assert set(after) == {"d2", "d3"}
+
+    def test_an_unnamed_element_of_another_application_is_never_carried(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("")), _MAIL)
+        other_app = SnapshotMeta(ref_count=0, app_name="Safari", window_title="Inbox", scope="foreground", pid=100)
+
+        after = registry.adopt(_capture(_element("")), other_app)
+
+        assert set(after) == {"d1"}
+
+    def test_a_renamed_element_is_not_matched_by_its_place(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Inbox (3)", y=0), _element("Inbox", y=40)), _MAIL)
+
+        after = registry.adopt(_capture(_element("Inbox (4)", y=0), _element("Inbox", y=40)), _MAIL)
+
+        assert _names(after) == {"d2": "Inbox (4)", "d1": "Inbox"}
+
+    def test_the_name_rule_runs_first_and_the_place_rule_serves_the_rest(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40), _element("Reply", y=80)), _MAIL)
+
+        after = registry.adopt(_capture(_element("OK", y=0), _element("OK", y=40), _element("Reply", y=120)), _MAIL)
+
+        assert {ref_id: (element.name, element.bbox.y) for ref_id, element in after.items()} == {
+            "d0": ("OK", 0),
+            "d1": ("OK", 40),
+            "d2": ("Reply", 120),
+        }
+
+
+class TestWhatTheModelWasShown:
+    def test_nothing_is_shown_until_the_session_says_so(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply")), _MAIL)
+
+        assert registry.shown_refs() == {}
+        assert registry.shown_meta is None
+
+    def test_the_content_marked_as_shown_stays_while_later_captures_are_adopted(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply"), _element("Delete")), _MAIL)
+        registry.mark_shown()
+
+        registry.adopt(_capture(_element("Reply")), SnapshotMeta(0, "Mail", "Draft", "target", pid=100))
+
+        assert _names(registry.shown_refs()) == {"d0": "Reply", "d1": "Delete"}
+        assert registry.shown_meta == _MAIL
+        assert _names(registry.all_refs()) == {"d0": "Reply"}
+
+    def test_marking_again_moves_what_is_shown_to_the_newest_content(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply")), _MAIL)
+        registry.mark_shown()
+        registry.adopt(_capture(_element("Reply"), _element("Forward")), _MAIL)
+
+        registry.mark_shown()
+
+        assert _names(registry.shown_refs()) == {"d0": "Reply", "d1": "Forward"}
+
+    def test_the_shown_refs_are_a_copy(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply")), _MAIL)
+        registry.mark_shown()
+
+        registry.shown_refs().clear()
+
+        assert _names(registry.shown_refs()) == {"d0": "Reply"}
+
+    def test_clear_forgets_what_was_shown(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply")), _MAIL)
+        registry.mark_shown()
+
+        registry.clear()
+
+        assert registry.shown_refs() == {}
+        assert registry.shown_meta is None
+
+
 class TestLookup:
     @pytest.mark.parametrize("model_supplied", ["d0", "@d0", " @d0 ", "0"])
     def test_the_prefix_and_surrounding_blanks_do_not_matter(self, model_supplied: str) -> None:
         registry = DRefRegistry()
         registry.adopt(_capture(_element("Reply")), _MAIL)
 
-        assert registry.get(model_supplied).name == "Reply"
+        assert registry.resolve(model_supplied).element.name == "Reply"
+
+    def test_resolve_names_the_snapshot_that_registered_the_element(self) -> None:
+        registry = DRefRegistry()
+        registry.adopt(_capture(_element("Reply")), _MAIL)
+
+        element, meta = registry.resolve("d0")
+
+        assert (element.name, meta) == ("Reply", _MAIL)
 
     @pytest.mark.parametrize(("model_supplied", "canonical"), [("d3", "d3"), ("@d3", "d3"), ("3", "d3"), (" @3", "d3")])
     def test_normalize_gives_the_canonical_id(self, model_supplied: str, canonical: str) -> None:
@@ -220,9 +353,13 @@ class TestLookup:
         registry.adopt(_capture(_element("Reply")), _MAIL)
 
         with pytest.raises(DRefStaleError) as raised:
-            registry.get("@d7")
+            registry.resolve("@d7")
 
         assert raised.value.ref_id == "d7"
+
+    def test_an_empty_registry_has_nothing_to_resolve(self) -> None:
+        with pytest.raises(DRefStaleError):
+            DRefRegistry().resolve("d0")
 
     def test_clear_makes_every_id_stale_and_forgets_the_snapshot(self) -> None:
         registry = DRefRegistry()
@@ -233,4 +370,4 @@ class TestLookup:
         assert registry.meta is None
         assert registry.all_refs() == {}
         with pytest.raises(DRefStaleError):
-            registry.get("d0")
+            registry.resolve("d0")

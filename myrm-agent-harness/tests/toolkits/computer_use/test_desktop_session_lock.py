@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
-from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ScreenInfo
 from myrm_agent_harness.utils.runtime.user_control import UserControl, UserControlTimeoutError
@@ -131,11 +130,11 @@ async def test_stale_ref_returns_structured_remedy_hint(mock_backend: MagicMock,
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
 
-    with patch.object(session._refs, "get", side_effect=DRefStaleError("Stale d99")):
-        res = await session.desktop_interact(ref="d99", action="click")
-        assert "Stale d99" in str(res)
-        assert "[REMEDY_HINT:" in str(res)
-        assert "desktop_snapshot_tool(scope='foreground')" in str(res)
+    res = await session.desktop_interact(ref="d99", action="click")
+
+    assert "d99" in str(res)
+    assert "[REMEDY_HINT:" in str(res)
+    assert "desktop_snapshot_tool(scope='foreground')" in str(res)
 
 
 @pytest.mark.asyncio

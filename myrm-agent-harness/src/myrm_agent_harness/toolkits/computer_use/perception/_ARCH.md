@@ -9,7 +9,7 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 |------|------|-------------|-------|
 | __init__.py | Package | Platform AX/UIA/AT-SPI perception package | — |
 | ax_dispatch.py | Core | Platform routing: capture_snapshot, inspect_backend, invoke_element | ✅ |
-| ax_diff.py | Core | Incremental AX tree diff producing `RefDiff`. `diff_adopted` compares two registry contents, where an id present on both sides is the same element (new / changed / retired by id), with a 3-layer full-view fallback (first snapshot / app change / high change ratio). `compute_ref_diff` compares two raw captures, whose ids carry no identity, via (role, name) matching + bbox proximity, with a 4-layer fallback (adds low identity confidence); the skill recorder uses it | ✅ |
+| ax_diff.py | Core | Incremental AX tree diff producing `RefDiff`. `diff_adopted` compares the content the model was last shown with the newly adopted one, where an id present on both sides is the same element (new / changed / retired by id), with a 3-layer full-view fallback (first snapshot / app change / high change ratio). `compute_ref_diff` compares two raw captures, whose ids carry no identity, via (role, name) matching + bbox proximity, with a 4-layer fallback (adds low identity confidence); the skill recorder uses it | ✅ |
 | overlay_roles.py | Core | Cross-platform overlay role SSOT for SOM + Inspector | ✅ |
 | renderer.py | Core | AX tree text rendering: `render_snapshot_tree` (full) + `render_diff_tree` (incremental diff with +/~/- markers; states that the ids it does not list are still valid and that a removed id is no longer valid); optional `[N]` SOM line prefixes | ✅ |
 | macos_ax/ | Platform | macOS Accessibility API snapshot + invoke + native API routing hints (package; see its `_ARCH.md`); targeted capture by app name (exact name with contains fallback, auto-restores minimized windows, bypasses frontmost; not found falls back to foreground with `scope` reflecting `foreground`). A password field is identified by its **subrole** (`AXSecureTextField`) and its `value` is never read | ✅ |
@@ -28,7 +28,7 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 ## Key Design: Incremental AX Tree Diff
 
 `ax_diff.py` re-sends only the added, updated and removed refs in continuous-interact scenarios instead of the whole tree.
-When `desktop_interact` completes, the follow-up snapshot compares the registry content before and after the new capture
+When `desktop_interact` completes, the follow-up snapshot compares what the model was last shown with the new capture
 via `diff_adopted`; the registry has already given every element that is the same one its old id, so the comparison is
 by id. If the diff is reliable (same app, low change ratio), only changed entries (+added, ~updated, -removed) are
 rendered to the agent context, together with the statement that every unlisted id is still valid. Three fallback

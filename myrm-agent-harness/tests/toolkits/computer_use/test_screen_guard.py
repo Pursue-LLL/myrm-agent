@@ -79,7 +79,7 @@ def _seed_pre_lock_ref(session: DesktopSession) -> str:
     )
     meta = SnapshotMeta(ref_count=1, app_name="Mail", window_title="Inbox", scope="foreground")
     (ref_id,) = session.ref_registry.adopt({"capture-1": ref}, meta)
-    assert session.ref_registry.get(ref_id).name == "Send"
+    assert session.ref_registry.resolve(ref_id).element.name == "Send"
     return ref_id
 
 
@@ -261,7 +261,7 @@ class TestDesktopSessionReanchor:
         session.reanchor_visual_state()
 
         with pytest.raises(DRefStaleError):
-            session.ref_registry.get(ref_id)
+            session.ref_registry.resolve(ref_id)
         assert session.ref_registry.meta is None
         assert session.ref_registry.generation > generation
 
@@ -280,7 +280,7 @@ class TestDesktopSessionReanchor:
             await session.desktop_snapshot()
 
         with pytest.raises(DRefStaleError):
-            session.ref_registry.get(ref_id)
+            session.ref_registry.resolve(ref_id)
 
 
 class TestDesktopSessionOnDemandUnlock:

@@ -11,7 +11,6 @@ from __future__ import annotations
 import subprocess
 import sys
 import time
-from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -257,37 +256,31 @@ def test_is_iphone_mirror_supported_darwin_paths() -> None:
         assert is_iphone_mirror_supported() is False
 
 
-def _make_interact_session() -> DesktopSession:
-    """Build a DesktopSession whose interact path reaches the mirror gate."""
+def _make_interact_session(window_title: str) -> DesktopSession:
+    """Build a DesktopSession whose registry holds the mirror's Connect button as @d0, so interact reaches the gate."""
     backend = MagicMock()
     config = MagicMock()
     config.screenshot_delay = 0.0
     session = DesktopSession(backend=backend, config=config)
     session._last_snapshot_time = time.time()
-    session._refs = MagicMock()
-    session._refs.meta = SnapshotMeta(
+    meta = SnapshotMeta(
         ref_count=1,
         app_name="iPhone Mirroring",
-        window_title="Click Connect to Start",
+        window_title=window_title,
         scope="foreground",
         app_id="com.apple.ScreenContinuity",
     )
-    session._refs.get.return_value = ElementRef(
-        ref_id="d1",
-        role="AXButton",
-        name="Connect",
-        bbox=BBox(10, 10, 100, 40),
-        backend_key="k",
-    )
+    connect = ElementRef(ref_id="c0", role="AXButton", name="Connect", bbox=BBox(10, 10, 100, 40), backend_key="k")
+    session._refs.adopt({"c0": connect}, meta)
     return session
 
 
 @pytest.mark.asyncio
 async def test_desktop_interact_blocks_mirror_connect_click() -> None:
     """Element named 'Connect' inside the mirror app is hard-denied before invoke."""
-    session = _make_interact_session()
+    session = _make_interact_session("Click Connect to Start")
     with patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke:
-        result = await session.desktop_interact(ref="d1", action="click")
+        result = await session.desktop_interact(ref="d0", action="click")
     assert result.startswith("Safety:")
     assert "must NOT automatically click connect" in result
     mock_invoke.assert_not_called()
@@ -296,12 +289,11 @@ async def test_desktop_interact_blocks_mirror_connect_click() -> None:
 @pytest.mark.asyncio
 async def test_desktop_interact_allows_mirror_normal_click() -> None:
     """Normal in-mirror content clicks proceed to AX invoke."""
-    session = _make_interact_session()
-    session._refs.meta = replace(session._refs.meta, window_title="iPhone (Pursue's iPhone)")
+    session = _make_interact_session("iPhone (Pursue's iPhone)")
     with patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke:
         mock_invoke.return_value = ActionResult(success=True)
         with patch.object(session, "desktop_snapshot", new=AsyncMock(return_value="view")):
-            result = await session.desktop_interact(ref="d1", action="click")
+            result = await session.desktop_interact(ref="d0", action="click")
     assert "succeeded" in result
     mock_invoke.assert_called_once()
 

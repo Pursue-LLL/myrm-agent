@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import replace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -58,7 +59,7 @@ class TestStableIdsAcrossSnapshots:
         assert "Desktop diff (1 change vs previous snapshot, app: Mail)" in result
         assert '+ @d3 AXButton "Banner"' in result
         assert "- @" not in result
-        assert session.ref_registry.get("d1").name == "Delete"
+        assert session.ref_registry.resolve("d1").element.name == "Delete"
 
     async def test_a_removed_element_is_reported_invalid_and_its_id_is_not_handed_to_its_neighbour(
         self, session: DesktopSession
@@ -75,7 +76,7 @@ class TestStableIdsAcrossSnapshots:
         assert "stale" in str(interact)
         assert "[REMEDY_HINT:" in str(interact)
         invoke.assert_not_called()
-        assert session.ref_registry.get("d2").name == "Archive"
+        assert session.ref_registry.resolve("d2").element.name == "Archive"
 
     async def test_an_unchanged_screen_says_every_id_is_still_valid(self, session: DesktopSession) -> None:
         with patch(_SNAPSHOT_CAPTURE, side_effect=[_capture("Reply", "Delete"), _capture("Reply", "Delete")]):
@@ -118,57 +119,7 @@ class TestStableIdsAcrossSnapshots:
             payload = await session.export_inspector_snapshot()
 
         assert payload["refs"][delete_id]["name"] == "Delete"
-        assert session.ref_registry.get(delete_id).name == "Delete"
-
-
-class TestRevalidationAfterAnApprovalDelay:
-    async def test_a_layout_shift_still_acts_on_the_approved_element_with_its_new_locator(
-        self, session: DesktopSession
-    ) -> None:
-        with patch(_SNAPSHOT_CAPTURE, return_value=_capture("Reply", "Forward")):
-            await session.desktop_snapshot()
-        forward_id = _id_of(session, "Forward")
-        session._last_snapshot_time = time.time() - 10.0
-
-        with (
-            patch(_REVALIDATION_CAPTURE, return_value=_capture("Banner", "Reply", "Forward")),
-            patch(_INVOKE) as invoke,
-            patch.object(session, "desktop_snapshot", AsyncMock(return_value="follow-up")),
-        ):
-            invoke.return_value.success = True
-            result = await session.desktop_interact(ref=forward_id, action="click")
-
-        acted_on = invoke.call_args.args[1]
-        assert (acted_on.name, acted_on.backend_key) == ("Forward", "position-2")
-        assert f"Action 'click' on @{forward_id} succeeded." in str(result)
-
-    async def test_a_same_named_element_of_another_application_is_not_acted_on(self, session: DesktopSession) -> None:
-        with patch(_SNAPSHOT_CAPTURE, return_value=_capture("Reply", app="Mail")):
-            await session.desktop_snapshot()
-        reply_id = _id_of(session, "Reply")
-        session._last_snapshot_time = time.time() - 10.0
-
-        with patch(_REVALIDATION_CAPTURE, return_value=_capture("Reply", app="Safari")), patch(_INVOKE) as invoke:
-            result = await session.desktop_interact(ref=reply_id, action="click")
-
-        assert "is no longer found" in str(result)
-        invoke.assert_not_called()
-
-    async def test_the_reference_may_carry_the_at_sign(self, session: DesktopSession) -> None:
-        with patch(_SNAPSHOT_CAPTURE, return_value=_capture("Reply")):
-            await session.desktop_snapshot()
-        session._last_snapshot_time = time.time() - 10.0
-
-        with (
-            patch(_REVALIDATION_CAPTURE, return_value=_capture("Reply")),
-            patch(_INVOKE) as invoke,
-            patch.object(session, "desktop_snapshot", AsyncMock(return_value="follow-up")),
-        ):
-            invoke.return_value.success = True
-            result = await session.desktop_interact(ref="@d0", action="click")
-
-        assert "Re-validation failed" not in str(result)
-        invoke.assert_called_once()
+        assert session.ref_registry.resolve(delete_id).element.name == "Delete"
 
 
 class TestSensitiveAppGuardAtTheSingleWriteEntry:
@@ -190,20 +141,24 @@ class TestSensitiveAppGuardAtTheSingleWriteEntry:
         assert str(result).startswith("Safety: Blocked")
         assert session.ref_registry.all_refs() == {}
 
-    async def test_the_revalidation_does_not_register_a_blocked_app(self, session: DesktopSession) -> None:
-        with patch(_SNAPSHOT_CAPTURE, return_value=_capture("Reply", app="Mail")):
+    async def test_the_revalidation_does_not_register_a_blocked_page_of_the_same_application(
+        self, session: DesktopSession
+    ) -> None:
+        with patch(_SNAPSHOT_CAPTURE, return_value=_capture("Reply", app="Safari")):
             await session.desktop_snapshot()
         reply_id = _id_of(session, "Reply")
         session._last_snapshot_time = time.time() - 10.0
+        meta, refs = _capture("Fill", app="Safari")
+        vault_page = replace(meta, window_title="1Password")
 
-        with patch(_REVALIDATION_CAPTURE, return_value=_capture("Fill", app="1Password")), patch(_INVOKE) as invoke:
+        with patch(_REVALIDATION_CAPTURE, return_value=(vault_page, refs)), patch(_INVOKE) as invoke:
             result = await session.desktop_interact(ref=reply_id, action="click")
 
         assert str(result).startswith("Safety: Blocked")
         invoke.assert_not_called()
         assert session.ref_registry.meta is not None
-        assert session.ref_registry.meta.app_name == "Mail"
-        assert session.ref_registry.get(reply_id).name == "Reply"
+        assert session.ref_registry.meta.window_title == "Inbox"
+        assert session.ref_registry.resolve(reply_id).element.name == "Reply"
 
     async def test_the_inspector_refresh_does_not_register_a_blocked_app(self, session: DesktopSession) -> None:
         screenshot = AsyncMock(return_value=ActionResult(success=True))
@@ -230,4 +185,4 @@ class TestSensitiveAppGuardAtTheSingleWriteEntry:
         with patch(_INSPECTOR_CAPTURE, return_value=_capture("Fill", app="1Password")):
             await session.export_inspector_snapshot()
 
-        assert session.ref_registry.get(reply_id).name == "Reply"
+        assert session.ref_registry.resolve(reply_id).element.name == "Reply"

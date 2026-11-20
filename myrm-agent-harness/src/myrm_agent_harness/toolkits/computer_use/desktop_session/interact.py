@@ -2,6 +2,7 @@
 
 [INPUT]
 - host::DesktopSessionHost (POS: typed session state, approval revalidation, guard screenshots, follow-up snapshot)
+- dref.registry::DRefRegistry.resolve (POS: the element a reference names with the snapshot that registered it)
 - perception.ax_dispatch::invoke_element (POS: native AX action on an element)
 - execution.healer::try_bbox_click (POS: coordinate fallback when the native action fails)
 - semantic_gate, safety, core.security.credential_vault (POS: destructive-action gate, hard blocks, credential fill)
@@ -11,6 +12,8 @@
 
 [POS]
 Mutating semantic entry of the desktop tools; every gate that can refuse the action runs before the element is touched.
+The approval is asked for the application the registry holds; after the re-read, the gates, the delivery and the
+follow-up snapshot all use the one capture the element was resolved from.
 """
 
 from __future__ import annotations
@@ -19,6 +22,7 @@ import asyncio
 import logging
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
+from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.execution.healer import try_bbox_click
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invoke_element
 from myrm_agent_harness.toolkits.computer_use.types import DesktopInteractAction, ModifierKey
@@ -26,6 +30,8 @@ from myrm_agent_harness.toolkits.computer_use.types import DesktopInteractAction
 from .host import DesktopSessionHost
 
 logger = logging.getLogger(__name__)
+
+_NO_SNAPSHOT = SnapshotMeta(ref_count=0, app_name="", window_title="", scope="foreground")
 
 
 class DesktopInteractMixin(DesktopSessionHost):
@@ -43,17 +49,13 @@ class DesktopInteractMixin(DesktopSessionHost):
         if (refusal := await self._screen_guard.refusal()) is not None:
             return refusal
         async with self._action_lock:
-            meta = self._refs.meta
-            app_name = meta.app_name if meta else ""
-            window_title = meta.window_title if meta else ""
-            app_id = meta.app_id if meta else ""
-
             from myrm_agent_harness.toolkits.computer_use import safety
 
+            asked_for = self._refs.meta or _NO_SNAPSHOT
             app_denied = await self.check_app_approval(
-                app_name=app_name,
-                window_title=window_title,
-                app_id=app_id,
+                app_name=asked_for.app_name,
+                window_title=asked_for.window_title,
+                app_id=asked_for.app_id,
                 operation=f"desktop_interact({action}, @{ref})",
             )
             if app_denied is not None:
@@ -65,7 +67,7 @@ class DesktopInteractMixin(DesktopSessionHost):
                     return stale_error
 
                 try:
-                    element = self._refs.get(ref)
+                    element, meta = self._refs.resolve(ref)
                 except DRefStaleError as exc:
                     remedy_hint = (
                         f"[REMEDY_HINT: The element reference @{ref} is stale because the UI state has changed. "
@@ -76,9 +78,9 @@ class DesktopInteractMixin(DesktopSessionHost):
                 # [SECURITY] iPhone Mirroring connect/pairing gate — hard block,
                 # not approvable: user must confirm connection on the device.
                 mirror_blocked = safety.is_iphone_mirror_blocked_action(
-                    app_name=app_name,
-                    window_title=window_title,
-                    app_id=meta.app_id if meta else "",
+                    app_name=meta.app_name,
+                    window_title=meta.window_title,
+                    app_id=meta.app_id,
                     action_text=f"{element.name} {text}".strip(),
                 )
                 if mirror_blocked:
@@ -97,8 +99,8 @@ class DesktopInteractMixin(DesktopSessionHost):
 
                 semantic_blocked = await enforce_desktop_interact_guard(
                     ctx=DesktopGuardContext(
-                        app_name=app_name,
-                        window_title=window_title,
+                        app_name=meta.app_name,
+                        window_title=meta.window_title,
                         screenshot_provider=self._capture_guard_screenshot,
                         scaler=self.scaler,
                     ),
@@ -132,13 +134,12 @@ class DesktopInteractMixin(DesktopSessionHost):
                 elif action == "set_value":
                     effective_action = "set_value"
 
-                snapshot_app = self._refs.meta.app_name if self._refs.meta else None
                 ax_result = invoke_element(
                     self._backend,
                     element,
                     effective_action,
                     effective_text,
-                    app_name=snapshot_app,
+                    app_name=meta.app_name,
                 )
                 if not ax_result.success:
                     bbox_result = await try_bbox_click(self, element, effective_action, effective_text, modifiers)
@@ -160,10 +161,10 @@ class DesktopInteractMixin(DesktopSessionHost):
                 if wait_seconds > 0:
                     base_delay += min(max(float(wait_seconds), 0.0), 10.0)
                 await asyncio.sleep(base_delay)
-                if self._refs.meta and self._refs.meta.app_name:
+                if meta.app_name:
                     follow_up = await self.desktop_snapshot(
                         scope="target",
-                        app_name=self._refs.meta.app_name,
+                        app_name=meta.app_name,
                         include_screenshot=False,
                     )
                 else:
