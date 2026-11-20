@@ -334,14 +334,14 @@ class TestDesktopInteractPermissionIntegration:
             scope="foreground",
             needs_permission=False,
         )
-        session._refs.replace({"de0": element}, meta)
+        (ref,) = session._refs.adopt({"capture-0": element}, meta)
 
         failed_invoke = ActionResult(success=False, error="AX invoke not available")
         with patch(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             return_value=failed_invoke,
         ):
-            result = await session.desktop_interact(ref="e0", action="click")
+            result = await session.desktop_interact(ref=ref, action="click")
 
         assert "background_strict" in result.lower() or "denied" in result.lower()
         backend.click.assert_not_called()
@@ -367,7 +367,7 @@ class TestDesktopInteractPermissionIntegration:
             scope="foreground",
             needs_permission=False,
         )
-        session._refs.replace({"de0": element}, meta)
+        (ref,) = session._refs.adopt({"capture-0": element}, meta)
 
         failed_invoke = ActionResult(success=False, error="AX invoke not available")
         with (
@@ -377,14 +377,14 @@ class TestDesktopInteractPermissionIntegration:
             ),
             patch(
                 "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
-                return_value=(meta, {"de0": element}),
+                return_value=(meta, {"capture-0": element}),
             ),
             patch(
                 "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.render_snapshot_tree",
                 return_value=("tree text", meta),
             ),
         ):
-            result = await session.desktop_interact(ref="e0", action="click")
+            result = await session.desktop_interact(ref=ref, action="click")
 
         callback.assert_called_once()
         backend.click.assert_called_once()

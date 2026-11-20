@@ -9,9 +9,9 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 |------|------|-------------|-------|
 | __init__.py | Package | Platform AX/UIA/AT-SPI perception package | — |
 | ax_dispatch.py | Core | Platform routing: capture_snapshot, inspect_backend, invoke_element | ✅ |
-| ax_diff.py | Core | Incremental AX tree diff: `compute_ref_diff` compares two snapshots via (role, name) identity matching + bbox proximity, produces `RefDiff` with 4-layer full-view fallback (first snapshot / app change / high change ratio / low identity confidence) | ✅ |
+| ax_diff.py | Core | Incremental AX tree diff producing `RefDiff`. `diff_adopted` compares two registry contents, where an id present on both sides is the same element (new / changed / retired by id), with a 3-layer full-view fallback (first snapshot / app change / high change ratio). `compute_ref_diff` compares two raw captures, whose ids carry no identity, via (role, name) matching + bbox proximity, with a 4-layer fallback (adds low identity confidence); the skill recorder uses it | ✅ |
 | overlay_roles.py | Core | Cross-platform overlay role SSOT for SOM + Inspector | ✅ |
-| renderer.py | Core | AX tree text rendering: `render_snapshot_tree` (full) + `render_diff_tree` (incremental diff with +/~/- markers); optional `[N]` SOM line prefixes | ✅ |
+| renderer.py | Core | AX tree text rendering: `render_snapshot_tree` (full) + `render_diff_tree` (incremental diff with +/~/- markers; states that the ids it does not list are still valid and that a removed id is no longer valid); optional `[N]` SOM line prefixes | ✅ |
 | macos_ax/ | Platform | macOS Accessibility API snapshot + invoke + native API routing hints (package; see its `_ARCH.md`); targeted capture by app name (exact name with contains fallback, auto-restores minimized windows, bypasses frontmost; not found falls back to foreground with `scope` reflecting `foreground`). A password field is identified by its **subrole** (`AXSecureTextField`) and its `value` is never read | ✅ |
 | windows_ax.py | Platform | Windows UI Automation snapshot + invoke (pattern actions delegated to `windows_ax_actions`) + COM/PowerShell routing hints; targeted capture by process name via shared `_locate_window` with auto-restore of minimized windows and rendering settle wait (capture and invoke reuse it for index consistency). A password edit (`IsPassword`) skips the ValuePattern read and is reported as `PasswordBox`. The snapshot `app_id` (`win:<exe>`, the stable trust key) and the process-name window match both resolve the executable through `windows_process` | ✅ |
 | windows_ax_actions.py | Platform | UIA pattern actions on one element: `apply_uia_toggle` (**idempotent** `check`/`uncheck` via ToggleState; `toggle` always flips), `apply_uia_expand_collapse`, `apply_uia_invoke`; each falls back to Click when the control lacks the pattern | ✅ |
@@ -22,17 +22,18 @@ Platform AX/UIA/AT-SPI snapshot capture, tree rendering, incremental diff, eleme
 ## Dependencies
 
 - `computer_use/dref/types.py` (POS: @dref types)
-- `computer_use/dref/registry.py` (POS: @dref registry; diff reads current refs via `all_refs()`/`meta` before `replace()`)
 - `computer_use/backends/protocols.py` (POS: ComputerBackend protocol)
 - Used by `desktop_session/` (POS: semantic desktop orchestrator; `snapshot.py`, `interact.py`, `vision.py`, `views.py`, `guards.py` call into this package)
 
 ## Key Design: Incremental AX Tree Diff
 
 `ax_diff.py` re-sends only the added, updated and removed refs in continuous-interact scenarios instead of the whole tree.
-When `desktop_interact` completes, the follow-up snapshot compares current refs against previous
-refs via `compute_ref_diff`. If the diff is reliable (same app, sufficient identity confidence,
-low change ratio), only changed entries (+added, ~updated, -removed) are rendered to the agent
-context. Four fallback conditions automatically revert to full-tree rendering.
+When `desktop_interact` completes, the follow-up snapshot compares the registry content before and after the new capture
+via `diff_adopted`; the registry has already given every element that is the same one its old id, so the comparison is
+by id. If the diff is reliable (same app, low change ratio), only changed entries (+added, ~updated, -removed) are
+rendered to the agent context, together with the statement that every unlisted id is still valid. Three fallback
+conditions automatically revert to full-tree rendering. `compute_ref_diff` serves captures that have no stable ids
+(the skill recorder) and keeps matching by (role, name) and position.
 
 ## Key Design: Secure Field Redaction
 

@@ -1,7 +1,7 @@
 """Safety support shared by the approval-gated desktop actions.
 
 [INPUT]
-- host::DesktopSessionHost (POS: typed session state: registry, snapshot clock, screenshots)
+- host::DesktopSessionHost (POS: typed session state: registry write entry, snapshot clock, screenshots)
 - perception.ax_dispatch::capture_snapshot (POS: AX snapshot of the foreground or a target app)
 
 [OUTPUT]
@@ -39,8 +39,6 @@ class DesktopGuardSupportMixin(DesktopSessionHost):
         if elapsed <= _APPROVAL_REVALIDATION_THRESHOLD_SEC:
             return None
 
-        from myrm_agent_harness.toolkits.computer_use import safety
-
         logger.info(
             "[SECURITY] Re-validating desktop state after approval delay (delayed %.1fs)",
             elapsed,
@@ -48,17 +46,15 @@ class DesktopGuardSupportMixin(DesktopSessionHost):
         try:
             if interact_ref is not None:
                 meta, refs = capture_snapshot(self._backend, "foreground", None)
-                blocked = safety.is_sensitive_app(meta.app_name, meta.window_title, meta.app_id)
-                if blocked:
-                    logger.warning("[SECURITY] Sensitive app guard (interact): %s", blocked)
-                    return f"Safety: {blocked}"
-                if interact_ref not in refs:
+                adopted = self._adopt_capture(meta, refs)
+                if isinstance(adopted, str):
+                    return adopted
+                if self._refs.normalize(interact_ref) not in adopted.refs:
                     return (
                         "Safety Re-validation failed: The screen has changed significantly during approval. "
                         f"The target element '@{interact_ref}' is no longer found. "
                         "Please take a new snapshot to refresh the view and try again."
                     )
-                self._refs.replace(refs, meta)
                 self._last_snapshot_time = time.time()
                 return None
 

@@ -56,6 +56,10 @@ desktop_vision_tool (only when AX empty or interact failed)
     ↓ per-app approval gate → foreground permission gate → stale refresh → coordinate actions
 ```
 
+### @dref identity
+
+Platform captures name their elements by position (`d0`, `d1`, ...), and a position shifts whenever a row appears above it. The registry therefore issues the ids itself (`DRefRegistry.adopt`, called only from `DesktopSession._adopt_capture`): ids only grow and are never reused, and an element keeps its id across captures only when it is in the same application (name and process) and its non-empty (role, name) is unique on both sides. Every other element gets a fresh id, and an id that was not carried over is stale: it fails with a `[REMEDY_HINT]` instead of resolving to a neighbour. A diff-mode snapshot lists new, changed and retired ids and states that every unlisted id is still valid. `_adopt_capture` also runs the sensitive-application check, so the agent snapshot, the approval revalidation and the inspector refresh cannot register the elements of a blocked application.
+
 ---
 
 ## Core Components
@@ -64,7 +68,7 @@ desktop_vision_tool (only when AX empty or interact failed)
 |-----------|----------|------|
 | `DesktopSession` | `desktop_session/` | Orchestrator: registry, snapshot, interact, vision, view updates (one mixin per entry point, composed in `core.py`) |
 | `create_desktop_tools` | `desktop_agent_tools.py` | LangChain tool factory |
-| `DRefRegistry` | `computer_use/dref/registry.py` | Session-scoped @dref map with previous snapshot for diff |
+| `DRefRegistry` | `computer_use/dref/registry.py` | Session-scoped @dref map that issues never-reused ids and carries an id across snapshots only for an identifiable element |
 | `perception/` | `ax_dispatch.py`, `ax_diff.py`, platform AX | Capture AX tree, incremental diff, invoke elements |
 | `recording/` | `synthesizer.py`, `capture_driver.py` | Skill synthesis from events, and `DesktopCaptureDriver`: polls the AX tree, diffs frames into click / type / window-focus events (skipping sensitive apps) |
 | `execution/healer.py` | BBox click fallback | When AX invoke fails |

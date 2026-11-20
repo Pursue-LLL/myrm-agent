@@ -2,8 +2,9 @@
 
 [INPUT]
 - session::ComputerSession (POS: physical-input session base: screen guard, app approval, screenshots, coordinate input)
-- dref.registry::DRefRegistry (POS: @dref registry the mixins read and replace)
-- dref.types::ElementRef, SnapshotScope (POS: element and snapshot-scope types of the cross-mixin signatures)
+- dref.registry::DRefRegistry (POS: @dref registry the mixins read; it is written only through _adopt_capture)
+- dref.types::ElementRef, SnapshotMeta, SnapshotScope (POS: element and snapshot types of the cross-mixin signatures)
+- adopt::Adoption (POS: result of registering a capture)
 
 [OUTPUT]
 - ViewUpdateCallback: receiver of the WebUI view payloads
@@ -26,8 +27,10 @@ ViewUpdateCallback = Callable[[dict[str, object]], None]
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.computer_use.dref.registry import DRefRegistry
-    from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotScope
+    from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta, SnapshotScope
     from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
+
+    from .adopt import Adoption
 
     class DesktopSessionHost(ComputerSession):
         _refs: DRefRegistry
@@ -45,6 +48,8 @@ if TYPE_CHECKING:
             role: str | None = None,
             wait_seconds: float = 0.0,
         ) -> str | list[object]: ...
+
+        def _adopt_capture(self, meta: SnapshotMeta, capture: Mapping[str, ElementRef]) -> Adoption | str: ...
 
         async def _revalidate_if_stale_after_approval(self, *, interact_ref: str | None = None) -> str | None: ...
 

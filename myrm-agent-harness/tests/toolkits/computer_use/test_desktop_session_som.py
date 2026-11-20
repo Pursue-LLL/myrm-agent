@@ -38,8 +38,8 @@ async def test_desktop_snapshot_include_screenshot_applies_som_and_nth(session: 
         scope="foreground",
     )
     refs = {
-        "d1": ElementRef(
-            ref_id="d1",
+        "d0": ElementRef(
+            ref_id="d0",
             role="AXButton",
             name="OK",
             bbox=BBox(100, 100, 80, 40),
@@ -71,7 +71,7 @@ async def test_desktop_snapshot_include_screenshot_applies_som_and_nth(session: 
     assert len(result) == 2
     first = result[0]
     text_content = first.get("text") if isinstance(first, dict) else getattr(first, "text", str(first))
-    assert "[1] @d1" in text_content
+    assert "[1] @d0" in text_content
     second = result[1]
     if isinstance(second, dict):
         image_b64 = second.get("base64", "")
@@ -89,8 +89,8 @@ async def test_export_inspector_snapshot_fills_nth(session: DesktopSession) -> N
         scope="foreground",
     )
     refs = {
-        "d1": ElementRef(
-            ref_id="d1",
+        "d0": ElementRef(
+            ref_id="d0",
             role="AXButton",
             name="Save",
             bbox=BBox(10, 10, 60, 30),
@@ -119,7 +119,7 @@ async def test_export_inspector_snapshot_fills_nth(session: DesktopSession) -> N
 
     refs_payload = payload["refs"]
     assert isinstance(refs_payload, dict)
-    assert refs_payload["d1"]["nth"] == 1
+    assert refs_payload["d0"]["nth"] == 1
 
 
 @pytest.mark.asyncio
@@ -131,8 +131,8 @@ async def test_desktop_snapshot_text_only_has_no_nth(session: DesktopSession) ->
         scope="foreground",
     )
     refs = {
-        "d1": ElementRef(
-            ref_id="d1",
+        "d0": ElementRef(
+            ref_id="d0",
             role="AXButton",
             name="OK",
             bbox=BBox(0, 0, 10, 10),
@@ -166,6 +166,6 @@ async def test_desktop_snapshot_text_only_has_no_nth(session: DesktopSession) ->
         assert isinstance(data, dict)
         refs_data = data["refs"]
         assert isinstance(refs_data, dict)
-        assert refs_data["d1"]["nth"] is None
+        assert refs_data["d0"]["nth"] is None
     finally:
         progress_sink.set_tool_progress_sink(None)

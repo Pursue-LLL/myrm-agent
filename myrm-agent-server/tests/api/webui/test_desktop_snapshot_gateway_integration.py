@@ -68,15 +68,15 @@ async def test_snapshot_api_real_export_inspector_snapshot_som_nth(
         scope="foreground",
     )
     refs = {
-        "d1": ElementRef(
-            ref_id="d1",
+        "d0": ElementRef(
+            ref_id="d0",
             role="AXButton",
             name="OK",
             bbox=BBox(50, 50, 80, 40),
             backend_key="k1",
         ),
-        "d2": ElementRef(
-            ref_id="d2",
+        "d1": ElementRef(
+            ref_id="d1",
             role="AXStaticText",
             name="Label",
             bbox=BBox(10, 10, 40, 20),
@@ -108,8 +108,8 @@ async def test_snapshot_api_real_export_inspector_snapshot_som_nth(
     assert response.status_code == 200, response.text
     data = response.json()
     assert data["app_name"] == "TextEdit"
-    assert data["refs"]["d1"]["nth"] == 1
-    assert data["refs"]["d2"].get("nth") is None
+    assert data["refs"]["d0"]["nth"] == 1
+    assert data["refs"]["d1"].get("nth") is None
     assert data["screenshot_base64"]
     assert data["screenshot_base64"] != original_b64
     assert data["mime_type"] == "image/jpeg"

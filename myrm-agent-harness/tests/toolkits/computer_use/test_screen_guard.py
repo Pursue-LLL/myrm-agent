@@ -67,9 +67,10 @@ def _desktop_session(backend: MagicMock, monkeypatch: pytest.MonkeyPatch) -> Des
     return session
 
 
-def _seed_pre_lock_ref(session: DesktopSession) -> None:
+def _seed_pre_lock_ref(session: DesktopSession) -> str:
+    """Register one element as a pre-lock snapshot would and return the @dref id the registry issued for it."""
     ref = ElementRef(
-        ref_id="d1",
+        ref_id="capture-1",
         role="AXButton",
         name="Send",
         bbox=BBox(x=0, y=0, width=10, height=10),
@@ -77,7 +78,9 @@ def _seed_pre_lock_ref(session: DesktopSession) -> None:
         actions=("click",),
     )
     meta = SnapshotMeta(ref_count=1, app_name="Mail", window_title="Inbox", scope="foreground")
-    session.ref_registry.replace({"d1": ref}, meta)
+    (ref_id,) = session.ref_registry.adopt({"capture-1": ref}, meta)
+    assert session.ref_registry.get(ref_id).name == "Send"
+    return ref_id
 
 
 class TestScreenGuardProbes:
@@ -252,16 +255,14 @@ class TestComputerSessionOnDemandUnlock:
 class TestDesktopSessionReanchor:
     def test_every_pre_lock_ref_resolves_as_stale(self) -> None:
         session = DesktopSession(backend=_backend())
-        _seed_pre_lock_ref(session)
+        ref_id = _seed_pre_lock_ref(session)
         generation = session.ref_registry.generation
 
         session.reanchor_visual_state()
 
         with pytest.raises(DRefStaleError):
-            session.ref_registry.get("d1")
+            session.ref_registry.get(ref_id)
         assert session.ref_registry.meta is None
-        assert session.ref_registry.previous_refs == {}
-        assert session.ref_registry.previous_meta is None
         assert session.ref_registry.generation > generation
 
     async def test_on_demand_unlock_invalidates_refs_issued_before_the_lock(
@@ -269,7 +270,7 @@ class TestDesktopSessionReanchor:
     ) -> None:
         backend = _backend(locked=True)
         session = _desktop_session(backend, monkeypatch)
-        _seed_pre_lock_ref(session)
+        ref_id = _seed_pre_lock_ref(session)
         session.set_screen_unlock_callback(_Host(backend, unlocks=True))
 
         with patch(
@@ -279,7 +280,7 @@ class TestDesktopSessionReanchor:
             await session.desktop_snapshot()
 
         with pytest.raises(DRefStaleError):
-            session.ref_registry.get("d1")
+            session.ref_registry.get(ref_id)
 
 
 class TestDesktopSessionOnDemandUnlock:

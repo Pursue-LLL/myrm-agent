@@ -1,7 +1,7 @@
 """WebUI view payloads of the desktop session: live updates and inspector exports.
 
 [INPUT]
-- host::DesktopSessionHost (POS: typed session state: registry, view callback, screenshots)
+- host::DesktopSessionHost (POS: typed session state: registry, registry write entry, view callback, screenshots)
 - perception.ax_dispatch::capture_snapshot (POS: AX snapshot for the inspector refresh)
 - perception.overlay_roles::normalize_desktop_role (POS: cross-platform role normalization for the overlay payload)
 - som_overlay::apply_som_overlay_to_jpeg_base64, build_som_index_map (POS: numbered overlay on screenshots)
@@ -9,8 +9,8 @@
 [OUTPUT]
 - refs_for_view_update: @dref elements as the role / name / bbox / SoM-index payload the inspector overlay draws
 - DesktopViewMixin: _emit_view_update, _emit_permission_view_update (live view events), _snapshot_screen_fields,
-  _annotate_screenshot_som (payload parts), export_registry_view (last registry without a new capture),
-  export_inspector_snapshot (fresh foreground capture for the inspector)
+  _empty_view_payload, _annotate_screenshot_som (payload parts), export_registry_view (last registry without a new
+  capture), export_inspector_snapshot (fresh foreground capture for the inspector, registered through _adopt_capture)
 
 [POS]
 Everything the WebUI desktop inspector and the live view stream read from a DesktopSession.
@@ -76,6 +76,22 @@ class DesktopViewMixin(DesktopSessionHost):
             "screen_width": info.width,
             "screen_height": info.height,
             "dpi_scale": info.dpi_scale,
+        }
+
+    def _empty_view_payload(self, *, needs_permission: bool) -> dict[str, object]:
+        """Inspector payload without a screenshot or elements (permission missing, or the foreground app is blocked)."""
+        info = self.screen_info
+        return {
+            "screenshot_base64": "",
+            "mime_type": "",
+            "refs": {},
+            "app_name": "",
+            "window_title": "",
+            "scope": "foreground",
+            "needs_permission": needs_permission,
+            "viewport_width": info.width,
+            "viewport_height": info.height,
+            **self._snapshot_screen_fields(),
         }
 
     def _annotate_screenshot_som(
@@ -202,21 +218,12 @@ class DesktopViewMixin(DesktopSessionHost):
             meta, refs = capture_snapshot(self._backend, "foreground", None)
         except AXPermissionRequiredError:
             await self._emit_permission_view_update()
-            info = self.screen_info
-            return {
-                "screenshot_base64": "",
-                "mime_type": "",
-                "refs": {},
-                "app_name": "",
-                "window_title": "",
-                "scope": "foreground",
-                "needs_permission": True,
-                "viewport_width": info.width,
-                "viewport_height": info.height,
-                **self._snapshot_screen_fields(),
-            }
+            return self._empty_view_payload(needs_permission=True)
 
-        self._refs.replace(refs, meta)
+        adopted = self._adopt_capture(meta, refs)
+        if isinstance(adopted, str):
+            return self._empty_view_payload(needs_permission=False)
+        refs = adopted.refs
         som_index_map = build_som_index_map(refs)
         try:
             shot = await self.take_screenshot()

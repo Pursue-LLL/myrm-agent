@@ -1,7 +1,7 @@
 """DesktopSession: semantic desktop control with an @dref registry.
 
 [INPUT]
-- snapshot, interact, vision, views, guards (POS: the mixins that implement the tool entry points and their support)
+- adopt, snapshot, interact, vision, views, guards (POS: the mixins that implement the tool entry points and their support)
 - session::ComputerSession, create_computer_session (POS: physical-input base the desktop session extends)
 - dref.registry::DRefRegistry (POS: @dref registry owned by the session)
 
@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.registry import DRefRegistry
 from myrm_agent_harness.toolkits.computer_use.session import ComputerSession, create_computer_session
 from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig, ForegroundPermissionCallback
 
+from .adopt import DesktopRegistryMixin
 from .guards import DesktopGuardSupportMixin
 from .host import ViewUpdateCallback
 from .interact import DesktopInteractMixin
@@ -38,6 +39,7 @@ class DesktopSession(
     DesktopSnapshotMixin,
     DesktopViewMixin,
     DesktopGuardSupportMixin,
+    DesktopRegistryMixin,
     ComputerSession,
 ):
     """Computer session extended with AX snapshot, @dref registry, and view updates."""

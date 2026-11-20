@@ -59,7 +59,7 @@ def test_export_registry_view_returns_last_refs_without_capture() -> None:
     from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 
     element = ElementRef(
-        ref_id="d1",
+        ref_id="capture-1",
         role="AXTextArea",
         name="body",
         bbox=BBox(x=10, y=20, width=100, height=40),
@@ -71,12 +71,12 @@ def test_export_registry_view_returns_last_refs_without_capture() -> None:
         window_title="Untitled",
         scope="foreground",
     )
-    session._refs.replace({"d1": element}, meta)
+    (ref,) = session._refs.adopt({"capture-1": element}, meta)
 
     payload = session.export_registry_view()
     assert payload is not None
     assert payload["app_name"] == "TextEdit"
-    assert "d1" in payload["refs"]
+    assert ref in payload["refs"]
     assert payload["registry_generation"] == 1
     assert payload["screenshot_base64"] == ""
 

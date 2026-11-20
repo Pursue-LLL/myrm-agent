@@ -20,53 +20,50 @@ def mock_config():
     return config
 
 
+def _button(ref_id: str, name: str, backend_key: str = "key") -> ElementRef:
+    return ElementRef(ref_id=ref_id, role="button", name=name, bbox=(0, 0, 10, 10), backend_key=backend_key)
+
+
+def _test_app_meta() -> SnapshotMeta:
+    return SnapshotMeta(ref_count=1, app_name="Test", window_title="Test", scope="foreground", needs_permission=False)
+
+
 @pytest.mark.asyncio
 async def test_desktop_interact_revalidation_success(mock_backend, mock_config):
     session = DesktopSession(backend=mock_backend, config=mock_config)
+    (ref,) = session._refs.adopt({"c0": _button("c0", "Test", "old-key")}, _test_app_meta())
     session._last_snapshot_time = time.time() - 6.0  # Force timeout
-    session._refs = MagicMock()
-
-    mock_meta = SnapshotMeta(
-        ref_count=1, app_name="Test", window_title="Test", scope="foreground", needs_permission=False
-    )
-    mock_refs = {"e0": ElementRef(ref_id="e0", role="button", name="Test", bbox=(0, 0, 10, 10), backend_key="key")}
-    session._refs.get.return_value = mock_refs["e0"]
+    fresh_capture = {"c7": _button("c7", "Test", "fresh-key")}
 
     with (
         patch(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
-            return_value=(mock_meta, mock_refs),
+            return_value=(_test_app_meta(), fresh_capture),
         ) as mock_capture,
         patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
     ):
         mock_invoke.return_value.success = True
         session.desktop_snapshot = AsyncMock(return_value="Follow up")
 
-        result = await session.desktop_interact(ref="e0", action="click")
+        result = await session.desktop_interact(ref=ref, action="click")
 
         mock_capture.assert_called_once_with(mock_backend, "foreground", None)
-        session._refs.replace.assert_called_once_with(mock_refs, mock_meta)
-        assert "Action 'click' on @e0 succeeded." in result
+        assert mock_invoke.call_args.args[1].backend_key == "fresh-key"
+        assert f"Action 'click' on @{ref} succeeded." in result
 
 
 @pytest.mark.asyncio
 async def test_desktop_interact_revalidation_failure_ref_missing(mock_backend, mock_config):
     session = DesktopSession(backend=mock_backend, config=mock_config)
+    (ref,) = session._refs.adopt({"c0": _button("c0", "Test")}, _test_app_meta())
     session._last_snapshot_time = time.time() - 6.0  # Force timeout
-    session._refs = MagicMock()
-
-    mock_meta = SnapshotMeta(
-        ref_count=1, app_name="Test", window_title="Test", scope="foreground", needs_permission=False
-    )
-    mock_refs = {
-        "e1": ElementRef(ref_id="e1", role="button", name="Test", bbox=(0, 0, 10, 10), backend_key="key")
-    }  # e0 is missing
+    capture_without_the_element = {"c1": _button("c1", "Other")}
 
     with patch(
         "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
-        return_value=(mock_meta, mock_refs),
+        return_value=(_test_app_meta(), capture_without_the_element),
     ):
-        result = await session.desktop_interact(ref="e0", action="click")
+        result = await session.desktop_interact(ref=ref, action="click")
 
         assert "Safety Re-validation failed" in result
         assert "is no longer found" in result
