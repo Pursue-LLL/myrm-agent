@@ -72,7 +72,12 @@ class ChannelBudgetRegistry:
         self._lock = threading.Lock()
 
     def configure(self, policy: ChannelBudgetPolicy, initial_cost: float = 0.0) -> None:
-        """Create or update a guard for the given channel key."""
+        """Create or update a guard for the given channel key.
+
+        ``initial_cost`` is today's spend read from the database before the policy was written, so it can be older than
+        what the live guard has counted since, or 0 when the read failed. A channel that already has a guard therefore
+        starts its new guard from the larger of the two, and one without a guard starts from ``initial_cost``.
+        """
         with self._lock:
             self._policies[policy.channel_key] = policy
             if policy.enabled:
@@ -83,12 +88,14 @@ class ChannelBudgetRegistry:
                 def _on_exceeded(cost: float, limit: float) -> None:
                     _emit_channel_budget_sse("exceeded", cost, limit, policy.channel_key)
 
+                previous = self._guards.get(policy.channel_key)
+                carried_cost = initial_cost if previous is None else max(initial_cost, previous.today_cost)
                 self._guards[policy.channel_key] = DailyBudgetGuard(
                     daily_budget_usd=policy.daily_limit_usd,
                     warning_threshold=policy.warning_threshold,
                     on_warning=_on_warning,
                     on_exceeded=_on_exceeded,
-                    initial_cost=initial_cost,
+                    initial_cost=carried_cost,
                 )
             else:
                 self._guards.pop(policy.channel_key, None)
