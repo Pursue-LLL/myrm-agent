@@ -411,7 +411,7 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 1. **Layer 3 外路径返回 ASK，不是 DENY**（`allow_directory_grants=False` 的宿主除外） — 由 Permission Engine 弹出审批，支持单文件/父目录批量授权与读写动态提权
 2. **forbidden_paths 不可被 access_roots 覆盖** — 即使授予 `~`，`~/.ssh` 仍然被拒绝
-3. **路径归一化** — 所有路径经过 `expanduser` + `expandvars` + `realpath` 处理，防止符号链接逃逸
+3. **路径归一化** — 配置里的区域路径（`forbidden_paths`、`access_roots`、工作区根）经过 `expanduser` + `expandvars` + `realpath`；模型写下的路径按文件工具打开它的方式读（开头的 `~` 是用户主目录，其余不展开，`$HOME` 只是一个名字，见下文「判什么就打开什么」）再经 `realpath`，防止符号链接逃逸；敏感文件规则（`is_sensitive_file`）同时匹配写下的路径与 realpath 之后的路径，所以工作区里指向 `.env` 的 `notes.txt` 按 `.env` 问（ASK）
 4. **只对 file_read/file_write 等 file ops 生效** — shell_exec 的路径检查由 Sandbox Validator 层负责
 5. **Grant 前 forbidden 校验** — `grant_session_access_root(..., policy=...)` 对 DENY 路径拒绝授予；path-ASK 勾选默认 **false**
 6. **Revoke 对称** — `revoke_session_access_root` + server `revoke_chat_session_access_root` 持久化到 `session_access_roots`
@@ -433,7 +433,11 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validator 层的 `FORBIDDEN_PATHS` 是最后一道防线，硬编码拦截核心危险路径（`~/.ssh`, `/etc/shadow` 等），防止框架层被绕过。
 
-**判什么就打开什么**：引擎判定的是模型写下的路径串，文件工具与 bash 按原样执行这个串，不会在判定之后把它换成另一个文件。运行内的 `@file_NNN` 短 ID 只是事件流与界面链接用的标签（`agent/artifacts/file_id_registry.py`），工具不解析它：`file_write_tool`、`file_edit_tool`、`file_read_tool` 把它当作工作区里一个普通的文件名，bash 命令里的 `@file_001` 原样交给 shell。`tests/agent/meta_tools/file_ops/test_short_file_id_is_not_a_path.py` 与 `tests/agent/meta_tools/bash/test_bash_keeps_short_file_ids_as_typed.py` 用真实的文件工具与 ID 登记簿钉住这一点。
+**判什么就打开什么**：引擎判定的是模型写下的路径串，工具打开的必须是这个串所指的文件，不能在判定之后换成另一个。三处各有落点：
+
+- **短 ID**：运行内的 `@file_NNN` 只是事件流与界面链接用的标签（`agent/artifacts/file_id_registry.py`），工具不解析它：`file_write_tool`、`file_edit_tool`、`file_read_tool` 把它当作工作区里一个普通的文件名，bash 命令里的 `@file_001` 原样交给 shell。`tests/agent/meta_tools/file_ops/test_short_file_id_is_not_a_path.py` 与 `tests/agent/meta_tools/bash/test_bash_keeps_short_file_ids_as_typed.py` 用真实的文件工具与 ID 登记簿钉住这一点。
+- **`~` 与环境变量**：开头的 `~`（`~`、`~/…`）在引擎、目录授权（`session_access.py` 的 `_resolve_named_path`）、`CodeExecutor.resolve_path` 与 `PathValidator` 里都读作用户主目录（`core/security/path/filesystem.py` 的 `expand_home`，只展开这一种写法；`~$report.docx`、`~name/…` 是工作区里的普通名字），所以引擎问的 `~/x` 就是工具打开的 `~/x`，主目录不在工作区内时要靠目录授权才进得去，不会落到工作区里一个名为 `~` 的目录。环境变量同样不展开：没有文件工具展开 `$VAR`，`$HOME/x` 是工作区里名为 `$HOME` 的目录，引擎也按这个名字判定；先展开再解析，名为 `$HOME`、指向 `.env` 的链接就会从 realpath 里消失。`tests/agent/security/test_checks.py`、`tests/agent/security/test_session_access.py`、`tests/toolkits/code_execution/executors/local/test_executor_resolve_path.py`、`tests/agent/meta_tools/file_ops/validators/test_path_validator.py` 与 `tests/core/security/path/test_filesystem.py` 钉住这一点。
+- **符号链接与自愈**：`check_path_policy` 对敏感文件规则同时看写下的路径与 realpath 之后的路径（`tests/agent/security/test_checks.py`）。`file_read_tool` 的 Unicode 自愈（`find_existing_unicode_path`）不得把引擎放行的写法变成它要拦的文件：改写后的路径落进凭据文件、指向凭据文件的链接或禁区目录，而写下的路径没有这层守卫时，不自愈，按写下的原样读；写下的路径自身已被守卫（引擎已为它问过）则照常自愈。守卫只认默认的危险目录与内置的凭据文件名，用户自定义的规则不在其内。`tests/agent/meta_tools/file_search/test_path_hint_healing_guard.py` 钉住这一点。
 
 ---
 

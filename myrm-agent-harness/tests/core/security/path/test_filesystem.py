@@ -14,6 +14,7 @@ from myrm_agent_harness.core.security.path import (
     DANGEROUS_PATHS,
     coerce_filesystem_path,
     covers_dangerous_path,
+    expand_home,
     is_blocked_device_path,
     is_dangerous_path,
     safe_join_path,
@@ -312,3 +313,30 @@ class TestBlockedDevicePath:
         assert is_blocked_device_path("connect.go") is False
         assert is_blocked_device_path("") is False
         assert is_blocked_device_path("   ") is False
+
+
+class TestExpandHome:
+    """expand_home() reads a bare leading ``~`` as the user's home and nothing else: the spelling every gate agrees on."""
+
+    @pytest.fixture(autouse=True)
+    def home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        for name in ("HOME", "USERPROFILE"):
+            monkeypatch.setenv(name, str(tmp_path))
+        return tmp_path
+
+    def test_a_bare_tilde_is_the_home_directory(self, home: Path) -> None:
+        assert expand_home("~") == str(home)
+        assert expand_home("~/notes.txt") == os.path.expanduser("~/notes.txt")
+        assert expand_home("~/notes.txt").startswith(str(home))
+
+    def test_the_backslash_separator_follows_the_platform(self) -> None:
+        assert expand_home("~\\notes.txt") == os.path.expanduser("~\\notes.txt")
+
+    @pytest.mark.parametrize(
+        "path",
+        ["~root/notes.txt", "~backup", "~$report.docx", "notes~/a.txt", "src/~/a.txt", "/abs/~/a.txt", ""],
+    )
+    def test_every_other_spelling_is_returned_unchanged(self, path: str) -> None:
+        # ``~name`` is another user's home to ``expanduser``, and on Windows ``~$report.docx`` (an Office lock file)
+        # becomes ``C:\Users\$report.docx``: a gate that expands them and a gate that does not name different files.
+        assert expand_home(path) == path

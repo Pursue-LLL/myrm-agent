@@ -1,7 +1,7 @@
 """Generic filesystem path safety primitives.
 
-Dangerous system roots, Windows device names and network-share spellings, boundary
-enforcement, traversal-safe joining and runtime path coercion. This module knows nothing
+Dangerous system roots, Windows device names and network-share spellings, the home spelling,
+boundary enforcement, traversal-safe joining and runtime path coercion. This module knows nothing
 about *which files a product protects* — that policy lives in the sibling `rules` module,
 so tooling that only needs to resolve a path safely does not pull protection policy into scope.
 
@@ -20,6 +20,7 @@ so tooling that only needs to resolve a path safely does not pull protection pol
 - covers_dangerous_path(path) -> bool — path equals or contains a dangerous root (grant too broad; case-folded on macOS/Windows)
 - is_network_or_nt_path(path) -> bool — network share or NT-namespace spelling, judged on the text alone (no filesystem call)
 - network_path_refusal(path) -> str — the refusal text every gate gives a path ``is_network_or_nt_path`` flags
+- expand_home(path) -> str — a bare leading ``~`` expanded to the user's home, every other spelling unchanged
 - is_blocked_device_path(path) -> bool — pre-IO check: device names, device and network namespaces, then lstat and realpath
 
 [POS]
@@ -39,6 +40,7 @@ __all__ = (
     "MAX_PATH_LENGTH",
     "coerce_filesystem_path",
     "covers_dangerous_path",
+    "expand_home",
     "is_blocked_device_path",
     "is_content_not_path",
     "is_dangerous_path",
@@ -166,6 +168,23 @@ def network_path_refusal(path: str) -> str:
         f"Network share and NT namespace paths are not accessible: {path}. "
         "Use a path inside the workspace or a mapped drive letter."
     )
+
+
+# ---------------------------------------------------------------------------
+# Home spelling (the one tilde form every gate expands alike)
+# ---------------------------------------------------------------------------
+
+
+def expand_home(path: str) -> str:
+    r"""Expand a bare leading ``~`` (``~``, ``~/...``) to the user's home; return every other spelling unchanged.
+
+    ``os.path.expanduser`` also reads ``~name`` as another user's home, and on Windows turns the Office lock file
+    ``~$report.docx`` into ``C:\Users\$report.docx``; such names are ordinary files of a workspace. Only the bare
+    tilde is a home spelling that the file tools and the permission engine read the same way.
+    """
+    if path == "~" or path.startswith(("~/", "~\\")):
+        return os.path.expanduser(path)
+    return path
 
 
 # ---------------------------------------------------------------------------

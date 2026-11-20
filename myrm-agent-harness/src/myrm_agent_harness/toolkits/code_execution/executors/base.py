@@ -251,9 +251,11 @@ class CodeExecutor(ABC):
         """Resolve a relative path to absolute, with path traversal detection.
 
         A network share or NT-namespace spelling is refused before anything resolves it: on Windows, resolving
-        such a path connects to the host it names.
+        such a path connects to the host it names. A leading ``~`` is the user's home, the file the permission
+        engine judged, not a directory called ``~`` in the workspace, so it meets the boundary like any absolute path.
         """
         from myrm_agent_harness.core.security.path import (
+            expand_home,
             is_network_or_nt_path,
             is_within_boundary,
             network_path_refusal,
@@ -264,7 +266,7 @@ class CodeExecutor(ABC):
 
         wp = Path(self.workspace_path).resolve()
 
-        clean = WorkspacePathResolver.container_relative(relative_path) or relative_path
+        clean = expand_home(WorkspacePathResolver.container_relative(relative_path) or relative_path)
 
         if Path(clean).is_absolute():
             resolved = Path(clean).resolve()

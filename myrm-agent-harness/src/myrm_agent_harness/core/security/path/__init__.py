@@ -3,7 +3,7 @@
 Five modules, one responsibility each:
 
 - ``pattern``    — glob matcher engine (`*`/`?`/`**`/character classes, case-insensitive by default)
-- ``filesystem`` — generic path safety: dangerous roots, device names, boundary, safe join, coercion
+- ``filesystem`` — generic path safety: dangerous roots, device names, home spelling, boundary, safe join, coercion
 - ``rules``      — protected-path policy: which files must not be touched, and the predicates that read the rules
 - ``bounded_read`` — text reads of untrusted files that cannot exhaust memory or block on a FIFO or device
 - ``confined_write`` — new files below a trusted directory that a symlink or hard link cannot redirect
@@ -21,7 +21,7 @@ bypass the predicates that carry the security policy.
 - path.rules (POS: Protected-path policy)
 
 [OUTPUT]
-- is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_network_or_nt_path, network_path_refusal, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
+- is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_network_or_nt_path, network_path_refusal, expand_home, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
 - read_text_bounded, BoundedRead, ReadRefusal
 - open_directory_beneath, ConfinedDirectory, UnsafeDirectoryError
 - is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_executable_git_metadata_file
@@ -65,6 +65,9 @@ from myrm_agent_harness.core.security.path.filesystem import (
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     covers_dangerous_path as covers_dangerous_path,
+)
+from myrm_agent_harness.core.security.path.filesystem import (
+    expand_home as expand_home,
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     is_blocked_device_path as is_blocked_device_path,
@@ -130,6 +133,7 @@ __all__ = (
     "UnsafeDirectoryError",
     "coerce_filesystem_path",
     "covers_dangerous_path",
+    "expand_home",
     "is_blocked_device_path",
     "is_content_not_path",
     "is_dangerous_path",

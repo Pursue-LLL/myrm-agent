@@ -4,6 +4,7 @@
 
 [INPUT]
 - agent.config::DEFAULT_FILE_IO_CONFIG (POS: Agent configuration and type definitions. Pure data structures with no business logic dependencies.)
+- agent.security.path_security (POS: boundary, dangerous-path, device, network-path and home-spelling predicates)
 
 [OUTPUT]
 - PathValidator: class — Path Validator
@@ -22,6 +23,7 @@ from urllib.parse import unquote
 
 from myrm_agent_harness.agent.config import DEFAULT_FILE_IO_CONFIG, FileIOConfig
 from myrm_agent_harness.agent.security.path_security import (
+    expand_home,
     is_blocked_device_path,
     is_dangerous_path,
     is_network_or_nt_path,
@@ -76,8 +78,8 @@ class PathValidator(Validator):
         # 检查路径遍历攻击
         self._check_path_traversal(decoded_path)
 
-        # 规范化路径（解析 .. 和 . 等）
-        normalized_path = os.path.normpath(decoded_path)
+        # 规范化路径：前导 ~ 先读作用户主目录（执行器打开的就是那个文件，不是 cwd 下名为 ~ 的目录），再解析 .. 和 . 等
+        normalized_path = os.path.normpath(expand_home(decoded_path))
 
         # 获取绝对路径
         try:

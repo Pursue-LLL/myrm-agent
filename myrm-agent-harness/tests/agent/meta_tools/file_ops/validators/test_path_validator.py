@@ -158,3 +158,41 @@ class TestDangerousPaths:
         validator = PathValidator(io_config=config)
         with pytest.raises(PermissionError, match="dangerous path"):
             await validator._do_validate(_make_context(), "/etc/passwd")
+
+
+class TestHomeSpelling:
+    """``~/...`` is the file the file tools open under the user's home, so that is the file the validator judges."""
+
+    @staticmethod
+    def _validator(allowed_base_paths: list[str] | None = None) -> PathValidator:
+        from myrm_agent_harness.agent.config import FileIOConfig
+
+        return PathValidator(allowed_base_paths, FileIOConfig(follow_symlinks=True))
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("path", ["~/.ssh/id_rsa", "~/.aws/credentials"])
+    async def test_rejects_a_dangerous_path_under_home(self, path: str) -> None:
+        with pytest.raises(PermissionError, match="dangerous path"):
+            await self._validator()._do_validate(_make_context(), path)
+
+    @pytest.mark.asyncio
+    async def test_judges_a_home_path_against_the_allowed_paths_as_the_home_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        allowed = tmp_path / "allowed"
+        allowed.mkdir()
+        monkeypatch.chdir(allowed)  # the directory a literal ``~`` would be taken for
+        monkeypatch.setenv("HOME", str(tmp_path / "home"))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path / "home"))
+
+        with pytest.raises(PermissionError, match="outside allowed"):
+            await self._validator([str(allowed)])._do_validate(_make_context(), "~/notes.txt")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("path", ["~root/notes.txt", "~$notes.txt"])
+    async def test_leaves_other_tilde_names_as_workspace_names(
+        self, path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+
+        await self._validator([str(tmp_path)])._do_validate(_make_context(), path)

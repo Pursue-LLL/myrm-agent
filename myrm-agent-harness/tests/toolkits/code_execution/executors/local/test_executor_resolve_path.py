@@ -1,13 +1,16 @@
 """``resolve_path`` is the sandbox boundary every file operation passes through.
 
 These tests drive the real ``LocalExecutor``: the ``/workspace`` alias maps onto the bound workspace by
-whole path segments, and everything that resolves outside the workspace is refused.
+whole path segments, a bare ``~`` is the user's home as the permission engine reads it and no other spelling is
+expanded, and everything that resolves outside the workspace is refused.
 """
 
 from pathlib import Path
 
 import pytest
 
+from myrm_agent_harness.core.context_vars import scoped_value, session_access_roots_var
+from myrm_agent_harness.core.security.types import AccessRoot
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
 
@@ -52,3 +55,40 @@ async def test_lookalike_of_container_alias_is_not_stripped(executor, workspace)
 async def test_paths_outside_workspace_are_refused(executor, raw):
     with pytest.raises(ValueError, match="Path traversal detected"):
         await executor.resolve_path(raw)
+
+
+@pytest.fixture
+def home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    path = tmp_path / "home"
+    path.mkdir()
+    for name in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(name, str(path))
+    return path.resolve()
+
+
+@pytest.mark.asyncio
+async def test_home_spelling_opens_the_file_the_permission_engine_judged(executor, home):
+    # The engine reads ``~/notes.txt`` as a file of the user's home; once the user grants the home, that is the file.
+    with scoped_value(session_access_roots_var, (AccessRoot(path=str(home), writable=True),)):
+        assert await executor.resolve_path("~/notes.txt") == str(home / "notes.txt")
+        assert await executor.resolve_path("~") == str(home)
+
+
+@pytest.mark.asyncio
+async def test_home_spelling_is_refused_without_a_grant(executor, home):
+    with pytest.raises(ValueError, match="Path traversal detected"):
+        await executor.resolve_path("~/notes.txt")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["~$notes.txt", "~backup/notes.txt", "~root/notes.txt"])
+async def test_other_tilde_names_stay_workspace_paths(executor, workspace, home, name):
+    assert await executor.resolve_path(name) == str((workspace / name).resolve())
+
+
+@pytest.mark.asyncio
+async def test_environment_variable_spelling_stays_a_workspace_path(executor, workspace, monkeypatch):
+    # The permission engine reads it the same way, so a link named like a variable is judged as the link it is.
+    monkeypatch.setenv("MYRM_UP", "../elsewhere")
+
+    assert await executor.resolve_path("$MYRM_UP/notes.txt") == str((workspace / "$MYRM_UP" / "notes.txt").resolve())

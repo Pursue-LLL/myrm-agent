@@ -65,6 +65,19 @@ def test_resolve_grant_directory_path_uses_workspace_for_relative(tmp_path) -> N
     assert resolved == os.path.realpath(str(outside))
 
 
+def test_resolve_grant_directory_path_names_the_directory_the_tools_open(tmp_path, monkeypatch) -> None:
+    # A bare ``~`` is the home the engine asked about; ``~name`` is a directory below the workspace, as the tools open it.
+    workspace = tmp_path / "ws"
+    (workspace / "~root").mkdir(parents=True)
+    home = tmp_path / "home"
+    home.mkdir()
+    for name in ("HOME", "USERPROFILE"):
+        monkeypatch.setenv(name, str(home))
+
+    assert resolve_grant_directory_path("~/notes.txt", str(workspace)) == os.path.realpath(str(home))
+    assert resolve_grant_directory_path("~root/notes.txt", str(workspace)) == os.path.realpath(str(workspace / "~root"))
+
+
 def test_grant_rejects_forbidden_path(tmp_path) -> None:
     set_session_access_roots(())
     forbidden_root = tmp_path / "secret"

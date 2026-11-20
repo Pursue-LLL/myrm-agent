@@ -6,7 +6,7 @@ All checks are pure functions — no side effects, no I/O, trivially testable.
 [INPUT]
 - approval_reason::ApprovalReasonCode, CodedReason (POS: tags each decision that waits for a human with a stable code)
 - command_rules::COMMAND_BEARING_PERMISSIONS, command_text (POS: the permission types whose tool input carries command text, and the text the tool runs)
-- path_security (POS: protected-file, sensitive-file, boundary and network-path predicates)
+- path_security (POS: protected-file, sensitive-file, boundary, network-path and home-spelling predicates)
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
 - toolkits.code_execution.code_detector::runs_as_python (POS: whether the bash tool runs a command as Python or as shell)
@@ -34,6 +34,7 @@ from urllib.parse import urlparse
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
 from myrm_agent_harness.agent.security.path_security import (
+    expand_home,
     is_executable_git_metadata_file,
     is_network_or_nt_path,
     is_protected_instruction_file,
@@ -50,8 +51,21 @@ from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import Work
 
 
 def _normalize_path(raw: str) -> str:
-    """Expand ~ and $HOME, resolve to absolute path for comparison."""
+    """Expand ``~`` and environment variables in a configured path, resolve to an absolute path for comparison."""
     return os.path.realpath(os.path.expanduser(os.path.expandvars(raw)))
+
+
+def _opened_path(raw_path: str, workspace_root: str | None) -> str:
+    """The file the tools open for a typed path, with every link in it resolved.
+
+    The spelling is the executor's: a bare ``~`` is the user's home and nothing else is expanded, so ``$HOME`` is a
+    directory name and ``~name`` is no other user's home. A link named like a variable (``$HOME -> .env``) is then
+    followed, not expanded away before the resolution that would have shown it.
+    """
+    spelled = expand_home(raw_path)
+    if workspace_root and not os.path.isabs(spelled):
+        spelled = os.path.join(workspace_root, spelled)
+    return os.path.realpath(spelled)
 
 
 def _is_subpath(child: str, parent: str) -> bool:
@@ -77,8 +91,11 @@ def check_path_policy(
     Returns (ASK, reason) if outside allowed zones, requiring user approval; (DENY, reason) instead when the
     policy does not allow directory grants, since no approval could widen the zones.
     Returns (ASK, reason) for a write to a protected instruction file or to git hook/config metadata.
+    Returns (ASK, reason) for a sensitive file (credentials, env files) in an allowed zone, whether the path names
+    it or a link in the path leads to it.
     Every ASK reason is a ``CodedReason``, so the approval card can word it in the viewer's language.
-    Relative paths are resolved against workspace_root when available.
+    The path is read as the file tools open it (a bare ``~`` is the user's home, nothing else is expanded); a relative
+    path is resolved against workspace_root when available.
     """
     if is_network_or_nt_path(raw_path):
         return PermissionAction.DENY, network_path_refusal(raw_path)
@@ -87,10 +104,7 @@ def check_path_policy(
     container_relative = WorkspacePathResolver.container_relative(raw_path) if workspace_root else None
     if container_relative is not None:
         raw_path = container_relative
-    if workspace_root and not os.path.isabs(os.path.expanduser(raw_path)):
-        normalized = _normalize_path(os.path.join(workspace_root, raw_path))
-    else:
-        normalized = _normalize_path(raw_path)
+    normalized = _opened_path(raw_path, workspace_root)
 
     for fp in policy.forbidden_paths:
         if _is_subpath(normalized, _normalize_path(fp)):
@@ -126,9 +140,11 @@ def check_path_policy(
             ),
         )
 
+    sensitive_form = _sensitive_form(raw_path, normalized)
+
     if matched_writable:
-        if is_sensitive_file(raw_path):
-            return PermissionAction.ASK, _sensitive_file_reason(raw_path)
+        if sensitive_form is not None:
+            return PermissionAction.ASK, _sensitive_file_reason(sensitive_form)
         return PermissionAction.ALLOW, ""
 
     if matched_readonly:
@@ -141,8 +157,8 @@ def check_path_policy(
                     raw_path,
                 ),
             )
-        if is_sensitive_file(raw_path):
-            return PermissionAction.ASK, _sensitive_file_reason(raw_path)
+        if sensitive_form is not None:
+            return PermissionAction.ASK, _sensitive_file_reason(sensitive_form)
         return PermissionAction.ALLOW, ""
 
     return (
@@ -155,8 +171,17 @@ def check_path_policy(
     )
 
 
-def _sensitive_file_reason(raw_path: str) -> CodedReason:
-    name = os.path.basename(raw_path)
+def _sensitive_form(raw_path: str, normalized: str) -> str | None:
+    """The spelling the sensitive-file rules match: the path as written, or the file a link in it leads to.
+
+    ``notes.txt -> .env`` is the credential file whatever it is called, so the resolved path is judged beside the
+    typed one, as it already is for the protected instruction and git metadata files.
+    """
+    return next((form for form in (raw_path, normalized) if is_sensitive_file(form)), None)
+
+
+def _sensitive_file_reason(sensitive_form: str) -> CodedReason:
+    name = os.path.basename(sensitive_form)
     return CodedReason(f"Sensitive file: {name}", ApprovalReasonCode.SENSITIVE_FILE, name)
 
 
