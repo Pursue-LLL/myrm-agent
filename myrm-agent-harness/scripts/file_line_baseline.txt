@@ -20,7 +20,6 @@ myrm_agent_harness/eval/protocols.py	609
 myrm_agent_harness/infra/delivery/storage.py	536
 myrm_agent_harness/infra/sqlite_salvage.py	621
 myrm_agent_harness/runtime/context/instance_metrics.py	694
-myrm_agent_harness/toolkits/browser/session/extractor.py	580
 myrm_agent_harness/toolkits/code_execution/executors/common/wrapper_script.py	596
 myrm_agent_harness/toolkits/code_execution/security/safe_command_configs/git.py	556
 myrm_agent_harness/toolkits/kanban/_orchestrator_tools.py	575

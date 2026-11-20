@@ -1200,7 +1200,8 @@ browser/
 │   ├── interactor_click_mixin.py — 贝塞尔鼠标点击轨迹 + 不可达守卫（ClickInteractMixin）
 │   ├── interactor_coord_mixin.py — 坐标交互（interact_at，7 操作，CoordInteractMixin）
 │   ├── ref_metrics.py — ref 失败统计与诊断行为（RefNotFoundMetrics + RefDiagnosticsMixin）
-│   ├── extractor.py — Extractor
+│   ├── extractor.py — Extractor（文本 / 截图 / PDF / 视觉内容；媒体 URL 提取委托 media_extractor）
+│   ├── media_extractor.py — 页面图片 / 视频 / 音频 / 预览图 URL 提取（每帧一段脚本，跨帧去重）
 │   ├── structured_extractor.py — LLM + JSON Schema 结构化提取
 │   ├── page_analyzer.py — 两阶段快照架构
 │   ├── session_persistence.py — SessionPersistence
