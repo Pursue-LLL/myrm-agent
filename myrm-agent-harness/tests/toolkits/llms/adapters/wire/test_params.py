@@ -55,6 +55,25 @@ def test_build_responses_kwargs_maps_optional_fields() -> None:
     assert kwargs["extra_headers"] == {"X-Test": "1"}
 
 
+def test_build_responses_kwargs_keeps_the_system_messages_behind_the_user_message() -> None:
+    """The runtime appends its rules as system messages behind the user message; the model must be sent them."""
+    kwargs = build_responses_kwargs(
+        [
+            {"role": "system", "content": "main prompt"},
+            {"role": "user", "content": "task"},
+            {"role": "system", "content": "<data_boundary_rules>rules</data_boundary_rules>"},
+            {"role": "system", "content": "<session-access>workspace</session-access>"},
+        ],
+        {"model": "m"},
+    )
+    assert kwargs["instructions"] == "main prompt"
+    assert [(item["role"], item["content"][0]["text"]) for item in kwargs["input"]] == [
+        ("user", "task"),
+        ("system", "<data_boundary_rules>rules</data_boundary_rules>"),
+        ("system", "<session-access>workspace</session-access>"),
+    ]
+
+
 def test_build_responses_kwargs_uses_timeout_param() -> None:
     kwargs = build_responses_kwargs([{"role": "user", "content": "hi"}], {"model": "m", "timeout": 42})
     assert kwargs["timeout"] == 42

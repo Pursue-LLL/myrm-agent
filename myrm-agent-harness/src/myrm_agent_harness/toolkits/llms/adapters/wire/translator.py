@@ -6,7 +6,8 @@
 - typing::Any (POS: Python 类型标注标准库)
 
 [OUTPUT]
-- chat_messages_to_responses_input: messages translated into Responses API `input` items
+- chat_messages_to_responses_input: messages translated into Responses API `input` items; a system message
+    behind the first keeps its position as a `system` item
 - extract_responses_instructions: (system instructions, remaining messages) split
 - resolve_min_output_tokens: output-token floor for reasoning models
 
@@ -180,14 +181,17 @@ def _append_tool_output(result: list[dict[str, Any]], msg: dict[str, Any]) -> No
 
 
 def chat_messages_to_responses_input(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Convert OpenAI-style chat message dicts to Responses API input items."""
+    """Convert OpenAI-style chat message dicts to Responses API input items.
+
+    The leading system message is promoted to ``instructions`` by ``extract_responses_instructions``. A system
+    message anywhere else keeps its position as a ``system`` item: the runtime appends its rules behind the user
+    message so the system prompt (and the cache prefix it anchors) stays untouched, and the model has to be sent them.
+    """
     result: list[dict[str, Any]] = []
     for msg in messages:
         if not isinstance(msg, dict):
             continue
         role = str(msg.get("role") or "user")
-        if role == "system":
-            continue
         if role == "tool":
             _append_tool_output(result, msg)
             continue
@@ -197,6 +201,8 @@ def chat_messages_to_responses_input(messages: list[dict[str, Any]]) -> list[dic
 
         normalized_role = _normalize_role(role)
         parts, text = _content_to_parts(msg.get("content", ""), normalized_role)
+        if normalized_role == "system" and not text.strip():
+            continue
         if parts:
             result.append({"role": normalized_role, "content": parts})
         else:

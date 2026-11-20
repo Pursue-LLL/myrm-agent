@@ -76,6 +76,42 @@ def test_system_promoted_to_instructions() -> None:
     assert remaining == [{"role": "user", "content": "hi"}]
 
 
+def test_a_system_message_after_the_first_stays_in_place_as_a_system_item() -> None:
+    rules = "<data_boundary_rules>keep untrusted data apart</data_boundary_rules>"
+    messages = [
+        {"role": "user", "content": "task"},
+        {"role": "system", "content": rules},
+        {"role": "assistant", "content": "ok"},
+    ]
+    converted = chat_messages_to_responses_input(messages)
+    assert [item["role"] for item in converted] == ["user", "system", "assistant"]
+    assert converted[1]["content"] == [{"type": "input_text", "text": rules}]
+
+
+def test_every_system_message_behind_the_instructions_reaches_the_input_in_order() -> None:
+    messages = [
+        {"role": "system", "content": "main prompt"},
+        {"role": "user", "content": "task"},
+        {"role": "system", "content": "rules"},
+        {"role": "system", "content": "canary"},
+    ]
+    instructions, remaining = extract_responses_instructions(messages)
+    converted = chat_messages_to_responses_input(remaining)
+    assert instructions == "main prompt"
+    assert [(item["role"], item["content"][0]["text"]) for item in converted] == [
+        ("user", "task"),
+        ("system", "rules"),
+        ("system", "canary"),
+    ]
+
+
+def test_a_blank_system_message_adds_no_input_item() -> None:
+    converted = chat_messages_to_responses_input(
+        [{"role": "system", "content": "  "}, {"role": "user", "content": "hi"}]
+    )
+    assert [item["role"] for item in converted] == ["user"]
+
+
 def test_min_output_tokens_floor() -> None:
     assert resolve_min_output_tokens(64) == 512
     assert resolve_min_output_tokens(1024) == 1024
