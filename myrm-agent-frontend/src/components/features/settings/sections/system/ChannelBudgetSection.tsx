@@ -9,10 +9,12 @@
  *
  * [POS]
  * Per-channel budget configuration UI. Displays each channel's daily budget usage
- * and allows configuring per-channel limits to prevent cost explosion.
+ * and allows configuring per-channel limits to prevent cost explosion. Unfolding a
+ * channel lists each sender's spend over the audit window, with bars sized by their
+ * share of that window's total.
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconShield,
@@ -67,6 +69,11 @@ const ChannelBudgetSection = memo(() => {
   const [expandedAudit, setExpandedAudit] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<ChannelAuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  // The audit spans several days, so a sender's bar is its share of what the window cost, not of today's spend.
+  const auditTotalUsd = useMemo(
+    () => auditEntries.reduce((sum, entry) => sum + entry.total_cost_usd, 0),
+    [auditEntries],
+  );
 
   const toggleAudit = useCallback(
     async (channelKey: string) => {
@@ -339,7 +346,7 @@ const ChannelBudgetSection = memo(() => {
                   <div className="text-xs text-muted-foreground py-1">{t('auditEmpty')}</div>
                 ) : (
                   auditEntries.map((entry) => {
-                    const pct = st.today_cost_usd > 0 ? (entry.total_cost_usd / st.today_cost_usd) * 100 : 0;
+                    const pct = auditTotalUsd > 0 ? (entry.total_cost_usd / auditTotalUsd) * 100 : 0;
                     return (
                       <div key={entry.sender_id} className="flex items-center gap-2">
                         <span className="text-[11px] text-muted-foreground font-mono truncate min-w-0 flex-1">
@@ -351,7 +358,7 @@ const ChannelBudgetSection = memo(() => {
                         <div className="w-16 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden shrink-0">
                           <div
                             className="h-full rounded-full bg-primary/60 transition-all"
-                            style={{ width: `${Math.min(pct, 100)}%` }}
+                            style={{ width: `${pct}%` }}
                           />
                         </div>
                         <span className="text-[11px] font-mono tabular-nums shrink-0">

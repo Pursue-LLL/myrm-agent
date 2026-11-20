@@ -508,7 +508,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/test_channel_budget_policy_keys.py` | 模块 | 策略对真实 SQLite 与真实预算接口、真实入站消息的会话键：按群 ID 原写法手输的键能拦住本群、重启后恢复本群当日支出（8 种群 ID 写法各一），重启后停用的策略仍按停用状态列出且不建守卫，库里按任意写法存下的行读出即规范并生效，两种写法存下的同群策略在下一次写入时并成一条，审计与删除接受与存下的键写法不同的键（大小写、首尾空格），不成群组形态的键以 400 拒绝且不入库 |
 | `support/channel_budget_fixtures.py` | 辅助 | 预算测试共用：各渠道群 ID 的真实写法（`GROUP_IDS`）与把渠道预算服务、全局预算的重启回收、预算接口和审计查询接到测试库的 `budget_database` |
 | `services/test_budget_day.py` | 单元 | 预算日把进程内守卫、`budget_day_start_utc` 与本机时钟钉在一起：两个 harness 守卫在本机日历日变化时翻日（守卫改用别的日界会变红）；预算日起点等于本地午夜换成朴素 UTC（UTC、上海、洛杉矶，含夏令时开始与结束的 23、25 小时日，往前数天按日历日而不是 24 小时块）；起点等于本机时钟真正换日的那一刻（含半小时制的 Kolkata、Lord_Howe） |
-| `services/test_budget_recovery_window.py` | 模块 | 重启后的渠道成本回收、全局成本回收与渠道审计都从预算日起点汇总（真实 SQLite，本机时区取 UTC、上海、洛杉矶各跑一遍）：起点前一秒的回复不计、后一秒的计入；审计的 `days` 取 0、1、7 时各按往前第 `days` 天的预算日起点 |
+| `services/test_budget_recovery_window.py` | 模块 | 重启后的渠道成本回收、全局成本回收与渠道审计都从预算日起点汇总（真实 SQLite，本机时区取 UTC、上海、洛杉矶各跑一遍）：起点前一秒的回复不计、后一秒的计入；审计覆盖含今天的最近 `days` 个预算日，`days` 取 1、7、90 时各从往前第 `days - 1` 天的预算日起点汇总 |
 | `support/budget_day_clock.py` | 辅助 | 预算日测试共用的本机时钟控制：`host_timezone`（切换进程时区并还原）、`budget_today`（让守卫与恢复窗口读到指定的本机日期）、`host_day_start_utc`（按分钟读本机时钟求出某天的起点，与被测函数不共用代码） |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务；数据库维护任务 `db_maintenance` 每 6 小时、首次在启动后约 3 分钟（不与首屏请求抢事件循环） |
