@@ -22,6 +22,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.errors import (
     AXPermissionRequiredError,
     AXTreeEmptyError,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure
 
 
 def _make_interactive_control(*, bbox_fails: bool = False, zero_size: bool = False) -> MagicMock:
@@ -210,6 +211,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "not installed" in result.error
+        assert result.failure is AxFailure.UNSUPPORTED
 
     def test_no_foreground_window(self) -> None:
         auto = _make_auto(foreground=None)
@@ -217,6 +219,17 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "foreground" in result.error.lower()
+        assert result.failure is AxFailure.STALE
+
+    def test_target_window_not_found(self) -> None:
+        root = MagicMock()
+        root.GetChildren.return_value = []
+        auto = _make_auto(root=root)
+        with _module_with_auto(auto) as module:
+            result = module.invoke_ax_element("0", "click", app_name="Mail")
+        assert result.success is False
+        assert "target window not found" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_flatten_failure_returns_stale(self) -> None:
         foreground = MagicMock()
@@ -227,6 +240,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "Stale" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_bbox_failure_skips_element(self) -> None:
         control = _make_interactive_control(bbox_fails=True)
@@ -260,6 +274,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("5", "click")
         assert result.success is False
         assert "Stale element index 5" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_fill_uses_send_keys(self) -> None:
         control = _make_interactive_control()
@@ -282,6 +297,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "scroll")
         assert result.success is False
         assert "Unsupported action" in result.error
+        assert result.failure is AxFailure.UNSUPPORTED
 
     def test_action_failure_propagates_error(self) -> None:
         control = _make_interactive_control()
@@ -294,6 +310,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "click failed" in result.error
+        assert result.failure is AxFailure.UNKNOWN
 
 
 class TestInspectForegroundErrors:

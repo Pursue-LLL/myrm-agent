@@ -15,8 +15,8 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
     SnapshotMeta,
     SnapshotScope,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.perception.linux_x11 import foreground_pid, read_foreground_meta
-from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 logger = logging.getLogger(__name__)
 
@@ -320,41 +320,38 @@ def invoke_ax_element(
     *,
     role: str,
     name: str,
-) -> ActionResult:
+) -> AxInvokeResult:
     """Invoke the AT-SPI element a snapshot named ``<application>@<pid>:<ordinal>``.
 
     The key carries its application instance, so the call needs neither the snapshot's app name (the foreground
     snapshot reports X11's name for the window, not AT-SPI's) nor the focus to be where it was. The interface may
     have changed since the snapshot, so the element found at that position must still have the snapshot's role and
-    name; otherwise the call fails and the caller falls back to the element's coordinates.
+    name; otherwise the call fails as stale and the caller does not click the element's old coordinates.
     """
     parsed = _parse_backend_key(backend_key)
     if parsed is None:
-        return ActionResult(success=False, error=f"Invalid backend_key: {backend_key}")
+        return AxInvokeResult.failed(AxFailure.STALE, f"Invalid backend_key: {backend_key}")
     app_key, pid, index = parsed
     if index < 0 or index >= _MAX_ORDINAL:
-        return ActionResult(success=False, error=f"Index {index} out of range [0, {_MAX_ORDINAL})")
+        return AxInvokeResult.failed(AxFailure.STALE, f"Index {index} out of range [0, {_MAX_ORDINAL})")
 
     try:
         import pyatspi
     except ImportError:
-        return ActionResult(
-            success=False,
-            error="pyatspi not available; use desktop_vision_tool fallback",
-        )
+        return AxInvokeResult.failed(AxFailure.UNSUPPORTED, "pyatspi not available; use desktop_vision_tool fallback")
 
     desktop = pyatspi.Registry.getDesktop(0)
     if desktop.childCount == 0:
-        return ActionResult(success=False, error="AT-SPI desktop has no applications")
+        return AxInvokeResult.failed(AxFailure.STALE, "AT-SPI desktop has no applications")
 
     apps = _select_apps(desktop, lambda app: _app_key(_node_name(app)) == app_key and _app_pid(app) == pid)
     found = next((item for item in _iter_interactive(apps) if item.ordinal == index), None)
     if found is None:
-        return ActionResult(success=False, error=f"Stale element index {index}")
+        return AxInvokeResult.failed(AxFailure.STALE, f"Stale element index {index}")
     if (found.role, found.name) != (role, name):
         # Element names are user content (subjects, titles), so the log carries only the key.
         logger.debug("AT-SPI element %s no longer matches its snapshot", backend_key)
-        return ActionResult(success=False, error=f"Stale element index {index}")
+        return AxInvokeResult.failed(AxFailure.STALE, f"Stale element index {index}")
     target = found.node
 
     normalized = action.lower()
@@ -364,9 +361,9 @@ def invoke_ax_element(
                 editable = target.queryEditableText()  # type: ignore[attr-defined]
                 editable.setTextContents(text)
             except Exception:
-                # Typing is the backend's job (stdin/clipboard, UTF-8 locale, cancellable); failing here hands the
-                # element to the caller's coordinate fallback, which clicks it and types through the backend.
-                return ActionResult(success=False, error="element exposes no editable text interface")
+                # Typing is the backend's job (stdin/clipboard, UTF-8 locale, cancellable); failing as unsupported
+                # hands the element to the caller's coordinate fallback, which clicks it and types through the backend.
+                return AxInvokeResult.failed(AxFailure.UNSUPPORTED, "element exposes no editable text interface")
         elif normalized in {
             "click",
             "press",
@@ -390,10 +387,11 @@ def invoke_ax_element(
             except Exception:
                 target.queryComponent().grabFocus()  # type: ignore[attr-defined]
         else:
-            return ActionResult(success=False, error=f"Unsupported action: {action}")
+            return AxInvokeResult.failed(AxFailure.UNSUPPORTED, f"Unsupported action: {action}")
     except Exception as exc:
-        return ActionResult(success=False, error=str(exc))
-    return ActionResult(success=True, output=f"AT-SPI {normalized} succeeded")
+        # A call that raised may already have reached the element.
+        return AxInvokeResult.failed(AxFailure.UNKNOWN, str(exc))
+    return AxInvokeResult.delivered(f"AT-SPI {normalized} succeeded")
 
 
 _DBUS_AUTOMATABLE_APPS: frozenset[str] = frozenset(

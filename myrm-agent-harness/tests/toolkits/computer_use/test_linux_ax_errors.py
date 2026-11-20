@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure
 from myrm_agent_harness.toolkits.computer_use.perception.linux_ax import LinuxAxSnapshot
 
 
@@ -269,6 +270,7 @@ class TestInvokeCollectionFailures:
         result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is False
         assert "Stale" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_child_walk_failure_yields_stale(self) -> None:
         app = MagicMock()
@@ -280,6 +282,7 @@ class TestInvokeCollectionFailures:
         result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is False
         assert "Stale" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_target_role_failure_continues(self) -> None:
         bad = MagicMock()
@@ -310,6 +313,7 @@ class TestInvokeActionFailures:
         result = module.invoke_ax_element("@:0", "click", role="push button", name="")
         assert result.success is False
         assert "broken action" in result.error
+        assert result.failure is AxFailure.UNKNOWN
 
 
 class TestInspectForegroundLinux:

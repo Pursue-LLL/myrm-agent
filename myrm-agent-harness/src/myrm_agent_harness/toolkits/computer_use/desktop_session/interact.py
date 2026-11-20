@@ -4,16 +4,18 @@
 - host::DesktopSessionHost (POS: typed session state, approval revalidation, guard screenshots, follow-up snapshot)
 - dref.registry::DRefRegistry.resolve (POS: the element a reference names with the snapshot that registered it)
 - perception.ax_dispatch::invoke_element (POS: native AX action on an element)
-- execution.healer::try_bbox_click (POS: coordinate fallback when the native action fails)
+- perception.ax_result::AxFailure (POS: what a failed native action proves about delivery)
+- execution.healer::try_bbox_click (POS: coordinate fallback for an action the native route cannot perform)
 - semantic_gate, safety, core.security.credential_vault (POS: destructive-action gate, hard blocks, credential fill)
 
 [OUTPUT]
-- DesktopInteractMixin: desktop_interact (screen guard, per-app approval, revalidation, gates, native action with bbox fallback, follow-up snapshot)
+- DesktopInteractMixin: desktop_interact (screen guard, per-app approval, revalidation, gates, native action with bbox fallback only after an unsupported action, follow-up snapshot)
 
 [POS]
 Mutating semantic entry of the desktop tools; every gate that can refuse the action runs before the element is touched.
 The approval is asked for the application the registry holds; after the re-read, the gates, the delivery and the
-follow-up snapshot all use the one capture the element was resolved from.
+follow-up snapshot all use the one capture the element was resolved from. A native failure that is stale or of
+unknown outcome is reported and never retried or clicked by coordinates.
 """
 
 from __future__ import annotations
@@ -22,9 +24,10 @@ import asyncio
 import logging
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
-from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
+from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.execution.healer import try_bbox_click
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invoke_element
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import DesktopInteractAction, ModifierKey
 
 from .host import DesktopSessionHost
@@ -32,6 +35,35 @@ from .host import DesktopSessionHost
 logger = logging.getLogger(__name__)
 
 _NO_SNAPSHOT = SnapshotMeta(ref_count=0, app_name="", window_title="", scope="foreground")
+
+
+def _snapshot_call(meta: SnapshotMeta) -> str:
+    """The snapshot call that reads the application the model is working in."""
+    if meta.app_name:
+        return f"desktop_snapshot_tool(scope='target', app_name='{meta.app_name}')"
+    return "desktop_snapshot_tool(scope='foreground')"
+
+
+def _stopped_without_fallback(element: ElementRef, meta: SnapshotMeta, ax_result: AxInvokeResult) -> str:
+    """Reply for a native failure that is neither repeated nor handed to the coordinate click.
+
+    A stale element's old position may belong to something else now, and an unknown outcome may already have been
+    delivered; only a failure that proves nothing reached the element is clicked again by coordinates.
+    """
+    snapshot = _snapshot_call(meta)
+    if ax_result.failure is AxFailure.STALE:
+        return (
+            f"desktop_interact stopped for @{element.ref_id}: the element is no longer where the snapshot found it "
+            f"({ax_result.error}).\n"
+            f"[REMEDY_HINT: The UI changed after the snapshot. Call {snapshot} to refresh the @dref element tree, "
+            "then use the new reference.]"
+        )
+    return (
+        f"desktop_interact result unknown for @{element.ref_id}: {ax_result.error}. "
+        "The action may or may not have been delivered, so it was not retried.\n"
+        f"[REMEDY_HINT: Check the screen with {snapshot} or desktop_vision_tool before repeating the action; "
+        "repeating it blindly can duplicate its effect, such as a second send or confirm.]"
+    )
 
 
 class DesktopInteractMixin(DesktopSessionHost):
@@ -71,7 +103,7 @@ class DesktopInteractMixin(DesktopSessionHost):
                 except DRefStaleError as exc:
                     remedy_hint = (
                         f"[REMEDY_HINT: The element reference @{ref} is stale because the UI state has changed. "
-                        "Call desktop_snapshot_tool(scope='foreground') to refresh the @dref element tree.]"
+                        f"Call {_snapshot_call(asked_for)} to refresh the @dref element tree.]"
                     )
                     return f"{exc}\n{remedy_hint}"
 
@@ -142,6 +174,8 @@ class DesktopInteractMixin(DesktopSessionHost):
                     app_name=meta.app_name,
                 )
                 if not ax_result.success:
+                    if ax_result.failure is not AxFailure.UNSUPPORTED:
+                        return _stopped_without_fallback(element, meta, ax_result)
                     bbox_result = await try_bbox_click(self, element, effective_action, effective_text, modifiers)
                     if not bbox_result.success:
                         remedy_hint = (

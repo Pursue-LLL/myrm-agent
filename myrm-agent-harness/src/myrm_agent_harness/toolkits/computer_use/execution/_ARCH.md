@@ -1,7 +1,7 @@
 # execution/
 
 ## Overview
-Coordinate-based fallback execution when semantic AX invoke fails on a @dref element.
+Coordinate-based fallback execution for an action the native AX route cannot perform on a @dref element. A native failure that is stale or of unknown outcome never reaches it.
 
 ## File Index
 

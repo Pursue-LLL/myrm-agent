@@ -18,6 +18,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.errors import (
     AXPermissionRequiredError,
     AXTreeEmptyError,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure
 from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture import _parse_ax_output
 from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
     _read_foreground_meta,
@@ -106,11 +107,12 @@ class TestParseAxOutputFiltering:
 
 
 class TestInvokeAxElementPlainError:
-    def test_nonzero_returncode_returns_stderr(self) -> None:
+    def test_nonzero_returncode_returns_stderr_and_is_not_known_undelivered(self) -> None:
         with _patch_run(_completed("", returncode=1, stderr="boom")):
             result = invoke_ax_element("1", "click")
         assert result.success is False
         assert result.error == "boom"
+        assert result.failure is AxFailure.UNKNOWN
 
 
 class TestInspectForeground:

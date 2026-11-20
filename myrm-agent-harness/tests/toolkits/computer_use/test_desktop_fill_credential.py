@@ -19,7 +19,11 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
+
+# The native route refused the fill, which proves nothing was typed; only then may the coordinate path type it.
+_UNSUPPORTED = AxInvokeResult.failed(AxFailure.UNSUPPORTED, "AX failed")
 
 
 @pytest.fixture
@@ -169,8 +173,7 @@ async def test_fill_credential_ax_fail_falls_back_to_bbox(mock_backend, mock_con
         vault = MagicMock()
         vault.get_password.return_value = "secret"
         mock_get_vault.return_value = vault
-        mock_invoke.return_value.success = False
-        mock_invoke.return_value.error = "AX failed"
+        mock_invoke.return_value = _UNSUPPORTED
         mock_bbox.return_value.success = True
         session.desktop_snapshot = AsyncMock(return_value="Updated tree")
 
@@ -195,8 +198,7 @@ async def test_fill_credential_secret_reaches_backend_type_text(mock_backend, mo
         vault = MagicMock()
         vault.get_password.return_value = "p\u00e4ss-\u5bc6\u7801"
         mock_get_vault.return_value = vault
-        mock_invoke.return_value.success = False
-        mock_invoke.return_value.error = "AX failed"
+        mock_invoke.return_value = _UNSUPPORTED
         session.desktop_snapshot = AsyncMock(return_value="Updated tree")
 
         result = await session.desktop_interact(ref=ref_id, action="fill_credential", text="login")
@@ -220,8 +222,7 @@ async def test_fill_credential_both_ax_and_bbox_fail(mock_backend, mock_config):
         vault = MagicMock()
         vault.get_password.return_value = "secret"
         mock_get_vault.return_value = vault
-        mock_invoke.return_value.success = False
-        mock_invoke.return_value.error = "AX failed"
+        mock_invoke.return_value = _UNSUPPORTED
         mock_bbox.return_value.success = False
         mock_bbox.return_value.error = "no bbox"
 

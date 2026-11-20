@@ -21,6 +21,7 @@ from PIL import Image
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef
 from myrm_agent_harness.toolkits.computer_use.execution.healer import try_bbox_click
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ComputerUseConfig,
@@ -336,7 +337,7 @@ class TestDesktopInteractPermissionIntegration:
         )
         (ref,) = session._refs.adopt({"capture-0": element}, meta)
 
-        failed_invoke = ActionResult(success=False, error="AX invoke not available")
+        failed_invoke = AxInvokeResult.failed(AxFailure.UNSUPPORTED, "AX invoke not available")
         with patch(
             "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             return_value=failed_invoke,
@@ -369,7 +370,7 @@ class TestDesktopInteractPermissionIntegration:
         )
         (ref,) = session._refs.adopt({"capture-0": element}, meta)
 
-        failed_invoke = ActionResult(success=False, error="AX invoke not available")
+        failed_invoke = AxInvokeResult.failed(AxFailure.UNSUPPORTED, "AX invoke not available")
         with (
             patch(
                 "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",

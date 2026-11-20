@@ -51,7 +51,7 @@
 desktop_snapshot_tool
     ↓ AX tree with @dref IDs, app/window header (+ optional screenshot with [N] SOM labels) + browser soft-routing hint
 desktop_interact_tool(ref=@dref, action=...)
-    ↓ per-app approval gate → AX invoke → bbox healer fallback → incremental diff follow-up (full-view fallback when unreliable)
+    ↓ per-app approval gate → AX invoke → bbox click only after an unsupported native action → incremental diff follow-up (full-view fallback when unreliable)
 desktop_vision_tool (only when AX empty or interact failed)
     ↓ per-app approval gate → foreground permission gate → stale refresh → coordinate actions
 ```
@@ -61,6 +61,10 @@ desktop_vision_tool (only when AX empty or interact failed)
 Platform captures name their elements by position (`d0`, `d1`, ...), and a position shifts whenever a row appears above it. The registry therefore issues the ids itself (`DRefRegistry.adopt`, called only from `DesktopSession._adopt_capture`): ids only grow and are never reused, and an element keeps its id across captures only when it is in the same application (name and process). Inside that application a non-empty (role, name) that is unique on both sides continues wherever the element moved, and any other element (unnamed, or one of several twins) continues only while its (role, name, bbox) is unique on both sides, that is, while it did not move. Every other element gets a fresh id, and an id that was not carried over is stale: it fails with a `[REMEDY_HINT]` instead of resolving to a neighbour. A diff-mode snapshot is computed against what the model was last shown, lists new, changed and retired ids, and states that every unlisted id is still valid. `_adopt_capture` also runs the sensitive-application check, so the agent snapshot, the approval revalidation and the inspector refresh cannot register the elements of a blocked application.
 
 When an approval delays an action, `desktop_interact` re-reads the application of the approved @dref by name (not the foreground application). If the application has no readable window, or another application or process answers, the action is refused and the registry stays as the model saw it; otherwise the semantic gates, the mirror gate, the delivery and the follow-up snapshot all use the capture the element was resolved from.
+
+### Failure classes of a native action
+
+A native action that failed reports what it proves about delivery (`perception/ax_result.py`), and `desktop_interact` acts on that class alone. **Unsupported** (no permission, no such action, no editable text): nothing reached the element, so the bbox click takes over. **Stale** (the element or its window is gone or changed): the old coordinates may belong to something else, so nothing is clicked and the model is told to read the application again. **Unknown** (timeout, killed script, an exception during the action): the action may have been delivered, so it is neither retried nor clicked, and the model is told to check the screen before repeating it. macOS classifies by the AppleScript error number because the message text is localized; see `perception/_ARCH.md`.
 
 ---
 
@@ -73,7 +77,7 @@ When an approval delays an action, `desktop_interact` re-reads the application o
 | `DRefRegistry` | `computer_use/dref/registry.py` | Session-scoped @dref map that issues never-reused ids and carries an id across snapshots only for an identifiable element |
 | `perception/` | `ax_dispatch.py`, `ax_diff.py`, platform AX | Capture AX tree, incremental diff, invoke elements |
 | `recording/` | `synthesizer.py`, `capture_driver.py` | Skill synthesis from events, and `DesktopCaptureDriver`: polls the AX tree, diffs frames into click / type / window-focus events (skipping sensitive apps) |
-| `execution/healer.py` | BBox click fallback | When AX invoke fails |
+| `execution/healer.py` | BBox click fallback | When the native route cannot perform the action; never after a stale or unknown outcome |
 | `_action_lock` | `desktop_session/core.py` | Session-level async mutex | Serializes mutating interact/vision actions |
 | `[REMEDY_HINT]` | `desktop_session/interact.py`, `desktop_session/vision.py` | Self-healing diagnosis | Structured recovery guidance for stale refs and execution failures |
 | `ComputerSession` | `session.py` | Screenshot + coordinate I/O |

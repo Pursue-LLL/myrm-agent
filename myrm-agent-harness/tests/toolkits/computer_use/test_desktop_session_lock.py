@@ -10,6 +10,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ScreenInfo
 from myrm_agent_harness.utils.runtime.user_control import UserControl, UserControlTimeoutError
 
@@ -145,9 +146,7 @@ async def test_interact_failure_returns_structured_remedy_hint(mock_backend: Mag
     elem = ElementRef(ref_id="capture-1", role="button", name="Button", bbox=(10, 10, 50, 50), backend_key="k1")
     (ref,) = session._refs.adopt({"capture-1": elem}, meta)
 
-    mock_ax_result = MagicMock()
-    mock_ax_result.success = False
-    mock_ax_result.error = "AXElementNotFound"
+    mock_ax_result = AxInvokeResult.failed(AxFailure.UNSUPPORTED, "AXElementNotFound")
 
     mock_bbox_result = MagicMock()
     mock_bbox_result.success = False
