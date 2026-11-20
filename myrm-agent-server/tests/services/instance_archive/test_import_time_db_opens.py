@@ -16,7 +16,9 @@ from pathlib import Path
 from app.services.instance_archive.policy import PathCategory, classify_path
 
 _SERVER_ROOT = Path(__file__).resolve().parents[3]
-_HARNESS_SRC = _SERVER_ROOT.parent.parent / "myrm-agent-harness" / "src"
+# The child's PYTHONPATH replaces ours: it must name this checkout's harness, or the child imports whichever harness
+# the interpreter's editable install happens to point at.
+_HARNESS_SRC = _SERVER_ROOT.parent / "myrm-agent-harness" / "src"
 
 _SPY = textwrap.dedent(
     """

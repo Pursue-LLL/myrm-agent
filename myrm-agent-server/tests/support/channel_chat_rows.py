@@ -27,21 +27,23 @@ async def seed_channel_chat(db: AsyncSession, key: str, *, idle_minutes: float =
     return chat_id
 
 
-async def seed_costed_reply(db: AsyncSession, chat_id: str, cost_usd: float, *, sender_id: str = "u1") -> None:
+async def seed_costed_reply(
+    db: AsyncSession, chat_id: str, cost_usd: float, *, sender_id: str = "u1", at: datetime | None = None
+) -> None:
     """Store an assistant reply of ``chat_id`` that cost ``cost_usd`` and answered ``sender_id``.
 
-    The budget day is the local calendar day, so the reply is stamped in local time.
+    The reply is stamped ``at`` (a UTC instant, default now): the clock every stored message carries.
     """
-    now = datetime.now()  # noqa: DTZ005
+    stamp = at or datetime.now(UTC)
     db.add(
         Message(
             id=f"msg-{uuid.uuid4().hex[:8]}",
             chat_id=chat_id,
             role="assistant",
             content="ok",
-            sent_at=now,
+            sent_at=stamp,
             sent_timezone="UTC",
-            created_at=now,
+            created_at=stamp,
             extra_data={"costUsd": cost_usd, "channelSenderId": sender_id},
         )
     )

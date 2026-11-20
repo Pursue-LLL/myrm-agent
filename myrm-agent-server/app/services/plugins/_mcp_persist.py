@@ -261,15 +261,14 @@ async def _read_stored_mcp_servers(config_service: "ConfigService") -> _StoredMc
     if record.unreadable:
         return None
     value = record.value
-    extras = {key: item for key, item in value.items() if key != "mcpConfigs"} if isinstance(value, dict) else {}
+    extras = {key: item for key, item in value.items() if key != "mcpConfigs"}
     return _StoredMcpServers(configs=_configs_in(value), extras=extras)
 
 
-def _configs_in(value: object) -> list[dict[str, object]]:
-    """The entries of a stored value: the canonical ``{"mcpConfigs": [...]}`` envelope or a bare list payload."""
-    if isinstance(value, dict):
-        value = value.get("mcpConfigs")
-    return [cfg for cfg in value if isinstance(cfg, dict)] if isinstance(value, list) else []
+def _configs_in(value: dict[str, object]) -> list[dict[str, object]]:
+    """The entries of a stored value's ``{"mcpConfigs": [...]}`` envelope (none when the key is absent or not a list)."""
+    configs = value.get("mcpConfigs")
+    return [cfg for cfg in configs if isinstance(cfg, dict)] if isinstance(configs, list) else []
 
 
 async def _load_persisted_mcp_configs(

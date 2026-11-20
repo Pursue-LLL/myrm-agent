@@ -4,6 +4,7 @@
 - app.services.budget.enforcer (POS: Budget enforcement service)
 - app.services.budget.channel_budget (POS: Per-channel budget enforcement)
 - app.services.budget.channel_budget_key (POS: Canonical channel budget key)
+- app.services.budget.budget_day (POS: Budget day boundary as naive UTC)
 
 [OUTPUT]
 - GET /policy: Current budget policy
@@ -12,7 +13,7 @@
 - GET /channels: All channel budget policies and statuses
 - PUT /channels/{channel_key}: Create/update a channel budget policy; the key must be {channel}:group:{chat id}, stored canonical
 - DELETE /channels/{channel_key}: Remove a channel budget policy; any spelling of its key
-- GET /channels/{channel_key}/audit: Audit log for a channel's spending; any spelling of its key
+- GET /channels/{channel_key}/audit: Audit log for a channel's spending since the start of the budget day `days` days back; any spelling of its key
 
 [POS]
 Budget management API. Exposes global and per-channel policy CRUD, real-time spend status,
@@ -233,18 +234,17 @@ async def delete_channel_budget(channel_key: str) -> JSONResponse:
 async def get_channel_audit(channel_key: str, days: int = 7) -> JSONResponse:
     """Get spending audit for a channel grouped by sender."""
     try:
-        from datetime import date, datetime, timedelta
-
         from sqlalchemy import and_, func, select
 
         from app.database.models.chat import Chat, Message
         from app.database.repositories.channel_key_match import channel_key_extends
         from app.platform_utils import get_session_factory
+        from app.services.budget.budget_day import budget_day_start_utc
         from app.services.budget.channel_budget_key import normalize_channel_budget_key
 
         channel_key = normalize_channel_budget_key(channel_key)
         session_factory = get_session_factory()
-        since = datetime.combine(date.today() - timedelta(days=days), datetime.min.time())
+        since = budget_day_start_utc(days_ago=days)
         cost_expr = func.json_extract(Message.extra_data, "$.costUsd")
         sender_expr = func.json_extract(Message.extra_data, "$.channelSenderId")
 

@@ -394,7 +394,7 @@ def _decision(component: str, virtual_id: str, name: str, resolution: str = "ins
     return PluginConfirmItem(component=component, virtual_id=virtual_id, resolution=resolution, name=name)
 
 
-def _stored_mcp(*, value: object) -> SimpleNamespace:
+def _stored_mcp(*, value: dict[str, object]) -> SimpleNamespace:
     """The ``mcpServers`` record as the config service returns it for a row it could read (``unreadable`` is False)."""
     return SimpleNamespace(value=value, unreadable=False)
 
@@ -549,32 +549,10 @@ class TestConfirmPluginImport:
         persisted_value = confirm_env.config_service.set.await_args.args[1]
         # Existing pdf-server kept as-is; remote appended (skipping the duplicate).
         assert [cfg["name"] for cfg in persisted_value["mcpConfigs"]] == ["pdf-server", "remote"]
+        assert persisted_value["mcpConfigs"][0]["command"] == "/old"
         assert persisted_value["mcpConfigs"][1]["enabled"] is False
         assert persisted_value["mcpConfigs"][1]["type"] == "streamable_http"
         assert persisted_value["mcpConfigs"][1]["url"] == "https://api.example.com/mcp"
-        confirm_env.invalidate_cache.assert_called_once()
-
-    async def test_preserves_legacy_bare_list_mcp_configs(self, confirm_env: SimpleNamespace) -> None:
-        """User-configured servers (incl. legacy bare-list payloads) survive import.
-
-        The persisted shape is always ``{"mcpConfigs": [...]}`` and existing names
-        are merged with imported ones, never dropped.
-        """
-        session = _parse_session()
-        server_key = next(iter(session.servers_by_key))
-        confirm_env.config_service.get.return_value = _stored_mcp(
-            value=[{"name": "user-mcp", "enabled": True, "command": "/keep-me"}]
-        )
-
-        await confirm_plugin_import(
-            session,
-            skill_decisions=[],
-            server_decisions=[_decision("mcp", server_key, "pdf-server")],
-        )
-
-        persisted_value = confirm_env.config_service.set.await_args.args[1]
-        assert [cfg["name"] for cfg in persisted_value["mcpConfigs"]] == ["user-mcp", "pdf-server"]
-        assert persisted_value["mcpConfigs"][0]["command"] == "/keep-me"
         confirm_env.invalidate_cache.assert_called_once()
 
     async def test_skill_with_security_issues_is_reported_and_leaves_nothing_behind(self, confirm_env: SimpleNamespace) -> None:
