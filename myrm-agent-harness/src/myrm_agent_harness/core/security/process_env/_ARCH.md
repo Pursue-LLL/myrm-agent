@@ -11,6 +11,7 @@ What a process the framework starts may inherit and what may be set for it: one 
 | `__init__.py` | Package | Public facade: `CODE_INJECTION_ENV_VARS`, `CODE_INJECTION_ENV_PREFIXES`, `is_code_injection_env_name`, `EnvInheritPolicy`, `DEFAULT_CHILD_SAFE_ENV_KEYS`, `FORBIDDEN_EXACT_KEYS`, `build_isolated_child_env`, `sanitize_env`, `is_non_inheritable_env_var`. | ✅ |
 | `code_injection_env.py` | Core | The names that make a later program run what the value names: the dynamic linker (`LD_*`, `DYLD_*`), language runtimes (`PYTHONPATH`, `NODE_OPTIONS`, `RUBYOPT`, ...), shell startup (`BASH_ENV`) and git program hooks (`GIT_SSH_COMMAND`, `GIT_EXTERNAL_DIFF`, ...). Proxy, TLS and package-source names are not in it: they redirect traffic and a person may set them. | ✅ |
 | `env_isolation.py` | Core | The child-process environment, built from a policy (`EnvInheritPolicy`: `CORE` keeps only proven-safe system and toolchain variables, `ALL` keeps the rest minus sensitive ones, `NONE` starts empty). Sensitive names and patterns, linker/loader hooks (`LD_*`, `DYLD_*`), `GIT_SSL_*` and OpenTelemetry configuration (`OTEL_*`) are stripped under every policy, explicit overrides included; `is_non_inheritable_env_var` is the post-override scrub. | ✅ |
+| `env_name_tables.py` | Core | The names `env_isolation` decides by, as constants: `DEFAULT_CHILD_SAFE_ENV_KEYS` (what `CORE` keeps), `FORBIDDEN_EXACT_KEYS`, `SENSITIVE_WILDCARDS`, `DANGEROUS_PREFIXES` and the internal PTC bridge names (`PTC_ORCHESTRATION_ENV_KEYS`). | ✅ |
 
 ## Key Dependencies
 
