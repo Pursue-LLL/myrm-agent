@@ -24,12 +24,11 @@ Web 前端的 `enable_memory` 会在这里进入 Server 业务参数，统一控
 ## Uploaded File Workspace Sync
 
 - 前端通过 `AgentRequest.uploaded_file_ids` 传递本次消息附带的文件 ID 列表。
-- `enrichment/pipeline.py` 在 workspace 目录确定后调用 `sync_uploaded_files_to_workspace()`，将超过 100KB 的文件从 StorageProvider 复制到 `{workspace}/_uploaded/`。
+- `enrichment/pipeline.py` 在 workspace 目录确定后调用 `sync_uploaded_files_to_workspace()`，将超过 100KB 的文件与所有图片从 StorageProvider 复制到 `{workspace}/_uploaded/`。
 - 归档恢复：`enrichment/archive_restore.py` 校验 `archive_restore_actions` 并注入 XML；`enrichment/pipeline.py` 在参数转换期调用。
 - 文件路径以 XML 标签注入 user message 的 query context，不影响 system prompt 和 tool definitions 的 prompt cache 前缀：
-  - 普通文件：`<uploaded_files_in_workspace>` 标签，Agent 可直接读取
-  - 大文档（PDF/DOCX >100KB）：`<large_documents_for_knowledge_base>` 标签，引导 Agent 使用 wiki_ingest_tool 入库后用 wiki_query_tool 检索
-- 安全保障：文件名清洗（去除路径分隔符和空字节）、50MB/chat 总量限制、10 文件/请求限制、同名文件自动编号。
+  - 所有文件（含大型 PDF/Office 文档）：同一个 `<uploaded_files_in_workspace>` 标签，Agent 用 `file_read` 读文档本身；不按类型或大小分流，也不引导入库
+- 安全保障：文件名清洗（去除路径分隔符和空字节）、200MB/chat 总量限制、20 文件/请求限制、同名文件自动编号。
 
 ## @codebase Mention
 

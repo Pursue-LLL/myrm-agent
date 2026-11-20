@@ -1,152 +1,86 @@
-"""Tests for upload_sync module: RAG routing and query injection."""
+"""Tests for upload_sync: the query injection, the filename sanitizer and the production listing of uploads."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from app.services.agent.params.conversion.chat_context import ChatContext
+from app.services.agent.params.enrichment import enrich_query
 from app.services.agent.params.enrichment.upload_sync import (
-    _RAG_TEXT_THRESHOLD,
     _sanitize_filename,
-    _should_use_rag,
     inject_uploaded_files_into_query,
 )
+from app.services.agent.params.models import AgentRequest
 
-
-class TestShouldUseRag:
-    """Tests for _should_use_rag file classification logic."""
-
-    def test_large_pdf_triggers_rag(self, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        pdf_file = uploaded / "report.pdf"
-        pdf_file.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
-
-        assert _should_use_rag("report.pdf", "_uploaded/report.pdf", str(tmp_path))
-
-    def test_small_pdf_does_not_trigger_rag(self, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        pdf_file = uploaded / "small.pdf"
-        pdf_file.write_bytes(b"x" * 1024)
-
-        assert not _should_use_rag("small.pdf", "_uploaded/small.pdf", str(tmp_path))
-
-    @pytest.mark.parametrize("ext", [".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"])
-    def test_supported_extensions(self, ext: str, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        name = f"file{ext}"
-        f = uploaded / name
-        f.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
-
-        assert _should_use_rag(name, f"_uploaded/{name}", str(tmp_path))
-
-    @pytest.mark.parametrize("ext", [".md", ".txt", ".py", ".csv", ".json"])
-    def test_unsupported_extensions_never_rag(self, ext: str, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        name = f"file{ext}"
-        f = uploaded / name
-        f.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
-
-        assert not _should_use_rag(name, f"_uploaded/{name}", str(tmp_path))
-
-    def test_missing_file_returns_false(self, tmp_path: Path) -> None:
-        assert not _should_use_rag("missing.pdf", "_uploaded/missing.pdf", str(tmp_path))
-
-    def test_exactly_at_threshold_not_rag(self, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        f = uploaded / "exact.pdf"
-        f.write_bytes(b"x" * _RAG_TEXT_THRESHOLD)
-
-        assert not _should_use_rag("exact.pdf", "_uploaded/exact.pdf", str(tmp_path))
+# Above the 100 KB threshold from which a non-image upload is synced into the workspace.
+_LARGE_UPLOAD_BYTES = 200 * 1024
 
 
 class TestInjectUploadedFilesIntoQuery:
-    """Tests for inject_uploaded_files_into_query routing logic."""
+    """Tests for inject_uploaded_files_into_query."""
 
     def test_empty_synced_files_returns_original(self) -> None:
         query = "Hello world"
         result = inject_uploaded_files_into_query(query, [])
         assert result == "Hello world"
 
-    def test_small_files_use_uploaded_files_tag(self) -> None:
-        query = "Analyze this"
-        synced = [("readme.md", "_uploaded/readme.md")]
-        result = inject_uploaded_files_into_query(query, synced)
+    def test_every_file_is_listed_in_one_block_in_the_given_order(self) -> None:
+        synced = [("notes.txt", "_uploaded/notes.txt"), ("manual.pdf", "_uploaded/manual.pdf")]
+
+        result = inject_uploaded_files_into_query("Review these", synced)
+
+        assert result == (
+            "Review these\n\n"
+            "<uploaded_files_in_workspace>\n"
+            '  <file name="notes.txt" workspace_path="_uploaded/notes.txt"/>\n'
+            '  <file name="manual.pdf" workspace_path="_uploaded/manual.pdf"/>\n'
+            "</uploaded_files_in_workspace>"
+        )
+
+    def test_names_with_markup_characters_are_quoted(self) -> None:
+        result = inject_uploaded_files_into_query("Look", [("a&b<c>.pdf", "_uploaded/ab.pdf")])
 
         assert isinstance(result, str)
-        assert "<uploaded_files_in_workspace>" in result
-        assert "readme.md" in result
-        assert "<large_documents_for_knowledge_base>" not in result
+        assert '  <file name="a&amp;b&lt;c&gt;.pdf" workspace_path="_uploaded/ab.pdf"/>' in result
 
-    def test_large_rag_files_use_knowledge_base_tag(self, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        pdf_file = uploaded / "big_report.pdf"
-        pdf_file.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
-
-        query = "Summarize this"
-        synced = [("big_report.pdf", "_uploaded/big_report.pdf")]
-        result = inject_uploaded_files_into_query(query, synced, workspace_dir=str(tmp_path))
-
-        assert isinstance(result, str)
-        assert "<large_documents_for_knowledge_base>" in result
-        assert 'action="wiki_ingest_then_query"' in result
-        assert "Use wiki_ingest_tool" in result
-        assert "Do NOT read the entire file" in result
-
-    def test_mixed_files_use_both_tags(self, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-
-        small = uploaded / "notes.txt"
-        small.write_bytes(b"x" * 1024)
-
-        large = uploaded / "manual.pdf"
-        large.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
-
-        synced = [
-            ("notes.txt", "_uploaded/notes.txt"),
-            ("manual.pdf", "_uploaded/manual.pdf"),
-        ]
-        result = inject_uploaded_files_into_query("Review these", synced, workspace_dir=str(tmp_path))
-
-        assert "<uploaded_files_in_workspace>" in result
-        assert "<large_documents_for_knowledge_base>" in result
-
-    def test_multimodal_query_appends_to_text_part(self, tmp_path: Path) -> None:
-        uploaded = tmp_path / "_uploaded"
-        uploaded.mkdir()
-        f = uploaded / "doc.pdf"
-        f.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
-
+    def test_multimodal_query_appends_to_text_part(self) -> None:
         query = [{"type": "text", "text": "Original question"}]
         synced = [("doc.pdf", "_uploaded/doc.pdf")]
-        result = inject_uploaded_files_into_query(query, synced, workspace_dir=str(tmp_path))
+
+        result = inject_uploaded_files_into_query(query, synced)
 
         assert isinstance(result, list)
         text_part = result[0]["text"]
         assert "Original question" in text_part
-        assert "<large_documents_for_knowledge_base>" in text_part
+        assert "<uploaded_files_in_workspace>" in text_part
 
-    def test_no_html_comments_in_instruction(self, tmp_path: Path) -> None:
-        """Verify the instruction uses plain text, not HTML comments."""
+
+class TestEnrichQueryListsUploads:
+    """The production path: what the model receives for an upload, whatever the file's size or type."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name", ["manual.pdf", "report.docx", "deck.pptx", "sheet.xlsx"])
+    async def test_a_large_document_is_listed_like_any_other_file(self, tmp_path: Path, name: str) -> None:
         uploaded = tmp_path / "_uploaded"
         uploaded.mkdir()
-        f = uploaded / "report.pdf"
-        f.write_bytes(b"x" * (_RAG_TEXT_THRESHOLD + 1))
+        (uploaded / name).write_bytes(b"x" * _LARGE_UPLOAD_BYTES)
+        request = AgentRequest(message_id="m1", query="Summarize it", uploaded_file_ids=["f1"])
 
-        query = "Read this"
-        synced = [("report.pdf", "_uploaded/report.pdf")]
-        result = inject_uploaded_files_into_query(query, synced, workspace_dir=str(tmp_path))
+        with patch(
+            "app.services.agent.params.enrichment.pipeline.sync_uploaded_files_to_workspace",
+            new=AsyncMock(return_value=[(name, f"_uploaded/{name}")]),
+        ):
+            enriched = await enrich_query(request, ChatContext(chat_workspace_dir=str(tmp_path)), None)
 
-        assert "<!--" not in result
-        assert "-->" not in result
-        assert "Use wiki_ingest_tool" in result
+        assert enriched.query == (
+            "Summarize it\n\n"
+            "<uploaded_files_in_workspace>\n"
+            f'  <file name="{name}" workspace_path="_uploaded/{name}"/>\n'
+            "</uploaded_files_in_workspace>"
+        )
 
 
 class TestSanitizeFilename:

@@ -101,7 +101,7 @@ async def enrich_query(request: AgentRequest, context: ChatContext, model_cfg: M
         try:
             synced = await sync_uploaded_files_to_workspace(request.uploaded_file_ids, context.chat_workspace_dir)
             if synced:
-                final_query = inject_uploaded_files_into_query(final_query, synced, workspace_dir=context.chat_workspace_dir)
+                final_query = inject_uploaded_files_into_query(final_query, synced)
                 logger.info("Synced %d uploaded files to workspace", len(synced))
         except Exception:
             logger.warning("Failed to sync uploaded files to workspace", exc_info=True)
