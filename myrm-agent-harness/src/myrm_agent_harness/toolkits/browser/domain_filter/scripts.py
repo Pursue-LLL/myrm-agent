@@ -12,10 +12,10 @@
 
 [POS]
 The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script``. The browser runs an init
-script in every window it creates, before the page's own scripts, whatever fetched the document. A same-origin popup
-is the one document that gets no run: it reuses its opener's initial window, so what a script set on the window stays
-and what it did to the document does not. The Layer 0 script covers that case itself (see Layer 0 in the package
-docstring).
+script in every document it creates, before the page's own scripts, whatever fetched the document. A popup that keeps
+its opener is the exception: the driver lets its page start before the init scripts are registered, so the page's
+first script can run first, and a same-origin popup's reused window runs them once, on ``about:blank``; the Layer 0
+script covers the reused-window case itself (see Layer 0 in the package docstring and ``BROWSER_SYSTEM.md`` section 10).
 """
 
 from __future__ import annotations
@@ -89,13 +89,13 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     and is dropped once it has done so or the document is fully parsed (a document that never gets a head, such as an SVG,
     gets no policy and no lingering observer). Creating a head here instead would leave a stray element in such documents.
 
-    A window the browser reuses for a same-origin popup keeps what this script set on it, but its new document gets
-    no init-script run and so no policy. WebSocket, Worker and SharedWorker are the channels no request filter sees,
-    so their constructors are wrapped in a ``Proxy`` that puts the policy on the current document before the real
-    constructor runs. The wrapper neither throws nor filters by itself: the refusal is the browser's, delivered the way
-    it is in a document that had the policy from the start. A page can tell the wrapper from the native constructor in
-    two ways: the ``toString`` text lacks the function name, and a ``TypeError`` the native constructor throws gains a
-    stack frame.
+    A window the browser reuses for a same-origin popup keeps what this script set on it, but its new document normally
+    gets no init-script run of its own and so no policy. WebSocket, Worker and SharedWorker are the channels no request
+    filter sees, so their constructors are wrapped in a ``Proxy`` that puts the policy on the current document before
+    the real constructor runs. The wrapper neither throws nor filters by itself: the refusal is the browser's, delivered
+    the way it is in a document that had the policy from the start. A page can tell the wrapper from the native
+    constructor in two ways: the ``toString`` text lacks the function name, and a ``TypeError`` the native constructor
+    throws gains a stack frame.
 
     Raises:
         ValueError: ``allowlist`` is empty. An empty allowlist installs no filter, so there is no policy to build.

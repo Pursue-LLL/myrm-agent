@@ -133,7 +133,7 @@ class TestExtensionAttachedContext:
 
 
 class TestPageScripts:
-    """The scripts of a context are init scripts: the browser runs them in every document before the page's own."""
+    """The scripts of a context are init scripts, which the browser delivers with its own document loads."""
 
     @pytest.mark.parametrize(
         ("context_type", "extension_attached", "stealth_registered"),

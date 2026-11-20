@@ -13,15 +13,15 @@ Layer 0 — CSP Core Defense (``<meta http-equiv="Content-Security-Policy">``, d
     A Worker started from a URL answers to its own response's policy, so Layer 1 is what stops its HTTP requests
     and a WebSocket it opens itself is judged by none of the layers.
     Does NOT restrict img/style/font/media (allows CDN resources for compatibility).
-    The policy is document-scoped, and the first document of a same-origin popup opened with ``window.open`` gets no
-    init-script run: it reuses the opener's initial window. The script therefore wraps the WebSocket, Worker and
-    SharedWorker constructors, which puts the policy on the current document before the browser runs one.
+    The policy is document-scoped, and the first document of a same-origin popup opened with ``window.open`` normally
+    gets no init-script run of its own: it reuses the popup's initial window. The script therefore wraps the WebSocket,
+    Worker and SharedWorker constructors, which puts the policy on the current document before the browser runs one.
+    A popup that keeps its opener can run its first script before Layers 0 and 2 (``BROWSER_SYSTEM.md`` section 10).
 
 Layer 1 — Protocol Interception (``context.route('**/*')``)
     Hard-blocks all HTTP/HTTPS requests to non-allowed domains (fetch, XHR, EventSource and sendBeacon included),
     in every document of the context, a popup's first one too.
-    Supports resource type filtering (image/stylesheet/script/font/media).
-    Fallback defense if CSP is disabled.
+    Supports resource type filtering (image/stylesheet/script/font/media); fallback defense if CSP is disabled.
 
 Layer 2 — Main Thread Hardening (init script)
     Hardens RTCPeerConnection and WebTransport (not covered by CSP).

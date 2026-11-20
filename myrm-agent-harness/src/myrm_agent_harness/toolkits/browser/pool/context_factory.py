@@ -25,8 +25,8 @@ Dedicated to BrowserContext creation and configuration, including:
 7. Forwarding the session's ``allow_private_networks`` policy to the installed HTTP filter, so private-address
    handling follows the session's choice whether or not a domain list or resource blocking is attached
 8. Registering the DOM enhancer (every context) and, in STEALTH mode, 13 anti-detection JS scripts (patchright's own CDP
-   patches plus ``stealth.js``) as init scripts: the browser runs them in every document of the context before the
-   page's own scripts, whatever fetched the document
+patches plus ``stealth.js``) as init scripts: the browser runs them in every document of the context before the
+page's own scripts, whatever fetched the document (a popup that keeps its opener may run its first script first)
 9. Refusing downloads by default (``accept_downloads=False`` in every context kind): the browser would otherwise keep
    every file a page starts in its temp dir until the context closes, so only a context whose owner passes
    ``accept_downloads=True`` (a ``BrowserSession`` with a download manager) keeps any
@@ -310,9 +310,9 @@ class ContextFactory:
     async def _apply_stealth(context: BrowserContext) -> None:
         """Apply stealth anti-detection patches to a STEALTH context.
 
-        Registers stealth.js as an init script, so the browser runs it in every document before the page's own scripts.
-        Covers 13 anti-detection vectors including navigator patches, toString disguise,
-        anti-debugger neutralization, and Performance API cleanup.
+        Registers stealth.js as an init script, so the browser runs it in every document before the page's own scripts
+        (popups that keep their opener are the exception: ``BROWSER_SYSTEM.md`` section 10). Covers 13 anti-detection
+        vectors: navigator patches, toString disguise, anti-debugger neutralization, Performance API cleanup.
         """
         from .stealth import get_stealth_script
 

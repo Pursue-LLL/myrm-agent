@@ -1,7 +1,7 @@
 # enhancers/
 
 ## Overview
-DOM enhancer for the browser toolkit: the script every pooled context registers as an init script (`pool/context_factory.py`), so the browser runs it in every document of the context before the page's own scripts.
+DOM enhancer for the browser toolkit: the script every pooled context registers as an init script (`pool/context_factory.py`), so the browser runs it in every document of the context before the page's own scripts (a popup that keeps its opener can run its first script first; see `BROWSER_SYSTEM.md` §10).
 
 ## File & Submodule Index
 

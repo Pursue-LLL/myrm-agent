@@ -1,7 +1,7 @@
 """Real-Chromium proof that a same-origin popup obeys the allowlist on the channels no request filter sees.
 
-``window.open(url)`` to the opener's own origin reuses the window the opener's initial ``about:blank`` lived in: the
-init scripts ran there once and what they set on the window stays, but the document is new and carries no CSP
+``window.open(url)`` to the opener's own origin reuses the popup's initial ``about:blank`` window: the init scripts
+ran there once and what they set on the window stays, but the document is new and normally carries no CSP
 ``<meta>``. WebSocket and the Workers that run script from a blob or data URL are the channels Layer 1 never sees, so
 without the policy they could reach any host from that document. A second loopback server stands for such a host and
 records every request it receives, so a route that connects shows up there. Each route runs alone, as the first
@@ -32,8 +32,9 @@ pytestmark = [
 
 _MAIN_WORLD = {"isolated_context": False}
 _TIMEOUT_MS = 15_000
-# Popups the policy-once test opens at most while it looks for one that reuses the opener's window.
-_REUSE_ATTEMPTS = 5
+# Popups the policy-once test opens at most while it looks for one that starts without a policy; a heavily loaded
+# machine needs many tries because the init script then often reaches a popup's document after its page's first script.
+_POPUP_ATTEMPTS = 20
 
 # The ways a page can open a WebSocket or a Worker. ``allowed`` goes to the allowlisted site; every other route goes to
 # the outside server: the constructor itself, the routes that reach the native constructor around a wrapper
@@ -125,13 +126,15 @@ async def _open_popup(tab: Page, site: Site) -> Page:
     return popup
 
 
-async def _open_popup_in_reused_window(tab: Page, site: Site) -> Page | None:
-    """A popup whose document has no policy yet, which is how a reused window starts; ``None`` if none does.
+async def _open_popup_without_policy(tab: Page, site: Site) -> Page | None:
+    """A popup whose document has no policy yet, so the test can watch it get one; ``None`` if none does.
 
-    Chromium does not always give a same-origin popup the opener's initial window (a few opens in a hundred get a
-    fresh one): that document carries its policy from the first byte, so it cannot show how the policy gets added.
+    The init script usually runs on a same-origin popup's initial window before its document arrives, which leaves the
+    document without a policy until a wrapped constructor adds one. The driver lets a popup start before it has
+    registered the init scripts, so now and then the script reaches the document after the page's first script and the
+    policy is already there: that document cannot show how the policy gets added, so it is closed and another opened.
     """
-    for _ in range(_REUSE_ATTEMPTS):
+    for _ in range(_POPUP_ATTEMPTS):
         popup = await _open_popup(tab, site)
         if await popup.evaluate(_POLICY_COUNT, **_MAIN_WORLD) == 0:
             return popup
@@ -163,11 +166,13 @@ async def test_a_document_gets_its_policy_once(sites: tuple[Site, Site]) -> None
     async with _tab(inside) as tab:
         await tab.goto(inside.url("/"), timeout=_TIMEOUT_MS)
         assert await tab.evaluate(_OPEN_CHANNELS_TWICE, **_MAIN_WORLD) == 1
-        popup = await _open_popup_in_reused_window(tab, inside)
+        popup = await _open_popup_without_policy(tab, inside)
         if popup is None:
-            # A skip would pass CI without anyone seeing that this half of the check never ran.
+            # A skip shows in CI only as "skipped", so the half of the check that never ran would go unnoticed.
             pytest.fail(
-                f"none of {_REUSE_ATTEMPTS} popups started without a policy: either Chromium stopped reusing the "
-                "opener's initial window, or a popup document now gets its policy before its page opens a channel"
+                f"all {_POPUP_ATTEMPTS} popups already had a policy when the test first looked: either a popup "
+                "document now gets its policy before its page opens a channel, so the half of the check that needs one "
+                "without it no longer applies, or the machine is so loaded that the init script keeps arriving late "
+                "(run it again on a quieter one)"
             )
         assert await popup.evaluate(_OPEN_CHANNELS_TWICE, **_MAIN_WORLD) == 1
