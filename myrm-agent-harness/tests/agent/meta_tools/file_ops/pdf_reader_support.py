@@ -1,4 +1,4 @@
-"""Shared fakes of the PDF reader tests: an extraction result, its config, a page image and a read driver."""
+"""Shared fakes of the PDF reader tests: extraction result, config, page image, read driver and page-marked text."""
 
 from __future__ import annotations
 
@@ -42,6 +42,11 @@ class FakeConfig:
     def __init__(self, max_pages: int = 500, extract_embedded_images: bool = True) -> None:
         self.max_pages = max_pages
         self.extract_embedded_images = extract_embedded_images
+
+
+def paged_text(pages: int, page_chars: int, blank: frozenset[int] = frozenset()) -> str:
+    """Extractor-shaped text: each page is a ``[Page N]`` marker line and its body; a blank page keeps its marker."""
+    return "\n\n".join(f"[Page {n}]\n{'' if n in blank else 'x' * page_chars}" for n in range(1, pages + 1))
 
 
 async def read_pdf_with_extraction(

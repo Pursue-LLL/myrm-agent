@@ -20,6 +20,7 @@ from tests.agent.meta_tools.file_ops.pdf_reader_support import (
     FakeConfig,
     FakeImage,
     FakePDFResult,
+    paged_text,
     read_pdf_with_extraction,
 )
 
@@ -337,6 +338,34 @@ class TestReadPdfAsContentBlocks:
         result = await read_pdf_with_extraction(pdf, supports_vision=supports_vision, described_pages=described_pages)
 
         assert "[Partial Read]" not in _text_of(result)
+
+    @pytest.mark.asyncio
+    @_EVERY_DELIVERY
+    async def test_the_hint_counts_the_pages_the_character_cap_left_in_the_text(
+        self, supports_vision: bool, with_images: bool, described_pages: str | None
+    ) -> None:
+        """The cap cuts after the extractor counted its window, so the model holds fewer pages than the window."""
+        text = paged_text(PDF_READ_PAGE_WINDOW, page_chars=8_000)  # the 100,000-char cap ends inside page 13
+        pdf = FakePDFResult(text=text, page_count=40, parsed_pages=20, images=[FakeImage()] if with_images else [])
+
+        result = await read_pdf_with_extraction(pdf, supports_vision=supports_vision, described_pages=described_pages)
+
+        assert f"truncated at {_FALLBACK_MAX_CHARS}" in _text_of(result)
+        assert "only the first 13 pages were read" in _text_of(result)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "text",
+        [
+            pytest.param(paged_text(20, 100, blank=frozenset({19, 20})), id="blank_last_pages_not_cut"),
+            pytest.param("x" * (_FALLBACK_MAX_CHARS + 1), id="cut_without_page_markers"),
+        ],
+    )
+    async def test_the_hint_keeps_the_window_unless_the_cut_text_ends_on_an_earlier_page(self, text: str) -> None:
+        """Blank pages were read though they carry no text, and a text without page markers has no page to count."""
+        result = await read_pdf_with_extraction(FakePDFResult(text=text, page_count=40, parsed_pages=20))
+
+        assert "only the first 20 pages were read" in _text_of(result)
 
     @pytest.mark.asyncio
     async def test_the_extractor_is_asked_for_exactly_the_window_the_hint_speaks_of(self) -> None:

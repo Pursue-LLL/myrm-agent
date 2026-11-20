@@ -9,6 +9,7 @@ Uses pdf_content_extractor for unified smart extraction:
 
 [INPUT]
 - toolkits.file_parsers.pdf.pdf_content_extractor::PDFExtractConfig (POS: Smart PDF extraction orchestrator. Auto-selects Text/Hybrid(embedded image)/Image(full-page render fallback) strategy; scanned PDFs (sparse text) get best-effort OCR fallback via RapidOCR so text-only consumers still get readable text. Supports Table Encapsulation to prevent RAG chunking from splitting tables, using L0 summaries to ensure retrieval accuracy.)
+- toolkits.file_parsers.pdf.pdf::pages_with_text (POS: pdfplumber-based PDF parser orchestrator: page parsing (sequential/parallel), heading composition, cross-page stitching and text/table merging, with an optional physical ``max_pages`` slice. Owns the page-marker format and the matching helper that tells real content from markers.)
 - toolkits.llms.vision.fallback_engine::create_vision_fallback_engine (POS: Auxiliary vision chain builder; describes delivered page images as text for text-only models.)
 - toolkits.code_execution.executors.base::CodeExecutor (POS: Code executor base classes.)
 
@@ -22,9 +23,10 @@ vision-capable model receives the page images as blocks, a text-only model with 
 vision fallback configured receives them as text descriptions, and only when no
 vision route exists does it degrade to plain text. A document longer than
 PDF_READ_PAGE_WINDOW pages is read through that window and ends with one hint that
-states how many pages were read, that file_read cannot open the rest, and that the
-structure outline lists what the rest holds. Reading never ingests anything into a
-knowledge base.
+states how many pages were read (the pages its text still reaches when the character
+cap cuts it short), that file_read cannot open the rest, and that the structure
+outline lists what the rest holds. Reading never ingests anything into a knowledge
+base.
 """
 
 from __future__ import annotations
@@ -159,33 +161,25 @@ async def read_pdf_as_content_blocks(
     if not text.strip() and not result.images:
         return f"[PDF file: {path}] (No extractable content — may be encrypted)"
 
-    if len(text) > _FALLBACK_MAX_CHARS:
-        text = text[:_FALLBACK_MAX_CHARS] + f"\n\n... [truncated at {_FALLBACK_MAX_CHARS} chars]"
-
-    partial_read_hint = _build_partial_read_hint(result)
+    text, pages_read = _cap_text(text, min(result.parsed_pages, PDF_READ_PAGE_WINDOW))
+    partial_read_hint = _build_partial_read_hint(result.page_count, pages_read)
     coverage_note = _build_coverage_note(result)
 
+    body = f"[PDF: {path}]\n{coverage_note}{text}{partial_read_hint}" if text.strip() or coverage_note else ""
+    lead: list[ContentBlock] = [create_text_block(body)] if body else []
+
     if supports_vision and result.images:
-        blocks: list[ContentBlock] = []
-        if text.strip() or coverage_note:
-            blocks.append(create_text_block(f"[PDF: {path}]\n{coverage_note}{text}{partial_read_hint}"))
-        for img in result.images:
-            blocks.append(create_image_block(base64=img.data, mime_type=img.mime_type))
-        return blocks
+        return [*lead, *(create_image_block(base64=img.data, mime_type=img.mime_type) for img in result.images)]
 
     if result.images and (vision_fallback_model_cfg is not None or vision_fallback_model_cfgs is not None):
         described = await _describe_pdf_pages(
             executor, result, path, vision_fallback_model_cfg, vision_fallback_model_cfgs
         )
         if described:
-            blocks = []
-            if text.strip() or coverage_note:
-                blocks.append(create_text_block(f"[PDF: {path}]\n{coverage_note}{text}{partial_read_hint}"))
-            blocks.append(create_text_block(described))
-            return blocks
+            return [*lead, create_text_block(described)]
 
-    if text.strip() or coverage_note:
-        return f"[PDF: {path}]\n{coverage_note}{text}{partial_read_hint}"
+    if body:
+        return body
 
     return f"[PDF file: {path}] (No extractable text — may be image-only)"
 
@@ -211,18 +205,35 @@ def _format_page_ranges(pages: list[int]) -> str:
     return ", ".join(ranges)
 
 
-def _build_partial_read_hint(result: PDFExtractResult) -> str:
+def _cap_text(text: str, pages_read: int) -> tuple[str, int]:
+    """Cut ``text`` at the character cap and return it with the pages the model still holds.
+
+    The extractor counts the pages of its window before this cap applies, so once the cap
+    cuts, the pages read are those the kept text still reaches. The page the cut runs through
+    counts, and the truncation line shows where it stopped. A text without page markers has
+    nothing to count and keeps the extractor's figure.
+    """
+    if len(text) <= _FALLBACK_MAX_CHARS:
+        return text, pages_read
+    from myrm_agent_harness.toolkits.file_parsers.pdf.pdf import pages_with_text
+
+    kept = text[:_FALLBACK_MAX_CHARS]
+    reached = max(pages_with_text(kept), default=pages_read)
+    return f"{kept}\n\n... [truncated at {_FALLBACK_MAX_CHARS} chars]", min(pages_read, reached)
+
+
+def _build_partial_read_hint(page_count: int, pages_read: int) -> str:
     """Suffix for a document longer than the read window, or ``""``.
 
     Without it the model treats the delivered pages as the whole document and answers
     questions about the rest from nothing. It promises no way to read on, because
     file_read has none; the structure outline is the one way to learn what the rest holds.
     """
-    if result.page_count <= PDF_READ_PAGE_WINDOW:
+    if page_count <= PDF_READ_PAGE_WINDOW:
         return ""
     return (
-        f"\n\n[Partial Read] This document has {result.page_count} pages; "
-        f"only the first {min(result.parsed_pages, PDF_READ_PAGE_WINDOW)} pages were read "
+        f"\n\n[Partial Read] This document has {page_count} pages; "
+        f"only the first {pages_read} pages were read "
         "and file_read cannot open the rest. "
         "Do not assume what the unread pages contain; "
         "`parse_mode='structure'` lists the headings with their page numbers."
