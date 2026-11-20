@@ -30,8 +30,6 @@ import type { ActionMode, File as ChatFile } from '@/store/chat/types';
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
-const RAG_DOC_THRESHOLD = 100 * 1024;
-const RAG_DOC_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'xlsx', 'xls', 'pptx', 'ppt', 'ipynb']);
 
 type StoredFile = UploadFileResponse['files'][number];
 
@@ -211,19 +209,6 @@ export const useInputFileUpload = ({ actionMode, files, setFiles, setHideAttachL
           toast.success(tFiles('uploadSuccess'), {
             description: tFiles('uploadedCount', { count: uploadedMap.size }),
           });
-        }
-
-        for (const { file, tempId } of dedupedItems) {
-          if (!uploadedMap.has(tempId)) {
-            continue;
-          }
-          const ext = getFileExtension(file.name);
-          if (RAG_DOC_EXTENSIONS.has(ext) && file.size > RAG_DOC_THRESHOLD) {
-            const sizeMB = `${(file.size / 1024 / 1024).toFixed(1)}MB`;
-            toast.info(tFiles('largeDocIndexing'), {
-              description: tFiles('largeDocIndexingDesc', { name: file.name, size: sizeMB }),
-            });
-          }
         }
       } catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {

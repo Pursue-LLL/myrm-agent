@@ -107,7 +107,7 @@ describe('useInputFileUpload when the server keeps only some of the files', () =
     expect(mockToast.success).toHaveBeenCalledTimes(1);
   });
 
-  it('does not announce knowledge-base indexing for a large document the server left out', async () => {
+  it('raises no notice for a large document the server left out', async () => {
     mockUpload.mockResolvedValue({ uploaded_count: 1, files: [stored('notes.txt', 'id-notes')] });
     const { upload } = setup();
 
@@ -116,12 +116,14 @@ describe('useInputFileUpload when the server keeps only some of the files', () =
     expect(mockToast.info).not.toHaveBeenCalled();
   });
 
-  it('announces knowledge-base indexing for a large document that went up', async () => {
+  it('says nothing about indexing when a large document goes up: the model reads the document itself', async () => {
     mockUpload.mockResolvedValue({ uploaded_count: 1, files: [stored('manual.docx', 'id-manual')] });
-    const { upload } = setup();
+    const { upload, chips } = setup();
 
     await upload([new File([new Uint8Array(LARGE_DOC_BYTES)], 'manual.docx')]);
 
-    expect(mockToast.info).toHaveBeenCalledWith('largeDocIndexing', expect.anything());
+    expect(chips()).toEqual([{ fileName: 'manual.docx', id: 'id-manual', status: 'ready' }]);
+    expect(mockToast.success).toHaveBeenCalledTimes(1);
+    expect(mockToast.info).not.toHaveBeenCalled();
   });
 });
