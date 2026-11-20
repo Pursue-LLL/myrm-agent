@@ -70,8 +70,8 @@ if TYPE_CHECKING:
             *,
             screenshot_base64: str,
             screenshot_size: tuple[int, int],
-            refs: Mapping[str, object],
-            meta: object,
+            refs: Mapping[str, ElementRef],
+            meta: SnapshotMeta,
             som_index_map: dict[str, int] | None = None,
         ) -> None: ...
 

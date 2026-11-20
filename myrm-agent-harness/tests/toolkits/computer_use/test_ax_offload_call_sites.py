@@ -57,6 +57,7 @@ def _backend(platform: str) -> MagicMock:
     backend = MagicMock()
     backend.__class__.__name__ = platform
     backend.screen_info.return_value = ScreenInfo(width=1920, height=1080, dpi_scale=1.0)
+    backend.screenshot = AsyncMock(side_effect=OSError("no display"))
     return backend
 
 
@@ -64,6 +65,8 @@ def _session(platform: str) -> DesktopSession:
     session = DesktopSession(backend=_backend(platform), config=ComputerUseConfig(screenshot_delay=0.0))
     session._screen_guard = MagicMock()
     session._screen_guard.refusal = AsyncMock(return_value=None)
+    session._screen_guard.is_locked.return_value = False
+    session._screen_guard.is_sleeping.return_value = False
     session._ensure_not_user_takeover = AsyncMock()
     session._emit_view_update = AsyncMock()
     session.take_screenshot = AsyncMock(return_value=ActionResult(success=False, error="no display"))

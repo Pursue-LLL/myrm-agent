@@ -1,19 +1,24 @@
 """WebUI view payloads of the desktop session: live updates and inspector exports.
 
 [INPUT]
-- host::DesktopSessionHost (POS: typed session state: registry, registry write entry, view callback, screenshots)
+- host::DesktopSessionHost (POS: typed session state: registry, registry write entry, action lock, screen guard, view callback)
 - perception.ax_dispatch::capture_snapshot, run_ax_call (POS: AX snapshot for the inspector refresh, awaited off the event loop on macOS)
 - perception.overlay_roles::normalize_desktop_role (POS: cross-platform role normalization for the overlay payload)
+- coordinate_scaler::CoordinateScaler (POS: maps element boxes onto the screenshot the inspector shows)
 - som_overlay::apply_som_overlay_to_jpeg_base64, build_som_index_map (POS: numbered overlay on screenshots)
 
 [OUTPUT]
 - refs_for_view_update: @dref elements as the role / name / bbox / SoM-index payload the inspector overlay draws
-- DesktopViewMixin: _emit_view_update, _emit_permission_view_update (live view events), _snapshot_screen_fields,
-  _empty_view_payload, _annotate_screenshot_som (payload parts), export_registry_view (last registry without a new
-  capture), export_inspector_snapshot (fresh foreground capture for the inspector, registered through _adopt_capture)
+- DesktopViewMixin: _emit_view_update, _emit_permission_view_update (live view events), _view_payload (the one payload
+  shape of every view), _snapshot_screen_fields, _empty_view_payload, _annotate_screenshot_som, _observe_screen (the
+  current screen drawn for display only), export_registry_view (what the agent registered, over the current screen),
+  export_inspector_snapshot (the user's manual refresh: a new capture registered under the action lock)
 
 [POS]
-Everything the WebUI desktop inspector and the live view stream read from a DesktopSession.
+Everything the WebUI desktop inspector and the live view stream read from a DesktopSession. The inspector observes:
+it never reads the accessibility tree on its own, registers a capture only on the user's manual refresh and then
+through the single write entry under the action lock, and leaves the screenshot state the agent's coordinate actions
+rely on as it found it.
 """
 
 from __future__ import annotations
@@ -21,15 +26,15 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 
+from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import CoordinateScaler
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError
-from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
+from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot, run_ax_call
 from myrm_agent_harness.toolkits.computer_use.perception.overlay_roles import normalize_desktop_role
 from myrm_agent_harness.toolkits.computer_use.som_overlay import (
     apply_som_overlay_to_jpeg_base64,
     build_som_index_map,
 )
-from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 from .host import DesktopSessionHost
 
@@ -37,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 def refs_for_view_update(
-    refs: dict[str, ElementRef],
+    refs: Mapping[str, ElementRef],
     *,
     viewport_width: int,
     viewport_height: int,
@@ -67,6 +72,13 @@ def refs_for_view_update(
     return payload
 
 
+def _blank_meta(*, needs_permission: bool) -> SnapshotMeta:
+    """The description of a view that shows no application."""
+    return SnapshotMeta(
+        ref_count=0, app_name="", window_title="", scope="foreground", needs_permission=needs_permission
+    )
+
+
 class DesktopViewMixin(DesktopSessionHost):
     """View-update emission and inspector exports."""
 
@@ -78,21 +90,45 @@ class DesktopViewMixin(DesktopSessionHost):
             "dpi_scale": info.dpi_scale,
         }
 
-    def _empty_view_payload(self, *, needs_permission: bool) -> dict[str, object]:
-        """Inspector payload without a screenshot or elements (permission missing, or the foreground app is blocked)."""
-        info = self.screen_info
+    def _view_payload(
+        self,
+        *,
+        screenshot_base64: str,
+        screenshot_size: tuple[int, int],
+        refs: Mapping[str, ElementRef],
+        meta: SnapshotMeta,
+        som_index_map: dict[str, int] | None,
+    ) -> dict[str, object]:
+        """One view as the WebUI reads it: the screenshot, the element overlay and the screen it was drawn on."""
+        viewport_width = screenshot_size[0] or self.screen_info.width
+        viewport_height = screenshot_size[1] or self.screen_info.height
         return {
-            "screenshot_base64": "",
-            "mime_type": "",
-            "refs": {},
-            "app_name": "",
-            "window_title": "",
-            "scope": "foreground",
-            "needs_permission": needs_permission,
-            "viewport_width": info.width,
-            "viewport_height": info.height,
+            "screenshot_base64": screenshot_base64,
+            "mime_type": "image/jpeg" if screenshot_base64 else "",
+            "refs": refs_for_view_update(
+                refs,
+                viewport_width=viewport_width,
+                viewport_height=viewport_height,
+                som_index_map=som_index_map,
+            ),
+            "app_name": meta.app_name,
+            "window_title": meta.window_title,
+            "scope": meta.scope,
+            "needs_permission": meta.needs_permission,
+            "viewport_width": viewport_width,
+            "viewport_height": viewport_height,
             **self._snapshot_screen_fields(),
         }
+
+    def _empty_view_payload(self, *, needs_permission: bool) -> dict[str, object]:
+        """Inspector payload without a screenshot or elements (permission missing, or the foreground app is blocked)."""
+        return self._view_payload(
+            screenshot_base64="",
+            screenshot_size=(0, 0),
+            refs={},
+            meta=_blank_meta(needs_permission=needs_permission),
+            som_index_map=None,
+        )
 
     def _annotate_screenshot_som(
         self,
@@ -109,45 +145,42 @@ class DesktopViewMixin(DesktopSessionHost):
             som_index_map,
         )
 
-    async def _emit_view_update(
-        self,
-        *,
-        screenshot_base64: str,
-        screenshot_size: tuple[int, int],
-        refs: Mapping[str, object],
-        meta: object,
-        som_index_map: dict[str, int] | None = None,
-    ) -> None:
-        from myrm_agent_harness.core.events.types import AgentEventType
-        from myrm_agent_harness.toolkits.computer_use.dref.types import (
-            ElementRef,
-            SnapshotMeta,
+    def _screen_unusable(self) -> bool:
+        """Whether the screen is locked or the display sleeps. A passive read never asks the host to unlock it."""
+        return self._screen_guard.is_locked() or self._screen_guard.is_sleeping()
+
+    async def _observe_screen(
+        self, refs: dict[str, ElementRef], som_index_map: dict[str, int]
+    ) -> tuple[str, tuple[int, int]]:
+        """The screen as the inspector shows it, numbered like the agent's screenshots; empty when it cannot be read.
+
+        The image is made for display only: the scaler and the last screenshot that the coordinate actions
+        convert the model's coordinates with stay as the agent left them.
+        """
+        if self._screen_unusable():
+            return "", (0, 0)
+        info = self.screen_info
+        try:
+            screenshot_b64, (sent_width, sent_height) = self._processor.process(await self._backend.screenshot(), info)
+        except Exception as exc:
+            logger.warning("[DESKTOP] Inspector screenshot capture failed: %s", exc)
+            return "", (0, 0)
+        scaler = CoordinateScaler(
+            screen_width=info.width,
+            screen_height=info.height,
+            sent_width=sent_width,
+            sent_height=sent_height,
+            dpi_scale=info.dpi_scale,
         )
+        return apply_som_overlay_to_jpeg_base64(screenshot_b64, refs, scaler, som_index_map), (sent_width, sent_height)
+
+    async def _publish_view(self, payload: dict[str, object]) -> None:
+        """Hand one view to the live-view callback and the tool event stream."""
+        from myrm_agent_harness.core.events.types import AgentEventType
         from myrm_agent_harness.utils.runtime.progress_sink import (
             get_tool_progress_sink,
         )
 
-        assert isinstance(meta, SnapshotMeta)
-        element_refs = {key: value for key, value in refs.items() if isinstance(value, ElementRef)}
-        viewport_width = screenshot_size[0] or self.screen_info.width
-        viewport_height = screenshot_size[1] or self.screen_info.height
-        payload: dict[str, object] = {
-            "screenshot_base64": screenshot_base64,
-            "mime_type": "image/jpeg" if screenshot_base64 else "",
-            "refs": refs_for_view_update(
-                element_refs,
-                viewport_width=viewport_width,
-                viewport_height=viewport_height,
-                som_index_map=som_index_map,
-            ),
-            "app_name": meta.app_name,
-            "window_title": meta.window_title,
-            "scope": meta.scope,
-            "needs_permission": meta.needs_permission,
-            "viewport_width": viewport_width,
-            "viewport_height": viewport_height,
-            **self._snapshot_screen_fields(),
-        }
         if self._view_update_callback is not None:
             self._view_update_callback(payload)
 
@@ -160,60 +193,70 @@ class DesktopViewMixin(DesktopSessionHost):
                 }
             )
 
-    async def _emit_permission_view_update(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
-
-        meta = SnapshotMeta(
-            ref_count=0,
-            app_name="",
-            window_title="",
-            scope="foreground",
-            needs_permission=True,
+    async def _emit_view_update(
+        self,
+        *,
+        screenshot_base64: str,
+        screenshot_size: tuple[int, int],
+        refs: Mapping[str, ElementRef],
+        meta: SnapshotMeta,
+        som_index_map: dict[str, int] | None = None,
+    ) -> None:
+        await self._publish_view(
+            self._view_payload(
+                screenshot_base64=screenshot_base64,
+                screenshot_size=screenshot_size,
+                refs=refs,
+                meta=meta,
+                som_index_map=som_index_map,
+            )
         )
+
+    async def _emit_permission_view_update(self) -> None:
         await self._emit_view_update(
             screenshot_base64="",
             screenshot_size=(0, 0),
             refs={},
-            meta=meta,
+            meta=_blank_meta(needs_permission=True),
         )
 
-    def export_registry_view(self) -> dict[str, object] | None:
-        """Return last DRefRegistry snapshot for inspector/API without re-capturing AX."""
-        from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
+    async def export_registry_view(self) -> dict[str, object] | None:
+        """What the agent last registered, drawn over the current screen; None while it has registered nothing.
 
+        A pure read: it never reads the accessibility tree, never writes the registry and never announces a view, so
+        it may run while an action is in flight.
+        """
         meta = self._refs.meta
         refs = self._refs.all_refs()
         if meta is None or not refs:
             return None
-        element_refs = {key: value for key, value in refs.items() if isinstance(value, ElementRef)}
-        if not element_refs:
-            return None
-        info = self.screen_info
-        viewport_width = info.width
-        viewport_height = info.height
+        generation = self._refs.generation
+        som_index_map = build_som_index_map(refs)
+        screenshot_b64, screenshot_size = await self._observe_screen(refs, som_index_map)
         return {
-            "screenshot_base64": "",
-            "mime_type": "",
-            "refs": refs_for_view_update(
-                element_refs,
-                viewport_width=viewport_width,
-                viewport_height=viewport_height,
-                som_index_map=None,
+            **self._view_payload(
+                screenshot_base64=screenshot_b64,
+                screenshot_size=screenshot_size,
+                refs=refs,
+                meta=meta,
+                som_index_map=som_index_map,
             ),
-            "app_name": meta.app_name,
-            "window_title": meta.window_title,
-            "scope": meta.scope,
-            "needs_permission": meta.needs_permission,
-            "viewport_width": viewport_width,
-            "viewport_height": viewport_height,
-            "registry_generation": self._refs.generation,
-            **self._snapshot_screen_fields(),
+            "registry_generation": generation,
         }
 
-    async def export_inspector_snapshot(self) -> dict[str, object]:
-        """Capture foreground desktop state for WebUI inspector refresh."""
-        from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
+    async def export_inspector_snapshot(self) -> dict[str, object] | None:
+        """The user's manual refresh: read the foreground application anew and register it like an agent snapshot.
 
+        The capture holds the action lock, so it never interleaves with an action. While an action holds the lock (an
+        approval keeps it for as long as the user deliberates) or the screen is unusable, the answer is what the agent
+        registered and nothing is written. A blocked application is not registered.
+        """
+        if self._action_lock.locked() or self._screen_unusable():
+            return await self.export_registry_view()
+        async with self._action_lock:
+            return await self._capture_inspector_view()
+
+    async def _capture_inspector_view(self) -> dict[str, object]:
         try:
             meta, refs = await run_ax_call(self._backend, capture_snapshot, self._backend, "foreground", None)
         except AXPermissionRequiredError:
@@ -223,43 +266,14 @@ class DesktopViewMixin(DesktopSessionHost):
         adopted = self._adopt_capture(meta, refs)
         if isinstance(adopted, str):
             return self._empty_view_payload(needs_permission=False)
-        refs = adopted.refs
-        som_index_map = build_som_index_map(refs)
-        try:
-            shot = await self.take_screenshot()
-        except Exception as exc:
-            logger.warning("[DESKTOP] Inspector screenshot capture failed: %s", exc)
-            shot = ActionResult(success=False, error=str(exc))
-        screenshot_b64 = shot.screenshot_base64 if shot.success else ""
-        screenshot_size = shot.screenshot_size if shot.success else (0, 0)
-        element_refs = {key: value for key, value in refs.items() if isinstance(value, ElementRef)}
-        if screenshot_b64:
-            screenshot_b64 = self._annotate_screenshot_som(screenshot_b64, element_refs, som_index_map)
-        viewport_width = screenshot_size[0] or self.screen_info.width
-        viewport_height = screenshot_size[1] or self.screen_info.height
-
-        await self._emit_view_update(
+        som_index_map = build_som_index_map(adopted.refs)
+        screenshot_b64, screenshot_size = await self._observe_screen(adopted.refs, som_index_map)
+        payload = self._view_payload(
             screenshot_base64=screenshot_b64,
             screenshot_size=screenshot_size,
-            refs=refs,
+            refs=adopted.refs,
             meta=meta,
             som_index_map=som_index_map,
         )
-
-        return {
-            "screenshot_base64": screenshot_b64,
-            "mime_type": "image/jpeg" if screenshot_b64 else "",
-            "refs": refs_for_view_update(
-                element_refs,
-                viewport_width=viewport_width,
-                viewport_height=viewport_height,
-                som_index_map=som_index_map,
-            ),
-            "app_name": meta.app_name,
-            "window_title": meta.window_title,
-            "scope": meta.scope,
-            "needs_permission": meta.needs_permission,
-            "viewport_width": viewport_width,
-            "viewport_height": viewport_height,
-            **self._snapshot_screen_fields(),
-        }
+        await self._publish_view(payload)
+        return payload

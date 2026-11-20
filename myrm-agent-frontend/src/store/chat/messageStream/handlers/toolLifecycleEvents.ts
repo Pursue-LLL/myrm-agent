@@ -93,8 +93,9 @@ export async function toolLifecycleEvents(ctx: StreamCtx): Promise<StreamTurn | 
     });
 
     if (data.tool_name?.startsWith('desktop_') && data.tool_name !== 'desktop_snapshot_tool') {
-      // desktop_snapshot_tool already pushed refs via DESKTOP_VIEW_UPDATE SSE;
-      // re-fetch here would re-capture the wrong foreground window (e.g. Chrome).
+      // desktop_snapshot_tool already pushed its view via DESKTOP_VIEW_UPDATE SSE. After any other desktop tool the
+      // view is re-read from the agent's own registry over the current screen (fetchSnapshot(true)): a new capture
+      // would swap the agent's elements for those of whatever window is in front.
       const { default: desktopStore } = await import('@/store/useDesktopInspectorStore');
       if (H.isStreamForOpenChat(state)) {
         void desktopStore.getState().fetchSnapshot(true);

@@ -5,7 +5,6 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
-from myrm_agent_harness.toolkits.computer_use.types import ScreenInfo
 
 
 @pytest.fixture
@@ -166,48 +165,3 @@ async def test_an_unknown_reference_is_refused_as_stale_without_reading_the_scre
     mock_capture.assert_not_called()
     assert "d99" in result
     assert "[REMEDY_HINT:" in result
-
-
-@pytest.mark.asyncio
-async def test_export_inspector_snapshot_success(mock_backend, mock_config):
-    from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
-
-    mock_backend.screen_info.return_value = ScreenInfo(width=1440, height=900, dpi_scale=2.0)
-    session = DesktopSession(backend=mock_backend, config=mock_config)
-    meta = SnapshotMeta(
-        ref_count=1,
-        app_name="TestApp",
-        window_title="Window",
-        scope="foreground",
-        needs_permission=False,
-    )
-    refs = {
-        "e0": ElementRef(
-            ref_id="e0",
-            role="button",
-            name="OK",
-            bbox=BBox(0, 0, 10, 10),
-            backend_key="k",
-        )
-    }
-    shot = MagicMock()
-    shot.success = True
-    shot.screenshot_base64 = "img"
-    shot.screenshot_size = (100, 80)
-
-    with (
-        patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
-            return_value=(meta, refs),
-        ),
-        patch.object(session, "take_screenshot", new_callable=AsyncMock, return_value=shot),
-        patch.object(session, "_emit_view_update", new_callable=AsyncMock),
-    ):
-        payload = await session.export_inspector_snapshot()
-
-    assert payload["app_name"] == "TestApp"
-    assert payload["screenshot_base64"] == "img"
-    assert payload["refs"]
-    assert payload["screen_width"] == 1440
-    assert payload["screen_height"] == 900
-    assert payload["dpi_scale"] == 2.0

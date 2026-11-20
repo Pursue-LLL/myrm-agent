@@ -37,7 +37,7 @@
 
 - `@/store/useDesktopInspectorStore`：截图与 ref（含 `screenWidth/screenHeight/dpiScale`；`selectScopedDesktopViewData` 多 chat 隔离）
 - `@/hooks/approval/useToolApprovalResolve`：React hook，编排单条与 bulk 决策
-- `@/hooks/approval/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot(true)`（标记 turn 视图，turn 结束随 ownership 回收；browser/desktop 就绪判定经 scoped selector 按 request.chatId 隔离）
+- `@/hooks/approval/useVisualApprovalSnapshot`：pending visual 审批时自动 `fetchSnapshot(true)`（标记 turn 视图，turn 结束随 ownership 回收；browser/desktop 就绪判定经 scoped selector 按 request.chatId 隔离；desktop 读智能体注册表叠在当前屏幕上，遮罩按 `@dN` 定位到的就是智能体持有的元素）
 - `@/hooks/approval/useVisualApprovalOsOverlay`：Tauri 原生 OS 红框 overlay 生命周期（macOS/Windows；`visualApprovalOsOverlay.ts` gate；Linux 等平台 Rust 返回明确错误）
 
 ## UI 入口

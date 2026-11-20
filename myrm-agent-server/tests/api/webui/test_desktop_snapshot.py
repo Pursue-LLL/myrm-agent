@@ -136,7 +136,7 @@ class TestGetDesktopSnapshot:
             "registry_generation": 2,
         }
         mock_session = _desktop_session_with_export({})
-        mock_session.export_registry_view = MagicMock(return_value=payload)  # type: ignore[method-assign]
+        mock_session.export_registry_view = AsyncMock(return_value=payload)  # type: ignore[method-assign]
 
         mock_gateway = MagicMock()
         mock_gateway.get_active_desktop_session.return_value = mock_session
@@ -153,7 +153,7 @@ class TestGetDesktopSnapshot:
     @pytest.mark.asyncio
     async def test_registry_source_empty_returns_404(self, client: httpx.AsyncClient) -> None:
         mock_session = _desktop_session_with_export({})
-        mock_session.export_registry_view = MagicMock(return_value=None)  # type: ignore[method-assign]
+        mock_session.export_registry_view = AsyncMock(return_value=None)  # type: ignore[method-assign]
 
         mock_gateway = MagicMock()
         mock_gateway.get_active_desktop_session.return_value = mock_session
@@ -163,3 +163,32 @@ class TestGetDesktopSnapshot:
 
         assert response.status_code == 404
         assert response.json()["error"] == "no_registry_snapshot"
+
+    @pytest.mark.asyncio
+    async def test_live_source_with_nothing_to_show_returns_404(self, client: httpx.AsyncClient) -> None:
+        """A manual refresh while an action holds the session answers the registry; with no registry, nothing."""
+        mock_session = _desktop_session_with_export(None)
+
+        mock_gateway = MagicMock()
+        mock_gateway.get_active_desktop_session.return_value = mock_session
+
+        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway):
+            response = await client.get("/webui/desktop/snapshot?source=live")
+
+        assert response.status_code == 404
+        assert response.json()["error"] == "no_registry_snapshot"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("source", ["registry", "live"])
+    async def test_chat_id_scopes_the_session_lookup(self, client: httpx.AsyncClient, source: str) -> None:
+        mock_session = _desktop_session_with_export({"refs": {}})
+        mock_session.export_registry_view = AsyncMock(return_value={"refs": {}})  # type: ignore[method-assign]
+
+        mock_gateway = MagicMock()
+        mock_gateway.get_active_desktop_session.return_value = mock_session
+
+        with patch("app.services.agent.gateway.get_agent_gateway", return_value=mock_gateway):
+            response = await client.get("/webui/desktop/snapshot", params={"source": source, "chat_id": " chat-7 "})
+
+        assert response.status_code == 200
+        mock_gateway.get_active_desktop_session.assert_called_once_with("chat-7")

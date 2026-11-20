@@ -1065,7 +1065,7 @@ Manual refresh: GET /webui/browser/snapshot?chat_id=<active chat>
 - `viewData.sourceChatId` 与前台 chatId 不一致时不渲染截图（多 pane 隔离）
 - `get_active_browser_session(session_id)` 必须带 chat_id，避免多 chat 并行时串会话
 - `capture_browser_view_update_data` 内部 snapshot 使用 `publish_inspector_view=False`，避免嵌套双 emit
-- 与 Desktop Inspector 对齐：desktop 工具不在 TOOL_END 重复 fetchSnapshot
+- 与 Desktop Inspector 对齐：desktop 工具（`desktop_snapshot_tool` 除外）在 TOOL_END 只读智能体的注册表（`source=registry`，叠在当前屏幕上），不重新抓取前台
 
 **Desktop Inspector 对称（WebUI SSE + 多 pane 隔离）**：
 
@@ -1075,12 +1075,12 @@ DesktopSession desktop tools
 Frontend fileDiffEvents handler
   ↓ useDesktopInspectorStore.updateViewData(sourceChatId) — no auto openPanel
 Frontend toolLifecycleEvents TOOL_END (desktop_* except desktop_snapshot_tool)
-  ↓ fetchSnapshot only when stream chatId === foreground chatId
+  ↓ fetchSnapshot(true) = GET /webui/desktop/snapshot?source=registry&chat_id=… (the agent's registry over the current screen; no new capture) only when stream chatId === foreground chatId
 Frontend DESKTOP_CONTROL_APPROVAL_REQUEST
   ↓ openPanel only when stream chatId === foreground chatId
 Frontend DesktopLiveView / Toggle + visual approval consumers
   ↓ selectScopedDesktopViewData(viewData, active chatId)
-Manual refresh: GET /webui/desktop/snapshot (tags sourceChatId with foreground chat)
+Manual refresh: GET /webui/desktop/snapshot?source=live&chat_id=… (a new capture under the session's action lock; tags sourceChatId with foreground chat)
 ```
 
 **实现位置**：

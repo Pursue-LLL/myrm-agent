@@ -51,43 +51,6 @@ async def test_permission_error_emits_desktop_view_update() -> None:
         progress_sink.set_tool_progress_sink(None)
 
 
-def test_export_registry_view_returns_last_refs_without_capture() -> None:
-    backend = MagicMock()
-    backend.screen_info.return_value = ScreenInfo(width=800, height=600, dpi_scale=1.0)
-
-    session = DesktopSession(backend=backend, config=ComputerUseConfig())
-    from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
-
-    element = ElementRef(
-        ref_id="capture-1",
-        role="AXTextArea",
-        name="body",
-        bbox=BBox(x=10, y=20, width=100, height=40),
-        backend_key="ax:1",
-    )
-    meta = SnapshotMeta(
-        ref_count=1,
-        app_name="TextEdit",
-        window_title="Untitled",
-        scope="foreground",
-    )
-    (ref,) = session._refs.adopt({"capture-1": element}, meta)
-
-    payload = session.export_registry_view()
-    assert payload is not None
-    assert payload["app_name"] == "TextEdit"
-    assert ref in payload["refs"]
-    assert payload["registry_generation"] == 1
-    assert payload["screenshot_base64"] == ""
-
-
-def test_export_registry_view_empty_when_no_snapshot() -> None:
-    backend = MagicMock()
-    backend.screen_info.return_value = ScreenInfo(width=800, height=600, dpi_scale=1.0)
-    session = DesktopSession(backend=backend, config=ComputerUseConfig())
-    assert session.export_registry_view() is None
-
-
 def _ok_button() -> ElementRef:
     return ElementRef(
         ref_id="d0",

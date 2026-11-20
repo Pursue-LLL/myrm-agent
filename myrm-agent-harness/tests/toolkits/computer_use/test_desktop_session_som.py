@@ -97,19 +97,10 @@ async def test_export_inspector_snapshot_fills_nth(session: DesktopSession) -> N
             backend_key="k1",
         )
     }
-    shot = ActionResult(
-        success=True,
-        screenshot_base64=_jpeg_base64(),
-        screenshot_size=(400, 300),
-    )
-    session.take_screenshot = AsyncMock(return_value=shot)  # type: ignore[method-assign]
-    session._scaler = CoordinateScaler(
-        screen_width=800,
-        screen_height=600,
-        sent_width=400,
-        sent_height=300,
-        dpi_scale=1.0,
-    )
+    screen = io.BytesIO()
+    Image.new("RGB", (800, 600), color=(200, 200, 200)).save(screen, format="PNG")
+    session._backend.screenshot = AsyncMock(return_value=screen.getvalue())  # type: ignore[method-assign]
+    plain, _ = session._processor.process(screen.getvalue(), session.screen_info)
 
     with patch(
         "myrm_agent_harness.toolkits.computer_use.desktop_session.views.capture_snapshot",
@@ -117,9 +108,11 @@ async def test_export_inspector_snapshot_fills_nth(session: DesktopSession) -> N
     ):
         payload = await session.export_inspector_snapshot()
 
+    assert payload is not None
     refs_payload = payload["refs"]
     assert isinstance(refs_payload, dict)
     assert refs_payload["d0"]["nth"] == 1
+    assert payload["screenshot_base64"] not in ("", plain)
 
 
 @pytest.mark.asyncio

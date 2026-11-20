@@ -86,7 +86,7 @@ Every AX capture, element invoke, foreground read and iPhone Mirroring probe of 
 | `perception/` | `ax_dispatch.py`, `ax_diff.py`, platform AX | Capture AX tree, incremental diff, invoke elements |
 | `recording/` | `synthesizer.py`, `capture_driver.py` | Skill synthesis from events, and `DesktopCaptureDriver`: polls the AX tree, diffs frames into click / type / window-focus events (skipping sensitive apps) |
 | `execution/healer.py` | BBox click fallback | When the native route cannot perform the action; never after a stale or unknown outcome |
-| `_action_lock` | `desktop_session/core.py` | Session-level async mutex | Serializes mutating interact/vision actions |
+| `_action_lock` | `desktop_session/core.py` | Session-level async mutex | Serializes mutating interact/vision actions and the Inspector's manual refresh |
 | `[REMEDY_HINT]` | `desktop_session/interact.py`, `desktop_session/vision.py` | Self-healing diagnosis | Structured recovery guidance for stale refs and execution failures |
 | `ComputerSession` | `session.py` | Screenshot + coordinate I/O |
 | `backends/` | Platform I/O | macOS, Windows, Linux |
@@ -111,11 +111,13 @@ Every AX capture, element invoke, foreground read and iPhone Mirroring probe of 
 |---------|---------|
 | SSE `DESKTOP_VIEW_UPDATE` | screenshot_base64 (SOM-labeled when multimodal agent snapshot or inspector refresh), refs (BBox overlay + `nth` when SOM active), needs_permission |
 | SSE `DESKTOP_CONTROL_APPROVAL_REQUEST` | Per-app / foreground approval card in Desktop Inspector: `request_id`, `operation` + `trust_key` bound `fingerprint`, `changed_since_last_grant` drift flag, `withdrawn` clear signal, `reason` (user deny reason surfaced) |
-| REST `GET /webui/desktop/snapshot` | Same shape; called on `desktop_*` TOOL_END + manual refresh |
+| REST `GET /webui/desktop/snapshot` | Same shape, always with `chat_id`. `source=registry` (automatic refresh: `desktop_*` TOOL_END, approval cards): the elements the agent last registered, numbered and drawn over the current screen. `source=live` (the refresh button): a new foreground capture. 404 `no_registry_snapshot` when there is nothing to show |
 | REST `POST /webui/desktop/approval/resolve` | Resolve pending desktop control approval |
 | Desktop Inspector | `DesktopLiveView` auto-opens on approval SSE; `DesktopControlApprovalBanner` for Allow/Deny |
 
 Server wiring: `agent._desktop_session` → `AgentGateway.get_active_desktop_session()`.
+
+The Inspector observes and never rewrites what the agent holds. The automatic refresh (`export_registry_view`) never reads the accessibility tree, never writes the registry and never emits a view; it draws the registry's elements over a current screenshot that is made for display only, so the scaler and last image that the coordinate actions convert the model's coordinates with stay as the agent left them. Only the user's manual refresh (`export_inspector_snapshot`) captures anew: it takes `_action_lock`, registers the capture through `_adopt_capture` (a blocked application is refused and drawn as an empty view), and while an action holds the lock (an approval keeps it for as long as the user deliberates) it answers the registry view and writes nothing. Both read the screen guard with its passive probes only: a locked screen or a sleeping display shows no image, and the host's on-demand unlock is never asked for. Deciding whether the application in front is blocked takes an accessibility read that the automatic refresh avoids, so its screenshot shows whatever is on the user's own screen: it is a display image that is not emitted on the event stream and that the frontend only draws in the Inspector panel and the approval card.
 
 ---
 

@@ -43,6 +43,7 @@ def _id_of(session: DesktopSession, name: str) -> str:
 def session() -> DesktopSession:
     backend = MagicMock()
     backend.screen_info.return_value = ScreenInfo(width=1920, height=1080, dpi_scale=1.0)
+    backend.screenshot = AsyncMock(side_effect=OSError("no display"))
     return DesktopSession(backend=backend, config=ComputerUseConfig(screenshot_delay=0.0))
 
 
@@ -112,10 +113,7 @@ class TestStableIdsAcrossSnapshots:
             await session.desktop_snapshot()
         delete_id = _id_of(session, "Delete")
 
-        with (
-            patch(_INSPECTOR_CAPTURE, return_value=_capture("Banner", "Reply", "Delete")),
-            patch.object(session, "take_screenshot", AsyncMock(return_value=ActionResult(success=False, error="x"))),
-        ):
+        with patch(_INSPECTOR_CAPTURE, return_value=_capture("Banner", "Reply", "Delete")):
             payload = await session.export_inspector_snapshot()
 
         assert payload["refs"][delete_id]["name"] == "Delete"
@@ -161,18 +159,13 @@ class TestSensitiveAppGuardAtTheSingleWriteEntry:
         assert session.ref_registry.resolve(reply_id).element.name == "Reply"
 
     async def test_the_inspector_refresh_does_not_register_a_blocked_app(self, session: DesktopSession) -> None:
-        screenshot = AsyncMock(return_value=ActionResult(success=True))
-
-        with (
-            patch(_INSPECTOR_CAPTURE, return_value=_capture("Fill", app="1Password")),
-            patch.object(session, "take_screenshot", screenshot),
-        ):
+        with patch(_INSPECTOR_CAPTURE, return_value=_capture("Fill", app="1Password")):
             payload = await session.export_inspector_snapshot()
 
         assert payload["refs"] == {}
         assert payload["app_name"] == ""
         assert payload["needs_permission"] is False
-        screenshot.assert_not_awaited()
+        session._backend.screenshot.assert_not_awaited()
         assert session.ref_registry.all_refs() == {}
 
     async def test_a_blocked_app_leaves_the_previous_registry_in_place_for_the_inspector(
