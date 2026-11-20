@@ -30,6 +30,15 @@ function pairingLabel(pairing: ChannelPairing): string {
   return pairing.sender_id;
 }
 
+/**
+ * What a new or re-channelled row starts with: this channel's owner contact (a pairing with role `admin` is the local
+ * user), or nothing. Another contact is never chosen on the user's behalf, because the agent can then send to them.
+ */
+function defaultRecipient(channelPairings: ChannelPairing[]): Pick<NotifyTarget, 'recipient_id' | 'label'> {
+  const owner = channelPairings.find((pairing) => pairing.role === 'admin');
+  return { recipient_id: owner?.sender_id ?? '', label: owner?.display_name?.trim() ?? '' };
+}
+
 function buildAvailableChannels(runningStatuses: ChannelStatus[], targets: NotifyTarget[]): ChannelOption[] {
   const options = new Map<string, ChannelOption>();
 
@@ -88,17 +97,9 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
       return;
     }
     const channelPairings = pairingsByChannel.get(defaultChannel) ?? [];
-    const firstPairing = channelPairings[0];
     const newIndex = targets.length;
-    onChange([
-      ...targets,
-      {
-        channel: defaultChannel,
-        recipient_id: firstPairing?.sender_id ?? '',
-        label: firstPairing?.display_name?.trim() ?? '',
-      },
-    ]);
-    if (!firstPairing) {
+    onChange([...targets, { channel: defaultChannel, ...defaultRecipient(channelPairings) }]);
+    if (channelPairings.length === 0) {
       setManualRecipientRows((prev) => ({ ...prev, [newIndex]: true }));
     }
   }, [targets, onChange, availableChannels, pairingsByChannel]);
@@ -133,18 +134,7 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
   const handleChannelChange = useCallback(
     (idx: number, channel: string) => {
       const channelPairings = pairingsByChannel.get(channel) ?? [];
-      const firstPairing = channelPairings[0];
-      const updated = targets.map((row, i) =>
-        i === idx
-          ? {
-              ...row,
-              channel,
-              recipient_id: firstPairing?.sender_id ?? '',
-              label: firstPairing?.display_name?.trim() ?? '',
-            }
-          : row,
-      );
-      onChange(updated);
+      onChange(targets.map((row, i) => (i === idx ? { ...row, channel, ...defaultRecipient(channelPairings) } : row)));
       setManualRecipientRows((prev) => ({
         ...prev,
         [idx]: channelPairings.length === 0,
@@ -223,11 +213,10 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
           const channelPairings = pairingsByChannel.get(target.channel) ?? [];
           const useManual = showManualRecipient(idx, target.channel, target.recipient_id);
 
+          // Rows are only appended or removed by position and every input is controlled, so the position is a stable
+          // key; a key that included the recipient would remount the input on each keystroke and drop its focus.
           return (
-            <div
-              key={`${target.channel}-${target.recipient_id}-${idx}`}
-              className="flex flex-col sm:flex-row sm:items-center gap-2"
-            >
+            <div key={idx} className="flex flex-col sm:flex-row sm:items-center gap-2">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Select value={target.channel} onValueChange={(v) => handleChannelChange(idx, v)} disabled={readonly}>
                   <SelectTrigger className="w-[120px] h-8 text-xs shrink-0">
