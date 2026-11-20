@@ -359,10 +359,11 @@ class TestReadPdfAsContentBlocks:
         [
             pytest.param(paged_text(20, 100, blank=frozenset({19, 20})), id="blank_last_pages_not_cut"),
             pytest.param("x" * (_FALLBACK_MAX_CHARS + 1), id="cut_without_page_markers"),
+            pytest.param("[Page 99]\n" + "x" * _FALLBACK_MAX_CHARS, id="marker_beyond_the_window"),
         ],
     )
     async def test_the_hint_keeps_the_window_unless_the_cut_text_ends_on_an_earlier_page(self, text: str) -> None:
-        """Blank pages were read though they carry no text, and a text without page markers has no page to count."""
+        """Blank pages count as read; a missing marker, or one past the window, leaves the window figure as it is."""
         result = await read_pdf_with_extraction(FakePDFResult(text=text, page_count=40, parsed_pages=20))
 
         assert "only the first 20 pages were read" in _text_of(result)
@@ -374,7 +375,7 @@ class TestReadPdfAsContentBlocks:
 
         await read_pdf_with_extraction(FakePDFResult(text="body", page_count=40, parsed_pages=20), extractor=extractor)
 
-        assert extractor.await_args.args[1].max_pages == PDF_READ_PAGE_WINDOW
+        assert extractor.await_args is not None and extractor.await_args.args[1].max_pages == PDF_READ_PAGE_WINDOW
 
     @pytest.mark.asyncio
     async def test_structure_outline_past_the_entry_cap_only_counts_the_omitted_headings(self) -> None:
