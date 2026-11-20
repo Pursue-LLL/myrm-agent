@@ -2,7 +2,8 @@
 
 The identity is written after ``params`` is built; writing it earlier would raise ``UnboundLocalError`` on every
 persisted turn (``orchestrator_turn_body.py``). This test drives the real body with the surrounding pipeline
-stubbed so the assignment point is what is exercised.
+stubbed so the assignment point is what is exercised. It also pins what the body hands the pre-reply compaction: the
+turn's own stream buffer, chat, message, agent and engine params.
 """
 
 from __future__ import annotations
@@ -59,9 +60,6 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     async def fake_extra_context(*_args: object, base: object = None, **_kwargs: object) -> dict[str, object]:
         return dict(base or {})
 
-    async def fake_compact(*_args: object, **_kwargs: object) -> None:
-        return None
-
     async def fake_marker(_request: object, marker_params: object, *, user_message_id: object = None) -> None:
         captured["params"] = marker_params
         captured["user_message_id"] = user_message_id
@@ -82,7 +80,8 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     monkeypatch.setattr(orchestrator_turn_body, "AgentStreamSession", lambda **_kwargs: SimpleNamespace())
     unfinished_turn_net = AsyncMock()
     monkeypatch.setattr(orchestrator_turn_body, "release_unfinished_turn", unfinished_turn_net)
-    monkeypatch.setattr(pre_reply_compact_sse, "run_pre_reply_compact_with_sse", fake_compact)
+    pre_reply_compact = AsyncMock()
+    monkeypatch.setattr(pre_reply_compact_sse, "run_pre_reply_compact_with_sse", pre_reply_compact)
 
     request = SimpleNamespace(
         message_id="msg-1",
@@ -98,16 +97,20 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     async def record_failure(_reason: object) -> None:
         return None
 
+    buffer = SimpleNamespace()
     await orchestrator_turn_body.execute_agent_turn_after_reserve(
         request=request,
         http_request=SimpleNamespace(),
         text_content="hello",
         stream_started_at_monotonic=0.0,
         registry=SimpleNamespace(),
-        buffer=SimpleNamespace(),
+        buffer=buffer,
         record_terminal_failure=record_failure,
     )
 
+    pre_reply_compact.assert_awaited_once_with(
+        buffer, chat_id="chat-1", message_id="msg-1", agent_id="agent-1", request_engine_params=None
+    )
     assert captured["params"] is params
     assert params.turn_identity == "msg-persisted"
     assert captured["user_message_id"] == persisted

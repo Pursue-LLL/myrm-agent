@@ -1,7 +1,8 @@
 /**
- * A pre-reply compaction's step opens as "compressing" and closes on the phase the server reports. Every closing phase
- * is worded from the catalog in each language, never shown as a raw key, and only a compaction that broke is drawn as a
- * warning.
+ * A compaction's step opens as "compressing" and closes on the phase the stream reports. Every closing phase below is
+ * worded from the catalog in each language, never shown as a raw key, and only a compaction that broke is drawn as a
+ * warning. The pre-reply gate closes on `completed`, `ineffective`, `skipped` or `failed`; `timeout` and `circuit_open`
+ * come from compaction inside a turn.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -15,14 +16,14 @@ import type { ProgressItem } from '@/store/chat/types';
 
 const CATALOGS = { en, zh } as const;
 
-/** The phases the server closes the step on, the status it reports with each, and whether the step is a warning. */
+/** The phases a compaction step closes on, the status each event is fed with, and whether the step is drawn as a warning. */
 const CLOSING_PHASES = [
   { phase: 'completed', serverStatus: 'success', warning: false },
   { phase: 'ineffective', serverStatus: 'success', warning: false },
   { phase: 'skipped', serverStatus: 'success', warning: false },
+  { phase: 'failed', serverStatus: 'warning', warning: true },
   { phase: 'timeout', serverStatus: 'warning', warning: true },
   { phase: 'circuit_open', serverStatus: 'warning', warning: true },
-  { phase: 'failed', serverStatus: 'warning', warning: true },
 ] as const;
 
 function messageState() {
@@ -60,7 +61,7 @@ async function receive(state: MessageState, phase: string, status: string): Prom
   await applyStatusProgressStep(ctx, 'context_compaction');
 }
 
-describe('pre-reply compaction progress step', () => {
+describe('compaction progress step', () => {
   it('opens as one in-flight step', async () => {
     const state = messageState();
 
