@@ -39,10 +39,11 @@ Layer 3c (ORIGINAL reading, ESCALATE):
 
 Readings (``_command_readings``):
   The line as written, each command of it apart, and every command a wrapper hands control to — the script of
-  ``sh -c`` / ``eval``, the command behind ``sudo`` / ``env`` / ``timeout`` / ``xargs``, a ``$(...)`` body and a
-  ``trap`` handler, however they are quoted. A rule written for ``rm -rf ~`` therefore fires on ``rm -rf ~&&echo``,
+  ``sh -c`` / ``eval`` and a ``trap`` handler wherever the interpreter stands in a command (``then sh -c '...'``,
+  ``docker exec ctr sh -c '...'``), the command behind ``sudo`` / ``env`` / ``timeout`` / ``xargs`` and a ``$(...)``
+  body, however they are quoted. A rule written for ``rm -rf ~`` therefore fires on ``rm -rf ~&&echo``,
   ``eval "rm -rf ~"`` and ``trap 'rm -rf ~' EXIT`` as on the bare command. A grouping parenthesis glued to the
-  command (``(rm -rf ~)``) is not peeled by ``deny_readings``.
+  command (``(rm -rf ~)``) is not peeled by ``direct_command_readings``.
 
 Consumers:
 - execution/security/validator.validate_command() — defense-in-depth check
@@ -50,8 +51,8 @@ Consumers:
 - toolkits/cron/runners.ShellJobRunner — pre-execution check
 
 [INPUT]
-- core.security.shell_command_lexer::split_command_spans, shell_words (POS: Shared lexical layer of the shell command security checks)
-- core.security.shell_wrapper_peel::deny_readings, MAX_COMMAND_READINGS (POS: Shared reading of shell prefixes, the single home of the transparent-wrapper table)
+- core.security.shell_command_lexer::split_command_spans, read_commands (POS: Shared lexical layer of the shell command security checks)
+- core.security.shell_wrapper_peel::direct_command_readings, shell_script, SHELLS, MAX_COMMAND_READINGS (POS: Shared reading of shell prefixes, the single home of the transparent-wrapper table)
 - security.protected_instruction_command::protected_instruction_mutation_target (POS: The shell-side reading of the protected instruction files, shared with the permission engine and the allow-always guard)
 - security.shell_command_rules (POS: Pattern catalogue for layers 1-3 and the snapshot trigger; this module holds the engine)
 - security.shell_command_strip::_strip_quoted_content (POS: Quote-stripping helper for shell command preprocessing)
@@ -78,8 +79,13 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Final
 
-from myrm_agent_harness.core.security.shell_command_lexer import shell_words, split_command_spans
-from myrm_agent_harness.core.security.shell_wrapper_peel import MAX_COMMAND_READINGS, deny_readings
+from myrm_agent_harness.core.security.shell_command_lexer import read_commands, split_command_spans
+from myrm_agent_harness.core.security.shell_wrapper_peel import (
+    MAX_COMMAND_READINGS,
+    SHELLS,
+    direct_command_readings,
+    shell_script,
+)
 
 from .protected_instruction_command import protected_instruction_mutation_target
 from .shell_command_rules import (
@@ -149,19 +155,42 @@ def _integration_write_patterns_compiled() -> tuple[tuple[re.Pattern[str], str],
 # ---------------------------------------------------------------------------
 
 
+# The most characters the readings beside the line itself may add up to. Every reading is matched against the whole
+# rule catalogue, so a line that nests the same long script hundreds of times (``eval eval eval ...``) costs
+# readings x length; the budget keeps that to a fraction of a second, far above what a real line nests.
+_MAX_READING_CHARS: Final = 256 * 1024
+
+
 def _statements(text: str) -> list[str]:
     """Each command of *text* apart (``a;b && c`` is three)."""
     return [text[start:end] for start, end in split_command_spans(text)]
 
 
-def _trap_handlers(statement: str) -> tuple[str, ...]:
-    """The script a ``trap`` statement runs when its signal arrives (``trap 'cleanup' EXIT``)."""
-    if "trap" not in statement:
-        return ()
-    words = shell_words(statement) or []
-    if len(words) > 2 and words[0].rsplit("/", 1)[-1] == "trap" and not words[1].startswith("-"):
-        return (words[1],)
-    return ()
+def _embedded_scripts(statement: str) -> tuple[str, ...]:
+    """The scripts a shell, ``eval`` or ``trap`` anywhere in *statement* is given (``trap 'cleanup' EXIT``).
+
+    ``direct_command_readings`` follows the wrappers that stand at the start of a command. A script is as much run
+    when its interpreter stands behind something that table cannot name: a reserved word (``then sh -c '...'``), a
+    redirection, ``docker exec ctr`` or ``ssh host``, a ``case`` arm. So each word that names an interpreter is
+    tried, in the words of each command as ``read_commands`` resolves them: quotes removed, grouping parentheses
+    and reserved words left out. ``eval`` joins every word after it into its script, so only the first ``eval`` of
+    a command is read here; a later one is inside that script and is read with it.
+    """
+    scripts: list[str] = []
+    for command in read_commands(statement):
+        words = command.words
+        eval_read = False
+        for index, word in enumerate(words):
+            base = word.rsplit("/", 1)[-1]
+            script: str | None = None
+            if base == "trap" and index + 2 < len(words) and not words[index + 1].startswith("-"):
+                script = words[index + 1]
+            elif base in SHELLS or (base == "eval" and not eval_read):
+                eval_read = eval_read or base == "eval"
+                script = shell_script(words, index)
+            if script is not None:
+                scripts.append(script.strip())
+    return tuple(scripts)
 
 
 def _command_readings(command: str) -> tuple[str, ...]:
@@ -169,18 +198,21 @@ def _command_readings(command: str) -> tuple[str, ...]:
 
     A rule written for one command has to fire wherever the shell runs it, so beside the line itself these are each
     command of it apart (a pattern that ends at its command is not hidden by what the line puts behind it, as in
-    ``rm -rf ~&&echo done``) and every command a wrapper hands control to, read with the shell's own quoting. The
-    count is capped by ``MAX_COMMAND_READINGS``: past it only the readings found so far are judged.
+    ``rm -rf ~&&echo done``) and every command a wrapper hands control to, read with the shell's own quoting. Each
+    reading is expanded once, one step at a time, so the work is bounded by ``MAX_COMMAND_READINGS`` readings and
+    ``_MAX_READING_CHARS`` characters beside the line itself; past either only the readings found so far are judged.
     """
     root = command.strip()
     readings: dict[str, None] = {root: None}
+    budget = _MAX_READING_CHARS
     scripts = [root]
     while scripts:
         for statement in _statements(scripts.pop()):
-            for text in (statement, *deny_readings(statement), *_trap_handlers(statement)):
+            for text in (statement, *direct_command_readings(statement), *_embedded_scripts(statement)):
                 if not text or text in readings:
                     continue
-                if len(readings) >= MAX_COMMAND_READINGS:
+                budget -= len(text)
+                if len(readings) >= MAX_COMMAND_READINGS or budget < 0:
                     return tuple(readings)
                 readings[text] = None
                 if text != statement:

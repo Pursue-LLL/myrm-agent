@@ -1,10 +1,13 @@
 """The analyzer judges every command a line runs, not only the line as written.
 
 A rule written for ``rm -rf ~`` has to fire wherever the shell runs that command: behind a separator it is glued to,
-inside a script handed to a shell, behind a prefix such as ``sudo``, in a group or a ``trap`` handler.
+inside a script handed to a shell, behind a prefix such as ``sudo``, in a group or a ``trap`` handler. The script
+is read wherever the shell that runs it stands: after ``then``, ``docker exec ctr``, a redirection, a ``case`` arm.
 """
 
 from __future__ import annotations
+
+import time
 
 import pytest
 
@@ -71,6 +74,29 @@ _WRAPPER_FORMS = (
 
 _FORMS = _SEPARATOR_FORMS + _WRAPPER_FORMS
 
+# The shell that runs a script stands behind something no prefix table names: a reserved word, a group, a
+# redirection, a command that runs its arguments, a ``case`` arm or a function body.
+_CONTEXT_FORMS = (
+    "if true; then {w}; fi",
+    "if true\nthen {w}\nfi",
+    "if true; then echo a; else {w}; fi",
+    "for i in 1 2; do {w}; done",
+    "while true; do {w}; done",
+    "until false; do {w}; done",
+    "! {w}",
+    "{{ {w}; }}",
+    "({w})",
+    "( {w} )",
+    "2>&1 {w}",
+    "docker exec ctr {w}",
+    "ssh host {w}",
+    "flock lock {w}",
+    "find . -exec {w} \\;",
+    "case x in x) {w};; esac",
+    "f() {{ {w}; }}; f",
+)
+_SCRIPT_FORMS = ("sh -c '{d}'", 'bash -lc "{d}"', "eval '{d}'", "trap '{d}' EXIT")
+
 
 def _verdict(command: str) -> set[ThreatLevel]:
     """The levels the rules other than the shell-syntax style policy give *command*."""
@@ -87,6 +113,18 @@ def test_a_blocked_command_stays_blocked_in_every_form(base: str, form: str) -> 
 @pytest.mark.parametrize("base", _ESCALATED_BASES)
 def test_an_escalated_command_stays_escalated_in_every_form(base: str, form: str) -> None:
     assert ThreatLevel.ESCALATE in _verdict(form.format(d=base))
+
+
+@pytest.mark.parametrize("context", _CONTEXT_FORMS)
+@pytest.mark.parametrize("script", _SCRIPT_FORMS)
+@pytest.mark.parametrize("base", _BLOCKED_BASES)
+def test_a_script_handed_to_a_shell_is_read_wherever_the_shell_stands(base: str, script: str, context: str) -> None:
+    assert ThreatLevel.BLOCK in _verdict(context.format(w=script.format(d=base)))
+
+
+@pytest.mark.parametrize("context", _CONTEXT_FORMS)
+def test_a_harmless_script_is_not_blocked_wherever_the_shell_stands(context: str) -> None:
+    assert has_block_threat(context.format(w="sh -c 'echo hello'")) is None
 
 
 @pytest.mark.parametrize(
@@ -116,6 +154,8 @@ def test_chaining_with_a_semicolon_is_no_threat_of_its_own(command: str) -> None
         'grep -Ei "rm |rm -|unlink|remove|data/|delete|shred|version|cache" notes.txt',
         "sh -c 'echo hello; ls -la'",
         "bash -c 'echo \"rm -rf build\" > plan.txt'",
+        "git commit -m \"docs: sh -c 'rm -rf ~' is blocked\"",
+        "echo \"bash -c 'rm -rf ~'\"",
         "trap 'echo cleanup done' EXIT",
         "xargs echo",
         "env FOO=1 python script.py",
@@ -159,6 +199,34 @@ def test_a_script_handed_to_a_shell_is_read_for_protected_instruction_writes() -
 )
 def test_a_line_built_to_nest_deeply_or_branch_widely_is_read_within_bounds(command: str) -> None:
     assert isinstance(analyze_command(command), tuple)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "A=1 " * 20_000 + "sh -c 'rm -rf ~'",
+        "eval " * 20_000 + "rm -rf ~",
+        "eval " * 20_000 + "'rm -rf ~'",
+        "sh -c 'echo a' " * 20_000,
+    ],
+    ids=["assignment-run", "eval-chain", "eval-chain-quoted-payload", "many-interpreters"],
+)
+def test_a_line_built_to_make_the_reading_quadratic_is_read_in_time(command: str) -> None:
+    """Each of these is read in well under a second. Trying every word with the assignment-skipping reader costs
+    tens of seconds on the assignment run, and re-expanding every nested script costs as long on the ``eval`` chain,
+    so the bound separates the two without being close to either on an idle machine."""
+    started = time.monotonic()
+    analyze_command(command)
+    assert time.monotonic() - started < 10.0
+
+
+def test_a_script_behind_a_long_assignment_run_is_still_read() -> None:
+    assert has_block_threat("A=1 " * 5_000 + "sh -c 'rm -rf ~'") is not None
+
+
+def test_a_shell_script_behind_a_long_chain_of_evals_is_still_read() -> None:
+    """Only the first ``eval`` is read as a script; the shell word behind the chain is read on its own."""
+    assert has_block_threat("eval " * 200 + "sh -c 'rm -rf ~'") is not None
 
 
 @pytest.mark.parametrize(
