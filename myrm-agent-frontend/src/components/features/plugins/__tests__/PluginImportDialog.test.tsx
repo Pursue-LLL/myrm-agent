@@ -24,6 +24,9 @@ vi.mock('@/services/agentReadiness', () => ({
   getAgentReadiness: vi.fn().mockResolvedValue({ overall_level: 'ready', items: [], agent_id: 'a', checked_at: 0 }),
 }));
 
+// The MCP server cache refresh is pinned in usePluginImportFlow.mcpReload.test.tsx; here it must not reach the real config layer.
+vi.mock('../reloadPluginMcpServers', () => ({ reloadPluginMcpServers: vi.fn() }));
+
 vi.mock('sonner', () => ({
   toast: Object.assign(vi.fn(), {
     success: vi.fn(),

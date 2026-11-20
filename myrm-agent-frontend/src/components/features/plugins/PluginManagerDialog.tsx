@@ -24,6 +24,7 @@ import {
   IconRefresh,
 } from '@/components/features/icons/PremiumIcons';
 import { toast } from '@/hooks/shared/useToast';
+import { reloadPluginMcpServers } from './reloadPluginMcpServers';
 
 interface PluginManagerDialogProps {
   open: boolean;
@@ -92,6 +93,10 @@ const PluginManagerDialog = memo(({ open, onOpenChange, onPluginChanged }: Plugi
         }
         const result = (await res.json()) as UninstallResult;
         setPlugins((prev) => prev.filter((item) => item.name !== plugin.name));
+        // The servers were removed on the backend; the settings pages read the cached list.
+        if (result.removed_servers > 0) {
+          void reloadPluginMcpServers();
+        }
         toast({
           title: t('success.uninstalled'),
           description: t('success.summary', {
