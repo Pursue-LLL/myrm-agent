@@ -1,7 +1,8 @@
 """BBox fallback click for an action the native AX route cannot perform.
 
 The caller enters it only when the native failure proved that nothing reached the element (unsupported action,
-no permission, no editable text), never after a stale or unknown outcome. The foreground permission gate runs first.
+no permission, no editable text), never after a stale or unknown outcome. A text action clicks the element's center
+before it types, so the caller gates it like a click. The foreground permission gate runs first.
 On macOS, when the snapshot meta carries the target app pid, input is routed directly to that process and the
 foreground guard aborts on focus leaks, so the real cursor never moves. Other platforms and pid-less snapshots act
 on the foreground.

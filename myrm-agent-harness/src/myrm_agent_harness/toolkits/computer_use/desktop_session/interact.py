@@ -7,15 +7,17 @@
 - perception.ax_result::AxFailure (POS: what a failed native action proves about delivery)
 - execution.healer::try_bbox_click (POS: coordinate fallback for an action the native route cannot perform)
 - semantic_gate, safety, core.security.credential_vault (POS: destructive-action gate, hard blocks, credential fill)
+- types::DESKTOP_TEXT_ACTIONS (POS: the verbs that only enter text; the others reach the element as an activation)
 
 [OUTPUT]
 - DesktopInteractMixin: desktop_interact (screen guard, per-app approval, revalidation, gates, native action with bbox fallback only after an unsupported action, follow-up snapshot)
 
 [POS]
-Mutating semantic entry of the desktop tools; every gate that can refuse the action runs before the element is touched.
-The approval is asked for the application the registry holds; after the re-read, the gates, the delivery and the
-follow-up snapshot all use the one capture the element was resolved from. A native failure that is stale or of
-unknown outcome is reported and never retried or clicked by coordinates.
+Mutating semantic entry of the desktop tools; every gate that can refuse the action runs before anything reaches the
+element. The approval is asked for the application the registry holds; after the re-read, the gates, the delivery and
+the follow-up snapshot all use the one capture the element was resolved from. A native failure that is stale or of
+unknown outcome is reported and never retried or clicked by coordinates; a text entry the native route declines is
+gated once more, as the click the coordinate fallback delivers.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, Snap
 from myrm_agent_harness.toolkits.computer_use.execution.healer import try_bbox_click
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invoke_element
 from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
-from myrm_agent_harness.toolkits.computer_use.types import DesktopInteractAction, ModifierKey
+from myrm_agent_harness.toolkits.computer_use.types import DESKTOP_TEXT_ACTIONS, DesktopInteractAction, ModifierKey
 
 from .host import DesktopSessionHost
 
@@ -68,6 +70,30 @@ def _stopped_without_fallback(element: ElementRef, meta: SnapshotMeta, ax_result
 
 class DesktopInteractMixin(DesktopSessionHost):
     """Semantic element interaction of the desktop session."""
+
+    async def _semantic_block(self, element: ElementRef, meta: SnapshotMeta, action: str, text: str) -> str | None:
+        """[SECURITY] Destructive-control gate, sharing the cross-channel lexicon with the browser DOM gate.
+
+        Returns the block message when the user refuses the action, None when it may proceed.
+        """
+        from myrm_agent_harness.toolkits.computer_use.semantic_gate import (
+            DesktopGuardContext,
+            enforce_desktop_interact_guard,
+        )
+
+        return await enforce_desktop_interact_guard(
+            ctx=DesktopGuardContext(
+                app_name=meta.app_name,
+                window_title=meta.window_title,
+                screenshot_provider=self._capture_guard_screenshot,
+                scaler=self.scaler,
+            ),
+            ref_id=element.ref_id,
+            role=element.role,
+            name=element.name,
+            action=action,
+            text=text,
+        )
 
     async def desktop_interact(
         self,
@@ -122,27 +148,7 @@ class DesktopInteractMixin(DesktopSessionHost):
                     )
                     return f"Safety: {mirror_blocked}"
 
-                # [SECURITY] Desktop semantic guard — destructive AX control gate
-                # sharing the cross-channel lexicon with the browser DOM gate.
-                from myrm_agent_harness.toolkits.computer_use.semantic_gate import (
-                    DesktopGuardContext,
-                    enforce_desktop_interact_guard,
-                )
-
-                semantic_blocked = await enforce_desktop_interact_guard(
-                    ctx=DesktopGuardContext(
-                        app_name=meta.app_name,
-                        window_title=meta.window_title,
-                        screenshot_provider=self._capture_guard_screenshot,
-                        scaler=self.scaler,
-                    ),
-                    ref_id=element.ref_id,
-                    role=element.role,
-                    name=element.name,
-                    action=action,
-                    text=text,
-                )
-                if semantic_blocked is not None:
+                if (semantic_blocked := await self._semantic_block(element, meta, action, text)) is not None:
                     return semantic_blocked
 
                 effective_action = action
@@ -176,6 +182,13 @@ class DesktopInteractMixin(DesktopSessionHost):
                 if not ax_result.success:
                     if ax_result.failure is not AxFailure.UNSUPPORTED:
                         return _stopped_without_fallback(element, meta, ax_result)
+                    # The fallback clicks the element before it types, so a text entry reaches the control as an
+                    # activation here; an activation verb was gated before the native attempt.
+                    if (
+                        action in DESKTOP_TEXT_ACTIONS
+                        and (click_blocked := await self._semantic_block(element, meta, "click", text)) is not None
+                    ):
+                        return click_blocked
                     bbox_result = await try_bbox_click(self, element, effective_action, effective_text, modifiers)
                     if not bbox_result.success:
                         remedy_hint = (

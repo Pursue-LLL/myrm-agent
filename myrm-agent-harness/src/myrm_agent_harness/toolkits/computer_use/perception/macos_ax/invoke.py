@@ -57,6 +57,7 @@ def invoke_ax_element(
     normalized_action = action.lower()
     if normalized_action in {"dblclick", "double_click"}:
         normalized_action = "click"
+    # `type` is not performed here: it is refused as unsupported, so the caller's coordinate fallback types the keys.
     if normalized_action not in {
         "click",
         "fill",
@@ -73,7 +74,7 @@ def invoke_ax_element(
     }:
         return AxInvokeResult.failed(AxFailure.UNSUPPORTED, f"Unsupported AX action: {action}")
 
-    ax_action = "fill" if normalized_action in {"fill", "type", "set_value"} else "click"
+    ax_action = "fill" if normalized_action in {"fill", "set_value"} else "click"
     invoke_script = _build_ax_invoke_script(target_app=app_name) if app_name else _AX_INVOKE_SCRIPT
     try:
         result = subprocess.run(

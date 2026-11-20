@@ -1,5 +1,6 @@
 """Tests for what desktop_interact does after a native action failed: the coordinate click only follows a failure
-that proves nothing reached the element, and an outcome that is stale or unknown is reported, never repeated."""
+that proves nothing reached the element, an outcome that is stale or unknown is reported, never repeated, and a click
+delivered for a text entry is gated like any other click."""
 
 from __future__ import annotations
 
@@ -12,7 +13,12 @@ import pytest
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
-from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ComputerUseConfig, ScreenInfo
+from myrm_agent_harness.toolkits.computer_use.types import (
+    ActionResult,
+    ComputerUseConfig,
+    DesktopInteractAction,
+    ScreenInfo,
+)
 
 _PACKAGE = "myrm_agent_harness.toolkits.computer_use.desktop_session"
 _INVOKE = f"{_PACKAGE}.interact.invoke_element"
@@ -48,13 +54,21 @@ def _session_holding(backend: MagicMock, *, app: str = "Mail", name: str = "Send
     return session, ref_id
 
 
-async def _interact(session: DesktopSession, ref_id: str, native_result: AxInvokeResult) -> Outcome:
+async def _interact(
+    session: DesktopSession,
+    ref_id: str,
+    native_result: AxInvokeResult,
+    *,
+    action: DesktopInteractAction = "click",
+    text: str = "",
+) -> Outcome:
     with (
         patch(_INVOKE, return_value=native_result) as native,
         patch(_BBOX, AsyncMock(return_value=ActionResult(success=True))) as coordinate_click,
         patch.object(session, "desktop_snapshot", AsyncMock(return_value="follow-up")) as follow_up,
+        patch.object(session, "_capture_guard_screenshot", AsyncMock(return_value=("", (0, 0)))),
     ):
-        reply = str(await session.desktop_interact(ref=ref_id, action="click"))
+        reply = str(await session.desktop_interact(ref=ref_id, action=action, text=text))
     return Outcome(reply, native, coordinate_click, follow_up)
 
 
@@ -127,6 +141,79 @@ class TestAnOutcomeThatIsNotKnownToBeUndeliveredIsNeverRepeated:
         assert "result unknown" in reply
         backend.click.assert_not_called()
         backend.type_text.assert_not_called()
+
+
+class TestAClickDeliveredForATextEntryIsGatedLikeAnyClick:
+    """The coordinate fallback clicks the element before it types, so the verb's name says nothing about what the
+    control receives once the native route has declined."""
+
+    _NO_EDITABLE_TEXT = AxInvokeResult.failed(AxFailure.UNSUPPORTED, "element exposes no editable text interface")
+
+    async def test_the_user_is_asked_before_a_text_entry_becomes_a_click(self, backend: MagicMock) -> None:
+        session, ref_id = _session_holding(backend, name="Delete Account")
+
+        with patch("langgraph.types.interrupt", return_value={"decision": "approve"}) as ask:
+            outcome = await _interact(session, ref_id, self._NO_EDITABLE_TEXT, action="fill", text="hello")
+
+        ask.assert_called_once()
+        assert ask.call_args[0][0]["tool_input"] == {"action": "click", "ref": ref_id, "text": "hello"}
+        assert f"Action 'fill' on @{ref_id} succeeded." in outcome.reply
+        outcome.coordinate_click.assert_awaited_once()
+
+    async def test_a_refusal_keeps_the_click_from_happening(self, backend: MagicMock) -> None:
+        session, ref_id = _session_holding(backend, name="Delete Account")
+
+        with patch("langgraph.types.interrupt", return_value={"decision": "reject"}):
+            outcome = await _interact(session, ref_id, self._NO_EDITABLE_TEXT, action="type", text="hello")
+
+        assert outcome.reply.startswith("[BLOCKED] User rejected this action")
+        assert outcome.native.call_count == 1
+        outcome.coordinate_click.assert_not_called()
+        outcome.follow_up.assert_not_called()
+
+    async def test_a_credential_label_not_the_secret_goes_to_the_approval(self, backend: MagicMock) -> None:
+        session, ref_id = _session_holding(backend, name="Delete Account")
+
+        with (
+            patch("langgraph.types.interrupt", return_value={"decision": "reject"}) as ask,
+            patch(_VAULT) as vault,
+        ):
+            vault.return_value.get_password.return_value = "s3cret"
+            outcome = await _interact(session, ref_id, self._NO_EDITABLE_TEXT, action="fill_credential", text="login")
+
+        assert "s3cret" not in str(ask.call_args)
+        assert "s3cret" not in outcome.reply
+        outcome.coordinate_click.assert_not_called()
+
+    async def test_nothing_is_asked_when_the_native_route_entered_the_text(self, backend: MagicMock) -> None:
+        session, ref_id = _session_holding(backend, name="Delete Account")
+
+        with patch("langgraph.types.interrupt") as ask:
+            outcome = await _interact(
+                session, ref_id, AxInvokeResult.delivered("AX fill succeeded"), action="fill", text="hello"
+            )
+
+        ask.assert_not_called()
+        assert f"Action 'fill' on @{ref_id} succeeded." in outcome.reply
+        outcome.coordinate_click.assert_not_called()
+
+    async def test_nothing_is_asked_about_a_harmless_control(self, backend: MagicMock) -> None:
+        session, ref_id = _session_holding(backend, name="Send")
+
+        with patch("langgraph.types.interrupt") as ask:
+            outcome = await _interact(session, ref_id, self._NO_EDITABLE_TEXT, action="fill", text="hello")
+
+        ask.assert_not_called()
+        outcome.coordinate_click.assert_awaited_once()
+
+    async def test_an_activation_is_asked_about_once_not_again_at_the_fallback(self, backend: MagicMock) -> None:
+        session, ref_id = _session_holding(backend, name="Delete Account")
+
+        with patch("langgraph.types.interrupt", return_value={"decision": "approve"}) as ask:
+            outcome = await _interact(session, ref_id, self._NO_EDITABLE_TEXT, action="click")
+
+        ask.assert_called_once()
+        outcome.coordinate_click.assert_awaited_once()
 
 
 class TestTheStaleReferenceHintNamesTheApplicationTheModelWorkedIn:

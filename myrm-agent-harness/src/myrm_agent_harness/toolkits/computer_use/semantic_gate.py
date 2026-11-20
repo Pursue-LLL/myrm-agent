@@ -9,6 +9,7 @@ its browser DOM counterpart regardless of which channel performs it.
 [INPUT]
 - core.security.detection.semantic_risk::SemanticRiskLevel, classify_element_risk (POS: 跨通道破坏性控件语义词典 SSOT)
 - dref.types::ElementRef, INTERACTIVE_AX_ROLES (POS: AX 元素引用与可交互角色集)
+- types::DESKTOP_TEXT_ACTIONS (POS: 只录入文本的 desktop_interact 动作；其余动作都按激活处理)
 - coordinate_scaler::CoordinateScaler (POS: 截图图像空间↔屏幕空间双向转换)
 - langgraph.types::interrupt (POS: HITL interrupt 机制)
 - core.security.audit::record_decision (POS: 安全决策审计)
@@ -38,6 +39,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
     INTERACTIVE_AX_ROLES,
     ElementRef,
 )
+from myrm_agent_harness.toolkits.computer_use.types import DESKTOP_TEXT_ACTIONS
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import (
@@ -45,22 +47,6 @@ if TYPE_CHECKING:
     )
 
 logger = logging.getLogger(__name__)
-
-# AX activation actions that mutate application state on the target control.
-# Text-entry actions (fill / set_value / type / fill_credential) submit nothing
-# by themselves — the final submit control is gated instead. Navigation-free
-# actions (hover / focus / scroll / expand / collapse) are read-only.
-_DESKTOP_MUTATING_ACTIONS = frozenset(
-    {
-        "click",
-        "dblclick",
-        "press",
-        "invoke",
-        "toggle",
-        "check",
-        "uncheck",
-    }
-)
 
 # Vision coordinate actions whose landing point identifies the mutation target
 # (drag lands on its end coordinate).
@@ -177,7 +163,9 @@ async def _require_hitl_approval(
 
 
 def _is_mutating_activation(action: str) -> bool:
-    return action.lower() in _DESKTOP_MUTATING_ACTIONS
+    """Every action but text entry reaches the element as an activation (`hover` and `focus` are delivered as a press),
+    so a verb nobody classified is gated too."""
+    return action.lower() not in DESKTOP_TEXT_ACTIONS
 
 
 def _is_interactive_role(role: str) -> bool:

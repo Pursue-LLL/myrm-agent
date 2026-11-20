@@ -1,12 +1,13 @@
-"""Tests for targeted AX capture/invoke in the macos_ax package.
+"""Tests for targeted AX capture in the macos_ax package.
 
 Covers:
 - _resolve_target_app: scope → target_app routing
 - _run_ax_snapshot: execution + timeout handling
 - _parse_ax_output: meta parsing, element extraction, error handling
 - capture_ax_snapshot: targeted + fallback + foreground paths
-- invoke_ax_element: targeted invoke, unsupported actions, timeout
 - _build_ax_snapshot_script / _build_ax_invoke_script: target_app parameter
+
+Invoking an element is covered in test_macos_ax_invoke.py.
 """
 
 from __future__ import annotations
@@ -276,105 +277,6 @@ class TestCaptureAxSnapshot:
             assert call_count == 2
 
 
-class TestInvokeAxElement:
-    def test_unsupported_action(self) -> None:
-        result = invoke_ax_element("1", "delete")
-        assert not result.success
-        assert "Unsupported" in result.error
-
-    def test_pattern_actions_supported(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ):
-            for action_name in ["toggle", "expand", "collapse", "invoke", "check", "uncheck"]:
-                result = invoke_ax_element("1", action_name)
-                assert result.success
-
-    def test_click_success(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "click")
-            assert result.success
-
-    def test_fill_success(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "fill", text="hello")
-            assert result.success
-
-    def test_targeted_invoke_with_app_name(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_ax_element("1", "click", app_name="TextEdit")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "TextEdit" in script_arg
-            assert "frontmost" not in script_arg
-
-    def test_invoke_without_app_name_uses_frontmost(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_ax_element("1", "click")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "frontmost" in script_arg
-
-    def test_timeout(self) -> None:
-        with patch(
-            "subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd="osascript", timeout=10),
-        ):
-            result = invoke_ax_element("1", "click")
-            assert not result.success
-            assert "timed out" in result.error
-
-    def test_permission_error(self) -> None:
-        mock_result = subprocess.CompletedProcess(
-            args=[], returncode=1, stdout="", stderr="not allowed assistive access"
-        )
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "click")
-            assert not result.success
-            assert "permission" in result.error.lower()
-
-    def test_double_click_normalized(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_ax_element("1", "double_click")
-            assert result.success
-            call_args = mock_run.call_args[0][0]
-            assert call_args[3] == "click"
-
-    def test_invoke_failed_returns_error(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="UNSUPPORTED", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "focus")
-            assert not result.success
-
-
 class TestAxDispatchCaptureSnapshot:
     def test_macos_routes_correctly(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
@@ -428,48 +330,6 @@ class TestAxDispatchInspectBackend:
         result = invoke_element(mock_backend, mock_element, "click")
         assert not result.success
         assert "Unsupported" in result.error
-
-
-class TestAxDispatchInvokeElement:
-    def test_macos_passes_app_name(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
-            invoke_element,
-        )
-
-        mock_backend = MagicMock()
-        type(mock_backend).__name__ = "MacOSBackend"
-        mock_element = MagicMock()
-        mock_element.backend_key = "1"
-
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_element(mock_backend, mock_element, "click", app_name="TextEdit")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "TextEdit" in script_arg
-
-    def test_macos_no_app_name(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
-            invoke_element,
-        )
-
-        mock_backend = MagicMock()
-        type(mock_backend).__name__ = "MacOSBackend"
-        mock_element = MagicMock()
-        mock_element.backend_key = "1"
-
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_element(mock_backend, mock_element, "click")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "frontmost" in script_arg
 
 
 class TestReadForegroundMeta:

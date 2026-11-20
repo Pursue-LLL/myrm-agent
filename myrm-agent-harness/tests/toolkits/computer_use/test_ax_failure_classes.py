@@ -6,6 +6,7 @@ Covers:
   permission or Apple-events authorization and an action the invoker has no verb for are UNSUPPORTED
 - Linux: a missing AT-SPI, an action the element lacks and a missing editable text interface are UNSUPPORTED;
   a desktop without applications is STALE
+- Linux: every verb of the tool vocabulary is delivered as its class, a text entry or an activation
 - the contract: a delivered action carries no failure, a failed one always carries its class
 """
 
@@ -13,6 +14,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from typing import get_args
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,6 +24,7 @@ from myrm_agent_harness.toolkits.computer_use.perception import linux_ax
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invoke_element
 from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.invoke import invoke_ax_element
+from myrm_agent_harness.toolkits.computer_use.types import DESKTOP_TEXT_ACTIONS, DesktopInteractAction
 
 _GONE = "0:6: execution error: 不能获得“item 5 of {1, 2, 3}”。 (-1728)"
 
@@ -167,6 +170,23 @@ class TestLinuxInvokeFailures:
 
         assert result.failure is AxFailure.UNSUPPORTED
         assert "secret" not in result.error
+
+
+class TestLinuxVerbDelivery:
+    # fill_credential never reaches an invoker (desktop_interact turns it into fill first) and scroll has no AT-SPI
+    # route (refused as unsupported, see the scroll case of the failure-class tests above).
+    @pytest.mark.parametrize(
+        "action", [a for a in get_args(DesktopInteractAction) if a not in {"fill_credential", "scroll"}]
+    )
+    def test_a_text_verb_sets_the_text_and_every_other_verb_acts_on_the_element(self, action: str) -> None:
+        button = _button("Send")
+        with patch.dict(sys.modules, {"pyatspi": _atspi_with([_mail_with(button)])}):
+            result = linux_ax.invoke_ax_element("mail@5:0", action, "hello", role="push button", name="Send")
+
+        entered_text = action in DESKTOP_TEXT_ACTIONS
+        assert result.success is True
+        assert button.queryEditableText.return_value.setTextContents.called is entered_text
+        assert button.queryAction.return_value.doAction.called is not entered_text
 
 
 class TestContract:

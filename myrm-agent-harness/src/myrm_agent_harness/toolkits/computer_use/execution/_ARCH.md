@@ -8,7 +8,7 @@ Coordinate-based fallback execution for an action the native AX route cannot per
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Coordinate-based fallback execution package | — |
-| healer.py | Core | BBox center click/type fallback via ComputerBackend; macOS routes to snapshot pid with foreground guard | ✅ |
+| healer.py | Core | BBox center click/type fallback via ComputerBackend (a text action clicks the element before it types); macOS routes to snapshot pid with foreground guard | ✅ |
 
 ## Dependencies
 

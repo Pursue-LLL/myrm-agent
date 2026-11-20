@@ -1,13 +1,15 @@
 """Tests for the desktop semantic control HITL gate.
 
-Covers the AX interact gate (mutating actions + interactive roles + shared
-lexicon), the coordinate bbox hit-testing resolver, and the vision coordinate
-gate — including the fail-closed path when no LangGraph context exists.
+Covers the AX interact gate (every action but text entry + interactive roles + shared
+lexicon, and the classification of each verb of the tool vocabulary), the coordinate
+bbox hit-testing resolver, and the vision coordinate gate — including the fail-closed
+path when no LangGraph context exists.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import get_args
 from unittest.mock import patch
 
 import pytest
@@ -20,6 +22,7 @@ from myrm_agent_harness.toolkits.computer_use.semantic_gate import (
     enforce_desktop_vision_guard,
     resolve_coordinate_target,
 )
+from myrm_agent_harness.toolkits.computer_use.types import DesktopInteractAction
 
 _SCALER = CoordinateScaler(
     screen_width=1280,
@@ -68,8 +71,40 @@ def _elem(
 # ──────────────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("action", ["hover", "focus", "scroll", "fill", "set_value", "type", "expand", "collapse"])
-async def test_non_activating_actions_pass(action: str):
+# What each verb of the tool vocabulary does to the element. A verb added to DesktopInteractAction must be listed in
+# exactly one of the two tuples, otherwise test_every_verb_of_the_tool_vocabulary_is_classified fails.
+_TEXT_VERBS = ("fill", "set_value", "type", "fill_credential")
+_ACTIVATION_VERBS = (
+    "click",
+    "dblclick",
+    "press",
+    "hover",
+    "focus",
+    "scroll",
+    "invoke",
+    "toggle",
+    "check",
+    "uncheck",
+    "expand",
+    "collapse",
+)
+
+
+def test_every_verb_of_the_tool_vocabulary_is_classified():
+    assert set(get_args(DesktopInteractAction)) == {*_TEXT_VERBS, *_ACTIVATION_VERBS}
+    assert not set(_TEXT_VERBS) & set(_ACTIVATION_VERBS)
+
+
+async def test_a_verb_nobody_classified_is_gated_like_an_activation():
+    with patch("langgraph.types.interrupt", return_value={"decision": "approve"}) as mock_interrupt:
+        await enforce_desktop_interact_guard(
+            ctx=_ctx(), ref_id="d1", role="AXButton", name="Delete All Records", action="zoom"
+        )
+    mock_interrupt.assert_called_once()
+
+
+@pytest.mark.parametrize("action", _TEXT_VERBS)
+async def test_text_entry_actions_pass(action: str):
     with patch("langgraph.types.interrupt") as mock_interrupt:
         result = await enforce_desktop_interact_guard(
             ctx=_ctx(),
@@ -108,7 +143,7 @@ async def test_benign_interactive_control_passes():
     mock_interrupt.assert_not_called()
 
 
-@pytest.mark.parametrize("action", ["click", "dblclick", "press", "invoke", "toggle", "check", "uncheck"])
+@pytest.mark.parametrize("action", _ACTIVATION_VERBS)
 async def test_activation_actions_on_high_risk_control_interrupt(action: str):
     with patch("langgraph.types.interrupt", return_value={"decision": "approve"}) as mock_interrupt:
         result = await enforce_desktop_interact_guard(
