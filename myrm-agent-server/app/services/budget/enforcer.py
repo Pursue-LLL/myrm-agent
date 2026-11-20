@@ -9,6 +9,7 @@ singleton, and provides the guard to agent factory for injection.
 - myrm_agent_harness.utils.token_economics::BudgetDimension (POS: Budget dimension config)
 - app.database.models.chat::Message (POS: 消息域模型)
 - app.database.models.config::UserConfig (POS: 用户配置域模型)
+- app.services.budget.budget_day::budget_day_start_utc (POS: Budget day boundary as naive UTC)
 
 [OUTPUT]
 - BudgetPolicy: Pydantic model for budget policy configuration
@@ -29,7 +30,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from myrm_agent_harness.utils.token_economics.budget_guard import (
     BudgetChecker,
@@ -47,6 +48,7 @@ from app.database.models.config import UserConfig
 from app.platform_utils import get_session_factory
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 from app.platform_utils.sandbox.entitlements.platform_budget_adapter import PlatformBudgetAdapter
+from app.services.budget.budget_day import budget_day_start_utc
 
 logger = logging.getLogger(__name__)
 
@@ -186,13 +188,13 @@ async def save_budget_policy(policy: BudgetPolicy) -> None:
         now_version = f"{int(datetime.now().timestamp() * 1000)}_0"
 
         if row is not None:
-            row.config_value = policy.model_dump()  # type: ignore[assignment]
+            row.config_value = policy.model_dump()
             row.version = now_version
         else:
             new_config = UserConfig(
                 id=str(uuid.uuid4()),
                 config_key=BUDGET_CONFIG_KEY,
-                config_value=policy.model_dump(),  # type: ignore[assignment]
+                config_value=policy.model_dump(),
                 version=now_version,
                 last_device_id="server",
                 is_encrypted=False,
@@ -214,8 +216,7 @@ async def _query_today_cost() -> float:
     """Sum costUsd from today's assistant messages to recover spend after process restart."""
     try:
         session_factory = get_session_factory()
-        now_utc = datetime.now(timezone.utc)
-        today_start = datetime(now_utc.year, now_utc.month, now_utc.day, 0, 0, 0)
+        today_start = budget_day_start_utc()
         cost_expr = func.json_extract(Message.extra_data, "$.costUsd")
         async with session_factory() as session:
             result = await session.execute(

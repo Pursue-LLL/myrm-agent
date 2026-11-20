@@ -196,7 +196,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_swarm_fission_real_agent.py` | 集成 | 蜂群分叉在生产构建器造出的真实智能体上：子任务经内层 `SkillAgent` 的 `delegate_task` 工具派出并返回各自结果；包装里没有内层智能体时抛错，而不是报告成一个失败的批次 |
 | `services/agent/test_background_job_startup.py` | 集成 | 启动挂钩 `init_background_job_store()` 在真实进程上的行为（账本在临时目录）：注册它的 server 已不存在的任务领队被 SIGKILL、账本行变为 orphaned；server 仍存活或账本没有记录 server 时领队不动；配置账本失败只记警告；没有账本时直接返回（Windows 跳过） |
 | `support/pending_approvals.py` | 辅助 | 路由器待决审批测试共用：`inbound_message`（控制面转发的 u1 消息：身份已解析，路由器背后不需要配对与策略）、`router_with_agent`（真实路由器配脚本化智能体，可记录续跑）、`said_by`（总线发出的文本）、`asked_in` / `waiting` / `empty_registry`（登记簿里的未决请求） |
-| `support/channel_chat_rows.py` | 辅助 | 渠道会话键查找测试共用：`seed_channel_chat`（按键与空闲分钟数存一个聊天）、`seed_costed_reply`（存一条带成本的助手回复，按本地日历日计预算日） |
+| `support/channel_chat_rows.py` | 辅助 | 渠道会话键查找测试共用：`seed_channel_chat`（按键与空闲分钟数存一个聊天）、`seed_costed_reply`（存一条带成本的助手回复，默认盖当前 UTC 时刻、可用 `at` 指定，与库里所有消息同一个钟） |
 | `support/cron_run_rows.py` | 辅助 | 数失败运行的测试共用（导航徽标、Ops 快照）：`seed_runs_with_two_recent_failures` 经 SQL store 存一个任务和各状态的运行（成功、错误、熔断、跳过各一条在刚刚，另有一条一周前的熔断），最近 24 小时的失败是 `FAILURES_IN_THE_LAST_DAY` 条；在 `policy_database(...)` 内调用 |
 | `channels/routing/test_command_authorization.py` | 单元 | 内置系统命令默认仅 owner 可用：目录钉住对所有发送者开放的命令集合（只在发送者自己的会话内、至多花一轮），技能/Agent 路由命令不受 owner 限制；其余命令对非 owner 一律被拒（不论 DM 策略是否放行）而 owner 全部可达；`/help` 列表与回复按发送者身份过滤；非 owner 不能委派任务或 steer 运行中的委派，被拒的 `/btw` 不会被委派前缀捡走 |
 | `channels/test_goal_command_unwait.py` | 模块 | IM `/goal unwait`：路由器提交让目标回到工作的续跑消息（与 `/goal resume` 同一路径），没有续跑消息时什么也不提交 |
@@ -506,7 +506,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
 | `services/test_channel_budget_key.py` | 单元 | 渠道预算键就是群组的会话键：8 种渠道群 ID 的写法（含大写、标点、域名、`+/=`）对 `SessionKey.to_str()` 逐字一致；手输的四种写法（原样、渠道大写、首尾空格、手工小写）规范化后同一个键且再规范化不变；不成群组形态的键只修剪并转小写、写入口用的解析以英文拒绝；策略的键总是规范键、非文本键仍是校验错误；同一群的多条策略合并（启用者优先、再取低限额、平局取先者）并记一条 WARNING，不同群组各自保留且顺序不变 |
 | `services/test_channel_budget_policy_keys.py` | 模块 | 策略对真实 SQLite 与真实预算接口、真实入站消息的会话键：按群 ID 原写法手输的键能拦住本群、重启后恢复本群当日支出（8 种群 ID 写法各一），重启后停用的策略仍按停用状态列出且不建守卫，库里按任意写法存下的行读出即规范并生效，两种写法存下的同群策略在下一次写入时并成一条，审计与删除接受与存下的键写法不同的键（大小写、首尾空格），不成群组形态的键以 400 拒绝且不入库 |
-| `support/channel_budget_fixtures.py` | 辅助 | 渠道预算测试共用：各渠道群 ID 的真实写法（`GROUP_IDS`）与把预算服务、预算接口和审计查询接到测试库的 `budget_database` |
+| `support/channel_budget_fixtures.py` | 辅助 | 预算测试共用：各渠道群 ID 的真实写法（`GROUP_IDS`）与把渠道预算服务、全局预算的重启回收、预算接口和审计查询接到测试库的 `budget_database` |
+| `services/test_budget_day.py` | 单元 | 预算日把进程内守卫、`budget_day_start_utc` 与本机时钟钉在一起：两个 harness 守卫在本机日历日变化时翻日（守卫改用别的日界会变红）；预算日起点等于本地午夜换成朴素 UTC（UTC、上海、洛杉矶，含夏令时开始与结束的 23、25 小时日，往前数天按日历日而不是 24 小时块）；起点等于本机时钟真正换日的那一刻（含半小时制的 Kolkata、Lord_Howe） |
+| `services/test_budget_recovery_window.py` | 模块 | 重启后的渠道成本回收、全局成本回收与渠道审计都从预算日起点汇总（真实 SQLite，本机时区取 UTC、上海、洛杉矶各跑一遍）：起点前一秒的回复不计、后一秒的计入；审计的 `days` 取 0、1、7 时各按往前第 `days` 天的预算日起点 |
+| `support/budget_day_clock.py` | 辅助 | 预算日测试共用的本机时钟控制：`host_timezone`（切换进程时区并还原）、`budget_today`（让守卫与恢复窗口读到指定的本机日期）、`host_day_start_utc`（按分钟读本机时钟求出某天的起点，与被测函数不共用代码） |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务；数据库维护任务 `db_maintenance` 每 6 小时、首次在启动后约 3 分钟（不与首屏请求抢事件循环） |
 | `lifecycle/test_checkpoint_history_schedule.py` | 模块 | 调度器注册 checkpoint 历史裁剪：任务 id `checkpoint_history_prune`、每 6 小时、启动后约 10 分钟首次触发、不影响同调度器的相邻任务；任务把裁剪交给服务 |

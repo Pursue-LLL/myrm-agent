@@ -5,6 +5,7 @@
 - myrm_agent_harness.utils.token_economics::BudgetStatus (POS: Budget status enum)
 - app.database.models.chat::Chat, Message (POS: Session/message models)
 - app.database.models.config::UserConfig (POS: User config persistence)
+- app.services.budget.budget_day::budget_day_start_utc (POS: Budget day boundary as naive UTC)
 - app.services.budget.channel_budget_key::normalize_channel_budget_key (POS: Canonical channel budget key)
 
 [OUTPUT]
@@ -30,7 +31,7 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
-from datetime import date, datetime
+from datetime import datetime
 from typing import Self
 
 from myrm_agent_harness.utils.token_economics.budget_guard import (
@@ -44,6 +45,7 @@ from app.database.models.chat import Chat, Message
 from app.database.models.config import UserConfig
 from app.database.repositories.channel_key_match import channel_key_extends
 from app.platform_utils import get_session_factory
+from app.services.budget.budget_day import budget_day_start_utc
 from app.services.budget.channel_budget_key import normalize_channel_budget_key
 
 logger = logging.getLogger(__name__)
@@ -233,10 +235,10 @@ def _emit_channel_budget_sse(status: str, cost: float, limit: float, channel_key
 
 
 async def _query_channel_today_cost(channel_budget_key: str) -> float:
-    """Sum today's assistant costUsd across every chat of the group with this channel budget key."""
+    """Sum the budget day's assistant costUsd across every chat of the group with this channel budget key."""
     try:
         session_factory = get_session_factory()
-        today_start = datetime.combine(date.today(), datetime.min.time())
+        today_start = budget_day_start_utc()
         cost_expr = func.json_extract(Message.extra_data, "$.costUsd")
         async with session_factory() as session:
             result = await session.execute(
