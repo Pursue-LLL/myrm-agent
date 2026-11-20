@@ -30,11 +30,14 @@ class _Steps:
 
     secret = _HOST_SECRET
 
-    def __init__(self, *, fail_at: dict[int, Exception] | None = None, slow_ref: str | None = None) -> None:
+    def __init__(
+        self, *, fail_at: dict[int, Exception] | None = None, slow_ref: str | None = None, delay_s: float = 0.0
+    ) -> None:
         self.calls: list[tuple[str, str]] = []
         self.cancelled: list[str] = []
         self._fail_at = fail_at or {}
         self._slow_ref = slow_ref
+        self._delay_s = delay_s
 
     async def interact(self, action: str, ref: str, text: str = "") -> str:
         self.calls.append(("interact", ref))
@@ -50,6 +53,8 @@ class _Steps:
 
     async def evaluate(self, expression: str) -> str:
         self.calls.append(("evaluate", expression))
+        if self._delay_s:
+            await asyncio.sleep(self._delay_s)
         return f"value of {expression}"
 
 
@@ -189,6 +194,16 @@ class TestLimits:
 
         assert "TimeoutError" in result
         assert "timed out after" not in result, "the interpreter's own limit ended it long before the wall clock"
+
+    @pytest.mark.asyncio
+    async def test_the_cpu_limit_does_not_count_the_time_a_step_waits_on_the_browser(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(script_runtime, "_CPU_LIMIT_S", 0.3)
+
+        result, _ = await _run("print(await session.evaluate('x'))", _Steps(delay_s=1.0))
+
+        assert result == "value of x\n"
 
     @pytest.mark.asyncio
     async def test_a_script_that_allocates_without_end_is_ended_by_the_memory_limit(
