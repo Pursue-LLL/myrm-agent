@@ -9,8 +9,9 @@
  *
  * [POS]
  * Per-channel budget configuration UI. Displays each channel's daily budget usage
- * and allows configuring per-channel limits to prevent cost explosion. Unfolding a
- * channel lists each sender's spend over the audit window, with bars sized by their
+ * and allows configuring per-channel limits to prevent cost explosion; a channel takes
+ * one save at a time, so an edit made while its save is in flight is dropped. Unfolding
+ * a channel lists each sender's spend over the audit window, with bars sized by their
  * share of that window's total.
  */
 
@@ -111,6 +112,11 @@ const ChannelBudgetSection = memo(() => {
 
   const handleSave = useCallback(
     async (channelKey: string, policy: Omit<ChannelBudgetPolicy, 'channel_key'>) => {
+      // An edit is built from the policy as last loaded, which a save in flight has already outdated. Dropping it keeps
+      // that save from being overwritten; the user repeats the edit once the reload has landed.
+      if (saving === channelKey) {
+        return;
+      }
       setSaving(channelKey);
       try {
         await updateChannelBudget(channelKey, policy);
@@ -121,7 +127,7 @@ const ChannelBudgetSection = memo(() => {
         setSaving(null);
       }
     },
-    [fetchData],
+    [fetchData, saving],
   );
 
   const handleDelete = useCallback(
