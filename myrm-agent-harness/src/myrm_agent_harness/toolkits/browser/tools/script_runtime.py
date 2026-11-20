@@ -8,7 +8,7 @@
 
 [OUTPUT]
 - ScriptRejectedError: the script cannot run at all (a syntax error, an import); the message is what the model is told
-- wrap_script: the source Monty runs for a script body, after the checks the tool contract states
+- wrap_script: the source Monty runs for a script body (its multi-line strings keep the text the model wrote), after the checks the tool contract states
 - BrowserSteps: the two session steps a script can take
 - ScriptSession: what a script sees as `session`
 - run_script: run the wrapped script and return what it printed, followed by how it ended
@@ -27,8 +27,10 @@ from __future__ import annotations
 import ast
 import asyncio
 import contextlib
+import io
 import logging
 import textwrap
+import tokenize
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
@@ -46,6 +48,7 @@ _OUTPUT_LIMIT_CHARS = 20_000
 _TRUNCATED = f"\n[Output truncated at {_OUTPUT_LIMIT_CHARS} characters]"
 
 _ENTRY = "_agent_step"
+_BODY_INDENT = "    "
 _STEP_NAMES = ("interact", "evaluate")
 
 _UNAVAILABLE = (
@@ -72,7 +75,7 @@ def wrap_script(script: str) -> str:
     Imports are refused here so that the tool description ("Imports and `open` are unavailable") stays true
     even for modules the interpreter would allow.
     """
-    wrapped = f"async def {_ENTRY}(session, refs):\n{textwrap.indent(script, '    ')}\n"
+    wrapped = f"async def {_ENTRY}(session, refs):\n{_indent_body(script)}\n"
     try:
         tree = ast.parse(wrapped)
     except SyntaxError as exc:
@@ -81,6 +84,34 @@ def wrap_script(script: str) -> str:
         if isinstance(node, ast.Import | ast.ImportFrom):
             raise ScriptRejectedError(f"[Error] Imports are unavailable in scripts (line {_script_line(node.lineno)}).")
     return f"{wrapped}await {_ENTRY}(session, refs)\n"
+
+
+def _indent_body(script: str) -> str:
+    """The script's lines indented into the function body, except those inside a multi-line string.
+
+    Indenting a line that continues a string would change the string, and with it what a step receives
+    (a JavaScript snippet in a triple-quoted string, for one).
+    """
+    source = io.StringIO(script, newline=None).read()  # the newlines the compiler reads: \n, \r\n and \r
+    inside_token: set[int] = set()
+    try:
+        for token in tokenize.generate_tokens(io.StringIO(source).readline):
+            inside_token.update(range(token.start[0] + 1, token.end[0] + 1))
+    except (tokenize.TokenError, SyntaxError, ValueError):
+        # Not tokenizable (a ValueError is text that cannot be encoded, a lone surrogate for one): `ast.parse`
+        # judges it next, exactly as it would the text indented as a whole.
+        return textwrap.indent(script, _BODY_INDENT)
+    return "\n".join(
+        line if number in inside_token or not line.strip() else _indent_line(line)
+        for number, line in enumerate(source.split("\n"), 1)
+    )
+
+
+def _indent_line(line: str) -> str:
+    """`line` moved into the function body; Python counts a line's indentation from its last leading form feed."""
+    blank = line[: len(line) - len(line.lstrip(" \t\f"))]
+    cut = blank.rfind("\f") + 1
+    return line[:cut] + _BODY_INDENT + line[cut:]
 
 
 def _script_line(wrapped_line: int | None) -> int:

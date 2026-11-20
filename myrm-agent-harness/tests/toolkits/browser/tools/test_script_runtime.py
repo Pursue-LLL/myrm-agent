@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import sys
 from pathlib import Path
@@ -118,14 +119,50 @@ class TestTheScriptContract:
 
         assert result == ""
 
-    def test_a_syntax_error_is_rejected_with_the_line_of_the_script(self) -> None:
+    @pytest.mark.parametrize(
+        "script",
+        ["x = 1\ndef foo(:", 'x = 1\ny = """abc', "x = 1\ny = (\n  1,"],
+        ids=["syntax-error", "unterminated-string", "unclosed-bracket"],
+    )
+    def test_a_syntax_error_is_rejected_with_the_line_of_the_script(self, script: str) -> None:
         with pytest.raises(ScriptRejectedError, match=r"^SyntaxError in script: .* \(line 2\)$"):
-            wrap_script("x = 1\ndef foo(:")
+            wrap_script(script)
 
     @pytest.mark.parametrize("script", ["import os", "from os import path", "x = 1\nif x:\n    import json"])
     def test_imports_are_refused_before_anything_runs(self, script: str) -> None:
         with pytest.raises(ScriptRejectedError, match=r"^\[Error\] Imports are unavailable in scripts \(line \d\)\.$"):
             wrap_script(script)
+
+    @pytest.mark.parametrize(
+        "script",
+        [
+            pytest.param('x = """a\n  b\nc"""', id="triple-quoted"),
+            pytest.param('x = r"""a\\n\n  b"""', id="raw-triple-quoted"),
+            pytest.param('v = 1\nx = f"""a {v}\n  b {v}"""', id="f-string"),
+            pytest.param('x = "a\\\n  b"', id="backslash-continued"),
+            pytest.param("if True:\n\tx = '''a\n\t  b'''", id="tab-indented"),
+            pytest.param("x = '''a\r\n  b'''\r\ny = 1", id="crlf"),
+            pytest.param("x = '''a\rb'''\ry = 1", id="lone-cr"),
+            pytest.param('x = "a\u2028b"', id="unicode-line-separator"),
+            pytest.param('x = "a\x0cb"', id="form-feed"),
+            pytest.param("\x0cx = 1", id="leading-form-feed"),
+            pytest.param("if True:\n  \x0c  x = 1", id="form-feed-inside-indentation"),
+        ],
+    )
+    def test_the_body_of_the_wrapper_means_what_the_script_means_on_its_own(self, script: str) -> None:
+        wrapped = ast.parse(wrap_script(script)).body[0]
+        alone = compile(script, "<script>", "exec", flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+
+        assert isinstance(wrapped, ast.AsyncFunctionDef)
+        assert ast.dump(ast.Module(wrapped.body, [])) == ast.dump(alone)
+
+    @pytest.mark.asyncio
+    async def test_a_multi_line_string_reaches_the_step_as_it_was_written(self) -> None:
+        steps = _Steps()
+
+        await _run('await session.evaluate("""(() => {\n  return 1\n})()""")', steps)
+
+        assert steps.calls == [("evaluate", "(() => {\n  return 1\n})()")]
 
 
 class TestLimits:
