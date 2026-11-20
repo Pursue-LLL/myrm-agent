@@ -3,7 +3,7 @@
 [INPUT]
 - common::mark_untrusted (POS: unified browser output security boundary; credential redaction + untrusted-content wrapping)
 - session.browser_session::BrowserSession (POS: browser session)
-- script_runtime::ScriptRejectedError, wrap_script, run_script (POS: runs a script in an isolated Monty worker whose only reach into the browser is `interact` and `evaluate`)
+- script_runtime::ScriptRejectedError, vet_script, run_script (POS: runs a script in an isolated Monty worker whose only reach into the browser is `interact` and `evaluate`)
 - utils.runtime.user_control::planned_against (POS: pins the script's steps to the hand-over the model last observed)
 
 [OUTPUT]
@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from myrm_agent_harness.utils.runtime.user_control import planned_against
 
 from .common import mark_untrusted
-from .script_runtime import ScriptRejectedError, run_script, wrap_script
+from .script_runtime import ScriptRejectedError, run_script, vet_script
 
 if TYPE_CHECKING:
     from ..session import BrowserSession
@@ -70,7 +70,7 @@ def create_execute_script_tool(session: BrowserSession) -> BaseTool:
     @tool("browser_execute_script_tool", args_schema=ExecuteScriptInput, description=_TOOL_DESCRIPTION)
     async def browser_execute_script(script: str, verify_goal: str | None = None) -> str:
         try:
-            code = wrap_script(script)
+            code = vet_script(script)
         except ScriptRejectedError as exc:
             return str(exc)
 

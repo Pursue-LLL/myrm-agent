@@ -936,7 +936,7 @@ ToolError(
 **设计目标**：打破单步工具调用的性能瓶颈（网络延迟、LLM 推理延迟），允许 Agent 生成并执行包含多个动作的 Python 脚本。
 
 **架构设计**：
-- **隔离的 worker 进程**：脚本由 `tools/script_runtime.py` 交给 Pydantic Monty 的 worker 子进程执行，从不在宿主解释器里运行（不使用 `exec`）。worker 有自己的堆，没有文件系统、网络与宿主对象；`import` 在运行前由 `wrap_script` 拒绝；`wrap_script` 把脚本缩进成函数体时只缩进代码行，多行字符串里的内容（例如交给 `evaluate` 的 JS）原样到达步骤。这是解释器级（语言层）的隔离，不是操作系统级的：worker 与宿主以同一用户运行。
+- **隔离的 worker 进程**：脚本由 `tools/script_runtime.py` 交给 Pydantic Monty 的 worker 子进程执行，从不在宿主解释器里运行（不使用 `exec`）。worker 有自己的堆，没有文件系统、网络与宿主对象；`import` 与语法错误在运行前由 `vet_script` 拒绝，它也拒绝解析器无法接受的文本（孤立代理字符、嵌套过深的表达式）。脚本原文交给 Monty 运行（只统一换行），不做改写：顶层 `await`、`return` 可用，`session`、`refs` 已绑定，多行字符串里的内容（例如交给 `evaluate` 的 JS）原样到达步骤；与「函数体」字面不同的只有两处：辅助函数改写脚本里的名字用 `global`（不是 `nonlocal`），脚本第一行不能带缩进。这是解释器级（语言层）的隔离，不是操作系统级的：worker 与宿主以同一用户运行。
 - **只有两步**：脚本里的 `session` 是 `ScriptSession`，只暴露 `interact(action, ref, text)` 与 `evaluate(expression)`，宿主侧的 `BrowserSession`、Playwright 页面与上下文都够不着，所以没有需要扫描的「特权 API」。`interact` 与 `browser_interact_tool` 同一动作集，`evaluate` 回到 `BrowserSession.evaluate`，同样先过 JS 评估闸门。
 - **有界**：墙钟 60 s（`asyncio.wait_for`）、worker CPU 时间 5 s（Monty 的 CPU 时钟在等浏览器步骤时暂停，慢页面不占额度）、worker 内存 64 MB、输出 20000 字符（超出截断并注明）。脚本因超时、出错或被止步而结束时，仍在进行的步骤被取消，不会在脚本结束后继续操作页面。
 - **流式输出**：`print` 的输出在脚本的下一步之前经 `session.notify_progress` 推送到前端控制台，最终输出也作为工具结果返回。

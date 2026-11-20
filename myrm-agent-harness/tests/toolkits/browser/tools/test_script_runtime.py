@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import asyncio
 import sys
 from pathlib import Path
@@ -13,7 +12,7 @@ import pytest
 from myrm_agent_harness.toolkits.browser.session.takeover import UserTakeoverDuringScriptError
 from myrm_agent_harness.toolkits.browser.snapshot.aria_types import RefInfo
 from myrm_agent_harness.toolkits.browser.tools import script_runtime
-from myrm_agent_harness.toolkits.browser.tools.script_runtime import ScriptRejectedError, run_script, wrap_script
+from myrm_agent_harness.toolkits.browser.tools.script_runtime import ScriptRejectedError, run_script, vet_script
 from myrm_agent_harness.toolkits.browser.tools.semantic_dom_hitl import (
     ScriptApprovalRequiredError,
     enforce_semantic_interaction_guard,
@@ -66,13 +65,13 @@ async def _run(script: str, steps: _Steps | None = None, *, timeout_s: float = 3
         progress.append(message)
 
     return await run_script(
-        steps or _Steps(), wrap_script(script), _REFS, timeout_s=timeout_s, progress=report
+        steps or _Steps(), vet_script(script), _REFS, timeout_s=timeout_s, progress=report
     ), progress
 
 
 class TestTheScriptContract:
     @pytest.mark.asyncio
-    async def test_the_script_is_the_body_of_an_async_function_that_prints_its_result(self) -> None:
+    async def test_a_script_sees_session_and_refs_and_prints_its_result(self) -> None:
         steps = _Steps()
         script = "print(await session.interact('click', 'e1'))\nprint(refs['e1']['role'], refs['e1']['name'])\nreturn"
 
@@ -124,43 +123,30 @@ class TestTheScriptContract:
 
         assert result == ""
 
+    @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        "script",
-        ["x = 1\ndef foo(:", 'x = 1\ny = """abc', "x = 1\ny = (\n  1,"],
-        ids=["syntax-error", "unterminated-string", "unclosed-bracket"],
-    )
-    def test_a_syntax_error_is_rejected_with_the_line_of_the_script(self, script: str) -> None:
-        with pytest.raises(ScriptRejectedError, match=r"^SyntaxError in script: .* \(line 2\)$"):
-            wrap_script(script)
-
-    @pytest.mark.parametrize("script", ["import os", "from os import path", "x = 1\nif x:\n    import json"])
-    def test_imports_are_refused_before_anything_runs(self, script: str) -> None:
-        with pytest.raises(ScriptRejectedError, match=r"^\[Error\] Imports are unavailable in scripts \(line \d\)\.$"):
-            wrap_script(script)
-
-    @pytest.mark.parametrize(
-        "script",
+        ("script", "printed"),
         [
-            pytest.param('x = """a\n  b\nc"""', id="triple-quoted"),
-            pytest.param('x = r"""a\\n\n  b"""', id="raw-triple-quoted"),
-            pytest.param('v = 1\nx = f"""a {v}\n  b {v}"""', id="f-string"),
-            pytest.param('v = 1\nx = f"{\nv=}"', id="f-string-debug-field-across-lines"),
-            pytest.param('x = "a\\\n  b"', id="backslash-continued"),
-            pytest.param("if True:\n\tx = '''a\n\t  b'''", id="tab-indented"),
-            pytest.param("x = '''a\r\n  b'''\r\ny = 1", id="crlf"),
-            pytest.param("x = '''a\rb'''\ry = 1", id="lone-cr"),
-            pytest.param('x = "a\u2028b"', id="unicode-line-separator"),
-            pytest.param('x = "a\x0cb"', id="form-feed"),
-            pytest.param("\x0cx = 1", id="leading-form-feed"),
-            pytest.param("if True:\n  \x0c  x = 1", id="form-feed-inside-indentation"),
+            pytest.param("print('a')\nreturn", "a\n", id="plain"),
+            pytest.param("for ref in refs:\n    print('a')\n    return", "a\n", id="inside-a-loop"),
+            pytest.param("while True:\n    print('a')\n    return", "a\n", id="inside-a-while-loop"),
+            pytest.param(
+                "try:\n    print('a')\n    return\nexcept Exception:\n    print('b')", "a\n", id="past-except"
+            ),
+            pytest.param(
+                "try:\n    print('a')\n    return\nexcept BaseException:\n    print('b')", "a\n", id="past-except-base"
+            ),
+            pytest.param("try:\n    print('a')\n    return\nexcept:\n    print('b')", "a\n", id="past-a-bare-except"),
+            pytest.param("try:\n    print('a')\n    return\nfinally:\n    print('f')", "a\nf\n", id="through-finally"),
         ],
     )
-    def test_the_body_of_the_wrapper_means_what_the_script_means_on_its_own(self, script: str) -> None:
-        wrapped = ast.parse(wrap_script(script)).body[0]
-        alone = compile(script, "<script>", "exec", flags=ast.PyCF_ONLY_AST | ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+    async def test_a_top_level_return_ends_the_script_wherever_it_stands(self, script: str, printed: str) -> None:
+        steps = _Steps()
 
-        assert isinstance(wrapped, ast.AsyncFunctionDef)
-        assert ast.dump(ast.Module(wrapped.body, [])) == ast.dump(alone)
+        result, _ = await _run(f"{script}\nawait session.interact('click', 'e1')", steps)
+
+        assert result == printed
+        assert steps.calls == [], "nothing after the return may reach the page"
 
     @pytest.mark.asyncio
     async def test_a_multi_line_string_reaches_the_step_as_it_was_written(self) -> None:

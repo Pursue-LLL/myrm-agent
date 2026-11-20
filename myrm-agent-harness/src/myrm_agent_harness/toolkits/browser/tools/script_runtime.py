@@ -7,11 +7,11 @@
 - semantic_dom_hitl::ScriptApprovalRequiredError (POS: a script's step needs a person's approval, which a script cannot ask for)
 
 [OUTPUT]
-- ScriptRejectedError: the script cannot run at all (a syntax error, an import); the message is what the model is told
-- wrap_script: the source Monty runs for a script body (its multi-line strings keep the text the model wrote), after the checks the tool contract states
+- ScriptRejectedError: the script cannot run at all (a syntax error, an import, text that cannot be parsed); the message is what the model is told
+- vet_script: the source Monty runs for a script (the text the model wrote, newlines normalized), after the checks the tool contract states
 - BrowserSteps: the two session steps a script can take
 - ScriptSession: what a script sees as `session`
-- run_script: run the wrapped script and return what it printed, followed by how it ended
+- run_script: run the vetted script and return what it printed, followed by how it ended
 
 [POS]
 Isolation boundary of browser_execute_script_tool. A script runs in a Monty worker process, never in the host
@@ -29,8 +29,6 @@ import asyncio
 import contextlib
 import io
 import logging
-import textwrap
-import tokenize
 from collections.abc import Awaitable, Callable
 from typing import Protocol
 
@@ -47,8 +45,6 @@ _MEMORY_LIMIT_BYTES = 64 * 1024 * 1024
 _OUTPUT_LIMIT_CHARS = 20_000
 _TRUNCATED = f"\n[Output truncated at {_OUTPUT_LIMIT_CHARS} characters]"
 
-_ENTRY = "_agent_step"
-_BODY_INDENT = "    "
 _STEP_NAMES = ("interact", "evaluate")
 
 _UNAVAILABLE = (
@@ -69,61 +65,30 @@ class BrowserSteps(Protocol):
     async def evaluate(self, expression: str) -> str: ...
 
 
-def wrap_script(script: str) -> str:
-    """The source Monty runs: the script as the body of `async def (session, refs)`, then a call of it.
+def vet_script(script: str) -> str:
+    """The source Monty runs: the script as the model wrote it, once it passes the checks the tool contract states.
 
-    Imports are refused here so that the tool description ("Imports and `open` are unavailable") stays true
-    even for modules the interpreter would allow.
+    The tool description calls the script the body of `async def (session, refs)`. Monty runs it at the top level
+    with `session` and `refs` bound, where `await` and `return` work as they do in such a body. Two corners differ:
+    a helper function rebinds a name of the script with `global` (not `nonlocal`), and the script's first line must
+    not be indented.
+
+    Imports are refused here so that the description ("Imports and `open` are unavailable") stays true even for
+    modules the interpreter would allow. Newlines are normalized the way the compiler reads them, so a carriage
+    return inside a string reaches a step as a line feed.
     """
-    wrapped = f"async def {_ENTRY}(session, refs):\n{_indent_body(script)}\n"
+    source = io.StringIO(script, newline=None).read()  # \n, \r\n and \r each end one line
     try:
-        tree = ast.parse(wrapped)
+        tree = ast.parse(source)
     except SyntaxError as exc:
-        raise ScriptRejectedError(f"SyntaxError in script: {exc.msg} (line {_script_line(exc.lineno)})") from exc
+        raise ScriptRejectedError(f"SyntaxError in script: {exc.msg} (line {exc.lineno or 1})") from exc
+    except (ValueError, RecursionError) as exc:
+        # Text the parser cannot take at all: one that cannot be encoded (a lone surrogate) or nests too deeply
+        raise ScriptRejectedError(f"[Error] The script cannot be parsed: {exc}") from exc
     for node in ast.walk(tree):
         if isinstance(node, ast.Import | ast.ImportFrom):
-            raise ScriptRejectedError(f"[Error] Imports are unavailable in scripts (line {_script_line(node.lineno)}).")
-    return f"{wrapped}await {_ENTRY}(session, refs)\n"
-
-
-def _indent_body(script: str) -> str:
-    """The script's lines indented into the function body, except those inside a multi-line string.
-
-    Indenting a line that continues a string would change the string, and with it what a step receives
-    (a JavaScript snippet in a triple-quoted string, for one). An f-string counts as a whole, because the `=`
-    of `f"{x=}"` prints the field's source text, spaces included.
-    """
-    source = io.StringIO(script, newline=None).read()  # the newlines the compiler reads: \n, \r\n and \r
-    inside_token: set[int] = set()
-    open_fstrings: list[int] = []  # the line each f-string still open began on
-    try:
-        for token in tokenize.generate_tokens(io.StringIO(source).readline):
-            first_line = token.start[0]
-            if token.type == tokenize.FSTRING_START:
-                open_fstrings.append(first_line)
-            elif token.type == tokenize.FSTRING_END:
-                first_line = open_fstrings.pop()
-            inside_token.update(range(first_line + 1, token.end[0] + 1))
-    except (tokenize.TokenError, SyntaxError, ValueError):
-        # Not tokenizable (a ValueError is text that cannot be encoded, a lone surrogate for one): `ast.parse`
-        # judges it next, exactly as it would the text indented as a whole.
-        return textwrap.indent(script, _BODY_INDENT)
-    return "\n".join(
-        line if number in inside_token or not line.strip() else _indent_line(line)
-        for number, line in enumerate(source.split("\n"), 1)
-    )
-
-
-def _indent_line(line: str) -> str:
-    """`line` moved into the function body; Python counts a line's indentation from its last leading form feed."""
-    blank = line[: len(line) - len(line.lstrip(" \t\f"))]
-    cut = blank.rfind("\f") + 1
-    return line[:cut] + _BODY_INDENT + line[cut:]
-
-
-def _script_line(wrapped_line: int | None) -> int:
-    """A line of the wrapped source as the line of the script the model wrote (the `async def` takes line 1)."""
-    return max((wrapped_line or 2) - 1, 1)
+            raise ScriptRejectedError(f"[Error] Imports are unavailable in scripts (line {node.lineno}).")
+    return source
 
 
 def _clip(text: str) -> str:
@@ -211,7 +176,7 @@ async def run_script(
     timeout_s: float,
     progress: Callable[[str], Awaitable[None]],
 ) -> str:
-    """Run `code` (from `wrap_script`) and return what it printed, followed by how it ended."""
+    """Run `code` (from `vet_script`) and return what it printed, followed by how it ended."""
     try:
         import pydantic_monty as monty
     except ImportError as exc:
