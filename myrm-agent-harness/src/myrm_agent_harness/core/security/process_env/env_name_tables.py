@@ -185,6 +185,11 @@ FORBIDDEN_EXACT_KEYS: Final[frozenset[str]] = frozenset(
         "PYTHONSTARTUP",
         "PYTHONPATH",
         "SSLKEYLOGFILE",
+        # git's environment configuration is dropped as a whole (its numbered pairs are in DANGEROUS_PREFIXES): it
+        # overrides every config file, so one ``alias.x=!cmd`` or ``core.sshCommand`` entry runs a program, and a
+        # group cut in half makes every git call exit 128 with ``missing config key``.
+        "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_PARAMETERS",
     }
 )
 
@@ -205,8 +210,9 @@ SENSITIVE_WILDCARDS: Final[tuple[str, ...]] = (
     "PASS",
 )
 
-# Prefixes that inject code into a child or re-route its telemetry: dynamic linker / loader hooks, and
-# OpenTelemetry configuration. ``OTEL_EXPORTER_OTLP_*`` holds the operator's collector endpoint and its
+# Prefixes that inject code into a child or re-route its telemetry: dynamic linker / loader hooks, the numbered pairs
+# of git's environment configuration (named in full, so that dropping the group does not rest on the ``KEY`` wildcard
+# alone), and OpenTelemetry configuration. ``OTEL_EXPORTER_OTLP_*`` holds the operator's collector endpoint and its
 # credentials, and downstream redaction does not recognise the URL-encoded (``%20``) header form that the
 # OTLP specification prescribes, so a model-run program must never inherit them. A program that needs
 # OpenTelemetry sets ``OTEL_*`` inline on its own command line.
@@ -214,6 +220,8 @@ DANGEROUS_PREFIXES: Final[tuple[str, ...]] = (
     "LD_",
     "DYLD_",
     "GIT_SSL_",
+    "GIT_CONFIG_KEY_",
+    "GIT_CONFIG_VALUE_",
     "OTEL_",
 )
 

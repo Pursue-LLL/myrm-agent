@@ -202,7 +202,7 @@ class SSRFResult:
 
 **危险环境变量**（`DANGEROUS_ENV_VARS` + `DANGEROUS_ENV_PREFIXES` + `DANGEROUS_ENV_WILDCARDS`）：
 
-覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`）在执行前过滤这些变量；子进程环境的构造规则见 3.2.2。
+覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`）在执行前按自己的名单（`env_name_tables.py`）过滤：敏感名与模式、动态链接器与运行时注入、`GIT_SSL_*`、git 环境配置组（`GIT_CONFIG_COUNT`、`GIT_CONFIG_KEY_<n>`、`GIT_CONFIG_VALUE_<n>`、`GIT_CONFIG_PARAMETERS`，整组丢弃：它们覆盖所有配置文件，一条 `alias.x=!cmd` 或 `core.sshCommand` 就能让 git 运行程序，半组残留则让每次 git 调用都以 128 退出）与 `OTEL_*`；`CORE` 策略只保留放行名单；子进程环境的构造规则见 3.2.2。
 
 ### 3.2.1 Shell Command Analyzer
 
