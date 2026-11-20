@@ -1,10 +1,12 @@
 /**
  * The mode picker asks the search-service gate before it lets a user into the fast search mode, keeps the mode the
- * gate refuses, and lets only the latest click decide the mode while a slower gate answer is still on its way.
+ * gate refuses, and lets only the latest click decide the mode while a slower gate answer is still on its way. The modes
+ * are radios of one group: the checked one holds the tab stop, arrow keys move focus, and pressing a mode switches to it.
  */
 import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import SearchModeSelector from '../SearchModeSelector';
 
 const gate = vi.hoisted(() => ({ checkSearchServiceReady: vi.fn<() => Promise<boolean>>() }));
@@ -119,5 +121,36 @@ describe('SearchModeSelector', () => {
     });
 
     expect(setActionMode.mock.calls).toEqual([['fast']]);
+  });
+
+  it('marks the current mode as the checked radio', () => {
+    render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
+
+    expect(screen.getByRole('radio', { name: 'agentTitle' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'fastTitle' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('moves focus between the modes with the arrow keys without switching', async () => {
+    const user = userEvent.setup();
+    render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
+
+    await user.tab();
+    expect(screen.getByRole('radio', { name: 'agentTitle' })).toHaveFocus();
+
+    await user.keyboard('{ArrowLeft}');
+
+    expect(screen.getByRole('radio', { name: 'fastTitle' })).toHaveFocus();
+    expect(setActionMode).not.toHaveBeenCalled();
+  });
+
+  it('asks the gate when a mode is pressed with the keyboard', async () => {
+    const user = userEvent.setup();
+    render(<SearchModeSelector actionMode="agent" setActionMode={setActionMode} />);
+
+    await user.tab();
+    await user.keyboard('{ArrowLeft}{Enter}');
+
+    expect(gate.checkSearchServiceReady).toHaveBeenCalledTimes(1);
+    expect(setActionMode).toHaveBeenCalledWith('fast');
   });
 });
