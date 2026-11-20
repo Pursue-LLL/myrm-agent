@@ -4,12 +4,15 @@
  *
  * [OUTPUT]
  * loadInitialConfigs: first fetch of the user's configuration, with retry; optionally core-first.
+ * landLateRecords: writes records that arrive after the first screen into the caches and tells subscribers.
  *
  * [POS]
  * Loading half of `ConfigSyncManager.initialize()`. Sandbox mode returns only the core keys so the first screen is not
  * held back and hands over a thunk for the rest; local mode returns everything at once (the backend is on the same
- * machine). The manager owns what to do with the result.
+ * machine). The manager owns what to do with the result; the records that come back later (background preload,
+ * on-demand read of one key) land through one function.
  */
+import { cloneDeep } from 'lodash-es';
 import type { ConfigAdapter, ConfigKey, ConfigRecord } from './types';
 import { ALL_CONFIG_KEYS, CORE_CONFIG_KEYS } from './types';
 
@@ -39,6 +42,23 @@ async function fetchAllWithRetry(
   }
 
   throw lastError;
+}
+
+/**
+ * These writes do not go through `ConfigSyncManager.set()`, so subscribers are told here; without it, logic that waits
+ * for a configuration to become ready (such as the securityConfig and YOLO mutual-exclusion replay) is never triggered.
+ */
+export function landLateRecords(
+  records: Iterable<[ConfigKey, ConfigRecord]>,
+  cache: Map<ConfigKey, ConfigRecord>,
+  baseCache: Map<ConfigKey, ConfigRecord>,
+  notify: (key: ConfigKey, record: ConfigRecord) => void,
+): void {
+  for (const [key, record] of records) {
+    cache.set(key, record);
+    baseCache.set(key, cloneDeep(record));
+    notify(key, record);
+  }
 }
 
 export async function loadInitialConfigs(adapter: ConfigAdapter, coreFirst: boolean): Promise<InitialConfigLoad> {

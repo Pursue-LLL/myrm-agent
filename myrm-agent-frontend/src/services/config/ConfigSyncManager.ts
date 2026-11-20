@@ -21,7 +21,7 @@ import type { ConfigChangeListener } from './configListeners';
 import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext, ConfigConflictResolver } from './conflictResolution';
 import { isE2eBlockedKey, withoutBlockedSearchChanges } from './e2eSearchSyncGate';
-import { loadInitialConfigs } from './initialLoad';
+import { landLateRecords, loadInitialConfigs } from './initialLoad';
 import {
   clearOfflineQueue,
   isNetworkError,
@@ -128,15 +128,7 @@ class ConfigSyncManager {
       this._status = 'idle';
 
       loadRemaining?.().then(
-        (rest) => {
-          for (const [k, v] of rest) {
-            this.cache.set(k, v);
-            this.baseCache.set(k, cloneDeep(v));
-            // 通知订阅者：预加载写入不进 set()，不通知则依赖「配置就绪」的兜底逻辑
-            // （如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。
-            this.notifyListeners(k, v.value as ConfigValueMap[ConfigKey], v.meta);
-          }
-        },
+        (rest) => this.landLate(rest),
         (err) => {
           console.warn('[ConfigSync] Background preload failed:', err);
         },
@@ -174,9 +166,7 @@ class ConfigSyncManager {
     try {
       const record = await this.adapter.get(key);
       if (record) {
-        this.cache.set(key, record as ConfigRecord);
-        this.baseCache.set(key, cloneDeep(record));
-        this.notifyListeners(key, record.value as ConfigValueMap[K], record.meta);
+        this.landLate([[key, record as ConfigRecord]]);
       }
       return true;
     } catch (error) {
@@ -415,6 +405,13 @@ class ConfigSyncManager {
       notify: (key, value, meta) => this.notifyListeners(key, value, meta),
       requeue: (changes) => this.enqueueOfflineChanges(changes),
     };
+  }
+
+  /** 首屏之后才到的记录（后台预加载、按需读取单个 key）统一从这里落进缓存。 */
+  private landLate(records: Iterable<[ConfigKey, ConfigRecord]>): void {
+    landLateRecords(records, this.cache, this.baseCache, (key, record) =>
+      this.notifyListeners(key, record.value as ConfigValueMap[ConfigKey], record.meta),
+    );
   }
 
   /** 通知监听器 */
