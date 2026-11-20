@@ -1,6 +1,5 @@
 /**
  * [INPUT]
- * @/lib/deploy-mode::isLocalMode (POS: local vs cloud deploy mode)
  * @/lib/utils/withTimeout::withTimeout (POS: wait limit for a promise, rejecting on timeout)
  * @/services/config::getConfigSyncManager (POS: config sync manager, the write gateway of the synced configs)
  * @/store/useConfigStore (POS: Global config state manager)
@@ -12,7 +11,6 @@
  * [POS]
  * The one gate in front of every entry into the Quick Search mode (the send guard and the mode selector).
  */
-import { isLocalMode } from '@/lib/deploy-mode';
 import { withTimeout } from '@/lib/utils/withTimeout';
 import { getConfigSyncManager } from '@/services/config';
 import useConfigStore from '@/store/useConfigStore';
@@ -22,25 +20,34 @@ import { guardSearchServiceConfigured } from './searchService';
 const SEARCH_SERVICES_WAIT_MS = 3000;
 
 /**
- * Cloud start-up returns the first screen's keys and loads the rest in the background, once and without a retry, so
- * the list is empty while that load is in flight and for good once it failed. An empty list the server has not
- * confirmed is not "no search service": the gate asks for the key first, decides on the list once the server has
- * answered (a refusal shows the setup notice), and lets the turn through when the answer fails or takes longer than
- * the wait limit, because the server refuses a turn without a search service anyway. Local mode returns every key with
- * the first request, so there is nothing to wait for (the wait would instead block on the local backend becoming
- * ready).
+ * Brings the account's search services into the store; false while their state cannot be known: the request for the key
+ * failed, or the manager has not reached the backend. A manager in that state holds nothing, and the local adapter
+ * reports an unreachable backend like a missing row, so the store must not be loaded from it: it would keep the
+ * defaults instead of the real configuration that arrives later.
+ */
+async function syncSearchServices(): Promise<boolean> {
+  const manager = getConfigSyncManager();
+  if (!(await manager.ensureKeyLoaded('searchServices')) || !manager.isInitialized) {
+    return false;
+  }
+  await useConfigStore.getState().initConfig();
+  return true;
+}
+
+/**
+ * The store's list is empty until the configuration has arrived: cloud start-up returns the first screen's keys and
+ * loads the rest in the background, once and without a retry, so the list stays empty for good once that load failed;
+ * a local start-up has it only once the backend is up. An empty list the server has not confirmed is not "no search
+ * service": the gate waits for the key and the store to catch up, decides on the list once they have (a refusal shows
+ * the setup notice), and lets the turn through when that fails or takes longer than the wait limit, because the server
+ * refuses a turn without a search service anyway.
  *
  * Resolves whether the turn may go on; false means it was refused here and the notice has been shown.
  */
 export const checkSearchServiceReady = async (): Promise<boolean> => {
-  if (!isLocalMode()) {
-    const known = await withTimeout(
-      getConfigSyncManager().ensureKeyLoaded('searchServices'),
-      SEARCH_SERVICES_WAIT_MS,
-    ).catch(() => false);
-    if (!known) {
-      return true;
-    }
+  const known = await withTimeout(syncSearchServices(), SEARCH_SERVICES_WAIT_MS).catch(() => false);
+  if (!known) {
+    return true;
   }
   return guardSearchServiceConfigured(useConfigStore.getState().searchServiceConfigs);
 };

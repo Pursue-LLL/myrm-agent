@@ -120,7 +120,7 @@ export const sendMessage = async (
   try {
     // 搜索服务检查：快速搜索模式与手选「快速搜索」智能体靠搜索服务作答，服务端不放行无搜索服务的回合，
     // 所以发送前拦截并引导配置；判定交给 checkSearchServiceReady（限时等搜索服务同步，取不到时放行由服务端裁决），
-    // 免得把云端刷新后还在后台加载的已配置账号误判为未配置。通用 agent 未配置 web_search 时由
+    // 免得把配置还没到齐（云端刷新后在后台加载、本地等后端就绪）的已配置账号误判为未配置。通用 agent 未配置 web_search 时由
     // stream preflight 的 SSE capability_gap 通知（避免与 client toast 重复）。
     if (requiresSearchService(requestState.actionMode, requestState.agentConfig)) {
       const { checkSearchServiceReady } = await import('@/store/config/searchServiceReady');
