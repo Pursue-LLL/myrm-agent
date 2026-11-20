@@ -2,8 +2,8 @@
 
 [INPUT]
 - host::DesktopSessionHost (POS: typed session state, approval revalidation, guard screenshots)
-- perception.ax_dispatch::inspect_backend (POS: lightweight foreground app probe)
-- iphone_mirror::is_iphone_mirror_app, probe_iphone_mirror_state (POS: connect-prompt gate)
+- perception.ax_dispatch::inspect_backend, run_ax_call (POS: foreground app probe, awaited off the event loop on macOS)
+- iphone_mirror::is_iphone_mirror_app, probe_iphone_mirror_state (POS: connect-prompt gate, awaited off the event loop on macOS)
 - semantic_gate, safety (POS: coordinate landing gate, hard blocks)
 
 [OUTPUT]
@@ -23,7 +23,7 @@ from myrm_agent_harness.toolkits.computer_use.iphone_mirror import (
     is_iphone_mirror_app,
     probe_iphone_mirror_state,
 )
-from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import inspect_backend
+from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import inspect_backend, run_ax_call
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     DesktopVisionAction,
@@ -44,7 +44,7 @@ class DesktopVisionMixin(DesktopSessionHost):
         """Screenshot for the model, behind the same screen and sensitive-app checks as the AX snapshot."""
         if (refusal := await self._screen_guard.refusal(snapshot=True)) is not None:
             return refusal
-        fg_app, fg_title, fg_app_id = self._foreground_identity()
+        fg_app, fg_title, fg_app_id = await run_ax_call(self._backend, self._foreground_identity)
         if blocked := safety.is_sensitive_app(fg_app, fg_title, fg_app_id):
             logger.warning("[SECURITY] Sensitive app guard (vision capture): %s", blocked)
             return f"Safety: Cannot view the screen. {blocked}"
@@ -105,7 +105,7 @@ class DesktopVisionMixin(DesktopSessionHost):
                     return f"Safety: {text_blocked}"
 
             # [SECURITY] Sensitive app guard — lightweight foreground app check.
-            fg_app, fg_title, fg_app_id = self._foreground_identity()
+            fg_app, fg_title, fg_app_id = await run_ax_call(self._backend, self._foreground_identity)
 
             blocked = safety.is_sensitive_app(fg_app, fg_title, fg_app_id)
             if blocked:
@@ -116,7 +116,7 @@ class DesktopVisionMixin(DesktopSessionHost):
             # no coordinate/keyboard action may reach the screen (would either
             # mis-click the pairing dialog or steal focus from it).
             if is_iphone_mirror_app(fg_app, fg_app_id):
-                probe = probe_iphone_mirror_state()
+                probe = await run_ax_call(self._backend, probe_iphone_mirror_state)
                 if probe.state == IPhoneMirrorState.BLOCKED_CONNECT_PROMPT:
                     logger.warning(
                         "[SECURITY] iPhone mirror connect gate (vision): %s",

@@ -20,9 +20,9 @@
 
 ## Dependencies
 
-- `computer_use/session.py` (POS: `ComputerSession` base: screen guard, app approval, screenshots, coordinate input)
+- `computer_use/session.py` (POS: `ComputerSession` base: screen guard, screenshots, coordinate input; its app and foreground approval comes from `session_permissions.py`)
 - `computer_use/dref/` (POS: registry, element and snapshot types, errors)
-- `computer_use/perception/` (POS: `capture_snapshot`, `invoke_element` with its `AxInvokeResult` failure classes, `inspect_backend`, renderers, diff)
+- `computer_use/perception/` (POS: `capture_snapshot`, `invoke_element` with its `AxInvokeResult` failure classes, `inspect_backend`, `run_ax_call` (awaits them off the event loop on macOS), renderers, diff)
 - `computer_use/execution/healer.py` (POS: bbox fallback of `desktop_interact` for an unsupported native action)
 - `computer_use/safety.py`, `semantic_gate.py`, `iphone_mirror.py`, `som_overlay.py`
 - Used by `desktop_agent_tools.py`, `mcp_server.py` and the server's desktop routes and gateway (all through the facade)
@@ -47,6 +47,8 @@ Every mixin derives from `DesktopSessionHost`, which is `object` at runtime and 
 The registry changes through one path only: a capture (agent snapshot, approval revalidation, inspector refresh) goes to `_adopt_capture`, which refuses a capture of a sensitive application before anything is registered and otherwise calls `DRefRegistry.adopt` with the capture masked by `FilledSecrets` (a credential the vault filled is replaced by `[REDACTED]` wherever it occurs in a control value, so the follow-up snapshot, later snapshots, the diff and the inspector never show it). `adopt` issues the ids: they only grow, a retired id is never given to another element, and an element keeps its id across captures only when it is in the same application (name and process). Inside that application a non-empty (role, name) that is unique on both sides continues wherever the element moved, and any other element continues only while its (role, name, bbox) is unique on both sides, that is, while it did not move. `Adoption.diff` compares the new content by id with what the model was last shown (`desktop_snapshot` records it), not with the previous capture, so a diff-mode snapshot lists new elements, changed elements and retired ids, including those that changed during a re-read the model did not ask for, and states that every unlisted id is still valid. A retired id fails as stale instead of resolving to a neighbour.
 
 The approval revalidation re-reads the application of the approved @dref by name (not the foreground application) and refuses before registering anything when it has no readable window or another application or process answers. After the re-read the semantic gates, the mirror gate, the delivery and the follow-up snapshot all use the one capture the registry resolved the element from.
+
+Every wait on the platform accessibility API (the capture of a snapshot, of an approval re-read and of an inspector refresh; the native invoke; the foreground identity; the iPhone Mirroring probe) goes through `run_ax_call`, which runs it on a worker thread for the macOS backend so the event loop keeps serving other chats. Only that read is awaited off the loop: the capture is registered (`_adopt_capture`) and the view is emitted back on the loop thread, so the registry has one writer thread.
 
 Module-level collaborators (`capture_snapshot`, `invoke_element`, `try_bbox_click`, `inspect_backend`, `render_snapshot_tree`, `probe_iphone_mirror_state`) are imported where they are called, so a test patches `...desktop_session.<module>.<name>` of the mixin that calls it: `snapshot` (snapshot flow), `guards` (approval revalidation), `views` (inspector export), `interact`, `vision`.
 

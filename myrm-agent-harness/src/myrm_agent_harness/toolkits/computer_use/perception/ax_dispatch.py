@@ -10,6 +10,7 @@
 - capture_snapshot: platform-routed AX snapshot capture
 - inspect_backend: frontmost app metadata inspection
 - invoke_element: platform-routed AX element invocation; a failure carries what it proves about delivery
+- run_ax_call: awaits a blocking AX or osascript call without stalling the event loop where that is verified safe
 
 [POS]
 Platform routing dispatch for AX snapshot/invoke. Routes to macOS/Windows/Linux backend.
@@ -17,7 +18,9 @@ Platform routing dispatch for AX snapshot/invoke. Routes to macOS/Windows/Linux 
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import Callable
 
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
 from myrm_agent_harness.toolkits.computer_use.dref.types import (
@@ -87,3 +90,18 @@ def invoke_element(
     if platform == "LinuxBackend":
         return linux_ax.invoke_ax_element(element.backend_key, action, text, role=element.role, name=element.name)
     return AxInvokeResult.failed(AxFailure.UNSUPPORTED, f"Unsupported backend for AX invoke: {platform}")
+
+
+async def run_ax_call[**P, R](
+    backend: ComputerBackend, call: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs
+) -> R:
+    """Await a blocking AX or osascript call without freezing the event loop on macOS.
+
+    The macOS capture, invoke and foreground reads wait on an osascript child for up to 15 s; on the loop thread that
+    stops every other chat in the process, so a worker thread runs them (they touch no in-process AppKit state). The
+    other platforms run inline: the thread rules of their UIA (COM) and AT-SPI bindings are not checked here.
+    Callers keep every registry write on the loop thread by awaiting this for the read only.
+    """
+    if type(backend).__name__ == "MacOSBackend":
+        return await asyncio.to_thread(call, *args, **kwargs)
+    return call(*args, **kwargs)

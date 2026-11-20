@@ -2,7 +2,7 @@
 
 [INPUT]
 - host::DesktopSessionHost (POS: typed session state: registry, registry write entry, view callback, screenshots)
-- perception.ax_dispatch::capture_snapshot (POS: AX snapshot for the inspector refresh)
+- perception.ax_dispatch::capture_snapshot, run_ax_call (POS: AX snapshot for the inspector refresh, awaited off the event loop on macOS)
 - perception.overlay_roles::normalize_desktop_role (POS: cross-platform role normalization for the overlay payload)
 - som_overlay::apply_som_overlay_to_jpeg_base64, build_som_index_map (POS: numbered overlay on screenshots)
 
@@ -23,7 +23,7 @@ from collections.abc import Mapping
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
-from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot
+from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot, run_ax_call
 from myrm_agent_harness.toolkits.computer_use.perception.overlay_roles import normalize_desktop_role
 from myrm_agent_harness.toolkits.computer_use.som_overlay import (
     apply_som_overlay_to_jpeg_base64,
@@ -215,7 +215,7 @@ class DesktopViewMixin(DesktopSessionHost):
         from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
 
         try:
-            meta, refs = capture_snapshot(self._backend, "foreground", None)
+            meta, refs = await run_ax_call(self._backend, capture_snapshot, self._backend, "foreground", None)
         except AXPermissionRequiredError:
             await self._emit_permission_view_update()
             return self._empty_view_payload(needs_permission=True)

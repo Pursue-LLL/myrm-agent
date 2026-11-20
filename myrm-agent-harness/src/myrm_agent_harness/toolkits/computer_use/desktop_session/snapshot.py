@@ -2,7 +2,7 @@
 
 [INPUT]
 - host::DesktopSessionHost (POS: typed session state, the registry write entry and the view-emission methods)
-- perception.ax_dispatch::capture_snapshot (POS: AX snapshot of the foreground or a target app)
+- perception.ax_dispatch::capture_snapshot, run_ax_call (POS: AX snapshot of the foreground or a target app, awaited off the event loop on macOS)
 - perception.renderer::render_diff_tree, render_snapshot_tree (POS: incremental and full tree text)
 - som_overlay::build_som_index_map (POS: numbered overlay indexes)
 - iphone_mirror::is_iphone_mirror_app, probe_iphone_mirror_state (POS: connect-prompt gate hint)
@@ -26,7 +26,7 @@ from myrm_agent_harness.toolkits.computer_use.iphone_mirror import (
     is_iphone_mirror_app,
     probe_iphone_mirror_state,
 )
-from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot
+from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot, run_ax_call
 from myrm_agent_harness.toolkits.computer_use.perception.renderer import (
     render_diff_tree,
     render_snapshot_tree,
@@ -57,7 +57,9 @@ class DesktopSnapshotMixin(DesktopSessionHost):
             return refusal
 
         try:
-            meta, refs = capture_snapshot(self._backend, scope, app_name=app_name, query=query, role=role)
+            meta, refs = await run_ax_call(
+                self._backend, capture_snapshot, self._backend, scope, app_name=app_name, query=query, role=role
+            )
         except AXPermissionRequiredError as exc:
             await self._emit_permission_view_update()
             return str(exc)
@@ -101,7 +103,7 @@ class DesktopSnapshotMixin(DesktopSessionHost):
 
         header = f"Desktop snapshot ready ({enriched_meta.ref_count} refs, ~{enriched_meta.token_estimate} tokens)."
         if is_iphone_mirror_app(meta.app_name, meta.app_id):
-            probe = probe_iphone_mirror_state()
+            probe = await run_ax_call(self._backend, probe_iphone_mirror_state)
             if probe.state == IPhoneMirrorState.BLOCKED_CONNECT_PROMPT:
                 header = f"{header}\n[IPHONE_MIRROR_GATE] {probe.detail} {probe.remedy_hint}"
         self._refs.mark_shown()

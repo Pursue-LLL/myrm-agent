@@ -3,20 +3,25 @@
 Exercises the REAL dispatch logic (no mocks of dispatch itself): scope/app_name
 are routed verbatim to the matching platform perception module, and unsupported
 backends fail with a clear RuntimeError. Only the leaf perception calls are mocked.
+run_ax_call is exercised with real threads: where a blocking call runs, and that the loop keeps ticking meanwhile.
 """
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
 
+from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
 from myrm_agent_harness.toolkits.computer_use.dref.types import SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
     capture_snapshot,
     inspect_backend,
     invoke_element,
+    run_ax_call,
 )
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
@@ -170,3 +175,58 @@ def test_desktop_snapshot_tool_schema_exposes_target_scope_and_app_name() -> Non
     app_desc = props["app_name"].get("description", "")
     assert "app name" in app_desc
     assert "target" in app_desc
+
+
+class TestRunAxCall:
+    """A blocking AX call leaves the event loop thread on macOS and stays inline everywhere else."""
+
+    async def test_macos_runs_the_call_on_a_worker_thread(self) -> None:
+        threads: list[int] = []
+
+        def read(scope: str, *, app: str) -> tuple[str, str]:
+            threads.append(threading.get_ident())
+            return scope, app
+
+        result = await run_ax_call(_backend_named("MacOSBackend"), read, "target", app="Mail")
+
+        assert result == ("target", "Mail")
+        assert threads
+        assert threads[0] != threading.get_ident()
+
+    @pytest.mark.parametrize("platform", ["WindowsBackend", "LinuxBackend", "UnsupportedBackend"])
+    async def test_other_platforms_run_the_call_on_the_loop_thread(self, platform: str) -> None:
+        threads: list[int] = []
+
+        def read() -> str:
+            threads.append(threading.get_ident())
+            return "read"
+
+        assert await run_ax_call(_backend_named(platform), read) == "read"
+        assert threads == [threading.get_ident()]
+
+    @pytest.mark.parametrize("platform", ["MacOSBackend", "WindowsBackend"])
+    async def test_the_error_of_the_call_reaches_the_caller(self, platform: str) -> None:
+        def read() -> None:
+            raise AXTreeEmptyError("no window")
+
+        with pytest.raises(AXTreeEmptyError, match="no window"):
+            await run_ax_call(_backend_named(platform), read)
+
+    async def test_the_loop_keeps_running_while_a_macos_call_blocks(self) -> None:
+        loop_ticked = threading.Event()
+
+        async def heartbeat() -> None:
+            for _ in range(3):
+                await asyncio.sleep(0)
+            loop_ticked.set()
+
+        def blocks_until_the_loop_has_ticked() -> str:
+            # Run on the loop thread this would wait out the timeout: the heartbeat could not run until it returned.
+            assert loop_ticked.wait(timeout=5), "the event loop did not run while the call blocked"
+            return "read"
+
+        beat = asyncio.create_task(heartbeat())
+        result = await run_ax_call(_backend_named("MacOSBackend"), blocks_until_the_loop_has_ticked)
+        await beat
+
+        assert result == "read"

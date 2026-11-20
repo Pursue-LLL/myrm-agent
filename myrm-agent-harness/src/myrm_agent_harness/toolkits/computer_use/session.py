@@ -8,8 +8,9 @@ single cohesive API surface. Agent tools interact exclusively with this class.
 - screenshot_processor::ScreenshotProcessor (POS: image preprocessing)
 - coordinate_scaler::CoordinateScaler (POS: coordinate transformation)
 - screen_guard::ScreenGuard (POS: lock / sleep gate with host-provided on-demand unlock)
+- session_permissions::ComputerPermissionMixin (POS: foreground and per-application permission gates)
 - utils.runtime.user_control::UserControl, get_user_control (POS: process-wide human-control hold consulted before every mutating call)
-- types::ComputerUseConfig, ActionResult, PermissionStatus, ExecutionMode, ForegroundPermissionCallback, ForegroundPermissionScope, ScreenUnlockCallback (POS: shared types)
+- types::ComputerUseConfig, ActionResult, PermissionStatus, ForegroundPermissionCallback, ScreenUnlockCallback (POS: shared types)
 
 [OUTPUT]
 - ComputerSession: high-level session manager
@@ -28,12 +29,11 @@ from myrm_agent_harness.toolkits.computer_use.backends.protocols import Computer
 from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import CoordinateScaler
 from myrm_agent_harness.toolkits.computer_use.screen_guard import ScreenGuard
 from myrm_agent_harness.toolkits.computer_use.screenshot_processor import ScreenshotProcessor
+from myrm_agent_harness.toolkits.computer_use.session_permissions import ComputerPermissionMixin
 from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ComputerUseConfig,
-    ExecutionMode,
     ForegroundPermissionCallback,
-    ForegroundPermissionScope,
     ModifierKey,
     PermissionStatus,
     ScreenContext,
@@ -50,7 +50,7 @@ from myrm_agent_harness.utils.runtime.user_control import (
 logger = logging.getLogger(__name__)
 
 
-class ComputerSession:
+class ComputerSession(ComputerPermissionMixin):
     """High-level computer use session.
 
     Lifecycle: create → take_screenshot → click_at/type_text/key_press/... → close
@@ -70,9 +70,9 @@ class ComputerSession:
         self._screen_info: ScreenInfo | None = None
         self._permission_callback = permission_callback
         self._screen_guard = ScreenGuard(backend, self.reanchor_visual_state)
-        self._session_permission_granted: bool = False
-        self._always_permission_granted: bool = False
-        self._operation_foreground_waived: bool = False
+        self._session_permission_granted = False
+        self._always_permission_granted = False
+        self._operation_foreground_waived = False
         # Whether a person drives the desktop is a process-wide fact; the session only consults it.
         # `observed_generation` is the control hand-over the model last looked at the screen after.
         self.user_control: UserControl = get_user_control()
@@ -123,12 +123,6 @@ class ComputerSession:
         self._screen_info = None
         logger.info("[REANCHOR] Visual state discarded; next action will recapture screen")
 
-    def reset_runtime_permission_cache(self) -> None:
-        """Clear in-memory foreground/app approval shortcuts (E2E/dev recovery)."""
-        self._session_permission_granted = False
-        self._always_permission_granted = False
-        self._operation_foreground_waived = False
-
     @property
     def screen_info(self) -> ScreenInfo:
         if self._screen_info is None:
@@ -142,137 +136,6 @@ class ComputerSession:
     @property
     def screen_context(self) -> ScreenContext:
         return self._backend.screen_context()
-
-    async def check_foreground_permission(
-        self,
-        *,
-        reason: str,
-        operation: str,
-        estimated_duration_seconds: float = 5.0,
-        app_name: str = "",
-        window_title: str = "",
-        app_id: str = "",
-    ) -> ActionResult | None:
-        """Gate foreground-stealing operations behind user permission.
-
-        Returns None if permission is granted (proceed with execution).
-        Returns an ActionResult with error if permission is denied or unavailable.
-        """
-        mode = self._config.execution_mode
-
-        if mode == ExecutionMode.foreground:
-            return None
-
-        if self._always_permission_granted or self._session_permission_granted:
-            return None
-
-        if self._operation_foreground_waived:
-            return None
-
-        if self._permission_callback is None:
-            if mode == ExecutionMode.background_strict:
-                return ActionResult(
-                    success=False,
-                    error="Foreground operation blocked: execution_mode is background_strict "
-                    "and no permission callback is configured.",
-                )
-            return None
-
-        result = await self._permission_callback(
-            reason=reason,
-            operation=operation,
-            estimated_duration_seconds=estimated_duration_seconds,
-            app_name=app_name,
-            window_title=window_title,
-            app_id=app_id,
-            require_app_approval=False,
-        )
-
-        if not result.granted:
-            return ActionResult(
-                success=False,
-                error=f"Foreground permission denied by user. Reason: {reason}",
-            )
-
-        if result.scope == ForegroundPermissionScope.session:
-            self._session_permission_granted = True
-        elif result.scope == ForegroundPermissionScope.always:
-            self._always_permission_granted = True
-
-        logger.info("Foreground permission granted (scope=%s): %s", result.scope.value, reason)
-        return None
-
-    async def check_app_approval(
-        self,
-        *,
-        app_name: str,
-        window_title: str,
-        operation: str,
-        estimated_duration_seconds: float = 5.0,
-        app_id: str = "",
-    ) -> ActionResult | None:
-        """Gate first-time per-app desktop interaction behind user approval."""
-        resolved_app = app_name.strip()
-        resolved_title = window_title.strip()
-        resolved_app_id = app_id.strip()
-
-        if not resolved_app:
-            from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
-                inspect_backend,
-            )
-
-            fg_info = inspect_backend(self._backend)
-            resolved_app = str(fg_info.get("app_name", "") or "").strip()
-            resolved_app_id = str(fg_info.get("app_id", "") or "").strip()
-            if not resolved_title:
-                resolved_title = str(fg_info.get("window_title", "") or "").strip()
-
-        if not resolved_app:
-            if self._permission_callback is not None or self._config.execution_mode == ExecutionMode.background_strict:
-                return ActionResult(
-                    success=False,
-                    error=(
-                        "Desktop control blocked: could not identify the foreground application "
-                        "for approval. Call desktop_snapshot_tool first or grant Accessibility access."
-                    ),
-                )
-            return None
-
-        if self._permission_callback is None:
-            if self._config.execution_mode == ExecutionMode.background_strict:
-                return ActionResult(
-                    success=False,
-                    error="Desktop app control blocked: no permission callback is configured.",
-                )
-            return None
-
-        result = await self._permission_callback(
-            reason=f"Agent wants to control application '{resolved_app}'",
-            operation=operation,
-            estimated_duration_seconds=estimated_duration_seconds,
-            app_name=resolved_app,
-            window_title=resolved_title,
-            app_id=resolved_app_id,
-            require_app_approval=True,
-        )
-
-        if not result.granted:
-            return ActionResult(
-                success=False,
-                error=f"Desktop control denied for application '{resolved_app}'.",
-            )
-
-        if result.scope == ForegroundPermissionScope.session:
-            self._session_permission_granted = True
-        elif result.scope == ForegroundPermissionScope.always:
-            self._always_permission_granted = True
-
-        self._operation_foreground_waived = True
-        return None
-
-    def clear_operation_foreground_waiver(self) -> None:
-        """Clear one-shot foreground waiver after the current desktop tool call finishes."""
-        self._operation_foreground_waived = False
 
     async def take_screenshot(self, app_name: str | None = None, window_index: int = 0) -> ActionResult:
         """Capture screen, preprocess, and return as base64 JPEG with screen metadata.

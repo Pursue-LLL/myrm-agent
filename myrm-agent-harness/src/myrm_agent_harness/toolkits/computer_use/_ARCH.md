@@ -23,7 +23,8 @@ Detailed design: [DESKTOP_SYSTEM.md](DESKTOP_SYSTEM.md).
 | screenshot_processor.py | Core | Binary-search downsampling pipeline | ✅ |
 | coordinate_scaler.py | Core | DPI-aware coordinate transformer | ✅ |
 | som_overlay.py | Core | SOM numbered overlay on JPEG; agent path when `include_screenshot=True`, inspector refresh when screenshot captured; stable [N]↔@dref map (cap 80) | ✅ |
-| session.py | Core | ComputerSession orchestrator (coordinate I/O, app + foreground gates, operation-scoped foreground waiver) | ✅ |
+| session.py | Core | ComputerSession orchestrator (screenshots, coordinate I/O, screen and user-control guards); its permission gates come from `ComputerPermissionMixin` | ✅ |
+| session_permissions.py | Core | `ComputerPermissionMixin`: foreground permission gate (`check_foreground_permission`), per-application approval (`check_app_approval`, which looks up the foreground application without freezing the event loop on macOS), the grants kept for the session and the operation-scoped foreground waiver | ✅ |
 | desktop_agent_tools.py | Core | 3 LangChain tools: snapshot / interact / vision | ✅ |
 | envelope.py | Core | Intent envelope contracts (`IntentEnvelopeSpec`), keystroke sanitizer (`KeystrokeSanitizer`), modal window trust hierarchy, and boundary checker (`check_envelope_action`) | ✅ |
 | mcp_server.py | Surface | MCP server adapter exposing desktop tools (DesktopMCPServer, register_desktop_mcp_tools) to external agents | ✅ |

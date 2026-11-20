@@ -70,6 +70,10 @@ A native action that failed reports what it proves about delivery (`perception/a
 
 `fill_credential` takes the secret from the vault and never from the model, but the control that holds it reports it as its value in the next capture, and the follow-up snapshot is part of every `desktop_interact` reply. The session therefore remembers each secret the vault filled (`desktop_session/secrecy.py`, the vault's own strings) from before the delivery, and `_adopt_capture` replaces it with `[REDACTED]` wherever it occurs in a control's value, not only when it is the whole value, because typing does not always replace what the control held (a retried fill, or text typed at the caret on Windows and in the bbox fallback). The follow-up snapshot, a later snapshot, the diff, the registry and the inspector all read the masked value. A backend error that a reply quotes (native failure, bbox fallback failure) is redacted the same way. A secret the page shows only in pieces, or as an image, is not recognized. On Windows a text entry goes to `SendKeys` as the key script that types the value literally (`{` as `{{}`, `}` as `{}}`), because a brace in a value would otherwise be read as a key name such as `{Win}`.
 
+### Event loop and foreground read
+
+Every AX capture, element invoke, foreground read and iPhone Mirroring probe of the macOS backend waits on an `osascript` child for up to 15 s, and run on the loop thread that wait stops every other chat of the process (streaming, approvals, heartbeats). `perception/ax_dispatch.py::run_ax_call` therefore runs it on a worker thread for the macOS backend only. The calls touch no in-process AppKit state, and the caller keeps the registry write (`_adopt_capture`) on the loop thread by awaiting the read alone. The Windows and Linux bindings are called inline: the thread rules of UIA (COM) and AT-SPI are not verified. The focus-leak guard of the coordinate fallback (`guard_foreground`) reads the front-most layer-0 window of the window server's stacking order, because NSWorkspace only hears focus changes through an AppKit run loop, which the server process does not run.
+
 ---
 
 ## Core Components
@@ -156,6 +160,7 @@ Injected via server `DESKTOP_CONTROL_RULES` (`myrm-agent-server/app/ai_agents/pr
 | Item | Status |
 |------|--------|
 | Linux AT-SPI invoke | ✅ implemented (pyatspi doAction/EditableText/grabFocus) |
+| Event loop on Windows and Linux | ⏳ AX calls run inline on the loop thread, so a slow capture pauses the other chats of the process for its duration; macOS runs them on a worker thread (see "Event loop and foreground read") |
 | Skill recording capture granularity | ⏳ `DesktopCaptureDriver` diffs foreground AX snapshots, so it observes interactions that change the tree: new elements (click), value changes on interactive roles (type on text entry, click on checkbox/radio/switch/slider), and app switches. Pointer gestures that leave no tree trace (drag, scroll, repeated clicks on an unchanged element) and modifier-key shortcuts (`Cmd+S`) are not captured. Event-driven capture via OS input taps (macOS CGEventTap / Windows SetWindowsHookEx / Linux XRecord) is the upgrade path |
 | Desktop control gate (server) | ✅ `DesktopControlGate` + SSE approval card. Local monorepo: `./myrm-dev ready` (editable harness; no PyPI). Release/CI: harness tag → `./myrm-dev harness sync-lock` → commit `uv.lock` before `--frozen` |
 | Unattended desktop (Locked Use + Privacy Curtain) | ✅ server `locked_use/` unlock 三态 + Tauri `curtain_capture_exclusion_ready`（Windows：`RtlGetVersion` build 探测，≥19041）+ 设置 fail-closed；单测 `tests/services/locked_use/`（169，`./myrm-dev test myrm-agent/myrm-agent-server/tests/services/locked_use/`） |

@@ -3,7 +3,7 @@
 [INPUT]
 - host::DesktopSessionHost (POS: typed session state with the secrets the vault filled, approval revalidation, guard screenshots, follow-up snapshot)
 - dref.registry::DRefRegistry.resolve (POS: the element a reference names with the snapshot that registered it)
-- perception.ax_dispatch::invoke_element (POS: native AX action on an element)
+- perception.ax_dispatch::invoke_element, run_ax_call (POS: native AX action on an element, awaited off the event loop on macOS)
 - perception.ax_result::AxFailure (POS: what a failed native action proves about delivery)
 - execution.healer::try_bbox_click (POS: coordinate fallback for an action the native route cannot perform)
 - semantic_gate, safety, core.security.credential_vault (POS: destructive-action gate, hard blocks, credential fill)
@@ -30,7 +30,7 @@ from dataclasses import replace
 from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
 from myrm_agent_harness.toolkits.computer_use.execution.healer import try_bbox_click
-from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invoke_element
+from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import invoke_element, run_ax_call
 from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import DESKTOP_TEXT_ACTIONS, DesktopInteractAction, ModifierKey
 
@@ -176,7 +176,9 @@ class DesktopInteractMixin(DesktopSessionHost):
                 elif action == "set_value":
                     effective_action = "set_value"
 
-                ax_result = invoke_element(
+                ax_result = await run_ax_call(
+                    self._backend,
+                    invoke_element,
                     self._backend,
                     element,
                     effective_action,

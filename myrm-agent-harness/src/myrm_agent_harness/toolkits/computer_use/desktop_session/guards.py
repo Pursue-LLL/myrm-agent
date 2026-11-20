@@ -2,7 +2,7 @@
 
 [INPUT]
 - host::DesktopSessionHost (POS: typed session state: registry and its write entry, snapshot clock, screenshots)
-- perception.ax_dispatch::capture_snapshot (POS: AX snapshot of the foreground or a target app)
+- perception.ax_dispatch::capture_snapshot, run_ax_call (POS: AX snapshot of a target app, awaited off the event loop on macOS)
 - dref.errors::{AXTreeEmptyError, DRefStaleError} (POS: application window that cannot be read, unknown or retired @dref)
 
 [OUTPUT]
@@ -20,7 +20,7 @@ import logging
 import time
 
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError, DRefStaleError
-from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot
+from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot, run_ax_call
 
 from .host import DesktopSessionHost
 
@@ -56,7 +56,7 @@ class DesktopGuardSupportMixin(DesktopSessionHost):
         )
         try:
             if interact_ref is not None:
-                return self._reread_registered_app(interact_ref)
+                return await self._reread_registered_app(interact_ref)
 
             shot = await self.take_screenshot()
             if not shot.success:
@@ -66,7 +66,7 @@ class DesktopGuardSupportMixin(DesktopSessionHost):
         except Exception as exc:
             return f"Safety Re-validation failed: Could not re-verify screen state ({exc!s})."
 
-    def _reread_registered_app(self, interact_ref: str) -> str | None:
+    async def _reread_registered_app(self, interact_ref: str) -> str | None:
         """Read the application the element belongs to again; refuse unless the element is still in it.
 
         The application is the one the registry holds, not whichever is in front. A capture of another application
@@ -78,7 +78,9 @@ class DesktopGuardSupportMixin(DesktopSessionHost):
         except DRefStaleError:
             return None  # an unknown reference is refused as stale by the caller
         try:
-            meta, capture = capture_snapshot(self._backend, "target", registered.app_name)
+            meta, capture = await run_ax_call(
+                self._backend, capture_snapshot, self._backend, "target", registered.app_name
+            )
         except AXTreeEmptyError:
             return _element_gone(ref_id)  # the application no longer has a window that can be read
         if not meta.same_app(registered):

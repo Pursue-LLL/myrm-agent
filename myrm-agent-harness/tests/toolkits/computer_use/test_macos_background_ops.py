@@ -189,39 +189,7 @@ class TestCaptureWindowPng:
             asyncio.get_event_loop().run_until_complete(_run())
 
 
-class TestFrontmostPidBranches:
-    def test_app_none_and_bad_pid(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
-
-        workspace = MagicMock()
-        workspace.frontmostApplication.return_value = None
-        ns = MagicMock()
-        ns.sharedWorkspace.return_value = workspace
-        with patch.dict("sys.modules", {"AppKit": MagicMock(NSWorkspace=ns)}):
-            assert macos_background._frontmost_pid_nsworkspace() is None
-        app = MagicMock()
-        app.processIdentifier.return_value = 0
-        workspace.frontmostApplication.return_value = app
-        with patch.dict("sys.modules", {"AppKit": MagicMock(NSWorkspace=ns)}):
-            assert macos_background._frontmost_pid_nsworkspace() is None
-
-    def test_osascript_branches(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
-
-        with (
-            patch.dict("sys.modules", {"AppKit": None}),
-            patch("subprocess.run", side_effect=OSError("no")),
-        ):
-            assert macos_background._frontmost_pid() is None
-        with (
-            patch.dict("sys.modules", {"AppKit": None}),
-            patch("subprocess.run") as run,
-        ):
-            run.return_value = MagicMock(returncode=1, stdout="")
-            assert macos_background._frontmost_pid() is None
-            run.return_value = MagicMock(returncode=0, stdout="abc")
-            assert macos_background._frontmost_pid() is None
-
+class TestPostEventAndWindowBranches:
     def test_request_success_path(self) -> None:
         fake_cg = MagicMock()
         fake_cg.CGRequestPostEventAccess.return_value = True
@@ -483,32 +451,3 @@ class TestEnsurePostEventAccess:
                 assert macos_background.ensure_post_event_access() is False
             assert macos_background.ensure_post_event_access() is True
         macos_background._post_event_prompted = False
-
-
-class TestFastFrontmostPid:
-    def test_nsworkspace_path(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
-
-        app = MagicMock()
-        app.processIdentifier.return_value = 777
-        workspace = MagicMock()
-        workspace.frontmostApplication.return_value = app
-        ns_workspace = MagicMock()
-        ns_workspace.sharedWorkspace.return_value = workspace
-        with (
-            patch.dict("sys.modules", {"AppKit": MagicMock(NSWorkspace=ns_workspace)}),
-            patch("subprocess.run") as run,
-        ):
-            assert macos_background._frontmost_pid() == 777
-            run.assert_not_called()
-
-    def test_nsworkspace_failure_falls_back_to_osascript(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.backends.macos import background as macos_background
-
-        with (
-            patch.dict("sys.modules", {"AppKit": None}),
-            patch("subprocess.run") as run,
-        ):
-            run.return_value = MagicMock(returncode=0, stdout="  888\n")
-            assert macos_background._frontmost_pid() == 888
-            run.assert_called_once()

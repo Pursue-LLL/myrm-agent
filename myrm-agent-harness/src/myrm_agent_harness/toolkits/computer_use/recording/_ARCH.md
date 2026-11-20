@@ -10,7 +10,7 @@ Desktop workflow skill recording, capture driving, event clustering, Tool Liftin
 | `__init__.py` | Package | Exports recording types, synthesizer functions and the capture driver | ✅ |
 | `types.py` | Core | `DesktopRecordedEvent`, `SynthesizedSkillStep`, `SynthesizedSkillDraft`, `ToolLiftingCandidate`. `DesktopRecordedEvent.to_dict()` masks a password value as `***` | ✅ |
 | `synthesizer.py` | Core | Pure algorithm for event debouncing, tool lifting, variable extraction, and SKILL.md rendering. A password event's value is dropped from step parameters so a secret can never reach the published SKILL.md; lifted tools name real registry tools (`bash_code_execute_tool`, `file_write_tool`) | ✅ |
-| `capture_driver.py` | Core | `DesktopCaptureDriver` polls foreground AX snapshots, diffs consecutive frames via `perception/ax_diff`, and emits `DesktopRecordedEvent` interactions (click / type / window_focus). A secure-role element (`dref.types.is_secure_role`) yields a type event with no value and `is_password=True` | ✅ |
+| `capture_driver.py` | Core | `DesktopCaptureDriver` polls foreground AX snapshots (through `run_ax_call`, so a macOS poll does not freeze the event loop), diffs consecutive frames via `perception/ax_diff`, and emits `DesktopRecordedEvent` interactions (click / type / window_focus). A secure-role element (`dref.types.is_secure_role`) yields a type event with no value and `is_password=True` | ✅ |
 
 ## Security contracts
 

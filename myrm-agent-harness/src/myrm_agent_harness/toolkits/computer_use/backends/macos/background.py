@@ -4,7 +4,8 @@
 - dref.errors::FocusChangedError (POS: focus-leak abort error)
 
 [OUTPUT]
-- resolve_app_pid, _capture_window_png, guard_foreground
+- resolve_app_pid, _capture_window_png
+- guard_foreground (POS: focus-leak guard; the frontmost pid is the owner of the front-most layer-0 window in the window list)
 - _check_post_event_access, _request_post_event_access
 - _capture_screen_excluding_titles (POS: overlay-excluded fullscreen capture)
 
@@ -172,8 +173,35 @@ def resolve_app_pid(app_name: str, window_index: int = 0) -> int | None:
     return target.pid if target else None
 
 
+def _frontmost_pid_window_list() -> int | None:
+    """Owner of the front-most normal window, read in-process from the window server's stacking order.
+
+    NSWorkspace only follows focus changes while the process runs an AppKit run loop, which the server does not, so it
+    can keep naming an application the user already left. The window list needs no run loop; layer 0 skips the
+    menu-bar items, the dock and the floating panels that sit above every application.
+    """
+    try:
+        from Quartz import (
+            CGWindowListCopyWindowInfo,
+            kCGNullWindowID,
+            kCGWindowListExcludeDesktopElements,
+            kCGWindowListOptionOnScreenOnly,
+        )
+
+        windows = CGWindowListCopyWindowInfo(
+            kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID
+        )
+        for window in windows or ():
+            if window.get("kCGWindowLayer") == 0:
+                pid = int(window.get("kCGWindowOwnerPID", 0))
+                return pid if pid > 0 else None
+    except Exception:
+        return None
+    return None
+
+
 def _frontmost_pid_nsworkspace() -> int | None:
-    """Fast path: read frontmost pid in-process (no subprocess spawn)."""
+    """Frontmost pid as NSWorkspace last heard it (stale without a run loop); no subprocess spawn."""
     try:
         from AppKit import NSWorkspace
 
@@ -187,8 +215,13 @@ def _frontmost_pid_nsworkspace() -> int | None:
 
 
 def _frontmost_pid() -> int | None:
-    """Unix pid of the frontmost process, without changing focus."""
-    pid = _frontmost_pid_nsworkspace()
+    """Unix pid of the frontmost process, without changing focus.
+
+    The window list is read first; NSWorkspace and finally a System Events query answer when it cannot.
+    """
+    pid = _frontmost_pid_window_list()
+    if pid is None:
+        pid = _frontmost_pid_nsworkspace()
     if pid is not None:
         return pid
     try:
