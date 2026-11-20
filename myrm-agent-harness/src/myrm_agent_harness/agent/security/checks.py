@@ -1,12 +1,12 @@
 """Built-in security checks — Layer 2 & 2.5 of the onion security architecture.
 
 Path policy evaluation, URL scheme validation, and shell threat analysis.
-All checks are pure functions — no side effects, no I/O, trivially testable.
+All checks are functions without side effects; the only I/O is the read-only resolution of a path a call names.
 
 [INPUT]
 - approval_reason::ApprovalReasonCode, CodedReason (POS: tags each decision that waits for a human with a stable code)
 - command_rules::COMMAND_BEARING_PERMISSIONS, command_text (POS: the permission types whose tool input carries command text, and the text the tool runs)
-- path_security (POS: protected-file, sensitive-file, boundary, network-path and home-spelling predicates)
+- path_security (POS: protected-file, sensitive-file, boundary and network-path predicates, and the file a typed path opens)
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
 - toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
 - toolkits.code_execution.code_detector::runs_as_python (POS: whether the bash tool runs a command as Python or as shell)
@@ -34,13 +34,13 @@ from urllib.parse import urlparse
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.command_rules import COMMAND_BEARING_PERMISSIONS, command_text
 from myrm_agent_harness.agent.security.path_security import (
-    expand_home,
     is_executable_git_metadata_file,
     is_network_or_nt_path,
     is_protected_instruction_file,
     is_sensitive_file,
     is_within_boundary,
     network_path_refusal,
+    opened_path,
 )
 from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
 from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
@@ -53,19 +53,6 @@ from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import Work
 def _normalize_path(raw: str) -> str:
     """Expand ``~`` and environment variables in a configured path, resolve to an absolute path for comparison."""
     return os.path.realpath(os.path.expanduser(os.path.expandvars(raw)))
-
-
-def _opened_path(raw_path: str, workspace_root: str | None) -> str:
-    """The file the tools open for a typed path, with every link in it resolved.
-
-    The spelling is the executor's: a bare ``~`` is the user's home and nothing else is expanded, so ``$HOME`` is a
-    directory name and ``~name`` is no other user's home. A link named like a variable (``$HOME -> .env``) is then
-    followed, not expanded away before the resolution that would have shown it.
-    """
-    spelled = expand_home(raw_path)
-    if workspace_root and not os.path.isabs(spelled):
-        spelled = os.path.join(workspace_root, spelled)
-    return os.path.realpath(spelled)
 
 
 def _is_subpath(child: str, parent: str) -> bool:
@@ -84,7 +71,7 @@ def check_path_policy(
 
     Returns (DENY, reason) if blocked by forbidden paths, or if the path is spelled as a network share or NT
     namespace (decided on the text, before the path is normalised: opening such a path on Windows connects to the
-    host it names).
+    host it names), or if no file can be named by its text (a NUL byte or a lone surrogate: the tools cannot open it).
     Returns (ALLOW, "") if in a writable access root or workspace (when writing).
     Returns (ALLOW, "") for read-only roots when require_write is False.
     Returns (ASK, reason) for write attempts on read-only roots (triggers write escalation).
@@ -104,7 +91,10 @@ def check_path_policy(
     container_relative = WorkspacePathResolver.container_relative(raw_path) if workspace_root else None
     if container_relative is not None:
         raw_path = container_relative
-    normalized = _opened_path(raw_path, workspace_root)
+    normalized = opened_path(raw_path, workspace_root)
+    if normalized is None:
+        # ``!r`` keeps the reason encodable: the text holds a NUL byte or a lone surrogate.
+        return PermissionAction.DENY, f"Path cannot be resolved: {raw_path!r}"
 
     for fp in policy.forbidden_paths:
         if _is_subpath(normalized, _normalize_path(fp)):
@@ -175,9 +165,15 @@ def _sensitive_form(raw_path: str, normalized: str) -> str | None:
     """The spelling the sensitive-file rules match: the path as written, or the file a link in it leads to.
 
     ``notes.txt -> .env`` is the credential file whatever it is called, so the resolved path is judged beside the
-    typed one, as it already is for the protected instruction and git metadata files.
+    typed one, as it already is for the protected instruction and git metadata files. A directory is no credential
+    file however it is named (``conf -> .env.d/``, a workspace called ``.envs``), so the resolved form counts only
+    when it names a file; the typed form is read as written.
     """
-    return next((form for form in (raw_path, normalized) if is_sensitive_file(form)), None)
+    if is_sensitive_file(raw_path):
+        return raw_path
+    if is_sensitive_file(normalized) and not (raw_path.endswith(("/", "\\")) or os.path.isdir(normalized)):
+        return normalized
+    return None
 
 
 def _sensitive_file_reason(sensitive_form: str) -> CodedReason:

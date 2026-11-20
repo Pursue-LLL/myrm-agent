@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from myrm_agent_harness.agent.security.checks import check_path_policy
 from myrm_agent_harness.agent.security.session_access import (
@@ -76,6 +77,19 @@ def test_resolve_grant_directory_path_names_the_directory_the_tools_open(tmp_pat
 
     assert resolve_grant_directory_path("~/notes.txt", str(workspace)) == os.path.realpath(str(home))
     assert resolve_grant_directory_path("~root/notes.txt", str(workspace)) == os.path.realpath(str(workspace / "~root"))
+
+
+def test_a_text_no_file_can_be_named_by_resolves_to_no_directory_and_plans_no_grant(tmp_path: Path) -> None:
+    set_session_access_roots(())
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    policy = PathPolicy(forbidden_paths=frozenset(), access_roots=())
+
+    for text in ("a\x00b", "a\ud800b"):
+        assert resolve_grant_directory_path(text, str(workspace)) == ""
+        assert (
+            plan_directory_grants({"paths": [text]}, policy=policy, workspace_root=str(workspace), writable=False) == []
+        )
 
 
 def test_grant_rejects_forbidden_path(tmp_path) -> None:

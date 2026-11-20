@@ -78,6 +78,15 @@ class TestVirtualNamespacesAreNotJudgedAsHostFiles:
         assert _verdict({"paths": [path]}) == PermissionAction.ALLOW
 
 
+class TestTextNoFileCanBeNamedBy:
+    """A NUL byte or a lone surrogate names no file: the call is refused, it does not crash the gate."""
+
+    @pytest.mark.parametrize("text", ["a\x00b", "a\ud800b"], ids=["nul-byte", "lone-surrogate"])
+    def test_is_denied(self, text: str) -> None:
+        assert _verdict({"paths": [text]}) == PermissionAction.DENY
+        assert _verdict({"path": text}, permission="file_write") == PermissionAction.DENY
+
+
 class TestSameVerdictAsTheSingularArgument:
     @pytest.mark.parametrize(
         "path",

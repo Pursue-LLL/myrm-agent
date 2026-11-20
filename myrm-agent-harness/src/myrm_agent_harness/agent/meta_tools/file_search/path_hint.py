@@ -1,173 +1,27 @@
-"""Similar-path hints and Unicode normalization healing when a requested file or directory is not found.
+"""Similar-path hints when a requested file or directory is not found.
 
 [INPUT]
 - core.security.path (POS: Aggregation facade for the path security domain)
 
 [OUTPUT]
-- generate_unicode_path_candidates: Generate 7-stage normalized candidate path variations.
-- find_existing_unicode_path: Probe and find an existing on-disk path across Unicode normalizations, never one the
-  permission engine guards that the typed spelling is not.
 - levenshtein_distance_bounded: Bounded Levenshtein edit distance computation (<= max_dist).
 - suggest_similar_paths: Return closest paths under parent dirs using Levenshtein-2 and similarity.
 - format_path_not_found_hint: Format informative error message with 'Did you mean' suggestions.
 - mcp_namespace_error: Error text for a glob/grep aimed at the virtual /mcp skill-doc namespace.
 
 [POS]
-File-search and file-ops UX helper for mistyped, Unicode-decomposed, or moved workspace paths.
+File-search and file-ops UX helper for mistyped or moved workspace paths.
 """
 
 from __future__ import annotations
 
 import os
-import re
-import unicodedata
 from difflib import SequenceMatcher, get_close_matches
 from pathlib import Path
 
-from myrm_agent_harness.core.security.path import is_blocked_device_path, is_dangerous_path, is_sensitive_file
+from myrm_agent_harness.core.security.path import is_blocked_device_path
 
 _MCP_NAMESPACE = "/mcp"
-
-_QUOTE_STRIP_RE = re.compile(r"^[\s\"'“”‘’`]+|[\s\"'“”‘’`]+$")
-_SLASH_COLLAPSE_RE = re.compile(r"[\\/]+")
-
-_PATH_UNICODE_MAP: dict[str, str] = {
-    "\u2018": "'",  # left single quote
-    "\u2019": "'",  # right single quote
-    "\u201c": '"',  # left double quote
-    "\u201d": '"',  # right double quote
-    "\u2013": "-",  # en dash
-    "\u2014": "-",  # em dash
-    "\u2026": "...",  # ellipsis
-    "\u00a0": " ",  # non-breaking space
-    "\u200b": "",  # zero-width space
-    "\u200c": "",  # zero-width non-joiner
-    "\u200d": "",  # zero-width joiner
-    "\ufeff": "",  # BOM / zero-width no-break space
-    "\uff0f": "/",  # fullwidth solidus
-    "\uff3c": "/",  # fullwidth reverse solidus
-}
-
-_PATH_UNICODE_RE = re.compile("|".join(re.escape(k) for k in _PATH_UNICODE_MAP))
-
-
-def generate_unicode_path_candidates(raw_path: str) -> list[str]:
-    """Generate up to 7 distinct candidate path variants via Unicode normalization chains.
-
-    Chain stages:
-    0. Surrounding quotes & whitespace stripped
-    1. NFC normalization (Canonical Decomposition followed by Canonical Composition)
-    2. NFD normalization (Canonical Decomposition - macOS APFS/HFS+ native form)
-    3. NFKC normalization (Compatibility Decomposition followed by Canonical Composition)
-    4. NFKD normalization (Compatibility Decomposition)
-    5. Custom character substitution (curly quotes, NBSP, zero-width spaces, dashes)
-    6. NFKC + custom character substitution combined
-    7. Slash normalization (collapsing redundant separators)
-
-    Returns a deduplicated list of non-empty candidates preserving stage priority.
-    """
-    if not raw_path:
-        return []
-
-    candidates: list[str] = []
-    seen: set[str] = set()
-
-    def _add(cand: str) -> None:
-        cand_clean = cand.strip()
-        if cand_clean and cand_clean not in seen:
-            seen.add(cand_clean)
-            candidates.append(cand_clean)
-
-    # Stage 0: Stripped raw
-    stage0 = _QUOTE_STRIP_RE.sub("", raw_path)
-    _add(stage0)
-    _add(raw_path)
-
-    base = stage0 or raw_path
-
-    # Stage 1: NFC
-    _add(unicodedata.normalize("NFC", base))
-
-    # Stage 2: NFD
-    _add(unicodedata.normalize("NFD", base))
-
-    # Stage 3: NFKC
-    _add(unicodedata.normalize("NFKC", base))
-
-    # Stage 4: NFKD
-    _add(unicodedata.normalize("NFKD", base))
-
-    # Stage 5: Custom Unicode character mapping
-    mapped = _PATH_UNICODE_RE.sub(lambda m: _PATH_UNICODE_MAP[m.group()], base)
-    _add(mapped)
-
-    # Stage 6: Combined mapping + NFKC/NFC
-    _add(unicodedata.normalize("NFC", mapped))
-    _add(unicodedata.normalize("NFKC", mapped))
-
-    # Stage 7: Collapsed slashes
-    for c in list(candidates):
-        collapsed = _SLASH_COLLAPSE_RE.sub("/", c)
-        _add(collapsed)
-
-    return candidates
-
-
-def _guards(path: str) -> frozenset[str]:
-    """The verdicts the permission engine keys to *path*.
-
-    ``zone``: inside a forbidden directory. ``credential``: a credential or env file by name, itself or through a link.
-    """
-    guards: set[str] = set()
-    if is_dangerous_path(path):
-        guards.add("zone")
-    if is_sensitive_file(path) or is_sensitive_file(os.path.realpath(path)):
-        guards.add("credential")
-    return frozenset(guards)
-
-
-def _gains_guard(typed_path: str, healed_path: str) -> bool:
-    """Whether healing *typed_path* into *healed_path* adds a guard the typed spelling lacks.
-
-    Evaluated only for a respelling that exists, so an ordinary read pays nothing.
-    """
-    if healed_path == typed_path:
-        return False
-    healed = _guards(healed_path)
-    return bool(healed) and not healed <= _guards(typed_path)
-
-
-def find_existing_unicode_path(target_path: str, base_dir: str | None = None) -> str | None:
-    """Probe file system across Unicode normalization candidates to find an existing path.
-
-    Returns the first matching on-disk relative/absolute path candidate if found, or None if no variation exists,
-    if the candidate refers to a blocked device, or if healing would gain a guard: the permission engine judged the
-    spelling the caller typed, so a respelling that lands on a credential file, a link to one or a forbidden
-    directory the typed spelling is not would be opened under a verdict that never saw it.
-    """
-    if not target_path or is_blocked_device_path(target_path):
-        return None
-
-    typed_full = os.path.join(base_dir, target_path) if base_dir else target_path
-    candidates = generate_unicode_path_candidates(target_path)
-
-    for cand in candidates:
-        if is_blocked_device_path(cand):
-            continue
-
-        # If base_dir provided, probe relative to base_dir
-        if base_dir:
-            full_path = os.path.join(base_dir, cand)
-            if is_blocked_device_path(full_path):
-                continue
-            if os.path.exists(full_path) and not _gains_guard(typed_full, full_path):
-                return cand
-
-        # Direct path probe
-        if os.path.exists(cand) and not _gains_guard(target_path, cand):
-            return cand
-
-    return None
 
 
 def levenshtein_distance_bounded(s1: str, s2: str, max_dist: int = 2) -> int:

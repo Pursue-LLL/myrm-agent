@@ -396,6 +396,8 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
   │
   ├─ 前置：网络共享 / NT 命名空间拼写 → DENY（只按文本判断，先于归一化与 realpath）
   │
+  ├─ 前置：文本无法对应任何文件（NUL 字节、孤立代理字符）→ DENY（文件工具打不开它，不抛异常）
+  │
   ├─ Layer 1: forbidden_paths → DENY（绝对优先，不可覆盖）
   │
   ├─ Layer 2: access_roots（writable）→ ALLOW
@@ -411,13 +413,13 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 1. **Layer 3 外路径返回 ASK，不是 DENY**（`allow_directory_grants=False` 的宿主除外） — 由 Permission Engine 弹出审批，支持单文件/父目录批量授权与读写动态提权
 2. **forbidden_paths 不可被 access_roots 覆盖** — 即使授予 `~`，`~/.ssh` 仍然被拒绝
-3. **路径归一化** — 配置里的区域路径（`forbidden_paths`、`access_roots`、工作区根）经过 `expanduser` + `expandvars` + `realpath`；模型写下的路径按文件工具打开它的方式读（开头的 `~` 是用户主目录，其余不展开，`$HOME` 只是一个名字，见下文「判什么就打开什么」）再经 `realpath`，防止符号链接逃逸；敏感文件规则（`is_sensitive_file`）同时匹配写下的路径与 realpath 之后的路径，所以工作区里指向 `.env` 的 `notes.txt` 按 `.env` 问（ASK）
+3. **路径归一化** — 配置里的区域路径（`forbidden_paths`、`access_roots`、工作区根）经过 `expanduser` + `expandvars` + `realpath`；模型写下的路径按文件工具打开它的方式读（开头的 `~` 是用户主目录，其余不展开，`$HOME` 只是一个名字，见下文「判什么就打开什么」）再经 `realpath`，防止符号链接逃逸；敏感文件规则（`is_sensitive_file`）同时匹配写下的路径与 realpath 之后的路径，所以工作区里指向 `.env` 的 `notes.txt` 按 `.env` 问（ASK）；目录不是凭据文件，指向目录的链接、名字像环境文件的工作区目录（`.envs`）不触发这条 ASK（realpath 之后的形式只在它指向文件时才计入）
 4. **只对 file_read/file_write 等 file ops 生效** — shell_exec 的路径检查由 Sandbox Validator 层负责
 5. **Grant 前 forbidden 校验** — `grant_session_access_root(..., policy=...)` 对 DENY 路径拒绝授予；path-ASK 勾选默认 **false**
 6. **Revoke 对称** — `revoke_session_access_root` + server `revoke_chat_session_access_root` 持久化到 `session_access_roots`
 7. **云卷部署边界** — `/persistent` 真实挂载时，grant 仅限卷内或 chat workspace；本地桌面允许主机路径（仍受 forbidden/dangerous 约束）
 8. **Directory HITL 900s 超时** — 与 clarify 对称，`{granted:false}` auto-resume，避免挂死
-9. **网络共享与 NT 命名空间路径只按文本拒绝，先于任何文件系统调用** — 在 Windows 上打开 `\\host\share\x` 会让系统去连接那台主机并发送用户凭据（提示注入可以诱导模型去读一个攻击者主机上的共享）。`is_network_or_nt_path`（`core/security/path/filesystem.py`）判定的拼写：反斜杠写法 `\\host\share`、`\\?\`、`\\.\`、`\??\` 在所有宿主上拒绝；开头连续两个及以上的斜杠（正反斜杠混用也算，如 `//host/share`）只在 Windows 主机上拒绝，因为在 POSIX 上 `//tmp` 是普通绝对路径。路径沿途的每一道闸门都在自己的第一个文件系统调用之前做这个判断：权限引擎的 `check_path_policy`（DENY）、目录授权的 `_resolve_named_path`（返回空）、`file_read_tool` 的 Pre-IO 阻断、`PathValidator` 与 `CodeExecutor.resolve_path`；文本由 `network_path_refusal` 统一，提示改用工作区内的路径或映射盘符
+9. **网络共享与 NT 命名空间路径只按文本拒绝，先于任何文件系统调用** — 在 Windows 上打开 `\\host\share\x` 会让系统去连接那台主机并发送用户凭据（提示注入可以诱导模型去读一个攻击者主机上的共享）。`is_network_or_nt_path`（`core/security/path/filesystem.py`）判定的拼写：反斜杠写法 `\\host\share`、`\\?\`、`\\.\`、`\??\` 在所有宿主上拒绝；开头连续两个及以上的斜杠（正反斜杠混用也算，如 `//host/share`）只在 Windows 主机上拒绝，因为在 POSIX 上 `//tmp` 是普通绝对路径。路径沿途的每一道闸门都在自己的第一个文件系统调用之前做这个判断：权限引擎的 `check_path_policy`（DENY）、目录授权的 `_resolve_named_path`（返回空）、`file_read_tool` 的 Pre-IO 阻断与自愈探测（写下的拼写与每个候选都先按文本判断）、`PathValidator` 与 `CodeExecutor.resolve_path`；文本由 `network_path_refusal` 统一，提示改用工作区内的路径或映射盘符
 9. **FE SSOT 刷新** — grant/revoke 后 `refreshSessionAccessRoots` 同步 `SessionAccessRootsBar`；path-ASK 带 optimistic fallback
 10. **Runtime path coercion** — `coerce_filesystem_path` 仅接受 `str | Path | os.PathLike`，拒绝 `unittest.mock` 对象（MagicMock 实现 `__fspath__`）；用于工作区 journal sidecar 等写盘边界
 
@@ -433,11 +435,11 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validator 层的 `FORBIDDEN_PATHS` 是最后一道防线，硬编码拦截核心危险路径（`~/.ssh`, `/etc/shadow` 等），防止框架层被绕过。
 
-**判什么就打开什么**：引擎判定的是模型写下的路径串，工具打开的必须是这个串所指的文件，不能在判定之后换成另一个。三处各有落点：
+**判什么就打开什么**：引擎判定的是工具会打开的文件，即模型写下的路径串所指的文件，加上（仅读取）写下的串不存在时工具改而打开的那个写法所指的文件；工具打开的不能是一个没有被判定过的文件。三处各有落点：
 
 - **短 ID**：运行内的 `@file_NNN` 只是事件流与界面链接用的标签（`agent/artifacts/file_id_registry.py`），工具不解析它：`file_write_tool`、`file_edit_tool`、`file_read_tool` 把它当作工作区里一个普通的文件名，bash 命令里的 `@file_001` 原样交给 shell。`tests/agent/meta_tools/file_ops/test_short_file_id_is_not_a_path.py` 与 `tests/agent/meta_tools/bash/test_bash_keeps_short_file_ids_as_typed.py` 用真实的文件工具与 ID 登记簿钉住这一点。
 - **`~` 与环境变量**：开头的 `~`（`~`、`~/…`）在引擎、目录授权（`session_access.py` 的 `_resolve_named_path`）、`CodeExecutor.resolve_path` 与 `PathValidator` 里都读作用户主目录（`core/security/path/filesystem.py` 的 `expand_home`，只展开这一种写法；`~$report.docx`、`~name/…` 是工作区里的普通名字），所以引擎问的 `~/x` 就是工具打开的 `~/x`，主目录不在工作区内时要靠目录授权才进得去，不会落到工作区里一个名为 `~` 的目录。环境变量同样不展开：没有文件工具展开 `$VAR`，`$HOME/x` 是工作区里名为 `$HOME` 的目录，引擎也按这个名字判定；先展开再解析，名为 `$HOME`、指向 `.env` 的链接就会从 realpath 里消失。`tests/agent/security/test_checks.py`、`tests/agent/security/test_session_access.py`、`tests/toolkits/code_execution/executors/local/test_executor_resolve_path.py`、`tests/agent/meta_tools/file_ops/validators/test_path_validator.py` 与 `tests/core/security/path/test_filesystem.py` 钉住这一点。
-- **符号链接与自愈**：`check_path_policy` 对敏感文件规则同时看写下的路径与 realpath 之后的路径（`tests/agent/security/test_checks.py`）。`file_read_tool` 的 Unicode 自愈（`find_existing_unicode_path`）不得把引擎放行的写法变成它要拦的文件：改写后的路径落进凭据文件、指向凭据文件的链接或禁区目录，而写下的路径没有这层守卫时，不自愈，按写下的原样读；写下的路径自身已被守卫（引擎已为它问过）则照常自愈。守卫只认默认的危险目录与内置的凭据文件名，用户自定义的规则不在其内。`tests/agent/meta_tools/file_search/test_path_hint_healing_guard.py` 钉住这一点。
+- **符号链接与自愈**：`check_path_policy` 对敏感文件规则同时看写下的路径与 realpath 之后的路径（指向目录的链接不算凭据文件）；文本无法对应任何文件（NUL 字节、孤立代理字符）直接 DENY，不抛异常（`tests/agent/security/test_checks.py`）。`file_read_tool` 在写下的路径不存在时会按 Unicode 候选自愈（引号、反引号、全角字符、分解写法的重音；`core/security/path/respelling.py` 的 `find_existing_unicode_path`），所以读取调用的判定对象是「写下的路径 + 自愈后实际打开的路径」（`agent/security/judged_paths.py`）：规则目标与区域、凭据判定都对两者取最严（DENY 为硬线，YOLO 下同样生效），因此改写成引号、反引号或全角写法既躲不开 `private/*` 这样的 DENY 规则，也进不了写下的路径够不到的禁区目录；`file_write` 等其他文件工具打开的就是写下的串，不做自愈。自愈本身只拒绝三件事：网络共享与 NT 命名空间拼写（写下的与每个候选都只按文本判断，先于第一次 `exists`）、设备路径、以及写下的文本没有而候选带上的凭据文件名（读取调用的污点标签与敏感文件的 ASK 都按写下的文本取名，候选不能把读取变成它们没见过的凭据文件）；候选探测的位置就是工具打开的位置（开头的 `~` 展开，相对名在工作区下，见 `core/security/path/typed_path.py`）。已知边界：目录授权（`plan_directory_grants`、`grant_paths_once`）按写下的写法规划，自愈到授权区之外的读取会先问，批准后开放的不是自愈后的位置，改用卡片里写明的准确路径重试即可。`tests/agent/security/test_engine_respelled_paths.py`、`tests/core/security/path/test_respelling.py` 与 `tests/agent/meta_tools/file_ops/test_file_read_respelled_path.py` 钉住这一点。
 
 ---
 
@@ -615,7 +617,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 | `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的规范主机并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
 | `code_interpreter`（`bash_code_execute_tool`） | `command` | 原始值（去首尾空白） |
 | `shell_exec`（`bash_process_tool` 的 `write_stdin` / `submit_stdin` / `close_stdin` / `kill`） | `data` | 原始值（去首尾空白）；`kill` 不带文字，目标为 `"*"` |
-| `file_read` / `file_write` | `path` | 原始值 |
+| `file_read` / `file_write` | `path`、`paths`、`file_path` 等路径参数（`FILE_ARG_KEYS`，JSON 数组文本同样按数组读；URL 与 `/mcp/`、`vault://` 不是宿主文件） | 每个写下的路径（含去掉行号范围后的写法）各是一个目标，最严格的判定生效（DENY > ASK > ALLOW）；`file_read` 另加它自愈后实际打开的写法（`judged_paths.py`）；没有路径时返回 `"*"` |
 | 其他 | — | 返回 `"*"` |
 
 **命令文本的来源**：命令承载权限类型只有 `code_interpreter` 与 `shell_exec`，各自只读执行器真正执行的那一个参数（`command_rules.COMMAND_TEXT_KEY`，契约测试对照执行器的入参模型与 `resolve_permission_type` 钉死这张映射）。入参里多带的其它键（执行器的入参模型会丢弃未声明的键）不参与任何判定，所以各层看到的文字与实际执行的文字是同一份：权限引擎的目标与安全命令自动放行、Shell Command Analyzer、命令 denylist、污点外发汇、审核模型的跳过、cron 的集成写入检查、脚本文件的内容摘要、allow-always 的守卫、技能边界记入权限日志的操作文本，都经 `command_text` 取文本；允许列表的命令模式经 `launch_command` 取启动的命令（只有 `code_interpreter` 是一条启动的命令，进程 stdin 的文字不进入命令模式）。其它权限类型没有命令文本，这些检查对它们不产生判定。

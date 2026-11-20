@@ -132,6 +132,16 @@ def test_a_path_inside_the_workspace_opens_nothing(run: tuple[Path, Path, Access
     assert grants.once == ()
 
 
+@pytest.mark.parametrize("text", ["a\x00b", "a\ud800b"], ids=["nul-byte", "lone-surrogate"])
+def test_a_text_no_file_can_be_named_by_opens_nothing(run: tuple[Path, Path, AccessGrants], text: str) -> None:
+    workspace, _, grants = run
+
+    opened = grant_paths_once({"paths": [text]}, policy=_POLICY, workspace_root=str(workspace), writable=False)
+
+    assert opened == []
+    assert grants.once == ()
+
+
 def test_a_host_that_keeps_the_run_inside_its_zones_opens_nothing(run: tuple[Path, Path, AccessGrants]) -> None:
     workspace, outside, grants = run
     locked = PathPolicy(forbidden_paths=frozenset(), access_roots=(), allow_directory_grants=False)

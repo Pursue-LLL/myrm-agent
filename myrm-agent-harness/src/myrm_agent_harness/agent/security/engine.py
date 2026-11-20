@@ -4,7 +4,8 @@
   PermissionRuleset, SecurityConfig, DEFAULT_CAPABILITIES
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
   core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
-  core.security.tool_registry::URL_BEARING_PERMISSIONS, host_file_paths, url_arg_error, url_arg_hosts (POS: the tools that take URLs, the files a call names, the canonical hosts of the URLs it names, and why a URL has no canonical form)
+  judged_paths::judged_file_paths (POS: every file a file tool may open: the typed ones and the respelling of a read)
+  core.security.tool_registry::URL_BEARING_PERMISSIONS, url_arg_error, url_arg_hosts (POS: the tools that take URLs, the canonical hosts of the URLs it names, and why a URL has no canonical form)
 
 [OUTPUT]
 - evaluate(): resolve action for a (permission, target) pair via last-match-wins
@@ -16,7 +17,7 @@
   with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
   pattern rule could tell the commands of the line apart.
-- check_tool_path_policy(): strictest verdict over the host files a file tool names and the protected instruction files a shell command writes (engine and cron policy share it)
+- check_tool_path_policy(): strictest verdict over every file a file tool may open and the protected instruction files a shell command writes (engine and cron policy share it)
 - check_capability(): test (permission, target) against a CapabilitySet
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
@@ -24,10 +25,9 @@
 - extract_url_domains(): the hostnames of a browser navigation, which the person can approve per domain
 
 [POS]
-Layers 1–5 of the security architecture. Pure deterministic evaluation —
-no side effects, no I/O, trivially testable.
-Layer 4.5 (LLM security review) is handled separately in batch_processor.py
-since it requires async I/O; this keeps the engine pure.
+Layers 1–5 of the security architecture. Deterministic evaluation without side effects: the only I/O is the
+read-only resolution of the files a call names. Layer 4.5 (LLM security review) is handled separately in
+batch_processor.py since it requires async I/O; this keeps the engine pure.
 """
 
 from __future__ import annotations
@@ -41,6 +41,7 @@ from myrm_agent_harness.agent.security.command_rules import (
     command_text,
     judge_command,
 )
+from myrm_agent_harness.agent.security.judged_paths import judged_file_paths
 from myrm_agent_harness.agent.security.types import (
     DEFAULT_CAPABILITIES,
     CapabilitySet,
@@ -52,7 +53,6 @@ from myrm_agent_harness.agent.security.types import (
 from myrm_agent_harness.core.security.domain_match import host_matches
 from myrm_agent_harness.core.security.tool_registry import (
     URL_BEARING_PERMISSIONS,
-    host_file_paths,
     url_arg_error,
     url_arg_hosts,
 )
@@ -168,15 +168,15 @@ def _resolve_target(permission: str, tool_input: dict[str, object], *, tool_name
 
 
 def _resolve_targets(
-    permission: str, tool_input: dict[str, object], *, tool_name: str | None = None
+    permission: str, tool_input: dict[str, object], *, tool_name: str | None = None, workspace_root: str | None = None
 ) -> tuple[str, ...]:
     """Every resource a call touches, matched against rules such as ``192.168.*`` or ``*.example.com``.
 
-    Each host file of a file tool and each host of a network tool, whatever the scheme or path of its URL;
-    for any other tool the single ``_resolve_target`` target.
+    Each file a file tool may open (``judged_file_paths``) and each host of a network tool, whatever the scheme
+    or path of its URL; for any other tool the single ``_resolve_target`` target.
     """
     if permission in _PATH_CHECKED_PERMISSIONS:
-        return tuple(host_file_paths(tool_input)) or ("*",)
+        return tuple(judged_file_paths(permission, tool_input, workspace_root)) or ("*",)
     if permission in URL_BEARING_PERMISSIONS:
         return url_arg_hosts(tool_input) or ("*",)
     return (_resolve_target(permission, tool_input, tool_name=tool_name),)
@@ -231,12 +231,12 @@ def check_tool_path_policy(
 ) -> tuple[PermissionAction, str] | None:
     """Strictest verdict over what a call touches that needs a person; ``None`` if it touches nothing of the kind.
 
-    A file tool is judged by the zones (session grants included) of the host files it names, a shell tool by
-    whether its command writes a protected instruction file.
+    A file tool is judged by the zones (session grants included) of every file it may open (``judged_file_paths``),
+    a shell tool by whether its command writes a protected instruction file.
     """
     from myrm_agent_harness.agent.security.checks import check_command_protected_write, check_path_policy
 
-    paths = host_file_paths(tool_input) if permission in _PATH_CHECKED_PERMISSIONS else []
+    paths = judged_file_paths(permission, tool_input, workspace_root) if permission in _PATH_CHECKED_PERMISSIONS else []
     if not paths:
         return check_command_protected_write(permission, tool_input)
 
@@ -313,7 +313,7 @@ def evaluate_tool_call(
 
     decisions = [
         _rule_decision(permission, target, config.ruleset, tool_name)
-        for target in _resolve_targets(permission, tool_input, tool_name=tool_name)
+        for target in _resolve_targets(permission, tool_input, tool_name=tool_name, workspace_root=workspace_root)
     ]
     result_action, classifier_may_allow = max(decisions, key=lambda decision: _ACTION_SEVERITY[decision[0]])
 
