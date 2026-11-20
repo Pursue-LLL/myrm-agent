@@ -154,3 +154,10 @@ async def test_git_diff_works_in_strict_mode_on_the_system_bash(real_stack: Real
 
     assert "CHANGED" in output
     assert "unbound variable" not in output
+
+
+async def test_git_without_arguments_in_strict_mode_prints_the_usage_of_git(real_stack: RealBashStack) -> None:
+    output = await real_stack.run("set -u\ngit", timeout=_TIMEOUT)
+
+    assert "usage: git" in output
+    assert "unbound variable" not in output
