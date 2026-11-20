@@ -6,7 +6,7 @@
 [OUTPUT]
 - InteractOutcome: how one desktop_interact call ended
 - InteractTrace: records the path of one desktop_interact call and writes its one log line when the call ends
-- CaptureRefusal, log_capture_refused: the log line of a vision screenshot the entry refused
+- CaptureRefusal, log_capture_refused: the log line of a vision screenshot that was refused or withheld
 
 [POS]
 The measurement of how the desktop tools are used: which verbs are called, how often the native route does not
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 _VERBS: frozenset[str] = frozenset(get_args(DesktopInteractAction))
 _OTHER_VERB = "other"
 
-CaptureRefusal = Literal["screen", "sensitive_app"]
+CaptureRefusal = Literal["screen", "sensitive_app", "sensitive_frame"]
 
 
 class InteractOutcome(StrEnum):
@@ -95,5 +95,9 @@ class InteractTrace:
 
 
 def log_capture_refused(reason: CaptureRefusal) -> None:
-    """Count one screenshot the vision capture entry refused: the screen is unusable, or a sensitive app is in front."""
+    """Count one screenshot the vision tool did not hand to the model.
+
+    `screen`: the screen is unusable. `sensitive_app`: a sensitive app is in front before the capture.
+    `sensitive_frame`: one is in front of the frame an action or a capture produced.
+    """
     logger.info("[DESKTOP] vision_capture outcome=refused reason=%s", reason)

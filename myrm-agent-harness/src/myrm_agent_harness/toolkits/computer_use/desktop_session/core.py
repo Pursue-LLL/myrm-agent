@@ -2,7 +2,8 @@
 
 [INPUT]
 - adopt, snapshot, interact, vision, views, guards (POS: the mixins that implement the tool entry points and their support)
-- session::ComputerSession, create_computer_session (POS: physical-input base the desktop session extends)
+- session::ComputerSession (POS: physical-input base the desktop session extends)
+- backends.factory::create_native_backend (POS: host OS to its native ComputerBackend, the one a desktop session holds)
 - dref.registry::DRefRegistry (POS: @dref registry owned by the session)
 - secrecy::FilledSecrets (POS: the secrets the vault filled, owned by the session)
 
@@ -20,8 +21,9 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from myrm_agent_harness.toolkits.computer_use.backends.factory import create_native_backend
 from myrm_agent_harness.toolkits.computer_use.dref.registry import DRefRegistry
-from myrm_agent_harness.toolkits.computer_use.session import ComputerSession, create_computer_session
+from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig, ForegroundPermissionCallback
 
 from .adopt import DesktopRegistryMixin
@@ -83,10 +85,14 @@ def create_desktop_session(
     view_update_callback: ViewUpdateCallback | None = None,
     permission_callback: ForegroundPermissionCallback | None = None,
 ) -> DesktopSession:
-    base = create_computer_session(config=config)
+    """A desktop session on the platform's own backend.
+
+    The accessibility capture, the foreground identity and the sensitive-application guards route on the backend's
+    class, so the backend is never wrapped: a wrapped one reads as an unsupported platform.
+    """
     return DesktopSession(
-        backend=base._backend,
-        config=base._config,
+        backend=create_native_backend(),
+        config=config,
         view_update_callback=view_update_callback,
         permission_callback=permission_callback,
     )

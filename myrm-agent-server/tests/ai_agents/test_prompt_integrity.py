@@ -5,11 +5,14 @@ that each mode (full/search) contains the expected components,
 and that prompt strings are stable for KV Cache optimization.
 """
 
+from typing import cast
+
 import pytest
 from myrm_agent_harness.core.security.detection.content_boundary import SECURITY_BOUNDARY_SYSTEM_RULES
 
 from app.ai_agents.prompts.general_agent_prompt import (
     CORE_SYSTEM_PROMPT,
+    PromptMode,
     coerce_prompt_mode,
     get_citation_rules_if_needed,
     get_core_system_prompt,
@@ -21,6 +24,8 @@ from app.ai_agents.prompts.shared_rules import (
     SEARCH_RESPONSE_RULES_EN,
     TASK_INTEGRITY_RULES,
 )
+
+_MODES: tuple[PromptMode, ...] = ("full", "search")
 
 
 class TestCoreSystemPrompt:
@@ -88,22 +93,22 @@ class TestPromptModes:
 
     def test_invalid_mode_fallback_to_full(self) -> None:
         """Unknown mode should fallback to full for safety."""
-        result = get_core_system_prompt("invalid_mode")  # type: ignore[arg-type]
+        result = get_core_system_prompt(cast(PromptMode, "invalid_mode"))
         assert result is CORE_SYSTEM_PROMPT
 
     def test_prompt_stability_across_calls(self) -> None:
         """Same mode always returns the exact same object (KV Cache stability)."""
-        for mode in ("full", "search"):
-            first = get_core_system_prompt(mode)  # type: ignore[arg-type]
-            second = get_core_system_prompt(mode)  # type: ignore[arg-type]
+        for mode in _MODES:
+            first = get_core_system_prompt(mode)
+            second = get_core_system_prompt(mode)
             assert first is second
 
     def test_prompt_stability_all_param_combos(self) -> None:
         """All enable_answer_tool combos return stable objects."""
         for answer in (True, False):
-            for mode in ("full", "search"):
-                a = get_core_system_prompt(mode, enable_answer_tool=answer)  # type: ignore[arg-type]
-                b = get_core_system_prompt(mode, enable_answer_tool=answer)  # type: ignore[arg-type]
+            for mode in _MODES:
+                a = get_core_system_prompt(mode, enable_answer_tool=answer)
+                b = get_core_system_prompt(mode, enable_answer_tool=answer)
                 assert a is b
 
 
@@ -114,10 +119,10 @@ class TestSystemPromptDecoupledFromMemoryTools:
     keeping the core system prompt pure and free of memory tool references.
     """
 
-    @pytest.mark.parametrize("mode", ["full", "search"])
-    def test_all_modes_never_have_memory_rules(self, mode: str) -> None:
+    @pytest.mark.parametrize("mode", _MODES)
+    def test_all_modes_never_have_memory_rules(self, mode: PromptMode) -> None:
         """System prompt must never leak memory_rules or memory tool names in any mode."""
-        prompt = get_core_system_prompt(mode)  # type: ignore[arg-type]
+        prompt = get_core_system_prompt(mode)
         assert "<memory_rules>" not in prompt
         assert "memory_save_tool" not in prompt
         assert "memory_manage_tool" not in prompt
@@ -144,7 +149,7 @@ class TestSystemPromptDecoupledFromMemoryTools:
 
     def test_invalid_mode_falls_back_to_full(self) -> None:
         """Unknown mode falls back to full."""
-        result = get_core_system_prompt("unknown_mode")  # type: ignore[arg-type]
+        result = get_core_system_prompt(cast(PromptMode, "unknown_mode"))
         expected = get_core_system_prompt("full")
         assert result is expected
 
@@ -255,8 +260,8 @@ class TestCoercePromptMode:
 class TestUserInstructionPrecedence:
     """The precedence of the user's instructions is declared once, by the header of their own message."""
 
-    @pytest.mark.parametrize("mode", ["full", "search"])
+    @pytest.mark.parametrize("mode", _MODES)
     @pytest.mark.parametrize("locale", ["en", "zh-CN"])
-    def test_static_prompt_does_not_restate_the_precedence(self, mode: str, locale: str) -> None:
-        prompt = get_core_system_prompt(mode, locale=locale)  # type: ignore[arg-type]
+    def test_static_prompt_does_not_restate_the_precedence(self, mode: PromptMode, locale: str) -> None:
+        prompt = get_core_system_prompt(mode, locale=locale)
         assert "<user_instructions" not in prompt

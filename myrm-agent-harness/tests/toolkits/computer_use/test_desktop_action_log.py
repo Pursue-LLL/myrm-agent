@@ -1,5 +1,6 @@
-"""Tests for the structured log lines of the desktop tools: one line per desktop_interact call on every way out, one
-per refused vision screenshot, and in neither an element, a text, a value, an application or a window title."""
+"""Tests for the structured log lines of the desktop tools: one line per desktop_interact call on every way out,
+one per refused or withheld vision screenshot, and in neither an element, a text, a value, an application or a
+window title."""
 
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from myrm_agent_harness.toolkits.computer_use.types import (
     ActionResult,
     ComputerUseConfig,
     DesktopInteractAction,
+    ScreenContext,
     ScreenInfo,
 )
 
@@ -361,3 +363,17 @@ class TestARefusedVisionScreenshot:
             assert await session.desktop_vision_capture() == "shot"
 
         assert _lines(caplog) == []
+
+    @pytest.mark.parametrize(("front", "counted"), [("1Password", True), ("Notes", False)])
+    def test_a_frame_is_counted_only_when_it_is_withheld_and_without_naming_the_application(
+        self, backend: MagicMock, caplog: pytest.LogCaptureFixture, front: str, counted: bool
+    ) -> None:
+        backend.screen_context.return_value = ScreenContext(active_window=front, mouse_x=0, mouse_y=0)
+        session = DesktopSession(backend=backend, config=ComputerUseConfig())
+        frame = ActionResult(success=True, screenshot_base64="img", screenshot_size=(1, 1))
+
+        session._build_multimodal_response(frame, "Done.")
+
+        assert "1Password" not in _logged_text(caplog)
+        expected = [{"event": "vision_capture", "outcome": "refused", "reason": "sensitive_frame"}]
+        assert _lines(caplog) == (expected if counted else [])

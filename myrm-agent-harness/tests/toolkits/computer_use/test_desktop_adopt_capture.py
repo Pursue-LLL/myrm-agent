@@ -40,10 +40,15 @@ def _id_of(session: DesktopSession, name: str) -> str:
 
 
 @pytest.fixture
-def session() -> DesktopSession:
+def screenshot() -> AsyncMock:
+    return AsyncMock(side_effect=OSError("no display"))
+
+
+@pytest.fixture
+def session(screenshot: AsyncMock) -> DesktopSession:
     backend = MagicMock()
     backend.screen_info.return_value = ScreenInfo(width=1920, height=1080, dpi_scale=1.0)
-    backend.screenshot = AsyncMock(side_effect=OSError("no display"))
+    backend.screenshot = screenshot
     return DesktopSession(backend=backend, config=ComputerUseConfig(screenshot_delay=0.0))
 
 
@@ -116,7 +121,10 @@ class TestStableIdsAcrossSnapshots:
         with patch(_INSPECTOR_CAPTURE, return_value=_capture("Banner", "Reply", "Delete")):
             payload = await session.export_inspector_snapshot()
 
-        assert payload["refs"][delete_id]["name"] == "Delete"
+        assert payload is not None
+        refs = payload["refs"]
+        assert isinstance(refs, dict)
+        assert refs[delete_id]["name"] == "Delete"
         assert session.ref_registry.resolve(delete_id).element.name == "Delete"
 
 
@@ -158,14 +166,17 @@ class TestSensitiveAppGuardAtTheSingleWriteEntry:
         assert session.ref_registry.meta.window_title == "Inbox"
         assert session.ref_registry.resolve(reply_id).element.name == "Reply"
 
-    async def test_the_inspector_refresh_does_not_register_a_blocked_app(self, session: DesktopSession) -> None:
+    async def test_the_inspector_refresh_does_not_register_a_blocked_app(
+        self, session: DesktopSession, screenshot: AsyncMock
+    ) -> None:
         with patch(_INSPECTOR_CAPTURE, return_value=_capture("Fill", app="1Password")):
             payload = await session.export_inspector_snapshot()
 
+        assert payload is not None
         assert payload["refs"] == {}
         assert payload["app_name"] == ""
         assert payload["needs_permission"] is False
-        session._backend.screenshot.assert_not_awaited()
+        screenshot.assert_not_awaited()
         assert session.ref_registry.all_refs() == {}
 
     async def test_a_blocked_app_leaves_the_previous_registry_in_place_for_the_inspector(

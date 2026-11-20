@@ -46,6 +46,7 @@ async def test_export_inspector_snapshot_permission_includes_screen_fields() -> 
     ):
         payload = await session.export_inspector_snapshot()
 
+    assert payload is not None
     assert payload["needs_permission"] is True
     assert payload["screen_width"] == 1680
     assert payload["screen_height"] == 1050

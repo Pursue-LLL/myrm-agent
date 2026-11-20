@@ -11,11 +11,13 @@ import platform
 import threading
 import time
 import uuid
+from typing import cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
+from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta, SnapshotScope
 
 from tests.api.agent.test_capability_gap_integration import (
     _collect_agent_stream,
@@ -24,7 +26,9 @@ from tests.api.agent.test_capability_gap_integration import (
 from tests.api.agent.utils import check_e2e_errors, get_model_selection
 
 
-def _fake_capture_snapshot(_backend: object, scope: str, app_name: str | None) -> tuple[SnapshotMeta, dict[str, ElementRef]]:
+def _fake_capture_snapshot(
+    _backend: object, scope: SnapshotScope, app_name: str | None
+) -> tuple[SnapshotMeta, dict[str, ElementRef]]:
     meta = SnapshotMeta(
         ref_count=2,
         app_name="TextEdit",
@@ -67,7 +71,7 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
 
     from app.api.webui.router import router as webui_router
 
-    client.app.include_router(webui_router)
+    cast(FastAPI, client.app).include_router(webui_router)
 
     chat_id = f"som_stream_e2e_{uuid.uuid4().hex[:12]}"
     create_response = client.post("/api/v1/chats/", json={"chat_id": chat_id})
@@ -131,7 +135,7 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
         pytest.skip(
             "model did not invoke desktop_snapshot_tool after 3 attempts; "
             f"invoked={sorted(invoked)} event_types="
-            f"{sorted({e.get('type') for e in events if isinstance(e.get('type'), str)})}"
+            f"{sorted({kind for e in events if isinstance(kind := e.get('type'), str)})}"
         )
 
     assert snapshots, "GET /webui/desktop/snapshot never returned 200 during stream; gateway may have closed session before poll"
@@ -143,10 +147,10 @@ def test_agent_stream_desktop_snapshot_api_returns_som_nth(
             continue
         for ref in refs.values():
             if isinstance(ref, dict) and ref.get("nth") is not None:
-                nth_values.append(int(ref["nth"]))  # type: ignore[arg-type]
+                nth_values.append(int(ref["nth"]))
 
+    last_refs = snapshots[-1].get("refs")
     assert nth_values, (
         f"No nth in snapshot refs across {len(snapshots)} successful polls; "
-        f"last_app={snapshots[-1].get('app_name')!r} ref_count="
-        f"{len(snapshots[-1].get('refs', {})) if isinstance(snapshots[-1].get('refs'), dict) else 0}"
+        f"last_app={snapshots[-1].get('app_name')!r} ref_count={len(last_refs) if isinstance(last_refs, dict) else 0}"
     )

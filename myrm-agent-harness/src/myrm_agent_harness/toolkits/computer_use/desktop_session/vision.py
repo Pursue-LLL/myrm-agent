@@ -5,14 +5,15 @@
 - perception.ax_dispatch::inspect_backend, run_ax_call (POS: foreground app probe, awaited off the event loop on macOS)
 - iphone_mirror::is_iphone_mirror_app, probe_iphone_mirror_state (POS: connect-prompt gate, awaited off the event loop on macOS)
 - semantic_gate, safety (POS: coordinate landing gate, hard blocks)
-- action_log::log_capture_refused (POS: the log line of a refused screenshot)
+- action_log::log_capture_refused (POS: the log line of a refused or withheld screenshot)
 
 [OUTPUT]
-- DesktopVisionMixin: desktop_vision_capture (screenshot; refused, and logged, while the screen is locked or asleep or a sensitive app is in front), desktop_vision_action (coordinate click, type, key, scroll, drag, move, wait), _build_multimodal_response (text plus image result)
+- DesktopVisionMixin: desktop_vision_capture (screenshot; refused, and logged, while the screen is locked or asleep or a sensitive app is in front), desktop_vision_action (coordinate click, type, key, scroll, drag, move, wait), _build_multimodal_response (text plus image result; the text alone, logged, when a sensitive app is in front of the frame)
 
 [POS]
 Coordinate-based entry for canvas areas and windows without an AX tree; screen, sensitive-app and (for input) argument,
-mirror, approval and semantic gates all run before any pixel is read or touched.
+mirror, approval and semantic gates all run before any pixel is read or touched, and the frame that comes back is
+checked against the application in front of it before the model sees it.
 """
 
 from __future__ import annotations
@@ -239,11 +240,21 @@ class DesktopVisionMixin(DesktopSessionHost):
                 return self._build_multimodal_response(result, f"Vision action '{action}' completed.")
             return f"Vision action '{action}' completed."
 
-    def _build_multimodal_response(self, result: ActionResult, action_description: str) -> list[object]:
+    def _build_multimodal_response(self, result: ActionResult, action_description: str) -> str | list[object]:
+        """Text plus the frame, or the text alone when a sensitive app is in front of the frame.
+
+        The checks before an action vouch only for the screen it started from, and the action can bring a sensitive
+        application to the front (a launcher, a shortcut, a link). The foreground is therefore read again here, from
+        the context the reply reports, before any pixel goes to the model.
+        """
         from langchain_core.messages.content import create_image_block, create_text_block
 
-        info = self.screen_info
         ctx = self.screen_context
+        if blocked := safety.is_sensitive_app(ctx.active_window):
+            logger.warning("[SECURITY] Sensitive app guard (vision frame): %s", blocked)
+            log_capture_refused("sensitive_frame")
+            return f"{action_description} The screen is not shown. Safety: {blocked}"
+        info = self.screen_info
         context_parts = [
             action_description,
             f"Screen: {info.width}x{info.height}, DPI: {info.dpi_scale}x. "
