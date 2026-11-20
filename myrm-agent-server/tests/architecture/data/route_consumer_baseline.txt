@@ -79,8 +79,6 @@ POST /webui/vnc/start
 GET /webui/vnc/status
 POST /webui/vnc/stop
 GET /webui/welcome
-POST /wiki/meeting-notes/live/{session_id}/finalize
-POST /wiki/meeting-notes/live/{session_id}/ingest
 POST /wiki/research
 POST /wiki/templates/seed
 GET /workflow-templates/trunk-catalog
