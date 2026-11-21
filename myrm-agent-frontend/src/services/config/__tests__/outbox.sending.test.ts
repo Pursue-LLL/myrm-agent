@@ -246,6 +246,19 @@ describe('config outbox sending', () => {
     expect(mergeBase(KEY)).toMatchObject({ value: { a: 2 }, meta: { version: '1000_9' } });
   });
 
+  it('does not retry a change the backend answered with an application error, and forgets its stored copy', async () => {
+    base([SECURITY, { s: 0 }, '1000_0']);
+    manager.set(SECURITY, { s: 1 } as never);
+    await settleMicrotasks();
+
+    await answer(0, { success: false, conflicts: [], newVersions: new Map(), error: 'Validation failed' });
+    await vi.advanceTimersByTimeAsync(120_000);
+
+    expect(requests).toHaveLength(1);
+    expect(manager.status).toBe('error');
+    expect(storedQueue()).toEqual([]);
+  });
+
   describe('while the user is asked about a clash', () => {
     let decide: (keepLocal: boolean) => void;
 
@@ -300,6 +313,86 @@ describe('config outbox sending', () => {
       await answer(1, accepted([SECURITY, '1000_9']));
 
       expect(storedQueue()).toEqual([expect.objectContaining({ key: SECURITY, value: { a: 5 } })]);
+    });
+
+    it('keeps the stored copy of a kept value until the backend has taken the re-send', async () => {
+      await openClash(SECURITY);
+
+      decide(true);
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      expect(storedQueue()).toEqual([expect.objectContaining({ key: SECURITY })]);
+
+      await answer(1, accepted([SECURITY, '1000_9']));
+      expect(storedQueue()).toEqual([]);
+    });
+
+    it('sends the kept value after the write in flight, never beside it', async () => {
+      await openClash();
+      manager.set(SECURITY, { s: 1 } as never);
+      await settleMicrotasks();
+      expect(requests).toHaveLength(2);
+
+      decide(true);
+      await settleMicrotasks();
+      expect(requests).toHaveLength(2);
+
+      await answer(1, accepted([SECURITY, '2000_0']));
+      await vi.waitFor(() => expect(requests).toHaveLength(3));
+      expect(requests[2]?.changes).toEqual([expect.objectContaining({ key: KEY })]);
+    });
+
+    describe('after an edit queued behind the write that clashed', () => {
+      /** SECURITY is edited twice: the second edit waits behind the write in flight, and both are stored at once. */
+      const clashBehindQueuedEdit = async () => {
+        base([SECURITY, { s: 0 }, '1000_0']);
+        get.mockResolvedValue(record(SECURITY, { s: 3 }, '1000_5', 'dev-remote'));
+        let answerUser: (keepLocal: boolean) => void = () => undefined;
+        const asked = vi.fn(() => new Promise<boolean>((resolve) => (answerUser = resolve)));
+        manager.setConflictResolver(asked);
+        manager.set(SECURITY, { s: 1 } as never);
+        await settleMicrotasks();
+        manager.set(SECURITY, { s: 2 } as never);
+        await settleMicrotasks();
+        await answer(0, conflictOn([SECURITY]));
+        await vi.waitFor(() => expect(asked).toHaveBeenCalledTimes(1));
+        return (keepLocal: boolean) => answerUser(keepLocal);
+      };
+
+      it('lets the re-send settle the stored copy of that edit too, since it carries its value', async () => {
+        const answerUser = await clashBehindQueuedEdit();
+
+        answerUser(true);
+        await answer(1, accepted([SECURITY, '1000_9']));
+
+        expect(requests[1]?.changes).toEqual([expect.objectContaining({ key: SECURITY, value: { s: 2 } })]);
+        expect(storedQueue()).toEqual([]);
+      });
+
+      it('lets the server value win over every edit the user was shown, and forgets their stored copies', async () => {
+        const answerUser = await clashBehindQueuedEdit();
+
+        answerUser(false);
+        await vi.advanceTimersByTimeAsync(5000);
+
+        expect(requests).toHaveLength(1);
+        expect(storedQueue()).toEqual([]);
+        expect(manager.get(SECURITY)).toEqual({ s: 3 });
+      });
+
+      it('keeps an edit made after the question was asked when the server value wins', async () => {
+        const answerUser = await clashBehindQueuedEdit();
+        manager.set(SECURITY, { s: 4 } as never);
+        await settleMicrotasks();
+
+        answerUser(false);
+        await vi.advanceTimersByTimeAsync(1100);
+
+        expect(requests).toHaveLength(2);
+        expect(requests[1]?.changes).toEqual([
+          expect.objectContaining({ key: SECURITY, value: { s: 4 }, expectedVersion: '1000_5' }),
+        ]);
+        expect(storedQueue()).toEqual([expect.objectContaining({ key: SECURITY, value: { s: 4 } })]);
+      });
     });
   });
 });

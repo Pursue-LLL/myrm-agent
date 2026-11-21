@@ -6,6 +6,7 @@
  * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / removeOfflineEntries / takeUnpersistableOfflineEntries / discardUnattributedOfflineQueue (POS: per-account browser-storage half of the offline queue)
  * - `./offlineReplay` mergeLatestChanges / decideReplay (POS: one change per key on the confirmed version, per-change replay decisions)
  * - `./outboxAnswer` mergeAnswers / partitionByAnswer (POS: how a backend answer maps onto the batch it answers)
+ * - `./retryBackoff` RetryBackoff (POS: one pending retry whose pause doubles from 1 s up to a minute)
  * - `./types` ConfigChange / SyncResult / SyncStatus (POS: queued write, backend answer, manager state)
  *
  * [OUTPUT]
@@ -17,22 +18,20 @@
  * outbox owns the pending changes and the timers and listeners that move them, so `dispose()` can release them all.
  * The host is read at call time because the manager replaces its cache tables when it (re)initialises.
  *
- * Sending is one batch at a time: a batch is built only after the previous answer is applied, so it carries the
- * version that answer returned instead of racing it into a conflict with this device's own write. An answer settles
- * the keys it names and nothing else: accepted keys are acknowledged (merge base, cache, stored copy), clashing keys go
- * to the resolver, every other change stays queued. While the user is asked about a clash, newer edits of that key
- * wait for the answer and every other key keeps flowing.
+ * One batch is in flight at a time, built after the previous answer is applied so it carries the version that answer
+ * returned and never races it into a conflict. An answer settles only the keys it names: accepted keys are
+ * acknowledged (merge base, cache, stored copy), clashing keys go to the resolver (newer edits of such a key wait for
+ * the answer, other keys keep flowing), every other change stays queued.
  *
- * A change the backend did not take stays queued (and stored, for allowlisted keys) and is retried after a pause that
- * doubles from 1 s up to a minute and starts over once the backend answers; `forceSync()` reports it as a failed
- * result. A batch the backend refuses outright is sent again key by key, so only the keys it refuses lose their write
- * and `forceSync()` still rejects with the refusal; a send nobody awaits is logged by the send itself, never an
- * unhandled rejection.
+ * A change the backend did not take stays queued (and stored, for allowlisted keys) and is retried with backoff;
+ * `forceSync()` reports it as a failed result. A batch the backend refuses outright is sent again key by key, so only
+ * the refused keys lose their write; the refusal still rejects `forceSync()`. A change that will not be sent (refused,
+ * answered with an application error, overruled by the server's value) takes its stored copy with it, or it would come
+ * back at every start.
  *
- * Replay judges what a previous session left behind one change at a time: a change the server already holds, or whose
- * clash the user settled with the server value, leaves the store; a change whose key could not be read stays stored for
- * the next replay; every other change is written to the cache and queued in front of newer edits, so it goes out like
- * any write and its stored copy stays until the backend has taken it.
+ * Replay judges what a previous session left behind one change at a time (`decideReplay`): settled ones leave the
+ * store, unreadable ones stay stored for the next replay, the rest join the queue ahead of newer edits and go out like
+ * any write; a stored copy goes only after the backend has taken it.
  */
 import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext } from './conflictResolution';
@@ -48,13 +47,11 @@ import {
 } from './offlineQueue';
 import { decideReplay, mergeLatestChanges } from './offlineReplay';
 import { mergeAnswers, partitionByAnswer } from './outboxAnswer';
+import { RetryBackoff } from './retryBackoff';
 import type { ConfigChange, ConfigKey, ConfigVersion, SyncResult, SyncStatus } from './types';
 
 // 防抖延迟（毫秒）
 const SYNC_DEBOUNCE_MS = 1000;
-// 后端没接住的变更：重试间隔从 1 秒起每次翻倍，封顶 1 分钟；后端有应答即从头计。
-const RETRY_MIN_MS = 1000;
-const RETRY_MAX_MS = 60_000;
 
 export interface OutboxHost {
   context(): ConflictContext;
@@ -64,10 +61,7 @@ export interface OutboxHost {
   setStatus(status: SyncStatus): void;
 }
 
-/**
- * One send: the backend's answer, or its outright refusal of a change, and the settlement of the clashes the send
- * raised (which may wait for the user).
- */
+/** One send: the backend's answer or its outright refusal, plus the settlement of the clashes it raised. */
 type Delivery = { result: SyncResult; settled: Promise<void> } | { refusal: unknown; settled: Promise<void> };
 
 const nothingSent = (): Delivery => ({ result: mergeAnswers([]), settled: Promise.resolve() });
@@ -77,8 +71,7 @@ export class ConfigOutbox {
   /** 非白名单键的待重放变更：不允许留在浏览器存储里，只在内存里等待重放。 */
   private memoryOnlyOfflineChanges: ConfigChange[] = [];
   private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  private retryTimer: ReturnType<typeof setTimeout> | null = null;
-  private retryDelay = RETRY_MIN_MS;
+  private readonly retry = new RetryBackoff(() => this.background(this.flush()));
   private onlineHandlerRegistered = false;
   /** The latest send in the chain: the next one starts when it ends. */
   private lastSend: Promise<unknown> = Promise.resolve();
@@ -129,11 +122,7 @@ export class ConfigOutbox {
     return [...this.memoryOnlyOfflineChanges, ...loadOfflineQueue()].filter((entry) => !queued(entry));
   }
 
-  /**
-   * Judges each leftover change on its own against what the server holds (`decideReplay`): the ones that still have
-   * to reach the server join the queue, in front of newer edits, and go out like any write; the ones the server has
-   * settled leave the store; the ones whose key could not be read stay where they are for the next replay.
-   */
+  /** Replays the leftovers of a previous session, each change judged on its own against what the server holds. */
   async replayOfflineChanges(pending: ConfigChange[]): Promise<void> {
     if (pending.length === 0) {
       return;
@@ -174,10 +163,7 @@ export class ConfigOutbox {
   /** 释放定时器与联网监听；未发出的变更随实例丢弃。 */
   dispose(): void {
     this.cancelScheduledSync();
-    if (this.retryTimer) {
-      clearTimeout(this.retryTimer);
-      this.retryTimer = null;
-    }
+    this.retry.cancel();
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', this.handleOnline);
     }
@@ -198,19 +184,7 @@ export class ConfigOutbox {
     }, SYNC_DEBOUNCE_MS);
   }
 
-  /** A pending retry stands: a change the backend did not take is tried again after a growing pause. */
-  private scheduleRetry(): void {
-    if (this.retryTimer) {
-      return;
-    }
-    this.retryTimer = setTimeout(() => {
-      this.retryTimer = null;
-      this.background(this.flush());
-    }, this.retryDelay);
-    this.retryDelay = Math.min(this.retryDelay * 2, RETRY_MAX_MS);
-  }
-
-  /** Runs a send nobody awaits: a refused write was logged where it was refused and must not end as an unhandled rejection. */
+  /** A send nobody awaits: its refusal was logged where it happened, so it must not end as an unhandled rejection. */
   private background(task: Promise<unknown>): void {
     task.catch(() => undefined);
   }
@@ -271,6 +245,7 @@ export class ConfigOutbox {
    */
   private async isolate(batch: ConfigChange[], refusal: unknown): Promise<Delivery> {
     if (batch.length === 1) {
+      removeOfflineEntries(batch);
       this.host.setStatus('error');
       return { refusal, settled: Promise.resolve() };
     }
@@ -284,6 +259,7 @@ export class ConfigOutbox {
         settlements.push(this.settle([change], answer, true));
       } catch (error) {
         console.warn(`[ConfigSync] The backend refused the change of '${change.key}':`, error);
+        removeOfflineEntries([change]);
         refused = true;
       }
     }
@@ -301,7 +277,7 @@ export class ConfigOutbox {
    */
   private async settle(batch: ConfigChange[], result: SyncResult, resolveClashes: boolean): Promise<void> {
     if (!result.error) {
-      this.retryDelay = RETRY_MIN_MS;
+      this.retry.reset();
     }
     const { accepted, rejected, unnamed } = partitionByAnswer(batch, result);
     this.acknowledge(accepted, result.newVersions);
@@ -314,6 +290,7 @@ export class ConfigOutbox {
     if (result.error) {
       console.warn('[ConfigSync] Sync failed:', result.error);
       if (!isRecoverableSyncError(result.error)) {
+        removeOfflineEntries([...rejected, ...unnamed]);
         this.host.setStatus('error');
         return;
       }
@@ -342,12 +319,13 @@ export class ConfigOutbox {
     }
     this.queue.unshift(...changes);
     saveOfflineQueue(changes);
-    this.scheduleRetry();
+    this.retry.schedule();
   }
 
   /**
-   * Settles the clashing keys with the server and re-sends the local values that are kept. Newer edits of these keys
-   * wait in the queue meanwhile; the re-send is one more batch of the same chain, so nothing overtakes it.
+   * Settles the clashing keys with the server: the local values that are kept are re-sent, the others give way to the
+   * server's. Newer edits of these keys wait in the queue meanwhile; the re-send is one more batch of the same chain,
+   * so nothing overtakes it.
    */
   private async reconcile(rejected: ConfigChange[], keys: ConfigKey[]): Promise<void> {
     for (const key of keys) {
@@ -362,6 +340,12 @@ export class ConfigOutbox {
     try {
       const { resend, unresolved } = await resolveConflicts(this.host.context(), keys);
       this.retain(rejected.filter((change) => unresolved.includes(change.key)));
+      // The server's value won for every other key: the edits the user was shown are void, stored copies included.
+      const kept = new Set([...unresolved, ...resend.map((change) => change.key)]);
+      const overruled = (change: ConfigChange) =>
+        keys.includes(change.key) && !kept.has(change.key) && change.timestamp <= (editedAt.get(change.key) ?? 0);
+      removeOfflineEntries([...rejected, ...this.queue].filter(overruled));
+      this.queue = this.queue.filter((change) => !overruled(change));
       if (resend.length > 0) {
         const edits = resend.map((change) => ({ ...change, timestamp: editedAt.get(change.key) ?? change.timestamp }));
         await this.exclusive(() => this.resend(edits));
