@@ -91,7 +91,6 @@ src/hooks/message-input/useMessageInput.ts
 src/hooks/settings/useMCPConfig.ts
 src/hooks/voice/useGeminiLiveVoice.ts
 src/hooks/voice/useSpeechInput.ts
-src/hooks/voice/useTTS.ts
 src/hooks/voice/useVoiceAgentBridge.ts
 src/hooks/voice/useVoiceSession.ts
 src/lib/api.ts

@@ -8,7 +8,7 @@
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `useVoiceSession.ts`     | 会话编排（barge-in、TTS queue 安全插入）；PTT context 与截图融合、传输状态同步、窗口事件桥与断句在 [`session/`](session/_ARCH.md)；会话是否在运行（`isActive`）交给 `useLiveMeetingNotes`，由它在会话结束时收尾纪要                                         |
 | `useSpeechInput.ts`      | 多后端 STT 输入与主机就绪零延迟门禁（防盲录）                                                                                                                            |
-| `useTTS.ts`              | TTS 输出（browser + API）                                                                                                                                                |
+| `useTTS.ts`              | TTS 输出门面（browser + API）：按 `mode` 返回对应引擎；引擎与共用类型在 [`tts/`](tts/_ARCH.md)                                                                                                                                                |
 | `useVoiceAgentBridge.ts` | 服务端 Agent WebSocket bridge 与主机就绪连接守卫                                                                                                                         |
 | `useRealtimeVoice.ts`    | OpenAI Realtime WebRTC                                                                                                                                                   |
 | `useGeminiLiveVoice.ts`  | Gemini Live WebSocket                                                                                                                                                    |
