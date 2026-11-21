@@ -6,7 +6,7 @@ pydantic::BaseModel (POS: validation and serialization layer)
 [OUTPUT]
 ConversationSearchRequest: typed provider request; its since/until bound a conversation by its most recent message.
 ConversationSourceRef: UI-safe source reference for one recalled conversation.
-ConversationSearchHit: one conversation-level recall result.
+ConversationSearchHit: one conversation-level recall result, carrying the time of the content it stands for.
 ConversationIndexCoverage: index coverage and backfill metrics DTO.
 ConversationSearchResponse: provider response envelope.
 MAX_CONVERSATION_SEARCH_LIMIT, MAX_SNIPPET_CHARS, MAX_EXPANDED_SNIPPET_CHARS, MAX_SUMMARY_CHARS, MAX_TOOL_OUTPUT_CHARS: request and output size limits of conversation recall (result cap, snippet, expanded snippet, summary and tool-output budgets).
@@ -41,6 +41,7 @@ class ConversationSourceRef(BaseModel):
     """UI-safe source reference for a recalled conversation.
 
     ``snippet`` is display text, which the host may escape and highlight; it never goes into the model's context.
+    ``created_at`` and ``updated_at`` mean what they do on ``ConversationSearchHit``; a host sets the ones its UI shows.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -102,6 +103,10 @@ class ConversationSearchHit(BaseModel):
     ``snippet`` is plain text: no HTML escaping and no highlight markup. A provider that cuts it out of a longer text
     redacts the stretch around the cut first, long enough to hold a whole credential, because a credential the cut
     splits no longer matches the redactor's patterns; the formatter redacts it again before it applies its own limit.
+
+    ``created_at`` is when the conversation was created, ``updated_at`` when the content the hit stands for was written:
+    the message ``message_id`` names, or the conversation's last message for a hit about the conversation as a whole.
+    The formatter prints ``updated_at``, or ``created_at`` when a hit has none, in the hit's header.
     """
 
     model_config = ConfigDict(extra="forbid")

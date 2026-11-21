@@ -1,5 +1,5 @@
 /**
- * [INPUT] @/lib/api::apiRequest (POS: 前端统一请求入口), @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫), @/services/wikiService (POS: Wiki 接口: 统计、健康报告、原文树、队列), ../useWikiIngestSubscription (POS: ingest SSE 快照)
+ * [INPUT] @/lib/api::apiRequest, getApiUrl (POS: 前端统一请求入口与地址拼接; E2E 回退不经请求入口直接 fetch，所以用 getApiUrl 拼出完整接口地址), @/components/dev/localDevHost::isLocalDevHost (POS: 开发桥的挂载守卫), @/services/wikiService (POS: Wiki 接口: 统计、健康报告、原文树、队列), ../useWikiIngestSubscription (POS: ingest SSE 快照)
  * [OUTPUT] useWikiOverviewData: 总览与队列共用的知识库状态: 统计、健康报告、原文树、编译运行与 ingest 实时快照, 及其重新加载动作和由它们派生的待处理计数
  * [POS] Wiki 面板的数据层: 范围变化或回到总览页时重新加载统计; ingest 快照要求刷新时重读统计与原文树, 编译队列排空时提示一次完成; 非生产构建的本地开发主机上挂有供 E2E 注入统计与健康报告的桥。
  */
@@ -8,7 +8,7 @@ import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { isLocalDevHost } from '@/components/dev/localDevHost';
-import { apiRequest } from '@/lib/api';
+import { apiRequest, getApiUrl } from '@/lib/api';
 import {
   buildWikiApiPath,
   wikiService,
@@ -44,7 +44,9 @@ export function useWikiOverviewData(agentScopeId: string | null, activeTab: stri
         return false;
       }
       try {
-        const response = await fetch(buildWikiApiPath('/wiki/health-report', agentScopeId), { cache: 'no-store' });
+        const response = await fetch(getApiUrl(buildWikiApiPath('/wiki/health-report', agentScopeId)), {
+          cache: 'no-store',
+        });
         if (!response.ok) {
           return false;
         }
@@ -149,7 +151,9 @@ export function useWikiOverviewData(agentScopeId: string | null, activeTab: stri
         return false;
       }
       try {
-        const response = await fetch(buildWikiApiPath('/wiki/stats', agentScopeId), { cache: 'no-store' });
+        const response = await fetch(getApiUrl(buildWikiApiPath('/wiki/stats', agentScopeId)), {
+          cache: 'no-store',
+        });
         if (!response.ok) {
           return false;
         }

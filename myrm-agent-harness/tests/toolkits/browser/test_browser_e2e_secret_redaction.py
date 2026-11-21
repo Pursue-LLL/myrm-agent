@@ -213,7 +213,7 @@ async def test_e2e_execute_script_redacts_page_secrets(
     await asyncio.sleep(0.5)
     tools = create_browser_tools(browser_session)
     tool_dict = {tool.name: tool for tool in tools}
-    script = "text = await session.extract_text()\nprint(text)"
+    script = "print(await session.evaluate('document.body.innerText'))"
     result = await _invoke(tool_dict["browser_execute_script_tool"], {"script": script})
     assert "sk-proj-abcdefghijklmnop1234567890" not in result
     assert "sk-pro" in result

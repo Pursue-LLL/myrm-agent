@@ -8,7 +8,9 @@ import pytest
 
 from myrm_agent_harness.core.events.types import AgentEventType
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+from myrm_agent_harness.toolkits.computer_use.desktop_session.views import refs_for_view_update
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXPermissionRequiredError
+from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef
 from myrm_agent_harness.toolkits.computer_use.types import ComputerUseConfig, ScreenContext, ScreenInfo
 from myrm_agent_harness.utils.runtime import progress_sink
 
@@ -33,7 +35,7 @@ async def test_permission_error_emits_desktop_view_update() -> None:
 
     try:
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             side_effect=AXPermissionRequiredError("macOS"),
         ):
             result = await session.desktop_snapshot()
@@ -49,38 +51,29 @@ async def test_permission_error_emits_desktop_view_update() -> None:
         progress_sink.set_tool_progress_sink(None)
 
 
-def test_export_registry_view_returns_last_refs_without_capture() -> None:
-    backend = MagicMock()
-    backend.screen_info.return_value = ScreenInfo(width=800, height=600, dpi_scale=1.0)
-
-    session = DesktopSession(backend=backend, config=ComputerUseConfig())
-    from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
-
-    element = ElementRef(
-        ref_id="d1",
-        role="AXTextArea",
-        name="body",
-        bbox=BBox(x=10, y=20, width=100, height=40),
-        backend_key="ax:1",
+def _ok_button() -> ElementRef:
+    return ElementRef(
+        ref_id="d0",
+        role="AXButton",
+        name="OK",
+        bbox=BBox(x=10, y=20, width=80, height=30),
+        backend_key="0",
     )
-    meta = SnapshotMeta(
-        ref_count=1,
-        app_name="TextEdit",
-        window_title="Untitled",
-        scope="foreground",
+
+
+def test_refs_for_view_update_maps_som_index_and_bbox_payload() -> None:
+    payload = refs_for_view_update(
+        {"d0": _ok_button()},
+        viewport_width=1920,
+        viewport_height=1080,
+        som_index_map={"d0": 3},
     )
-    session._refs.replace({"d1": element}, meta)
-
-    payload = session.export_registry_view()
-    assert payload is not None
-    assert payload["app_name"] == "TextEdit"
-    assert "d1" in payload["refs"]
-    assert payload["registry_generation"] == 1
-    assert payload["screenshot_base64"] == ""
+    assert payload["d0"]["nth"] == 3
+    assert payload["d0"]["bbox"]["viewport_width"] == 1920
+    assert payload["d0"]["bbox"]["viewport_height"] == 1080
+    assert payload["d0"]["bbox"]["centerX"] == 50
 
 
-def test_export_registry_view_empty_when_no_snapshot() -> None:
-    backend = MagicMock()
-    backend.screen_info.return_value = ScreenInfo(width=800, height=600, dpi_scale=1.0)
-    session = DesktopSession(backend=backend, config=ComputerUseConfig())
-    assert session.export_registry_view() is None
+def test_refs_for_view_update_nth_is_none_without_som_index_map() -> None:
+    payload = refs_for_view_update({"d0": _ok_button()}, viewport_width=1920, viewport_height=1080)
+    assert payload["d0"]["nth"] is None

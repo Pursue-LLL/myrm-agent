@@ -16,12 +16,19 @@ so that:
 [OUTPUT]
 - BackgroundProcessInfo: Snapshot dataclass exposed to UI/LLM.
 - BackgroundQuotaError: Per-session concurrency cap breach.
+- OutputTail: What a job's output read returns: the newest lines of each stream, whether older ones fell off a ring or out of the window, how many lines the view leaves out, and the path of the log that holds them.
 - FinishListener / ProgressListener: Async callback type aliases used by
   the bash tool to bridge registry lifecycle events into ``ptc_notify`` UI
   updates.
+- OUTPUT_RING_LINES / WAIT_MAX_SECONDS / INPUT_WAIT_IDLE_SECONDS: the limits ``bash_process_tool`` reports
+  to the model (how many lines of a stream a job keeps, the longest one ``wait`` blocks, how long a silent
+  job with open stdin waits before it is flagged).
+- compute_waiting_for_input / build_input_wait_hint: whether a silent job with open stdin is flagged, and the
+  note sent with the flag (the job may be waiting for input or just quiet; how to answer it or ignore it).
 
 [POS]
-PTC-adjacent runtime helper. Pure data types — no I/O, no logging.
+PTC-adjacent runtime helper. Pure data types and the limits shared by the registry and the tool's schema and
+descriptions — no I/O, no logging.
 """
 
 from __future__ import annotations
@@ -29,6 +36,15 @@ from __future__ import annotations
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import NotRequired, TypedDict
+
+# Lines of each stream a job keeps for ``output`` (the newest ones); older lines fall off the ring.
+OUTPUT_RING_LINES = 200
+
+# The longest one ``wait`` blocks. It stays under the 120 s deadline the tool executor gives ``bash*`` tools
+# (``get_tool_timeout``): a call that reaches the deadline is cut off and retried, so a limit at or above it
+# would never return its own ``still_running`` result.
+WAIT_MAX_SECONDS = 100
 
 # Idle time after last stdout/stderr before a running job is flagged as likely waiting for stdin.
 INPUT_WAIT_IDLE_SECONDS = 15.0
@@ -52,14 +68,19 @@ def compute_waiting_for_input(
 
 
 def build_input_wait_hint(info: BackgroundProcessInfo) -> str:
-    """Human-readable nudge when a running job may be blocked on stdin (output poll)."""
+    """The note sent with ``waiting_for_input``: a silent job with open stdin is waiting for input or just quiet.
+
+    The wording is fixed: what the job printed reaches the model only through the ``partial_line`` field.
+    """
     if not info.waiting_for_input:
         return ""
     anchor = info.last_output_at if info.last_output_at > 0 else info.started_at
     idle_sec = max(0, int(time.time() - anchor))
     return (
-        f"No new output for {idle_sec}s; this job may be waiting for stdin. "
-        "Use write_stdin, submit_stdin, close_stdin, or the Activity panel Send input."
+        f"No new output for {idle_sec} s and stdin is open. If partial_line (or the latest output) asks something, "
+        "answer with submit_stdin (text + Enter; write_stdin sends raw text, close_stdin sends EOF) "
+        "or the Activity panel Send input; otherwise the job may just be quiet: "
+        "ignore this hint unless the command is expected to read input."
     )
 
 
@@ -70,6 +91,20 @@ class BackgroundQuotaError(RuntimeError):
         super().__init__(f"Session {session_id!r} already has {limit} active background jobs.")
         self.session_id = session_id
         self.limit = limit
+
+
+class OutputTail(TypedDict):
+    """The newest lines of a job's two streams, as ``get_output`` reads them from the ring tails."""
+
+    stdout: list[str]
+    stderr: list[str]
+    # True once the oldest lines are missing from this view: a stream's ring turned over or its window was cut.
+    dropped: bool
+    # Lines the job printed that this view does not show: fallen off a ring, left out of the window, or older than the
+    # lines asked for. Present only when above zero.
+    omitted_lines: NotRequired[int]
+    # Workspace-relative path of the log that holds them; present only when ``omitted_lines`` is and the job has a log.
+    log_file: NotRequired[str]
 
 
 @dataclass
@@ -127,8 +162,6 @@ class BackgroundProcessInfo:
             payload["error_category"] = self.error_category
         if self.last_progress is not None:
             payload["last_progress"] = self.last_progress
-        if self.vault_log_ref is not None:
-            payload["vault_log_ref"] = self.vault_log_ref
         if self.leftover_processes:
             payload["leftover_processes"] = self.leftover_processes
         if self.status == "running":
@@ -144,9 +177,12 @@ ProgressListener = Callable[[BackgroundProcessInfo, dict[str, object]], Awaitabl
 
 __all__ = [
     "INPUT_WAIT_IDLE_SECONDS",
+    "OUTPUT_RING_LINES",
+    "WAIT_MAX_SECONDS",
     "BackgroundProcessInfo",
     "BackgroundQuotaError",
     "FinishListener",
+    "OutputTail",
     "ProgressListener",
     "build_input_wait_hint",
     "compute_waiting_for_input",

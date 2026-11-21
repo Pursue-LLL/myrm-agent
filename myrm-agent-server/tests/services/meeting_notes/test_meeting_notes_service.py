@@ -11,23 +11,7 @@ from app.services.meeting_notes.models import (
     MeetingActionItem,
     StructuredMeetingNotes,
 )
-from app.services.meeting_notes.service import (
-    _render_minutes_markdown,
-    build_chunk_plan,
-)
-
-
-def test_build_chunk_plan_covers_full_duration() -> None:
-    plan = build_chunk_plan(125 * 60, chunk_seconds=600)
-    assert plan[0] == (0.0, 600.0)
-    assert plan[1] == (600.0, 1200.0)
-    assert plan[-1][1] == 125 * 60.0
-    assert all(e - s <= 600 for s, e in plan)
-
-
-def test_build_chunk_plan_zero_duration() -> None:
-    plan = build_chunk_plan(0.0, chunk_seconds=600)
-    assert plan == [(0.0, 600.0)]
+from app.services.meeting_notes.service import _render_minutes_markdown
 
 
 def test_render_minutes_markdown_sections() -> None:
@@ -42,7 +26,7 @@ def test_render_minutes_markdown_sections() -> None:
             ),
         ),
     )
-    body = _render_minutes_markdown(notes, "[00:00] transcript line", 600.0)
+    body = _render_minutes_markdown(notes, "[00:00] transcript line")
     assert "# Weekly Sync" in body
     assert "## Decisions" in body
     assert "- [ ] Draft spec (owner: Alice, due: Friday)" in body

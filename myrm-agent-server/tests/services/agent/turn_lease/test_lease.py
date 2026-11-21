@@ -1,5 +1,7 @@
 """A turn the server starts by itself holds its session and a registered cancel token until it ends, however it ends.
 
+A rewrite of a chat's history holds the session alone: it is no turn, so there is nothing in it to stop.
+
 Checked against the real gateway and cancellation registry; only the background job registry is a stand-in.
 """
 
@@ -11,7 +13,7 @@ import pytest
 from myrm_agent_harness.utils.runtime.cancellation import CancellationRegistry, CancelReason
 
 from app.services.agent.gateway import AgentBusyError, AgentDrainingError, get_agent_gateway
-from app.services.agent.turn_lease import server_turn_lease
+from app.services.agent.turn_lease import hold_chat, server_turn_lease
 
 
 @pytest.fixture
@@ -131,3 +133,39 @@ async def test_a_job_registry_failure_does_not_keep_the_session(chat_id: str, ba
     background_jobs.assert_awaited_once_with(chat_id)
     assert not get_agent_gateway().is_session_active(chat_id)
     assert not CancellationRegistry.cancel("turn-1", CancelReason.USER_CANCELLED)
+
+
+@pytest.mark.asyncio
+async def test_a_hold_is_no_turn_so_stop_and_the_emergency_stop_find_nothing_in_it(chat_id: str) -> None:
+    gateway = get_agent_gateway()
+    tokens_before = CancellationRegistry.get_active_count()
+
+    async with hold_chat(chat_id):
+        assert gateway.is_session_active(chat_id)
+        assert gateway.get_active_message_id(chat_id) is None
+        assert not gateway.interrupt_session(chat_id)
+        assert CancellationRegistry.get_active_count() == tokens_before
+
+    assert not gateway.is_session_active(chat_id)
+
+
+@pytest.mark.asyncio
+async def test_a_hold_is_refused_while_a_turn_holds_the_chat_and_that_turn_is_left_alone(chat_id: str) -> None:
+    gateway = get_agent_gateway()
+    gateway.reserve_session(chat_id, active_message_id="user-message")
+
+    with pytest.raises(AgentBusyError):
+        async with hold_chat(chat_id):
+            pytest.fail("the hold must not start on a chat a turn holds")
+
+    assert gateway.get_active_message_id(chat_id) == "user-message"
+    assert gateway.is_session_active(chat_id)
+
+
+@pytest.mark.asyncio
+async def test_a_hold_gives_the_chat_back_when_its_body_fails(chat_id: str) -> None:
+    with pytest.raises(RuntimeError, match="boom"):
+        async with hold_chat(chat_id):
+            raise RuntimeError("boom")
+
+    assert not get_agent_gateway().is_session_active(chat_id)

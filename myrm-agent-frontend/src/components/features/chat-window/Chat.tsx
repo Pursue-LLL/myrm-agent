@@ -25,6 +25,7 @@
  *
  * [POS]
  * 聊天主组件。负责渲染消息列表、输入框、智能体配置面板与各类浮层，滚动行为交给 useChatScroll。
+ * 回退弹窗只在本视图里渲染，其目标随视图卸载一并清掉。
  * 虚拟滚动模式在长对话场景下提供更好的性能，滚动容器是列表内部的 div 而非 window。
  */
 
@@ -104,6 +105,10 @@ const Chat = ({
 
   const rewindTarget = useRewindStore((s) => s.target);
   const closeRewind = useRewindStore((s) => s.closeRewind);
+
+  // The target lives in a global store but its dialog only in this view: a view that goes away (chat switch,
+  // rehydration) must not leave a target behind for the next view to open as a dialog about the previous chat.
+  useEffect(() => () => closeRewind(), [closeRewind]);
 
   // 全局 Mod+K / Cmd+K / Ctrl+K / Mod+Shift+C 快速聚焦 Composer
   useComposerFastFocus({ enabled: true });
@@ -337,6 +342,7 @@ const Chat = ({
         )}
         {rewindTarget && (
           <RewindDialog
+            key={rewindTarget.messageId}
             open={true}
             onOpenChange={(open) => {
               if (!open) {

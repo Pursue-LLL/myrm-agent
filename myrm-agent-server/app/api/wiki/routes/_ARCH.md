@@ -23,7 +23,7 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 | `imports/` | 子包 | **/import/folder** · **/import/zip**（folder_zip.py）· **/import/obsidian** · **/import/obsidian-zip**（obsidian.py）；详见 [imports/_ARCH.md](imports/_ARCH.md) | ✅ |
 | `url_import.py` | 路由 | **POST /import/urls** | ✅ |
 | `video_import.py` | 路由 | **POST /import/video** | ✅ |
-| `meeting.py` | 路由 | **/meeting-notes/transcribe** 与 **/meeting-notes/live/{session_id}[/ingest|/finalize]** | ✅ |
+| `meeting.py` | 路由 | **/meeting-notes/live/{session_id}[/ingest|/finalize]**：会中逐行上报 final 转录、读取滚动纪要、结束时发布到知识库；知识库范围由 `agent_id`（路由依赖）决定 | ✅ |
 | `vault.py` | 路由 | **POST /vault/reveal** · **POST /vault/open-obsidian** | ✅ |
 | `portability.py` | 路由 | **GET /portability/export** | ✅ |
 | `governance.py` | 路由 | **/governance/** 知识治理：overview / extend / archive / undo / revive | ✅ |

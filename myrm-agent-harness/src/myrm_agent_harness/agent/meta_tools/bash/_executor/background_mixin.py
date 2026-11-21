@@ -5,13 +5,14 @@
 - .error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - agent.security.checks::check_shell_threats (POS: hidden-character and quoting layer, applied to the text a shell is about to read)
 - toolkits.code_execution.executors.base::ExecutionContext, CodeExecutor (POS: Code executor base classes)
+- toolkits.code_execution.executors.common::CommandRewriter (POS: Shared execution utilities)
 - toolkits.code_execution.platform::detect_platform (POS: Cross-platform runtime detection and shell configuration)
 - toolkits.code_execution::ExecutionConfig (POS: Code execution configuration layer)
 - .workspace_manager::WorkspaceManager (POS: Workspace Manager)
 - .skill_workspace_manager::SkillWorkspaceManager (POS: Skill Workspace Manager)
 
 [OUTPUT]
-- BashExecutorBackgroundMixin.spawn_background
+- BashExecutorBackgroundMixin.spawn_background: starts the command in the executor's root; the shell reads ``/workspace`` as that root, while the threat check, the job list and the execution record keep the command as typed
 
 [POS]
 Long-running shell spawn via background process registry; bypasses skill/python fast path.
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import logging
 from contextlib import suppress
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
@@ -29,6 +31,7 @@ from myrm_agent_harness.agent.meta_tools.bash._executor.error import (
 from myrm_agent_harness.agent.security.checks import check_shell_threats
 from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.toolkits.code_execution.executors.base import ExecutionContext
+from myrm_agent_harness.toolkits.code_execution.executors.common import CommandRewriter
 from myrm_agent_harness.toolkits.code_execution.platform import detect_platform
 
 if TYPE_CHECKING:
@@ -142,12 +145,18 @@ class BashExecutorBackgroundMixin:
         # The job starts where a foreground command does, in the root ``/workspace`` means to the executor: the project
         # for a project-bound chat, not the session's own storage directory. Starting a job leaves that binding alone.
         workspace_root = self._execution_workspace_root(self._workspace_manager.get_workspace_path(workspace)) or ""
+        # A shell has no ``/workspace``: the path the model writes for the project is replaced by that root, as a
+        # foreground command's is, quoted for the bash or sh that runs the job. What was typed stays the command that
+        # was judged above and is recorded below.
+        shell_command = CommandRewriter().rewrite_workspace_paths(
+            command, Path(workspace_root) if workspace_root else None, posix_shell=True
+        )
 
         network_config = self.config.network
 
         context = ExecutionContext(
             code=_background_shell(),
-            args=["-c", command],
+            args=["-c", shell_command],
             original_code=command,
             session_id=session_id,
             work_dir="/workspace",

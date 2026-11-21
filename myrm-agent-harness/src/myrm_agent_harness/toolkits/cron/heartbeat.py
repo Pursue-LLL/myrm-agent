@@ -74,8 +74,8 @@ class HeartbeatStatus(NamedTuple):
 
 
 async def _find_heartbeat(manager: CronManagerPort) -> CronJob | None:
-    """Find the heartbeat job by its conventional name."""
-    jobs = await manager.list_jobs(limit=200)
+    """Find the heartbeat job by its name; the filter is a substring match and the listing hides system jobs."""
+    jobs = await manager.list_jobs(name_filter=HEARTBEAT_JOB_NAME, include_system=True)
     return next((j for j in jobs if j.name == HEARTBEAT_JOB_NAME), None)
 
 
@@ -136,6 +136,7 @@ async def enable_heartbeat(
         session_target=SessionTarget.ISOLATED,
         timeout_seconds=_DEFAULT_TIMEOUT,
         deduplicate=True,
+        system=True,
     )
 
 

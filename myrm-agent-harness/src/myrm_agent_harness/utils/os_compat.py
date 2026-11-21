@@ -9,6 +9,7 @@
 [OUTPUT]
 - IS_WIN: Whether the host operating system is Windows.
 - SIGKILL: The signal that force-kills a process tree (SIGTERM on Windows, which has no SIGKILL).
+- ProcessGroupKwargs: The keyword arguments that start a child in a process group of its own.
 - get_process_group_kwargs: Subprocess kwargs for creating process groups.
 - kill_process_group: Safely kill a process group tree.
 - kill_spawned_group: Kill the group a child was started in, even once the child itself has exited.
@@ -27,7 +28,7 @@ import signal
 import subprocess
 import sys
 import time
-from typing import Any
+from typing import TypedDict
 
 IS_WIN = sys.platform == "win32"
 
@@ -37,14 +38,16 @@ IS_WIN = sys.platform == "win32"
 SIGKILL: signal.Signals = signal.SIGTERM if sys.platform == "win32" else signal.SIGKILL
 
 
-def get_process_group_kwargs() -> dict[str, Any]:
-    """Return kwargs for subprocess.Popen / asyncio.create_subprocess_exec.
+class ProcessGroupKwargs(TypedDict, total=False):
+    """The keyword arguments that start a child in a process group of its own: ``creationflags`` on Windows,
+    ``start_new_session`` elsewhere."""
 
-    ``Any`` is intentional: the resulting dict is unpacked into stdlib APIs
-    whose parameter types are platform-specific (``creationflags`` on Win,
-    ``start_new_session`` on POSIX) and otherwise refused by ``mypy`` when
-    fed through ``**kwargs``.
-    """
+    creationflags: int
+    start_new_session: bool
+
+
+def get_process_group_kwargs() -> ProcessGroupKwargs:
+    """Return kwargs for subprocess.Popen / asyncio.create_subprocess_exec."""
     if IS_WIN:
         creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 512)
         return {"creationflags": creationflags}

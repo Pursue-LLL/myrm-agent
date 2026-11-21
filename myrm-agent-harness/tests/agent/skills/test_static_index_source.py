@@ -152,7 +152,7 @@ class TestStaticIndexSkillSource:
     ) -> None:
         cache_dir = tmp_path / "cache"
         source = StaticIndexSkillSource(
-            index_url="https://cdn.myrm.io/skills/skills-index.json.gz",
+            index_url="https://cdn.example.com/skills/skills-index.json.gz",
             cache_dir=cache_dir,
             ttl_seconds=0.0,  # force sync
         )
@@ -164,7 +164,7 @@ class TestStaticIndexSkillSource:
             status_code=200,
             content=gzipped_bytes,
             headers={"ETag": '"etag-v1.0.0"'},
-            request=httpx.Request("GET", "https://cdn.myrm.io/skills/skills-index.json.gz"),
+            request=httpx.Request("GET", "https://cdn.example.com/skills/skills-index.json.gz"),
         )
 
         with patch(
@@ -193,7 +193,7 @@ class TestStaticIndexSkillSource:
         (cache_dir / "skills-index.json.gz").write_bytes(gzip.compress(raw_json_bytes))
 
         source = StaticIndexSkillSource(
-            index_url="https://cdn.myrm.io/skills/skills-index.json.gz",
+            index_url="https://cdn.example.com/skills/skills-index.json.gz",
             cache_dir=cache_dir,
             ttl_seconds=0.0,
         )
@@ -201,7 +201,7 @@ class TestStaticIndexSkillSource:
         mock_resp = httpx.Response(
             status_code=304,
             headers={},
-            request=httpx.Request("GET", "https://cdn.myrm.io/skills/skills-index.json.gz"),
+            request=httpx.Request("GET", "https://cdn.example.com/skills/skills-index.json.gz"),
         )
 
         with patch(
@@ -225,7 +225,7 @@ class TestStaticIndexSkillSource:
         (cache_dir / "skills-index.json.gz").write_bytes(gzip.compress(raw_json_bytes))
 
         source = StaticIndexSkillSource(
-            index_url="https://cdn.myrm.io/skills/skills-index.json.gz",
+            index_url="https://cdn.example.com/skills/skills-index.json.gz",
             cache_dir=cache_dir,
             ttl_seconds=0.0,
         )

@@ -63,7 +63,6 @@ from app.services.agent.stream_session.turn_workspace_bind import (
 )
 from app.services.agent.streaming_support.sse_helpers import error_sse
 from app.services.agent.streaming_support.stream_collector import StreamContentCollector
-from app.services.chat.compact_service import CompactResult
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.goals.protocols import GoalProvider
@@ -123,26 +122,17 @@ async def execute_agent_turn_after_reserve(
     )
     pending_draft = persisted_message_id.pending_draft if persisted_message_id is not None else None
 
-    pre_reply_compact_result: CompactResult | None = None
-    pre_reply_compact_sse_sent = False
     if request.resume_value is None and request.chat_id and request.message_id:
         from app.services.agent.stream_session.pre_reply_compact_sse import (
             run_pre_reply_compact_with_sse,
         )
 
-        pre_reply_compact_result = await run_pre_reply_compact_with_sse(
+        await run_pre_reply_compact_with_sse(
             buffer,
             chat_id=request.chat_id,
             message_id=request.message_id,
             agent_id=request.agent_id,
             request_engine_params=request.engine_params,
-        )
-        pre_reply_compact_sse_sent = bool(
-            pre_reply_compact_result
-            and (
-                (pre_reply_compact_result.compacted and pre_reply_compact_result.tokens_saved > 0)
-                or pre_reply_compact_result.attempted
-            )
         )
 
     chat_history = await chat_history_bootstrap.load_chat_history(
@@ -208,8 +198,6 @@ async def execute_agent_turn_after_reserve(
             routing_reason=turn.routing_reason,
             context_warnings=turn.context_warnings,
             stream_started_at_monotonic=stream_started_at_monotonic,
-            pre_reply_compact_result=pre_reply_compact_result,
-            pre_reply_compact_sse_sent=pre_reply_compact_sse_sent,
             pending_session_draft=pending_draft,
         )
         if request.chat_id:

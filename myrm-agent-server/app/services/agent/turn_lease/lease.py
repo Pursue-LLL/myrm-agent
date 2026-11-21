@@ -1,4 +1,4 @@
-"""Hold a chat session for a turn the server starts by itself.
+"""Hold a chat session for work the server runs by itself.
 
 [INPUT]
 - app.services.agent.gateway::get_agent_gateway (POS: chat session reservation shared with user turns)
@@ -7,13 +7,16 @@
 
 [OUTPUT]
 - server_turn_lease: async context manager; yields the cancel token of a turn that holds its session
+- hold_chat: async context manager; holds a chat's session for a rewrite of its history, which is no turn and has nothing to stop
 
 [POS]
 A chat turn takes its session and registers a cancel token before its agent is built, so the Stop button, a pause
 and the emergency stop can find it; a stopped chat turn also ends the background jobs it started. A turn the server
 starts itself (goal continuation, an approval that timed out, a turn replayed after a restart, the wake turn after
 background work settled) has no HTTP request to carry any of that, so it takes the same things here and gives them
-back however it ends.
+back however it ends. A rewrite of a chat's persisted history takes the session alone: that keeps every entry that
+reserves the chat first from starting, and with no message id and no token the Stop button and the emergency stop
+find nothing in it to cancel.
 """
 
 from __future__ import annotations
@@ -56,6 +59,27 @@ async def server_turn_lease(session_id: str, turn_id: str) -> AsyncIterator[Canc
         finally:
             if gateway.get_active_message_id(session_id) == turn_id:
                 gateway.release_if_reserved_only(session_id)
+
+
+@asynccontextmanager
+async def hold_chat(chat_id: str) -> AsyncIterator[None]:
+    """Hold ``chat_id`` while its persisted history is rewritten, so no entry that reserves the chat first can start.
+
+    The hold carries no message id and registers no cancel token, so it is not a turn: the Stop button finds no active
+    agent, the emergency stop has nothing to cancel, and nothing here ends the chat's background jobs. The reservation
+    is taken before the first suspension point, so a caller that judged the chat free in the step before is not
+    overtaken. On exit it is given back unless a stream took it over (that stream then clears it itself).
+
+    Raises:
+        AgentBusyError: a turn holds the chat.
+        AgentDrainingError: the application is draining.
+    """
+    gateway = get_agent_gateway()
+    gateway.reserve_session(chat_id)
+    try:
+        yield
+    finally:
+        gateway.release_if_reserved_only(chat_id)
 
 
 async def _stop_background_jobs(session_id: str) -> None:

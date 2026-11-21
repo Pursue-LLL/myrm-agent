@@ -1,5 +1,5 @@
 /**
- * Progressive Web Enhancer - delivered into every HTML document by enhancers/inject_route.py
+ * Progressive Web Enhancer - registered as an init script by the context factory, so it runs in every document of a context
  * Provides:
  * 1. Event Listener interception (Vanilla/Vue/jQuery)
  * 2. React Fiber DevTools hook interception

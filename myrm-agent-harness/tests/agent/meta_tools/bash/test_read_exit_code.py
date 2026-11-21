@@ -12,7 +12,7 @@ from myrm_agent_harness.agent.meta_tools.bash._background.registry import Backgr
 from myrm_agent_harness.agent.meta_tools.bash._executor.auto_yield import build_auto_yield_return
 from myrm_agent_harness.agent.meta_tools.bash._tool.formatting import format_result
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
-from tests.agent.meta_tools.bash.test_background_registry import _FakeProc, _wait_until
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc, wait_until
 
 
 def _tool_message(stdout: str = "", stderr: str = "", exit_code: int = 0, command: str = "pytest -q") -> str:
@@ -96,10 +96,10 @@ class TestAgainstTheAutoYieldResults:
     @pytest.mark.parametrize("exit_code", [0, 3])
     async def test_a_job_that_exited_inside_the_window_reports_its_code(self, exit_code: int) -> None:
         registry = BackgroundProcessRegistry()
-        proc = _FakeProc(pid=9101, stdout=[b"build ok\n"], stderr=[])
+        proc = FakeProc(pid=9101, stdout=[b"build ok\n"], stderr=[])
         await registry.register(cast(AsyncProcessProtocol, proc), command="npm run build", session_id="s-exit-code")
         proc.finish(exit_code)
-        await _wait_until(lambda: _has_exited(registry, 9101), what="the job to exit")
+        await wait_until(lambda: _has_exited(registry, 9101), what="the job to exit")
         info = registry.get(9101)
         assert info is not None
 
@@ -110,9 +110,9 @@ class TestAgainstTheAutoYieldResults:
     @pytest.mark.asyncio
     async def test_a_job_still_running_has_no_code_even_when_its_output_quotes_the_marker(self) -> None:
         registry = BackgroundProcessRegistry()
-        proc = _FakeProc(pid=9102, stdout=[b"[exit_code: 1]\n"], stderr=[])
+        proc = FakeProc(pid=9102, stdout=[b"[exit_code: 1]\n"], stderr=[])
         await registry.register(cast(AsyncProcessProtocol, proc), command="npm test", session_id="s-running")
-        await _wait_until(lambda: bool(registry.get_output(9102, max_lines=5).get("stdout")), what="its output")
+        await wait_until(lambda: bool(registry.get_output(9102, max_lines=5).get("stdout")), what="its output")
         info = registry.get(9102)
         assert info is not None
         assert info.status == "running"

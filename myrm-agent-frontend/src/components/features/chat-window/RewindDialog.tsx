@@ -2,13 +2,24 @@
  * [INPUT]
  * @/services/chat::rewindToMessage (POS: Chat session truncation and rollback API client)
  * @/store/useChatStore::useChatStore (POS: Global chat store for message state)
+ * @/store/chat/goals/usePlanStore::usePlanStore (POS: Store of the active plan, refetched after a rewind)
+ * @/lib/utils/messageUtils::splitUserMessageForComposer (POS: Message text cleanup, explicit skill wire format)
+ * @/lib/utils/apiConfig::getBackendUrl (POS: Backend base URL without the API path prefix)
+ * @/lib/utils/authHeaders::getAuthHeaders (POS: Authorization headers of backend requests)
+ * @/lib/api::ApiError (POS: Typed API failure carrying the HTTP status of a rejected request)
+ * @/hooks/shared/useToast::useToast (POS: Toast hook compatible with the shadcn/ui and Sonner APIs)
+ * ./useComposerFastFocus::focusComposer (POS: Programmatic focus of the chat composer input, with a brief highlight ring)
  *
  * [OUTPUT]
  * RewindDialog: Dialog component for rollback scope selection and confirmation
  *
  * [POS]
  * Modal dialog for rollbacks. Provides scope choice (conversation vs conversation + files)
- * and file change preview before dispatching rewind request.
+ * and file change preview before dispatching rewind request, then puts the rewound message
+ * (its text and skill chip) back into the composer with any unsent draft kept below it and hands the
+ * focus to the composer. The dialog cannot be dismissed while the request is in flight. The
+ * transcript, composer and plan are only touched while the dialog's chat is still the open one, and a
+ * request that settles after the dialog is gone does not close the target of a newer dialog.
  */
 
 'use client';
@@ -32,7 +43,8 @@ import { getBackendUrl } from '@/lib/utils/apiConfig';
 import { useToast } from '@/hooks/shared/useToast';
 import useChatStore from '@/store/useChatStore';
 import { usePlanStore } from '@/store/chat/goals/usePlanStore';
-import { stripUserMessageDisplayText, parseExplicitSkillActivation } from '@/lib/utils/messageUtils';
+import { splitUserMessageForComposer } from '@/lib/utils/messageUtils';
+import { focusComposer } from './useComposerFastFocus';
 
 interface RewindDialogProps {
   open: boolean;
@@ -66,11 +78,32 @@ interface FilePreview {
   files: FileChangeItem[];
 }
 
+/**
+ * What the composer holds after a rewind: the restored message with the user's unsent draft kept below it, so a
+ * rewind never throws typing away. A blank draft, or one that repeats the restored text, adds nothing.
+ */
+function composeRewoundInput(restored: string, draft: string): { text: string; draftKept: boolean } {
+  const kept = draft.trim();
+  if (kept === '' || kept === restored.trim()) {
+    return { text: restored, draftKept: false };
+  }
+  const head = restored.trimEnd();
+  return { text: head === '' ? kept : `${head}\n\n${kept}`, draftKept: true };
+}
+
 export function RewindDialog({ open, onOpenChange, chatId, messageId, messageIndex }: RewindDialogProps) {
   const { toast } = useToast();
   const t = useTranslations('chat.rewind');
   const [isRewinding, setIsRewinding] = useState(false);
   const rewindingRef = useRef(false);
+  // The request can settle after the dialog's view is gone; closing then would close a newer view's target.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
   const [scope, setScope] = useState<RewindScope>('both');
   const [preview, setPreview] = useState<FilePreview>({
     status: 'checking',
@@ -84,8 +117,9 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       return;
     }
 
+    // Chat mounts one dialog per rewind target (keyed by message id), so the preview starts as 'checking' for every
+    // target and needs no reset here.
     let cancelled = false;
-    setPreview({ status: 'checking', fileCount: 0, skippedCount: 0, files: [] });
 
     const currentMessages = useChatStore.getState().messages;
     const authoritativeIndex = currentMessages.findIndex((m) => m.messageId === messageId);
@@ -95,11 +129,6 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       .slice(resolvedIndex)
       .filter((m) => m.role === 'assistant')
       .map((m) => m.messageId);
-
-    if (assistantIds.length === 0) {
-      setPreview({ status: 'empty', fileCount: 0, skippedCount: 0, files: [] });
-      return;
-    }
 
     (async () => {
       const results = await Promise.all(
@@ -151,6 +180,13 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
     };
   }, [open, chatId, messageId, messageIndex]);
 
+  // A rewind cannot be called back once sent, so the dialog stays until the server has answered.
+  const handleOpenChange = (next: boolean) => {
+    if (!isRewinding) {
+      onOpenChange(next);
+    }
+  };
+
   const handleRewind = async () => {
     if (useChatStore.getState().loading) {
       toast({
@@ -173,18 +209,28 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       const envelope = response as { data?: RewindResult };
       const payload = envelope.data ?? (response as RewindResult);
       const composerRaw = typeof payload.composer_text === 'string' ? payload.composer_text : '';
-      const activation = parseExplicitSkillActivation(composerRaw);
-      const composerText = activation ? activation.instruction : stripUserMessageDisplayText(composerRaw);
+      const composer = splitUserMessageForComposer(composerRaw);
 
-      useChatStore.setState((state) => {
-        const authorIndex = state.messages.findIndex((m) => m.messageId === messageId);
+      // The request settles later than the click, and the chat store holds whichever chat is open by then. The server
+      // rewound this dialog's chat either way; the transcript, composer and plan on screen follow only while that chat
+      // is still the open one.
+      const live = useChatStore.getState();
+      const stillOpen = live.chatId === chatId;
+      if (stillOpen) {
+        const authorIndex = live.messages.findIndex((m) => m.messageId === messageId);
         const sliceIndex = authorIndex >= 0 ? authorIndex : messageIndex;
-        return {
-          messages: state.messages.slice(0, sliceIndex),
-          inputMessage: composerText,
-        };
-      });
-      void usePlanStore.getState().fetchPlan(chatId);
+        const { text, draftKept } = composeRewoundInput(composer.text, live.inputMessage);
+        // One write for the transcript, the composer text and its skill chip. The object form keeps the store's field
+        // types checked, which a callback's returned object is not. A chip armed for the draft stays with the draft;
+        // with no draft to keep, only the restored message's own chip remains.
+        useChatStore.setState({
+          messages: live.messages.slice(0, sliceIndex),
+          inputMessage: text,
+          pendingExplicitSkillActivation:
+            composer.activation ?? (draftKept ? live.pendingExplicitSkillActivation : null),
+        });
+        void usePlanStore.getState().fetchPlan(chatId);
+      }
 
       const revertedCount = payload.reverted_files?.length ?? 0;
       const notices: string[] = [];
@@ -194,22 +240,20 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
       if (payload.goal_paused) {
         notices.push(t('goalPausedNotice'));
       }
+      // `successDescription` sends the user to the composer, which holds the message only while the chat is open.
       toast({
         title: t('success'),
-        description: notices.length > 0 ? notices.join(' ') : t('successDescription'),
+        description: notices.length > 0 ? notices.join(' ') : stillOpen ? t('successDescription') : undefined,
       });
-      onOpenChange(false);
+      if (mountedRef.current) {
+        onOpenChange(false);
+      }
 
-      if (typeof window !== 'undefined') {
+      if (stillOpen) {
+        // A frame later, after the closing dialog has returned the focus on its own timer. The composer is found by
+        // its marker: the first textarea of the page need not be the composer.
         requestAnimationFrame(() => {
-          const textarea = document.querySelector<HTMLTextAreaElement>(
-            'textarea[data-testid="chat-input-textarea"], textarea',
-          );
-          if (textarea) {
-            textarea.focus();
-            const len = textarea.value.length;
-            textarea.setSelectionRange(len, len);
-          }
+          focusComposer();
         });
       }
     } catch (error) {
@@ -247,8 +291,8 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
   ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[425px]" hideCloseButton={isRewinding}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Undo2 className="h-5 w-5" />
@@ -266,6 +310,7 @@ export function RewindDialog({ open, onOpenChange, chatId, messageId, messageInd
                 <button
                   key={option.value}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setScope(option.value)}
                   className={`rounded-lg border p-3 text-left transition-colors ${
                     active ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted'

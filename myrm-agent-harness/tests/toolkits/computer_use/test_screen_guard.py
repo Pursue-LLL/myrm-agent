@@ -24,6 +24,7 @@ _LOCKED_REFUSAL = "Safety: Screen is locked"
 _SNAPSHOT_REFUSAL = "Safety: Desktop screen is locked"
 _TYPE_PAYLOAD_ERROR = "Error: text (key combo) is required for key action"
 _APPROVAL_STOP = ActionResult(success=False, error="stop-after-guard")
+_VISION_PROBE = "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend"
 
 
 def _backend(*, locked: bool = False, asleep: bool = False) -> MagicMock:
@@ -66,9 +67,10 @@ def _desktop_session(backend: MagicMock, monkeypatch: pytest.MonkeyPatch) -> Des
     return session
 
 
-def _seed_pre_lock_ref(session: DesktopSession) -> None:
+def _seed_pre_lock_ref(session: DesktopSession) -> str:
+    """Register one element as a pre-lock snapshot would and return the @dref id the registry issued for it."""
     ref = ElementRef(
-        ref_id="d1",
+        ref_id="capture-1",
         role="AXButton",
         name="Send",
         bbox=BBox(x=0, y=0, width=10, height=10),
@@ -76,7 +78,9 @@ def _seed_pre_lock_ref(session: DesktopSession) -> None:
         actions=("click",),
     )
     meta = SnapshotMeta(ref_count=1, app_name="Mail", window_title="Inbox", scope="foreground")
-    session.ref_registry.replace({"d1": ref}, meta)
+    (ref_id,) = session.ref_registry.adopt({"capture-1": ref}, meta)
+    assert session.ref_registry.resolve(ref_id).element.name == "Send"
+    return ref_id
 
 
 class TestScreenGuardProbes:
@@ -251,16 +255,14 @@ class TestComputerSessionOnDemandUnlock:
 class TestDesktopSessionReanchor:
     def test_every_pre_lock_ref_resolves_as_stale(self) -> None:
         session = DesktopSession(backend=_backend())
-        _seed_pre_lock_ref(session)
+        ref_id = _seed_pre_lock_ref(session)
         generation = session.ref_registry.generation
 
         session.reanchor_visual_state()
 
         with pytest.raises(DRefStaleError):
-            session.ref_registry.get("d1")
+            session.ref_registry.resolve(ref_id)
         assert session.ref_registry.meta is None
-        assert session.ref_registry.previous_refs == {}
-        assert session.ref_registry.previous_meta is None
         assert session.ref_registry.generation > generation
 
     async def test_on_demand_unlock_invalidates_refs_issued_before_the_lock(
@@ -268,17 +270,17 @@ class TestDesktopSessionReanchor:
     ) -> None:
         backend = _backend(locked=True)
         session = _desktop_session(backend, monkeypatch)
-        _seed_pre_lock_ref(session)
+        ref_id = _seed_pre_lock_ref(session)
         session.set_screen_unlock_callback(_Host(backend, unlocks=True))
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             side_effect=AXTreeEmptyError("unlocked"),
         ):
             await session.desktop_snapshot()
 
         with pytest.raises(DRefStaleError):
-            session.ref_registry.get("d1")
+            session.ref_registry.resolve(ref_id)
 
 
 class TestDesktopSessionOnDemandUnlock:
@@ -289,7 +291,7 @@ class TestDesktopSessionOnDemandUnlock:
         session.set_screen_unlock_callback(host)
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.snapshot.capture_snapshot",
             side_effect=AXTreeEmptyError("unlocked"),
         ):
             result = await session.desktop_snapshot()
@@ -326,3 +328,44 @@ class TestDesktopSessionOnDemandUnlock:
         assert _LOCKED_REFUSAL in str(vision)
         assert backend.click.await_count == 0
         assert host.calls == 3
+
+    async def test_capture_refuses_a_locked_screen_before_probing_or_capturing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        backend = _backend(locked=True)
+        session = _desktop_session(backend, monkeypatch)
+        take_screenshot = AsyncMock(return_value=ActionResult(success=True))
+        monkeypatch.setattr(session, "take_screenshot", take_screenshot)
+
+        with patch(_VISION_PROBE, return_value={}) as probe:
+            result = await session.desktop_vision_capture()
+
+        assert _SNAPSHOT_REFUSAL in str(result)
+        probe.assert_not_called()
+        take_screenshot.assert_not_awaited()
+
+    async def test_capture_refuses_a_sleeping_display(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = _backend(asleep=True)
+        session = _desktop_session(backend, monkeypatch)
+        take_screenshot = AsyncMock(return_value=ActionResult(success=True))
+        monkeypatch.setattr(session, "take_screenshot", take_screenshot)
+
+        with patch(_VISION_PROBE, return_value={}):
+            result = await session.desktop_vision_capture()
+
+        assert result == "Safety: Display is sleeping. Snapshot aborted."
+        take_screenshot.assert_not_awaited()
+
+    async def test_capture_proceeds_after_on_demand_unlock(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        backend = _backend(locked=True)
+        session = _desktop_session(backend, monkeypatch)
+        host = _Host(backend, unlocks=True)
+        session.set_screen_unlock_callback(host)
+        take_screenshot = AsyncMock(return_value=ActionResult(success=False, error="stop-after-guard"))
+        monkeypatch.setattr(session, "take_screenshot", take_screenshot)
+
+        with patch(_VISION_PROBE, return_value={}):
+            result = await session.desktop_vision_capture()
+
+        assert result == "Capture failed: stop-after-guard"
+        assert host.calls == 1

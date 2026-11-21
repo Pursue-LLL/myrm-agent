@@ -158,6 +158,7 @@ const MessageInput = ({ loading, focusOnMount }: MessageInputProps) => {
     results: referenceMentionResults,
     selectedIndex: referenceMentionSelectedIndex,
     query: referenceMentionQuery,
+    isSearching: referenceMentionSearching,
     selectReference,
     handleKeyDown: handleReferenceMentionKeyDown,
   } = useReferenceMention(inputMessage, caret);
@@ -215,6 +216,7 @@ const MessageInput = ({ loading, focusOnMount }: MessageInputProps) => {
             results={referenceMentionResults}
             selectedIndex={referenceMentionSelectedIndex}
             query={referenceMentionQuery}
+            searching={referenceMentionSearching}
             onSelect={(reference) => selectReference(reference, setInputMessage)}
             anchorRef={inputRef}
           />

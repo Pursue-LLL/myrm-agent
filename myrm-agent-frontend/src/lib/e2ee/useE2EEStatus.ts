@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ensureMobileE2EE } from '@/lib/mobileRemote';
-import { E2EEHandshakeRequiredError, loadStoredE2EESession } from '@/lib/e2ee/client';
+import { E2EE_ALGORITHM, E2EEHandshakeRequiredError, loadStoredE2EESession } from '@/lib/e2ee/client';
 import { computeE2EEFingerprint } from '@/lib/e2ee/fingerprint';
-
-const E2EE_ALGORITHM = 'NaCl Box (Curve25519)';
 
 export type E2EEStatus = {
   established: boolean;

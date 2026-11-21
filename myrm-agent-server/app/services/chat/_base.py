@@ -88,7 +88,15 @@ class _ChatRepositoryPort(Protocol):
 
     async def get_last_user_message(self, chat_id: str) -> MessageDTO | None: ...
 
-    async def delete_messages_after(self, chat_id: str, anchor: MessageDTO, include_anchor: bool = False) -> list[str]: ...
+    async def message_ids_from(self, chat_id: str, anchor: MessageDTO) -> frozenset[str]: ...
+
+    async def delete_messages_after(
+        self,
+        chat_id: str,
+        anchor: MessageDTO,
+        include_anchor: bool = False,
+        only_ids: frozenset[str] | None = None,
+    ) -> list[str]: ...
 
     async def get_latest_message(self, chat_id: str, *, conversation_only: bool = False) -> MessageDTO | None: ...
 

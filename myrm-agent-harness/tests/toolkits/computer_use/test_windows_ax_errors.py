@@ -6,13 +6,15 @@ Covers:
 - _locate_window: uiautomation missing, root/children failures, title/pid access failures
 - capture_ax_snapshot: uiautomation missing, empty foreground, no interactive refs
 - invoke_ax_element: uiautomation missing, flatten failure, invalid rect, stale index,
-  SendKeys fill, unsupported action, action failure
+  SendKeys fill, unsupported action, action failure, every verb of the tool vocabulary
+  delivered as its class (SendKeys for text entry, Click for the rest)
 - inspect_foreground: empty tree and permission-required paths
 """
 
 from __future__ import annotations
 
 from contextlib import contextmanager
+from typing import get_args
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
@@ -22,6 +24,8 @@ from myrm_agent_harness.toolkits.computer_use.dref.errors import (
     AXPermissionRequiredError,
     AXTreeEmptyError,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure
+from myrm_agent_harness.toolkits.computer_use.types import DESKTOP_TEXT_ACTIONS, DesktopInteractAction
 
 
 def _make_interactive_control(*, bbox_fails: bool = False, zero_size: bool = False) -> MagicMock:
@@ -210,6 +214,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "not installed" in result.error
+        assert result.failure is AxFailure.UNSUPPORTED
 
     def test_no_foreground_window(self) -> None:
         auto = _make_auto(foreground=None)
@@ -217,6 +222,17 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "foreground" in result.error.lower()
+        assert result.failure is AxFailure.STALE
+
+    def test_target_window_not_found(self) -> None:
+        root = MagicMock()
+        root.GetChildren.return_value = []
+        auto = _make_auto(root=root)
+        with _module_with_auto(auto) as module:
+            result = module.invoke_ax_element("0", "click", app_name="Mail")
+        assert result.success is False
+        assert "target window not found" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_flatten_failure_returns_stale(self) -> None:
         foreground = MagicMock()
@@ -227,6 +243,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "Stale" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_bbox_failure_skips_element(self) -> None:
         control = _make_interactive_control(bbox_fails=True)
@@ -260,6 +277,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("5", "click")
         assert result.success is False
         assert "Stale element index 5" in result.error
+        assert result.failure is AxFailure.STALE
 
     def test_fill_uses_send_keys(self) -> None:
         control = _make_interactive_control()
@@ -282,6 +300,7 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "scroll")
         assert result.success is False
         assert "Unsupported action" in result.error
+        assert result.failure is AxFailure.UNSUPPORTED
 
     def test_action_failure_propagates_error(self) -> None:
         control = _make_interactive_control()
@@ -294,6 +313,26 @@ class TestInvokeElementErrors:
             result = module.invoke_ax_element("0", "click")
         assert result.success is False
         assert "click failed" in result.error
+        assert result.failure is AxFailure.UNKNOWN
+
+
+class TestEveryVerbOfTheToolVocabularyIsDeliveredAsItsClass:
+    # fill_credential never reaches an invoker (desktop_interact turns it into fill first) and scroll has no UIA route
+    # (refused as unsupported, see test_unsupported_action).
+    @pytest.mark.parametrize(
+        "action", [a for a in get_args(DesktopInteractAction) if a not in {"fill_credential", "scroll"}]
+    )
+    def test_a_text_verb_sends_keys_and_every_other_verb_clicks(self, action: str) -> None:
+        control = _make_interactive_control()
+        foreground = MagicMock()
+        foreground.ControlTypeName = "PaneControl"
+        foreground.GetChildren.return_value = [control]
+        with _module_with_auto(_make_auto(foreground=foreground)) as module:
+            result = module.invoke_ax_element("0", action, text="hello")
+        entered_text = action in DESKTOP_TEXT_ACTIONS
+        assert result.success is True
+        assert control.SendKeys.called is entered_text
+        assert control.Click.called is not entered_text
 
 
 class TestInspectForegroundErrors:

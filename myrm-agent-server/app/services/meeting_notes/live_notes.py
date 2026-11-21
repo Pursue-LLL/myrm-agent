@@ -13,7 +13,7 @@
 Business orchestration layer for live meeting notes. Consumes *finalized* transcript
 lines from the existing streaming STT path, keeps the running transcript, and
 periodically produces rolling structured notes (summary / decisions / action items)
-by reusing the batch distillation prompt. Contains no ASR implementation and no
+through the shared minutes distillation. Contains no ASR implementation and no
 framework code; it is a thin, deterministic scheduler around the existing distillation.
 """
 
@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import math
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from app.services.meeting_notes.models import StructuredMeetingNotes
@@ -69,7 +70,7 @@ class LiveNotesSession:
         *,
         refresh_seconds: float = _DEFAULT_REFRESH_SECONDS,
         min_new_chars: int = _DEFAULT_MIN_NEW_CHARS,
-        clock: object = time.monotonic,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.session_id = session_id
         self._refresh_seconds = max(1.0, refresh_seconds)

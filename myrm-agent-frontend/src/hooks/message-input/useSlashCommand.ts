@@ -6,9 +6,10 @@
  * - @/store/useCommandStore (POS: 系统行为与用户命令注册表)
  * - @/store/skill (POS: 技能市场/本地技能目录)
  * - @/store/useFeatureGateStore (POS: 功能开关)
+ * - @/services/i18nToastService::showI18nToast (POS: i18n toast 封装)
  *
  * [OUTPUT]
- * - useSlashCommand: 命令面板状态、键盘导航、命令执行（skill 激活 + 模板替换 + 前缀保留）
+ * - useSlashCommand: 命令面板状态、键盘导航、命令执行（skill 激活 + 模板替换 + 前缀保留；命令抛错时提示失败）
  *
  * [POS]
  * 聊天输入框 `/` 快捷指令面板。合并系统行为、用户命令、Agent 绑定技能与命令捆绑为统一面板。
@@ -20,6 +21,7 @@ import useChatStore from '@/store/useChatStore';
 import { useCommandStore } from '@/store/useCommandStore';
 import { useSkillStore } from '@/store/skill';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import { showI18nToast } from '@/services/i18nToastService';
 import type { SlashItem, SlashAction } from '@/types/command';
 
 /**
@@ -52,22 +54,24 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
   );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const selectedSkillIds = agentConfig?.selectedSkillIds;
+  const commandBindings = agentConfig?.commandBindings;
 
   useEffect(() => {
-    if (!agentConfig?.selectedSkillIds?.length) {
+    if (!selectedSkillIds?.length) {
       return;
     }
     void fetchMarketSkills();
     void fetchLocalSkills();
-  }, [agentConfig?.selectedSkillIds, fetchMarketSkills, fetchLocalSkills]);
+  }, [selectedSkillIds, fetchMarketSkills, fetchLocalSkills]);
 
   const skillActions = useMemo((): SlashAction[] => {
-    if (!agentConfig?.selectedSkillIds?.length) {
+    if (!selectedSkillIds?.length) {
       return [];
     }
     const allSkills = [...marketSkills, ...localSkills];
     const boundSkills: Array<{ id: string; name: string; description: string; user_invocable: boolean }> =
-      agentConfig.selectedSkillIds.flatMap(
+      selectedSkillIds.flatMap(
         (id): Array<{ id: string; name: string; description: string; user_invocable: boolean }> => {
           const fromCatalog = allSkills.find((skill) => skill.id === id);
           if (fromCatalog) {
@@ -99,8 +103,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
     }));
 
     const bundleActions: SlashAction[] = [];
-    const bindings = agentConfig.commandBindings ?? [];
-    for (const binding of bindings) {
+    for (const binding of commandBindings ?? []) {
       const ids = binding.skill_ids ?? [];
       if (ids.length <= 1) {
         continue;
@@ -127,7 +130,7 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
     }
 
     return [...singleSkillActions, ...bundleActions];
-  }, [agentConfig?.selectedSkillIds, agentConfig?.commandBindings, marketSkills, localSkills]);
+  }, [selectedSkillIds, commandBindings, marketSkills, localSkills]);
 
   // 检测是否应该显示命令面板
   const { shouldShow, query } = useMemo(() => {
@@ -205,6 +208,8 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
         }
       } catch (error) {
         console.error('[SlashCommand] Execute failed:', error);
+        // A command that throws has said nothing itself; one that returns `success: false` already told the user.
+        showI18nToast('commands.executeFailed', undefined, { type: 'error' });
       }
 
       // 重置选中索引（命令执行后关闭面板）
@@ -253,10 +258,12 @@ export const useSlashCommand = (inputValue: string, cursorPosition: number) => {
     [shouldShow, filteredItems, selectedIndex, executeCommand, inputValue, cursorPosition, setInputMessage],
   );
 
-  // 当过滤结果变化时，重置选中索引
-  useEffect(() => {
+  // 过滤结果数量变化时高亮回到首项；在渲染期调整状态，避免先以过期索引提交一帧再由 effect 纠正
+  const [matchCount, setMatchCount] = useState(filteredItems.length);
+  if (matchCount !== filteredItems.length) {
+    setMatchCount(filteredItems.length);
     setSelectedIndex(0);
-  }, [filteredItems.length]);
+  }
 
   return {
     showCommandPalette: shouldShow,

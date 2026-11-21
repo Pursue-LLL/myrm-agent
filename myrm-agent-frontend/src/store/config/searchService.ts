@@ -1,5 +1,19 @@
-import { translateI18nKey } from '@/services/i18nToastService';
+/**
+ * [INPUT]
+ * @/lib/utils/toast::toast (POS: toast wrapper over the Sonner API)
+ * @/services/i18nToastService::translateI18nKey (POS: store-safe i18n lookup)
+ * ./types::SearchServiceConfigItem, SearchServiceConfig (POS: search service config types)
+ * ./webSearchConfigGap::runWebSearchConfigGapAction (POS: SSOT for web search config-gap CTA)
+ *
+ * [OUTPUT]
+ * normalizeSearchServiceConfigs, add/update/remove/enable helpers, getActiveSearchServiceConfig: the priority chain
+ * guardSearchServiceConfigured, showSearchNotConfiguredToast: setup notice for a turn that needs a search service
+ *
+ * [POS]
+ * Search service config helpers shared by the config store, the settings UI, the search-service gate and the E2E chat bridge.
+ */
 import { toast } from '@/lib/utils/toast';
+import { translateI18nKey } from '@/services/i18nToastService';
 import { SearchServiceConfigItem, SearchServiceConfig } from './types';
 import { runWebSearchConfigGapAction, resolveWebSearchConfigGapActionLabel } from './webSearchConfigGap';
 

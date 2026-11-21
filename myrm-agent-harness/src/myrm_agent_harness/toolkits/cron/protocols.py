@@ -67,6 +67,7 @@ class CronStore(Protocol):
         chat_id: str | None = None,
         project_id: str | None = None,
         due_before: datetime | None = None,
+        include_system: bool = True,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[CronJob]:
@@ -77,6 +78,8 @@ class CronStore(Protocol):
         - ``chat_id`` set: return jobs bound to that chat session.
         - ``project_id`` set: return jobs bound to that project.
         - ``due_before`` set: return active jobs whose ``next_run_at <= due_before``.
+        - ``include_system`` false: leave out the jobs whose name ``is_system_job_name`` reserves. The default lists
+          them, because the scheduler and startup recovery must see every job.
         - No filter set: return every job.
         - ``limit``/``offset``: optional pagination (None = no limit).
         """
@@ -88,8 +91,9 @@ class CronStore(Protocol):
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = True,
     ) -> int:
-        """Count jobs matching the given filters."""
+        """Count jobs matching the given filters, ``include_system`` as in ``list_jobs``."""
         ...
 
     async def get_job(self, job_id: str) -> CronJob | None:

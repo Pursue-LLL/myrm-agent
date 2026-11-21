@@ -6,6 +6,7 @@
 [OUTPUT]
 - CompactHandler: Protocol for /compact command implementation
 - CompactResult: Result dataclass for compaction outcome
+- CompactSkip: Why a compaction did not happen, in the terms a chat reply can word
 
 [POS]
 Business-layer handler protocol for the /compact slash command. Framework parses user_id
@@ -15,11 +16,21 @@ and invokes handler; business layer implements DB, Chat service, and compact log
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
 from app.channels.types import InboundMessage
 
 MAX_FOCUS_TOPIC_LENGTH = 200
+
+
+class CompactSkip(StrEnum):
+    """Why a compaction did not happen. The reply names the category, never the business layer's internal reason."""
+
+    NOTHING_TO_COMPACT = "nothing_to_compact"
+    BUSY = "busy"
+    PAUSED = "paused"
+    FAILED = "failed"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,8 +40,7 @@ class CompactResult:
     compacted: bool
     message_count: int = 0
     tokens_saved: int = 0
-    reason: str | None = None
-    focus_topic: str = ""
+    skip: CompactSkip | None = None
 
 
 @runtime_checkable
@@ -50,6 +60,6 @@ class CompactHandler(Protocol):
             focus_topic: Optional topic to guide summarization focus (max 200 chars).
 
         Returns:
-            CompactResult describing the outcome.
+            CompactResult describing the outcome; ``skip`` says why when nothing was compacted (absent reads as ``FAILED``).
         """
         ...

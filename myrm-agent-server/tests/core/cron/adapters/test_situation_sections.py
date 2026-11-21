@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from myrm_agent_harness.toolkits.cron.situation import SituationContext
+from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     DeliveryConfig,
@@ -112,6 +113,16 @@ class TestSystemHealthSection:
             section = SystemHealthSection()
             result = await section.build(_ctx())
         assert result is None
+        store.list_jobs.assert_awaited_once_with(limit=200)
+
+    @pytest.mark.asyncio
+    async def test_a_failing_system_job_is_reported(self) -> None:
+        """Health covers every job, the application's own included; the store lists them by default."""
+        store = InMemoryCronStore()
+        await store.save_job(_make_job("__heartbeat__", consecutive_failures=4))
+        with patch(_CRON_STORE_PATH, return_value=store):
+            result = await SystemHealthSection().build(_ctx())
+        assert result is not None and "__heartbeat__" in result
 
     @pytest.mark.asyncio
     async def test_threshold_boundary(self) -> None:
@@ -190,14 +201,17 @@ class TestPendingRemindersSection:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_internal_jobs_skipped(self) -> None:
+    async def test_asks_the_store_for_the_users_jobs_only(self) -> None:
         store = AsyncMock()
-        store.list_jobs = AsyncMock(
-            return_value=[
-                _make_job("__heartbeat", consecutive_failures=5),
-            ]
-        )
+        store.list_jobs = AsyncMock(return_value=[])
         with patch(_CRON_STORE_PATH, return_value=store):
-            section = PendingRemindersSection()
-            result = await section.build(_ctx())
+            await PendingRemindersSection().build(_ctx())
+        store.list_jobs.assert_awaited_once_with(include_system=False, limit=50)
+
+    @pytest.mark.asyncio
+    async def test_system_jobs_are_not_reminders(self) -> None:
+        store = InMemoryCronStore()
+        await store.save_job(_make_job("__heartbeat__", consecutive_failures=5))
+        with patch(_CRON_STORE_PATH, return_value=store):
+            result = await PendingRemindersSection().build(_ctx())
         assert result is None

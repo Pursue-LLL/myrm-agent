@@ -37,6 +37,7 @@ export interface MentionState {
   results: never[];
   selectedIndex: number;
   query: string;
+  isSearching: boolean;
   selectReference: Mock;
   handleKeyDown: Mock;
 }
@@ -206,7 +207,6 @@ export function makeHook(overrides: Partial<MessageInputHook> = {}): MessageInpu
     showLinkDialog: false,
     dontRemindAgain: false,
     setDontRemindAgain: vi.fn(),
-    isUploadingPaste: false,
     showCompactConfirm: false,
     setShowCompactConfirm: vi.fn(),
     dontRemindCompact: false,
@@ -343,6 +343,7 @@ function resetHarness(): void {
     results: [],
     selectedIndex: 0,
     query: '',
+    isSearching: false,
     selectReference: vi.fn(),
     handleKeyDown: vi.fn(() => false),
   } satisfies MentionState;

@@ -15,6 +15,24 @@ vi.mock('@/services/cron', () => ({
   fetchUsageStats: vi.fn(),
 }));
 
+const EMPTY_USAGE: UsageStatsResponse = {
+  summary: {
+    total_runs: 0,
+    success_runs: 0,
+    total_input_tokens: 0,
+    total_output_tokens: 0,
+    total_tokens: 0,
+    avg_tokens_per_run: 0,
+    estimated_hours_saved: 0.0,
+    roi_multiple: 0.0,
+    estimated_value_saved_cents: 0.0,
+    estimated_cost_cents: 0.0,
+  },
+  by_day: [],
+  by_job: [],
+  by_model: [],
+};
+
 describe('CronUsageStats - Productivity & ROI Visualizer', () => {
   const fetchMock = vi.mocked(fetchUsageStats);
 
@@ -23,24 +41,7 @@ describe('CronUsageStats - Productivity & ROI Visualizer', () => {
   });
 
   it('renders empty state when total_runs is 0', async () => {
-    const emptyData: UsageStatsResponse = {
-      summary: {
-        total_runs: 0,
-        success_runs: 0,
-        total_input_tokens: 0,
-        total_output_tokens: 0,
-        total_tokens: 0,
-        avg_tokens_per_run: 0,
-        estimated_hours_saved: 0.0,
-        roi_multiple: 0.0,
-        estimated_value_saved_cents: 0.0,
-        estimated_cost_cents: 0.0,
-      },
-      by_day: [],
-      by_job: [],
-      by_model: [],
-    };
-    fetchMock.mockResolvedValue(emptyData);
+    fetchMock.mockResolvedValue(EMPTY_USAGE);
 
     render(<CronUsageStats />);
 
@@ -118,6 +119,46 @@ describe('CronUsageStats - Productivity & ROI Visualizer', () => {
       expect(screen.getByText('GitHub PR Monitor')).toBeInTheDocument();
       expect(screen.getByText('1.3h')).toBeInTheDocument();
     });
+  });
+
+  it('lists the heartbeat by its title, not by its reserved stored name', async () => {
+    fetchMock.mockResolvedValue({
+      summary: {
+        total_runs: 2,
+        success_runs: 2,
+        total_input_tokens: 600,
+        total_output_tokens: 400,
+        total_tokens: 1000,
+        avg_tokens_per_run: 500,
+        estimated_hours_saved: 0.1,
+        roi_multiple: 1.0,
+        estimated_value_saved_cents: 100.0,
+        estimated_cost_cents: 1.0,
+      },
+      by_day: [],
+      by_job: [{ job_id: 'hb', job_name: '__heartbeat__', total_tokens: 1000, runs: 2, hours_saved: 0.1 }],
+      by_model: [],
+    });
+
+    render(<CronUsageStats />);
+
+    await waitFor(() => {
+      expect(screen.getByText('title')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('__heartbeat__')).not.toBeInTheDocument();
+  });
+
+  it('keeps the loaded stats when the selected period is clicked again', async () => {
+    fetchMock.mockResolvedValue(EMPTY_USAGE);
+    render(<CronUsageStats />);
+    await waitFor(() => {
+      expect(screen.getByText('noUsageData')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('period7d'));
+
+    expect(screen.getByText('noUsageData')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('triggers period reload when clicking period selector buttons', async () => {

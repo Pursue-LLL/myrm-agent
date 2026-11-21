@@ -1029,7 +1029,7 @@ logger.info("Thread tracker: size=%d hit_rate=%.2f%%", metrics.current_size, met
 | `PairingStore` | sender → user 身份绑定 | `SqlPairingStore` |
 | `ChannelPolicyProvider` | DM/群聊策略 + 群组启用列表 | `SqlChannelPolicyProvider` |
 | `TopicManager` | per-topic Agent 路由配置 | `SqlTopicManager` |
-| `CompactHandler` | 会话压缩 | `compact_chat()` |
+| `CompactHandler` | 会话压缩（没压缩时以 `CompactSkip` 类别回传，框架按语言措辞） | `ChannelCompactHandler`（以人工请求调用 `compact_chat()`） |
 | `RouteRegistrar` | HTTP路由注册 | `FastAPIRouteRegistrar` |
 | `RequestAdapter` / `ResponseAdapter` | 请求/响应适配 | `FastAPIRequestAdapter` / `FastAPIResponseAdapter` |
 | `AsyncLoginProtocol` | 异步登录流程 | `QRCodeLoginHelper` / `OAuth2LoginHelper` |

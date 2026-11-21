@@ -32,7 +32,7 @@ describe('devPorts service client', () => {
         pid: 1234,
         protocol: 'http',
         url: 'http://localhost:3000',
-        tunnel_url: 'https://preview-3000.sandbox.myrm.io',
+        tunnel_url: 'https://preview-3000.sandbox.example',
         status: 'listening',
         created_at: '2026-10-12T07:00:00Z',
       },
@@ -83,7 +83,7 @@ describe('devPorts service client', () => {
   it('createDevPortTunnel sends POST request to /dev-ports/{port}/tunnel', async () => {
     const mockTunnel: DevPortTunnelResponse = {
       port: 3000,
-      tunnel_url: 'https://tunnel-3000.sandbox.myrm.io',
+      tunnel_url: 'https://tunnel-3000.sandbox.example',
       expires_in_seconds: 3600,
     };
 

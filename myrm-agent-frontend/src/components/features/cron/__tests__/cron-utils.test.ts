@@ -1,14 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CRON_OVERDUE_THRESHOLD_MS,
+  computeStats,
+  filterJobs,
   formatRelativeTime,
   formatTimeoutSeconds,
   isCronOverdue,
+  isFailedRunStatus,
+  isFailingJob,
   parseTimeoutSeconds,
+  pauseReasonLabelKey,
+  runStatusLabelKey,
   skipReasonLabelKey,
+  statusBorderColor,
   triggerSourceLabelKey,
 } from '../cron-utils';
-import type { CronJob } from '@/services/cron.types';
+import type { CronJob, PauseReason, RunStatus } from '@/services/cron.types';
 
 function makeJob(overrides: Partial<CronJob>): CronJob {
   return {
@@ -204,5 +211,69 @@ describe('triggerSourceLabelKey', () => {
 
   it.each(['', 'made-up-source', 'constructor', 'toString', '__proto__'])('has no label for %j', (source) => {
     expect(triggerSourceLabelKey(source)).toBeUndefined();
+  });
+});
+
+describe('isFailedRunStatus', () => {
+  it.each([
+    ['error', true],
+    ['circuit_break', true],
+    ['skipped', false],
+    ['ok', false],
+    [undefined, false],
+  ] as const)('reads the run status %s as failed: %s', (status, failed) => {
+    expect(isFailedRunStatus(status)).toBe(failed);
+  });
+});
+
+describe('isFailingJob', () => {
+  it.each([
+    ['a failure streak', { consecutive_failures: 2 }, true],
+    ['an error as the last run', { last_status: 'error' }, true],
+    ['a loop-guard break after a resume reset the streak', { last_status: 'circuit_break' }, true],
+    ['a skipped last run', { last_status: 'skipped' }, false],
+    ['a successful last run', { last_status: 'ok' }, false],
+    ['no run yet', {}, false],
+  ] satisfies Array<[string, Partial<CronJob>, boolean]>)('reads %s as failing: %s', (_case, fields, failing) => {
+    expect(isFailingJob(makeJob(fields))).toBe(failing);
+  });
+
+  describe('is the one verdict behind every job-list view', () => {
+    const broken = makeJob({ id: 'broken', last_status: 'circuit_break' });
+    const healthy = makeJob({ id: 'healthy', last_status: 'ok' });
+
+    it('counts the job as errored', () => {
+      expect(computeStats([broken, healthy]).errored).toBe(1);
+    });
+
+    it('lists it under the error filter', () => {
+      expect(filterJobs([broken, healthy], 'error', '').map((job) => job.id)).toEqual(['broken']);
+    });
+
+    it('draws its card border as a failure', () => {
+      expect(statusBorderColor(broken)).toBe('border-l-destructive');
+      expect(statusBorderColor(healthy)).not.toBe('border-l-destructive');
+    });
+  });
+});
+
+describe('runStatusLabelKey', () => {
+  it.each([
+    ['ok', 'runOk'],
+    ['error', 'runError'],
+    ['skipped', 'runSkipped'],
+    ['circuit_break', 'runCircuitBreak'],
+  ] satisfies Array<[RunStatus, string]>)('words the status %s with %s', (status, labelKey) => {
+    expect(runStatusLabelKey(status)).toBe(labelKey);
+  });
+});
+
+describe('pauseReasonLabelKey', () => {
+  it.each([
+    ['circuit_break', 'circuitBreakBanner'],
+    ['run_failures', 'pausedRunFailures'],
+    ['schedule_error', 'pausedScheduleError'],
+  ] satisfies Array<[PauseReason, string]>)('words the pause reason %s with %s', (reason, labelKey) => {
+    expect(pauseReasonLabelKey(reason)).toBe(labelKey);
   });
 });

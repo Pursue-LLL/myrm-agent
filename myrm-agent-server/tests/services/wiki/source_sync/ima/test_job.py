@@ -57,7 +57,10 @@ class Cron:
         return job
 
     async def create_other(self, command: str) -> CronJob:
-        return await self.manager.create_job(command, JobType.ROUTER, _HOURLY, prompt="other job", command=command)
+        """A router job of another wiki command, under the visible name its creator would give it."""
+        return await self.manager.create_job(
+            f"other {command.strip('_')}", JobType.ROUTER, _HOURLY, prompt="other job", command=command
+        )
 
     async def defer_next_run(self) -> None:
         job = await self.only()

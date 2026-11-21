@@ -2,36 +2,19 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.database.models import Chat, Message
+from app.database.models import Chat
 from app.services.chat.compact._lock import get_compaction_lock
 from app.services.chat.compact_service import compact_chat
-
-
-def _make_messages(chat_id: str, count: int) -> list[Message]:
-    now = datetime.now(UTC)
-    messages: list[Message] = []
-    for index in range(count):
-        messages.append(
-            Message(
-                id=f"msg-{chat_id}-{index}",
-                chat_id=chat_id,
-                role="user" if index % 2 == 0 else "assistant",
-                content=f"message {index}",
-                sent_at=now,
-                sent_timezone="UTC",
-                created_at=now,
-            )
-        )
-    return messages
+from tests.services.chat.compaction_support import make_messages
 
 
 @pytest.fixture(autouse=True)
-def _mock_hydrate_compression_streak():
+def _mock_hydrate_compression_streak() -> Iterator[None]:
     with patch(
         "app.services.chat.compact.compression_streak.hydrate_compression_streak_from_db",
         AsyncMock(return_value=0),
@@ -103,7 +86,7 @@ async def test_compact_chat_for_idle_stale_compacts_five_messages() -> None:
     db = AsyncMock()
     chat_id = "chat-idle-five"
     chat = Chat(id=chat_id, compacted_summary=None)
-    db_messages = _make_messages(chat_id, 5)
+    db_messages = make_messages(chat_id, 5)
     summary = MagicMock()
     summary.to_json.return_value = '{"user_goal":"compressed"}'
 
@@ -152,7 +135,7 @@ async def test_compact_chat_skips_when_anti_thrash_active() -> None:
     db = AsyncMock()
     chat_id = "chat-anti-thrash"
     chat = Chat(id=chat_id, compacted_summary=None)
-    db_messages = _make_messages(chat_id, 8)
+    db_messages = make_messages(chat_id, 8)
 
     with (
         patch(
@@ -193,7 +176,7 @@ async def test_compact_chat_idle_stale_uses_request_tokens_for_anti_thrash() -> 
     db = AsyncMock()
     chat_id = "chat-idle-request-tokens"
     chat = Chat(id=chat_id, compacted_summary='{"user_goal":"large prior summary"}')
-    db_messages = _make_messages(chat_id, 3)
+    db_messages = make_messages(chat_id, 3)
     summary = MagicMock()
     summary.to_json.return_value = '{"user_goal":"merged"}'
 
@@ -275,7 +258,7 @@ async def test_compact_chat_default_enforces_min_messages_for_five_messages() ->
     db = AsyncMock()
     chat_id = "chat-manual-five"
     chat = Chat(id=chat_id, compacted_summary=None)
-    db_messages = _make_messages(chat_id, 5)
+    db_messages = make_messages(chat_id, 5)
 
     with (
         patch(
@@ -298,5 +281,6 @@ async def test_compact_chat_default_enforces_min_messages_for_five_messages() ->
         result = await compact_chat(db, chat_id)
 
     assert result.compacted is False
-    assert result.reason == "too_few_messages (5 < 10)"
+    assert result.reason == "too_few_messages"
+    assert result.message_count == 5
     mock_summarize.assert_not_called()

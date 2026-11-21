@@ -194,6 +194,7 @@ async def test_bash_tool_failure_emits_stderr_evicted_ref():
     assert kwargs["stream"] == "stderr"
     assert kwargs["stored_chars"] == 1500
     assert kwargs["total_lines"] == 12
+    assert kwargs["config"] is not None
 
 
 @pytest.mark.asyncio
@@ -308,6 +309,40 @@ async def test_bash_tool_success_emits_stderr_evicted_ref() -> None:
     assert call.kwargs["stored_chars"] == 2048
     assert call.kwargs["total_lines"] == 100
     assert call.kwargs["storage_truncated"] is False
+
+
+@pytest.mark.asyncio
+async def test_bash_tool_success_emits_stdout_evicted_ref_with_the_preview_it_returns() -> None:
+    mock_bash_exec, p_ctx, p_get, p_be, p_scope = _patch_bash_tool_deps()
+    mock_bash_exec.execute.return_value = {
+        "stdout": "ok",
+        "stderr": "",
+        "exit_code": "0",
+        "mcp_metadata": None,
+        "generated_files": [],
+        "evicted_ref": "stdout_out_1.txt",
+        "evicted_stored_chars": 4096,
+        "evicted_total_lines": 120,
+        "evicted_storage_truncated": True,
+    }
+
+    with p_ctx, p_get, p_be, p_scope:
+        tool = create_bash_code_execute_tool()
+        with patch(
+            "myrm_agent_harness.agent.context_management.infra.evicted.emit_evicted_ref",
+            new=AsyncMock(),
+        ) as mock_emit:
+            returned = await tool.ainvoke({"command": "ls -la", "reason": "verify success-path stdout emit"})
+
+    mock_emit.assert_awaited_once()
+    call = mock_emit.await_args_list[0]
+    assert call.args[0] == "stdout_out_1.txt"
+    assert call.kwargs["stream"] == "stdout"
+    assert call.kwargs["stored_chars"] == 4096
+    assert call.kwargs["total_lines"] == 120
+    assert call.kwargs["storage_truncated"] is True
+    assert call.kwargs["preview_stdout"] == returned["content"]
+    assert call.kwargs["config"] is not None
 
 
 def test_mcp_min_timeout_constant_exceeds_ipc_client() -> None:

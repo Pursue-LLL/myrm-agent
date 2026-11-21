@@ -9,10 +9,10 @@
 - is_chat_busy: whether the probe says a turn holds the chat; never raises
 
 [POS]
-Port of a wake turn. A turn that came in from an IM channel is run by the channel router, not by the agent gateway,
-so the gateway cannot tell that the member is mid-conversation; the wake turn asks this port before it takes the chat.
-The question is synchronous: the scheduler takes the chat in the step that follows the answer, and an await in between
-would let a turn slip in.
+Port of whoever takes a chat on its own: a wake turn, and a rewind of the chat's history. A turn that came in from an
+IM channel is run by the channel router, not by the agent gateway, so the gateway cannot tell that the member is
+mid-conversation; the taker asks this port before it takes the chat. The question is synchronous: the taker takes the
+chat in the step that follows the answer, and an await in between would let a turn slip in.
 """
 
 from __future__ import annotations
@@ -41,7 +41,8 @@ def set_chat_busy_probe(probe: ChatBusyProbe | None) -> None:
 def is_chat_busy(chat_id: str) -> bool:
     """Whether a turn outside the agent gateway holds ``chat_id``; False without a probe.
 
-    A probe that fails is logged and counted as not busy: waiting on a broken probe would lose the wake turn.
+    A probe that fails is logged and counted as not busy: waiting on a broken probe would lose the wake turn and
+    refuse every rewind.
     """
     if _probe is None:
         return False

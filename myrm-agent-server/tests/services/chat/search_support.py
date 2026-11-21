@@ -1,5 +1,6 @@
 """Shared helpers for chat search tests."""
 
+from collections.abc import Sequence
 from datetime import datetime, timezone
 
 from myrm_agent_harness.toolkits.memory.conversation_search.types import ConversationSearchHit
@@ -30,27 +31,35 @@ async def seed_chat_with_text(
     summary: str | None = None,
     is_incognito: bool = False,
     source: str = "web",
+    created_at: datetime | None = None,
+    sent_at: Sequence[datetime] | None = None,
 ) -> list[str]:
-    """Insert a chat whose messages say exactly ``messages``, alternating user and assistant; returns their ids."""
-    db.add(
-        Chat(
-            id=chat_id,
-            title=title,
-            action_mode="agent",
-            compacted_summary=summary,
-            is_incognito=is_incognito,
-            source=source,
-        )
+    """Insert a chat whose messages say exactly ``messages``, alternating user and assistant; returns their ids.
+
+    ``created_at`` is when the chat row was created, by default when the test runs. ``sent_at`` is when each message was
+    sent, by default a minute apart from 2026-04-17 12:01 UTC.
+    """
+    chat = Chat(
+        id=chat_id,
+        title=title,
+        action_mode="agent",
+        compacted_summary=summary,
+        is_incognito=is_incognito,
+        source=source,
     )
+    if created_at is not None:
+        chat.created_at = created_at
+    db.add(chat)
     message_ids = [f"{chat_id}-m{number}" for number in range(1, len(messages) + 1)]
-    for number, (message_id, content) in enumerate(zip(message_ids, messages, strict=True), start=1):
+    sent_times = sent_at or [datetime(2026, 4, 17, 12, number, tzinfo=timezone.utc) for number in range(1, len(messages) + 1)]
+    for number, (message_id, content, sent) in enumerate(zip(message_ids, messages, sent_times, strict=True), start=1):
         db.add(
             Message(
                 id=message_id,
                 chat_id=chat_id,
                 role="user" if number % 2 else "assistant",
                 content=content,
-                sent_at=datetime(2026, 4, 17, 12, number, tzinfo=timezone.utc),
+                sent_at=sent,
                 sent_timezone="UTC",
             )
         )

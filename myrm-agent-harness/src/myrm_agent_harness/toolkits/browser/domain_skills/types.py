@@ -33,8 +33,8 @@ class DomainSkillManifest:
     """Manifest declaring executable tools for a domain set.
 
     Each manifest maps a set of domains (glob patterns supported) to
-    a collection of Python tools that can be executed via the browser
-    session sandbox.
+    a collection of Python tools that ``browser_manage_tool`` (``run_site_tool``) calls
+    with the live browser session.
     """
 
     id: str

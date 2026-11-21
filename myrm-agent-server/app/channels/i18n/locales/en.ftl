@@ -184,18 +184,25 @@ airbag_rolled_back_message =
     Your workspace files are back to how they were before the goal started.
 cron_notice_title = Reminder: { $job_name }
 cron_notice_failed_title = Scheduled task failed: { $job_name }
+cron_notice_interrupted_title = Scheduled task interrupted: { $job_name }
 cron_notice_paused_title = Scheduled task paused: { $job_name }
 cron_notice_expired_message =
     It reached its end time, so it was paused automatically.
 cron_notice_max_fires_message =
     It has run { $max_fires } times, which is its limit, so it was paused automatically.
 cron_notice_failure_message =
-    It hit a problem it could not recover from, so it was paused automatically. Check its run history, then resume it.
+    It hit a problem it could not recover from, so it was paused automatically. Open its Run History to see why, then resume it.
+cron_notice_interrupted_message =
+    The app stopped while it was running, so this run did not finish.
+cron_system_job_heartbeat = Agent Auto-Check
 new_session_started =  New conversation started. Your next message begins a fresh session.
 compact_not_configured = ℹ Compaction not configured.
 compact_success =  Context compacted: { $message_count } messages summarized, ~{ $tokens_saved } tokens saved.{ $topic_hint }
-compact_skipped = ℹ Compaction skipped: { $reason }
-compact_failed =  Compaction failed: { $error }
+compact_topic_hint = (focus: { $topic })
+compact_skipped_nothing = ℹ Nothing to compact yet.
+compact_skipped_busy = ℹ A compaction is already running for this chat.
+compact_skipped_paused = ℹ Compaction is paused for now. Try again later.
+compact_failed =  Compaction failed. Try again later.
 retry_not_configured = ℹ Retry not configured.
 retry_nothing = ℹ Nothing to retry.
 retry_failed = ℹ Retry failed.

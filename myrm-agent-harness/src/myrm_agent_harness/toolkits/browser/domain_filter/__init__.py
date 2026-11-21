@@ -1,53 +1,66 @@
 """Domain deep filtering — four-layer defense-in-depth for browser network egress.
 
-Prevents pages from exfiltrating data through non-HTTP channels (WebSocket,
-EventSource, sendBeacon, WebRTC, WebTransport) that bypass Playwright's
-``context.route()``.
+Prevents pages from exfiltrating data through the channels that bypass Playwright's
+``context.route()``: WebSocket, WebRTC and WebTransport.
 
 Architecture
 ~~~~~~~~~~~~
 
-Layer 0 — CSP Core Defense (``<meta http-equiv="Content-Security-Policy">``)
+Layer 0 — CSP Core Defense (``<meta http-equiv="Content-Security-Policy">``, delivered by an init script)
     Browser-native policy enforcement via Content Security Policy.
-    Restricts network connections (fetch/XHR/WebSocket/EventSource/sendBeacon) and
-    script/iframe loading in main thread AND all Web Workers.
+    Restricts the document's own network connections (fetch/XHR/WebSocket/EventSource/sendBeacon) and
+    script/iframe loading; a ``blob:`` or ``data:`` Worker is refused (``worker-src`` falls back to ``script-src``).
+    A Worker started from a URL answers to its own response's policy, so Layer 1 is what stops its HTTP requests
+    and a WebSocket it opens itself is judged by none of the layers.
     Does NOT restrict img/style/font/media (allows CDN resources for compatibility).
+    The policy is document-scoped, and the first document of a same-origin popup opened with ``window.open`` normally
+    gets no init-script run of its own: it reuses the popup's initial window. The script therefore wraps the WebSocket,
+    Worker and SharedWorker constructors, which puts the policy on the current document before the browser runs one.
+    A popup that keeps its opener can run its first script before Layers 0 and 2 (``BROWSER_SYSTEM.md`` section 10).
 
 Layer 1 — Protocol Interception (``context.route('**/*')``)
-    Hard-blocks all HTTP/HTTPS requests to non-allowed domains.
-    Supports resource type filtering (image/stylesheet/script/font/media).
-    Fallback defense if CSP is disabled.
+    Hard-blocks all HTTP/HTTPS requests to non-allowed domains (fetch, XHR, EventSource and sendBeacon included),
+    in every document of the context, a popup's first one too.
+    Supports resource type filtering (image/stylesheet/script/font/media); fallback defense if CSP is disabled.
 
-Layer 2 — Main Thread Hardening (document-response script injection)
+Layer 2 — Main Thread Hardening (init script)
     Hardens RTCPeerConnection and WebTransport (not covered by CSP).
     Disables Service Worker registration (offline cache not needed for agents).
-    Does NOT harden Web Workers to avoid anti-bot detection.
+    Does NOT harden Web Workers to avoid anti-bot detection; Layer 0 only wraps their constructors.
+    Window-global, so it also holds in a reused popup window.
 
 Layer 3 — CDP Audit Monitor (``Network.webSocketCreated``)
-    Detects WebSocket connections at the Chrome DevTools Protocol level.
+    Detects WebSocket connections of page targets at the Chrome DevTools Protocol level.
     Does not block — provides audit visibility for all layers.
+
+The init scripts of Layers 0 and 2 run in the page's main world, and the agent's own JavaScript runs in the driver's
+isolated world, where neither is present. ``agent_world`` (called by ``BrowserSession.evaluate``, not re-exported)
+runs the same two scripts there, so an expression gets the policy and the hardening too (``BROWSER_SYSTEM.md``
+section 10).
 
 
 [INPUT]
 - pool.config::ResourceBlockConfig (POS: resource blocking config, includes block_ad_domains flag)
 - .ad_domains::AD_DOMAINS (POS: frozenset of ~3500 ad/tracker domains, lazy-loaded when block_ad_domains=True)
 - core.security.domain_match::canonical_entry, host_matches (POS: one reading of the domain entries of a network list)
+- .scripts::build_csp_meta_script, build_init_script (POS: the CSP and hardening init scripts the installer registers)
 
 [OUTPUT]
 - DomainAllowlist: immutable domain pattern matcher
 - install_domain_filter: async installer for all four layers with resource blocking
+- build_csp_meta_script, build_init_script: re-exported page-side scripts of Layers 0 and 2
 
 [POS]
 Deep domain filtering, resource blocking, and ad/tracker domain blocking module for the browser toolkit.
-Called by ContextFactory during context creation. Covers HTTP + WebSocket + EventSource + sendBeacon +
-WebRTC + WebTransport across all channels, with resource type blocking (image/stylesheet/script/font/media)
-and ad/tracker domain blocklist (~3500 domains via ad_domains.py).
+Called by ContextFactory during context creation. Layer 1 judges every HTTP(S) request of the context; Layers 0
+and 2 cover what it cannot see (WebSocket, Workers started from a blob or data URL, WebRTC, WebTransport and
+Service Worker registration). Resource type blocking (image/stylesheet/script/font/media) and the ad/tracker
+domain blocklist (~3500 domains via ad_domains.py) are applied by Layer 1.
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -66,6 +79,15 @@ from myrm_agent_harness.toolkits.browser.domain_filter.http_filter import (
 from myrm_agent_harness.toolkits.browser.domain_filter.http_filter import (
     install_http_filter as _install_http_filter,
 )
+from myrm_agent_harness.toolkits.browser.domain_filter.scripts import build_csp_meta_script, build_init_script
+
+__all__ = [
+    "DomainAllowlist",
+    "DomainBlocklist",
+    "build_csp_meta_script",
+    "build_init_script",
+    "install_domain_filter",
+]
 
 # Strong references to fire-and-forget CDP audit tasks. Without a reference the
 # task can be garbage-collected mid-flight (e.g. when the event loop closes
@@ -126,133 +148,6 @@ DomainBlocklist = DomainAllowlist
 
 
 # ---------------------------------------------------------------------------
-# Layer 0: CSP policy generation
-# ---------------------------------------------------------------------------
-
-
-def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
-    """Generate script that injects CSP meta tag before page loads.
-
-    CSP covers main thread AND all Web Workers (fetch/XHR/WebSocket/EventSource/
-    sendBeacon/importScripts). Enforced at browser kernel level, cannot be
-    bypassed by page scripts.
-
-    CSP directives:
-    - connect-src: Restricts network connections (fetch/XHR/WebSocket/EventSource/sendBeacon)
-    - script-src: Restricts script loading (allows inline/eval for compatibility)
-    - frame-src: Restricts iframe loading
-    - object-src: Blocks plugins (Flash/Java)
-
-    Note: img-src/style-src/font-src/media-src are not restricted (allow CDN resources).
-    """
-    normalized_domains = []
-    for p in allowlist.patterns:
-        if p.startswith("*."):
-            bare = p[2:]
-            normalized_domains.append(bare)
-            normalized_domains.append(p)
-        else:
-            normalized_domains.append(p)
-
-    domains_list = " ".join(normalized_domains) if normalized_domains else ""
-
-    directives = ["object-src 'none'"]
-    if domains_list:
-        directives.extend(
-            [
-                f"connect-src 'self' {domains_list}",
-                f"script-src 'self' 'unsafe-inline' 'unsafe-eval' {domains_list}",
-                f"frame-src 'self' {domains_list}",
-            ]
-        )
-    else:
-        directives.extend(
-            [
-                "connect-src 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-                "frame-src 'self'",
-            ]
-        )
-
-    csp_content = "; ".join(directives)
-
-    return f"""(function() {{
-  'use strict';
-  if (!document.head) {{
-    document.documentElement.appendChild(document.createElement('head'));
-  }}
-  var meta = document.createElement('meta');
-  meta.httpEquiv = 'Content-Security-Policy';
-  meta.content = {json.dumps(csp_content)};
-  document.head.insertBefore(meta, document.head.firstChild);
-}})();"""
-
-
-# ---------------------------------------------------------------------------
-# Layer 2: Main thread hardening
-# ---------------------------------------------------------------------------
-
-
-def build_init_script() -> str:
-    """Generate JavaScript IIFE that hardens special APIs not covered by CSP.
-
-    Hardens:
-    - RTCPeerConnection/webkitRTCPeerConnection (WebRTC Data Channel)
-    - WebTransport (new standard)
-    - Service Worker registration
-
-    Web Workers are not hardened (CSP Layer 0 handles Worker network restrictions).
-    """
-    return """(function() {
-  'use strict';
-
-  function _harden(obj, prop, value) {
-    try {
-      Object.defineProperty(obj, prop, {
-        value: value,
-        writable: false,
-        configurable: false,
-        enumerable: true
-      });
-    } catch(e) {
-      obj[prop] = value;
-    }
-  }
-
-  if (typeof RTCPeerConnection !== 'undefined') {
-    _harden(window, 'RTCPeerConnection', function() {
-      throw new DOMException(
-        'RTCPeerConnection blocked by domain policy', 'SecurityError'
-      );
-    });
-  }
-  if (typeof webkitRTCPeerConnection !== 'undefined') {
-    _harden(window, 'webkitRTCPeerConnection', function() {
-      throw new DOMException(
-        'RTCPeerConnection blocked by domain policy', 'SecurityError'
-      );
-    });
-  }
-
-  if (typeof WebTransport !== 'undefined') {
-    _harden(window, 'WebTransport', function() {
-      throw new DOMException(
-        'WebTransport blocked by domain policy', 'SecurityError'
-      );
-    });
-  }
-
-  if (typeof navigator !== 'undefined' && navigator.serviceWorker) {
-    _harden(navigator.serviceWorker, 'register', function() {
-      return Promise.reject(new DOMException(
-        'Service Worker registration blocked by domain policy', 'SecurityError'
-      ));
-    });
-  }
-})();"""
-
-
-# ---------------------------------------------------------------------------
 # Orchestrator: install all four layers
 # ---------------------------------------------------------------------------
 
@@ -299,10 +194,8 @@ async def install_domain_filter(
         return
 
     if not allowlist.is_empty:
-        # patchright's add_init_script silently no-ops, so the security layers
-        # are delivered inside the document response (probe-verified path).
-        await _install_csp_policy(context, allowlist)
-        await _install_main_thread_hardening(context)
+        await context.add_init_script(build_csp_meta_script(allowlist))
+        await context.add_init_script(build_init_script())
 
     await _install_http_filter(
         context,
@@ -318,52 +211,11 @@ async def install_domain_filter(
 
     logger.info(
         "Domain filter / Resource block installed: %d allow patterns, %d block patterns, CDP audit=%s, resource_block=%s, ad_blocklist=%d",
-        len(allowlist.patterns) if allowlist else 0,
+        len(allowlist.patterns),
         len(domain_blocklist.patterns) if domain_blocklist else 0,
         enable_cdp_audit and not allowlist.is_empty,
         resource_block is not None,
         len(ad_blocklist) if ad_blocklist else 0,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Layer 0: CSP policy injection
-# ---------------------------------------------------------------------------
-
-
-async def _install_csp_policy(context: BrowserContext, allowlist: DomainAllowlist) -> None:
-    """Inject CSP meta tag to restrict network access in main thread and Workers."""
-    from myrm_agent_harness.toolkits.browser.enhancers import (
-        install_document_script_injection,
-    )
-
-    await install_document_script_injection(
-        context,
-        lambda: build_csp_meta_script(allowlist),
-        label="domain_csp_meta",
-    )
-
-
-# ---------------------------------------------------------------------------
-# Layer 1: Protocol interception
-# ---------------------------------------------------------------------------
-
-
-# ---------------------------------------------------------------------------
-# Layer 2: Main thread hardening
-# ---------------------------------------------------------------------------
-
-
-async def _install_main_thread_hardening(context: BrowserContext) -> None:
-    """Harden special APIs not covered by CSP, delivered in the document response."""
-    from myrm_agent_harness.toolkits.browser.enhancers import (
-        install_document_script_injection,
-    )
-
-    await install_document_script_injection(
-        context,
-        build_init_script,
-        label="domain_hardening",
     )
 
 

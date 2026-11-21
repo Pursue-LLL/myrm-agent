@@ -155,30 +155,8 @@ describe('buildDrawerResumeValue', () => {
     });
   });
 
-  it('resumes the privileged script gate so its decision reaches the browser pause', () => {
-    expect(shouldResumeDrawerApproval('script_privileged_api')).toBe(true);
-
-    const scriptApproval: ApprovalPayload = {
-      approval_id: 'script-1',
-      user_id: 'user-1',
-      action_type: 'script_privileged_api',
-      status: 'PENDING',
-      severity: 'warning',
-      chat_id: 'chat-1',
-      payload: {
-        tool_name: 'browser_execute_script_tool',
-        reason: 'Script accesses privileged APIs that bypass network policy: .request.get()',
-      },
-    };
-
-    expect(buildDrawerResumeValue(scriptApproval, 'approve')).toEqual({ decision: 'approve' });
-    expect(buildDrawerResumeValue(scriptApproval, 'reject')).toEqual({
-      decision: 'reject',
-      feedback: 'User rejected this action.',
-    });
-  });
-
-  it('builds edit decision with edited args for single-tool batch', () => {    const singleToolApproval: ApprovalPayload = {
+  it('builds edit decision with edited args for single-tool batch', () => {
+    const singleToolApproval: ApprovalPayload = {
       ...baseApproval,
       payload: {
         tool_calls: [{ name: 'bash_code_execute_tool', args: { command: 'ls' } }],

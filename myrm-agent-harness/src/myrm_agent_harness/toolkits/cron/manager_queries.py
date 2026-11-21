@@ -9,8 +9,9 @@
 - CronQueryMixin: job and run listings, counts and lookups, and the incremental-monitor state reads
 
 [POS]
-Query half of the cron CRUD manager, mixed into ``CronManager``. Reads go straight to the store; the one rule
-of their own is that run records outlive a deleted job but are not served by its id.
+Query half of the cron CRUD manager, mixed into ``CronManager``. Reads go straight to the store; the rules of their
+own are that job listings and counts are the user's jobs unless ``include_system`` asks for the application's own, and
+that run records outlive a deleted job but are not served by its id.
 """
 
 from __future__ import annotations
@@ -36,13 +37,16 @@ class CronQueryMixin:
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = False,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[CronJob]:
+        """The user's jobs; ``include_system`` adds the jobs the application creates itself (the heartbeat)."""
         return await self._store.list_jobs(
             name_filter=name_filter,
             chat_id=chat_id,
             project_id=project_id,
+            include_system=include_system,
             limit=limit,
             offset=offset,
         )
@@ -53,11 +57,13 @@ class CronQueryMixin:
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = False,
     ) -> int:
         return await self._store.count_jobs(
             name_filter=name_filter,
             chat_id=chat_id,
             project_id=project_id,
+            include_system=include_system,
         )
 
     async def get_job(self, job_id: str) -> CronJob | None:

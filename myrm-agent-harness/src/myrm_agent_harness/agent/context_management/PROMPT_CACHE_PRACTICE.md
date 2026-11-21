@@ -524,6 +524,8 @@ msg.additional_kwargs["cache_control"] = {"type": "ephemeral"}
 | `streak >= 2` 且 `tokens >= 90%` | 强制压缩（安全网，防止 OOM） |
 | 某次压缩节省 `>= 10%` | 重置 streak 为 0 |
 
+**范围**：守卫只约束自动压缩。用户主动发起的压缩（Web 压缩按钮、`/compact`、IM `/compact`；server 以 `explicit_request` 调用 `compact_chat`）不被拦截，结果照常计入 streak：有效清零；无效累加，但最多累加到守卫上限（`record_compression_effectiveness` 的 `streak_ceiling`），让随后的自动压缩知道上下文难以压缩。超过上限的部分只由自动压缩累积（含 90% 安全网放行的那一次）：会话地图以 streak 超过阈值判定对话出错，人工反复重试因此不会把一个健康会话标成出错。
+
 **与 Hot Cache Bypass 互补**：Hot Cache Bypass 保护「短时间内」的缓存（5 分钟窗口），Anti-Thrashing 保护「压缩效果差」时的缓存。两者覆盖不同场景，共同最大化 Prompt Cache 命中率。
 
 ### 4.2 compress_min_save 保护

@@ -101,7 +101,7 @@ export const useVisualArtifactStudioStore = create<VisualArtifactStudioState>(
       const newRecord: PublicShareRecord = {
         shareId,
         artifactId,
-        publicUrl: `https://share.myrm.io/s/${shareId}`,
+        publicUrl: `https://share.example/s/${shareId}`,
         createdAt: now.toISOString(),
         expiresAt,
         watermarkText,

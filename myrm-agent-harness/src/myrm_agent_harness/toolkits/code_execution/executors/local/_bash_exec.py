@@ -5,6 +5,7 @@ local._command_env::build_command_env, scrubbed_user_env (POS: What one bash com
 executors.common::CommandRewriter, ExecutionHelper, LocalFilesScanner, VenvManager, handle_execution_error (POS: Shared execution utilities)
 executors.execution_evidence::record_execution (POS: Execution evidence recorder)
 code_execution.interceptor::trigger_bash_action_hook (POS: Bash action snapshot hook)
+code_execution.platform::detect_platform (POS: Cross-platform runtime detection and shell configuration)
 code_execution.security.validator::validate_command; core.security.process_env::sanitize_env (POS: Command validation and environment sanitising)
 core.security.ocap::CapabilityAction, enforce_capability_access (POS: Capability scope)
 core.security.redact::command_preview (POS: masked, cut command for a log line)
@@ -45,6 +46,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.local._command_env imp
 )
 from myrm_agent_harness.toolkits.code_execution.executors.models import ExecutionMetrics
 from myrm_agent_harness.toolkits.code_execution.interceptor import trigger_bash_action_hook
+from myrm_agent_harness.toolkits.code_execution.platform import detect_platform
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.code_execution.session import LocalPersistentSession
@@ -231,11 +233,13 @@ class LocalBashMixin:
         """Rewrite workspace paths and pip commands for the local environment.
 
         A search command such as grep runs as typed: approval and validation judged exactly that program, and a
-        different one in its place is not covered by them (ripgrep's ``--pre`` runs a command).
+        different one in its place is not covered by them (ripgrep's ``--pre`` runs a command). The workspace root is
+        quoted when the session's shell is bash.
         """
         command = self._command_rewriter.rewrite_workspace_paths(
             command,
             self._current_workspace,
+            posix_shell=detect_platform().shell_type == "bash",
         )
         return await self._venv_manager.rewrite_pip_command(command)
 

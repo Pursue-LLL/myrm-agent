@@ -10,7 +10,7 @@ the Server layer when an asynchronous background subagent completes.
 - AsyncWakeupHandler: Protocol for handling asynchronous wakeup events from background subagents.
 - set_global_wakeup_handler: Register a global handler for async wakeup events.
 - get_global_wakeup_handler: Retrieve the registered global wakeup handler.
-- report_results_read: Tell the handler the parent agent read settled subagent results itself.
+- report_results_read: Tell the handler the parent agent read settled results (a subagent's or a background job's) itself.
 - wake_session_id: The session key a wake turn is queued and stood down under, derived from the run context.
 
 [POS]
@@ -44,10 +44,10 @@ class AsyncWakeupHandler(Protocol):
         ...
 
     def on_results_read(self, task_ids: Collection[str], session_id: str | None) -> None:
-        """Called when the parent agent read the settled results of these subagents itself.
+        """Called when the parent agent read the settled results of these subagents or background jobs itself.
 
         Args:
-            task_ids: The subagents whose results the parent's own tool call returned.
+            task_ids: The subagent task ids or background job ids whose results the parent's own tool call returned.
             session_id: The session/chat ID of the parent agent (if any).
         """
         ...

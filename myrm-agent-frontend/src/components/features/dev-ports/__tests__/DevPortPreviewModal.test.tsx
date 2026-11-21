@@ -91,7 +91,7 @@ describe('DevPortPreviewModal component', () => {
   it('copies tunnel URL and creates tunnel if not present', async () => {
     vi.spyOn(devPortsService, 'createDevPortTunnel').mockResolvedValueOnce({
       port: 3000,
-      tunnel_url: 'https://preview-tunnel-3000.sandbox.myrm.io',
+      tunnel_url: 'https://preview-tunnel-3000.sandbox.example',
       expires_in_seconds: 3600,
     });
 
@@ -102,7 +102,7 @@ describe('DevPortPreviewModal component', () => {
 
     await waitFor(() => {
       expect(devPortsService.createDevPortTunnel).toHaveBeenCalledWith(3000);
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://preview-tunnel-3000.sandbox.myrm.io');
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('https://preview-tunnel-3000.sandbox.example');
     });
   });
 

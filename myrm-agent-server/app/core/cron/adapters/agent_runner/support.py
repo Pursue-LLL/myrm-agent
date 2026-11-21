@@ -43,6 +43,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+
 def _heartbeat_follow_up_delivered(job_output: str | None) -> bool:
     """Return True when heartbeat output counts as a successful follow-up delivery ack."""
     text = (job_output or "").strip()

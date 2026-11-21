@@ -1,5 +1,7 @@
 """[INPUT]
 - myrm_agent_harness.agent.config.parsers (POS: provider/model name conversion)
+- myrm_agent_harness.api.hooks::vercel_headers (POS: the header set Vercel AI Gateway documents for app attribution)
+- app.core.brand::CLIENT_ATTRIBUTION (POS: the application identity announced to model gateways)
 
 [OUTPUT]
 - header builders, key extraction, name conversion/normalisation and the provider type map
@@ -11,10 +13,12 @@ Model resolver shared primitives: header building, provider key discovery and pr
 from __future__ import annotations
 
 import ipaddress
-from typing import cast
 from urllib.parse import urlparse
 
 from myrm_agent_harness.agent.config.parsers import parse_route_model_id, to_route_model_id
+from myrm_agent_harness.api.hooks import vercel_headers
+
+from app.core.brand import CLIENT_ATTRIBUTION
 
 _PROVIDER_API_BASES: dict[str, str] = {
     "siliconflow": "https://api.siliconflow.cn/v1",
@@ -60,22 +64,23 @@ def _build_transport_headers(
     """Build transport header overrides including platform relay and gateway attribution."""
     headers: dict[str, str] = {}
     platform_override = _build_platform_headers(api_key)
-    if platform_override and isinstance(platform_override.get("extra_headers"), dict):
-        for k, v in platform_override["extra_headers"].items():
+    platform_headers = platform_override.get("extra_headers") if platform_override else None
+    if isinstance(platform_headers, dict):
+        for k, v in platform_headers.items():
             if isinstance(v, str):
                 headers[k] = v
 
     is_vercel_gateway = provider_id == "vercel_ai_gateway" or (api_url is not None and "ai-gateway.vercel.sh" in api_url.lower())
     if is_vercel_gateway:
-        headers.setdefault("HTTP-Referer", "https://myrm.ai")
-        headers.setdefault("X-Title", "Myrm Agent")
+        for name, value in vercel_headers(CLIENT_ATTRIBUTION).items():
+            headers.setdefault(name, value)
 
     return {"extra_headers": headers} if headers else None
 
 
 def _parse_route_model_id(model_name: str) -> tuple[str, str]:
     """Parse a routed model name (wrapper for framework-level parser)."""
-    return cast(tuple[str, str], parse_route_model_id(model_name))
+    return parse_route_model_id(model_name)
 
 
 def _to_route_model_id(provider: str, model: str, provider_type: str | None = None) -> str:

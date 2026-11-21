@@ -183,7 +183,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
     const handleProbeRecommendedAction = useCallback(async () => {
       if (probeRecommendedMode === 'local_or_tauri') {
         // noopener makes window.open return null by spec, so the result cannot tell a blocked popup from success.
-        window.open(getDocsUrl('/getting-started/local-deployment'), '_blank', 'noopener,noreferrer');
+        window.open(getDocsUrl('/getting-started/local-deployment', locale), '_blank', 'noopener,noreferrer');
         onClose();
         return;
       }
@@ -192,7 +192,7 @@ export const IntegrationConnectDialog = memo<IntegrationConnectDialogProps>(
         return;
       }
       await handleConnect({ skipProbe: true });
-    }, [handleConnect, onClose, probeRecommendedMode, runProbe]);
+    }, [handleConnect, locale, onClose, probeRecommendedMode, runProbe]);
 
     return (
       <>

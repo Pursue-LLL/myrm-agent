@@ -1,6 +1,7 @@
 # [INPUT]
 # - bundle_inventory::first_party_modules, harness_data_files, domain_tool_scripts, HARNESS_PACKAGE,
-#   CHANNEL_SDKS_NOT_SHIPPED (POS: what the bundle must contain and which channel SDKs stay out)
+#   CHANNEL_SDKS_NOT_SHIPPED, MONTY_REQUIRED_MODULES, MONTY_WORKER_DIR, monty_worker_name (POS: what the bundle must
+#   contain and which channel SDKs stay out)
 # - PyInstaller.archive.readers::CArchiveReader (POS: reads the modules archived inside the bundle's executable)
 #
 # [OUTPUT]
@@ -9,8 +10,9 @@
 # - main: the CLI; exits 1 when the bundle has a problem
 #
 # [POS]
-# Post-build gate: the build fails when the finished bundle lacks an inventory item, holds a channel SDK that is meant
-# to stay out, or (macOS) ships the standard library's extension modules as dozens of separate files.
+# Post-build gate: the build fails when the finished bundle lacks an inventory item (a module, a data file, the Monty
+# worker that runs the agent's browser scripts), holds a channel SDK that is meant to stay out, or (macOS) ships the
+# standard library's extension modules as dozens of separate files.
 #
 # The header is a comment because the docstring below is the CLI's --help text.
 """Check a built sidecar bundle against bundle_inventory: every first-party module and data file in, channel SDKs out.
@@ -28,6 +30,7 @@ venv's Python, which has PyInstaller's archive reader:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Iterable
 from collections.abc import Set as AbstractSet
@@ -36,9 +39,12 @@ from pathlib import Path
 from bundle_inventory import (
     CHANNEL_SDKS_NOT_SHIPPED,
     HARNESS_PACKAGE,
+    MONTY_REQUIRED_MODULES,
+    MONTY_WORKER_DIR,
     domain_tool_scripts,
     first_party_modules,
     harness_data_files,
+    monty_worker_name,
 )
 
 # How many offenders a problem names; the full list is the build's own business.
@@ -81,6 +87,19 @@ def stdlib_extension_files(internal: Path) -> list[Path]:
     return sorted(internal.rglob("lib-dynload/*.so"))
 
 
+def monty_problems(internal: Path, bundled: AbstractSet[str]) -> list[str]:
+    """What keeps the agent's browser scripts from running in the bundle: the client modules or the worker executable."""
+    problems: list[str] = []
+    if absent := missing_modules(MONTY_REQUIRED_MODULES, bundled):
+        problems.append(f"the Monty client modules are not in the bundle: {absent}")
+    worker = internal / MONTY_WORKER_DIR / monty_worker_name()
+    if not worker.is_file():
+        problems.append(f"the Monty worker is not in the bundle at {worker.relative_to(internal).as_posix()}")
+    elif not os.access(worker, os.X_OK):
+        problems.append(f"the Monty worker in the bundle is not executable: {worker.relative_to(internal).as_posix()}")
+    return problems
+
+
 def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path, *, platform: str = sys.platform) -> list[str]:
     """What is wrong with the bundle, one sentence each; empty when it is as the inventory asks (and, on macOS, lean)."""
     bundled = bundled_module_names(executable)
@@ -102,6 +121,7 @@ def bundle_problems(executable: Path, app_dir: Path, harness_dir: Path, *, platf
         if absent := missing_files(internal, harness_dir, files):
             names = [file.name for file in absent[:NAMED_OFFENDERS]]
             problems.append(f"{len(absent)} of {len(files)} {label} are not in the bundle: {names}")
+    problems += monty_problems(internal, bundled)
     extensions = stdlib_extension_files(internal) if platform == "darwin" else []
     if len(extensions) > MAX_STDLIB_EXTENSION_FILES:
         problems.append(
@@ -123,7 +143,10 @@ def main(argv: list[str] | None = None) -> int:
     for problem in problems:
         print(f"[bundle-verify] FAIL: {problem}", file=sys.stderr)
     if not problems:
-        print("[bundle-verify] OK: first-party modules, tool scripts and harness data files are bundled; channel SDKs are not")
+        print(
+            "[bundle-verify] OK: first-party modules, tool scripts, harness data files and the Monty worker are bundled; "
+            "channel SDKs are not"
+        )
     return 1 if problems else 0
 
 

@@ -1,7 +1,7 @@
 """Ref-based verb dispatch for the Interactor.
 
 [INPUT]
-- pool.config::HumanizeConfig (POS: interaction humanization config)
+- pool.humanize_config::HumanizeConfig (POS: humanization parameters of the interaction layer)
 - session.humanize::INTERACTION_TIMEOUT_MS, click_delay, type_delay (POS: humanized delay helpers and the shared interaction timeout)
 - session.interactor_scroll_mixin::_parse_scroll_params (POS: humanized wheel-input scrolling behaviors)
 
@@ -33,7 +33,7 @@ from myrm_agent_harness.toolkits.browser.session.interactor_scroll_mixin import 
 if TYPE_CHECKING:
     from patchright.async_api import Locator, Page
 
-    from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig
 
 
 class RefActionMixin:

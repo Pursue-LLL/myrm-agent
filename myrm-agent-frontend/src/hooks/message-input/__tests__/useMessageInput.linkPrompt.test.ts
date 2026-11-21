@@ -40,7 +40,7 @@ vi.mock('@/hooks/message-input/useMessageQueue', () => ({
 vi.mock('@/hooks/message-input/useQueueDrain', () => ({ useQueueDrain: vi.fn() }));
 
 vi.mock('@/hooks/message-input/useInputFileUpload', () => ({
-  useInputFileUpload: () => ({ isUploadingPaste: false, handlePaste: vi.fn(), handleDroppedFiles: vi.fn() }),
+  useInputFileUpload: () => ({ handlePaste: vi.fn(), handleDroppedFiles: vi.fn() }),
 }));
 
 function typed(value: string): ChangeEvent<HTMLTextAreaElement> {
@@ -72,7 +72,6 @@ describe('useMessageInput link prompt', () => {
       setInputMessage,
       pendingArchiveRestoreActions: [],
       setPendingArchiveRestoreActions: vi.fn(),
-      loadMessages: vi.fn(),
       loading: false,
       messages: [],
       agentConfig: null,

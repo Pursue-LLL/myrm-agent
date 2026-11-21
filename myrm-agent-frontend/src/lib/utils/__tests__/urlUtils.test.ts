@@ -9,7 +9,7 @@ describe('isValidExternalUrl', () => {
   it('should accept standard http and https URLs', () => {
     expect(isValidExternalUrl('https://example.com')).toBe(true);
     expect(isValidExternalUrl('http://localhost:3000')).toBe(true);
-    expect(isValidExternalUrl('https://myrm.dev/docs/wiki?page=1#heading')).toBe(true);
+    expect(isValidExternalUrl('https://docs.example.com/wiki?page=1#heading')).toBe(true);
   });
 
   it('should reject dangerous javascript: and data: URLs', () => {

@@ -8,6 +8,7 @@
 - .config::ResourceBlockConfig (POS: resource blocking config)
 - .egress_guard::EgressGuard (POS: loopback proxy that lets a context connect only to addresses the SSRF policy admits)
 - domain_filter::DomainAllowlist, DomainBlocklist, install_domain_filter (POS: domain filtering and resource blocking)
+- enhancers::get_dom_enhancer_script (POS: loader of the DOM enhancer script that every context carries)
 - .stealth::get_stealth_script (POS: stealth anti-detection JS script loader)
 
 [OUTPUT]
@@ -23,7 +24,9 @@ Dedicated to BrowserContext creation and configuration, including:
 6. Installing DomainAllowlist security filter (CSP + JS hardening + CDP audit) when allowlist provided
 7. Forwarding the session's ``allow_private_networks`` policy to the installed HTTP filter, so private-address
    handling follows the session's choice whether or not a domain list or resource blocking is attached
-8. STEALTH mode delivery of 13 anti-detection JS scripts (dual-layer defense: patchright CDP + document-response script injection via enhancers.inject_route)
+8. Registering the DOM enhancer (every context) and, in STEALTH mode, 13 anti-detection JS scripts (patchright's own CDP
+patches plus ``stealth.js``) as init scripts: the browser runs them in every document of the context before the
+page's own scripts, whatever fetched the document (a popup that keeps its opener may run its first script first)
 9. Refusing downloads by default (``accept_downloads=False`` in every context kind): the browser would otherwise keep
    every file a page starts in its temp dir until the context closes, so only a context whose owner passes
    ``accept_downloads=True`` (a ``BrowserSession`` with a download manager) keeps any
@@ -35,6 +38,11 @@ Dedicated to BrowserContext creation and configuration, including:
     one, no proxy applies and the context's policy keeps private networks closed: the context's proxy is the guard's
     loopback SOCKS5 proxy, so every connection of the page goes only to addresses the SSRF policy admitted. The first
     such context first proves that the browser honors it
+12. Verifying certificates by default (``ignore_https_errors=False`` in every context kind except the extension
+    contexts of item 10, which keep the user's browser settings): a page whose certificate the browser would refuse
+    fails to load. Only a factory built with ``ignore_https_errors=True`` (the operator's opt-in, carried by
+    ``BrowserConfig.ignore_https_errors``), or a context whose owner passes ``ignore_https_errors`` through
+    ``extra_kwargs``, opens such a page
 """
 
 from __future__ import annotations
@@ -66,7 +74,6 @@ _EXTENSION_CONTEXT_OPTIONS: dict[str, object] = {"no_viewport": True, "accept_do
 
 _DEFAULT_CONTEXT_OPTIONS: dict[str, object] = {
     "viewport": {"width": 1920, "height": 1080},
-    "ignore_https_errors": True,
     # The browser's own default saves every download a page starts and holds it until the context closes. A
     # context keeps downloads only when its owner, who has a download manager to judge them, asks for it.
     "accept_downloads": False,
@@ -127,6 +134,8 @@ class ContextFactory:
         proxy_pool: ProxyPool | None = None,
         default_emulation: EmulationConfig | None = None,
         egress_guard: EgressGuard | None = None,
+        *,
+        ignore_https_errors: bool = False,
     ) -> None:
         """Initialize context factory.
 
@@ -138,11 +147,14 @@ class ContextFactory:
                 (e.g. clipboard-read/write) across all contexts.
             egress_guard: Connection guard that the contexts of ``create_context(..., guard_egress=True)`` connect
                 through; a context that has a proxy of its own (the pool's or an explicit one) keeps it.
+            ignore_https_errors: Let every context except an extension-attached one open pages whose certificate the
+                browser would refuse. A context whose ``extra_kwargs`` carry ``ignore_https_errors`` keeps its own value.
 
         """
         self._proxy_pool = proxy_pool
         self._default_emulation = default_emulation
         self._egress_guard = egress_guard
+        self._ignore_https_errors = ignore_https_errors
 
     async def create_context(
         self,
@@ -223,18 +235,10 @@ class ContextFactory:
         context.set_default_timeout(_DEFAULT_TIMEOUT_MS)
 
         # Inject Progressive DomEnhancer into EVERY context
-        from myrm_agent_harness.toolkits.browser.enhancers import (
-            get_dom_enhancer_script,
-            install_document_script_injection,
-        )
+        from myrm_agent_harness.toolkits.browser.enhancers import get_dom_enhancer_script
 
         enhancer_script = get_dom_enhancer_script()
         if enhancer_script:
-            # patchright's add_init_script silently no-ops (upstream bug), so the
-            # reliable delivery path is a document-response rewrite via route.fulfill.
-            await install_document_script_injection(context, lambda: get_dom_enhancer_script(), label="dom_enhancer")
-            # Keep the init-script registration as a harmless no-op fallback for
-            # engines where the network-level inject route does work.
             await context.add_init_script(enhancer_script)
 
         if context_type == _STEALTH_TYPE and not extension_attached:
@@ -286,6 +290,8 @@ class ContextFactory:
     ) -> dict[str, object]:
         """Options of a context in a browser the pool owns or may fully control: identity, proxy and emulation included."""
         ctx_opts = dict(_STEALTH_CONTEXT_OPTIONS if context_type == _STEALTH_TYPE else _DEFAULT_CONTEXT_OPTIONS)
+        # Always explicit: certificate checking is the operator's decision, not a property of the context kind.
+        ctx_opts["ignore_https_errors"] = self._ignore_https_errors
 
         if self._proxy_pool:
             session_id = context_key or context_type
@@ -304,14 +310,10 @@ class ContextFactory:
     async def _apply_stealth(context: BrowserContext) -> None:
         """Apply stealth anti-detection patches to a STEALTH context.
 
-        Delivers stealth.js via the document-response rewrite (patchright's
-        add_init_script silently no-ops) and keeps the init-script registration
-        as a fallback for working engines. Covers 13 anti-detection vectors
-        including navigator patches, toString disguise, anti-debugger
-        neutralization, and Performance API cleanup.
+        Registers stealth.js as an init script, so the browser runs it in every document before the page's own scripts
+        (popups that keep their opener are the exception: ``BROWSER_SYSTEM.md`` section 10). Covers 13 anti-detection
+        vectors: navigator patches, toString disguise, anti-debugger neutralization, Performance API cleanup.
         """
-        from ..enhancers import install_document_script_injection
         from .stealth import get_stealth_script
 
-        await install_document_script_injection(context, get_stealth_script, label="stealth")
         await context.add_init_script(get_stealth_script())

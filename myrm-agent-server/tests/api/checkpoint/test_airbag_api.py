@@ -20,7 +20,7 @@ def git_dir(tmp_path: Path) -> Path:
     """Create a temporary initialized Git repository with initial commit."""
     subprocess.run(["git", "init"], cwd=str(tmp_path), check=True, capture_output=True)
     subprocess.run(
-        ["git", "config", "user.email", "tester@myrm.ai"],
+        ["git", "config", "user.email", "tester@example.com"],
         cwd=str(tmp_path),
         check=True,
         capture_output=True,

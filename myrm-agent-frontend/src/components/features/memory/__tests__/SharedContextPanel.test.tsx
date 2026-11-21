@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import SharedContextPanel from '../shared-context/SharedContextPanel';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
 import type {
   SharedContext,
   SharedContextBinding,
@@ -364,9 +365,12 @@ describe('SharedContextPanel', () => {
     expect(screen.getByRole('button', { name: /history\.promote/ })).toBeDisabled();
   }, 15000);
 
-  it('stops typing and pasting in the history search box at the 200 characters the server accepts', async () => {
+  it('stops typing and pasting in the history search box at the characters the server accepts', async () => {
     render(<SharedContextPanel />);
 
-    expect(await screen.findByPlaceholderText('history.searchPlaceholder')).toHaveAttribute('maxlength', '200');
+    expect(await screen.findByPlaceholderText('history.searchPlaceholder')).toHaveAttribute(
+      'maxlength',
+      String(HISTORY_SEARCH_MAX_LENGTH),
+    );
   });
 }, 30000);

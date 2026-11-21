@@ -1,17 +1,30 @@
 """Extract posts from X (Twitter) timeline via browser session.
 
-Designed for execution inside the browser_execute_script sandbox.
-Receives ``session`` (BrowserSession) and ``args`` dict as globals.
+Called by ``run_site_tool`` of ``browser_manage_tool`` in the host process, not inside the
+``browser_execute_script_tool`` runtime.
+Receives ``session`` (BrowserSession) and ``args`` dict as parameters.
 
+[INPUT]
+- session: Active BrowserSession instance with tab and snapshot support
+- args: Optional dictionary containing:
+    - max_posts: Maximum posts to collect (default: 10)
+
+[OUTPUT]
+- JSON string listing the visible posts (ref, text, role)
 
 [POS]
-See module docstring.
+Self-contained domain tool for X timeline harvesting.
 """
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 
-async def get_timeline_posts(session, args: dict) -> str:  # type: ignore[type-arg]
+if TYPE_CHECKING:
+    from myrm_agent_harness.toolkits.browser.session import BrowserSession
+
+
+async def get_timeline_posts(session: BrowserSession, args: dict[str, str | int]) -> str:
     """Extract visible posts from the current X timeline or profile page.
 
     Uses ARIA snapshot to locate article-role elements, then extracts text

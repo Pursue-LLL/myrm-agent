@@ -2,7 +2,7 @@
 
 [INPUT]
 - myrm_agent_harness.toolkits.computer_use.dref.types::{ElementRef, SnapshotMeta, SnapshotScope}
-- myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch::capture_snapshot
+- myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch::capture_snapshot, run_ax_call
 - myrm_agent_harness.toolkits.computer_use.perception.ax_diff::{RefDiff, compute_ref_diff}
 - myrm_agent_harness.toolkits.computer_use.recording.types::DesktopRecordedEvent
 
@@ -31,7 +31,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
     is_secure_role,
 )
 from myrm_agent_harness.toolkits.computer_use.perception.ax_diff import compute_ref_diff
-from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot
+from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import capture_snapshot, run_ax_call
 from myrm_agent_harness.toolkits.computer_use.perception.overlay_roles import (
     normalize_desktop_role,
 )
@@ -119,7 +119,9 @@ class DesktopCaptureDriver:
     async def poll(self) -> CaptureFrame:
         """Capture the foreground AX tree and emit events for what changed since the last poll."""
         app_name = None if self._app_scope in ("", "all") else self._app_scope
-        meta, refs = capture_snapshot(
+        meta, refs = await run_ax_call(
+            self._backend,
+            capture_snapshot,
             self._backend,
             "foreground",
             app_name=app_name,

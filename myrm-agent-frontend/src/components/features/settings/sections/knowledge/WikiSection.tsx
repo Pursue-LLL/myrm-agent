@@ -24,7 +24,6 @@ import ImaSourceCard from './ima/ImaSourceCard';
 import WikiSourceSyncPanel from './WikiSourceSyncPanel';
 import SecondBrainSetupCard from './SecondBrainSetupCard';
 import { ObsidianVaultActions } from './ObsidianVaultActions';
-import MeetingNotesImportCard from './MeetingNotesImportCard';
 import DailyReviewCard from './DailyReviewCard';
 import { WikiLayersLedgerPanel } from './wiki/WikiLayersLedgerPanel';
 import { useWikiImport } from './wiki-section/useWikiImport';
@@ -124,8 +123,6 @@ export function WikiSection() {
               vaultGitInitialized={stats?.vault_git_initialized ?? false}
               vaultGitLastCommit={stats?.vault_git_last_commit ?? null}
             />
-
-            <MeetingNotesImportCard />
 
             <DailyReviewCard />
 

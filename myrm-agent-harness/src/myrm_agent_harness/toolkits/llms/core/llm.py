@@ -8,6 +8,7 @@ Review agent/context_management/PROMPT_CACHE_PRACTICE.md §6.1-6.2 whenever this
 - transport::speaks_openai_body (POS: whether the provider takes an OpenAI-shaped request body)
 - core.deepseek_reasoning / openai_reasoning / openrouter_verbosity / reasoning_profile (POS: per-provider reasoning-effort normalization and the shared reasoning profile)
 - core.gateway_dialect (POS: the thinking switch SiliconFlow and NVIDIA document for an explicit choice)
+- core.attribution::apply_client_attribution (POS: the app-attribution headers of OpenRouter and Vercel AI Gateway for the identity a host registered)
 
 [OUTPUT]
 - create_chat_model(): factory function to create chat model instances
@@ -24,7 +25,8 @@ inter_chunk/request timeouts), Ollama-scoped 64k context window (options.num_ctx
 Ollama endpoints, since other OpenAI-compatible local gateways reject Ollama option objects),
 OpenRouter reasoning_effort → reasoning.effort rewrite, reasoning-effort normalization per provider family
 (DeepSeek, OpenAI; an 'off' no rule translated is omitted from OpenAI-shaped bodies), the documented thinking switch
-of SiliconFlow and NVIDIA for an explicit choice,
+of SiliconFlow and NVIDIA for an explicit choice, the app-attribution headers of OpenRouter and Vercel AI Gateway
+(only once a host registered an identity),
 and native model capability passthrough (web_search_options) via tri-state native_tools config
 (None=auto-detect / set=explicit / empty set=disabled).
 Core layer used by LLMManager and business layer as the unified entry point for multi-model calls.
@@ -43,6 +45,7 @@ from myrm_agent_harness.toolkits.llms.adapters.chat_model import (
     clean_model_kwargs as clean_model_kwargs,
 )
 from myrm_agent_harness.toolkits.llms.catalog import supports_web_search
+from myrm_agent_harness.toolkits.llms.core.attribution import apply_client_attribution
 from myrm_agent_harness.toolkits.llms.core.deepseek_reasoning import apply_deepseek_reasoning_effort
 from myrm_agent_harness.toolkits.llms.core.gateway_dialect import apply_gateway_thinking
 from myrm_agent_harness.toolkits.llms.core.openai_reasoning import apply_openai_reasoning_effort
@@ -312,33 +315,7 @@ def create_chat_model(
             if isinstance(options, dict) and "num_ctx" not in options:
                 options["num_ctx"] = 64000
 
-    # Vercel AI Gateway: auto-inject attribution headers for spend observability
-    if base_url and "ai-gateway.vercel.sh" in base_url.lower():
-        extra_headers = llm_kwargs.setdefault("extra_headers", {})
-        if isinstance(extra_headers, dict):
-            extra_headers.setdefault("HTTP-Referer", "https://myrm.ai")
-            extra_headers.setdefault("X-Title", "Myrm Agent")
-            extra_headers.setdefault("User-Agent", "Myrm/1.0 (Vercel-AI-Gateway-Client)")
-        model_kwargs_dict = llm_kwargs.setdefault("model_kwargs", {})
-        if isinstance(model_kwargs_dict, dict):
-            extra_headers_m = model_kwargs_dict.setdefault("extra_headers", {})
-            if isinstance(extra_headers_m, dict):
-                extra_headers_m.setdefault("HTTP-Referer", "https://myrm.ai")
-                extra_headers_m.setdefault("X-Title", "Myrm Agent")
-                extra_headers_m.setdefault("User-Agent", "Myrm/1.0 (Vercel-AI-Gateway-Client)")
-
-    # OpenRouter: auto-inject attribution headers for ranking & free tier compliance
-    if (base_url and "openrouter.ai" in base_url.lower()) or model.lower().startswith("openrouter/"):
-        extra_headers = llm_kwargs.setdefault("extra_headers", {})
-        if isinstance(extra_headers, dict):
-            extra_headers.setdefault("HTTP-Referer", "https://myrm.ai")
-            extra_headers.setdefault("X-Title", "Myrm Agent")
-        model_kwargs_dict = llm_kwargs.setdefault("model_kwargs", {})
-        if isinstance(model_kwargs_dict, dict):
-            extra_headers_m = model_kwargs_dict.setdefault("extra_headers", {})
-            if isinstance(extra_headers_m, dict):
-                extra_headers_m.setdefault("HTTP-Referer", "https://myrm.ai")
-                extra_headers_m.setdefault("X-Title", "Myrm Agent")
+    apply_client_attribution(base_url, model, llm_kwargs)
 
     llm_kwargs = clean_model_kwargs(llm_kwargs, model)
 

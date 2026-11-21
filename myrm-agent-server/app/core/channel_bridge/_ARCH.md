@@ -43,14 +43,14 @@ Channel 系统的业务适配层。基于 `app.channels` 的渠道框架协议�
 | `learn_handler.py` | ✅ 核心 | Learn SSOT：`parse_learn_slash_args` / `rewrite_learn_query_if_needed`（渠道与 WebUI 共用 `_build_learn_prompt`）；`_AUTHORING_STANDARDS` 含 Myrm-tool framing 块与 description good/bad 示例；ChannelLearnCommandHandler 注入 rewrite 后 prompt；`elevate_skill_manage_permission` 在 explore 等 preset 仍 deny 时将本 turn 的 `skill_manage` 升为 ASK（由 `core/security/session_overlay.py` 的 `SecurityOverlaySpec` 在叠加最后一层应用，渠道回合经 `build_security_overlay` 开启，每轮重载已保存配置后重放）；`params/enrichment/pipeline.py` 在 permission overlay 前调用 rewrite | ✅ |
 | `kanban_command_handler.py` | ✅ 核心 | ChannelKanbanCommandHandler：KanbanCommandHandler 协议的业务层实现。处理 /kanban (/kb) 斜杠命令的 10 个子命令（list/show/create/comment/edit/complete/block/unblock/archive/stats），调用 KanbanService 完成操作并格式化 Markdown 响应 | ✅ |
 | `turn_handler.py` | ✅ 核心 | ChannelRetryHandler / ChannelUndoHandler：`/retry`/`/undo` + RevertService + restore_inbox 通知；`RevertMessagesOutcome` 含 `not_revertible_count` 供 IM FTL 诚实警告 | ✅ |
-| `compact_handler.py` | ✅ 核心 | ChannelCompactHandler：CompactHandler 协议的业务层实现，处理 /compact 命令的会话压缩 | ✅ |
+| `compact_handler.py` | ✅ 核心 | ChannelCompactHandler：CompactHandler 协议的业务层实现，处理 /compact 命令的会话压缩；以人工请求调用 `compact_chat`（不受 anti-thrash 守卫拦截），服务层原因码转成框架的 `CompactSkip` 类别，只有已知的良性原因不算失败，未知原因按失败 | ✅ |
 
 ### 子目录
 
 | 模块 | 职责 | 文档 |
 |------|------|------|
 | `providers/` | 业务层 Channel 实现（仅 ChatChannel）及辅助 API 客户端。所有通用 IM 通道已内置于框架层 | [_ARCH.md](providers/_ARCH.md) |
-| `wake_return/` | 唤醒回合与所有者 IM 私聊的接点：登记会话来自哪条 IM 消息（`WakeOrigins`）；作为 `adaptive_wakeup/chat_busy` 端口的探针告诉唤醒回合所有者在这条私聊里正有回合在跑；作为 `adaptive_wakeup/reply_return` 端口的承载方把回复（连同它点名的工作区文件）经网关 `deliver_followup` 送出；`wiring.py` 在网关启停时登记 / 清除两者 | [_ARCH.md](wake_return/_ARCH.md) |
+| `wake_return/` | 唤醒回合与所有者 IM 私聊的接点：登记会话来自哪条 IM 消息（`WakeOrigins`）；作为 `adaptive_wakeup/chat_busy` 端口的探针告诉唤醒回合与聊天回退所有者在这条私聊里正有回合在跑；作为 `adaptive_wakeup/reply_return` 端口的承载方把回复（连同它点名的工作区文件）经网关 `deliver_followup` 送出；`wiring.py` 在网关启停时登记 / 清除两者 | [_ARCH.md](wake_return/_ARCH.md) |
 
 ---
 

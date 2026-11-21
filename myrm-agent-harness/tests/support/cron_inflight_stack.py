@@ -14,8 +14,9 @@
 - HOURLY, ONCE, CRASHED, STOPPING: the schedules and the two interrupted-run messages
 
 [POS]
-Pytest-only helper shared by the in-flight marker and graceful-stop tests: a test states the job and the moment in
-the run it cares about, and reads the markers and run records back from the store instead of mocking the scheduler.
+Pytest-only helper shared by the in-flight marker, interrupted-notice and graceful-stop tests: a test states the job
+and the moment in the run it cares about, and reads the markers and run records back from the store instead of
+mocking the scheduler.
 """
 
 from __future__ import annotations

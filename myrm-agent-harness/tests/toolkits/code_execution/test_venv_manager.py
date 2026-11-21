@@ -9,6 +9,9 @@ Covers:
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -108,6 +111,27 @@ class TestVenvManagerRewritePipCommand:
             with patch.object(manager, "get_venv_path", return_value=venv_path):
                 result = await manager.rewrite_pip_command("pip3 install requests")
                 assert str(pip_path) in result
+
+    @pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") is None, reason="runs the command in bash")
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("data_dir", ["My Data", "O'Brien"])
+    async def test_a_venv_path_the_shell_would_split_stays_one_command(self, tmp_path: Path, data_dir: str):
+        """Verify the rewritten command still runs the venv pip when its path holds a space or an apostrophe."""
+        config = MagicMock()
+        config.local.shared_venv_path = None
+        config.local.auto_create_venv = False
+        manager = VenvManager(config)
+        venv_path = tmp_path / data_dir / "venvs"
+        pip_path = venv_path / "bin" / "pip"
+        pip_path.parent.mkdir(parents=True)
+        pip_path.write_text('#!/bin/sh\necho "ran $@"\n', encoding="utf-8")
+        pip_path.chmod(0o755)
+
+        with patch.object(manager, "get_venv_path", return_value=venv_path):
+            command = await manager.rewrite_pip_command("pip install requests")
+
+        done = subprocess.run(["bash", "-c", command], capture_output=True, text=True, check=False)
+        assert (done.returncode, done.stdout) == (0, "ran install requests\n")
 
     @pytest.mark.asyncio
     async def test_ignores_non_pip_command(self):

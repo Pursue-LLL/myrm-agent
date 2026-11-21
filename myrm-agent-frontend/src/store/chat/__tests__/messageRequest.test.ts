@@ -511,7 +511,7 @@ describe('messageRequest - privacy routing contract', () => {
 
   beforeEach(() => {
     savedKey = null;
-    vi.spyOn(manager, 'ensureKeyLoaded').mockResolvedValue(undefined);
+    vi.spyOn(manager, 'ensureKeyLoaded').mockResolvedValue(true);
     vi.spyOn(manager, 'get').mockImplementation(((key: string) =>
       key === 'privacyRoutingSecret' && savedKey ? { localApiKey: savedKey } : originalGet(key as never)) as never);
     useConfigStore.setState(preferences);

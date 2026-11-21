@@ -130,8 +130,10 @@ async def get_desktop_snapshot(
 ) -> JSONResponse:
     """Get desktop snapshot for the Desktop Inspector panel.
 
-    ``source=live`` (default) re-captures foreground AX; ``source=registry`` reads the
-    last agent snapshot from DRefRegistry without re-capturing (E2E / approval overlay).
+    ``source=live`` (default) is the user's manual refresh: a new foreground AX capture, taken under the
+    session's action lock; while an action runs it answers the registry view instead.
+    ``source=registry`` is the automatic refresh (tool end, approval card): the elements the agent last
+    registered, drawn over the current screen, with no AX read and no registry write.
     ``source=foreground_e2e`` captures foreground AX without an active agent session (E2E only).
     Optional ``chat_id`` scopes registry/live lookup to a specific chat session.
     """
@@ -177,18 +179,17 @@ async def get_desktop_snapshot(
             )
 
         if normalized_source == "registry":
-            payload = session.export_registry_view()
-            if payload is None:
-                return JSONResponse(
-                    status_code=404,
-                    content={
-                        "error": "no_registry_snapshot",
-                        "message": "No snapshot refs in active desktop session registry",
-                    },
-                )
-            return JSONResponse(content=payload)
-
-        payload = await session.export_inspector_snapshot()
+            payload = await session.export_registry_view()
+        else:
+            payload = await session.export_inspector_snapshot()
+        if payload is None:
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "no_registry_snapshot",
+                    "message": "No snapshot refs in active desktop session registry",
+                },
+            )
         return JSONResponse(content=payload)
     except Exception as e:
         logger.error("Desktop snapshot failed: %s", e, exc_info=True)

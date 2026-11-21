@@ -131,10 +131,10 @@ class TestResolveOriginGuard:
         assert guard.enforce_host is False
 
     def test_explicit_env_configuration(self, monkeypatch):
-        monkeypatch.setenv("MYRM_MCP_ALLOWED_ORIGINS", "https://app.myrm.ai,http://test.local:3000")
+        monkeypatch.setenv("MYRM_MCP_ALLOWED_ORIGINS", "https://app.example.com,http://test.local:3000")
         monkeypatch.setenv("MYRM_MCP_ALLOWED_HOSTS", "internal-mcp.company.org")
         guard = resolve_origin_guard(host="127.0.0.1")
-        assert "https://app.myrm.ai" in guard.allowed_origins
+        assert "https://app.example.com" in guard.allowed_origins
         assert "http://test.local:3000" in guard.allowed_origins
         assert "internal-mcp.company.org" in guard.allowed_hosts
 
@@ -191,11 +191,11 @@ class TestCheckRequestOrigin:
     def test_explicit_allowlist_permits_configured_domain(self):
         guard = resolve_origin_guard(
             host="127.0.0.1",
-            allowed_origins=["https://cloud.myrm.ai"],
-            allowed_hosts=["cloud.myrm.ai"],
+            allowed_origins=["https://cloud.example.com"],
+            allowed_hosts=["cloud.example.com"],
         )
         verdict = check_request_origin(
-            {"origin": "https://cloud.myrm.ai", "host": "cloud.myrm.ai"},
+            {"origin": "https://cloud.example.com", "host": "cloud.example.com"},
             guard,
         )
         assert verdict.ok is True

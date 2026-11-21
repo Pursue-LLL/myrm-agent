@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from myrm_agent_harness.infra.incremental.types import MonitorState
 from myrm_agent_harness.toolkits.cron import matching_run_statuses
 from myrm_agent_harness.toolkits.cron.types import (
+    SYSTEM_JOB_NAME_PREFIX,
     CronJob,
     CronRunRecord,
     JobStatus,
@@ -35,6 +36,10 @@ from app.database.factory import acquire_write_lock
 from app.database.models import CronJobModel, CronRunModel, MonitorStateModel
 
 logger = logging.getLogger(__name__)
+
+# `_` is a one-character LIKE wildcard, so a bare `NOT LIKE '__%'` would hide every name of two or more characters;
+# only an escaped prefix match tells `__heartbeat__` from `ab`.
+_NOT_SYSTEM_NAME = ~CronJobModel.name.startswith(SYSTEM_JOB_NAME_PREFIX, autoescape=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +90,7 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
         chat_id: str | None = None,
         project_id: str | None = None,
         due_before: datetime | None = None,
+        include_system: bool = True,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[CronJob]:
@@ -98,6 +104,9 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
 
         if name_filter:
             stmt = stmt.where(CronJobModel.name.icontains(name_filter, autoescape=True))
+
+        if not include_system:
+            stmt = stmt.where(_NOT_SYSTEM_NAME)
 
         if due_before is not None:
             stmt = stmt.where(
@@ -123,6 +132,7 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = True,
     ) -> int:
         stmt = select(sqlfunc.count()).select_from(CronJobModel)
         if chat_id is not None:
@@ -131,6 +141,8 @@ class SqlAlchemyCronStore(SqlAlchemyInflightMixin):
             stmt = stmt.where(CronJobModel.project_id == project_id)
         if name_filter:
             stmt = stmt.where(CronJobModel.name.icontains(name_filter, autoescape=True))
+        if not include_system:
+            stmt = stmt.where(_NOT_SYSTEM_NAME)
         async with get_session() as session:
             return (await session.execute(stmt)).scalar_one()
 

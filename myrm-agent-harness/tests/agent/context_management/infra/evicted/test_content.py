@@ -12,7 +12,9 @@ from myrm_agent_harness.agent.context_management.infra.evicted import (
     build_delivery_footer,
     build_evicted_basename,
     cap_content_for_storage,
+    evicted_rel_path,
     persist_evicted_content,
+    resolve_evicted_target,
 )
 from myrm_agent_harness.core.context_vars import chat_id_var, workspace_root_var
 from tests.support.windows_text_mode import emulate_windows_text_mode
@@ -160,6 +162,53 @@ async def test_persist_strips_chat_prefix_from_session_key(tmp_path) -> None:
         result = await persist_evicted_content("line\n", "output", ext="txt")
         assert result.rel_path is not None
         assert f".context/{raw_chat_id}/evicted/" in result.rel_path
+    finally:
+        workspace_root_var.reset(w_tok)
+        chat_id_var.reset(c_tok)
+
+
+def test_evicted_rel_path_drops_the_session_key_prefix_once() -> None:
+    assert evicted_rel_path("chat_abc", "output_0a1b2c3d.txt") == ".context/abc/evicted/output_0a1b2c3d.txt"
+    assert evicted_rel_path("abc", "output_0a1b2c3d.txt") == ".context/abc/evicted/output_0a1b2c3d.txt"
+    assert evicted_rel_path("chat_chat_x", "output_0a1b2c3d.txt") == ".context/chat_x/evicted/output_0a1b2c3d.txt"
+
+
+def test_resolve_evicted_target_serves_the_chat_it_is_given(tmp_path) -> None:
+    """A writer that outlives the turn names its own chat; the turn's chat id is not consulted."""
+    w_tok = workspace_root_var.set(str(tmp_path))
+    c_tok = chat_id_var.set("chat_other")
+    try:
+        target = resolve_evicted_target("output", "txt", chat_id="chat_mine")
+    finally:
+        workspace_root_var.reset(w_tok)
+        chat_id_var.reset(c_tok)
+
+    assert target is not None
+    basename, rel_path, abs_path = target
+    assert EVICTED_BASENAME_PATTERN.match(basename)
+    assert rel_path == evicted_rel_path("chat_mine", basename)
+    assert abs_path == tmp_path / rel_path
+
+
+def test_resolve_evicted_target_defaults_to_the_chat_of_the_running_turn(tmp_path) -> None:
+    w_tok = workspace_root_var.set(str(tmp_path))
+    c_tok = chat_id_var.set("chat_turn")
+    try:
+        target = resolve_evicted_target("output")
+    finally:
+        workspace_root_var.reset(w_tok)
+        chat_id_var.reset(c_tok)
+
+    assert target is not None
+    assert target[1].startswith(".context/turn/evicted/output_")
+
+
+@pytest.mark.parametrize(("workspace", "chat"), [("", "chat_x"), ("/ws", ""), ("/ws", "chat_"), ("  ", "x")])
+def test_resolve_evicted_target_is_none_without_a_workspace_or_a_chat(workspace: str, chat: str) -> None:
+    w_tok = workspace_root_var.set(workspace)
+    c_tok = chat_id_var.set(chat)
+    try:
+        assert resolve_evicted_target("output") is None
     finally:
         workspace_root_var.reset(w_tok)
         chat_id_var.reset(c_tok)

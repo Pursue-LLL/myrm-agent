@@ -1,6 +1,7 @@
 """Extract structured note entries from Xiaohongshu (RED) via browser session.
 
-Executed inside the browser_execute_script sandbox via ``run_site_tool``.
+Called by ``run_site_tool`` of ``browser_manage_tool`` in the host process, not inside the
+``browser_execute_script_tool`` runtime.
 Receives ``session`` (BrowserSession) and ``args`` dict as runtime parameters.
 
 [INPUT]

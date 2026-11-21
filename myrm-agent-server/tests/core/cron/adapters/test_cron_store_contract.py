@@ -25,6 +25,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronRunRecord,
     JobStatus,
     JobType,
+    PauseReason,
     RunStatus,
     Schedule,
     ScheduleKind,
@@ -147,6 +148,23 @@ async def test_name_filter_is_a_literal_case_insensitive_substring(store: CronSt
 
     assert {job.name for job in await store.list_jobs(name_filter=needle)} == expected
     assert await store.count_jobs(name_filter=needle) == len(expected)
+
+
+async def test_a_listing_can_leave_out_the_reserved_names_and_only_those(store: CronStore) -> None:
+    """`_` is a one-character LIKE wildcard, so a careless `NOT LIKE '__%'` would hide `ab` along with `__x`."""
+    system = {"__heartbeat__", "__x", "__"}
+    visible = {"_x", "ab", "a__b", "x_"}
+    await _save(store, *(_job(f"job-{i}", name=name) for i, name in enumerate(sorted(system | visible))))
+
+    assert {job.name for job in await store.list_jobs()} == system | visible
+    assert await store.count_jobs() == len(system | visible)
+    assert {job.name for job in await store.list_jobs(include_system=False)} == visible
+    assert await store.count_jobs(include_system=False) == len(visible)
+    assert {job.name for job in await store.list_jobs(name_filter="x", include_system=False)} == {"_x", "x_"}
+    assert await store.count_jobs(name_filter="x", include_system=False) == 2
+    assert {job.name for job in await store.list_jobs(name_filter="x")} == {"__x", "_x", "x_"}
+    # The page is cut after the reserved names are left out, so a page of two holds two of the visible jobs.
+    assert len(await store.list_jobs(include_system=False, limit=2)) == 2
 
 
 async def test_chat_and_project_filters_narrow_the_listing_and_the_count(store: CronStore) -> None:
@@ -303,6 +321,17 @@ async def test_save_job_upserts_by_id_and_delete_job_reports_whether_a_row_went(
     assert await store.delete_job("one") is True
     assert await store.delete_job("one") is False
     assert await store.get_job("one") is None
+
+
+async def test_a_pause_reason_is_kept_by_a_save_and_dropped_by_the_next_one(store: CronStore) -> None:
+    paused = replace(_job("one", status=JobStatus.PAUSED), paused_reason=PauseReason.CIRCUIT_BREAK)
+    await store.save_job(paused)
+    kept = await store.get_job("one")
+    assert kept is not None and kept.paused_reason == PauseReason.CIRCUIT_BREAK
+
+    await store.save_job(replace(paused, status=JobStatus.ACTIVE, paused_reason=None))
+    dropped = await store.get_job("one")
+    assert dropped is not None and dropped.paused_reason is None
 
 
 async def test_save_job_stamps_updated_at_on_insert_and_keeps_the_given_value_on_update(store: CronStore) -> None:

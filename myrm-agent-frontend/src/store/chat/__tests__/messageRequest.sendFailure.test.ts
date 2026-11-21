@@ -9,15 +9,19 @@
  *
  * The failure toast shows the server's own explanation when it gave a structured one, a fixed localized line
  * otherwise; the raw error goes to the console.
+ *
+ * A send that needs a search service the account lacks is refused before any request.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fetchWithTimeout } from '@/lib/api';
+import { toast } from '@/lib/utils/toast';
 import { createAISearchStream } from '@/services/chat';
 import { setGlobalTranslator, showI18nToast } from '@/services/i18nToastService';
 import { sendMessage, type ChatActionsMethods, type ChatActionsState } from '@/store/chat/messageRequest';
 import { AgentBusyError, ApprovalAlreadyResolvedError } from '@/store/chat/streamErrors';
-import type { ChatState, File as ChatFile, Message } from '@/store/chat/types';
+import type { AgentConfig, ChatState, File as ChatFile, Message } from '@/store/chat/types';
 import { getInitialDefaultModelConfig } from '@/store/config/providerTypes';
+import useConfigStore from '@/store/useConfigStore';
 import useProviderStore from '@/store/useProviderStore';
 import useToolApprovalStore from '@/store/useToolApprovalStore';
 
@@ -347,6 +351,46 @@ describe('sendMessage failure handling', () => {
       expect(toastOptions()).toMatchObject({ descriptionKey: 'chat.messageFailed.generic' });
       expect(toastOptions()).not.toHaveProperty('descriptionValues');
       expect(console.error).toHaveBeenCalledWith(expect.any(String), failure);
+    });
+  });
+
+  describe('a send that needs a search service', () => {
+    const quickSearch: AgentConfig = {
+      selectedSkillIds: [],
+      selectedMcpNames: [],
+      systemPrompt: '',
+      useGlobalInstruction: true,
+      agentId: 'builtin-fast-search',
+    };
+
+    beforeEach(() => {
+      vi.spyOn(toast, 'warning').mockReturnValue(0);
+      useConfigStore.setState({ searchServiceConfigs: [] });
+      // A request that slips past the guard is answered at once, so a missing guard fails the test instead of hanging it.
+      refusedWith(401, JSON.stringify({ detail: 'Session expired' }));
+    });
+
+    it.each([
+      ['the fast search mode', 'fast', null],
+      ['the Quick Search agent picked in agent mode', 'agent', quickSearch],
+    ] as const)('is refused with the setup notice before any request in %s', async (_name, actionMode, agentConfig) => {
+      store.actionMode = actionMode;
+      store.agentConfig = agentConfig;
+
+      await expect(send()).resolves.toBe(false);
+
+      expect(toast.warning).toHaveBeenCalledTimes(1);
+      expect(createAISearchStream).not.toHaveBeenCalled();
+      expect(transcript()).toEqual([]);
+    });
+
+    it('leaves the search gap of a general agent to the stream', async () => {
+      store.agentConfig = { ...quickSearch, agentId: 'builtin-general' };
+
+      await send();
+
+      expect(toast.warning).not.toHaveBeenCalled();
+      expect(createAISearchStream).toHaveBeenCalledTimes(1);
     });
   });
 });

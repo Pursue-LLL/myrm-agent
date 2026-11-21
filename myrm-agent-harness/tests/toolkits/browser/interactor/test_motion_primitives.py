@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig, HumanizeMode
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig, HumanizeMode
 from myrm_agent_harness.toolkits.browser.session.interactor import Interactor
 from myrm_agent_harness.toolkits.browser.session.interactor_scroll_mixin import (
     _SCROLL_MEASURE_JS,

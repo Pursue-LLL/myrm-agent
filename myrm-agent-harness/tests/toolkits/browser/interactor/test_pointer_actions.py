@@ -78,7 +78,7 @@ async def test_interact_hover(interactor: Interactor) -> None:
 @pytest.mark.asyncio
 async def test_interact_hover_bezier_success(mock_page: MagicMock, refs_map: dict[str, RefInfo]) -> None:
     """Test hover in CAREFUL mode uses Bézier trajectory when bounding_box succeeds."""
-    from myrm_agent_harness.toolkits.browser.pool.config import (
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
         HumanizeConfig,
         HumanizeMode,
     )
@@ -123,7 +123,7 @@ async def test_interact_hover_bezier_success(mock_page: MagicMock, refs_map: dic
 @pytest.mark.asyncio
 async def test_interact_hover_bezier_fallback(mock_page: MagicMock, refs_map: dict[str, RefInfo]) -> None:
     """Test hover in CAREFUL mode falls back to locator.hover() when bounding_box returns None."""
-    from myrm_agent_harness.toolkits.browser.pool.config import (
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
         HumanizeConfig,
         HumanizeMode,
     )

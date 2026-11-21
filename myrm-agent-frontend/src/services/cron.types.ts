@@ -1,6 +1,10 @@
 export type JobStatus = 'active' | 'paused' | 'completed';
 export type RunStatus = 'ok' | 'error' | 'skipped' | 'circuit_break';
+/** Why the scheduler paused a job by itself after a failure; a job the user paused has none. */
+export type PauseReason = 'circuit_break' | 'run_failures' | 'schedule_error';
 export type SessionTarget = 'isolated' | 'main' | 'daily';
+export type JobType = 'agent' | 'shell' | 'router' | 'reminder';
+export type MonitorType = 'set' | 'hash';
 
 export interface CronSchedule {
   kind: 'cron' | 'interval' | 'once';
@@ -24,7 +28,7 @@ export interface ActiveHours {
 }
 
 export interface MonitorConfig {
-  monitor_type: 'set' | 'hash';
+  monitor_type: MonitorType;
   ttl_days: number;
   enabled: boolean;
   last_reset_at?: string | null;
@@ -80,7 +84,7 @@ export interface TriggerConfig {
 export interface CronJob {
   id: string;
   name: string;
-  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  job_type: JobType;
   status: JobStatus;
   schedule: CronSchedule;
   prompt?: string;
@@ -123,6 +127,7 @@ export interface CronJob {
   last_error?: string;
   consecutive_failures: number;
   last_failure_alert_at?: string | null;
+  paused_reason?: PauseReason | null;
   created_at: string;
   updated_at: string;
 }
@@ -264,7 +269,7 @@ export interface TriggerConfigRequest {
 
 export interface CreateCronJobRequest {
   name: string;
-  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  job_type: JobType;
   schedule: CronSchedule;
   /** Originating chat session; the job's runs are attributed to this chat */
   chat_id?: string;
@@ -374,13 +379,13 @@ export interface BlueprintFillResponse {
   required_capabilities: string[];
   tools_allowed: string[];
   skill_ids?: string[];
-  job_type: 'agent' | 'shell' | 'router' | 'reminder';
+  job_type: JobType;
   session_target: SessionTarget;
   deduplicate: boolean;
   skip_if_active: boolean;
   timeout_seconds?: number | null;
   monitor_config?: {
-    monitor_type: 'set' | 'hash';
+    monitor_type: MonitorType;
     ttl_days: number;
     enabled: boolean;
   } | null;

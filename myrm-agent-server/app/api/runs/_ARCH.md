@@ -9,7 +9,7 @@ Unified Runs Hub 聚合 API。只读端点，将 Cron Runs、Kanban Background T
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | 包导出 | — |
-| `router.py` | 核心 | GET /runs 聚合端点；`status=error` 选出全部失败的运行（见「约束」） | ✅ |
+| `router.py` | 核心 | GET /runs 聚合端点；`status=error` 选出全部失败的运行（见「约束」）；cron 来源的运行按任务 id 取任务名时带 `include_system=True`，心跳的运行才有名字 | ✅ |
 | `stop_reason.py` | 辅助 | 从 metadata / error / shell 任务推断停止原因（存储形态由 `core/agent/stop_reason.py` 定义）；`to_run_stop_reason` 把存储形态解析为响应模型 | — |
 | `schemas.py` | 模型 | UnifiedRunResponse/UnifiedRunsListResponse；状态词表：`CRON_RUN_STATUSES`（cron 存的状态）、`FAILED_RUN_STATUSES`（失败桶） | — |
 

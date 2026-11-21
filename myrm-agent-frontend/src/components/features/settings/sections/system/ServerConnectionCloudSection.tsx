@@ -122,15 +122,15 @@ const ServerConnectionCloudSection = memo((props: ServerConnectionCloudSectionPr
           setCpBaseInput(e.target.value);
           setProviders(null);
         }}
-        placeholder="https://app.myrmagent.com"
-        className="w-full px-4 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+        placeholder="https://cp.example.com"
+        className="w-full px-4 py-2.5 bg-muted/50 dark:bg-black/20 border border-border rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
       />
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => void handleCheckProviders()}
           disabled={providersLoading || !cpBaseInput.trim()}
-          className="px-4 py-2 rounded-xl border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {providersLoading ? t('testing') : t('checkProviders')}
         </button>
@@ -138,13 +138,13 @@ const ServerConnectionCloudSection = memo((props: ServerConnectionCloudSectionPr
           type="button"
           onClick={() => void handleDiscoverSandbox()}
           disabled={discovering || busy || !cpBaseInput.trim()}
-          className="px-4 py-2 rounded-xl border border-white/10 text-xs font-bold hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {discovering ? t('testing') : t('discoverSandbox')}
         </button>
       </div>
       {providers !== null && providers.length === 0 && (
-        <p className="text-xs text-muted-foreground/70">{t('providersUnavailable')}</p>
+        <p className="text-xs text-muted-foreground">{t('providersUnavailable')}</p>
       )}
       {providers !== null && providers.length > 0 && (
         <div className="grid gap-2 sm:grid-cols-2">

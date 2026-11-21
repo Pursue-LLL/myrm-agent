@@ -8,7 +8,7 @@ import pytest
 
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import BackgroundProcessRegistry
 from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
-from tests.agent.meta_tools.bash.test_background_registry import _FakeProc
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc
 
 _PASSWORD = "Secret99pwXyz"
 
@@ -26,7 +26,7 @@ _PASSWORD = "Secret99pwXyz"
 )  # fmt: skip
 async def test_the_stored_command_hides_both_secrets(pid: int, command: str, secret: str) -> None:
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=pid, stdout=[], stderr=[])
+    proc = FakeProc(pid=pid, stdout=[], stderr=[])
 
     info = await registry.register(cast(AsyncProcessProtocol, proc), command=command, session_id="s-redaction")
 

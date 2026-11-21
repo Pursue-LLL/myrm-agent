@@ -3,9 +3,9 @@
 [INPUT]
 - dref.types::SnapshotScope, SnapshotMeta, ElementRef, BBox (POS: @dref accessibility element model)
 - dref.errors::AXPermissionRequiredError, AXTreeEmptyError (POS: accessibility error hierarchy)
-- types::ActionResult (POS: platform action execution result container)
+- ax_result::{AxFailure, AxInvokeResult} (POS: typed outcome of a native action)
 - windows_process::process_name_by_pid (POS: Win32 executable name of a process id)
-- windows_ax_actions::apply_uia_toggle, apply_uia_expand_collapse, apply_uia_invoke (POS: UIA pattern actions with Click fallback)
+- windows_ax_actions::apply_uia_toggle, apply_uia_expand_collapse, apply_uia_invoke, send_uia_text (POS: UIA element actions: pattern calls with Click fallback, literal text entry)
 
 [OUTPUT]
 - WindowsAxSnapshot: Windows accessibility snapshot container with metadata and refs
@@ -33,13 +33,14 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
     SnapshotMeta,
     SnapshotScope,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.perception.windows_ax_actions import (
     apply_uia_expand_collapse,
     apply_uia_invoke,
     apply_uia_toggle,
+    send_uia_text,
 )
 from myrm_agent_harness.toolkits.computer_use.perception.windows_process import process_name_by_pid
-from myrm_agent_harness.toolkits.computer_use.types import ActionResult
 
 logger = logging.getLogger(__name__)
 
@@ -282,22 +283,22 @@ def invoke_ax_element(
     action: str,
     text: str = "",
     app_name: str | None = None,
-) -> ActionResult:
+) -> AxInvokeResult:
     try:
         import uiautomation as auto
     except ImportError:
-        return ActionResult(success=False, error="uiautomation not installed on Windows")
+        return AxInvokeResult.failed(AxFailure.UNSUPPORTED, "uiautomation not installed on Windows")
 
     index = int(backend_key)
     if app_name:
         control = _locate_window(app_name)
         if control is None:
-            return ActionResult(success=False, error=f"target window not found for app '{app_name}'")
+            return AxInvokeResult.failed(AxFailure.STALE, f"target window not found for app '{app_name}'")
         _ensure_window_active_for_target(control)
     else:
         control = auto.GetForegroundControl()
         if control is None:
-            return ActionResult(success=False, error="No foreground window")
+            return AxInvokeResult.failed(AxFailure.STALE, "No foreground window")
 
     flat: list[object] = []
 
@@ -322,13 +323,13 @@ def invoke_ax_element(
             continue
         interactive.append(node)
     if index >= len(interactive):
-        return ActionResult(success=False, error=f"Stale element index {index}")
+        return AxInvokeResult.failed(AxFailure.STALE, f"Stale element index {index}")
 
     target = interactive[index]
     normalized = action.lower()
     try:
         if normalized in {"fill", "type", "set_value"}:
-            target.SendKeys(text)  # type: ignore[attr-defined]
+            send_uia_text(target, text)
         elif normalized in {"toggle", "check", "uncheck"}:
             apply_uia_toggle(target, normalized, auto)
         elif normalized in {"expand", "collapse"}:
@@ -345,10 +346,11 @@ def invoke_ax_element(
         }:
             target.Click()  # type: ignore[attr-defined]
         else:
-            return ActionResult(success=False, error=f"Unsupported action: {action}")
+            return AxInvokeResult.failed(AxFailure.UNSUPPORTED, f"Unsupported action: {action}")
     except Exception as exc:
-        return ActionResult(success=False, error=str(exc))
-    return ActionResult(success=True, output=f"UIA {normalized} succeeded")
+        # A pattern call or key stream that raised may already have reached the control.
+        return AxInvokeResult.failed(AxFailure.UNKNOWN, str(exc))
+    return AxInvokeResult.delivered(f"UIA {normalized} succeeded")
 
 
 _COM_AUTOMATABLE_APPS: frozenset[str] = frozenset(

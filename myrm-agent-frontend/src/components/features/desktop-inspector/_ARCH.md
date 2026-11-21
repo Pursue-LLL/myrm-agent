@@ -26,7 +26,7 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 
 - SSE: `desktop_view_update` via `messageStreamHandler.ts` — writes `sourceChatId` from stream chat; does **not** auto-open panel
 - SSE: `desktop_control_approval_request` — when stream chat matches foreground: `setDesktopActive(true)` + `openPanel`; approval banner always shown via `DesktopControlApprovalOverlay`
-- REST refresh: `GET /webui/desktop/snapshot` on `desktop_*` TOOL_END (tags `sourceChatId` with foreground chat)
+- REST refresh through `useDesktopInspectorStore.fetchSnapshot`, always with `chat_id` (tags `sourceChatId` with foreground chat): the automatic refresh (`desktop_*` TOOL_END except `desktop_snapshot_tool`, and approval cards) is `source=registry`, the agent's own elements over the current screen with no new capture; the refresh button is `source=live`, a new capture the server takes under the session's action lock
 - `DesktopLiveView.tsx` / `DesktopInspectorToggle.tsx`: Scoped view via `selectScopedDesktopViewData`; close panel on **chat switch only** (`useClosePanelOnChatSwitch`)
 - REST: `GET /webui/desktop/permissions` — grant probe for the permission banner (Accessibility + Screen Recording). L2 capture readiness (`probe_capture` / `capture_ready`) is owned by Settings `DesktopPermissionsCard`, Agent `CuPermissionInline`, and Doctor — not this banner.
 
@@ -43,6 +43,7 @@ Desktop Live View + Interactive Inspector mirroring `browser-inspector/` for nat
 | `__tests__/DesktopInstructionInput.test.tsx`                                                 | @dref badge clear button labelled from translations; click clears the selection |
 | `__tests__/DesktopLiveView.permissionBanner.test.tsx`                                        | API fail amber banner / missing-permission details |
 | `../../../store/__tests__/selectScopedDesktopViewData.test.ts`                               | chat-scoped desktop viewData selector              |
+| `../../../store/__tests__/useDesktopInspectorStore.fetchSnapshot.test.ts`                    | refresh request: `source=registry` automatic, `source=live` manual, always `chat_id` |
 | `../../../store/chat/messageStream/handlers/__tests__/fileDiffEvents.desktopViewUpdate.test.ts` | DESKTOP_VIEW_UPDATE sourceChatId write          |
 
 ## Permission Guidance

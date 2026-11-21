@@ -33,10 +33,6 @@ _BOUNDED_BY_THE_COMMAND: dict[str, tuple[int, str]] = {
 # communicate_bounded, or move it up to the table above once its bound is shown.
 _UNBOUNDED_PENDING_DECISION: dict[str, tuple[int, str]] = {
     "channels/providers/whatsapp/bridge.py": (1, "`npm install --production`: no deadline"),
-    "services/meeting_notes/service.py": (
-        1,
-        "`ffmpeg -i <audio> -f null -` decodes the whole recording to find its length: no deadline",
-    ),
 }
 
 

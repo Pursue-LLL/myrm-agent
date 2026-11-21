@@ -181,4 +181,6 @@ MIGRATION_STATEMENTS_3: list[str] = [
     # Cron runs no longer carry a hash chain, so the two hash columns of cron_runs are gone.
     "ALTER TABLE cron_runs DROP COLUMN integrity_hash",
     "ALTER TABLE cron_runs DROP COLUMN prev_hash",
+    # Why the scheduler paused a job by itself; jobs paused before this column existed simply have no reason.
+    "ALTER TABLE cron_jobs ADD COLUMN paused_reason VARCHAR(20)",
 ]

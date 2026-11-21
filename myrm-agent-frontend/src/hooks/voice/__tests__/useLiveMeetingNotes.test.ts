@@ -27,6 +27,18 @@ const EMPTY_SNAPSHOT = {
   published_wiki_paths: [],
   error: '',
 };
+const ROLLING_SNAPSHOT = { ...EMPTY_SNAPSHOT, summary: 'Agreed to ship on Friday', line_count: 3 };
+const PUBLISHED_SNAPSHOT = { ...ROLLING_SNAPSHOT, published_wiki_paths: ['raw/meetings/standup.md'] };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+const sentTexts = () => ingestLiveTranscript.mock.calls.map(([, line]) => (line as LiveTranscriptLine).text);
 
 describe('useLiveMeetingNotes', () => {
   beforeEach(() => {
@@ -82,9 +94,61 @@ describe('useLiveMeetingNotes', () => {
     await act(async () => {
       resolved = await result.current.finalize();
     });
-    expect(finalizeLiveMeeting).toHaveBeenCalledWith(sessionId);
+    expect(finalizeLiveMeeting).toHaveBeenCalledWith(sessionId, undefined);
     expect(resolved).toEqual(EMPTY_SNAPSHOT);
     expect(window.sessionStorage.getItem('myrm-live-notes:chat-final')).toBeNull();
+  });
+
+  it('publishes into the vault of the agent and sends every line against that same vault', async () => {
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-scoped', 'agent-1'));
+    act(() => {
+      result.current.ingest('scoped line');
+    });
+    await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(1));
+    expect(ingestLiveTranscript).toHaveBeenCalledWith(
+      result.current.sessionId,
+      expect.objectContaining({ text: 'scoped line' }),
+      'agent-1',
+    );
+
+    await act(async () => {
+      await result.current.finalize();
+    });
+    expect(finalizeLiveMeeting).toHaveBeenCalledWith(result.current.sessionId, 'agent-1');
+  });
+
+  it('clears the board once the meeting is published, while finalize still resolves to the published snapshot', async () => {
+    ingestLiveTranscript.mockResolvedValue(ROLLING_SNAPSHOT);
+    finalizeLiveMeeting.mockResolvedValue(PUBLISHED_SNAPSHOT);
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-board'));
+    act(() => {
+      result.current.ingest('line');
+    });
+    await waitFor(() => expect(result.current.snapshot).toEqual(ROLLING_SNAPSHOT));
+
+    let resolved: unknown = null;
+    await act(async () => {
+      resolved = await result.current.finalize();
+    });
+
+    expect(resolved).toEqual(PUBLISHED_SNAPSHOT);
+    expect(result.current.snapshot).toBeNull();
+  });
+
+  it('keeps the board when finalize fails, because the meeting is not published yet', async () => {
+    ingestLiveTranscript.mockResolvedValue(ROLLING_SNAPSHOT);
+    finalizeLiveMeeting.mockRejectedValueOnce(new Error('network down'));
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-board-fail'));
+    act(() => {
+      result.current.ingest('line');
+    });
+    await waitFor(() => expect(result.current.snapshot).toEqual(ROLLING_SNAPSHOT));
+
+    await act(async () => {
+      await result.current.finalize();
+    });
+
+    expect(result.current.snapshot).toEqual(ROLLING_SNAPSHOT);
   });
 
   it('returns null and keeps working when finalize fails', async () => {
@@ -111,6 +175,34 @@ describe('useLiveMeetingNotes', () => {
     });
     // The queue keeps draining after the failure instead of stalling on it.
     await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(2));
+  });
+
+  it('sends a line queued during an in-flight request right after it, in order, and then accepts new lines', async () => {
+    const first = deferred<typeof EMPTY_SNAPSHOT>();
+    ingestLiveTranscript.mockReturnValueOnce(first.promise);
+    const { result } = renderHook(() => useLiveMeetingNotes('chat-queue'));
+
+    act(() => {
+      result.current.ingest('first');
+    });
+    act(() => {
+      result.current.ingest('second');
+    });
+    // Single flight: the second line waits for the first request instead of racing it.
+    expect(ingestLiveTranscript).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      first.resolve(EMPTY_SNAPSHOT);
+    });
+    await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(2));
+    expect(sentTexts()).toEqual(['first', 'second']);
+
+    // The drain released its guard once the queue was empty, so a later line is not stranded.
+    act(() => {
+      result.current.ingest('third');
+    });
+    await waitFor(() => expect(ingestLiveTranscript).toHaveBeenCalledTimes(3));
+    expect(sentTexts()).toEqual(['first', 'second', 'third']);
   });
 
   it('drains finalized transcript lines through the service with a stable line id', async () => {

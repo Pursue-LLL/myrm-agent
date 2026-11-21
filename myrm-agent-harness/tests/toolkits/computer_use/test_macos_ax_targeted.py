@@ -1,18 +1,18 @@
-"""Tests for targeted AX capture/invoke in macos_ax.py.
+"""Tests for targeted AX capture in the macos_ax package.
 
 Covers:
 - _resolve_target_app: scope → target_app routing
 - _run_ax_snapshot: execution + timeout handling
 - _parse_ax_output: meta parsing, element extraction, error handling
 - capture_ax_snapshot: targeted + fallback + foreground paths
-- invoke_ax_element: targeted invoke, unsupported actions, timeout
 - _build_ax_snapshot_script / _build_ax_invoke_script: target_app parameter
+
+Invoking an element is covered in test_macos_ax_invoke.py.
 """
 
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,14 +21,16 @@ from myrm_agent_harness.toolkits.computer_use.dref.errors import (
     AXPermissionRequiredError,
     AXTreeEmptyError,
 )
-from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-    _build_ax_invoke_script,
-    _build_ax_snapshot_script,
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture import (
     _parse_ax_output,
     _resolve_target_app,
     _run_ax_snapshot,
     capture_ax_snapshot,
-    invoke_ax_element,
+)
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.invoke import invoke_ax_element
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.scripts import (
+    _build_ax_invoke_script,
+    _build_ax_snapshot_script,
 )
 
 
@@ -119,7 +121,7 @@ class TestRunAxSnapshot:
     def test_success(self) -> None:
         mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="output", stderr="")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             result = _run_ax_snapshot("fake script")
@@ -128,7 +130,7 @@ class TestRunAxSnapshot:
     def test_timeout_raises_ax_tree_empty(self) -> None:
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+                "subprocess.run",
                 side_effect=subprocess.TimeoutExpired(cmd="osascript", timeout=15),
             ),
             pytest.raises(AXTreeEmptyError, match="timed out"),
@@ -211,22 +213,13 @@ class TestParseAxOutput:
 
 
 class TestCaptureAxSnapshot:
-    @pytest.fixture(autouse=True)
-    def _no_desktop_probe(self) -> Iterator[None]:
-        """Targeted capture resolves the app pid through Quartz; keep these tests off the real window list."""
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.backends.macos.background.resolve_app_pid",
-            return_value=None,
-        ):
-            yield
-
     def _mock_snapshot_stdout(self, app_name: str = "App") -> str:
         return f"{app_name}|||META|||Win|||com.test|||99\n1|||AXButton|||OK||||||10|||20|||80|||30\n"
 
     def test_foreground_scope(self) -> None:
         mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout=self._mock_snapshot_stdout(), stderr="")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             snapshot = capture_ax_snapshot("foreground")
@@ -240,7 +233,7 @@ class TestCaptureAxSnapshot:
             stderr="",
         )
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             snapshot = capture_ax_snapshot("target", "TextEdit")
@@ -265,112 +258,13 @@ class TestCaptureAxSnapshot:
             return foreground_result
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             side_effect=side_effect,
         ):
             snapshot = capture_ax_snapshot("target", "NonExistentApp")
             assert snapshot.meta.scope == "foreground"
             assert snapshot.meta.app_name == "Finder"
             assert call_count == 2
-
-
-class TestInvokeAxElement:
-    def test_unsupported_action(self) -> None:
-        result = invoke_ax_element("1", "delete")
-        assert not result.success
-        assert "Unsupported" in result.error
-
-    def test_pattern_actions_supported(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ):
-            for action_name in ["toggle", "expand", "collapse", "invoke", "check", "uncheck"]:
-                result = invoke_ax_element("1", action_name)
-                assert result.success
-
-    def test_click_success(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "click")
-            assert result.success
-
-    def test_fill_success(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "fill", text="hello")
-            assert result.success
-
-    def test_targeted_invoke_with_app_name(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_ax_element("1", "click", app_name="TextEdit")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "TextEdit" in script_arg
-            assert "frontmost" not in script_arg
-
-    def test_invoke_without_app_name_uses_frontmost(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_ax_element("1", "click")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "frontmost" in script_arg
-
-    def test_timeout(self) -> None:
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            side_effect=subprocess.TimeoutExpired(cmd="osascript", timeout=10),
-        ):
-            result = invoke_ax_element("1", "click")
-            assert not result.success
-            assert "timed out" in result.error
-
-    def test_permission_error(self) -> None:
-        mock_result = subprocess.CompletedProcess(
-            args=[], returncode=1, stdout="", stderr="not allowed assistive access"
-        )
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "click")
-            assert not result.success
-            assert "permission" in result.error.lower()
-
-    def test_double_click_normalized(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_ax_element("1", "double_click")
-            assert result.success
-            call_args = mock_run.call_args[0][0]
-            assert call_args[3] == "click"
-
-    def test_invoke_failed_returns_error(self) -> None:
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="UNSUPPORTED", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ):
-            result = invoke_ax_element("1", "focus")
-            assert not result.success
 
 
 class TestAxDispatchCaptureSnapshot:
@@ -384,7 +278,7 @@ class TestAxDispatchCaptureSnapshot:
         stdout = "App|||META|||Win|||com.test|||99\n1|||AXButton|||OK||||||10|||20|||80|||30\n"
         mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout, stderr="")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             meta, refs = capture_snapshot(mock_backend, "foreground")
@@ -428,78 +322,30 @@ class TestAxDispatchInspectBackend:
         assert "Unsupported" in result.error
 
 
-class TestAxDispatchInvokeElement:
-    def test_macos_passes_app_name(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
-            invoke_element,
-        )
-
-        mock_backend = MagicMock()
-        type(mock_backend).__name__ = "MacOSBackend"
-        mock_element = MagicMock()
-        mock_element.backend_key = "1"
-
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_element(mock_backend, mock_element, "click", app_name="TextEdit")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "TextEdit" in script_arg
-
-    def test_macos_no_app_name(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
-            invoke_element,
-        )
-
-        mock_backend = MagicMock()
-        type(mock_backend).__name__ = "MacOSBackend"
-        mock_element = MagicMock()
-        mock_element.backend_key = "1"
-
-        mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="OK", stderr="")
-        with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
-            return_value=mock_result,
-        ) as mock_run:
-            result = invoke_element(mock_backend, mock_element, "click")
-            assert result.success
-            script_arg = mock_run.call_args[0][0][2]
-            assert "frontmost" in script_arg
-
-
 class TestReadForegroundMeta:
     """_read_foreground_meta: timeout, failure, and success parse."""
 
     def test_timeout_returns_empty(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _read_foreground_meta,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             side_effect=subprocess.TimeoutExpired(cmd="osascript", timeout=5),
         ):
             assert _read_foreground_meta() == ("", "", "")
 
     def test_nonzero_returncode_returns_empty(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _read_foreground_meta,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
 
         mock_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="error")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             assert _read_foreground_meta() == ("", "", "")
 
     def test_success_parses_parts(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _read_foreground_meta,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
 
         mock_result = subprocess.CompletedProcess(
             args=[],
@@ -508,7 +354,7 @@ class TestReadForegroundMeta:
             stderr="",
         )
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             assert _read_foreground_meta() == (
@@ -518,13 +364,11 @@ class TestReadForegroundMeta:
             )
 
     def test_partial_output_parses_available_parts(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            _read_foreground_meta,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
 
         mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="Mail|||Inbox\n", stderr="")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             assert _read_foreground_meta() == ("Mail", "Inbox", "")
@@ -565,12 +409,10 @@ class TestInspectForegroundBranches:
     """inspect_foreground error and fallback branches on macOS."""
 
     def test_permission_error_branch(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            inspect_foreground,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
 
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
             side_effect=AXPermissionRequiredError("macOS"),
         ):
             result = inspect_foreground()
@@ -578,17 +420,15 @@ class TestInspectForegroundBranches:
         assert "Accessibility permission" in result["recommendation"]
 
     def test_empty_tree_with_app_name(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            inspect_foreground,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
 
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
                 side_effect=AXTreeEmptyError("no interactive nodes (Finder)"),
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax._read_foreground_meta",
+                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
                 return_value=("Finder", "Desktop", "com.apple.finder"),
             ),
         ):
@@ -599,17 +439,15 @@ class TestInspectForegroundBranches:
         assert "desktop_vision_tool" in result["recommendation"]
 
     def test_empty_tree_without_app_name(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            inspect_foreground,
-        )
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
 
         with (
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
                 side_effect=AXTreeEmptyError("no AX output"),
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax._read_foreground_meta",
+                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
                 return_value=("", "", ""),
             ),
         ):
@@ -621,63 +459,9 @@ class TestInspectForegroundBranches:
         """Non-permission osascript failure surfaces stderr as the error message."""
         mock_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="Some AX failure")
         with patch(
-            "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+            "subprocess.run",
             return_value=mock_result,
         ):
             result = invoke_ax_element("1", "click")
         assert not result.success
         assert result.error == "Some AX failure"
-
-
-class TestRefsForViewUpdate:
-    """refs_for_view_update: SOM index mapping and bbox payload."""
-
-    def test_with_som_index_map(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.dref.types import BBox as RefBBox
-        from myrm_agent_harness.toolkits.computer_use.dref.types import (
-            ElementRef as RefElement,
-        )
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            refs_for_view_update,
-        )
-
-        element = RefElement(
-            ref_id="d0",
-            role="AXButton",
-            name="OK",
-            bbox=RefBBox(x=10, y=20, width=80, height=30),
-            backend_key="0",
-        )
-        payload = refs_for_view_update(
-            {"d0": element},
-            viewport_width=1920,
-            viewport_height=1080,
-            som_index_map={"d0": 3},
-        )
-        assert payload["d0"]["nth"] == 3
-        assert payload["d0"]["bbox"]["viewport_width"] == 1920
-        assert payload["d0"]["bbox"]["viewport_height"] == 1080
-        assert payload["d0"]["bbox"]["centerX"] == 50
-
-    def test_without_som_index_map(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.dref.types import BBox as RefBBox
-        from myrm_agent_harness.toolkits.computer_use.dref.types import (
-            ElementRef as RefElement,
-        )
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-            refs_for_view_update,
-        )
-
-        element = RefElement(
-            ref_id="d0",
-            role="AXButton",
-            name="OK",
-            bbox=RefBBox(x=10, y=20, width=80, height=30),
-            backend_key="0",
-        )
-        payload = refs_for_view_update(
-            {"d0": element},
-            viewport_width=1920,
-            viewport_height=1080,
-        )
-        assert payload["d0"]["nth"] is None

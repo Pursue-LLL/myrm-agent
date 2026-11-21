@@ -1,9 +1,11 @@
 /** @vitest-environment jsdom */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SearchDialog } from '../search-dialog';
-import type { SearchResult } from '@/services/chat';
+import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
+import type { SearchResult } from '@/services/chatHistorySearch';
 
 const mockPush = vi.hoisted(() => vi.fn());
 const mockSearchChatHistory = vi.hoisted(() => vi.fn());
@@ -45,7 +47,7 @@ vi.mock('sonner', () => ({
   toast: mockSonnerToast,
 }));
 
-vi.mock('@/services/chat', () => ({
+vi.mock('@/services/chatHistorySearch', () => ({
   searchChatHistory: (...args: unknown[]) => mockSearchChatHistory(...args),
 }));
 
@@ -138,14 +140,17 @@ describe('SearchDialog cite to composer', () => {
 });
 
 describe('SearchDialog query box', () => {
-  it('stops typing and pasting at the 200 characters the server accepts', async () => {
+  it('stops typing and pasting at the characters the server accepts', async () => {
     render(
       <SearchDialog open onOpenChange={mockOnOpenChange}>
         <div />
       </SearchDialog>,
     );
 
-    expect(await screen.findByPlaceholderText('search.placeholder')).toHaveAttribute('maxlength', '200');
+    expect(await screen.findByPlaceholderText('search.placeholder')).toHaveAttribute(
+      'maxlength',
+      String(HISTORY_SEARCH_MAX_LENGTH),
+    );
   });
 });
 
@@ -184,12 +189,61 @@ describe('SearchDialog telling its host that a result was taken', () => {
   });
 
   it('does the same when the result is opened from the keyboard', async () => {
+    const user = userEvent.setup();
     await searchFor(otherChatItem);
 
-    fireEvent.keyDown(screen.getByRole('button', { name: /Other chat/ }), { key: 'Enter' });
+    screen.getByRole('button', { name: /Other chat/ }).focus();
+    await user.keyboard('{Enter}');
 
     expect(mockPush).toHaveBeenCalledExactlyOnceWith('/other-chat-id?highlight=43');
     expect(mockOnPick).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    { name: 'Enter', key: '{Enter}' },
+    { name: 'Space', key: ' ' },
+  ])('cites the result when $name is pressed on its cite button, without opening the chat', async ({ key }) => {
+    const user = userEvent.setup();
+    await searchFor(otherChatItem);
+
+    screen.getAllByRole('button', { name: 'search.citeToComposer' })[0].focus();
+    await user.keyboard(key);
+
+    expect(mockAddMentionReference).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(mockOnPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the cite buttons outside the button that opens the chat, so neither is a control inside a control', async () => {
+    await searchFor(otherChatItem);
+
+    const opener = screen.getByRole('button', { name: /Other chat/ });
+    for (const cite of screen.getAllByRole('button', { name: 'search.citeToComposer' })) {
+      expect(opener).not.toContainElement(cite);
+    }
+    expect(document.querySelector('[role="button"]')).toBeNull();
+  });
+
+  it('describes each opener by its snippet, so two hits in one chat are not announced alike', async () => {
+    mockSearchChatHistory.mockResolvedValue({
+      items: [
+        { ...otherChatItem, id: '43', snippet: 'the first match' },
+        { ...otherChatItem, id: '44', snippet: 'the second match' },
+      ],
+      total: 2,
+    });
+    render(
+      <SearchDialog open onOpenChange={mockOnOpenChange}>
+        <div />
+      </SearchDialog>,
+    );
+    fireEvent.change(await screen.findByPlaceholderText('search.placeholder'), { target: { value: 'hello' } });
+
+    const openers = await screen.findAllByRole('button', { name: /Other chat/ });
+
+    expect(openers).toHaveLength(2);
+    expect(openers[0]).toHaveAccessibleDescription(/the first match/);
+    expect(openers[1]).toHaveAccessibleDescription(/the second match/);
   });
 
   it('tells the host after a result of another chat is cited into the composer', async () => {

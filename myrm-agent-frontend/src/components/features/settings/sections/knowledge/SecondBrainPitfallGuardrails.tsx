@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/primitives/button';
 import { getDocsUrl } from '@/lib/deploy-mode';
 import useChatStore from '@/store/useChatStore';
@@ -23,6 +23,7 @@ export default function SecondBrainPitfallGuardrails({
   onGoToImport,
 }: SecondBrainPitfallGuardrailsProps) {
   const t = useTranslations('settings.wiki.secondBrain.pitfalls');
+  const locale = useLocale();
   const router = useRouter();
 
   const handleTeamScenario = (key: TeamKbScenarioKey) => {
@@ -58,7 +59,10 @@ export default function SecondBrainPitfallGuardrails({
         <h4 className="text-sm font-semibold text-foreground">{t('ladder.title')}</h4>
         <ol className="list-decimal space-y-1.5 pl-4 text-xs text-muted-foreground">
           <li>
-            <Link href={getDocsUrl('/core-concepts/wiki')} className="text-primary underline-offset-2 hover:underline">
+            <Link
+              href={getDocsUrl('/guides/wiki-knowledge-base', locale)}
+              className="text-primary underline-offset-2 hover:underline"
+            >
               {t('ladder.stepDocs')}
             </Link>
           </li>

@@ -289,7 +289,7 @@ async def test_interact_at_upload_not_supported(interactor: Interactor) -> None:
 @pytest.mark.asyncio
 async def test_interact_at_click_with_bezier(mock_page: Any) -> None:
     """Click with Bézier mouse enabled should call bezier_move."""
-    from myrm_agent_harness.toolkits.browser.pool.config import (
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
         HumanizeConfig,
         HumanizeMode,
     )
@@ -313,7 +313,7 @@ async def test_interact_at_click_with_bezier(mock_page: Any) -> None:
 @pytest.mark.asyncio
 async def test_interact_at_drag_with_bezier(mock_page: Any) -> None:
     """Drag with Bézier mouse should call bezier_move twice (start + end)."""
-    from myrm_agent_harness.toolkits.browser.pool.config import (
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
         HumanizeConfig,
         HumanizeMode,
     )
@@ -372,7 +372,7 @@ async def test_interact_at_updates_mouse_position(interactor: Interactor, mock_p
 @pytest.mark.asyncio
 async def test_interact_at_type_with_bezier(mock_page: Any) -> None:
     """Type with Bézier mouse enabled calls bezier_move before the click."""
-    from myrm_agent_harness.toolkits.browser.pool.config import (
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
         HumanizeConfig,
         HumanizeMode,
     )
@@ -407,7 +407,7 @@ async def test_interact_at_spa_wait_failure_degrades(interactor: Interactor, moc
 @pytest.mark.asyncio
 async def test_interact_at_hover_with_bezier(mock_page: Any) -> None:
     """Hover with Bézier mouse enabled calls bezier_move."""
-    from myrm_agent_harness.toolkits.browser.pool.config import (
+    from myrm_agent_harness.toolkits.browser.pool.humanize_config import (
         HumanizeConfig,
         HumanizeMode,
     )

@@ -17,6 +17,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronJobPatch,
     JobStatus,
     JobType,
+    PauseReason,
     RunStatus,
     Schedule,
     ScheduleKind,
@@ -33,6 +34,7 @@ _RUN_STATE: dict[str, object] = {
     "last_error": "boom",
     "consecutive_failures": 3,
     "last_failure_alert_at": _LONG_AGO,
+    "paused_reason": PauseReason.RUN_FAILURES,
 }
 # Fields a duplicate gets new values for: its identity and its place in the schedule.
 _IDENTITY = {"id", "name", "status", "next_run_at", "created_at", "updated_at"}
@@ -126,7 +128,7 @@ async def test_duplicate_job_starts_paused_with_a_new_identity_and_no_run_histor
     assert copy.created_at > _LONG_AGO
     assert (copy.fire_count, copy.consecutive_failures) == (0, 0)
     assert (copy.last_run_at, copy.last_status, copy.last_error, copy.last_failure_alert_at) == (None,) * 4
-    assert copy.last_output_hash is None
+    assert (copy.last_output_hash, copy.paused_reason) == (None, None)
 
 
 async def test_duplicate_job_differs_from_its_source_only_in_identity_and_run_state() -> None:

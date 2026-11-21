@@ -109,6 +109,20 @@ describe.each(MODES)('Chat shell around the %s list', (mode, count) => {
       expect(screen.queryByTestId('rewind')).toBeNull();
     });
 
+    it('drops the rewind target with the view, so the next view opens no dialog for a chat that is gone', () => {
+      openChat('chat-1', makeMessages(count));
+      const first = renderChat();
+      act(() => useRewindStore.getState().openRewind({ chatId: 'chat-1', messageId: 'm2', messageIndex: 1 }));
+      expect(screen.getByTestId('rewind')).toBeInTheDocument();
+
+      first.unmount();
+      expect(useRewindStore.getState().target).toBeNull();
+
+      openChat('chat-2', makeMessages(count));
+      renderChat();
+      expect(screen.queryByTestId('rewind')).toBeNull();
+    });
+
     it('shows the goal panel only when goals are enabled', () => {
       openChat('chat-1', makeMessages(count));
       const first = renderChat();

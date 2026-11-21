@@ -18,10 +18,10 @@ import { cloneDeep } from 'lodash-es';
 import { valuesEqual } from './configFingerprint';
 import { ConfigListenerRegistry } from './configListeners';
 import type { ConfigChangeListener } from './configListeners';
-import { adoptServerRecord, resolveConflicts } from './conflictResolution';
+import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext, ConfigConflictResolver, RecordSink } from './conflictResolution';
 import { isE2eBlockedKey, withoutBlockedSearchChanges } from './e2eSearchSyncGate';
-import { loadInitialConfigs } from './initialLoad';
+import { landLateRecords, loadInitialConfigs } from './initialLoad';
 import {
   clearOfflineQueue,
   isNetworkError,
@@ -129,8 +129,7 @@ class ConfigSyncManager {
       this._status = 'idle';
 
       loadRemaining?.().then(
-        // 预加载写入不进 set()，必须通知订阅者；否则依赖「配置就绪」的兜底逻辑（如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。
-        (rest) => rest.forEach((record, key) => adoptServerRecord(this.recordSink(), key, record)),
+        (rest) => this.landLate(rest),
         (err) => {
           console.warn('[ConfigSync] Background preload failed:', err);
         },
@@ -156,22 +155,24 @@ class ConfigSyncManager {
 
   /**
    * 确保目标 key 已同步到本地缓存后再返回。
-   * 渐进加载模式下 initialize() 只保证核心 key 就绪，其余 key 后台异步预加载；
-   * 对「读取即决策」的安全敏感路径（如 YOLO 互斥）必须显式等待目标 key，
-   * 否则可能读到 null/旧值导致互斥静默跳过（安全假象）。
+   * 渐进加载模式下 initialize() 只保证核心 key 就绪，其余 key 后台异步预加载；对「读取即决策」的路径
+   * （如 YOLO 互斥、搜索服务检查）必须显式等待目标 key，否则读到 null/旧值会把「没取到」当成「没有」，互斥静默跳过（安全假象）。
+   * 返回 true：状态已知（缓存命中，或服务端已答复，含「没有这一行」）；false：请求失败、状态未知。永不抛出。
    */
-  async ensureKeyLoaded<K extends ConfigKey>(key: K): Promise<void> {
+  async ensureKeyLoaded<K extends ConfigKey>(key: K): Promise<boolean> {
     await this.initialize();
     if (this.cache.has(key)) {
-      return;
+      return true;
     }
     try {
       const record = await this.adapter.get(key);
       if (record) {
-        adoptServerRecord(this.recordSink(), key, record as ConfigRecord);
+        this.landLate([[key, record as ConfigRecord]]);
       }
+      return true;
     } catch (error) {
       console.warn(`[ConfigSync] ensureKeyLoaded failed for '${key}':`, error);
+      return false;
     }
   }
 
@@ -414,6 +415,11 @@ class ConfigSyncManager {
       resolver: this.conflictResolver,
       requeue: (changes) => this.enqueueOfflineChanges(changes),
     };
+  }
+
+  /** 首屏之后才到的记录（后台预加载、按需读取单个 key）统一从这里落进缓存空缺；缓存已有的 key 不被迟到的答复覆盖。 */
+  private landLate(records: Iterable<[ConfigKey, ConfigRecord]>): void {
+    landLateRecords(records, this.recordSink());
   }
 
   /** 通知监听器 */

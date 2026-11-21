@@ -24,7 +24,7 @@ import pytest
 from myrm_agent_harness.toolkits.computer_use.dref.errors import AXTreeEmptyError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef
 from myrm_agent_harness.toolkits.computer_use.perception import linux_x11
-from myrm_agent_harness.toolkits.computer_use.types import ActionResult
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 
 
 def _button(name: str) -> MagicMock:
@@ -89,8 +89,8 @@ def _clicked(button: MagicMock) -> bool:
     return bool(button.queryAction.return_value.doAction.called)
 
 
-def _invoke(linux_ax: ModuleType, ref: ElementRef, action: str = "click") -> ActionResult:
-    result: ActionResult = linux_ax.invoke_ax_element(ref.backend_key, action, role=ref.role, name=ref.name)
+def _invoke(linux_ax: ModuleType, ref: ElementRef, action: str = "click") -> AxInvokeResult:
+    result: AxInvokeResult = linux_ax.invoke_ax_element(ref.backend_key, action, role=ref.role, name=ref.name)
     return result
 
 
@@ -153,6 +153,7 @@ class TestOrdinalIsAssignedBeforeFilters:
 
         assert keys == ["mail@:0", "mail@:1", "mail@:2"]
         assert "out of range" in (result.error or "")
+        assert result.failure is AxFailure.STALE
 
     @pytest.mark.parametrize("key", ["mail", "mail:0", "mail@:x", "mail@:", "mail@x:0", "mail@1.5:0", ""])
     def test_a_malformed_key_is_rejected(self, load: Loader, key: str) -> None:
@@ -162,6 +163,7 @@ class TestOrdinalIsAssignedBeforeFilters:
 
         assert result.success is False
         assert "Invalid backend_key" in (result.error or "")
+        assert result.failure is AxFailure.STALE
 
 
 class TestIdentityNameDoesNotAddressAtSpi:
@@ -318,6 +320,7 @@ class TestInstancesOfOneApplication:
         result = linux_ax.invoke_ax_element("term@200:0", "click", role="push button", name="Run")
 
         assert "Stale element" in (result.error or "")
+        assert result.failure is AxFailure.STALE
         assert not _clicked(button)
 
     def test_an_application_name_containing_both_separators_round_trips(self, load: Loader) -> None:
@@ -342,6 +345,7 @@ class TestInvokeRefusesAMovedElement:
         result = _invoke(linux_ax, ref)
 
         assert "Stale element" in (result.error or "")
+        assert result.failure is AxFailure.STALE
         assert not _clicked(send)
         assert not _clicked(cancel)
 
@@ -354,6 +358,7 @@ class TestInvokeRefusesAMovedElement:
         result = _invoke(linux_ax, ref)
 
         assert "Stale element" in (result.error or "")
+        assert result.failure is AxFailure.STALE
         assert not _clicked(button)
 
     def test_the_refusal_is_logged_without_the_element_name(

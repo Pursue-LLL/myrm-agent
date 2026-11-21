@@ -9,7 +9,8 @@
  * Live meeting notes hook. Owns the live session id (resumed across reloads via
  * sessionStorage when a stable key is given), drains finalized transcript lines to the
  * server (single-flight queue), and exposes the rolling structured-notes snapshot for the
- * in-meeting Live board. Best-effort: a dropped line never breaks the voice session.
+ * in-meeting Live board; finalizing publishes the minutes into the agent's vault and clears
+ * the board. Best-effort: a dropped line never breaks the voice session.
  */
 
 'use client';
@@ -66,33 +67,36 @@ function resolveInitialSessionId(sessionKey: string | undefined): string {
   }
 }
 
-export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesReturn {
+/**
+ * @param sessionKey Stable key (e.g. chatId) that resumes the live session across reloads.
+ * @param agentId Agent whose vault the final minutes are published into.
+ */
+export function useLiveMeetingNotes(sessionKey?: string, agentId?: string): UseLiveMeetingNotesReturn {
   const [sessionId] = useState(() => resolveInitialSessionId(sessionKey));
   const [snapshot, setSnapshot] = useState<LiveMeetingSnapshot | null>(null);
   const inFlightRef = useRef(false);
   const queueRef = useRef<LiveTranscriptLine[]>([]);
 
+  // One drain loop at a time. Lines queued while a request is in flight are picked up by the
+  // running loop, and the guard is released in the same tick the queue is found empty, so a
+  // line can never be left waiting without a drainer.
   const flush = useCallback(async () => {
     if (inFlightRef.current) {
       return;
     }
-    const next = queueRef.current.shift();
-    if (next === undefined) {
-      return;
-    }
     inFlightRef.current = true;
     try {
-      const result = await ingestLiveTranscript(sessionId, next);
-      setSnapshot(result);
-    } catch {
-      // Best-effort: dropped transcript lines must not break the voice session.
+      for (let line = queueRef.current.shift(); line !== undefined; line = queueRef.current.shift()) {
+        try {
+          setSnapshot(await ingestLiveTranscript(sessionId, line, agentId));
+        } catch {
+          // Best-effort: dropped transcript lines must not break the voice session.
+        }
+      }
     } finally {
       inFlightRef.current = false;
-      if (queueRef.current.length > 0) {
-        void flush();
-      }
     }
-  }, [sessionId]);
+  }, [sessionId, agentId]);
 
   const ingest = useCallback(
     (text: string, timestamp?: number) => {
@@ -108,8 +112,10 @@ export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesRet
 
   const finalize = useCallback(async () => {
     try {
-      const result = await finalizeLiveMeeting(sessionId);
-      setSnapshot(result);
+      const result = await finalizeLiveMeeting(sessionId, agentId);
+      // The minutes are published and the server session is gone: clear the board so the
+      // next voice session starts empty instead of showing this meeting's notes.
+      setSnapshot(null);
       if (sessionKey && typeof window !== 'undefined') {
         window.sessionStorage.removeItem(storageKey(sessionKey));
       }
@@ -117,7 +123,7 @@ export function useLiveMeetingNotes(sessionKey?: string): UseLiveMeetingNotesRet
     } catch {
       return null;
     }
-  }, [sessionId, sessionKey]);
+  }, [sessionId, sessionKey, agentId]);
 
   return useMemo(() => ({ sessionId, snapshot, ingest, finalize }), [sessionId, snapshot, ingest, finalize]);
 }

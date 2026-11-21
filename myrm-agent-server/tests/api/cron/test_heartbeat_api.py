@@ -1,11 +1,13 @@
 """Integration tests for heartbeat REST API endpoints.
 
-Validates enable/disable/status lifecycle with agent_id binding,
+Validates enable/disable/status lifecycle with agent_id binding and the reason a paused heartbeat reports,
 using InMemoryCronStore (no DB) and FastAPI TestClient.
 """
 
 from __future__ import annotations
 
+import asyncio
+from dataclasses import replace
 from typing import Generator
 from unittest.mock import patch
 
@@ -18,6 +20,7 @@ from myrm_agent_harness.toolkits.cron import (
     CronScheduler,
 )
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
+from myrm_agent_harness.toolkits.cron.types import JobStatus, PauseReason
 
 
 class _FakeDelivery:
@@ -26,8 +29,12 @@ class _FakeDelivery:
 
 
 @pytest.fixture
-def cron_manager() -> CronManager:
-    store = InMemoryCronStore()
+def store() -> InMemoryCronStore:
+    return InMemoryCronStore()
+
+
+@pytest.fixture
+def cron_manager(store: InMemoryCronStore) -> CronManager:
     scheduler = CronScheduler(
         store=store,
         runners={},
@@ -178,3 +185,40 @@ class TestHeartbeatCronSchedule:
             },
         )
         assert resp.status_code == 400
+
+
+class TestHeartbeatPausedReason:
+    """Why the heartbeat is off: a pause the scheduler gave names its reason, one the user chose has none."""
+
+    @staticmethod
+    def _pause_as_the_scheduler_does(store: InMemoryCronStore, reason: PauseReason) -> None:
+        async def apply() -> None:
+            (heartbeat,) = await store.list_jobs(include_system=True)
+            await store.save_job(replace(heartbeat, status=JobStatus.PAUSED, next_run_at=None, paused_reason=reason))
+
+        asyncio.run(apply())
+
+    def test_a_heartbeat_that_is_running_has_no_reason(self, client: TestClient) -> None:
+        client.post("/cron/heartbeat/enable", json={})
+
+        assert client.get("/cron/heartbeat/status").json()["paused_reason"] is None
+
+    def test_a_heartbeat_the_user_switched_off_has_no_reason(self, client: TestClient) -> None:
+        client.post("/cron/heartbeat/enable", json={})
+
+        disabled = client.post("/cron/heartbeat/disable").json()
+
+        assert (disabled["enabled"], disabled["paused_reason"]) == (False, None)
+        assert client.get("/cron/heartbeat/status").json()["paused_reason"] is None
+
+    def test_a_heartbeat_the_scheduler_paused_names_why_until_it_is_enabled_again(
+        self, client: TestClient, store: InMemoryCronStore
+    ) -> None:
+        client.post("/cron/heartbeat/enable", json={})
+        self._pause_as_the_scheduler_does(store, PauseReason.RUN_FAILURES)
+
+        paused = client.get("/cron/heartbeat/status").json()
+        assert (paused["enabled"], paused["paused_reason"]) == (False, "run_failures")
+
+        resumed = client.post("/cron/heartbeat/enable", json={}).json()
+        assert (resumed["enabled"], resumed["paused_reason"]) == (True, None)

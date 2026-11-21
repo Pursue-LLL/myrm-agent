@@ -195,56 +195,6 @@ export const updateChatTags = async (chatId: string, tags: string[]): Promise<{ 
   });
 };
 
-export interface SearchResult {
-  id: string;
-  chat_id: string;
-  role: string;
-  content: string;
-  sent_at: string;
-  chat_title: string | null;
-  snippet: string;
-  source?: string;
-  is_relaxed?: boolean;
-}
-
-export interface SearchResponse {
-  items: SearchResult[];
-  total: number;
-}
-
-export const searchChatHistory = async (
-  query: string,
-  limit: number = 20,
-  offset: number = 0,
-  since?: string,
-  until?: string,
-): Promise<SearchResponse> => {
-  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
-  if (since) {
-    params.set('since', since);
-  }
-  if (until) {
-    params.set('until', until);
-  }
-  const data = (await apiRequest(`/chats/search?${params}`)) as SearchResponse;
-  return { items: data.items || [], total: data.total || 0 };
-};
-
-/** Recall-index SSOT search for @chat: composer citation (matches server inject path). */
-export const searchCitableChats = async (
-  query: string,
-  limit: number = 20,
-  offset: number = 0,
-  excludeChatId?: string,
-): Promise<SearchResponse> => {
-  const params = new URLSearchParams({ q: query, limit: String(limit), offset: String(offset) });
-  if (excludeChatId) {
-    params.set('exclude_chat_id', excludeChatId);
-  }
-  const data = (await apiRequest(`/chats/recall/search?${params}`)) as SearchResponse;
-  return { items: data.items || [], total: data.total || 0 };
-};
-
 /**
  * 获取聊天元数据（不含消息）
  */
@@ -881,53 +831,6 @@ export const batchDeleteChats = async (ids: string[]): Promise<{ deleted: number
   return data as { deleted: number; failed: number };
 };
 
-/**
- * 从 Conversation Recall 中排除或恢复聊天。
- */
-export const updateChatRecallExclusion = async (chatId: string, excluded: boolean): Promise<void> => {
-  await apiRequest(`/chats/${chatId}/recall-exclusion`, {
-    method: 'PATCH',
-    body: JSON.stringify({ excluded }),
-  });
-};
-
-export interface ConversationRecallEntry {
-  chat_id: string;
-  title: string | null;
-  agent_id: string | null;
-  source: string;
-  snippet: string;
-  summary: string | null;
-  last_message_at: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  is_excluded: boolean;
-}
-
-export interface ConversationRecallListResponse {
-  items: ConversationRecallEntry[];
-  pagination: PaginationInfo;
-}
-
-export const listConversationRecallEntries = async (params: {
-  excluded?: boolean;
-  page?: number;
-  pageSize?: number;
-}): Promise<ConversationRecallListResponse> => {
-  const query = new URLSearchParams({
-    page: String(params.page ?? 1),
-    page_size: String(params.pageSize ?? 20),
-  });
-  if (params.excluded !== undefined) {
-    query.set('excluded', String(params.excluded));
-  }
-  const data = (await apiRequest(`/chats/recall/entries?${query}`)) as ConversationRecallListResponse;
-  return {
-    items: data.items || [],
-    pagination: data.pagination,
-  };
-};
-
 export interface ExportChatOptions {
   redactSecrets?: boolean;
 }
@@ -967,28 +870,11 @@ export const generateChatTitle = async (messages: Message[], abortController?: A
   }
 };
 
-export interface CompactResult {
-  compacted: boolean;
-  message_count: number;
-  tokens_saved: number;
-  reason: string | null;
-  focus_topic?: string;
-  backup_path?: string | null;
-}
-
 export const getContextPins = async (chatId: string): Promise<{ files: string[] }> => {
   const response = (await apiRequest(`/chats/${chatId}/context/pins`, { silent: true })) as {
     files: string[];
   };
   return { files: response.files ?? [] };
-};
-
-export const compactChat = async (chatId: string, focusTopic?: string): Promise<CompactResult> => {
-  const body = focusTopic ? JSON.stringify({ focus_topic: focusTopic }) : undefined;
-  return (await apiRequest(`/chats/${chatId}/compact`, {
-    method: 'POST',
-    ...(body ? { body, headers: { 'Content-Type': 'application/json' } } : {}),
-  })) as CompactResult;
 };
 
 export interface ContextBranchRecord {

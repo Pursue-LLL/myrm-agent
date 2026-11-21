@@ -17,7 +17,7 @@ describe('VoiceStreamControllerCard', () => {
     useVoiceStreamStore.getState().refreshEnvironmentReport({
       isSecureContext: true,
       protocol: 'https:',
-      host: 'secure.myrm.ai',
+      host: 'secure.example.com',
       hasMediaDevices: true,
     });
 
@@ -72,7 +72,7 @@ describe('VoiceStreamControllerCard', () => {
     useVoiceStreamStore.getState().refreshEnvironmentReport({
       isSecureContext: true,
       protocol: 'https:',
-      host: 'secure.myrm.ai',
+      host: 'secure.example.com',
       hasMediaDevices: true,
     });
 

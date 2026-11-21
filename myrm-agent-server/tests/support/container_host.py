@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.toolkits.code_execution.sandbox::detect_sandbox_provider (POS: auto-detect the best available sandbox provider; the one part of the host that is stood in for)
 - myrm_agent_harness.toolkits.code_execution.executors.local._background_pty_spawn::try_spawn_background_pty (POS: POSIX PTY spawn adapter; recorded where it is called, then run as it is)
+- myrm_agent_harness.utils.os_compat::ProcessGroupKwargs (POS: the keyword arguments that put a spawned process in its own group; type of the recorder's pass-through)
 
 [OUTPUT]
 - without_os_sandbox: the probe answers "no OS sandbox", as it does inside a container
@@ -25,6 +26,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncPro
 from myrm_agent_harness.toolkits.code_execution.platform import PlatformInfo
 from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import NullProvider
 from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxMode, SandboxProvider, SandboxStatus
+from myrm_agent_harness.utils.os_compat import ProcessGroupKwargs
 
 _NO_OS_SANDBOX = SandboxStatus(enabled=False, provider_name="null", reason="container environment detected")
 
@@ -51,7 +53,7 @@ def record_pty_spawns(monkeypatch: pytest.MonkeyPatch) -> list[bool]:
         effective_cwd: Path | None,
         env: dict[str, str],
         preexec_fn: Callable[[], None] | None,
-        process_group_kwargs: dict[str, object],
+        process_group_kwargs: ProcessGroupKwargs,
     ) -> AsyncProcessProtocol | None:
         process = await spawn(
             full_cmd_array=full_cmd_array,

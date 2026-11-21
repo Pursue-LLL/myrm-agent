@@ -44,7 +44,7 @@ class PendingRemindersSection:
         from app.core.cron.adapters.setup import get_cron_store
 
         store = get_cron_store()
-        jobs = await store.list_jobs(limit=50)
+        jobs = await store.list_jobs(include_system=False, limit=50)
 
         from myrm_agent_harness.toolkits.cron.types import JobStatus, ScheduleKind
 
@@ -52,8 +52,6 @@ class PendingRemindersSection:
         pending: list[str] = []
         for job in jobs:
             if job.status != JobStatus.ACTIVE:
-                continue
-            if job.name.startswith("__"):
                 continue
             if job.schedule.kind == ScheduleKind.ONCE and job.next_run_at:
                 delta = job.next_run_at - now

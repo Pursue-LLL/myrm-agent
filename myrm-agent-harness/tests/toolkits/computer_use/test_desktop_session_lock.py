@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
-from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ScreenInfo
 from myrm_agent_harness.utils.runtime.user_control import UserControl, UserControlTimeoutError
 
@@ -48,9 +48,9 @@ async def test_desktop_interact_serializes_concurrent_calls(mock_backend: MagicM
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=2, app_name="App", window_title="Window", scope="foreground")
-    elem1 = ElementRef(ref_id="d1", role="button", name="Button 1", bbox=(10, 10, 50, 50), backend_key="k1")
-    elem2 = ElementRef(ref_id="d2", role="button", name="Button 2", bbox=(60, 60, 100, 100), backend_key="k2")
-    session._refs.replace({"d1": elem1, "d2": elem2}, meta)
+    elem1 = ElementRef(ref_id="capture-1", role="button", name="Button 1", bbox=(10, 10, 50, 50), backend_key="k1")
+    elem2 = ElementRef(ref_id="capture-2", role="button", name="Button 2", bbox=(60, 60, 100, 100), backend_key="k2")
+    ref1, ref2 = session._refs.adopt({"capture-1": elem1, "capture-2": elem2}, meta)
 
     execution_order: list[str] = []
 
@@ -64,20 +64,20 @@ async def test_desktop_interact_serializes_concurrent_calls(mock_backend: MagicM
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             side_effect=slow_invoke,
         ),
         patch.object(session, "desktop_snapshot", AsyncMock(return_value="tree text")),
     ):
         res1, res2 = await asyncio.gather(
-            session.desktop_interact(ref="d1", action="click"),
-            session.desktop_interact(ref="d2", action="click"),
+            session.desktop_interact(ref=ref1, action="click"),
+            session.desktop_interact(ref=ref2, action="click"),
         )
 
-        assert "Action 'click' on @d1 succeeded." in str(res1)
-        assert "Action 'click' on @d2 succeeded." in str(res2)
-        # Verify strict non-overlapping serialization: start_d1 -> end_d1 -> start_d2 -> end_d2
-        assert execution_order == ["start_d1", "end_d1", "start_d2", "end_d2"]
+        assert f"Action 'click' on @{ref1} succeeded." in str(res1)
+        assert f"Action 'click' on @{ref2} succeeded." in str(res2)
+        # Verify strict non-overlapping serialization: the first call ends before the second one starts
+        assert execution_order == [f"start_{ref1}", f"end_{ref1}", f"start_{ref2}", f"end_{ref2}"]
 
 
 @pytest.mark.asyncio
@@ -87,8 +87,8 @@ async def test_desktop_interact_and_vision_action_mutual_exclusion(
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=1, app_name="App", window_title="Window", scope="foreground")
-    elem1 = ElementRef(ref_id="d1", role="button", name="Button 1", bbox=(10, 10, 50, 50), backend_key="k1")
-    session._refs.replace({"d1": elem1}, meta)
+    elem1 = ElementRef(ref_id="capture-1", role="button", name="Button 1", bbox=(10, 10, 50, 50), backend_key="k1")
+    (ref1,) = session._refs.adopt({"capture-1": elem1}, meta)
 
     timeline: list[str] = []
 
@@ -110,13 +110,13 @@ async def test_desktop_interact_and_vision_action_mutual_exclusion(
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             side_effect=slow_invoke,
         ),
         patch.object(session, "desktop_snapshot", AsyncMock(return_value="snapshot")),
     ):
         await asyncio.gather(
-            session.desktop_interact(ref="d1", action="click"),
+            session.desktop_interact(ref=ref1, action="click"),
             session.desktop_vision_action(action="left_click", coordinate=[100, 100]),
         )
 
@@ -131,11 +131,11 @@ async def test_stale_ref_returns_structured_remedy_hint(mock_backend: MagicMock,
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
 
-    with patch.object(session._refs, "get", side_effect=DRefStaleError("Stale d99")):
-        res = await session.desktop_interact(ref="d99", action="click")
-        assert "Stale d99" in str(res)
-        assert "[REMEDY_HINT:" in str(res)
-        assert "desktop_snapshot_tool(scope='foreground')" in str(res)
+    res = await session.desktop_interact(ref="d99", action="click")
+
+    assert "d99" in str(res)
+    assert "[REMEDY_HINT:" in str(res)
+    assert "desktop_snapshot_tool(scope='foreground')" in str(res)
 
 
 @pytest.mark.asyncio
@@ -143,12 +143,10 @@ async def test_interact_failure_returns_structured_remedy_hint(mock_backend: Mag
     session = DesktopSession(backend=mock_backend, config=mock_config)
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=1, app_name="App", window_title="Window", scope="foreground")
-    elem = ElementRef(ref_id="d1", role="button", name="Button", bbox=(10, 10, 50, 50), backend_key="k1")
-    session._refs.replace({"d1": elem}, meta)
+    elem = ElementRef(ref_id="capture-1", role="button", name="Button", bbox=(10, 10, 50, 50), backend_key="k1")
+    (ref,) = session._refs.adopt({"capture-1": elem}, meta)
 
-    mock_ax_result = MagicMock()
-    mock_ax_result.success = False
-    mock_ax_result.error = "AXElementNotFound"
+    mock_ax_result = AxInvokeResult.failed(AxFailure.UNSUPPORTED, "AXElementNotFound")
 
     mock_bbox_result = MagicMock()
     mock_bbox_result.success = False
@@ -156,16 +154,16 @@ async def test_interact_failure_returns_structured_remedy_hint(mock_backend: Mag
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element",
             return_value=mock_ax_result,
         ),
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.try_bbox_click",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.interact.try_bbox_click",
             AsyncMock(return_value=mock_bbox_result),
         ),
     ):
-        res = await session.desktop_interact(ref="d1", action="click")
-        assert "desktop_interact failed for @d1" in str(res)
+        res = await session.desktop_interact(ref=ref, action="click")
+        assert f"desktop_interact failed for @{ref}" in str(res)
         assert "AXElementNotFound" in str(res)
         assert "BBoxClickFailed" in str(res)
         assert "[REMEDY_HINT:" in str(res)
@@ -180,8 +178,8 @@ async def test_desktop_takeover_lock_prevents_unauthorized_actions(
     session.user_control = UserControl()
     session._last_snapshot_time = time.time()
     meta = SnapshotMeta(ref_count=1, app_name="App", window_title="Window", scope="foreground")
-    elem = ElementRef(ref_id="d1", role="button", name="Button", bbox=(10, 10, 50, 50), backend_key="k1")
-    session._refs.replace({"d1": elem}, meta)
+    elem = ElementRef(ref_id="capture-1", role="button", name="Button", bbox=(10, 10, 50, 50), backend_key="k1")
+    (ref,) = session._refs.adopt({"capture-1": elem}, meta)
 
     session.user_control.acquire()
 
@@ -191,7 +189,7 @@ async def test_desktop_takeover_lock_prevents_unauthorized_actions(
     assert session.user_control.held is True
 
     # A semantic action and a coordinate action both wait for the person instead of running.
-    interact = asyncio.create_task(session.desktop_interact(ref="d1", action="click"))
+    interact = asyncio.create_task(session.desktop_interact(ref=ref, action="click"))
     vision = asyncio.create_task(session.desktop_vision_action(action="mouse_move", coordinate=[100, 100]))
     await asyncio.sleep(0.05)
     assert not interact.done()

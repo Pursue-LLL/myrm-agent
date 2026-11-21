@@ -58,7 +58,7 @@ describe('useVisualArtifactStudioStore', () => {
     const record = store.generatePublicShare('art_test_01', 24);
 
     expect(record.artifactId).toBe('art_test_01');
-    expect(record.publicUrl).toContain('https://share.myrm.io/s/');
+    expect(record.publicUrl).toContain('https://share.example/s/');
     expect(record.expiresAt).not.toBeNull();
     expect(record.isRevoked).toBe(false);
 

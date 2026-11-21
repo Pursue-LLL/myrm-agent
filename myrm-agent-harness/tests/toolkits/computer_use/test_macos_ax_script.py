@@ -7,7 +7,7 @@ import subprocess
 
 import pytest
 
-from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.scripts import (
     _AX_INVOKE_SCRIPT,
     _AX_SNAPSHOT_SCRIPT,
     _build_ax_snapshot_script,
@@ -73,7 +73,7 @@ def test_secure_field_role_parses_without_exposing_its_value() -> None:
     from unittest.mock import patch
 
     from myrm_agent_harness.toolkits.computer_use.dref.types import is_secure_role
-    from myrm_agent_harness.toolkits.computer_use.perception import macos_ax
+    from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import capture
 
     stdout = "\n".join(
         [
@@ -83,8 +83,8 @@ def test_secure_field_role_parses_without_exposing_its_value() -> None:
         ]
     )
     completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout, stderr="")
-    with patch.object(macos_ax, "_run_ax_snapshot", return_value=completed):
-        snapshot = macos_ax.capture_ax_snapshot("foreground")
+    with patch.object(capture, "_run_ax_snapshot", return_value=completed):
+        snapshot = capture.capture_ax_snapshot("foreground")
 
     by_role = {ref.role: ref for ref in snapshot.refs.values()}
     assert "AXSecureTextField" in by_role, "the secure field must not be dropped from the tree"

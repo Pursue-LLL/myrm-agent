@@ -4,7 +4,7 @@
 - (none)
 
 [OUTPUT]
-- ComputerAction, DesktopInteractAction, DesktopVisionAction, ScrollDirection, ModifierKey, ScreenInfo, ScreenContext, ScreenLockState, ActionResult, WindowTextResult, ImageConstraints, PermissionStatus, ExecutionMode, ForegroundPermissionScope, ForegroundPermissionResult, ForegroundPermissionCallback, ScreenUnlockCallback, ComputerUseConfig
+- ComputerAction, DesktopInteractAction, DESKTOP_TEXT_ACTIONS, DesktopVisionAction, ScrollDirection, ModifierKey, ScreenInfo, ScreenContext, ScreenLockState, ActionResult, WindowTextResult, ImageConstraints, PermissionStatus, ExecutionMode, ForegroundPermissionScope, ForegroundPermissionResult, ForegroundPermissionCallback, ScreenUnlockCallback, ComputerUseConfig
 
 [POS]
 Shared type definitions consumed by all computer_use submodules.
@@ -34,6 +34,12 @@ DesktopInteractAction = Literal[
     "check",
     "uncheck",
 ]
+
+# Actions that only enter text when the native route performs them: they submit nothing by themselves (the control
+# that submits is gated instead). Every other desktop_interact action reaches the element as an activation, whatever
+# its name says (`hover` and `focus` are delivered as the control's press), and so does a text entry the native route
+# declines, because the coordinate fallback clicks first. `scroll` is refused by every platform's invoker.
+DESKTOP_TEXT_ACTIONS: frozenset[str] = frozenset({"fill", "set_value", "type", "fill_credential"})
 
 DesktopVisionAction = Literal[
     "capture",

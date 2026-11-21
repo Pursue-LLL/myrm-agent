@@ -3,33 +3,32 @@
  *
  * [INPUT]
  * - @/services/chat::suggestReferences (POS: Server-side safe reference suggestions)
- * - @/services/chat::searchCitableChats (POS: Prior conversation citable search)
- * - @/lib/constants/chat-history-search::HISTORY_SEARCH_MAX_LENGTH (POS: Longest chat-history query the server accepts)
- * - ./useReferenceMentionUtils (POS: Reference extraction, formatting and suggestion builders)
+ * - @/services/chatHistorySearch::searchCitableChats (POS: Prior conversation citable search)
+ * - ./useReferenceMentionUtils (POS: Mention planning, reference formatting and suggestion builders)
  * - @/store/useChatStore (POS: Global chat state, selection and input update)
  * - @/store/useAgentStore (POS: Digital employee registry prefetch)
  *
  * [OUTPUT]
- * - useReferenceMention: hook providing reference mention state, keyboard nav and selection.
+ * - useReferenceMention: hook providing reference mention state (incl. whether a server search is still open), keyboard nav and selection.
  *
  * [POS]
  * Chat input @ reference autocomplete. Guarantees immediate, responsive digital employee
  * (@Agent) discovery on both EmptyChat and active sessions across WebUI, Tauri, and Cloud.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale } from 'next-intl';
-import { suggestReferences, searchCitableChats, type ReferenceSuggestion } from '@/services/chat';
-import { HISTORY_SEARCH_MAX_LENGTH } from '@/lib/constants/chat-history-search';
+import { suggestReferences, type ReferenceSuggestion } from '@/services/chat';
+import { searchCitableChats } from '@/services/chatHistorySearch';
 import useChatStore from '@/store/useChatStore';
 import useAgentStore from '@/store/useAgentStore';
 import {
+  type MentionPlan,
   type ReferenceMentionState,
   DEBOUNCE_MS,
-  extractMentionQuery,
-  staticSpecialMatches,
   buildAgentSuggestions,
   historyResultToSuggestion,
+  planMention,
   toMentionReference,
   replacementFor,
 } from './useReferenceMentionUtils';
@@ -44,6 +43,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     selectedIndex: 0,
     query: '',
     mentionStart: -1,
+    isSearching: false,
   });
   const chatId = useChatStore((s) => s.chatId);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,36 +53,37 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     void useAgentStore.getState().fetchAgents();
   }, []);
 
+  const plan = useMemo(
+    () => planMention(inputMessage, cursorPosition, locale, chatId ?? undefined),
+    [chatId, cursorPosition, inputMessage, locale],
+  );
+  // The menu opens, reshapes or closes in the render that sees the new text, with the loaded agents and commands
+  // already in it (no EmptyChat lag), so no frame shows the previous mention's menu. The plan last applied is kept to
+  // tell a new plan from one already shown.
+  const [appliedPlan, setAppliedPlan] = useState<MentionPlan | null>(null);
+  if (plan !== appliedPlan) {
+    setAppliedPlan(plan);
+    setState((prev) => {
+      if (!plan) {
+        return prev.isOpen ? { ...prev, isOpen: false, results: [], selectedIndex: 0, isSearching: false } : prev;
+      }
+      return {
+        ...prev,
+        isOpen: true,
+        query: plan.rawQuery,
+        mentionStart: plan.start,
+        selectedIndex: 0,
+        isSearching: plan.willSearch,
+        results: plan.localResults,
+      };
+    });
+  }
+
   useEffect(() => {
-    const mention = extractMentionQuery(inputMessage, cursorPosition);
-    if (!mention) {
-      setState((prev) => (prev.isOpen ? { ...prev, isOpen: false, results: [], selectedIndex: 0 } : prev));
+    if (!plan) {
       return;
     }
-
-    const folderMode = mention.query.startsWith('folder:');
-    const wikiMode = !folderMode && mention.query.startsWith('wiki:');
-    const chatMode = !folderMode && !wikiMode && mention.query.startsWith('chat:');
-    const query = folderMode
-      ? mention.query.slice('folder:'.length)
-      : wikiMode
-        ? mention.query.slice('wiki:'.length)
-        : chatMode
-          ? mention.query.slice('chat:'.length)
-          : mention.query;
-
-    const specialResults = folderMode || wikiMode || chatMode ? [] : staticSpecialMatches(mention.query);
-    const initialAgentResults = folderMode || wikiMode || chatMode ? [] : buildAgentSuggestions(query, locale);
-
-    // Synchronously open menu with instant local agents and special commands (eliminates EmptyChat lag)
-    setState((prev) => ({
-      ...prev,
-      isOpen: true,
-      query: mention.query,
-      mentionStart: mention.start,
-      selectedIndex: 0,
-      results: folderMode || wikiMode || chatMode ? specialResults : [...initialAgentResults, ...specialResults],
-    }));
+    const { mode, query, specialResults } = plan;
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -90,16 +91,13 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     const requestSeq = requestSeqRef.current + 1;
     requestSeqRef.current = requestSeq;
 
-    if (chatMode) {
-      // The server answers an empty or over-long query with HTTP 422, and a paste after `@chat:` has no space to end
-      // the mention early. Cutting by character, as the server counts, never splits a character outside the basic plane.
-      const citableQuery = Array.from(query).slice(0, HISTORY_SEARCH_MAX_LENGTH).join('');
-      if (!citableQuery) {
+    if (mode === 'chat') {
+      if (!query) {
         return;
       }
       debounceRef.current = setTimeout(async () => {
         try {
-          const data = await searchCitableChats(citableQuery, 20, 0, chatId ?? undefined);
+          const data = await searchCitableChats(query, 20, 0, chatId ?? undefined);
           if (requestSeqRef.current !== requestSeq) {
             return;
           }
@@ -117,12 +115,13 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
             ...prev,
             results: chatResults,
             selectedIndex: 0,
+            isSearching: false,
           }));
         } catch {
           if (requestSeqRef.current !== requestSeq) {
             return;
           }
-          setState((prev) => ({ ...prev, results: [], selectedIndex: 0 }));
+          setState((prev) => ({ ...prev, results: [], selectedIndex: 0, isSearching: false }));
         }
       }, DEBOUNCE_MS);
       return () => {
@@ -134,14 +133,14 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
 
     // Debounce server workspace & wiki suggestions
     debounceRef.current = setTimeout(async () => {
-      const currentAgentResults = folderMode || wikiMode || chatMode ? [] : buildAgentSuggestions(query, locale);
+      const currentAgentResults = mode === 'plain' ? buildAgentSuggestions(query, locale) : [];
 
       if (!chatId) {
         // EmptyChat mode: No remote workspace files yet, but digital employees and static commands are 100% active
         if (requestSeqRef.current === requestSeq) {
           setState((prev) => ({
             ...prev,
-            results: folderMode || wikiMode ? [] : [...currentAgentResults, ...specialResults],
+            results: mode === 'plain' ? [...currentAgentResults, ...specialResults] : [],
             selectedIndex: 0,
           }));
         }
@@ -149,21 +148,22 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
       }
 
       try {
-        const data = await suggestReferences(chatId, query, 30, folderMode ? 'directory' : 'any');
+        const data = await suggestReferences(chatId, query, 30, mode === 'folder' ? 'directory' : 'any');
         if (requestSeqRef.current !== requestSeq) {
           return;
         }
-        const serverResults = folderMode
-          ? data.results
-          : wikiMode
-            ? data.results.filter((item) => item.source === 'wiki')
-            : data.results.filter((item) => item.source !== 'special');
+        const serverResults =
+          mode === 'folder'
+            ? data.results
+            : mode === 'wiki'
+              ? data.results.filter((item) => item.source === 'wiki')
+              : data.results.filter((item) => item.source !== 'special');
 
         setState((prev) => ({
           ...prev,
-          results:
-            folderMode || wikiMode ? serverResults : [...currentAgentResults, ...specialResults, ...serverResults],
+          results: mode === 'plain' ? [...currentAgentResults, ...specialResults, ...serverResults] : serverResults,
           selectedIndex: 0,
+          isSearching: false,
         }));
       } catch {
         if (requestSeqRef.current !== requestSeq) {
@@ -171,8 +171,9 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         }
         setState((prev) => ({
           ...prev,
-          results: folderMode || wikiMode ? [] : [...currentAgentResults, ...specialResults],
+          results: mode === 'plain' ? [...currentAgentResults, ...specialResults] : [],
           selectedIndex: 0,
+          isSearching: false,
         }));
       }
     }, DEBOUNCE_MS);
@@ -182,10 +183,10 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
         clearTimeout(debounceRef.current);
       }
     };
-  }, [chatId, cursorPosition, inputMessage, locale]);
+  }, [chatId, locale, plan]);
 
   const dismiss = useCallback(() => {
-    setState((prev) => ({ ...prev, isOpen: false, results: [], selectedIndex: 0 }));
+    setState((prev) => ({ ...prev, isOpen: false, results: [], selectedIndex: 0, isSearching: false }));
   }, []);
 
   const selectReference = useCallback(
@@ -250,6 +251,7 @@ export const useReferenceMention = (inputMessage: string, cursorPosition: number
     results: state.results,
     selectedIndex: state.selectedIndex,
     query: state.query,
+    isSearching: state.isSearching,
     selectReference,
     dismiss,
     handleKeyDown,

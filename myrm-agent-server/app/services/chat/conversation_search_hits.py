@@ -8,19 +8,17 @@ app.database.repositories.conversation_recall::ConversationRecallRow (POS: Conve
 app.services.chat.chat_helpers::_sanitize_snippet, strip_reasoning_tags (POS: 聊天服务辅助层)
 
 [OUTPUT]
-fts_hit: A search hit scored from FTS rank, position, recency, agent and chat source.
+fts_hit: A search hit scored from FTS rank, position, agent and chat source.
 recent_hit: A recent-list hit scored from its position, agent and chat source.
 rank_fts_hits: FTS hits re-scored by deterministic RRF, normalized to [0, 1].
 source_interaction_boost: Score adjustment for the surface a chat came from: cron demoted, interactive surfaces boosted.
 
 [POS]
-会话召回命中的构造与打分层。把召回行变成带分数与来源引用的搜索命中，只读召回行，不碰数据库。
+会话召回命中的构造与打分层。把召回行变成带分数与来源引用的搜索命中，只读召回行，不碰数据库。命中携带它所指消息的发送时间，
+打分只看相关度、位置、agent 与来源，不看时间。
 """
 
 from __future__ import annotations
-
-import math
-from datetime import UTC, datetime
 
 from myrm_agent_harness.api import (
     RankedList,
@@ -48,13 +46,16 @@ def fts_hit(
     *,
     score_weight: float = 1.0,
 ) -> ConversationSearchHit:
+    """A search hit scored from FTS rank, position, agent and chat source.
+
+    The hit carries the time of the message it names but the score ignores it: relevance saturates while age does not,
+    so an age term would let a newer weak match outrank an older strong one.
+    """
     position_score = 1.0 - (index / max(total, 1)) * 0.35
-    recency_score = _recency_score(row.updated_at or row.last_message_at)
     rank_score = relevance_from_rank(row.rank)
     score = (
         rank_score * 0.52
         + position_score * 0.30
-        + recency_score * 0.12
         + _same_agent_boost(row.agent_id, agent_id)
         + source_interaction_boost(row.source)
     )
@@ -70,7 +71,7 @@ def fts_hit(
         source="conversation_index",
         message_id=row.message_id,
         created_at=row.created_at,
-        updated_at=row.updated_at,
+        updated_at=row.last_message_at,
         metadata={"agent_id": row.agent_id or "", "source": row.source},
         source_ref=_source_ref(row, score=score, lineage=None),
     )
@@ -88,7 +89,7 @@ def recent_hit(row: ConversationRecallRow, index: int, agent_id: str | None) -> 
         score=score,
         source="recent",
         created_at=row.created_at,
-        updated_at=row.updated_at,
+        updated_at=row.last_message_at,
         metadata={"agent_id": row.agent_id or "", "source": row.source},
         source_ref=_source_ref(row, score=score, lineage=None),
     )
@@ -148,15 +149,6 @@ def source_interaction_boost(chat_source: str | None) -> float:
     return 0.0
 
 
-def _recency_score(value: datetime | None) -> float:
-    if value is None:
-        return 0.0
-    now = datetime.now(UTC)
-    timestamp = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
-    age_days = max((now - timestamp).total_seconds() / 86_400, 0.0)
-    return math.exp(-age_days / 30.0)
-
-
 def _clamp(value: float) -> float:
     return max(0.0, min(1.0, value))
 
@@ -178,6 +170,5 @@ def _source_ref(
         surface=row.source,
         fork_parent_id=row.fork_parent_id,
         lineage=lineage,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+        updated_at=row.last_message_at,
     )

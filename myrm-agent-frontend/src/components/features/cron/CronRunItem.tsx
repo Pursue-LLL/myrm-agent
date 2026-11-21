@@ -8,7 +8,8 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import CronRunBlockedActions from './CronRunBlockedActions';
 import CronRunSteps from './CronRunSteps';
-import { formatDuration, formatTime, skipReasonLabelKey, triggerSourceLabelKey } from './cron-utils';
+import { formatDuration, formatTime, runStatusLabelKey, skipReasonLabelKey, triggerSourceLabelKey } from './cron-utils';
+import { useJobDisplayName } from './useJobDisplayName';
 
 interface CronRunItemProps {
   run: CronRun;
@@ -23,6 +24,7 @@ function formatTokens(n: number): string {
 const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
   const t = useTranslations('cron');
   const locale = useLocale();
+  const jobDisplayName = useJobDisplayName();
   const [expanded, setExpanded] = useState(false);
   const isOk = run.status === 'ok';
   const isSkipped = run.status === 'skipped';
@@ -120,11 +122,13 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                       : 'bg-destructive',
               )}
             />
-            {isOk ? t('runOk') : isSkipped ? t('runSkipped') : isCircuitBreak ? t('runCircuitBreak') : t('runError')}
+            {t(runStatusLabelKey(run.status))}
           </span>
 
           {showJobName && run.job_name && (
-            <span className="text-xs font-medium text-foreground truncate max-w-[120px]">{run.job_name}</span>
+            <span className="text-xs font-medium text-foreground truncate max-w-[120px]">
+              {jobDisplayName(run.job_name)}
+            </span>
           )}
 
           {run.trigger_source && run.trigger_source !== 'cron' && (
@@ -266,7 +270,7 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
             )}
             {run.delivery_error && (
               <div className="space-y-1">
-                <p className="text-[10px] text-destructive-text">
+                <p className="text-[10px] text-destructive-text break-words">
                   {t('deliveryError')}: {run.delivery_error}
                 </p>
                 {run.metadata?.connector_failure && (

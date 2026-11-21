@@ -2,8 +2,11 @@
 
 Validates that Accept-Language headers are correctly derived from locale
 settings, that module-level constants are never mutated (shallow copy safety),
-that a context refuses downloads unless its owner asks for them, and that a
-context in the user's own browser (through the extension) asks for no override.
+that a context refuses downloads unless its owner asks for them, that every
+context except one in the user's own browser verifies certificates unless the
+operator opted out or its owner asks otherwise, that a context in the user's
+own browser (through the extension) asks for no override, and that the page scripts
+of a context are registered as init scripts.
 """
 
 from __future__ import annotations
@@ -12,13 +15,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser import enhancers
+from myrm_agent_harness.toolkits.browser.enhancers import get_dom_enhancer_script
 from myrm_agent_harness.toolkits.browser.pool import ContextType, EmulationConfig, RoundRobinProxyPool
 from myrm_agent_harness.toolkits.browser.pool.context_factory import (
     _DEFAULT_CONTEXT_OPTIONS,
     ContextFactory,
     _sync_accept_language,
 )
+from myrm_agent_harness.toolkits.browser.pool.stealth import get_stealth_script
 
 
 class TestDownloadDefault:
@@ -36,6 +40,47 @@ class TestDownloadDefault:
         assert options["accept_downloads"] is True
 
 
+class TestCertificateDefault:
+    """Every context except one in the user's own browser refuses a page whose certificate the browser would refuse, unless asked not to."""
+
+    @pytest.mark.parametrize("context_type", [context_type.value for context_type in ContextType])
+    def test_a_context_verifies_certificates_by_default(self, context_type: str) -> None:
+        options = ContextFactory()._build_context_options(context_type, None, None)
+
+        assert options["ignore_https_errors"] is False
+
+    @pytest.mark.parametrize("context_type", [context_type.value for context_type in ContextType])
+    def test_the_operator_can_opt_out_of_verification_for_every_kind_of_context(self, context_type: str) -> None:
+        options = ContextFactory(ignore_https_errors=True)._build_context_options(context_type, None, None)
+
+        assert options["ignore_https_errors"] is True
+
+    def test_the_owner_of_a_context_can_ask_to_ignore_certificate_errors(self) -> None:
+        options = ContextFactory()._build_context_options(ContextType.CRAWL.value, None, {"ignore_https_errors": True})
+
+        assert options["ignore_https_errors"] is True
+
+    def test_the_owner_of_a_context_can_ask_to_verify_whatever_the_operator_chose(self) -> None:
+        options = ContextFactory(ignore_https_errors=True)._build_context_options(
+            ContextType.CRAWL.value, None, {"ignore_https_errors": False}
+        )
+
+        assert options["ignore_https_errors"] is False
+
+    @pytest.mark.parametrize(("opted_out", "expected"), [(False, False), (True, True)])
+    async def test_the_choice_reaches_the_browser_when_it_creates_the_context(
+        self, opted_out: bool, expected: bool
+    ) -> None:
+        context = MagicMock()
+        context.add_init_script = AsyncMock()
+        browser = MagicMock()
+        browser.new_context = AsyncMock(return_value=context)
+
+        await ContextFactory(ignore_https_errors=opted_out).create_context(browser, ContextType.AGENT.value)
+
+        assert browser.new_context.await_args.kwargs["ignore_https_errors"] is expected
+
+
 class TestExtensionAttachedContext:
     """The extension's debugger refuses some overrides and the rest would change the user's own tab."""
 
@@ -46,6 +91,7 @@ class TestExtensionAttachedContext:
             default_emulation=EmulationConfig(
                 locale="ja-JP", timezone="Asia/Tokyo", viewport=(390, 844), user_agent="Mozilla/5.0 (iPhone)"
             ),
+            ignore_https_errors=True,
         )
 
     @pytest.mark.parametrize("context_type", [context_type.value for context_type in ContextType])
@@ -76,7 +122,6 @@ class TestExtensionAttachedContext:
     ) -> None:
         apply_stealth = AsyncMock()
         monkeypatch.setattr(ContextFactory, "_apply_stealth", staticmethod(apply_stealth))
-        monkeypatch.setattr(enhancers, "install_document_script_injection", AsyncMock())
         context = MagicMock()
         context.add_init_script = AsyncMock()
         browser = MagicMock()
@@ -85,6 +130,32 @@ class TestExtensionAttachedContext:
         await ContextFactory().create_context(browser, ContextType.STEALTH.value, extension_attached=extension_attached)
 
         assert apply_stealth.await_count == int(stealth_injected)
+
+
+class TestPageScripts:
+    """The scripts of a context are init scripts, which the browser delivers with its own document loads."""
+
+    @pytest.mark.parametrize(
+        ("context_type", "extension_attached", "stealth_registered"),
+        [
+            (ContextType.AGENT, False, False),
+            (ContextType.STEALTH, False, True),
+            (ContextType.STEALTH, True, False),
+        ],
+    )
+    async def test_the_enhancer_is_registered_in_every_context_and_stealth_only_in_stealth_ones(
+        self, context_type: ContextType, extension_attached: bool, stealth_registered: bool
+    ) -> None:
+        context = MagicMock()
+        context.add_init_script = AsyncMock()
+        browser = MagicMock()
+        browser.new_context = AsyncMock(return_value=context)
+
+        await ContextFactory().create_context(browser, context_type.value, extension_attached=extension_attached)
+
+        expected = [get_dom_enhancer_script(), *([get_stealth_script()] if stealth_registered else [])]
+        assert [call.args[0] for call in context.add_init_script.await_args_list] == expected
+        context.route.assert_not_called()
 
 
 class TestSyncAcceptLanguage:

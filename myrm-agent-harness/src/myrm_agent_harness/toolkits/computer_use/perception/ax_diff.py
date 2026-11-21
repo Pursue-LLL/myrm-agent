@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - RefDiff: diff result with added/updated/removed entries
-- compute_ref_diff(): compare two snapshots and produce a minimal diff
+- diff_adopted(): diff of two registry contents, where an @dref id present on both sides is the same element
+- compute_ref_diff(): diff of two raw captures, whose ids carry no identity, matched by (role, name) and position
 
 [POS]
 Source-level token reduction for consecutive desktop snapshots.
@@ -14,6 +15,7 @@ Sends only the added, updated and removed refs in continuous-interact scenarios 
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
@@ -154,12 +156,47 @@ def compute_ref_diff(
         if prev_id not in mapped_prev_ids:
             diff.removed.append(prev_id)
 
+    return _flag_high_change_ratio(diff, total)
+
+
+def diff_adopted(
+    prev_refs: Mapping[str, ElementRef],
+    curr_refs: Mapping[str, ElementRef],
+    prev_meta: SnapshotMeta | None,
+    curr_meta: SnapshotMeta,
+) -> RefDiff:
+    """Diff two contents of the @dref registry, where an id present on both sides is the same element.
+
+    An id only on the current side is new, an id only on the previous side is no longer valid, and an id on both
+    sides is updated when its role, name, value or actions changed. Returns use_full_view=True for the first
+    snapshot, an application change and a high change ratio.
+    """
+    if prev_meta is None or not prev_refs:
+        return RefDiff(use_full_view=True, full_view_reason="first_snapshot")
+
+    if not prev_meta.same_app(curr_meta):
+        return RefDiff(use_full_view=True, full_view_reason="app_changed")
+
+    diff = RefDiff(
+        added=[el for ref_id, el in curr_refs.items() if ref_id not in prev_refs],
+        removed=[ref_id for ref_id in prev_refs if ref_id not in curr_refs],
+    )
+    for ref_id, el in curr_refs.items():
+        if ref_id in prev_refs and (fields := _changed_fields(prev_refs[ref_id], el)):
+            diff.updated.append(UpdatedRef(ref_id=ref_id, element=el, changed_fields=fields))
+
+    return _flag_high_change_ratio(diff, max(len(prev_refs), len(curr_refs), 1))
+
+
+def _flag_high_change_ratio(diff: RefDiff, total: int) -> RefDiff:
+    """Mark the diff for a full-tree rendering when most of the tree changed.
+
+    The computed lists stay authoritative; only the renderer should fall back to a full tree. Consumers that need
+    the changed entries (e.g. interaction capture) must still be able to read them, so this is annotated rather
+    than discarded.
+    """
     change_count = len(diff.added) + len(diff.updated) + len(diff.removed)
-    if total > 0 and change_count / total > _CHANGE_RATIO_FULL_VIEW_THRESHOLD:
-        # The computed lists stay authoritative; only the renderer should fall back to a full
-        # tree. Consumers that need the changed entries (e.g. interaction capture) must still be
-        # able to read them, so this is annotated rather than discarded.
+    if change_count / total > _CHANGE_RATIO_FULL_VIEW_THRESHOLD:
         diff.use_full_view = True
         diff.full_view_reason = f"high_change_ratio({change_count}/{total})"
-
     return diff

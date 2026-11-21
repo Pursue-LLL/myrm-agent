@@ -45,6 +45,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobType,
     ScheduleKind,
     SessionTarget,
+    is_system_job_name,
 )
 
 if TYPE_CHECKING:
@@ -120,7 +121,10 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
         context_from: tuple[str, ...] = (),
         pre_condition_script: str | None = None,
         acceptance_criteria: tuple[dict[str, object], ...] = (),
+        system: bool = False,
     ) -> CronJob:
+        """Create a job. ``system`` is for the jobs the application creates itself: they alone take a reserved name."""
+        self._validate_name(name, system=system)
         self._validate_create(job_type, schedule, prompt, command, pre_condition_script)
 
         if triggers:
@@ -199,11 +203,14 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
         start fresh. A new configuration field is copied automatically; a new
         run-state field must be added to the reset below (the field tests fail until it is).
         The new job starts in PAUSED status to prevent accidental triggering.
-        Webhook triggers get fresh path/secret to avoid conflicts.
+        Webhook triggers get fresh path/secret to avoid conflicts. A job the application creates itself (a
+        reserved name) cannot be duplicated: the copy would be a user job under a reserved name.
         """
         source = await self._store.get_job(job_id)
         if source is None:
             return None
+        if is_system_job_name(source.name):
+            raise ValueError("a job the application creates itself cannot be duplicated")
 
         triggers = source.triggers
         if triggers and triggers.webhooks:
@@ -237,6 +244,7 @@ class CronManager(CronQueryMixin, CronUpdateMixin, CronValidationMixin):
             last_error=None,
             consecutive_failures=0,
             last_failure_alert_at=None,
+            paused_reason=None,
             created_at=now,
             updated_at=now,
         )

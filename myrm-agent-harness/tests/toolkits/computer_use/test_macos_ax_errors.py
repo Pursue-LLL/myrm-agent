@@ -1,4 +1,4 @@
-"""Error-path tests for macos_ax.py.
+"""Error-path tests for the macos_ax package.
 
 Covers:
 - _read_foreground_meta: normal / timeout / non-zero returncode
@@ -18,12 +18,13 @@ from myrm_agent_harness.toolkits.computer_use.dref.errors import (
     AXPermissionRequiredError,
     AXTreeEmptyError,
 )
-from myrm_agent_harness.toolkits.computer_use.perception.macos_ax import (
-    _parse_ax_output,
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture import _parse_ax_output
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import (
     _read_foreground_meta,
     inspect_foreground,
-    invoke_ax_element,
 )
+from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.invoke import invoke_ax_element
 
 _META_LINE = "TextEdit|||META|||Untitled|||com.apple.TextEdit|||12345"
 
@@ -36,7 +37,7 @@ def _completed(stdout: str, returncode: int = 0, stderr: str = "") -> subprocess
 
 def _patch_run(result: subprocess.CompletedProcess[str] | Exception):
     return patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.subprocess.run",
+        "subprocess.run",
         side_effect=result if isinstance(result, Exception) else lambda *a, **k: result,
     )
 
@@ -106,16 +107,17 @@ class TestParseAxOutputFiltering:
 
 
 class TestInvokeAxElementPlainError:
-    def test_nonzero_returncode_returns_stderr(self) -> None:
+    def test_nonzero_returncode_returns_stderr_and_is_not_known_undelivered(self) -> None:
         with _patch_run(_completed("", returncode=1, stderr="boom")):
             result = invoke_ax_element("1", "click")
         assert result.success is False
         assert result.error == "boom"
+        assert result.failure is AxFailure.UNKNOWN
 
 
 class TestInspectForeground:
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
         side_effect=AXPermissionRequiredError("macOS"),
     )
     def test_permission_required(self, mock_snapshot) -> None:
@@ -124,11 +126,11 @@ class TestInspectForeground:
         assert "permission" in result["recommendation"].lower()
 
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax._read_foreground_meta",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
         return_value=("TextEdit", "Untitled", "com.apple.TextEdit"),
     )
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
         side_effect=AXTreeEmptyError("TextEdit"),
     )
     def test_ax_tree_empty_with_app_name(
@@ -142,11 +144,11 @@ class TestInspectForeground:
         assert "desktop_vision_tool" in result["recommendation"]
 
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax._read_foreground_meta",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
         return_value=("", "", ""),
     )
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
         side_effect=AXTreeEmptyError("frontmost app"),
     )
     def test_ax_tree_empty_without_app_name(
@@ -157,11 +159,11 @@ class TestInspectForeground:
         assert "desktop_vision_tool" in result["recommendation"]
 
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax._read_foreground_meta",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
         return_value=("SomeApp", "Window", ""),
     )
     @patch(
-        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.capture_ax_snapshot",
+        "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.capture_ax_snapshot",
         side_effect=AXTreeEmptyError("SomeApp"),
     )
     def test_ax_tree_empty_falls_back_to_foreground_meta(

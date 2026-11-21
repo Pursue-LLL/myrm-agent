@@ -71,5 +71,5 @@ def test_the_sidecar_build_registers_the_hook_after_the_stdio_hook(build_module:
 
     hooks = [cmd[index + 1] for index, argument in enumerate(cmd) if argument == "--runtime-hook"]
 
-    assert hooks == [str(build_module.STDIO_RUNTIME_HOOK), str(build_module.GC_RUNTIME_HOOK)]
+    assert hooks[:2] == [str(build_module.STDIO_RUNTIME_HOOK), str(build_module.GC_RUNTIME_HOOK)]
     assert build_module.GC_RUNTIME_HOOK.is_file()

@@ -1,7 +1,7 @@
 # bash/_tool/
 
 ## Overview
-bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退出码语义、多模态、后台监听、增量输出过滤、后台进程工具的 action 处理器。
+bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退出码语义、多模态、后台监听、被存下的输出流的 UI 告知、失败转 `ToolError`、后台进程工具的 action 处理器。
 
 ## File Index
 
@@ -15,8 +15,9 @@ bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退�
 | `helpers.py` | Core | BashInput schema（reason 必填）、OS hint、上下文恢复/访问追踪。 | ✅ |
 | `multimodal.py` | Core | Vision ContentBlock 内联返回（生成图片）。 | ✅ |
 | `background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 | ✅ |
-| `output_filter_core.py` | Core | 增量输出轮询纯正则行过滤器（pattern ≤256 字符）。 | ✅ |
-| `process_handlers.py` | Core | `bash_process_tool` 各 action（list/output/wait/kill/stdin）在会话后台任务上的处理器；已结束的任务若留下仍在运行的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）；`kill_report` 如实说明停止的效果（任务进程组内是否发现还有进程在运行；平台无法列出进程组时只说发出了什么信号）。门面 `bash_process_tool` 负责 schema、能力校验与分发。 | ✅ |
+| `evicted_emit.py` | Core | 把一次 bash 调用里被整份存下的输出流告知 UI（引用、字符数、行数），好让 UI 提供「查看完整输出」：成功路径带给模型看的预览（只对 stdout），失败路径不带预览（步骤的 stdout 留着执行中累积的部分输出）；失败路径上某条告知出错只记警告，不盖住原错误。 | ✅ |
+| `failure.py` | Core | `build_failure_error`：一次 bash 调用抛出的异常变成交给模型的 `ToolError`；`BashExecutionError` 另带它的修复提示、错误类别和被存下的输出流，并追加输出模式诊断。 | ✅ |
+| `process_handlers.py` | Core | `bash_process_tool` 各 action（list/output/wait/kill/stdin）在会话后台任务上的处理器；`output` 与已结束任务的 `wait` 带同一组输出字段（两路输出、`dropped`，这次读取没有给出的行数 `omitted_lines`（大于 0 时才出现），其时任务有日志再带 `log_file`，日志的工作区相对路径）；`list` 为每个有日志的任务带 `log_file`；`output` 与仍在运行的任务的 `wait` 带空闲标记及其说明，作业打印过未换行的文字时再带 `partial_line`（未结束的最后一行，通常是提示）；已结束的任务若留下仍在运行的进程，`list` / `output` / `wait` 的结果带 `leftover_processes`（大于 0 时才出现）；`output` 或 `wait` 返回了任务自己的退出结果时，向唤醒处理器报告「已读」（`list`、仍在运行的任务的 `output`、超时的 `wait` 不报告；被终止的任务不会被结算，也不报告），该任务结束所排的唤醒回合据此让位；`kill_report` 如实说明停止的效果（任务进程组内是否发现还有进程在运行；平台无法列出进程组时只说发出了什么信号）。门面 `bash_process_tool` 负责 schema、能力校验与分发。 | ✅ |
 
 ## Key Dependencies
 

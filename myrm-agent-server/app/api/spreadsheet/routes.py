@@ -50,7 +50,7 @@ async def generate_excel_endpoint(request: SpreadsheetGenerateRequest) -> Stream
     encoded_name = urllib.parse.quote(f"{safe_title}.xlsx")
 
     headers = {
-        "Content-Disposition": f'attachment; filename="{ascii_fallback}"; filename*=UTF-8\'\'{encoded_name}',
+        "Content-Disposition": f"attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded_name}",
         "Content-Length": str(len(excel_bytes)),
         "Access-Control-Expose-Headers": "Content-Disposition",
     }
@@ -73,7 +73,7 @@ async def sync_office_endpoint(request: OfficeSyncRequest) -> OfficeSyncResponse
     record_count = len(request.rows)
 
     if request.platform == OfficePlatform.FEISHU_BITABLE:
-        url = f"https://myrm-workspace.feishu.cn/base/{sync_id}?table={urllib.parse.quote(request.table_name)}"
+        url = f"https://example.feishu.cn/base/{sync_id}?table={urllib.parse.quote(request.table_name)}"
         msg = f"Successfully synced {record_count} records to Feishu Bitable"
     elif request.platform == OfficePlatform.WECOM_DOC:
         url = f"https://doc.weixin.qq.com/sheet/{sync_id}?name={urllib.parse.quote(request.table_name)}"

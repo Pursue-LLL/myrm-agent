@@ -3,10 +3,12 @@
 [INPUT]
 - ._security.preflight_checks (POS: Security preflight checks)
 - ._executor.executor::BashExecutor (POS: Bash executor aggregate root. MRO: Execute → Background → Prepare → Context (locked by architecture tests).)
-- ._executor.error::BashExecutionError (POS: Shared error type for BashExecutor mixins and bash_code_execute_tool error surfacing)
 - ._tool.helpers (POS: BashInput, OS hint, context tracking, skill storage path resolution)
 - ._tool.formatting (POS: Output formatting and truncation)
+- ._tool.evicted_emit::emit_result_evicted_refs (POS: announces the streams a finished call stored in full)
+- ._tool.failure::build_failure_error (POS: the ToolError a failed call hands to the model)
 - ._tool.background_listeners (POS: Background ptc_notify listeners)
+- ._background.poll::report_result_read (POS: tells the wakeup handler the model now holds a finished job's result)
 - ._tool.multimodal (POS: Vision ContentBlock return path)
 - ._tool.exit_semantics (POS: Exit-code semantic interpretation)
 - .._context_recovery::ensure_executor, restore_context_vars (POS: Executor ContextVar recovery)
@@ -37,6 +39,7 @@ from myrm_agent_harness.agent.meta_tools._context_recovery import (
     ensure_executor,
     restore_context_vars,
 )
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import report_result_read
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     get_background_registry,
 )
@@ -61,8 +64,14 @@ from myrm_agent_harness.agent.meta_tools.bash._tool.background_listeners import 
     build_background_listeners,
     classify_background_exit,
 )
+from myrm_agent_harness.agent.meta_tools.bash._tool.evicted_emit import (
+    emit_result_evicted_refs,
+)
 from myrm_agent_harness.agent.meta_tools.bash._tool.exit_semantics import (
     interpret_exit_code,
+)
+from myrm_agent_harness.agent.meta_tools.bash._tool.failure import (
+    build_failure_error,
 )
 from myrm_agent_harness.agent.meta_tools.bash._tool.formatting import (
     format_result,
@@ -102,12 +111,6 @@ _track_context_access_in_command = track_context_access_in_command
 _build_background_listeners = build_background_listeners
 _classify_background_exit = classify_background_exit
 _maybe_build_image_blocks = maybe_build_image_blocks
-
-
-def _coerce_optional_int(value: object) -> int | None:
-    if isinstance(value, int):
-        return value
-    return None
 
 
 def create_bash_code_execute_tool(
@@ -224,14 +227,6 @@ def create_bash_code_execute_tool(
                     finish_listener=finish_listener,
                     progress_listener=progress_listener,
                 )
-                from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-                    activate_session_spawn_tool,
-                )
-                from myrm_agent_harness.agent.meta_tools.bash.bash_process_tools import (
-                    BASH_PROCESS_TOOL_NAME,
-                )
-
-                activate_session_spawn_tool(session_id, BASH_PROCESS_TOOL_NAME)
                 from myrm_agent_harness.utils.event_utils import dispatch_custom_event
 
                 await dispatch_custom_event(
@@ -255,6 +250,8 @@ def create_bash_code_execute_tool(
                         yield_seconds=yield_seconds,
                     )
                     if final_info is not None:
+                        # A job that ended inside the window returns its exit and output tail through this call.
+                        report_result_read(final_info)
                         return build_auto_yield_return(
                             info=final_info,
                             yield_seconds=yield_seconds,
@@ -324,39 +321,7 @@ def create_bash_code_execute_tool(
                     config=config,
                 )
 
-            evicted_ref = result.get("evicted_ref")
-            if evicted_ref and isinstance(evicted_ref, str):
-                from myrm_agent_harness.agent.context_management.infra.evicted import (
-                    emit_evicted_ref,
-                )
-
-                preview_stdout = formatted_content if isinstance(formatted_content, str) else None
-                await emit_evicted_ref(
-                    evicted_ref,
-                    tool_name="bash_code_execute_tool",
-                    preview_stdout=preview_stdout,
-                    stored_chars=_coerce_optional_int(result.get("evicted_stored_chars")),
-                    total_lines=_coerce_optional_int(result.get("evicted_total_lines")),
-                    storage_truncated=bool(result.get("evicted_storage_truncated")),
-                    stream="stdout",
-                    config=config,
-                )
-
-            stderr_evicted_ref = result.get("stderr_evicted_ref")
-            if stderr_evicted_ref and isinstance(stderr_evicted_ref, str):
-                from myrm_agent_harness.agent.context_management.infra.evicted import (
-                    emit_evicted_ref,
-                )
-
-                await emit_evicted_ref(
-                    stderr_evicted_ref,
-                    tool_name="bash_code_execute_tool",
-                    stored_chars=_coerce_optional_int(result.get("stderr_evicted_stored_chars")),
-                    total_lines=_coerce_optional_int(result.get("stderr_evicted_total_lines")),
-                    storage_truncated=bool(result.get("stderr_evicted_storage_truncated")),
-                    stream="stderr",
-                    config=config,
-                )
+            await emit_result_evicted_refs(result, formatted_content=formatted_content, config=config)
 
             metadata: dict[str, object] = {}
             if result.get("mcp_metadata") and isinstance(result["mcp_metadata"], dict):
@@ -377,88 +342,12 @@ def create_bash_code_execute_tool(
                 "metadata": metadata,
             }
         except Exception as e:
-            from myrm_agent_harness.agent.meta_tools.bash._executor.executor import (
-                BashExecutionError,
-            )
             from myrm_agent_harness.utils.errors import ToolError
 
             if isinstance(e, ToolError):
                 raise
 
-            hint: str | None = None
-            diagnostic: dict[str, object] | None = None
-
-            if isinstance(e, BashExecutionError):
-                hint = e.error_hint
-                if e.error_category:
-                    diagnostic = {"error_category": e.error_category}
-
-                if e.stdout_evicted_ref or e.stderr_evicted_ref:
-                    from myrm_agent_harness.agent.context_management.infra.evicted import (
-                        emit_evicted_ref,
-                    )
-
-                    async def _emit_evicted(
-                        ref: str,
-                        *,
-                        stream: str,
-                        stored_chars: int | None,
-                        total_lines: int | None,
-                        storage_truncated: bool,
-                    ) -> None:
-                        try:
-                            await emit_evicted_ref(
-                                ref,
-                                tool_name="bash_code_execute_tool",
-                                stored_chars=stored_chars,
-                                total_lines=total_lines,
-                                storage_truncated=storage_truncated,
-                                stream=stream,
-                                config=config,
-                            )
-                        except Exception as emit_exc:
-                            logger.warning(
-                                "Failed to emit %s evicted ref %s: %s",
-                                stream,
-                                ref,
-                                emit_exc,
-                            )
-
-                    # Failure path intentionally omits preview_stdout: step.stdout
-                    # keeps the partial output accumulated during execution (the
-                    # "how far did it get" context), while the drawer still exposes
-                    # the full evicted stream for read-back.
-                    if e.stdout_evicted_ref:
-                        await _emit_evicted(
-                            e.stdout_evicted_ref,
-                            stream="stdout",
-                            stored_chars=e.stdout_evicted_stored_chars,
-                            total_lines=e.stdout_evicted_total_lines,
-                            storage_truncated=e.stdout_evicted_storage_truncated,
-                        )
-                    if e.stderr_evicted_ref:
-                        await _emit_evicted(
-                            e.stderr_evicted_ref,
-                            stream="stderr",
-                            stored_chars=e.stderr_evicted_stored_chars,
-                            total_lines=e.stderr_evicted_total_lines,
-                            storage_truncated=e.stderr_evicted_storage_truncated,
-                        )
-
-                from myrm_agent_harness.agent.meta_tools.bash._tool.terminal_hints import (
-                    annotate_failure,
-                )
-
-                error_text = f"{e}\n{getattr(e, 'stderr', '')}\n{getattr(e, 'stdout', '')}"
-                auto_hint = annotate_failure(command, getattr(e, "exit_code", 1), error_text)
-                if auto_hint:
-                    hint = f"{hint}\n\n[Diagnostic Hint] {auto_hint}" if hint else f"[Diagnostic Hint] {auto_hint}"
-
-            raise ToolError(
-                message=str(e),
-                user_hint=hint or "Please fix the code and try again.",
-                diagnostic_info=diagnostic,
-            ) from e
+            raise await build_failure_error(e, command=command, config=config) from e
 
     return bash_func
 

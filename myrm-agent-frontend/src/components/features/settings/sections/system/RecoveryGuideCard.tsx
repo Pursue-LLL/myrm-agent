@@ -4,12 +4,12 @@ import { memo, useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { IconAlertCircle, IconWrench } from '@/components/features/icons/PremiumIcons';
+import { OFFICIAL_DOWNLOAD_URL } from '@/lib/constants/brand';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { tauriBackend } from '@/lib/tauri';
 import { toast } from '@/lib/utils/toast';
 
 const FAILURE_EVENTS = ['backend-start-failed', 'frontend-start-failed'] as const;
-const OFFICIAL_DOWNLOAD_URL = 'https://myrmagent.ai/download';
 
 const RecoveryGuideCard = memo(() => {
   const t = useTranslations('settings.system.recoveryGuide');
@@ -89,10 +89,10 @@ const RecoveryGuideCard = memo(() => {
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <IconWrench className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">{t('title')}</h2>
       </div>
 
-      <div className="space-y-4 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
+      <div className="space-y-4 p-8 rounded-[2.5rem] bg-card border border-border">
         {failure && (
           <div className="flex items-start gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 p-3">
             <IconAlertCircle className="w-4 h-4 mt-0.5 shrink-0 text-destructive-text" />
@@ -112,7 +112,7 @@ const RecoveryGuideCard = memo(() => {
           <button
             type="button"
             onClick={() => router.push('/settings/system?sub=about')}
-            className="px-4 py-2 rounded-xl border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+            className="px-4 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 transition-colors"
           >
             {t('openAbout')}
           </button>
@@ -120,12 +120,12 @@ const RecoveryGuideCard = memo(() => {
             href={OFFICIAL_DOWNLOAD_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 rounded-xl border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+            className="px-4 py-2 rounded-xl border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 transition-colors"
           >
             {t('reinstall')}
           </a>
         </div>
-        <p className="text-xs text-muted-foreground/70">{t('dataSafeHint')}</p>
+        <p className="text-xs text-muted-foreground">{t('dataSafeHint')}</p>
       </div>
     </section>
   );

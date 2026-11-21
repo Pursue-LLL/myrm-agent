@@ -22,7 +22,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/entitlement_guarded_manager.py` | 核心 | Sandbox slot gate + lifecycle guard + tools_allowed normalize（REST + agent SSOT） | — |
 | `adapters/lifecycle_guard.py` | 核心 | 创建/更新时拦截 myrm 服务 restart/stop（含 pre_condition_script 与 shell 验收标准的 command） | — |
 | `adapters/tools_policy.py` | 核心 | Cron job tools_allowed 校验、runtime 求交、受限 job 跳过 baseline 强制 | — |
-| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `chat_id`/`project_id`/`name_filter`（名称子串匹配，不区分大小写，`%` / `_` 按字面量处理；任务没有所有者概念，部署为单用户实例），与 `InMemoryCronStore` 的行为一致性由 `tests/core/cron/adapters/test_cron_store_contract.py` 对两种实现跑同一组用例守住，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供可节流的批量清洗入口用于启动时历史数据治理（含结构化清洗统计与续清标记） | — |
+| `adapters/sqlalchemy_store.py` | 核心 | CronStore SQLAlchemy 实现：Job/Run/MonitorState CRUD；`list_jobs`/`count_jobs` 支持 `chat_id`/`project_id`/`name_filter`（名称子串匹配，不区分大小写，`%` / `_` 按字面量处理；任务没有所有者概念，部署为单用户实例）；`include_system`（默认 True：调度、启动恢复与重名检查要看全部任务）为 False 时排除保留名（`__` 前缀），用转义后的前缀匹配而不是 `NOT LIKE '__%'`，因为 `_` 是单字符通配符，后者会把 `ab` 这样的名字一并藏掉，与 `InMemoryCronStore` 的行为一致性由 `tests/core/cron/adapters/test_cron_store_contract.py` 对两种实现跑同一组用例守住，`get_job` 路径对 legacy `monitor_config` 做 opportunistic 规范化回写，并提供可节流的批量清洗入口用于启动时历史数据治理（含结构化清洗统计与续清标记） | — |
 | `adapters/sqlalchemy_inflight.py` | 核心 | `SqlAlchemyInflightMixin`：在飞运行标记（`cron_inflight` 表）的写入、清除与列出，混入 `SqlAlchemyCronStore`；标记属于运行、不挂在任务行上，进程死在运行中时留下，下次启动据此报告被打断的运行 | — |
 | `adapters/sqlalchemy_mapping.py` | 核心 | ORM <-> Domain 双向映射：CronJobModel/CronRunModel/MonitorStateModel 与框架领域对象的转换 | — |
 | `adapters/sqlalchemy_aggregation.py` | 核心 | Token 用量聚合查询（按天/按任务/按模型），CronStore 协议之外的业务扩展 | — |
@@ -37,7 +37,7 @@ providers/search 配置。模型优先级：`智能体配置的 model` > `CronJo
 | `adapters/injection_scan.py` | 核心 | Cron prompt 注入扫描：复用 harness PROMPT_INJECTION_PATTERNS（12 种模式），逐行 regex 匹配 | ✅ |
 | `adapters/acceptance_verification.py` | 核心 | Cron 直接执行路径的 acceptance_criteria 验证：复用 harness VerificationGatekeeper 对成功结果做结构化验收 | ✅ |
 | `adapters/_ARCH.md` | 核心 | 适配器子目录文档 — [_ARCH.md](adapters/_ARCH.md) | — |
-| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、被崩溃打断的运行、自动暂停：到期、达到次数上限、失败导致的暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染），发布 `CRON_UPDATED` 与 `SYSTEM_NOTIFICATION` | ✅ |
+| `notifier.py` | 核心 | 调度器的通知回调：把引擎抛出的 `CronNotice`（运行结果、被崩溃打断的运行、自动暂停：到期、达到次数上限、失败导致的暂停）按种类定级别、标题与文案（`channel_t` 按用户语言渲染；系统任务的保留存储名换成用户认识的名称），发布 `CRON_UPDATED`（带原始任务名，只用来触发前端刷新）与 `SYSTEM_NOTIFICATION` | ✅ |
 | `blueprints/` | 子包 | 自动化蓝图：`core/` 类型与注册/填充逻辑，`catalog/` 按主题存放 21 个内置蓝图；详见 [blueprints/_ARCH.md](blueprints/_ARCH.md) | — |
 | `__init__.py` | 入口 | 包标记，不导出名称；`adapters/` 不经此入口 | — |
 
@@ -144,7 +144,7 @@ API 支持：分页（offset/limit）、状态过滤（ok/error）、全局查�
 
 周期任务的下一个槽位在其运行开始之前就已订下（`scheduler._admit` 用一次条件写订槽，再启动运行），所以进程崩溃不会留下没有下一时刻的启用任务。每次运行在做任何事之前先写一行在飞标记（`cron_inflight` 表，见 `adapters/sqlalchemy_inflight.py`），任务的最后一次运行结束时清除；进程死在运行中时标记留在表里，下一次启动据此得知那次运行。标记属于运行而不属于任务行（没有外键，任务被删后运行仍在继续）。服务重启后 `StartupRecovery.run()` 依次执行三步：
 
-0. **报告被打断的运行**（`report_interrupted(counted=True)`）：对每个遗留标记，先删标记，再给任务写一条 ERROR 运行记录（`trigger_source=recovery`，错误为 `Interrupted: the server stopped before this run finished`，起点取标记时间、时长为 0，因为崩溃不留下结束时间）并计一次失败（`consecutive_failures + 1`，超过 `max_retries` 则暂停任务并清空下一时刻）；任务已被删除的标记直接丢弃。被打断的一次性任务仍然到点，在 grace 窗口内由第 2 步重新投递，所以每次运行都让进程崩溃的一次性任务在第三次尝试后被暂停；周期任务已订下下一个槽位，不会被重启重跑。崩溃留下的中断记录在记录与失败数存好之后，还会以 `RUN_FAILED` 通知交给 `on_notice`（`StartupRecovery` 的 `on_interrupted`，调度器接 `JobExecutor.notify_interrupted`；投递渠道为 `none` 的任务保持安静，回调失败只丢这条通知、不影响报告）
+0. **报告被打断的运行**（`report_interrupted(counted=True)`）：对每个遗留标记，先删标记，再给任务写一条 ERROR 运行记录（`trigger_source=recovery`，错误为 `Interrupted: the server stopped before this run finished`，起点取标记时间、时长为 0，因为崩溃不留下结束时间）并计一次失败（`consecutive_failures + 1`，超过 `max_retries` 则暂停任务（`paused_reason=RUN_FAILURES`）并清空下一时刻）；任务已被删除的标记直接丢弃。被打断的一次性任务仍然到点，在 grace 窗口内由第 2 步重新投递，所以每次运行都让进程崩溃的一次性任务在第三次尝试后被暂停；周期任务已订下下一个槽位，不会被重启重跑。崩溃留下的中断记录在记录与失败数存好之后，还会以 `RUN_INTERRUPTED` 通知交给 `on_notice`（不带文字，错误原文只留在运行记录里；`StartupRecovery` 的 `on_interrupted(job, paused)`，调度器接 `JobExecutor.notify_interrupted`；投递渠道为 `none` 的任务不发这条 `RUN_INTERRUPTED`；这次失败正是使任务暂停的原因时（崩溃前已被用户暂停的不算），紧接着再发一条 `JOB_PAUSED_BY_FAILURE`，与投递渠道无关；回调失败只丢通知、不影响报告）
 1. **Phase 1 — Missed-Slot 精确回放**：对 CRON 类型任务，用 `compute_prev_run()` 计算上一个
    应执行槽位，若 `prev_slot` 晚于 `max(last_run_at, updated_at)` 说明确实漏执行，立即回放。
    跳过处于 error backoff 窗口内的任务（`is_in_error_backoff()`），不回放从未运行过的新任务
@@ -250,9 +250,9 @@ Heartbeat 注入的 proactive follow-up 采用两阶段投递确认（注入 ≠
 引擎只陈述事实：每次运行结果、每次被崩溃打断的运行与每次自动暂停都以 `CronNotice` 交给调度器的 `on_notice` 回调（`adapters/setup.py` 接 `notifier.publish_cron_notice`），级别与措辞由本层决定。
 
 - **后端**：`notifier.py` 发布 `CRON_UPDATED`（刷新定时任务视图）与 `SYSTEM_NOTIFICATION`（用户读到的提示），经 SSE 到 WebUI，同一事件也进 Web Push、IM 卡片与语音播报；两条事件都用事件总线默认的回放，服务启动时（崩溃恢复）发出、早于任何客户端连接的通知，之后连上的客户端仍会收到（`tests/core/cron/test_cron_notifier.py`）
-- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED`（含被崩溃打断的运行）→ `error`，`JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED` / `JOB_PAUSED_BY_FAILURE`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
-- **失败暂停**：`JOB_PAUSED_BY_FAILURE` 由运行收尾（`run_closer._update_after_run`）在唯一出口发出，只在这次写入把任务从非暂停改为暂停时发一次，覆盖熔断、连续失败超过 `max_retries`、一次性任务终局失败、算不出下一个槽位这几条暂停路径；用户在运行途中自己暂停的任务不通知；崩溃循环保护的暂停（`recovery.py`）不在其内。它排在这次运行的 `RUN_FAILED` 之后，且与投递渠道无关，投递渠道为 `none` 的任务也会收到；文案不分原因（`cron_notice_failure_message`）
-- **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN）；运行结果的正文是执行输出（失败时是错误）的前 100 个字符
+- **种类与级别**：`RUN_SUCCEEDED` → `success`，`RUN_FAILED` → `error`，`RUN_INTERRUPTED`（被崩溃打断的运行，引擎不带文字，说明由本层的 `cron_notice_interrupted_message` 给出）/ `JOB_EXPIRED` / `JOB_MAX_FIRES_REACHED` / `JOB_PAUSED_BY_FAILURE`（调度器已自动暂停该任务）→ `warning`；级别写入 `meta_data.level`，前端 toast 按级别展示
+- **失败暂停**：`JOB_PAUSED_BY_FAILURE` 由运行收尾（`run_closer._update_after_run`）在唯一出口发出，只在这次写入把任务从非暂停改为暂停时发一次，覆盖熔断、连续失败超过 `max_retries`、一次性任务终局失败、算不出下一个槽位（首次出错即暂停：槽位只取决于任务自己的调度字段，重试结果相同；原因 `Schedule error: …` 写进任务的 `last_error`）这几条暂停路径，它们都经 `engine/helpers.pause_job` 暂停，并把原因记进 `CronJob.paused_reason`（`PauseReason`：熔断 `CIRCUIT_BREAK`，连续失败与一次性任务的其他终局失败 `RUN_FAILURES`，算不出槽位 `SCHEDULE_ERROR`），REST 的任务响应与心跳状态带出它，界面据此说明为什么停了；用户暂停、到期、次数上限的暂停没有原因，恢复或用户改状态时清除；被跳过的运行（`skipped_runs.py`）算不出槽位时同样暂停并通知；崩溃恢复里因崩溃失败而触发的暂停（崩溃循环保护，`recovery.py`，原因 `RUN_FAILURES`）由 `notify_interrupted` 在那条 `RUN_INTERRUPTED` 之后补发。用户在运行途中或崩溃之前自己暂停的任务不通知。它排在这次运行的 `RUN_FAILED` 之后；熔断的定时运行不发 `RUN_FAILED`，由这条暂停通知单独告知（手动试跑不暂停任务，仍发 `RUN_FAILED`）；它与投递渠道无关，投递渠道为 `none` 的任务也会收到；文案不分原因（`cron_notice_failure_message`），只引导用户到执行记录里查看原因后再恢复
+- **语言**：标题与暂停说明由 `channel_t` 按用户语言渲染（`cron_notice_*` 键，覆盖 en / zh-CN）；运行结果的正文是 `[显示名] ` 加执行输出（失败时是错误）的前 100 个字符：引擎的 `CronNotice.text` 只带这段片段，显示名与方括号由本层拼接；心跳的保留存储名 `__heartbeat__` 显示为 `cron_system_job_heartbeat`（en `Agent Auto-Check` / zh-CN `Agent 自动巡检`），其余任务原样
 - **过滤**：`delivery_status=skipped`（SILENT 响应）不发通知
 - **语音**：运行结果沿用 `voice_background_task_done` 类型；任务绑定了聊天时，双工语音在该聊天里播报
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from myrm_agent_harness.toolkits.browser.pool.config import HumanizeConfig, HumanizeMode
+from myrm_agent_harness.toolkits.browser.pool.humanize_config import HumanizeConfig, HumanizeMode
 from myrm_agent_harness.toolkits.browser.session.interactor import Interactor
 from myrm_agent_harness.toolkits.browser.snapshot import RefInfo
 

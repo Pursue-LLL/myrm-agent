@@ -4,20 +4,46 @@
 (none — stdlib only)
 
 [OUTPUT]
+- CompactReason: Closed set of reasons ``compact_chat`` gives for a compaction that did not happen
 - CompactResult: Immutable dataclass for compaction attempt outcome
 
 [POS]
-Compaction 结果值对象。被 service.py、summarize_guard.py 等引用。
+Compaction 结果值对象。被 compact_service.py facade 与 service.py 引用；渠道桥接、Web 压缩接口与 Web 预压缩进度步骤按 CompactReason 的取值归类呈现。
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import StrEnum
+
+
+class CompactReason(StrEnum):
+    """Why ``compact_chat`` did not compact.
+
+    The values reach end users' screens through the compact API and the IM bridge, so they are bare codes: counts and
+    exception text go to the log, never into a reason.
+    """
+
+    CONCURRENT_COMPACTION = "concurrent_compaction_in_progress"
+    SUMMARIZE_CIRCUIT_OPEN = "summarize_circuit_open"
+    CHAT_NOT_FOUND = "chat_not_found"
+    NO_COMPACTABLE_MESSAGES = "no_compactable_messages"
+    TOO_FEW_MESSAGES = "too_few_messages"
+    ANTI_THRASH_ACTIVE = "compression_anti_thrash_active"
+    TIMEOUT = "timeout"
+    PERSIST_FAILED = "persist_failed"
 
 
 @dataclass(frozen=True, slots=True)
 class CompactResult:
-    """Outcome of a compaction attempt."""
+    """Outcome of a compaction attempt.
+
+    ``reason`` is a ``CompactReason`` value when ``compact_chat`` declined or failed. The idle gate, which decides
+    before it calls ``compact_chat``, stores its own free-text decisions there with ``attempted`` unset; only its log
+    reads them. ``attempted`` is set on the result of a compaction the gate started, and the pre-reply stream reports
+    only those.
+    ``original_tokens`` counts what the compaction replaced: the stored summary plus the messages after it.
+    """
 
     compacted: bool
     original_tokens: int = 0

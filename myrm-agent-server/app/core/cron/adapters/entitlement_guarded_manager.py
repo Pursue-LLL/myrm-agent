@@ -7,7 +7,7 @@
 - app.core.cron.adapters.tools_policy::normalize_cron_tools_allowed (POS: cron tools policy — restricts per-job tool access at schedule and runtime)
 
 [OUTPUT]
-- EntitlementGuardedCronManager: create/duplicate take a plan slot; create/update run the lifecycle guard and tool-name normalisation; typed pass-through for the job lookups and counts, the run listing and counts, the monitor state and the lifecycle calls services make
+- EntitlementGuardedCronManager: create/duplicate take a plan slot (a system job needs only the cron capability, and the slots count only the user's jobs); create/update run the lifecycle guard and tool-name normalisation; typed pass-through for the job lookups and counts, the run listing and counts, the monitor state and the lifecycle calls services make
 
 [POS]
 Server business-layer gate on harness CronManager mutations; it holds a ``CronManager`` and satisfies the harness ``CronManagerPort`` by shape, which is what lets the cron tools and the heartbeat take it. All callers use ``get_cron_manager()``.
@@ -44,15 +44,23 @@ class EntitlementGuardedCronManager:
     def __init__(self, inner: CronManager) -> None:
         self._inner = inner
 
-    async def _enforce_slot(self) -> None:
+    async def _enforce_plan(self, *, system: bool = False) -> None:
+        """Gate a creation on the plan: a user job takes a slot, a system job needs the cron capability only.
+
+        The quota counts the jobs the user can see and delete, so the application's own jobs (the heartbeat) neither
+        fill it nor are refused by it; a plan without cron gets neither kind.
+        """
         from app.platform_utils.sandbox.entitlements.entitlement_guard import (
             EntitlementGuardError,
+            require_cron_entitlement,
             require_cron_slot,
         )
 
         try:
-            current_count = await self._inner.count_jobs()
-            require_cron_slot(current_count)
+            if system:
+                require_cron_entitlement()
+            else:
+                require_cron_slot(await self._inner.count_jobs(include_system=False))
         except EntitlementGuardError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -95,6 +103,7 @@ class EntitlementGuardedCronManager:
         acceptance_criteria: tuple[dict[str, object], ...] = (),
         workflow_template_id: str | None = None,
         workflow_template_args: dict[str, str] | None = None,
+        system: bool = False,
     ) -> CronJob:
         from app.core.cron.adapters.lifecycle_guard import assert_cron_job_lifecycle_safe
         from app.core.cron.adapters.tools_policy import normalize_cron_tools_allowed
@@ -105,7 +114,7 @@ class EntitlementGuardedCronManager:
             pre_condition_script=pre_condition_script,
             acceptance_criteria=acceptance_criteria,
         )
-        await self._enforce_slot()
+        await self._enforce_plan(system=system)
         normalized_tools = normalize_cron_tools_allowed(tools_allowed) if tools_allowed else None
         return await self._inner.create_job(
             name,
@@ -144,6 +153,7 @@ class EntitlementGuardedCronManager:
             acceptance_criteria=acceptance_criteria,
             workflow_template_id=workflow_template_id,
             workflow_template_args=workflow_template_args,
+            system=system,
         )
 
     async def update_job(self, job_id: str, patch: CronJobPatch) -> CronJob | None:
@@ -180,7 +190,7 @@ class EntitlementGuardedCronManager:
         return await self._inner.update_job(job_id, patch)
 
     async def duplicate_job(self, job_id: str) -> CronJob | None:
-        await self._enforce_slot()
+        await self._enforce_plan()
         return await self._inner.duplicate_job(job_id)
 
     async def get_job(self, job_id: str) -> CronJob | None:
@@ -192,11 +202,17 @@ class EntitlementGuardedCronManager:
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = False,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[CronJob]:
         return await self._inner.list_jobs(
-            name_filter=name_filter, chat_id=chat_id, project_id=project_id, limit=limit, offset=offset
+            name_filter=name_filter,
+            chat_id=chat_id,
+            project_id=project_id,
+            include_system=include_system,
+            limit=limit,
+            offset=offset,
         )
 
     async def pause_job(self, job_id: str) -> CronJob | None:
@@ -230,8 +246,14 @@ class EntitlementGuardedCronManager:
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = False,
     ) -> int:
-        return await self._inner.count_jobs(name_filter=name_filter, chat_id=chat_id, project_id=project_id)
+        return await self._inner.count_jobs(
+            name_filter=name_filter,
+            chat_id=chat_id,
+            project_id=project_id,
+            include_system=include_system,
+        )
 
     async def count_runs(self, *, job_id: str | None = None, status: str | None = None) -> int:
         return await self._inner.count_runs(job_id=job_id, status=status)

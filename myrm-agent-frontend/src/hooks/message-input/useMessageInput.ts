@@ -8,8 +8,10 @@
  * - @/hooks/message-input/useQueueDrain::useQueueDrain (POS: 排队消息发送循环)
  * - @/hooks/message-input/messageInputKeyRouter::resolveBusySubmitMode (POS: 聊天输入框双通道键盘交互路由核心)
  * - @/hooks/message-input/turnCapabilityTelemetry::useTurnCapabilityTelemetry (POS: 单轮能力覆写埋点编排)
- * - @/hooks/message-input/useMessageInputWikiEvidenceCore::recordChatWikiQueryAttempt (POS: Chat 输入链路的 Wiki 证据复问口径核心)
- * - @/hooks/message-input/useMessageInputWikiEvidenceCore::queuePendingChatWikiQuerySuccess (POS: steer success 延迟确认注册)
+ * - @/hooks/message-input/useTurnCapabilitySelection::useTurnCapabilitySelection (POS: 仅本轮能力覆写的暂存与消费)
+ * - @/hooks/message-input/useCompactChat::useCompactChat (POS: /compact 的确认对话框与执行)
+ * - @/hooks/message-input/useSubmitGate::useSubmitGate (POS: 提交门禁，判定这条提交能否发出)
+ * - @/hooks/message-input/messageInputOutbound::composeOutboundUserMessage (POS: 提交前后对 store 的读写，四条提交路径共用)
  *
  * [OUTPUT]
  * - useMessageInput: exposes chat input state, upload handling and submit handlers.
@@ -18,18 +20,13 @@
  * 聊天输入业务 Hook。封装输入框状态、附件上传、草稿、排队发送和提交编排。
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useShallow } from 'zustand/react/shallow';
 import useChatStore from '@/store/useChatStore';
-import { buildExplicitSkillWireMessage } from '@/lib/utils/messageUtils';
-import { useScopedArtifactStore } from '@/store/useScopedArtifactStore';
-import { compactChat } from '@/services/chat';
 import { toast } from '@/lib/utils/toast';
 import { isTextEntry } from '@/lib/utils/textEntry';
-import { useQuotaGuard } from '@/hooks/billing/useQuotaGuard';
 import { useDraftPersistence } from '@/hooks/shared/useDraftPersistence';
-import useArtifactPortalStore from '@/store/useArtifactPortalStore';
 import { isArchiveRestoreActionInvalidError } from '@/lib/utils/networkResilience';
 import { useMessageQueue } from './useMessageQueue';
 import { useQueueDrain } from './useQueueDrain';
@@ -37,49 +34,22 @@ import { resolveBusySubmitMode } from './messageInputKeyRouter';
 import { useInputFileUpload } from './useInputFileUpload';
 import { useLinkAtPrompt } from './useLinkAtPrompt';
 import { resolveArchiveRestoreActionsForMessage } from '@/store/chat/archiveRestoreActions';
-import { recordChatWikiQueryAttempt, queuePendingChatWikiQuerySuccess } from './useMessageInputWikiEvidenceCore';
 import { addInputHistory } from './useInputHistory';
+import { useCompactChat } from './useCompactChat';
+import {
+  clearPendingExplicitSkillActivation,
+  composeOutboundUserMessage,
+  confirmInstructionLanded,
+  injectDirtyArtifacts,
+  recordChatQueryMetric,
+} from './messageInputOutbound';
 import { buildTurnAgentConfigOverride, type TurnCapabilitySelection } from './turnCapabilityOverrideCore';
 import { resolveTerminalTelemetry, useTurnCapabilityTelemetry } from './turnCapabilityTelemetry';
-
-function composeOutboundUserMessage(rawInput: string): string {
-  let outbound = rawInput;
-  const pending = useChatStore.getState().pendingExplicitSkillActivation;
-  if (pending) {
-    outbound = buildExplicitSkillWireMessage(pending, outbound);
-  }
-
-  // 注入局部工件编辑选区语义 (Scoped Artifact)
-  const scopedTarget = useScopedArtifactStore.getState().target;
-  if (scopedTarget) {
-    const scopeHeader = `[针对工件 "${scopedTarget.artifactName}" 的局部范围 (${scopedTarget.scopeLabel}) 定向编辑]`;
-    const snippetBody = scopedTarget.selectedSnippet ? `\n\`\`\`\n${scopedTarget.selectedSnippet}\n\`\`\`\n` : '';
-    outbound = `${scopeHeader}${snippetBody}\n${outbound}`.trim();
-    useScopedArtifactStore.getState().clearTarget();
-  }
-
-  return outbound;
-}
-
-function clearPendingExplicitSkillActivation(): void {
-  if (useChatStore.getState().pendingExplicitSkillActivation) {
-    useChatStore.getState().setPendingExplicitSkillActivation(null);
-  }
-}
-
-/** Registers the deferred wiki-evidence success for an instruction the running turn accepted (steer or redirect). */
-function confirmInstructionLanded(): void {
-  const chatState = useChatStore.getState();
-  const currentSessionMessageId =
-    typeof chatState.getCurrentSessionMessageId === 'function' ? chatState.getCurrentSessionMessageId() : undefined;
-  queuePendingChatWikiQuerySuccess(chatState.messages, chatState.chatId, currentSessionMessageId);
-}
+import { useSubmitGate } from './useSubmitGate';
+import { useTurnCapabilitySelection } from './useTurnCapabilitySelection';
 
 export const useMessageInput = () => {
   const t = useTranslations('chat');
-  const [showCompactConfirm, setShowCompactConfirm] = useState(false);
-  const [dontRemindCompact, setDontRemindCompact] = useState(false);
-  const pendingCompactTopicRef = useRef<string | undefined>(undefined);
   const {
     chatId,
     sendMessage,
@@ -97,7 +67,6 @@ export const useMessageInput = () => {
     setInputMessage,
     pendingArchiveRestoreActions,
     setPendingArchiveRestoreActions,
-    loadMessages,
     loading,
     agentConfig,
     incognitoMode,
@@ -119,7 +88,6 @@ export const useMessageInput = () => {
       setInputMessage: state.setInputMessage,
       pendingArchiveRestoreActions: state.pendingArchiveRestoreActions,
       setPendingArchiveRestoreActions: state.setPendingArchiveRestoreActions,
-      loadMessages: state.loadMessages,
       loading: state.loading,
       agentConfig: state.agentConfig,
       incognitoMode: state.incognitoMode,
@@ -129,8 +97,7 @@ export const useMessageInput = () => {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const linkPrompt = useLinkAtPrompt({ inputMessage, setInputMessage, inputRef });
 
-  const { validateMessageQuota } = useQuotaGuard();
-  const { isUploadingPaste, handlePaste, handleDroppedFiles } = useInputFileUpload({
+  const { handlePaste, handleDroppedFiles } = useInputFileUpload({
     actionMode,
     files,
     setFiles,
@@ -155,22 +122,17 @@ export const useMessageInput = () => {
   } = useMessageQueue(chatId);
   useQueueDrain(chatId);
   const telemetry = useTurnCapabilityTelemetry(chatId);
-  const [turnCapabilitySelection, setTurnCapabilitySelection] = useState<TurnCapabilitySelection | null>(null);
-  const agentSkillSignature = (agentConfig?.selectedSkillIds ?? []).join('\u0001');
-  const agentMcpSignature = (agentConfig?.selectedMcpNames ?? []).join('\u0001');
-
-  const consumeTurnCapabilitySelection = useCallback(() => {
-    if (!turnCapabilitySelection) {
-      return null;
-    }
-    const consumed = turnCapabilitySelection;
-    setTurnCapabilitySelection(null);
-    return consumed;
-  }, [turnCapabilitySelection]);
-
-  useEffect(() => {
-    setTurnCapabilitySelection(null);
-  }, [chatId, agentConfig?.agentId, agentSkillSignature, agentMcpSignature]);
+  const { turnCapabilitySelection, setTurnCapabilitySelection, consumeTurnCapabilitySelection } =
+    useTurnCapabilitySelection(chatId, agentConfig);
+  const {
+    showCompactConfirm,
+    setShowCompactConfirm,
+    dontRemindCompact,
+    setDontRemindCompact,
+    executeCompact,
+    requestCompact,
+    confirmCompact,
+  } = useCompactChat(chatId);
 
   // 仅在草稿变化且当前输入框为空时恢复草稿；读取最新 store 值而非渲染闭包，避免用户输入触发重复恢复
   useEffect(() => {
@@ -179,105 +141,7 @@ export const useMessageInput = () => {
     }
   }, [initialDraft, setInputMessage]);
 
-  /**
-   * 执行压缩操作
-   */
-  const executeCompact = useCallback(
-    async (focusTopic?: string) => {
-      if (!chatId) {
-        toast.warning(t('compact.noChatId'));
-        return;
-      }
-
-      if (dontRemindCompact) {
-        localStorage.setItem('dontRemindCompact', 'true');
-      }
-
-      const toastId = toast.loading(t('compact.compacting'));
-      try {
-        const result = await compactChat(chatId, focusTopic);
-        if (result.compacted) {
-          const topicHint = focusTopic ? ` (${focusTopic})` : '';
-          toast.success(
-            t('compact.success', { count: result.message_count, tokens: result.tokens_saved }) + topicHint,
-            {
-              id: toastId,
-            },
-          );
-          await loadMessages(chatId);
-        } else {
-          toast.info(t('compact.skipped', { reason: result.reason ?? '' }), { id: toastId });
-        }
-      } catch {
-        toast.error(t('compact.failed'), { id: toastId });
-      }
-    },
-    [chatId, dontRemindCompact, loadMessages, t],
-  );
-
-  const _validateAndPrepare = useCallback(async (): Promise<boolean> => {
-    if (inputMessage.trim().length === 0 && files.length === 0) {
-      if (!useChatStore.getState().pendingExplicitSkillActivation) {
-        return false;
-      }
-    }
-
-    // 提交排队安全门禁：等待处于 uploading 状态的媒体就绪 (最长等待 30 秒)
-    const currentStoreFiles = useChatStore.getState().files;
-    const pendingUploads = currentStoreFiles.filter((f) => f.status === 'uploading');
-    if (pendingUploads.length > 0) {
-      const start = Date.now();
-      while (Date.now() - start < 30000) {
-        const checkFiles = useChatStore.getState().files;
-        const stillUploading = checkFiles.some((f) => f.status === 'uploading');
-        if (!stillUploading) {
-          break;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-      const finalFiles = useChatStore.getState().files;
-      const failed = finalFiles.some((f) => f.status === 'error');
-      if (failed) {
-        toast.error(t('uploadFailed'));
-        return false;
-      }
-    }
-
-    const { actionMode } = useChatStore.getState();
-
-    const quota = await validateMessageQuota(inputMessage.trim().length, files.length > 0, actionMode);
-    if (!quota.allowed) {
-      return false;
-    }
-    return true;
-  }, [inputMessage, files, actionMode, validateMessageQuota, t]);
-
-  // 获取并清理脏状态的 Artifacts，用于注入到消息中
-  const _injectDirtyArtifacts = useCallback((message: string): string => {
-    const dirtyArtifacts = useArtifactPortalStore.getState().getDirtyArtifacts();
-    const artifactIds = Object.keys(dirtyArtifacts);
-
-    if (artifactIds.length === 0) {
-      return message;
-    }
-
-    let injectedMessage = message;
-
-    // 将所有脏状态的 Artifacts 注入到消息末尾
-    for (const id of artifactIds) {
-      const content = dirtyArtifacts[id];
-      injectedMessage += `\n\n<edited_artifact id="${id}">\n${content}\n</edited_artifact>`;
-      // 注入后清除脏状态
-      useArtifactPortalStore.getState().clearDirtyState(id);
-    }
-
-    return injectedMessage;
-  }, []);
-
-  const recordChatQueryMetric = useCallback(() => {
-    const chatState = useChatStore.getState();
-    recordChatWikiQueryAttempt(chatState.messages, chatState.chatId);
-  }, []);
+  const _validateAndPrepare = useSubmitGate(inputMessage, files);
 
   // Steer only reaches a registered, running turn. When the turn cannot take the instruction (it is still starting or
   // has just ended, or the request failed) `steerMessage` resolves false and the instruction joins the queue, so it is
@@ -307,20 +171,12 @@ export const useMessageInput = () => {
     clearDraft();
     recordChatQueryMetric();
     const steerText = composeOutboundUserMessage(inputMessage.trim());
-    const injectedText = _injectDirtyArtifacts(steerText);
+    const injectedText = injectDirtyArtifacts(steerText);
 
     setInputMessage('');
     clearPendingExplicitSkillActivation();
     await steerOrQueue(injectedText);
-  }, [
-    _validateAndPrepare,
-    clearDraft,
-    inputMessage,
-    setInputMessage,
-    steerOrQueue,
-    _injectDirtyArtifacts,
-    recordChatQueryMetric,
-  ]);
+  }, [_validateAndPrepare, clearDraft, inputMessage, setInputMessage, steerOrQueue]);
 
   /**
    * Redirect 模式提交：立即中断模型生成，保留 partial 输出，注入纠偏指令
@@ -332,7 +188,7 @@ export const useMessageInput = () => {
     clearDraft();
     recordChatQueryMetric();
     const redirectText = composeOutboundUserMessage(inputMessage.trim());
-    const injectedText = _injectDirtyArtifacts(redirectText);
+    const injectedText = injectDirtyArtifacts(redirectText);
 
     setInputMessage('');
     clearPendingExplicitSkillActivation();
@@ -341,16 +197,7 @@ export const useMessageInput = () => {
     } else {
       await steerOrQueue(injectedText);
     }
-  }, [
-    _validateAndPrepare,
-    clearDraft,
-    inputMessage,
-    setInputMessage,
-    redirectMessage,
-    steerOrQueue,
-    _injectDirtyArtifacts,
-    recordChatQueryMetric,
-  ]);
+  }, [_validateAndPrepare, clearDraft, inputMessage, setInputMessage, redirectMessage, steerOrQueue]);
 
   /**
    * Queue 模式提交：不干扰当前任务，等完成后自动发送
@@ -363,7 +210,7 @@ export const useMessageInput = () => {
       clearDraft();
       recordChatQueryMetric();
       const queueText = composeOutboundUserMessage(inputMessage.trim());
-      const injectedText = _injectDirtyArtifacts(queueText);
+      const injectedText = injectDirtyArtifacts(queueText);
       const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(injectedText, pendingArchiveRestoreActions);
 
       setInputMessage('');
@@ -389,9 +236,7 @@ export const useMessageInput = () => {
       setFiles,
       enqueue,
       t,
-      _injectDirtyArtifacts,
       pendingArchiveRestoreActions,
-      recordChatQueryMetric,
       consumeTurnCapabilitySelection,
       telemetry,
     ],
@@ -408,13 +253,7 @@ export const useMessageInput = () => {
     if (trimmedLower === '/compact' || trimmedLower.startsWith('/compact ')) {
       const focusTopic = inputMessage.trim().slice('/compact'.length).trim() || undefined;
       setInputMessage('');
-      const skipWarning = localStorage.getItem('dontRemindCompact') === 'true';
-      if (skipWarning) {
-        await executeCompact(focusTopic);
-      } else {
-        pendingCompactTopicRef.current = focusTopic;
-        setShowCompactConfirm(true);
-      }
+      await requestCompact(focusTopic);
       return;
     }
 
@@ -455,7 +294,7 @@ export const useMessageInput = () => {
     recordChatQueryMetric();
 
     setInputMessage('');
-    const finalMessage = _injectDirtyArtifacts(composeOutboundUserMessage(inputMessage));
+    const finalMessage = injectDirtyArtifacts(composeOutboundUserMessage(inputMessage));
     const archiveRestoreActions = resolveArchiveRestoreActionsForMessage(finalMessage, pendingArchiveRestoreActions);
     setPendingArchiveRestoreActions([]);
     clearPendingExplicitSkillActivation();
@@ -520,7 +359,7 @@ export const useMessageInput = () => {
       });
   }, [
     inputMessage,
-    executeCompact,
+    requestCompact,
     setInputMessage,
     _validateAndPrepare,
     handleQueueSubmit,
@@ -536,8 +375,6 @@ export const useMessageInput = () => {
     loading,
     enqueue,
     files,
-    _injectDirtyArtifacts,
-    recordChatQueryMetric,
     consumeTurnCapabilitySelection,
     setTurnCapabilitySelection,
     setFiles,
@@ -580,7 +417,6 @@ export const useMessageInput = () => {
     showLinkDialog: linkPrompt.showLinkDialog,
     dontRemindAgain: linkPrompt.dontRemindAgain,
     setDontRemindAgain: linkPrompt.setDontRemindAgain,
-    isUploadingPaste,
     showCompactConfirm,
     setShowCompactConfirm,
     dontRemindCompact,
@@ -626,10 +462,6 @@ export const useMessageInput = () => {
     handleAddAtSymbol: linkPrompt.handleAddAtSymbol,
     handleSkipAtSymbol: linkPrompt.handleSkipAtSymbol,
     executeCompact,
-    confirmCompact: useCallback(() => {
-      const topic = pendingCompactTopicRef.current;
-      pendingCompactTopicRef.current = undefined;
-      executeCompact(topic);
-    }, [executeCompact]),
+    confirmCompact,
   };
 };

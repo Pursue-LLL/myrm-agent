@@ -254,6 +254,7 @@
       "createCommand": "Create command…",
       "recentlyUsed": "Recently Used"
     },
+    "executeFailed": "The command could not run. Please try again.",
     "builtin": {
       "export": "Export session or copy Markdown (supports HTML/MD/JSON/ZIP)",
       "compact": "Compress conversation context to save tokens",
@@ -263,8 +264,6 @@
       "compactToast": "Manual compaction clears Prompt Cache. The system auto-compacts at 90% token usage.",
       "compacting": "Compacting…",
       "compacted": "Compacted {messageCount} messages, ~{tokensSaved} tokens saved",
-      "nothingToCompact": "Nothing to compact",
-      "compactionFailed": "Compaction failed",
       "focusFlushing": "Flushing chat history...",
       "focusSuccess": "Chat history cleared. Sandbox environment retained.",
       "focusFailed": "Failed to flush chat",
@@ -341,6 +340,7 @@
   "userMenu": {
     "openMenu": "Open Menu",
     "settings": "Settings",
+    "documentation": "Documentation",
     "personalization": "Personalization",
     "subscription": "Subscription",
     "logout": "Log Out",
@@ -1935,6 +1935,7 @@
       "activeSummary": "{count} active context items"
     },
     "uploadFailed": "Upload failed",
+    "uploadPending": "Attachments are still uploading. Send again once they finish.",
     "skillActivation": {
       "remove": "Remove selected skills"
     },
@@ -2599,8 +2600,6 @@
         "compressContext": "Compress context",
         "compressing": "Compressing…",
         "compressSuccess": "Saved {tokens} tokens",
-        "compressNotNeeded": "No compression needed",
-        "compressError": "Compression failed",
         "forkNewTopic": "Fork new topic",
         "forking": "Forking…",
         "focusHintPlaceholder": "Focus topic (optional, e.g. auth module)",
@@ -2666,7 +2665,11 @@
       "success": "Context compacted: {count} messages summarized, ~{tokens} tokens saved",
       "noChatId": "No active chat to compact",
       "failed": "Compaction failed",
-      "skipped": "Compaction skipped: {reason}",
+      "skip": {
+        "nothing": "Nothing to compress yet",
+        "busy": "A compression is already running",
+        "paused": "Compression is paused for now. Try again later."
+      },
       "confirmTitle": "Confirm context compaction?",
       "confirmDescription": "Manual compaction will clear the Prompt Cache, potentially increasing costs for the next conversation. The system automatically compacts at 90% token usage (optimal timing).",
       "confirmButton": "Compact Anyway",
@@ -2735,6 +2738,8 @@
       "title": "Workspace References",
       "noResults": "No matching references found",
       "priorChatEmpty": "No matching prior conversations",
+      "priorChatHint": "Type a title or keyword to find a prior conversation",
+      "searching": "Searching...",
       "priorChatsCategory": "Prior conversations",
       "navigate": "Navigate",
       "select": "Select",
@@ -3793,7 +3798,9 @@
     "to": "To",
     "clearTimeFilter": "Clear",
     "citeToComposer": "Cite in composer",
-    "citeSameChat": "This result is from the current chat — nothing to cite"
+    "citeSameChat": "This result is from the current chat — nothing to cite",
+    "roleUser": "You",
+    "roleAssistant": "Assistant"
   },
   "images": {
     "search": "Search images",
@@ -3837,8 +3844,6 @@
     "videoTooLargeDesc": "Please select a shorter or smaller video file. Current: {size}",
     "audioTooLarge": "Audio file too large (exceeds 25MB limit)",
     "audioTooLargeDesc": "Please select a smaller audio file. Current: {size}",
-    "largeDocIndexing": "Large document will be indexed into knowledge base for intelligent retrieval",
-    "largeDocIndexingDesc": "{name} ({size}) — AI will automatically search the knowledge base instead of reading the entire document",
     "uploadError": "Upload failed",
     "uploadSuccess": "Upload successful",
     "uploadedCount": "{count} file(s) uploaded"
@@ -3977,6 +3982,9 @@
     "context_compaction_circuit_open": "Compression unavailable, using fallback",
     "context_compaction_fallback": "Compression degraded, using fast fallback",
     "context_compaction_completed": "Context compressed successfully",
+    "context_compaction_ineffective": "Compression finished, no space saved",
+    "context_compaction_skipped": "Compression skipped, context unchanged",
+    "context_compaction_failed": "Compression failed, continuing with the current context",
     "dropped_manifest_title": "These instructions were trimmed from context during compression. If any are still important, please restate them:",
     "dropped_manifest_more": "+{count} more trimmed instruction(s)",
     "memory_archived": "Agent archived early history to maintain extreme focus",
@@ -7233,6 +7241,8 @@
     "runSkipped": "Skipped",
     "runCircuitBreak": "Circuit Break",
     "circuitBreakBanner": "Runaway loop detected: execution halted and retries blocked to protect compute budget",
+    "pausedRunFailures": "The latest run failed, so it was paused automatically.",
+    "pausedScheduleError": "Its schedule is invalid, so it was paused automatically.",
     "skippedUsageLimit": "Usage limit reached. Runs again once it resets.",
     "skippedBudgetBlocked": "Daily budget limit reached. This run was skipped.",
     "skippedCreditExhausted": "Work Units exhausted. This run was skipped.",
@@ -17526,16 +17536,6 @@
       "undoSuccess": "Successfully undone archive and restored concept",
       "reviveSuccess": "Successfully revived concept: {name}",
       "actionError": "Governance action failed, please try again",
-      "meetingNotes": {
-        "title": "Meeting Notes Import",
-        "description": "Upload meeting audio for chunked transcription, decisions & action items extraction, and Wiki knowledge sync",
-        "processing": "Transcribing & distilling minutes…",
-        "uploadButton": "Transcribe & Generate Minutes",
-        "decisions": "Decisions",
-        "debates": "Key Debate Points",
-        "actionItems": "Action Items",
-        "risks": "Risks"
-      },
       "dailyReview": {
         "title": "Daily Review Compounding",
         "description": "Store today's review verbatim as evidence; it is distilled into Projects / Knowledge / Methods / Comparisons drafts that await human review",
@@ -21137,10 +21137,6 @@
         "documentation": {
           "title": "Documentation",
           "description": "View detailed usage guides and API documentation"
-        },
-        "community": {
-          "title": "Community",
-          "description": "Join the community, connect with developers and users"
         }
       },
       "license": {

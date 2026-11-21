@@ -7,7 +7,7 @@
 - toolkits.memory.agent_surface.tool_result_sources::pack_tool_result_with_sources (POS: pack metadata.sources into memory_search results)
 
 [OUTPUT]
-- format_conversation_search_response: Render hits with conversation_history sources in tool metadata; an empty result run under an explicit since/until window ends with a note naming that window.
+- format_conversation_search_response: Render hits (a header ends with the hit's time when it has one, written in the requester's zone, in UTC when the request names none) with conversation_history sources in tool metadata; an empty result run under an explicit since/until window ends with a note naming that window.
 
 [POS]
 Agent-facing formatter for memory_search conversation corpus results.
@@ -15,7 +15,8 @@ Agent-facing formatter for memory_search conversation corpus results.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
 
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import (
     finalize_recall_tool_output,
@@ -85,11 +86,13 @@ async def format_conversation_search_response(
     *,
     since: datetime | None = None,
     until: datetime | None = None,
+    zone: str | None = None,
 ) -> dict[str, object]:
     """Format provider response with conversation_history sources in metadata.
 
     ``since`` and ``until`` are the explicit bounds the search ran under. A response does not say whether nothing
-    matched or the window excluded the match, so an empty reply names the window itself.
+    matched or the window excluded the match, so an empty reply names the window itself. ``zone`` is the requester's
+    IANA zone: each hit's time is written in it, in UTC when there is none.
     """
     notice = _format_coverage_notice(response.coverage)
 
@@ -115,7 +118,7 @@ async def format_conversation_search_response(
     )
 
     for index, hit in enumerate(response.hits, start=1):
-        block = format_conversation_hit(index, hit, is_expanded=is_expanded_view)
+        block = format_conversation_hit(index, hit, is_expanded=is_expanded_view, zone=zone)
         block_cost = len(block) + 1
         if output_chars + block_cost > max_output_chars:
             truncated = True
@@ -131,9 +134,11 @@ async def format_conversation_search_response(
     return pack_tool_result_with_sources(body, sources)
 
 
-def format_conversation_hit(index: int, hit: ConversationSearchHit, *, is_expanded: bool = False) -> str:
+def format_conversation_hit(
+    index: int, hit: ConversationSearchHit, *, is_expanded: bool = False, zone: str | None = None
+) -> str:
     title = sanitize_recalled_content(hit.title or "Untitled conversation")
-    when = format_time(hit.updated_at or hit.created_at)
+    when = format_time(hit.updated_at or hit.created_at, zone)
     header = f"{index}. {title} (conversation_id: {hit.conversation_id}, score: {hit.score:.2f}, source: {hit.source}"
     if hit.message_id:
         header += f", message_id: {hit.message_id}"
@@ -203,7 +208,15 @@ def _safe_bounded(text: str, max_chars: int) -> str:
     return safe
 
 
-def format_time(value: datetime | None) -> str:
+def format_time(value: datetime | None, zone: str | None = None) -> str:
+    """Write a hit time as ISO text: in ``zone`` when the request names one, as it came (UTC from the index) when not."""
     if value is None:
         return ""
-    return value.isoformat()
+    if zone is None:
+        return value.isoformat()
+    aware = value if value.tzinfo is not None else value.replace(tzinfo=UTC)
+    try:
+        return aware.astimezone(ZoneInfo(zone)).isoformat()
+    except OverflowError:
+        # An instant at the edge of the calendar cannot be shifted into a zone with an offset; in UTC it is still named.
+        return aware.isoformat()

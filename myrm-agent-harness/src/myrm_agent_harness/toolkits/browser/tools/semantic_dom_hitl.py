@@ -7,15 +7,20 @@
 - core.security.audit::record_decision (POS: Security decision audit trail)
 - core.context_vars::stash_approval_note (POS: The human's note on an approval, handed to the model)
 - core.security.hitl_decision::approval_guidance, is_approved, rejection_feedback (POS: 人工审批答复唯一解读)
+- exceptions::BrowserError (POS: root of the browser toolkit exception hierarchy)
+- utils.runtime.user_control::in_plan (POS: whether the call is a step of a plan made in advance, such as a script)
 
 [OUTPUT]
 - ActivePageSource: the one thing the guards need from a session, its active page (any session mixin host provides it)
+- ScriptApprovalRequiredError: a script's step needs a person's approval, which a script cannot ask for
 - enforce_semantic_interaction_guard: Gate click/dblclick on high-risk ARIA refs
 - enforce_js_eval_guard: Gate mutating browser_manage evaluate expressions
 
 [POS]
 Single HITL approval path for browser_interact_tool, browser_execute_script
-(session.interact), and browser_manage evaluate — prevents guard bypass.
+(session.interact / session.evaluate), and browser_manage evaluate — prevents guard bypass. Inside a script the
+path cannot ask: an interrupt would unwind the script, and resuming would run its earlier steps again. A high-risk
+step there is refused with `ScriptApprovalRequiredError`, which stops the script.
 """
 
 from __future__ import annotations
@@ -23,11 +28,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Protocol
 
+from myrm_agent_harness.toolkits.browser.exceptions import BrowserError
 from myrm_agent_harness.toolkits.browser.tools._semantic_risk import (
     SemanticRiskLevel,
     classify_interaction_risk,
     classify_js_eval_risk,
 )
+from myrm_agent_harness.utils.runtime.user_control import in_plan
 
 if TYPE_CHECKING:
     from patchright.async_api import Page
@@ -43,6 +50,23 @@ class ActivePageSource(Protocol):
     def get_active_page(self) -> Page: ...
 
 
+class ScriptApprovalRequiredError(BrowserError):
+    """A step of a running script needs a person's approval, and a script has no way to ask for it.
+
+    The script was written before this step was reached and cannot pause for a person, so it stops here;
+    the model redoes the step where a person can be asked.
+    """
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            f"Script stopped: a step needs a person's approval ({reason}) and a script cannot ask for it. "
+            "The steps before this one already ran. Do this step outside a script (browser_interact_tool, "
+            "or browser_manage_tool for JavaScript), which asks the person, then take a fresh snapshot "
+            "and plan the rest from what the page shows.",
+            error_code="SCRIPT_STEP_NEEDS_APPROVAL",
+        )
+
+
 async def _require_hitl_approval(
     *,
     session: ActivePageSource,
@@ -51,7 +75,7 @@ async def _require_hitl_approval(
     tool_input: dict[str, object],
     element: dict[str, str] | None = None,
 ) -> str | None:
-    """Return a block message when the user rejects; None when approved."""
+    """Return a block message when the user rejects; None when approved; raise inside a script, which cannot ask."""
     from langgraph.types import interrupt
 
     from myrm_agent_harness.core.context_vars import stash_approval_note
@@ -74,6 +98,10 @@ async def _require_hitl_approval(
         page_url,
         reason,
     )
+
+    if in_plan():
+        record_decision(tool_name, "DENY", f"Semantic DOM guard: a script cannot ask for approval: {reason}")
+        raise ScriptApprovalRequiredError(reason)
 
     record_decision(tool_name, "ASK", f"Semantic DOM guard: {reason}")
 

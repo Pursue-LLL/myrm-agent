@@ -71,6 +71,27 @@ function header(title: string | RegExp) {
 }
 
 describe('RunRow', () => {
+  describe('title', () => {
+    it('shows a cron run under its job name', () => {
+      renderRow(makeRun({ title: 'Daily AI digest' }));
+
+      expect(screen.getByText('Daily AI digest')).toBeInTheDocument();
+    });
+
+    it('shows the heartbeat run under its title, not under the job reserved stored name', () => {
+      renderRow(makeRun({ title: '__heartbeat__' }));
+
+      expect(screen.getByText('title')).toBeInTheDocument();
+      expect(screen.queryByText('__heartbeat__')).not.toBeInTheDocument();
+    });
+
+    it('leaves the title of a run from another source as it is', () => {
+      renderRow(makeRun({ source: 'kanban', title: '__heartbeat__', job_id: null, task_id: 'task-1' }));
+
+      expect(screen.getByText('__heartbeat__')).toBeInTheDocument();
+    });
+  });
+
   it('renders no button for a run that has nothing to expand', () => {
     renderRow(makeRun());
 

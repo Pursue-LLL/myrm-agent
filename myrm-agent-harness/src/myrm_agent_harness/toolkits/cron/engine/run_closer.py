@@ -1,22 +1,20 @@
 """Closing write of a run: the job's new state once the run has ended.
 
 [INPUT]
-- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run, run_status_of (POS: pure engine helpers: error classification, backoff, the next slot to book and the status a run carries)
+- toolkits.cron.engine.helpers::classify_transient_error, error_backoff_ms, next_eligible_run, pause_job, run_status_of (POS: pure engine helpers: error classification, backoff, the next slot to book, the one way a failure pauses a job and the status a run carries)
 - toolkits.cron.engine.job_freshness::adopt_latest (POS: stored job as the truth before a closing write)
 - toolkits.cron.protocols::CronStore (POS: job and run persistence)
-- toolkits.cron.types::CronJob, CronNotice, CronNoticeKind, JobResult, JobStatus, ScheduleKind (POS: Cron job domain types.)
+- toolkits.cron.types::CronJob, DeliveryStatus, JobResult, JobStatus, PauseReason, ScheduleKind (POS: Cron job domain types.)
+- utils.text_utils::smart_truncate (POS: Text processing utilities. Provides token counting, language detection, smart truncation, and output sanitization.)
 
 [OUTPUT]
-- RunCloserMixin: `_update_after_run` and its recurring, one-time and schedule-error branches, and `_record_trial_outcome` for a manual run, mixed into the executor
+- RunCloserMixin: `_update_after_run` and its recurring and one-time branches, `_pause_for_schedule_error` (also used by the skipped-run bookkeeping), and `_record_trial_outcome` for a manual run, mixed into the executor
+- MAX_STORED_ERROR_CHARS, stored_error: the bound on the error text a run persists and the one way to apply it, shared by the run record (the executor) and the job's `last_error`
 
 [POS]
-Mixed into ``JobExecutor``. After a run is recorded, adopts the stored job and applies what the run decided: auto-pause
-on a circuit break or on too many failures, the next slot or the backoff retry, completion of a one-time job (deleted
-only when its run succeeded and its delivery did not fail), and the fallback when the schedule itself cannot be
-computed. A job this write moves from active to paused is reported once as a ``CronNotice``, whichever branch paused
-it. Because it writes onto the stored job, a pause, an edit or a delete made while the run was in flight is neither
-undone nor resurrected. A manual run decides nothing about the schedule or the job's state: it only becomes the
-job's latest run.
+Mixed into ``JobExecutor``: the closing write once a run is recorded, which adopts the stored job and applies what the
+run decided (pauses with their reasons, the next slot or a backoff retry, one-time completion, the schedule-error
+pause). It also owns the bound on the error text a run persists (``stored_error``).
 """
 
 from __future__ import annotations
@@ -29,10 +27,12 @@ from myrm_agent_harness.toolkits.cron.engine.helpers import (
     classify_transient_error,
     error_backoff_ms,
     next_eligible_run,
+    pause_job,
     run_status_of,
 )
 from myrm_agent_harness.toolkits.cron.engine.job_freshness import adopt_latest
-from myrm_agent_harness.toolkits.cron.types import CronNotice, CronNoticeKind, DeliveryStatus, JobStatus, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import DeliveryStatus, JobStatus, PauseReason, ScheduleKind
+from myrm_agent_harness.utils.text_utils import smart_truncate
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
@@ -40,13 +40,25 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_SCHEDULE_ERROR_THRESHOLD = 3
+# The error text of a run is persisted on the run record and on the job, and the job travels with every list call: a
+# shell job's stderr can be megabytes, so only a bounded head and tail is stored.
+MAX_STORED_ERROR_CHARS = 1000
+
+
+def stored_error(error: str | None) -> str | None:
+    """The error text as persisted: at most ``MAX_STORED_ERROR_CHARS``, its head and its tail kept.
+
+    Both ends are kept because runtimes disagree on where the error message sits: near the start of the output
+    (Node, Java, Ruby) or at its end (Python tracebacks). Apply it where the text is written and nowhere earlier:
+    the retry decision reads the run's full error, and a transient keyword the cut dropped would no longer be seen.
+    """
+    return smart_truncate(error, MAX_STORED_ERROR_CHARS) if error else None
 
 
 class RunCloserMixin:
     """The closing write of a run for ``JobExecutor``.
 
-    Accesses JobExecutor members via self: _store, _maybe_send_failure_alert, emit_notice.
+    Accesses JobExecutor members via self: _store, _maybe_send_failure_alert, notify_paused.
     """
 
     _store: CronStore
@@ -57,7 +69,7 @@ class RunCloserMixin:
             self, job: CronJob, failures: int, now: datetime, *, retry_safe: bool = True
         ) -> None: ...
 
-        async def emit_notice(self, notice: CronNotice) -> None: ...
+        async def notify_paused(self, job: CronJob) -> None: ...
 
     async def _update_after_run(
         self,
@@ -80,7 +92,7 @@ class RunCloserMixin:
 
         # Judged once at the single exit, so every branch that pauses a job is covered, whichever branch it is.
         if job.status == JobStatus.PAUSED and not was_paused:
-            await self.emit_notice(CronNotice(kind=CronNoticeKind.JOB_PAUSED_BY_FAILURE, job_name=job.name))
+            await self.notify_paused(job)
 
     async def _close_recurring(
         self,
@@ -90,17 +102,16 @@ class RunCloserMixin:
         finished: datetime,
     ) -> None:
         """A recurring job's new state: paused, booked at its next regular slot, or booked for a backoff retry."""
+        schedule_error: str | None = None
         if result.circuit_broken:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
+            pause_job(job, PauseReason.CIRCUIT_BREAK)
             logger.warning(
                 "Job %s auto-paused due to circuit break: %s",
                 job.id,
                 result.error,
             )
         elif not result.success and new_failures > job.max_retries:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
+            pause_job(job, PauseReason.RUN_FAILURES)
             logger.warning(
                 "Job %s auto-paused: %d consecutive failures (max_retries=%d)",
                 job.id,
@@ -111,14 +122,15 @@ class RunCloserMixin:
             try:
                 job.next_run_at = next_eligible_run(job, finished, last_run_at=finished)
             except Exception as exc:
-                self._handle_schedule_compute_error(job, exc, finished)
+                schedule_error = self._pause_for_schedule_error(job, exc)
         else:
             backoff = error_backoff_ms(new_failures)
             job.next_run_at = finished + timedelta(milliseconds=backoff)
 
         job.last_run_at = finished
         job.last_status = run_status_of(result)
-        job.last_error = result.error if not result.success else None
+        # Why the job stopped outranks the run's own error, which stays in the run record.
+        job.last_error = stored_error(schedule_error or (result.error if not result.success else None))
         job.consecutive_failures = new_failures
 
         if result.success:
@@ -142,7 +154,7 @@ class RunCloserMixin:
             return
         latest.last_run_at = finished
         latest.last_status = run_status_of(result)
-        latest.last_error = result.error if not result.success else None
+        latest.last_error = stored_error(result.error if not result.success else None)
         latest.last_output_hash = job.last_output_hash
         await self._store.save_job(latest)
 
@@ -159,6 +171,10 @@ class RunCloserMixin:
             await self._store.delete_job(job.id)
             return
 
+        # The job shows the run's own outcome: its error, or nothing once a retry succeeds. Written before the branches
+        # because the failure alert the last one sends quotes it.
+        job.last_error = stored_error(result.error if not result.success else None)
+
         if result.success:
             job.status = JobStatus.COMPLETED
             job.consecutive_failures = 0
@@ -174,7 +190,6 @@ class RunCloserMixin:
             backoff = error_backoff_ms(new_failures)
             job.next_run_at = finished + timedelta(milliseconds=backoff)
             job.consecutive_failures = new_failures
-            job.last_error = result.error
             logger.warning(
                 "One-shot job %s: transient error, retrying in %dms (attempt %d/%d)",
                 job.id,
@@ -183,9 +198,8 @@ class RunCloserMixin:
                 job.max_retries,
             )
         else:
-            job.status = JobStatus.PAUSED
+            pause_job(job, PauseReason.CIRCUIT_BREAK if result.circuit_broken else PauseReason.RUN_FAILURES)
             job.consecutive_failures = new_failures
-            job.last_error = result.error
             self._maybe_send_failure_alert(job, new_failures, finished, retry_safe=result.retry_safe)
 
         if job.status != JobStatus.ACTIVE:
@@ -195,27 +209,13 @@ class RunCloserMixin:
         job.updated_at = datetime.now(UTC)
         await self._store.save_job(job)
 
-    def _handle_schedule_compute_error(self, job: CronJob, error: Exception, finished: datetime) -> None:
-        """Handle schedule computation failure with fallback retry.
+    def _pause_for_schedule_error(self, job: CronJob, error: Exception) -> str:
+        """Pause a job whose next slot cannot be computed and return the reason for its ``last_error``.
 
-        Below threshold: sets a 60-second fallback next_run_at so the
-        scheduler retries instead of leaving the job as a zombie.
-        At threshold: auto-pauses the job.
+        The slot follows from the job's own schedule fields, so a retry fails the same way: re-arming the job
+        would only run the agent again every minute until someone notices. The caller saves the job, and the
+        pause is reported once it is saved.
         """
-        job.consecutive_failures += 1
-        if job.consecutive_failures >= _SCHEDULE_ERROR_THRESHOLD:
-            job.status = JobStatus.PAUSED
-            job.next_run_at = None
-            logger.warning(
-                "Job %s auto-paused: schedule expression keeps failing (%d times): %s",
-                job.id,
-                job.consecutive_failures,
-                error,
-            )
-        else:
-            job.next_run_at = finished + timedelta(seconds=60)
-            logger.warning(
-                "Job %s: schedule compute error (%s), will retry in 60s",
-                job.id,
-                error,
-            )
+        pause_job(job, PauseReason.SCHEDULE_ERROR)
+        logger.warning("Job %s auto-paused: its schedule cannot be computed: %s", job.id, error)
+        return f"Schedule error: {error}"

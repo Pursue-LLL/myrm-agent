@@ -4,12 +4,13 @@
 - backends.protocols::ComputerBackend (POS: platform I/O protocol)
 - perception.{macos_ax,windows_ax,linux_ax} (POS: platform AX capture/invoke)
 - dref.types::ElementRef, SnapshotMeta, SnapshotScope (POS: @dref types)
-- types::ActionResult (POS: action result container)
+- ax_result::{AxFailure, AxInvokeResult} (POS: typed outcome of a native action)
 
 [OUTPUT]
 - capture_snapshot: platform-routed AX snapshot capture
 - inspect_backend: frontmost app metadata inspection
-- invoke_element: platform-routed AX element invocation
+- invoke_element: platform-routed AX element invocation; a failure carries what it proves about delivery
+- run_ax_call: awaits a blocking AX or osascript call without stalling the event loop where that is verified safe
 
 [POS]
 Platform routing dispatch for AX snapshot/invoke. Routes to macOS/Windows/Linux backend.
@@ -17,7 +18,9 @@ Platform routing dispatch for AX snapshot/invoke. Routes to macOS/Windows/Linux 
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from collections.abc import Callable
 
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
 from myrm_agent_harness.toolkits.computer_use.dref.types import (
@@ -30,7 +33,7 @@ from myrm_agent_harness.toolkits.computer_use.perception import (
     macos_ax,
     windows_ax,
 )
-from myrm_agent_harness.toolkits.computer_use.types import ActionResult
+from myrm_agent_harness.toolkits.computer_use.perception.ax_result import AxFailure, AxInvokeResult
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +81,7 @@ def invoke_element(
     action: str,
     text: str = "",
     app_name: str | None = None,
-) -> ActionResult:
+) -> AxInvokeResult:
     platform = type(backend).__name__
     if platform == "MacOSBackend":
         return macos_ax.invoke_ax_element(element.backend_key, action, text, app_name=app_name)
@@ -86,4 +89,19 @@ def invoke_element(
         return windows_ax.invoke_ax_element(element.backend_key, action, text, app_name=app_name)
     if platform == "LinuxBackend":
         return linux_ax.invoke_ax_element(element.backend_key, action, text, role=element.role, name=element.name)
-    return ActionResult(success=False, error=f"Unsupported backend for AX invoke: {platform}")
+    return AxInvokeResult.failed(AxFailure.UNSUPPORTED, f"Unsupported backend for AX invoke: {platform}")
+
+
+async def run_ax_call[**P, R](
+    backend: ComputerBackend, call: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs
+) -> R:
+    """Await a blocking AX or osascript call without freezing the event loop on macOS.
+
+    The macOS capture, invoke and foreground reads wait on an osascript child for up to 15 s; on the loop thread that
+    stops every other chat in the process, so a worker thread runs them (they touch no in-process AppKit state). The
+    other platforms run inline: the thread rules of their UIA (COM) and AT-SPI bindings are not checked here.
+    Callers keep every registry write on the loop thread by awaiting this for the read only.
+    """
+    if type(backend).__name__ == "MacOSBackend":
+        return await asyncio.to_thread(call, *args, **kwargs)
+    return call(*args, **kwargs)

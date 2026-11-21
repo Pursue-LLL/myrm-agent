@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 import pytest
-from patchright.async_api import Browser, BrowserContext
+from patchright.async_api import Browser, BrowserContext, Page
 from patchright.async_api import Error as BrowserDriverError
 
 from myrm_agent_harness.toolkits.browser.pool import (
@@ -79,7 +79,7 @@ async def _visit(pool: GlobalBrowserPool, url: str) -> str:
         await pool.release_page(page, context_key)
 
 
-async def _goto_error(page, url: str) -> str:  # type: ignore[no-untyped-def]
+async def _goto_error(page: Page, url: str) -> str:
     """The driver's error for a navigation that must fail ("" when it loaded)."""
     try:
         await page.goto(url)
@@ -108,8 +108,8 @@ class TestWhatTheGuardStops:
             assert guard.handled >= len(ATTACK_PATHS)  # every request of the page was judged, none ignored
 
     @pytest.mark.parametrize("target", ["literal", "name", "redirect"])
-    async def test_a_document_the_driver_fetches_cannot_reach_it_either(self, target: str) -> None:
-        """Document requests go through the driver (script injection), a path of their own that is guarded too."""
+    async def test_a_navigated_document_cannot_reach_it_either(self, target: str) -> None:
+        """The browser loads a document itself, through the same guard as every subresource."""
         guard = EgressGuard(table_resolver)
         with attack_world() as world:
             url = {

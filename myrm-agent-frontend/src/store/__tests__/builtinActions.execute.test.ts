@@ -28,8 +28,12 @@ vi.mock('@/services/i18nToastService', () => ({
 }));
 
 vi.mock('@/services/chat', () => ({
-  compactChat: vi.fn(),
   focusFlushChat: vi.fn(),
+}));
+
+vi.mock('@/services/contextCompaction', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/contextCompaction')>()),
+  runManualCompaction: vi.fn(),
 }));
 
 vi.mock('sonner', () => ({

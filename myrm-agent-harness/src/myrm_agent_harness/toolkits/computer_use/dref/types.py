@@ -113,3 +113,7 @@ class SnapshotMeta:
     truncated: bool = False
     needs_permission: bool = False
     token_estimate: int = 0
+
+    def same_app(self, other: SnapshotMeta) -> bool:
+        """Whether both snapshots captured the same running application (name and process id)."""
+        return self.app_name == other.app_name and self.pid == other.pid

@@ -82,11 +82,12 @@ def _bundle_shipping(tmp_path: Path, *, in_dynload: int, elsewhere: int = 0, lay
 
 
 def _problems(verify: ModuleType, monkeypatch: pytest.MonkeyPatch, executable: Path, platform: str) -> list[str]:
-    """What the verifier reports for a bundle that holds every module, script and data file the inventory asks for."""
+    """What the verifier reports for a bundle that holds everything the inventory asks for (modules, scripts, data, Monty)."""
     monkeypatch.setattr(verify, "bundled_module_names", lambda _executable: set())
     monkeypatch.setattr(verify, "first_party_modules", lambda *_args: {})
     monkeypatch.setattr(verify, "domain_tool_scripts", lambda _harness: [])
     monkeypatch.setattr(verify, "harness_data_files", lambda _harness: [])
+    monkeypatch.setattr(verify, "monty_problems", lambda _internal, _bundled: [])
     return verify.bundle_problems(executable, Path("app"), Path("harness"), platform=platform)
 
 

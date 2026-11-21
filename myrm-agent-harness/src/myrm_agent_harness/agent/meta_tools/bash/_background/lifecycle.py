@@ -9,7 +9,6 @@ something running. A job whose leader pid another process now holds is left alon
 - agent.meta_tools.bash._background.consume::BackgroundRegistryEntry (POS: live registry row with ring buffers, spill writer, the leader's recorded identity and the processes the job left running)
 - agent.meta_tools.bash._background.termination::stop_job / stop_leftovers / refresh_leftovers / signal_group_if_ours (POS: group-level stop primitives)
 - agent.meta_tools.bash._background.store_sync::persist_terminal_state (POS: write-through persistence of a job's terminal state to the ledger)
-- agent.meta_tools.bash._background.session_spawn_lifecycle::clear_session_spawn_tools (POS: thread-safe in-process store for spawn/cleanup coordination)
 - utils.os_compat::SIGKILL (POS: cross-platform process-group control)
 
 [OUTPUT]
@@ -126,7 +125,6 @@ class RegistryLifecycleMixin:
                 if entry.info.session_id == session_id and entry.info.status == "running"
             ]
         if not targets:
-            self._maybe_clear_session_spawn_tools(session_id)
             return 0
 
         results = await asyncio.gather(
@@ -142,25 +140,7 @@ class RegistryLifecycleMixin:
                 len(targets),
                 grace_seconds,
             )
-        self._maybe_clear_session_spawn_tools(session_id)
         return killed
-
-    def _maybe_clear_session_spawn_tools(self, session_id: str | None) -> None:
-        """Drop spawn lifecycle markers when a session has no running shell jobs."""
-        if not session_id:
-            return
-        with self._lock:
-            has_running = any(
-                entry.info.session_id == session_id and entry.info.status == "running"
-                for entry in self._entries.values()
-            )
-        if has_running:
-            return
-        from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-            clear_session_spawn_tools,
-        )
-
-        clear_session_spawn_tools(session_id)
 
     def _schedule_reap(self, pid: int) -> None:
         """Drop an exited/killed entry after a short window so ``list_processes``

@@ -110,7 +110,7 @@ class TestPreflight:
 class TestRewriters:
     def test_a_rewritten_workspace_path(self, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level(logging.WARNING)
-        CommandRewriter().rewrite_workspace_paths(f"cd /workspace && tool {_KEY}", Path("/tmp/ws"))
+        CommandRewriter().rewrite_workspace_paths(f"cd /workspace && tool {_KEY}", Path("/tmp/ws"), posix_shell=True)
         _assert_line_masked(caplog, "Rewrote /workspace paths")
 
     @pytest.mark.asyncio

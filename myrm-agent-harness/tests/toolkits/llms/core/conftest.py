@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 
+from myrm_agent_harness.toolkits.llms.core.attribution import set_client_attribution
 from myrm_agent_harness.toolkits.llms.utils import model_utils
 
 
@@ -16,3 +19,11 @@ def _unmapped_output_ceilings(monkeypatch: pytest.MonkeyPatch) -> None:
     explicit ceiling.
     """
     monkeypatch.setattr(model_utils, "get_model_output_ceiling", lambda _model: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_client_attribution() -> Iterator[None]:
+    """Start and end every test with no app identity registered; registration is process-wide."""
+    set_client_attribution(None)
+    yield
+    set_client_attribution(None)

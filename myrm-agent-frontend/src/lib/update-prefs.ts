@@ -5,11 +5,12 @@
  * [OUTPUT]
  * - getDeferredVersion, setDeferredVersion, clearDeferredVersion, isDeferred
  * - getQuietHours, setQuietHours, isQuietNow, QuietHours
+ * - getAutoBackup, setAutoBackup
  *
  * [POS]
  * Update preference helpers for the Stack Update Panel.
- * Deferred versions and quiet hours live in localStorage (per-device, no backend round-trip).
- * All readers are defensive: corrupt or missing values degrade to "no preference".
+ * Deferred versions, quiet hours and the pre-update auto-backup switch live in localStorage (per-device, no backend
+ * round-trip). All readers are defensive: corrupt or missing values degrade to "no preference" (auto-backup: on).
  */
 
 const DEFERRED_VERSION_KEY = 'myrm-update-deferred-version';

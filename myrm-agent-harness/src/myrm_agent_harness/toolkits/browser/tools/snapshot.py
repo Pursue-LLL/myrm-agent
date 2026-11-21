@@ -31,15 +31,6 @@ def create_snapshot_tool(session: BrowserSession) -> BaseTool:
     """Create browser_snapshot tool bound to session."""
 
     class SnapshotInput(BaseModel):
-        """Capture ARIA accessibility tree snapshot with element references for interaction.
-
-        WORKFLOW & BEST PRACTICES:
-        - Call this before interacting with page elements to obtain fresh ref IDs (e0, e1, etc.).
-        - For complex/large pages, specify 'selector' or scope='interactive' to keep output focused.
-        - When snapshot output contains [VISUAL_CONTENT_DETECTED] (canvas/rich-editors like Google Docs, Figma),
-          switch to coordinate mode in browser_interact_tool (x/y parameters).
-        """
-
         scope: str = Field(
             default="content",
             description="Snapshot scope: 'interactive' (buttons/links/inputs only), "
@@ -137,15 +128,6 @@ def create_snapshot_tool(session: BrowserSession) -> BaseTool:
         except Exception:
             pass
 
-        if isinstance(result, str):
-            final_str = dialog_msg + visual_hint + result
-            return mark_untrusted(final_str)
-        if isinstance(result, tuple):
-            aria_tree, _ = result
-            final_str = dialog_msg + visual_hint + aria_tree
-            return mark_untrusted(final_str)
-        else:
-            final_str = dialog_msg + visual_hint + result.aria_tree
-            return mark_untrusted(final_str)
+        return mark_untrusted(dialog_msg + visual_hint + result.aria_tree)
 
     return browser_snapshot

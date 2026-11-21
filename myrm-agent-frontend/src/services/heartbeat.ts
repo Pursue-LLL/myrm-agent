@@ -1,4 +1,5 @@
 import { apiRequest } from '@/lib/api';
+import type { PauseReason, RunStatus } from './cron.types';
 
 export type ScheduleKind = 'interval' | 'cron';
 
@@ -13,9 +14,10 @@ export interface HeartbeatStatus {
   model: string | null;
   agent_id: string | null;
   last_run_at: string | null;
-  last_status: string | null;
+  last_status: RunStatus | null;
   next_run_at: string | null;
   fire_count: number;
+  paused_reason: PauseReason | null;
 }
 
 export interface HeartbeatEnableRequest {

@@ -1,9 +1,11 @@
-"""`search_sessions_corpus` maps `memory_search_tool(corpus=sessions)` arguments onto the provider request and words
-an empty reply that ran under an explicit since/until window."""
+"""`search_sessions_corpus` maps `memory_search_tool(corpus=sessions)` arguments onto the provider request, words an
+empty reply that ran under an explicit since/until window, and writes the hit times in the requester's zone."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
+
+import pytest
 
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import (
     search_sessions_corpus,
@@ -51,6 +53,22 @@ def _empty_search_response() -> ConversationSearchResponse:
     return ConversationSearchResponse(mode="search", query="deployment", hits=[])
 
 
+def _timed_response() -> ConversationSearchResponse:
+    return ConversationSearchResponse(
+        mode="search",
+        query="deployment",
+        hits=[
+            ConversationSearchHit(
+                conversation_id="chat-timed",
+                title="Deployment plan",
+                snippet="Deployment plan",
+                score=0.9,
+                updated_at=datetime(2026, 4, 2, 17, 30, 15, 250_000, tzinfo=UTC),
+            )
+        ],
+    )
+
+
 async def _search(
     provider: _RecordingProvider,
     *,
@@ -61,6 +79,7 @@ async def _search(
     expand_conversation_id: str | None = None,
     expand_message_id: str | None = None,
     expand_window: int = 5,
+    zone: str | None = None,
 ) -> str | dict[str, object]:
     return await search_sessions_corpus(
         MemorySearchBackends(conversation_provider=provider),
@@ -71,6 +90,7 @@ async def _search(
         expand_conversation_id=expand_conversation_id,
         expand_message_id=expand_message_id,
         expand_window=expand_window,
+        zone=zone,
     )
 
 
@@ -136,6 +156,18 @@ async def test_an_empty_search_under_a_window_names_it_and_still_sends_it_to_the
         "2026-12-24 00:00 UTC: other conversations are not returned, even if part of them falls inside that period. "
         "If what you need may be outside that period, retry without since/until."
     )
+
+
+@pytest.mark.parametrize(
+    ("zone", "written"),
+    [(None, "2026-04-02T17:30:15.250000+00:00"), ("Asia/Shanghai", "2026-04-03T01:30:15.250000+08:00")],
+    ids=["utc", "requester-zone"],
+)
+async def test_a_hit_time_is_written_in_the_zone_the_search_is_given(zone: str | None, written: str) -> None:
+    result = await _search(_RecordingProvider(_timed_response()), query="deployment", zone=zone)
+
+    assert isinstance(result, dict)
+    assert f", {written})" in str(result["content"])
 
 
 async def test_an_expand_request_is_not_blamed_on_the_window() -> None:

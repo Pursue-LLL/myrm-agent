@@ -33,6 +33,11 @@ _SET_IN_THE_APP = {
     "workflow_template_args",
 }
 
+# Marks a job the application creates itself, the only kind that may take a reserved name; the model never claims it.
+_FOR_THE_APPLICATION_ONLY = {"system"}
+
+_NOT_OFFERED = _TUNING_LEFT_TO_DEFAULTS | _SET_IN_THE_APP | _FOR_THE_APPLICATION_ONLY
+
 
 def _keywords_add_passes_to_create_job() -> set[str]:
     tree = ast.parse(textwrap.dedent(inspect.getsource(_do_add)))
@@ -50,9 +55,9 @@ def test_every_create_job_parameter_is_forwarded_by_add_or_named_as_not_offered(
 
     not_forwarded = create_job_parameters - _keywords_add_passes_to_create_job()
 
-    assert not_forwarded == _TUNING_LEFT_TO_DEFAULTS | _SET_IN_THE_APP, (
+    assert not_forwarded == _NOT_OFFERED, (
         "create_job takes a parameter the add action neither forwards nor lists as not offered "
-        f"(or a listed one is now forwarded): {sorted(not_forwarded ^ (_TUNING_LEFT_TO_DEFAULTS | _SET_IN_THE_APP))}"
+        f"(or a listed one is now forwarded): {sorted(not_forwarded ^ _NOT_OFFERED)}"
     )
 
 

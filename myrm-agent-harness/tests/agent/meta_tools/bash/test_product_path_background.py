@@ -1,8 +1,9 @@
 """A background job starts where, and in the shell, a foreground command does: the real bash tool and a real shell.
 
 The job starts in the directory ``/workspace`` means to the executor, which for a chat bound to a project is the
-project and not the chat's own storage directory, and starting it leaves the executor bound where it was. Bash reads
-it, as it reads a foreground command, whatever ``sh`` is on the host.
+project and not the chat's own storage directory, and starting it leaves the executor bound where it was. A command
+that names ``/workspace`` reaches that directory too. Bash reads it, as it reads a foreground command, whatever ``sh``
+is on the host.
 """
 
 from __future__ import annotations
@@ -45,6 +46,15 @@ async def test_a_job_starts_in_the_project_of_a_project_bound_chat(shared_real_s
     job = await shared_real_stack.run_background("ls")
 
     assert job.exit_code == 0
+    assert "in_project.txt" in job.stdout
+
+
+async def test_a_job_reads_the_container_root_as_the_project(shared_real_stack: RealBashStack) -> None:
+    (shared_real_stack.workspace / "in_project.txt").write_text("x", encoding="utf-8")
+
+    job = await shared_real_stack.run_background("cd /workspace && ls")
+
+    assert job.exit_code == 0, job.stderr
     assert "in_project.txt" in job.stdout
 
 

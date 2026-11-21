@@ -1,7 +1,7 @@
 """[INPUT]
 - .pipeline::enrich_query (POS: server-side query context blocks)
 - .archive_restore (POS: typed archive restore validation and prompt materialization)
-- .upload_sync (POS: uploaded file workspace sync + RAG routing)
+- .upload_sync (POS: uploaded file workspace sync)
 
 [OUTPUT]
 - enrich_query / EnrichedQuery

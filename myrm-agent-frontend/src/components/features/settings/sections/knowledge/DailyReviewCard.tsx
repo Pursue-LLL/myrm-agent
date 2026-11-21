@@ -2,16 +2,21 @@
 
 /**
  * [INPUT]
- * fetch POST {text, title} -> /api/v1/wiki/daily-review (buildWikiApiPath)
- * useTranslations('settings.wiki') (POS: i18n locale namespace)
+ * - ./WikiAgentScopeContext::useWikiAgentScope (POS: agent vault the review is stored into)
+ * - @/lib/api::apiRequest (POS: unified frontend API request entry)
+ * - @/services/wikiService::buildWikiApiPath (POS: Wiki endpoint path builder with optional agent_id query)
+ * - POST {text, title} to /wiki/daily-review
+ * - useTranslations('settings.wiki') (POS: i18n locale namespace)
  *
  * [OUTPUT]
  * DailyReviewCard: one-click daily review journal card in knowledge settings.
  *
  * [POS]
  * One-click daily review entry. The review text is stored verbatim as raw
- * evidence and compiled into four-dimension knowledge drafts (Projects /
- * Knowledge / Methods / Comparisons) that await human review before publish.
+ * evidence in the selected agent's vault and compiled into four-dimension knowledge
+ * drafts (Projects / Knowledge / Methods / Comparisons) that await human review before
+ * publish. Failures show the localized message only: the server's reasons are English
+ * diagnostics, not user copy.
  */
 
 import Link from 'next/link';
@@ -22,23 +27,32 @@ import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
+import { apiRequest } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
+import { useWikiAgentScope } from './WikiAgentScopeContext';
 
-interface DailyReviewResponse {
-  success: boolean;
-  raw_path: string;
-  enqueued: boolean;
+interface DailyReviewResult {
   skipped: boolean;
-  message: string;
+  /** Vault the review went into: the pending-review link must open it even after the scope switches. */
+  agentScopeId: string | null;
+}
+
+function pendingEditsHref(agentScopeId: string | null): string {
+  const params = new URLSearchParams({ wikiTab: 'pendingEdits' });
+  if (agentScopeId) {
+    params.set('agentId', agentScopeId);
+  }
+  return `/settings/wiki?${params.toString()}`;
 }
 
 export default function DailyReviewCard() {
   const t = useTranslations('settings.wiki');
+  const { agentScopeId } = useWikiAgentScope();
   const [text, setText] = useState('');
   const [title, setTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<DailyReviewResponse | null>(null);
+  const [result, setResult] = useState<DailyReviewResult | null>(null);
 
   const handleSubmit = useCallback(async () => {
     if (!text.trim()) {
@@ -49,24 +63,21 @@ export default function DailyReviewCard() {
     setError(null);
     setResult(null);
     try {
-      const response = await fetch(buildWikiApiPath('/wiki/daily-review'), {
+      // silent: the error is shown inline under the form, not as a global toast.
+      const { skipped } = await apiRequest<{ skipped: boolean }>(buildWikiApiPath('/wiki/daily-review', agentScopeId), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, title }),
+        silent: true,
       });
-      const payload = (await response.json()) as DailyReviewResponse & { detail?: { message?: string } };
-      if (!response.ok || !payload.success) {
-        throw new Error(payload.detail?.message || payload.message || `HTTP ${response.status}`);
-      }
-      setResult(payload);
+      setResult({ skipped, agentScopeId });
       setText('');
       setTitle('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('dailyReview.error'));
+    } catch {
+      setError(t('dailyReview.error'));
     } finally {
       setSubmitting(false);
     }
-  }, [text, title, t]);
+  }, [text, title, agentScopeId, t]);
 
   return (
     <Card>
@@ -115,14 +126,13 @@ export default function DailyReviewCard() {
             {result.skipped ? t('dailyReview.skipped') : t('dailyReview.staged')}
             {!result.skipped && (
               <Link
-                href="/settings/wiki?wikiTab=pendingEdits"
+                href={pendingEditsHref(result.agentScopeId)}
                 className="ml-2 font-medium text-primary underline-offset-4 hover:underline"
                 data-testid="daily-review-goto-pending"
               >
                 {t('dailyReview.reviewCta')}
               </Link>
             )}
-            <p className="mt-1 text-xs text-muted-foreground">{result.raw_path}</p>
           </div>
         )}
       </CardContent>

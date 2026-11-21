@@ -3,13 +3,12 @@
 import { memo, useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { IconCheck, IconAlertCircle, IconShield } from '@/components/features/icons/PremiumIcons';
+import { OFFICIAL_DOWNLOAD_URL, OFFICIAL_SITE_URL } from '@/lib/constants/brand';
 import { isTauriRuntime } from '@/lib/deploy-mode';
 import { cn } from '@/lib/utils/classnameUtils';
 
 type SafetyState = 'safe' | 'placeholder_dev' | 'placeholder_prod' | 'invalid' | 'unknown';
 
-const OFFICIAL_SITE_URL = 'https://myrmagent.ai';
-const OFFICIAL_DOWNLOAD_URL = 'https://myrmagent.ai/download';
 const OFFICIAL_RELEASES_URL = 'https://github.com/Pursue-LLL/myrm-agent/releases';
 
 async function queryUpdaterSafety(): Promise<SafetyState> {
@@ -49,18 +48,22 @@ const TrustBadgeCard = memo(() => {
   }
 
   const tone =
-    state === 'safe' ? 'text-emerald-400' : state === 'unknown' ? 'text-muted-foreground' : 'text-destructive-text';
+    state === 'safe'
+      ? 'text-emerald-700 dark:text-emerald-400'
+      : state === 'unknown'
+        ? 'text-muted-foreground'
+        : 'text-destructive-text';
 
   return (
     <section className="space-y-6">
       <div className="flex items-center gap-3 px-2">
         <IconShield className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground/70">{t('title')}</h2>
+        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground">{t('title')}</h2>
       </div>
 
-      <div className="space-y-6 p-8 rounded-[2.5rem] bg-white/5 border border-white/10">
+      <div className="space-y-6 p-8 rounded-[2.5rem] bg-card border border-border">
         <div className="flex items-center gap-2">
-          {state === 'safe' && <IconCheck className="w-4 h-4 text-emerald-400" />}
+          {state === 'safe' && <IconCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
           {state !== 'safe' && state !== 'unknown' && <IconAlertCircle className="w-4 h-4 text-destructive-text" />}
           <p className={cn('text-sm font-bold text-foreground', tone)}>{t(`state.${state}`)}</p>
         </div>
@@ -70,7 +73,7 @@ const TrustBadgeCard = memo(() => {
             href={OFFICIAL_SITE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 transition-colors"
           >
             {t('officialSite')}
           </a>
@@ -78,7 +81,7 @@ const TrustBadgeCard = memo(() => {
             href={OFFICIAL_DOWNLOAD_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 transition-colors"
           >
             {t('officialDownload')}
           </a>
@@ -86,7 +89,7 @@ const TrustBadgeCard = memo(() => {
             href={OFFICIAL_RELEASES_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-lg border border-white/10 text-xs font-bold hover:bg-white/5 transition-colors"
+            className="px-3 py-1.5 rounded-lg border border-border text-xs font-bold hover:bg-muted dark:hover:bg-white/5 transition-colors"
           >
             {t('officialReleases')}
           </a>

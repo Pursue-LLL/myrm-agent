@@ -79,6 +79,7 @@ interface DesktopInspectorState {
   markTurnEngaged: (chatId: string) => void;
   releaseTurnEngagement: (chatId: string) => void;
   setInstructionText: (text: string) => void;
+  /** Refresh the view of the open chat's desktop session: `isTurnView` = automatic (the agent's registry), else a new capture. */
   fetchSnapshot: (isTurnView?: boolean) => Promise<boolean>;
   reset: () => void;
 }
@@ -168,7 +169,10 @@ const useDesktopInspectorStore = create<DesktopInspectorState>((set, get) => ({
     }
     set({ isSnapshotLoading: true });
     try {
-      const data = await apiRequest<DesktopSnapshotResponse>('/webui/desktop/snapshot', {
+      // An automatic refresh (a turn view: tool end, approval card) reads what the agent last saw, drawn over the
+      // current screen, and never reads the accessibility tree again; only the user's manual refresh does.
+      const query = new URLSearchParams({ source: isTurnView ? 'registry' : 'live', chat_id: chatId });
+      const data = await apiRequest<DesktopSnapshotResponse>(`/webui/desktop/snapshot?${query.toString()}`, {
         silent: true,
       });
       set({

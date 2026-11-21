@@ -40,6 +40,7 @@ _IMPORT_ALIASES = frozenset(
         "dotenv",  # python-dotenv
         "opentelemetry",  # opentelemetry-api / -sdk / -semantic-conventions
         "pil",  # pillow
+        "pptx",  # python-pptx
         "yaml",  # PyYAML
     }
 )
@@ -107,7 +108,9 @@ def _violation(path: Path, source: str) -> str | None:
         root = dotted.split(".", 1)[0]
         if root in sys.stdlib_module_names or root == _OWN_PACKAGE:
             continue
-        if _resolves_in_repo(dotted) or root in stems:
+        # A flat module is imported by its bare name. A dotted path cannot resolve through a module file that
+        # only shares its first segment (``scripts.py`` inside a package is not the dev shell's ``scripts`` package).
+        if _resolves_in_repo(dotted) or dotted in stems:
             continue
         if root.lower() in declared:
             continue

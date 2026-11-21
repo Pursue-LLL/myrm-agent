@@ -10,7 +10,7 @@ BashExecutor 聚合根与执行编排域：同步/后台执行、上下文构建
 | `__init__.py` | Package | 域聚合出口：导出 `BashExecutor`、`BashExecutionError`。 | — |
 | `executor.py` | Core | BashExecutor 聚合根（DI 编排，MRO: Execute → Background → Prepare → Context，由架构测试锁定）。 | ✅ |
 | `execute_mixin.py` | Core | 同步 ``execute()`` 编排；stdout/stderr 对称 eviction；失败路径双流落盘 + ``BashExecutionError`` 携带 eviction 引用；一次技能执行起一个只属于它的 MCP IPC 服务端（`AsyncExitStack`，脚本无论怎样结束都随之停止）；失败路径先剥掉 MCP 调用标记（模型不读标记和 nonce），并附上失败前已完成的 MCP 调用摘要。技能的保存设置只交给该技能脚本的纯调用（`plain_skill_call`）：命令按纯调用走 `ensure_skills_in_workspace(pristine=True)` 先把工作区里的技能目录还原成随包文件（还原失败则不交设置），其余命令照常执行但不带设置，失败消息末尾附 `settings_withheld_note`。会话有工作区根目录时才执行 Office 写入审计（`OfficeBashAudit`）。 | ✅ |
-| `background_mixin.py` | Core | ``spawn_background()`` 后台进程注册（后台作业默认受当前 agent 能力句柄约束）；作业与前台命令在同一目录起跑（`_execution_workspace_root` 给出的根：项目绑定的聊天里是项目目录而不是会话自己的存储目录），启动作业不改动执行器的绑定；由平台自己的 bash 读命令（与前台会话同一方言，`source`、`[[ ]]` 照常可用；没有 bash 的 Windows 用 PATH 上的 ``sh``）；剥离裸尾 ``&`` 防孤儿进程；启动前把最终文本按 shell 语义过一遍 ``check_shell_threats``（后台和自动让出都走这里启动 shell，权限引擎只把 Python 源码当 Python 看）。 | ✅ |
+| `background_mixin.py` | Core | ``spawn_background()`` 后台进程注册（后台作业默认受当前 agent 能力句柄约束）；作业与前台命令在同一目录起跑（`_execution_workspace_root` 给出的根：项目绑定的聊天里是项目目录而不是会话自己的存储目录），启动作业不改动执行器的绑定；命令里的 `/workspace` 与前台命令一样换成这个根再交给 shell（根带空格或 shell 元字符时，在 shell 当普通文本读的位置加引号，文件夹名不会被拆开或当命令执行；威胁检查、作业列表与命令执行记录里仍是模型写的原命令）；由平台自己的 bash 读命令（与前台会话同一方言，`source`、`[[ ]]` 照常可用；没有 bash 的 Windows 用 PATH 上的 ``sh``）；剥离裸尾 ``&`` 防孤儿进程；启动前把最终文本按 shell 语义过一遍 ``check_shell_threats``（后台和自动让出都走这里启动 shell，权限引擎只把 Python 源码当 Python 看）。 | ✅ |
 | `prepare_mixin.py` | Core | 代码类型检测、`CallerScope`（服务端替哪次运行调用，由宿主决定）、技能命令按需起这次执行的 MCP IPC 服务端（`PreparedExecution` 带回该服务端的标记 nonce）；内联 Python 之外，裸 `[cd <工作区根> &&] python[3] <file>.py` 形态的保存脚本若导入宿主能服务的 MCP 技能，也由宿主读入并走同一套技能运行时，但其服务端范围带 `script_file`，只放行只读 MCP 工具；其余启动形态（带参数/管道/环境变量前缀等）仍交给 shell；技能 staging；MCP 技能的超时下限取该技能各 server 最长 `execute_timeout` + `MCP_HOST_MARGIN_SECONDS`（不低于 `MCP_MIN_TIMEOUT`），使带名字的错误先于宿主的终止到达脚本。语法预检只校验模型自己的程序（技能代码取 `SkillExecutionContext.user_code`，即客户端之后、包装脚本单独编译的部分），报错的行号以它的第一行为 1，并带出错行的原文。 | ✅ |
 | `context_mixin.py` | Core | ExecutionContext 构建（带当前请求的取消令牌，使停止能到达在跑的命令；技能命令带 `enter_work_dir`，从技能目录起跑）、`_execution_workspace_root`（`/workspace` 对 shell 与解释器的含义：执行器绑定的根，未绑定才用会话自己的工作区目录；保存脚本的解析与执行上下文共用它）、OAuth issuer 作用域、事件日志。 | ✅ |
 | `constants.py` | Internal | 共享常量（MCP 超时下限、宿主相对 server 调用上限的余量）。 | — |
@@ -19,7 +19,7 @@ BashExecutor 聚合根与执行编排域：同步/后台执行、上下文构建
 | `mcp_citation_handler.py` | Core | MCP Metadata Extractor：只信任带这次执行的 IPC 服务端 nonce 的标记（调用方显式传入；没有 nonce 即不信任任何标记）；从标记解出的内容以及自己不认证的形似标记片段会再脱敏（输出脱敏器放行了它们）；`extract_completed_calls` 供失败路径取出去标记的 stdout 和「失败前已完成的 MCP 调用」一行摘要。 | ✅ |
 | `event_logging.py` | Internal | 命令执行事件日志（命令经 `redact_command_line` 脱敏，输出经共享脱敏器，再分类）。 | ✅ |
 | `error.py` | Core | 结构化 ``BashExecutionError``，携带 stdout/stderr eviction 引用与异常消息脱敏。 | ✅ |
-| `auto_yield.py` | Core | 前台白名单命令超时自动后台化。 | ✅ |
+| `auto_yield.py` | Core | 前台白名单命令超时自动后台化；返回只带作业最后 50 行，作业打印得更多时输出行之前有一行说明漏了几行，作业有日志时一并给出日志路径；转后台的返回在输出行之后带作业未结束的最后一行（提示没有换行，输出行里读不到它）。 | ✅ |
 | `command_classifier.py` | Core | 命令分类器（READ/WRITE/DANGEROUS/NETWORK/GIT/SEARCH/PYTHON/SKILL）。 | ✅ |
 
 ## Key Dependencies

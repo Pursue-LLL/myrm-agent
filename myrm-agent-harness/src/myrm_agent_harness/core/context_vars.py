@@ -4,10 +4,11 @@ ContextVars defined here can be safely imported from any layer without
 introducing forbidden dependencies (e.g. toolkits/ → agent/).
 
 [INPUT]
-- (none at runtime — stdlib ContextVar definitions; core.security.types::AccessRoot only for typing)
+- (none at runtime — stdlib ContextVar and zoneinfo; core.security.types::AccessRoot only for typing)
 
 [OUTPUT]
 - user_timezone_var: User timezone string (e.g. "Asia/Shanghai")
+- request_timezone: The requester's zone name when it is a real IANA zone, else None
 - datetime_injection_enabled_var: Whether to inject timestamps into messages
 - prompt_routing_key_var: Session-scoped routing key for OpenAI prompt cache affinity
 - workspace_root_var: Sandbox workspace root for toolkit spill paths
@@ -39,12 +40,29 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
 if TYPE_CHECKING:
     from myrm_agent_harness.core.security.types import AccessRoot
 
 user_timezone_var: ContextVar[str | None] = ContextVar("user_timezone", default=None)
 datetime_injection_enabled_var: ContextVar[bool] = ContextVar("datetime_injection_enabled", default=True)
+
+
+def request_timezone() -> str | None:
+    """The zone of the request this code runs in; None when it carries none or a name that is not a real zone.
+
+    The name comes from the client, so it is checked once here: every reader then gets a name ``ZoneInfo`` accepts.
+    """
+    name = (user_timezone_var.get() or "").strip()
+    if not name:
+        return None
+    try:
+        ZoneInfo(name)
+    except (ValueError, OSError, KeyError):
+        return None
+    return name
+
 
 # OpenAI prompt_cache_key routing hint — set per-session to maximize KV cache hit
 # rate by ensuring requests from the same session route to the same inference node.

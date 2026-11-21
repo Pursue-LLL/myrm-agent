@@ -7,7 +7,9 @@
 
 [POS]
 Detects the leading [use skill] tag (grammar: skill_reference.parse_use_tag) and pre-injects bundled SOP
-content before run().
+content before run(). A skill the user named whose SOP the message cannot carry (unknown name, unreadable
+SOP, past the size budget) is named with its reason in a NOTE after the header, so the model knows the SOP
+is missing and can load the skill itself or tell the user.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ if TYPE_CHECKING:
 
     from langchain_core.messages import BaseMessage
 
+    from myrm_agent_harness.agent.types import AgentRuntimeConfig
     from myrm_agent_harness.backends.skills.protocols import SkillBackend
     from myrm_agent_harness.utils.chat_utils import ChatHistoryReq
 
@@ -48,6 +51,7 @@ class SkillAgentPreloadMixin:
     _TOKEN_BUDGET_MAX = 12000
     """Soft cap (in estimated characters) for combined SOP injection to prevent token explosion."""
 
+    config: AgentRuntimeConfig
     skill_backend: SkillBackend | None
 
     if TYPE_CHECKING:
@@ -66,19 +70,28 @@ class SkillAgentPreloadMixin:
         invocation = parse_use_tag(_last_human_text(chat_history))
         if invocation is None or not self.skill_backend:
             return []
-        return self._resolve_referenced_skills(invocation.references, await self._get_cached_skills())
+        resolved, _ = self._resolve_referenced_skills(invocation.references, await self._get_cached_skills())
+        return resolved
 
     @staticmethod
-    def _resolve_referenced_skills(references: Sequence[str], skills: list[SkillMetadata]) -> list[SkillMetadata]:
-        """Skills the ``[use ...]`` references name, each at most once and in the order typed."""
+    def _resolve_referenced_skills(
+        references: Sequence[str], skills: list[SkillMetadata]
+    ) -> tuple[list[SkillMetadata], list[str]]:
+        """Resolve the ``[use ...]`` references.
+
+        Returns the skills they name, each at most once and in the order typed, and the references that
+        name no skill.
+        """
         resolved: dict[str, SkillMetadata] = {}
+        unresolved: list[str] = []
         for reference in references:
             skill = resolve_skill_reference(reference, skills)
             if skill is None:
                 logger.info("Explicit skill '%s' not found in %d skills — skipped", reference, len(skills))
+                unresolved.append(reference)
             else:
                 resolved.setdefault(skill.name, skill)
-        return list(resolved.values())
+        return list(resolved.values()), unresolved
 
     async def _preload_explicit_skill_in_blocks(
         self, blocks: list[dict[str, object]]
@@ -110,9 +123,13 @@ class SkillAgentPreloadMixin:
         The ``[instruction: ...]`` suffix in the ``[use ...]`` tag is also supported
         for ephemeral bundle guidance.
 
+        A skill the user named whose SOP the message does not carry (unknown name, unreadable SOP, past
+        the budget) is listed with its reason in a NOTE after the header, so the model can load it itself
+        or tell the user.
+
         Returns:
-            (modified_query, primary_skill_meta, preloaded_skills) — on failure the
-            query is unchanged and both skill slots are empty.
+            (modified_query, primary_skill_meta, preloaded_skills) — when no named skill can deliver an
+            SOP the query is unchanged and both skill slots are empty.
         """
         invocation = parse_use_tag(query)
         if invocation is None:
@@ -123,7 +140,7 @@ class SkillAgentPreloadMixin:
             logger.debug("Explicit skill(s) %s requested but no skill_backend", skill_names)
             return query, None, []
 
-        matched = self._resolve_referenced_skills(skill_names, await self._get_cached_skills())
+        matched, unresolved = self._resolve_referenced_skills(skill_names, await self._get_cached_skills())
         if not matched:
             return query, None, []
 
@@ -131,11 +148,11 @@ class SkillAgentPreloadMixin:
             get_skill_document,
         )
 
-        sop_sections: list[str] = []
+        delivered: list[tuple[SkillMetadata, str]] = []
+        skipped = [f"{reference} (not found)" for reference in unresolved]
         total_chars = 0
-        loaded_names: list[str] = []
 
-        for skill_meta in matched:
+        for index, skill_meta in enumerate(matched):
             try:
                 skill_instance = await self._resolve_skill_instance_for_l1(skill_meta.name)
                 sop_doc = await get_skill_document(
@@ -145,10 +162,12 @@ class SkillAgentPreloadMixin:
                 )
             except Exception:
                 logger.warning("Failed to preload SOP for skill '%s' — skipped", skill_meta.name, exc_info=True)
+                skipped.append(f"{skill_meta.name} (could not be read)")
                 continue
 
             if not sop_doc:
                 logger.info("No SOP delivered for skill '%s' — skipped", skill_meta.name)
+                skipped.append(f"{skill_meta.name} (could not be read)")
                 continue
 
             section_parts = [f"--- Skill: {skill_meta.name} ---", sop_doc]
@@ -158,28 +177,30 @@ class SkillAgentPreloadMixin:
                 section_parts.append(f"WARNING: Skill '{skill_meta.name}' is UNAVAILABLE ({reason}).")
 
             section_text = "\n".join(section_parts)
-            if total_chars + len(section_text) > self._TOKEN_BUDGET_MAX and sop_sections:
+            if total_chars + len(section_text) > self._TOKEN_BUDGET_MAX and delivered:
+                over_budget = [later.name for later in matched[index:]]
                 logger.warning(
-                    "Token budget exceeded after %d skills (%d chars), skipping '%s'",
-                    len(sop_sections),
+                    "Token budget exceeded after %d skills (%d chars), skipping %s",
+                    len(delivered),
                     total_chars,
-                    skill_meta.name,
+                    over_budget,
                 )
+                skipped.extend(f"{name} (preload size budget reached)" for name in over_budget)
                 break
 
-            sop_sections.append(section_text)
+            delivered.append((skill_meta, section_text))
             total_chars += len(section_text)
-            loaded_names.append(skill_meta.name)
 
-        if not sop_sections:
+        if not delivered:
             return query, None, []
 
-        is_bundle = len(sop_sections) > 1
+        preloaded_skills = [skill_meta for skill_meta, _ in delivered]
+        loaded_names = [skill_meta.name for skill_meta in preloaded_skills]
         names_str = ", ".join(loaded_names)
 
-        if is_bundle:
+        if len(delivered) > 1:
             header = (
-                f"[IMPORTANT: The following {len(sop_sections)} skills have been preloaded as a bundle: "
+                f"[IMPORTANT: The following {len(delivered)} skills have been preloaded as a bundle: "
                 f"{names_str}. Follow ALL their SOP instructions. Do NOT call skill_select_tool "
                 f"for these skills — their content is already provided below.]"
             )
@@ -190,7 +211,10 @@ class SkillAgentPreloadMixin:
                 f"for this skill — its content is already provided below.]"
             )
 
-        parts = [header, "", *sop_sections]
+        parts = [header]
+        if skipped:
+            parts.append(self._skipped_skills_note(skipped))
+        parts.extend(["", *(section for _, section in delivered)])
 
         if user_args:
             parts.append("")
@@ -198,19 +222,32 @@ class SkillAgentPreloadMixin:
 
         logger.info(
             "Preloaded %d skill(s) %s — SOP injected (%d chars), user_args='%s'",
-            len(sop_sections),
+            len(delivered),
             loaded_names,
             total_chars,
             user_args[:80],
         )
         from myrm_agent_harness.backends.skills.usage_recorder import record_skill_selection
 
-        preloaded_skills = [skill_meta for skill_meta in matched if skill_meta.name in loaded_names]
-
         for skill_meta in preloaded_skills:
             record_skill_selection(skill_meta)
 
         return "\n".join(parts), preloaded_skills[0], preloaded_skills
+
+    def _skipped_skills_note(self, skipped: Sequence[str]) -> str:
+        """Tell the model which skills the user named that this message carries no SOP for, and what to do.
+
+        Without the built-in skill tools (``no_builtin_tools``) there is nothing to load a skill with, so the
+        note points at the user instead of ``skill_select_tool``.
+        """
+        what_now = (
+            "If the task depends on them, tell the user they were not loaded."
+            if self.config.no_builtin_tools
+            else "If the task needs one of them, load it with skill_select_tool; if it cannot be loaded, tell the user."
+        )
+        return (
+            f"[NOTE: The user also requested: {', '.join(skipped)}. No SOP was preloaded for these skills. {what_now}]"
+        )
 
     async def _resolve_skill_instance_for_l1(self, skill_name: str) -> SkillInstance | None:
         """Resolve bound SkillInstance for L1 config footer (matches select tool SSOT)."""

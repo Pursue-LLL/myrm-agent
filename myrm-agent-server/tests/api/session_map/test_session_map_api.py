@@ -24,6 +24,9 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
+    ANTI_THRASHING_STREAK_LIMIT,
+)
 from pydantic import TypeAdapter
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -310,3 +313,10 @@ def test_a_failing_compaction_streak_outranks_a_pending_approval_and_a_live_turn
     chat = _bare_chat("chat-state-4", streak=4)
 
     assert _infer_session_state(chat, frozenset({"chat-state-4"}), frozenset({"chat-state-4"})) == "error"
+
+
+def test_the_streak_a_person_requesting_compactions_can_reach_is_not_an_error() -> None:
+    """A person's compactions stop counting at the guard limit, which stays below the streak that marks a chat as failing."""
+    chat = _bare_chat("chat-state-5", streak=ANTI_THRASHING_STREAK_LIMIT)
+
+    assert _infer_session_state(chat, frozenset(), frozenset()) == "ready"

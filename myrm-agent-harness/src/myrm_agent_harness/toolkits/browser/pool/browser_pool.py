@@ -203,6 +203,7 @@ class GlobalBrowserPool(
             proxy_pool=self._proxy_pool,
             default_emulation=self._config.default_emulation,
             egress_guard=egress_guard,
+            ignore_https_errors=self._config.ignore_https_errors,
         )
         self._lifecycle_task: asyncio.Task[None] | None = None
 

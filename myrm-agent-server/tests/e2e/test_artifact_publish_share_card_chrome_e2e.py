@@ -142,7 +142,7 @@ def test_artifact_publish_encrypted_flow_and_share_card_chrome_e2e() -> None:
         client.evaluate(page, _DISMISS_MODALS_JS, timeout_sec=15.0)
 
         # 3. Test data
-        test_publish_url = "https://myrm-e2e-artifact-report.pages.dev"
+        test_publish_url = "https://e2e-artifact-report.pages.dev"
         test_password = "Boss2026Password!"
         test_title = "Q4-Profit-Analysis.html"
 

@@ -20,20 +20,15 @@ from pydantic import BaseModel
 from .common import mark_untrusted
 
 if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
+
     from ..session import BrowserSession
 
 
-def create_inspect_tool(session: BrowserSession):
+def create_inspect_tool(session: BrowserSession) -> BaseTool:
     """Create browser_inspect tool bound to session."""
 
     class InspectInput(BaseModel):
-        """Analyze page structure and get recommended CSS selectors before taking snapshots.
-
-        USAGE:
-        - Call on complex or large pages to inspect structure without fetching full ARIA trees.
-        - Provides recommended CSS selectors (e.g. 'main', '#content') to use in browser_snapshot_tool.
-        """
-
         pass  # No parameters needed
 
     @tool("browser_inspect_tool", args_schema=InspectInput)

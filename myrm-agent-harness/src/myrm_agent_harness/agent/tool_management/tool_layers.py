@@ -215,7 +215,6 @@ _TOOL_REPLAY_SAFETY: dict[str, ReplaySafety] = {
     "browser_inspect_tool": ReplaySafety.SAFE,
     "browser_snapshot_tool": ReplaySafety.SAFE,
     "desktop_snapshot_tool": ReplaySafety.SAFE,
-    "desktop_vision_tool": ReplaySafety.SAFE,
     "kanban_show": ReplaySafety.SAFE,
     "kanban_list_tasks": ReplaySafety.SAFE,
 }

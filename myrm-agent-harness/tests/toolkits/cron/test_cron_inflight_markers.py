@@ -2,9 +2,9 @@
 
 The scheduler writes a persisted marker for every run before anything else and clears it when the job's last run
 ends. A start turns the markers the previous process left into interrupted-run records, one counted failure each,
-and tells the application about each crashed run, before it replays what came due. Every test drives the real
-scheduler, executor and recovery over the in-memory store; only the runner, the lock and the injected store faults
-are stand-ins.
+before it replays what came due; what the application hears of them is in ``test_cron_interrupted_notice.py``.
+Every test drives the real scheduler, executor and recovery over the in-memory store; only the runner, the lock and
+the injected store faults are stand-ins.
 """
 
 from __future__ import annotations
@@ -22,9 +22,6 @@ from myrm_agent_harness.toolkits.cron.engine import scheduler_dispatch
 from myrm_agent_harness.toolkits.cron.engine.recovery import StartupRecovery
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
-    CronNotice,
-    CronNoticeKind,
-    DeliveryConfig,
     DeliveryStatus,
     JobStatus,
     RunStatus,
@@ -195,7 +192,12 @@ class TestReportInterrupted:
         assert (run.status, run.trigger_source, run.error) == (RunStatus.ERROR, "shutdown", STOPPING)
         assert (run.started_at, run.delivery_status) == (started, DeliveryStatus.SKIPPED) and run.finished_at >= started
         stored = await stack.stored()
-        assert (stored.status, stored.consecutive_failures, stored.last_error) == (JobStatus.ACTIVE, 2, STOPPING)
+        assert (stored.status, stored.last_status, stored.consecutive_failures, stored.last_error) == (
+            JobStatus.ACTIVE,
+            RunStatus.ERROR,
+            2,
+            STOPPING,
+        )
         assert stored.next_run_at is not None and await stack.markers() == []
 
     async def test_the_marker_of_a_deleted_job_is_dropped_without_a_record(self, stack: InflightStack) -> None:
@@ -224,80 +226,6 @@ class TestReportInterrupted:
 
         assert await stack.interrupted("b") == [("recovery", CRASHED)]
         assert await stack.markers() == [] and "Job a: could not record its interrupted run" in caplog.text
-
-
-class TestInterruptedNotice:
-    async def test_a_start_announces_a_crashed_run_as_a_failed_one(self, stack: InflightStack) -> None:
-        job = await stack.add(due=timedelta(hours=-1), chat_id="chat-7")
-        await stack.store.mark_running(job.id)
-
-        await stack.scheduler.start()
-        await stack.scheduler.stop()
-
-        assert stack.notices == [
-            CronNotice(
-                kind=CronNoticeKind.RUN_FAILED, job_name="job job-1", text=f"[job job-1] {CRASHED}", chat_id="chat-7"
-            )
-        ]
-
-    async def test_the_application_hears_of_it_once_the_record_and_the_failure_are_stored(
-        self, stack: InflightStack
-    ) -> None:
-        job = await stack.add()
-        await stack.store.mark_running(job.id)
-        seen: list[tuple[int, list[tuple[str | None, str | None]]]] = []
-
-        async def on_interrupted(_job: CronJob) -> None:
-            seen.append(((await stack.stored()).consecutive_failures, await stack.interrupted()))
-
-        await StartupRecovery(stack.store, AsyncMock(), on_interrupted).report_interrupted(counted=True)
-
-        assert seen == [(1, [("recovery", CRASHED)])]
-
-    async def test_a_graceful_stop_leaves_its_record_and_announces_nothing(self, stack: InflightStack) -> None:
-        job = await stack.add()
-        await stack.launch(job)
-
-        await stack.scheduler.stop()
-
-        assert await stack.interrupted() == [("shutdown", STOPPING)] and stack.notices == []
-
-    async def test_a_job_that_delivers_nowhere_is_recorded_but_not_announced(self, stack: InflightStack) -> None:
-        job = await stack.add(due=timedelta(hours=-1), delivery=DeliveryConfig(channel="none"))
-        await stack.store.mark_running(job.id)
-
-        await stack.scheduler.start()
-        await stack.scheduler.stop()
-
-        assert await stack.interrupted() == [("recovery", CRASHED)] and stack.notices == []
-        assert (await stack.stored()).consecutive_failures == 1
-
-    async def test_a_deleted_job_is_not_announced(self, stack: InflightStack) -> None:
-        await stack.store.mark_running("gone")
-
-        await stack.scheduler.start()
-        await stack.scheduler.stop()
-
-        assert stack.notices == []
-
-    async def test_a_callback_that_fails_costs_the_notice_not_the_report(
-        self, stack: InflightStack, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        for job_id in ("a", "b"):
-            await stack.add(job_id)
-            await stack.store.mark_running(job_id)
-        announced: list[str] = []
-
-        async def on_interrupted(job: CronJob) -> None:
-            announced.append(job.id)
-            raise RuntimeError("no listener")
-
-        with caplog.at_level(logging.WARNING):
-            await StartupRecovery(stack.store, AsyncMock(), on_interrupted).report_interrupted(counted=True)
-
-        assert sorted(announced) == ["a", "b"] and await stack.markers() == []
-        assert await stack.interrupted("a") == await stack.interrupted("b") == [("recovery", CRASHED)]
-        assert "Job a: the interrupted-run notice failed: no listener" in caplog.text
 
 
 class TestStart:

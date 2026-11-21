@@ -477,13 +477,13 @@ class TestPublishedApprovalEvent:
                 agent_id="agent-1",
                 chat_id=None,
                 thread_id="thread-1",
-                action_type="script_privileged_api",
+                action_type="high_risk_dom_action",
                 payload={},
-                reason="The script reads cookies",
+                reason="The click submits a payment",
                 severity="warning",
             )
 
         card = format_notification(bus.publish.call_args.args[0], channel="slack", locale="en")
 
         assert card is not None
-        assert "> The script reads cookies" in card.content
+        assert "> The click submits a payment" in card.content

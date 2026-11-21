@@ -1,14 +1,15 @@
 """Action handlers of ``bash_process_tool``: list, output, wait, kill and stdin on a session's background jobs.
 
 [INPUT]
-- agent.meta_tools.bash._background.registry::get_background_registry (POS: registry singleton)
+- agent.context_management.infra.evicted::evicted_rel_path (POS: where an evicted file lives; names the log of a listed job)
+- agent.meta_tools.bash._background.poll::report_result_read (POS: tells the wakeup handler the model now holds a finished job's result)
+- agent.meta_tools.bash._background.registry::BackgroundProcessRegistry / get_background_registry (POS: registry singleton; ``get_partial_line`` is the unfinished last line of a running job)
 - agent.meta_tools.bash._background.termination::GROUP_VISIBLE (POS: whether the platform can list a job's process group)
-- agent.meta_tools.bash._background.types::build_input_wait_hint (POS: shared dataclasses & typing.)
-- agent.meta_tools.bash._tool.output_filter_core::compile_output_filter / filter_output_lines (POS: incremental output regex line filter)
+- agent.meta_tools.bash._background.types::BackgroundProcessInfo / OutputTail / build_input_wait_hint (POS: shared dataclasses & typing.)
 
 [OUTPUT]
 - OUTPUT_DEFAULT_LINES: default tail size per stream
-- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero)
+- handle_list / handle_output / handle_wait / handle_kill / handle_stdin: one coroutine per action, each returning the tool payload ``{content, metadata}``; ``output`` and a finished ``wait`` carry the same output fields (both streams, ``dropped``, ``omitted_lines`` when the view leaves lines out, and then ``log_file`` when the job has a log), ``list`` names each job's ``log_file``; ``output`` and a ``wait`` that times out on a running job add the idle flag with its note and, when the job has printed text without a newline, ``partial_line``; ``list``, ``output`` and ``wait`` name what a finished job left running (``leftover_processes``, present only when above zero); an ``output`` or ``wait`` that returns a job's own exit reports the result read, ``list`` and a running job's ``output`` never do
 - kill_report: the text a kill returns to the model, stating what the stop actually achieved
 
 [POS]
@@ -17,13 +18,16 @@ Session-scoped handlers behind the ``bash_process_tool`` facade, which owns the 
 
 from __future__ import annotations
 
-import re
-
+from myrm_agent_harness.agent.context_management.infra.evicted import evicted_rel_path
+from myrm_agent_harness.agent.meta_tools.bash._background.poll import report_result_read
 from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
+    BackgroundProcessRegistry,
     get_background_registry,
 )
 from myrm_agent_harness.agent.meta_tools.bash._background.termination import GROUP_VISIBLE
 from myrm_agent_harness.agent.meta_tools.bash._background.types import (
+    BackgroundProcessInfo,
+    OutputTail,
     build_input_wait_hint,
 )
 
@@ -33,25 +37,56 @@ OUTPUT_DEFAULT_LINES = 100
 _NONE_FOUND = "no process it started was found still running (programs that detached themselves are not tracked)"
 
 
+def _stream_fields(streams: OutputTail) -> dict[str, object]:
+    """What a read of a job's output adds to a result: both streams, whether older lines are missing, how many the
+    view leaves out, and the log that holds them."""
+    fields: dict[str, object] = {
+        "stdout": streams["stdout"],
+        "stderr": streams["stderr"],
+        "dropped": streams["dropped"],
+    }
+    omitted_lines = streams.get("omitted_lines")
+    if omitted_lines:
+        fields["omitted_lines"] = omitted_lines
+    log_file = streams.get("log_file")
+    if log_file:
+        fields["log_file"] = log_file
+    return fields
+
+
+def _running_fields(registry: BackgroundProcessRegistry, info: BackgroundProcessInfo) -> dict[str, object]:
+    """What a read of a running job adds: the idle flag, the unfinished last line when there is one, and the note on the flag."""
+    fields: dict[str, object] = {"waiting_for_input": info.waiting_for_input, "last_output_at": info.last_output_at}
+    partial_line = registry.get_partial_line(info.pid)
+    if partial_line:
+        fields["partial_line"] = partial_line
+    hint = build_input_wait_hint(info)
+    if hint:
+        fields["input_wait_hint"] = hint
+    return fields
+
+
+def _listed(info: BackgroundProcessInfo) -> dict[str, object]:
+    """One job as ``list`` shows it: its state, and the log of its output once it has one."""
+    row = info.to_dict()
+    if info.session_id and info.vault_log_ref:
+        row["log_file"] = evicted_rel_path(info.session_id, info.vault_log_ref)
+    return row
+
+
 async def handle_list(session_id: str) -> dict[str, object]:
     registry = get_background_registry()
     items = registry.list_processes(session_id=session_id)
     return {
         "content": {
-            "processes": [i.to_dict() for i in items],
+            "processes": [_listed(i) for i in items],
             "count": len(items),
         },
         "metadata": {"session_id": session_id, "action": "list"},
     }
 
 
-async def handle_output(
-    session_id: str,
-    pid: int,
-    max_lines: int,
-    since_cursor: int | None,
-    filter_pattern: str | None,
-) -> dict[str, object]:
+async def handle_output(session_id: str, pid: int, max_lines: int) -> dict[str, object]:
     registry = get_background_registry()
     info = registry.get(pid)
     if info is None or info.session_id != session_id:
@@ -59,72 +94,24 @@ async def handle_output(
             "content": f"No background process with pid={pid} in this session.",
             "metadata": {"pid": pid, "found": False, "action": "output"},
         }
-    line_filter = None
-    if filter_pattern:
-        from myrm_agent_harness.agent.meta_tools.bash._tool.output_filter_core import (
-            compile_output_filter,
-        )
-
-        try:
-            line_filter = compile_output_filter(filter_pattern)
-        except (re.error, ValueError) as exc:
-            return {
-                "content": f"Invalid output filter regex: {exc}",
-                "metadata": {
-                    "pid": pid,
-                    "found": True,
-                    "action": "output",
-                    "error": "invalid_filter",
-                },
-            }
-
-    streams = registry.get_output(pid, max_lines=max_lines, since_cursor=since_cursor)
-    stdout = streams["stdout"]
-    stderr = streams["stderr"]
-    if line_filter is not None:
-        from myrm_agent_harness.agent.meta_tools.bash._tool.output_filter_core import (
-            filter_output_lines,
-        )
-
-        stdout = filter_output_lines(list(stdout) if isinstance(stdout, list) else [], line_filter)
-        stderr = filter_output_lines(list(stderr) if isinstance(stderr, list) else [], line_filter)
-
-    poll_hint = streams.get("poll_hint")
-    metadata: dict[str, object] = {
-        "pid": pid,
-        "session_id": session_id,
-        "action": "output",
-    }
-    if filter_pattern:
-        metadata["filter"] = filter_pattern
-    if isinstance(poll_hint, dict):
-        metadata["poll_hint"] = poll_hint
 
     content: dict[str, object] = {
         "pid": pid,
         "status": info.status,
         "exit_code": info.exit_code,
         "error_category": info.error_category,
-        "stdout": stdout,
-        "stderr": stderr,
-        "next_cursor": streams["next_cursor"],
-        "dropped": streams["dropped"],
-        "poll_hint": poll_hint,
     }
-    if streams.get("spill_log_ref"):
-        content["spill_log_ref"] = streams["spill_log_ref"]
+    content.update(_stream_fields(registry.get_output(pid, max_lines=max_lines)))
     if info.leftover_processes:
         content["leftover_processes"] = info.leftover_processes
     if info.status == "running":
-        content["waiting_for_input"] = info.waiting_for_input
-        content["last_output_at"] = info.last_output_at
-        hint = build_input_wait_hint(info)
-        if hint:
-            content["input_wait_hint"] = hint
+        content.update(_running_fields(registry, info))
+    else:
+        report_result_read(info)
 
     return {
         "content": content,
-        "metadata": metadata,
+        "metadata": {"pid": pid, "session_id": session_id, "action": "output"},
     }
 
 
@@ -149,19 +136,15 @@ async def handle_wait(session_id: str, pid: int, timeout_seconds: int) -> dict[s
         live = registry.get(pid)
         content["message"] = f"pid={pid} still running after {timeout_seconds}s; poll with action=output or wait again."
         if live is not None and live.status == "running":
-            content["waiting_for_input"] = live.waiting_for_input
-            content["last_output_at"] = live.last_output_at
-            hint = build_input_wait_hint(live)
-            if hint:
-                content["input_wait_hint"] = hint
+            content.update(_running_fields(registry, live))
     else:
-        streams = registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)
-        content["stdout"] = streams.get("stdout", [])
-        content["stderr"] = streams.get("stderr", [])
-        # The job may have finished during the wait, so what it left running is read now, not from the first snapshot.
+        content.update(_stream_fields(registry.get_output(pid, max_lines=OUTPUT_DEFAULT_LINES)))
+        # The job may have finished during the wait, so its state is read now, not from the first snapshot.
         finished = registry.get(pid)
-        if finished is not None and finished.leftover_processes:
-            content["leftover_processes"] = finished.leftover_processes
+        if finished is not None:
+            if finished.leftover_processes:
+                content["leftover_processes"] = finished.leftover_processes
+            report_result_read(finished)
     return {
         "content": content,
         "metadata": {

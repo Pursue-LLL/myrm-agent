@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - process.env.NEXT_PUBLIC_DEPLOY_MODE / NEXT_PUBLIC_API_BASE_URL / NEXT_PUBLIC_BACKEND_BASE_URL (POS: 前端运行时配置)
+ * - constants/brand::OFFICIAL_DOCS_URL (POS: 官方文档站根地址，`getDocsUrl` 未配置 `NEXT_PUBLIC_DOCS_URL` 时的默认基地址)
  *
  * [OUTPUT]
  * - isTauriRuntime: Tauri 运行时判定。
@@ -9,7 +10,7 @@
  * - getApiBaseUrl: 返回安全的 API 基础地址。
  * - resolveE2eApiBase: 已校验的 E2E 绑定注入的私有后端 origin（所有 E2E 感知调用点读的唯一开关）；生产构建恒为 null。
  * - getBackendBaseUrl: 返回安全的后端基础地址。
- * - getDocsUrl: 返回文档站外链。
+ * - getDocsUrl: 按界面语言返回文档页面外链（路径不含文档站前缀；`locale` 为 `zh` 时指向中文译文）。
  * - normalizeConfiguredBaseUrl: 规范化并校验配置的 URL。
  * - RemoteGatewayConfig: 远程网关配置接口。
  * - getRemoteGatewayConfig / setRemoteGatewayConfig: localStorage 远程网关配置读写。
@@ -56,6 +57,7 @@ import {
   resolveProfileApiBase,
   setActiveRemoteProfileId,
 } from './remote-profiles';
+import { OFFICIAL_DOCS_URL } from './constants/brand';
 
 export type DeployMode = 'tauri' | 'local' | 'sandbox';
 
@@ -433,9 +435,9 @@ export function getNotificationStreamUrl(): string {
   return `${getApiBaseUrl()}/notifications/stream`;
 }
 
-/** Documentation site base URL (Mintlify). */
-export function getDocsUrl(path: string = '/'): string {
-  const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, 'https://docs.myrm.ai');
+/** URL of a documentation page, in Chinese when the interface language is `zh` and in English otherwise. */
+export function getDocsUrl(path: string, locale: string): string {
+  const base = normalizeConfiguredBaseUrl(process.env.NEXT_PUBLIC_DOCS_URL, OFFICIAL_DOCS_URL);
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-  return `${base}${normalizedPath === '/' ? '' : normalizedPath}`;
+  return `${base}${locale === 'zh' ? '/zh' : ''}${normalizedPath}`;
 }

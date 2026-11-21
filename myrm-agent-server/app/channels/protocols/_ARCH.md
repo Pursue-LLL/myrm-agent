@@ -11,7 +11,7 @@ Channel system protocols — interfaces for business-layer injection.
 | adapters.py | Core | Adapter layer for framework independence. Business layer implements these | ✅ |
 | agent.py | Core | Agent execution protocol for Channel inbound messages. Framework AgentRouter delegates via this protocol; supports cancel_token, steering_token, and topic_context. | ✅ |
 | async_login.py | Core | Protocol layer for external channel async login. Enables channels to | ✅ |
-| compact.py | Core | Business-layer handler protocol for the /compact slash command. Framework parses user_id | ✅ |
+| compact.py | Core | Business-layer handler protocol for the /compact slash command. Framework parses user_id and delegates; `CompactSkip` is the closed set of reasons nothing was compacted (nothing to compact, busy, paused, failed) that the framework words per locale, and an absent skip reads as failed. | ✅ |
 | goal_command.py | Core | Business-layer handler protocol for /goal slash commands. Framework parses subcommands and delegates goal lifecycle operations via this protocol; kickoff messages start the work after /goal set and /goal resume. | ✅ |
 | inbound_profile.py | Core | Per-channel inbound/outbound transport profile — SSOT for which channels need public Ingress when configured. Covers every built-in registry channel (list completeness guarded by test), and each configured_field is asserted to match the channel's real credential db_key (drift-guard test). | ✅ |
 | pairing.py | Core | Storage protocol for Channel user identity binding and group access policies (`get_guest_mode`, enabled groups). Framework resolves inbound | ✅ |

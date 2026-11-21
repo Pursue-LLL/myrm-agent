@@ -163,7 +163,7 @@ async def test_build_default_turn1_tools_resolves_default_profile() -> None:
 # byte-constant description, so its token count is asserted exactly. The bash tool is
 # the one exception: its description is
 # ``resolve_bash_code_execute_tool_description(locale) + get_os_hint(locale)``
-# (bash_code_execute_tool.py:123), and the OS hint embeds ``os_release`` + ``arch``
+# (in ``create_bash_code_execute_tool``), and the OS hint embeds ``os_release`` + ``arch``
 # (platform.py:116-122). Its total therefore varies by host (58 on macOS arm64,
 # 32 on ubuntu-latest, 31/36 on other Linux flavors) — so the gate pins the
 # host-independent static half and subtracts the locally measured hint instead.
@@ -171,7 +171,7 @@ _BASH_TOOL_NAME = "bash_code_execute_tool"
 _BASH_STATIC_DESCRIPTION_TOKENS = 659
 
 _DOC_TURN1_TOOL_TOKENS: dict[str, int] = {
-    "bash_process_tool": 107,
+    "bash_process_tool": 175,
     "file_edit_tool": 61,
     "file_read_tool": 47,
     "file_write_tool": 39,

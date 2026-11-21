@@ -195,7 +195,6 @@ class ConversationRecallIndexService:
                         "chat_title": title,
                         "snippet": snippet,
                         "source": row.source,
-                        "is_relaxed": bool(getattr(row, "rank", 0) == -1.0),
                     }
                 )
 

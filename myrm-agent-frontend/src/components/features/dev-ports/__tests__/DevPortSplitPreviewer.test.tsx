@@ -75,7 +75,7 @@ describe('DevPortSplitPreviewer component', () => {
   it('generates and copies public tunnel URL on button click', async () => {
     const mockTunnelResponse = {
       port: 3000,
-      tunnel_url: 'https://tunnel-3000.sandbox.myrm.io',
+      tunnel_url: 'https://tunnel-3000.sandbox.example',
       expires_in_seconds: 3600,
     };
     vi.spyOn(devPortsService, 'createDevPortTunnel').mockResolvedValueOnce(mockTunnelResponse);
@@ -94,7 +94,7 @@ describe('DevPortSplitPreviewer component', () => {
 
     await waitFor(() => {
       expect(devPortsService.createDevPortTunnel).toHaveBeenCalledWith(3000);
-      expect(writeTextMock).toHaveBeenCalledWith('https://tunnel-3000.sandbox.myrm.io');
+      expect(writeTextMock).toHaveBeenCalledWith('https://tunnel-3000.sandbox.example');
     });
   });
 

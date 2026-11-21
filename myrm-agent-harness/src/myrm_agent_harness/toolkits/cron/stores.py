@@ -8,6 +8,7 @@ Thread-safe for asyncio (single event loop) via ``asyncio.Lock``.
 [INPUT]
 - infra.incremental.types::MonitorState (POS: Domain types for incremental monitoring.)
 - cron.run_status_filter::matching_run_statuses (POS: the stored statuses a run-history status filter selects)
+- cron.types::CronJob, CronRunRecord, JobStatus, is_system_job_name (POS: cron data models)
 
 [OUTPUT]
 - InMemoryCronStore: CronStore backed by plain dicts — zero external dependencies.
@@ -28,6 +29,7 @@ from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     CronRunRecord,
     JobStatus,
+    is_system_job_name,
 )
 
 
@@ -61,6 +63,7 @@ class InMemoryCronStore:
         chat_id: str | None = None,
         project_id: str | None = None,
         due_before: datetime | None = None,
+        include_system: bool = True,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[CronJob]:
@@ -76,6 +79,9 @@ class InMemoryCronStore:
         if name_filter is not None:
             name_filter_lower = name_filter.lower()
             result = [j for j in result if name_filter_lower in j.name.lower()]
+
+        if not include_system:
+            result = [j for j in result if not is_system_job_name(j.name)]
 
         if due_before is not None:
             result = [
@@ -97,6 +103,7 @@ class InMemoryCronStore:
         name_filter: str | None = None,
         chat_id: str | None = None,
         project_id: str | None = None,
+        include_system: bool = True,
     ) -> int:
         async with self._lock:
             jobs = list(self._jobs.values())
@@ -107,6 +114,8 @@ class InMemoryCronStore:
         if name_filter is not None:
             name_filter_lower = name_filter.lower()
             jobs = [j for j in jobs if name_filter_lower in j.name.lower()]
+        if not include_system:
+            jobs = [j for j in jobs if not is_system_job_name(j.name)]
         return len(jobs)
 
     async def get_job(self, job_id: str) -> CronJob | None:

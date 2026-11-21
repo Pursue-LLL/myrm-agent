@@ -9,7 +9,8 @@
 
 [POS]
 External data-source resolution stage of Agent request conversion. Everything the agent reads
-from the outside world (web search, embeddings/reranker, MCP servers) is assembled here.
+from the outside world (web search, embeddings/reranker, MCP servers) is assembled here from saved
+configuration; no provider is contacted.
 """
 
 from __future__ import annotations
@@ -37,7 +38,6 @@ class ConfigSources:
     """Resolved external data sources for one agent turn."""
 
     search_cfg: SearchServiceConfig | None
-    search_available: bool
     search_is_user_configured: bool
     embedding_cfg: EmbeddingConfig | None
     reranker_cfg: RerankerConfig | None
@@ -45,7 +45,7 @@ class ConfigSources:
 
 
 async def resolve_config_sources(request: AgentRequest, configs: UserConfigs | None) -> ConfigSources:
-    """Resolve search availability, retrieval models and MCP servers."""
+    """Resolve the search service, retrieval models and MCP servers."""
 
     from app.core.channel_bridge.config_cache import invalidate_user_configs_cache
     from app.core.channel_bridge.config_loader import load_user_configs as reload_user_configs
@@ -53,11 +53,9 @@ async def resolve_config_sources(request: AgentRequest, configs: UserConfigs | N
         extract_mcp_configs,
         extract_retrieval_models,
         merge_org_mcp_configs,
-        verify_search_service_available,
     )
 
     search_cfg = configs.search_cfg if configs else None
-    search_available = False
     if search_cfg is None and configs is not None:
         # SHPOIB E2E seeds searchServices on the private API immediately before kickoff;
         # bypass stale config-cache reads so web_search_tool mounts on the same agent turn.
@@ -66,8 +64,6 @@ async def resolve_config_sources(request: AgentRequest, configs: UserConfigs | N
         if refreshed_configs is not None and refreshed_configs.search_cfg is not None:
             configs = refreshed_configs
             search_cfg = refreshed_configs.search_cfg
-    if configs and configs.search_is_user_configured and search_cfg is not None:
-        search_available = await verify_search_service_available(search_cfg)
 
     if request.retrieval_dict:
         embedding_cfg, reranker_cfg = extract_retrieval_models(request.retrieval_dict)
@@ -89,7 +85,6 @@ async def resolve_config_sources(request: AgentRequest, configs: UserConfigs | N
 
     return ConfigSources(
         search_cfg=search_cfg,
-        search_available=search_available,
         search_is_user_configured=bool(configs and configs.search_is_user_configured),
         embedding_cfg=embedding_cfg,
         reranker_cfg=reranker_cfg,

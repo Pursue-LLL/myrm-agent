@@ -60,7 +60,7 @@ _DEV_PORTS_STORE: Dict[int, DevPortInfoResponse] = {
         pid=4281,
         protocol="http",
         url="http://localhost:3000",
-        tunnel_url="https://preview-3000.sandbox.myrm.io",
+        tunnel_url="https://preview-3000.sandbox.example",
         status="listening",
         created_at=datetime.now(timezone.utc).isoformat(),
     ),
@@ -120,7 +120,7 @@ async def create_dev_port_tunnel(port: int) -> DevPortTunnelResponse:
             detail=f"Port {port} is not actively listening",
         )
 
-    tunnel_url = f"https://share-tunnel-{port}-{uuid.uuid4().hex[:6]}.sandbox.myrm.io"
+    tunnel_url = f"https://share-tunnel-{port}-{uuid.uuid4().hex[:6]}.sandbox.example"
     port_info = _DEV_PORTS_STORE[port]
     # Update tunnel URL on the stored port
     updated_info = port_info.model_copy(update={"tunnel_url": tunnel_url})
@@ -160,4 +160,3 @@ async def sniff_and_register_dev_ports(request: DevPortSniffRequest) -> List[Dev
             registered_results.append(new_port_info)
 
     return registered_results
-

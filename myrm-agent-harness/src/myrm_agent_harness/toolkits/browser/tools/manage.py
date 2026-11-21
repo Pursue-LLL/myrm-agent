@@ -281,7 +281,7 @@ def create_manage_tool(session: BrowserSession) -> BaseTool:
         return f"No site experience found for '{domain}'."
 
     async def _handle_run_site_tool(browser_session: BrowserSession, value: str) -> str:
-        """Execute a domain skill tool in the browser session sandbox."""
+        """Call a domain skill tool with the live browser session, in the host process (not in the script runtime)."""
         if not value.strip():
             return (
                 "Error: 'value' must be 'skill_id:tool_name' or "

@@ -10,9 +10,10 @@
  *
  * [POS]
  * Conflict tiers of the config sync layer (see `_ARCH.md`): a clean three-way merge is applied silently, a conflict on
- * the same device keeps the local value, a conflict across devices asks the resolver. The local cache is the user's
- * latest intent, so a version mismatch alone never discards it. Callers hand in the live caches through
- * `ConflictContext`; nothing here holds state.
+ * the same device keeps the local value, a conflict across devices asks the resolver. A key that was never loaded has
+ * no baseline: what only the server holds is kept, and a clash, even with this device's own write, goes to the
+ * resolver. The local cache is the user's latest intent, so a version mismatch alone never discards it. Callers hand
+ * in the live caches through `ConflictContext`; nothing here holds state.
  */
 import { cloneDeep } from 'lodash-es';
 import { threeWayMerge } from './mergeUtils';
@@ -108,10 +109,9 @@ async function reconcileKey(ctx: ConflictContext, key: ConfigKey): Promise<Confi
     return null;
   }
 
-  const baseRecord = ctx.baseCache.get(key);
-  const mergeBase = (baseRecord?.value ?? serverRecord.value) as Record<string, unknown>;
+  const baseValue = ctx.baseCache.get(key)?.value as Record<string, unknown> | null | undefined;
   const mergeResult = threeWayMerge(
-    mergeBase,
+    baseValue,
     localRecord.value as Record<string, unknown>,
     serverRecord.value as Record<string, unknown>,
   );
@@ -123,8 +123,9 @@ async function reconcileKey(ctx: ConflictContext, key: ConfigKey): Promise<Confi
     return retry;
   }
 
-  // 同浏览器 profile 冲突：静默保留本地，不打扰用户
-  let keepLocal = serverRecord.meta.deviceId === ctx.deviceId;
+  // 同浏览器 profile 冲突：静默保留本地，不打扰用户。前提是有基线（本地值由服务端值改来）；
+  // 没有基线时本地值从未见过服务端内容，静默保留会抹掉服务端的数据，必须问用户。
+  let keepLocal = Boolean(baseValue) && serverRecord.meta.deviceId === ctx.deviceId;
   if (!keepLocal) {
     keepLocal = ctx.resolver
       ? await Promise.resolve(

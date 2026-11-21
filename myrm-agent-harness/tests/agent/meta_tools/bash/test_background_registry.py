@@ -1,13 +1,9 @@
-"""Unit tests for the background-process registry used by P1-4."""
+"""Unit tests for the background-process registry: registration, output, progress and reaping."""
 
 from __future__ import annotations
 
 import asyncio
-import signal
-import time
-from collections.abc import Callable
 from typing import cast
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -15,75 +11,14 @@ from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
     BackgroundProcessInfo,
     BackgroundProcessRegistry,
 )
-from myrm_agent_harness.toolkits.code_execution.executors.models import (
-    AsyncProcessProtocol,
-)
-
-
-class _FakeStream:
-    """Minimal asyncio-style ``readline`` stream returning queued lines."""
-
-    def __init__(self, lines: list[bytes]) -> None:
-        self._lines = list(lines)
-
-    async def readline(self) -> bytes:
-        if not self._lines:
-            return b""
-        return self._lines.pop(0)
-
-
-class _FakeProc:
-    """Stand-in for ``AsyncProcessProtocol`` that lets us drive lifecycle.
-
-    The registry kills via :func:`os_compat.kill_spawned_group` (so it can
-    propagate to forked children), not via the proc handle directly. Tests
-    that want to verify kill semantics patch ``kill_spawned_group`` and use
-    :meth:`finish` to drive the wait future.
-    """
-
-    def __init__(self, pid: int, stdout: list[bytes], stderr: list[bytes]) -> None:
-        self._proc = MagicMock()
-        self._proc.pid = pid
-        self.stdout = _FakeStream(stdout)
-        self.stderr = _FakeStream(stderr)
-        self._exit_event = asyncio.Event()
-        self._exit_code = 0
-
-    async def wait(self) -> int:
-        await self._exit_event.wait()
-        return self._exit_code
-
-    def terminate(self) -> None:  # pragma: no cover - retained for protocol compliance
-        self._exit_code = -15
-        self._exit_event.set()
-
-    def kill(self) -> None:  # pragma: no cover - retained for protocol compliance
-        self._exit_code = -9
-        self._exit_event.set()
-
-    def finish(self, exit_code: int = 0) -> None:
-        self._exit_code = exit_code
-        self._exit_event.set()
-
-
-async def _wait_until(predicate: Callable[[], bool], *, timeout_seconds: float = 2.0, what: str = "condition") -> None:
-    """Poll until ``predicate`` holds, replacing blind ``asyncio.sleep`` waits.
-
-    Reader tasks flip registry state asynchronously; a fixed sleep is flaky
-    under high load. Polling makes tests deterministic while yielding control.
-    """
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        await asyncio.sleep(0.01)
-    raise AssertionError(f"Timed out waiting for {what}")
+from myrm_agent_harness.toolkits.code_execution.executors.models import AsyncProcessProtocol
+from tests.agent.meta_tools.bash.fake_background_proc import FakeProc, wait_until
 
 
 @pytest.mark.asyncio
 async def test_register_captures_output_and_status_transitions() -> None:
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=11111, stdout=[b"line-1\n", b"line-2\n"], stderr=[b"warn\n"])
+    proc = FakeProc(pid=11111, stdout=[b"line-1\n", b"line-2\n"], stderr=[b"warn\n"])
 
     info = await registry.register(cast(AsyncProcessProtocol, proc), command="echo hi", session_id="s-1")
 
@@ -101,7 +36,7 @@ async def test_register_captures_output_and_status_transitions() -> None:
     proc.finish(0)
     # Deterministically wait for the reader task to flip status instead of
     # guessing a sleep duration (flaky under high load).
-    await _wait_until(
+    await wait_until(
         lambda: registry.get(11111) is not None and registry.get(11111).status == "exited",  # type: ignore[union-attr]
         what="status transition to exited",
     )
@@ -117,66 +52,17 @@ async def test_register_captures_output_and_status_transitions() -> None:
     assert "line-1" in stdout_lines
     assert "line-2" in stdout_lines
     assert "warn" in stderr_lines
-    assert isinstance(output["next_cursor"], int) and output["next_cursor"] >= 3
     assert output["dropped"] is False
-
-    # Polling with the previous cursor should produce no new lines.
-    next_cursor = output["next_cursor"]
-    assert isinstance(next_cursor, int)
-    follow = registry.get_output(
-        11111,
-        max_lines=10,
-        since_cursor=next_cursor,
-    )
-    assert follow["stdout"] == []
-    assert follow["stderr"] == []
-    assert follow["next_cursor"] == output["next_cursor"]
-
-
-@pytest.mark.asyncio
-async def test_kill_terminates_and_marks_status() -> None:
-    registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=22222, stdout=[], stderr=[])
-    await registry.register(cast(AsyncProcessProtocol, proc), command="sleep 60", session_id="s-2")
-
-    sent: list[tuple[int, int]] = []
-
-    def _record(pid: int, sig: int) -> None:
-        sent.append((pid, sig))
-        proc.finish(-sig)
-
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
-        side_effect=_record,
-    ):
-        ok = await registry.kill(22222, force=False)
-    assert ok is True
-    assert sent == [(22222, signal.SIGTERM)]
-
-    await _wait_until(
-        lambda: registry.get(22222) is not None and registry.get(22222).status == "killed",  # type: ignore[union-attr]
-        what="status transition to killed",
-    )
-    snap = registry.get(22222)
-    assert snap is not None
-    assert snap.status == "killed"
-
-
-@pytest.mark.asyncio
-async def test_kill_unknown_pid_returns_false() -> None:
-    registry = BackgroundProcessRegistry()
-    ok = await registry.kill(99999)
-    assert ok is False
 
 
 @pytest.mark.asyncio
 async def test_per_session_quota_blocks_new_jobs() -> None:
     registry = BackgroundProcessRegistry(per_session_limit=2)
-    procs = [_FakeProc(pid=30000 + i, stdout=[], stderr=[]) for i in range(2)]
+    procs = [FakeProc(pid=30000 + i, stdout=[], stderr=[]) for i in range(2)]
     for proc in procs:
         await registry.register(cast(AsyncProcessProtocol, proc), command="sleep 10", session_id="quota-s")
 
-    third = _FakeProc(pid=30002, stdout=[], stderr=[])
+    third = FakeProc(pid=30002, stdout=[], stderr=[])
     from myrm_agent_harness.agent.meta_tools.bash._background.registry import (
         BackgroundQuotaError,
     )
@@ -190,7 +76,7 @@ async def test_per_session_quota_blocks_new_jobs() -> None:
 
     # Releasing one slot must allow the next register.
     procs[0].finish(0)
-    await _wait_until(
+    await wait_until(
         lambda: registry.get(30000) is not None and registry.get(30000).status != "running",  # type: ignore[union-attr]
         what="slot release for pid 30000",
     )
@@ -200,7 +86,7 @@ async def test_per_session_quota_blocks_new_jobs() -> None:
 @pytest.mark.asyncio
 async def test_progress_listener_fires_for_explicit_marker() -> None:
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(
+    proc = FakeProc(
         pid=44444,
         stdout=[b'MYRM_PROGRESS {"percent": 42, "message": "Compiling"}\n'],
         stderr=[],
@@ -218,7 +104,7 @@ async def test_progress_listener_fires_for_explicit_marker() -> None:
         progress_listener=_listener,
     )
     proc.finish(0)
-    await _wait_until(lambda: len(events) >= 1, what="progress listener dispatch")
+    await wait_until(lambda: len(events) >= 1, what="progress listener dispatch")
 
     assert len(events) == 1
     assert events[0]["progress"] == 42
@@ -226,14 +112,10 @@ async def test_progress_listener_fires_for_explicit_marker() -> None:
 
 
 @pytest.mark.asyncio
-async def test_since_cursor_respects_cross_stream_interleave() -> None:
-    """The per-line cursor must filter both streams without bleeding counts.
-
-    A shared monotonic counter combined with per-stream ``[-delta:]`` slicing would
-    return stale lines (stderr eating into stdout's quota); the per-line cursor avoids that.
-    """
+async def test_output_returns_both_streams_in_full() -> None:
+    """One read returns every line of both interleaved streams; neither stream eats into the other's tail."""
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(
+    proc = FakeProc(
         pid=66666,
         stdout=[b"out-1\n", b"out-2\n", b"out-3\n"],
         stderr=[b"err-1\n", b"err-2\n"],
@@ -243,18 +125,14 @@ async def test_since_cursor_respects_cross_stream_interleave() -> None:
         command="echo",
         session_id="cur-s",
     )
-    await _wait_until(
+    await wait_until(
         lambda: cast(list[str], registry.get_output(66666, max_lines=10)["stdout"]) == ["out-1", "out-2", "out-3"],
         what="stdout lines ingested",
     )
     first = registry.get_output(66666, max_lines=10)
-    assert {"out-1", "out-2", "out-3"}.issubset(set(cast(list[str], first["stdout"])))
-    assert {"err-1", "err-2"}.issubset(set(cast(list[str], first["stderr"])))
-
-    follow = registry.get_output(66666, max_lines=10, since_cursor=cast(int, first["next_cursor"]))
-    assert follow["stdout"] == []
-    assert follow["stderr"] == []
-    assert follow["dropped"] is False
+    assert first["stdout"] == ["out-1", "out-2", "out-3"]
+    assert first["stderr"] == ["err-1", "err-2"]
+    assert first["dropped"] is False
 
     proc.finish(0)
     await asyncio.sleep(0.02)
@@ -263,7 +141,7 @@ async def test_since_cursor_respects_cross_stream_interleave() -> None:
 @pytest.mark.asyncio
 async def test_finish_listener_invoked_on_exit() -> None:
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=55555, stdout=[], stderr=[])
+    proc = FakeProc(pid=55555, stdout=[], stderr=[])
 
     seen: list[BackgroundProcessInfo] = []
 
@@ -277,7 +155,7 @@ async def test_finish_listener_invoked_on_exit() -> None:
         finish_listener=_on_finish,
     )
     proc.finish(0)
-    await _wait_until(lambda: len(seen) >= 1, what="finish listener dispatch")
+    await wait_until(lambda: len(seen) >= 1, what="finish listener dispatch")
 
     assert len(seen) == 1
     assert seen[0].pid == 55555
@@ -285,60 +163,22 @@ async def test_finish_listener_invoked_on_exit() -> None:
 
 
 @pytest.mark.asyncio
-async def test_kill_escalates_to_sigkill_when_sigterm_ignored() -> None:
-    """O5: an unruly child that ignores SIGTERM is force-killed after grace."""
-    registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=70000, stdout=[], stderr=[])
-    await registry.register(
-        cast(AsyncProcessProtocol, proc),
-        command="dev-server",
-        session_id="esc-s",
-    )
-
-    sent: list[tuple[int, int]] = []
-
-    def _record(pid: int, sig: int) -> None:
-        sent.append((pid, sig))
-        # SIGTERM is recorded but the process keeps running (no finish).
-        # Only SIGKILL actually drops it, matching real-world unruly processes.
-        if sig == signal.SIGKILL:
-            proc.finish(-9)
-
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
-        side_effect=_record,
-    ):
-        ok = await registry.kill(70000, force=False, grace_seconds=0.1)
-
-    assert ok is True
-    assert sent == [(70000, signal.SIGTERM), (70000, signal.SIGKILL)]
-
-    await _wait_until(
-        lambda: registry.get(70000) is not None and registry.get(70000).status == "killed",  # type: ignore[union-attr]
-        what="SIGKILL status transition",
-    )
-    snap = registry.get(70000)
-    assert snap is not None
-    assert snap.status == "killed"
-
-
-@pytest.mark.asyncio
 async def test_reap_drops_exited_entries_after_window() -> None:
     """O11: exited entries are reaped from the registry after the reap delay."""
     registry = BackgroundProcessRegistry(reap_delay_seconds=0.05)
-    proc = _FakeProc(pid=80000, stdout=[b"hi\n"], stderr=[])
+    proc = FakeProc(pid=80000, stdout=[b"hi\n"], stderr=[])
     await registry.register(
         cast(AsyncProcessProtocol, proc),
         command="echo hi",
         session_id="reap-s",
     )
     proc.finish(0)
-    await _wait_until(
+    await wait_until(
         lambda: registry.get(80000) is not None and registry.get(80000).status != "running",  # type: ignore[union-attr]
         what="reap entry to become exited",
     )
     assert registry.get(80000) is not None
-    await _wait_until(
+    await wait_until(
         lambda: registry.get(80000) is None,
         timeout_seconds=2.0,
         what="reap window to drop entry",
@@ -349,17 +189,17 @@ async def test_reap_drops_exited_entries_after_window() -> None:
 
 @pytest.mark.asyncio
 async def test_long_line_is_truncated_in_buffer() -> None:
-    """O7: lines longer than ``_LINE_MAX_BYTES`` are clipped with a marker."""
-    huge = b"x" * (40 * 1024) + b"\n"  # 40 KiB > 32 KiB hard cap
+    """O7: a line over 32 Ki characters is clipped to them, with a marker that counts what was dropped."""
+    huge = b"x" * (40 * 1024) + b"\n"
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=90000, stdout=[huge], stderr=[])
+    proc = FakeProc(pid=90000, stdout=[huge], stderr=[])
     await registry.register(
         cast(AsyncProcessProtocol, proc),
         command="dump",
         session_id="trunc-s",
     )
     proc.finish(0)
-    await _wait_until(
+    await wait_until(
         lambda: bool(registry.get_output(90000, max_lines=5)["stdout"]),
         what="truncated line ingestion",
     )
@@ -367,7 +207,7 @@ async def test_long_line_is_truncated_in_buffer() -> None:
     out = registry.get_output(90000, max_lines=5)
     stdout_lines = cast(list[str], out["stdout"])
     assert len(stdout_lines) == 1
-    assert "truncated" in stdout_lines[0]
+    assert stdout_lines[0].endswith("... [+8192 chars truncated]")
     assert len(stdout_lines[0]) < 40 * 1024
 
 
@@ -380,7 +220,7 @@ async def test_last_progress_captured_for_list_processes() -> None:
     the model detect stale snapshots (job stopped emitting minutes ago).
     """
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(
+    proc = FakeProc(
         pid=12121,
         stdout=[
             b'MYRM_PROGRESS {"percent": 25, "message": "Compiling"}\n',
@@ -401,7 +241,7 @@ async def test_last_progress_captured_for_list_processes() -> None:
             return False
         return cast(dict[str, object], items[0].last_progress)["progress"] == 80
 
-    await _wait_until(_progress_80, what="both progress markers processed")
+    await wait_until(_progress_80, what="both progress markers processed")
 
     listed = registry.list_processes(session_id="L-s")
     assert len(listed) == 1
@@ -430,13 +270,13 @@ async def test_last_progress_captured_for_list_processes() -> None:
 async def test_list_processes_omits_last_progress_when_unseen() -> None:
     """``to_dict`` must not include ``last_progress`` for jobs without progress."""
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=13131, stdout=[b"plain output\n"], stderr=[])
+    proc = FakeProc(pid=13131, stdout=[b"plain output\n"], stderr=[])
     await registry.register(
         cast(AsyncProcessProtocol, proc),
         command="echo plain",
         session_id="np-s",
     )
-    await _wait_until(
+    await wait_until(
         lambda: (
             bool(registry.list_processes(session_id="np-s"))
             and registry.list_processes(session_id="np-s")[0].last_progress is None
@@ -450,140 +290,11 @@ async def test_list_processes_omits_last_progress_when_unseen() -> None:
 
 
 @pytest.mark.asyncio
-async def test_kill_session_jobs_only_targets_owner_session() -> None:
-    """O: kill_session_jobs must signal exactly the owner session's jobs."""
-    registry = BackgroundProcessRegistry()
-    proc_a1 = _FakeProc(pid=14001, stdout=[], stderr=[])
-    proc_a2 = _FakeProc(pid=14002, stdout=[], stderr=[])
-    proc_b = _FakeProc(pid=14003, stdout=[], stderr=[])
-    await registry.register(cast(AsyncProcessProtocol, proc_a1), command="sleep 60", session_id="chat-A")
-    await registry.register(cast(AsyncProcessProtocol, proc_a2), command="sleep 60", session_id="chat-A")
-    await registry.register(cast(AsyncProcessProtocol, proc_b), command="sleep 60", session_id="chat-B")
-
-    sent: list[tuple[int, int]] = []
-
-    def _record(pid: int, sig: int) -> None:
-        sent.append((pid, sig))
-        if pid == 14001:
-            proc_a1.finish(-sig)
-        elif pid == 14002:
-            proc_a2.finish(-sig)
-        elif pid == 14003:
-            proc_b.finish(-sig)
-
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
-        side_effect=_record,
-    ):
-        killed = await registry.kill_session_jobs("chat-A", grace_seconds=0.05)
-
-    assert killed == 2
-    # Only chat-A pids must have been signalled. ``sent`` may also contain
-    # SIGKILL escalations for pids that ignore SIGTERM in real life, but our
-    # _record finishes the proc on SIGTERM so SIGKILL never fires.
-    signalled_pids = {pid for pid, _ in sent}
-    assert signalled_pids == {14001, 14002}
-
-    snap_b = registry.get(14003)
-    assert snap_b is not None
-    assert snap_b.status == "running"
-    proc_b.finish(0)
-    await asyncio.sleep(0.02)
-
-
-@pytest.mark.asyncio
-async def test_kill_session_jobs_returns_zero_when_no_match() -> None:
-    """O: kill_session_jobs is a no-op for sessions with no running jobs."""
-    registry = BackgroundProcessRegistry()
-    killed = await registry.kill_session_jobs("nobody-here")
-    assert killed == 0
-
-
-@pytest.mark.asyncio
-async def test_kill_session_jobs_runs_concurrently() -> None:
-    """O: 5 stubborn jobs × 0.2s grace must finish in <1.5s (not 5×0.2=1.0s sequentially).
-
-    Concurrency guard against future refactors that loop ``await self.kill``
-    serially — that would scale ``cancel`` latency with bg job count.
-    """
-    registry = BackgroundProcessRegistry()
-    pids = list(range(15001, 15006))
-    procs = [_FakeProc(pid=p, stdout=[], stderr=[]) for p in pids]
-    for proc in procs:
-        await registry.register(
-            cast(AsyncProcessProtocol, proc),
-            command="dev-server",
-            session_id="concurrent-s",
-        )
-
-    pid_to_proc = dict(zip(pids, procs, strict=False))
-
-    def _record(pid: int, sig: int) -> None:
-        # SIGTERM is recorded but ignored — these jobs are "stubborn"; the
-        # registry must escalate to SIGKILL after the grace window. If
-        # kill_session_jobs awaited each kill() serially the total wall time
-        # would be ≥ 5 × grace; concurrent dispatch keeps it near 1 × grace.
-        if sig == signal.SIGKILL:
-            pid_to_proc[pid].finish(-9)
-
-    loop = asyncio.get_running_loop()
-    start = loop.time()
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
-        side_effect=_record,
-    ):
-        killed = await registry.kill_session_jobs("concurrent-s", grace_seconds=0.2)
-    elapsed = loop.time() - start
-
-    assert killed == 5
-    # Concurrent: ≈ 1 × grace (0.2s) + escalation buffer; serial would be ≥5×grace = 1.0s.
-    # Allow generous headroom for CI noise.
-    assert elapsed < 0.8, f"kill_session_jobs ran serially? elapsed={elapsed:.2f}s"
-
-
-@pytest.mark.asyncio
-async def test_shutdown_uses_process_group_kill_for_living_children() -> None:
-    """``atexit`` path must route through process-group kill, not leader-only.
-
-    Mirrors the live ``kill`` contract (PR2.6 O12): leader-only ``proc.kill()``
-    would orphan ``node``/``esbuild`` grandchildren under ``npm start`` when the
-    Python harness exits — process-group SIGKILL severs the whole tree.
-    """
-    registry = BackgroundProcessRegistry()
-    proc_running = _FakeProc(pid=16001, stdout=[], stderr=[])
-    proc_exited = _FakeProc(pid=16002, stdout=[], stderr=[])
-    await registry.register(cast(AsyncProcessProtocol, proc_running), command="npm start", session_id="s1")
-    await registry.register(cast(AsyncProcessProtocol, proc_exited), command="echo done", session_id="s1")
-    proc_exited.finish(0)
-    # Deterministically let the consumer loop transition proc_exited → exited
-    # before shutdown runs (a fixed sleep is flaky under load).
-    await _wait_until(
-        lambda: registry.get(16002) is not None and registry.get(16002).status != "running",  # type: ignore[union-attr]
-        what="proc_exited transition before shutdown",
-    )
-
-    killed_pids: list[tuple[int, int]] = []
-
-    def _record(pid: int, sig: int) -> None:
-        killed_pids.append((pid, sig))
-
-    with patch(
-        "myrm_agent_harness.agent.meta_tools.bash._background.termination.kill_spawned_group",
-        side_effect=_record,
-    ):
-        registry.shutdown()
-
-    assert killed_pids == [(16001, signal.SIGKILL)], (
-        f"shutdown must SIGKILL only the still-running pid via group kill; got {killed_pids}"
-    )
-
-
-@pytest.mark.asyncio
 async def test_list_processes_without_session_returns_all() -> None:
     """Unfiltered list must include every registered session."""
     registry = BackgroundProcessRegistry()
-    proc_a = _FakeProc(pid=17001, stdout=[], stderr=[])
-    proc_b = _FakeProc(pid=17002, stdout=[], stderr=[])
+    proc_a = FakeProc(pid=17001, stdout=[], stderr=[])
+    proc_b = FakeProc(pid=17002, stdout=[], stderr=[])
     await registry.register(cast(AsyncProcessProtocol, proc_a), command="a", session_id="sess-a")
     await registry.register(cast(AsyncProcessProtocol, proc_b), command="b", session_id="sess-b")
 
@@ -596,7 +307,7 @@ async def test_list_processes_without_session_returns_all() -> None:
 async def test_register_redacts_command_in_background_info() -> None:
     """Registering a command with credentials must redact them in BackgroundProcessInfo."""
     registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=17003, stdout=[], stderr=[])
+    proc = FakeProc(pid=17003, stdout=[], stderr=[])
     info = await registry.register(
         cast(AsyncProcessProtocol, proc),
         command="export ANTHROPIC_API_KEY=sk-ant-api03-abcdefghijklmnop1234567890",
@@ -608,30 +319,7 @@ async def test_register_redacts_command_in_background_info() -> None:
 
 def test_get_output_unknown_pid_returns_empty_snapshot() -> None:
     registry = BackgroundProcessRegistry()
-    out = registry.get_output(99999, since_cursor=5)
-    assert out["stdout"] == []
-    assert out["stderr"] == []
-    assert out["next_cursor"] == 5
-    assert out["dropped"] is False
-    poll_hint = out.get("poll_hint")
-    assert isinstance(poll_hint, dict)
-    assert poll_hint["has_new_output"] is False
-    assert poll_hint["suggested_wait_ms"] >= 5000
-
-
-@pytest.mark.asyncio
-async def test_kill_non_running_pid_is_noop_success() -> None:
-    registry = BackgroundProcessRegistry()
-    proc = _FakeProc(pid=18001, stdout=[], stderr=[])
-    await registry.register(cast(AsyncProcessProtocol, proc), command="echo done", session_id="done-s")
-    proc.finish(0)
-    await _wait_until(
-        lambda: registry.get(18001) is not None and registry.get(18001).status != "running",  # type: ignore[union-attr]
-        what="pid 18001 to exit",
-    )
-
-    ok = await registry.kill(18001)
-    assert ok is True
+    assert registry.get_output(99999) == {"stdout": [], "stderr": [], "dropped": False}
 
 
 def test_get_background_registry_returns_singleton() -> None:

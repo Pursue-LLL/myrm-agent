@@ -20,6 +20,7 @@ import {
 import { cn } from '@/lib/utils/classnameUtils';
 import type { UnifiedRun, RunSource, RunStatus } from '@/services/runs';
 import { skipReasonLabelKey } from '@/components/features/cron/cron-utils';
+import { useJobDisplayName } from '@/components/features/cron/useJobDisplayName';
 import { formatRelativeTime } from '@/lib/utils/relativeTime';
 
 const ExecutionTraceTimeline = dynamic(
@@ -128,6 +129,7 @@ function statusLabel(status: RunStatus, t: Translator, tCron: Translator): strin
 
 export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTranslations> }) {
   const tCron = useTranslations('cron');
+  const jobDisplayName = useJobDisplayName();
   const locale = useLocale();
   const detailId = useId();
   const [expanded, setExpanded] = useState(false);
@@ -135,6 +137,8 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
   const skipLabelKey =
     run.source === 'cron' && run.status === 'skipped' ? skipReasonLabelKey(run.output ?? undefined) : undefined;
   const skipLabel = skipLabelKey ? tCron(skipLabelKey) : null;
+  // A cron run is titled by its job's stored name, which a system job's reserved name is not fit to show.
+  const title = run.source === 'cron' ? jobDisplayName(run.title) : run.title;
   const output = skipLabel ?? run.output;
   const summary = skipLabel ?? run.summary;
   const canShowTrace = run.source === 'kanban' && run.task_id != null;
@@ -160,7 +164,7 @@ export function RunRow({ run, t }: { run: UnifiedRun; t: ReturnType<typeof useTr
       </span>
       <span className="block flex-1 min-w-0 space-y-0.5">
         <span className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground truncate">{run.title}</span>
+          <span className="text-sm font-medium text-foreground truncate">{title}</span>
           <span className={cn('shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium', SOURCE_COLORS[run.source])}>
             {t(SOURCE_LABEL_KEY[run.source])}
           </span>

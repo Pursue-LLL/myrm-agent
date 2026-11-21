@@ -1,14 +1,17 @@
-"""Read-side views of background bash jobs: poll payloads, entry snapshots, exit waiting.
+"""Read-side views of background bash jobs: entry snapshots, the unfinished last line, exit waiting and read reports.
 
 [INPUT]
-- collections.deque ring buffers of (cursor, text) pairs
 - agent.meta_tools.bash._background.types::BackgroundProcessInfo (POS: job snapshot)
 - agent.meta_tools.bash._background.termination::refresh_leftovers (POS: live members of a finished job's group)
+- agent.security.redact::redact_sensitive_text (POS: facade of the redaction domain)
+- utils.runtime.wakeup_registry::report_results_read (POS: tells the host's wakeup handler the agent read a settled result itself, so the wake turn queued for it stands down)
+- utils.text_utils::strip_ansi (POS: strips terminal escape sequences from text)
 
 [OUTPUT]
-- build_poll_output: stdout/stderr slices + next_cursor + poll_hint
-- snapshot_entry: detached ``BackgroundProcessInfo`` copy of a live registry entry
+- snapshot_entry: detached ``BackgroundProcessInfo`` copy of a live registry entry (cheap: ``wait`` and the auto-yield window take one every 0.1 s and 0.25 s)
+- unfinished_line: the text a running job printed after its last newline, cleaned and redacted; computed where it is read, never in a snapshot
 - wait_for_exit: block until a job leaves ``running`` or the cap passes
+- report_result_read: tell the wakeup handler the model now holds a job's result, so the wake turn its finish queues stands down
 
 [POS]
 Read-side helpers for ``bash_process_tool`` / auto-yield / the GUI activity panel.
@@ -18,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections import deque
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -27,72 +29,16 @@ from myrm_agent_harness.agent.meta_tools.bash._background.types import (
     BackgroundProcessInfo,
     compute_waiting_for_input,
 )
+from myrm_agent_harness.agent.security.redact import redact_sensitive_text
+from myrm_agent_harness.utils.runtime.wakeup_registry import report_results_read
+from myrm_agent_harness.utils.text_utils import strip_ansi
 
 if TYPE_CHECKING:
     from myrm_agent_harness.agent.meta_tools.bash._background.consume import BackgroundRegistryEntry
 
-_OUTPUT_TAIL_LINES = 200
 _WAIT_POLL_INTERVAL_SECONDS = 0.1
-_POLL_BACKOFF_MS: tuple[int, ...] = (5000, 10000, 20000, 30000, 60000)
-
-
-def build_poll_output(
-    *,
-    stdout_buffer: deque[tuple[int, str]],
-    stderr_buffer: deque[tuple[int, str]],
-    cursor: int,
-    empty_poll_streak: int,
-    max_lines: int,
-    since_cursor: int | None,
-) -> tuple[dict[str, object], int]:
-    """Return poll payload and updated empty_poll_streak."""
-    baseline = since_cursor if since_cursor is not None else 0
-    stdout_items = [(cur, text) for cur, text in stdout_buffer if cur > baseline]
-    stderr_items = [(cur, text) for cur, text in stderr_buffer if cur > baseline]
-    has_new_output = bool(stdout_items or stderr_items)
-    streak = empty_poll_streak
-    if since_cursor is not None:
-        streak = 0 if has_new_output else empty_poll_streak + 1
-    streak_idx = min(streak, len(_POLL_BACKOFF_MS) - 1)
-    poll_hint = {
-        "has_new_output": has_new_output,
-        "suggested_wait_ms": _POLL_BACKOFF_MS[streak_idx],
-    }
-
-    if since_cursor is not None and (stdout_buffer or stderr_buffer):
-        oldest_kept = min(
-            stdout_buffer[0][0] if stdout_buffer else cursor,
-            stderr_buffer[0][0] if stderr_buffer else cursor,
-        )
-        dropped = oldest_kept > baseline + 1 and (
-            len(stdout_buffer) == _OUTPUT_TAIL_LINES or len(stderr_buffer) == _OUTPUT_TAIL_LINES
-        )
-    else:
-        dropped = False
-
-    if since_cursor is not None:
-        # Incremental streaming mode: slice forward [:max_lines] and advance next_cursor
-        # to the maximum cursor actually consumed in this batch, preventing log gaps.
-        stdout_slice = stdout_items[:max_lines]
-        stderr_slice = stderr_items[:max_lines]
-        consumed_cursors = [cur for cur, _ in stdout_slice] + [cur for cur, _ in stderr_slice]
-        next_cursor = max(consumed_cursors) if consumed_cursors else baseline
-        stdout_output = [text for _, text in stdout_slice]
-        stderr_output = [text for _, text in stderr_slice]
-    else:
-        # Snapshot mode: return the latest tail lines and global latest cursor.
-        next_cursor = cursor
-        stdout_output = [text for _, text in stdout_items[-max_lines:]]
-        stderr_output = [text for _, text in stderr_items[-max_lines:]]
-
-    payload: dict[str, object] = {
-        "stdout": stdout_output,
-        "stderr": stderr_output,
-        "next_cursor": next_cursor,
-        "dropped": dropped,
-        "poll_hint": poll_hint,
-    }
-    return payload, streak
+# The longest unfinished line ``output`` and ``wait`` show: a prompt, not a page.
+_UNFINISHED_LINE_MAX_CHARS = 200
 
 
 def snapshot_entry(entry: BackgroundRegistryEntry) -> BackgroundProcessInfo:
@@ -114,8 +60,8 @@ def snapshot_entry(entry: BackgroundRegistryEntry) -> BackgroundProcessInfo:
         last_output_at=info.last_output_at or info.started_at,
         leftover_processes=len(refresh_leftovers(entry)),
     )
-    snap.last_stdout_tail = [text for _, text in list(entry.stdout_buffer)[-20:]]
-    snap.last_stderr_tail = [text for _, text in list(entry.stderr_buffer)[-20:]]
+    snap.last_stdout_tail = list(entry.stdout_buffer)[-20:]
+    snap.last_stderr_tail = list(entry.stderr_buffer)[-20:]
     # Defensive shallow copy: callers serialise this dict into JSON; any
     # in-place mutation by the consumer must not bleed back into the
     # live registry record (parsers append/normalise fields downstream).
@@ -131,6 +77,21 @@ def snapshot_entry(entry: BackgroundRegistryEntry) -> BackgroundProcessInfo:
         stdin_available=stdin_available,
     )
     return snap
+
+
+def unfinished_line(entry: BackgroundRegistryEntry) -> str:
+    """What a running job printed after its last newline, cleaned for display: usually the prompt it waits at.
+
+    Of the two streams the one that spoke last is read. Escape sequences are dropped and only the last non-empty
+    carriage-return segment is kept (a progress bar redraws one line over and over). The segment is redacted before it
+    is cut to its final characters: a secret split by the length limit would no longer match its pattern.
+    """
+    spoken = [tail for tail in (entry.stdout_unfinished, entry.stderr_unfinished) if tail.text.strip()]
+    if not spoken:
+        return ""
+    text = strip_ansi(max(spoken, key=lambda tail: tail.at).text)
+    segment = next((piece for piece in reversed(text.split("\r")) if piece.strip()), "")
+    return redact_sensitive_text(segment.strip())[-_UNFINISHED_LINE_MAX_CHARS:]
 
 
 async def wait_for_exit(
@@ -170,4 +131,15 @@ async def wait_for_exit(
     }
 
 
-__all__ = ["build_poll_output", "snapshot_entry", "wait_for_exit"]
+def report_result_read(info: BackgroundProcessInfo) -> None:
+    """Tell the wakeup handler the model now holds this job's exit and output tail, so its finish need not wake a turn.
+
+    Only a job that ran to its own exit is settled by the host (a killed one never is), under the key the finish
+    handler uses: the job id, else the pid. The host's settlement can arrive after this report, since the registry
+    marks the exit before the finish listener reaches the host; the host keeps the mark until it does.
+    """
+    if info.status == "exited":
+        report_results_read([str(info.job_id or info.pid)], info.session_id)
+
+
+__all__ = ["report_result_read", "snapshot_entry", "unfinished_line", "wait_for_exit"]

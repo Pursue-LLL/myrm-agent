@@ -17,7 +17,7 @@
 |------|------|------|-------|
 | `__init__.py` | 入口 | Background tasks API — manage /background (/btw /bg) session tasks. | ✅ |
 | `router.py` | 路由 | 合并 Kanban + shell；Agent 任务直查 KanbanService + `is_persistent_background()` 过滤（含 `chat_id` 字段供 panel 导航）；暴露 `job_id` / `vault_log_ref` / `waiting_for_input` / `stdin_closed` / `interactive_prompt` / `leftover_processes`；shell cancel 走 harness kill，停完再读一次行，响应带仍存活的 `leftover_processes`；`POST /{task_id}/stdin` GUI 手动 stdin；结构化选项一律经现有 stdin 通道提交；`POST /{task_id}/steer` 的指令先过风险闸门（`reject_if_risky`，命中 400 `risk_held`，不送达任务） | ✅ |
-| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`；`mode=running` / **`running_stdin`** / **`running_stdin_waiting`** / failed / success / completed_with_vault / **`leftover`**（任务结束但它启动的程序仍在运行，该程序忽略 SIGHUP、与 `nohup` 起的守护进程一致，不随后台任务的伪终端挂断退出；响应带 `leftover_marker` 供测试按命令行查找）） | ✅ |
+| `test_fixtures.py` | 测试 | local-only Chrome E2E seed（`POST /background-tasks/test/seed-shell-fixture`；`mode=running` / **`running_stdin`** / **`running_stdin_waiting`** / failed / success / completed_with_vault（任务打印 85 行，日志由后台任务自己的输出日志写出，`vault_log_ref` 取自注册表；日志没有写出时接口返回 500，不另造文件）/ **`leftover`**（任务结束但它启动的程序仍在运行，该程序忽略 SIGHUP、与 `nohup` 起的守护进程一致，不随后台任务的伪终端挂断退出；响应带 `leftover_marker` 供测试按命令行查找）） | ✅ |
 | `test_seed_voice_done.py` | 测试 | local-only voice 完成 seed（`POST /background-tasks/test/seed-voice-done`；构造内存 Kanban voice 任务并发布 `BACKGROUND_TASK_DONE`，驱动 `WebuiVoiceWorkNotifier` → SSE `voice_background_task_done`） | ✅ |
 
 ## 依赖
@@ -26,4 +26,4 @@
 - `app.core.channel_bridge.persistent_background::is_persistent_background` — metadata SSOT
 - `app.services.agent.shell_background_tasks` — registry + Store 门面
 - `app.services.kanban::KanbanService` — Agent 任务持久化（直查 list）
-- `myrm_agent_harness.api::resolve_data_dir` — 状态根（`test_fixtures.py` 取默认工作区）
+- `myrm_agent_harness.api::set_workspace_root` — 绑定运行的工作区根（`test_fixtures.py` 里任务的输出日志写在它之下）

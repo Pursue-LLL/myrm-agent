@@ -25,8 +25,8 @@ import { ApiError } from '@/lib/api';
 import {
   buildExplicitSkillWireMessage,
   parseExplicitSkillActivation,
+  splitUserMessageForComposer,
   stripDatetimeTag,
-  stripUserMessageDisplayText,
 } from '@/lib/utils/messageUtils';
 import { truncateAfterMessage } from '@/services/chat';
 import { showI18nToast } from '@/services/i18nToastService';
@@ -73,7 +73,7 @@ function notifySendBlocked(
 /** Give an undelivered request back to the composer, unless the user already started something else there. */
 function restoreComposer(origin: SendOrigin, content: string, files: ChatFile[]): void {
   const live = useChatStore.getState();
-  const text = stripUserMessageDisplayText(content);
+  const { text, activation } = splitUserMessageForComposer(content);
   const composerFree =
     live.chatId === origin.chatId &&
     live.inputMessage.trim() === '' &&
@@ -83,10 +83,7 @@ function restoreComposer(origin: SendOrigin, content: string, files: ChatFile[])
     keepInInputHistory(origin, text);
     return;
   }
-  const activation = parseExplicitSkillActivation(content);
-  live.setPendingExplicitSkillActivation(
-    activation && { skillNames: activation.skillNames, instruction: activation.instruction },
-  );
+  live.setPendingExplicitSkillActivation(activation);
   live.setInputMessage(text);
   live.setFiles(files);
 }

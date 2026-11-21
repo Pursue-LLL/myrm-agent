@@ -10,15 +10,15 @@ Detection strategy:
   3. Structural formats (JWT, PEM block-level, URL passwords, blockchain, cloud infra)
   4. Shannon entropy analysis (catches unknown credential formats; see entropy_scan)
   5. Context-aware blockchain patterns (mnemonic seed phrases)
-
-Smart redaction preserves first 6 / last 4 characters of long tokens
-for debugging while keeping the credential unusable. PEM blocks are
-fully redacted (BEGIN to END) with type label preserved.
+  6. In JSON text an escaped line break reads as whitespace, so a value stops at it (see escaped_breaks)
 
 [INPUT]
 - core.security.detection.secret_value::is_reference_value (POS: shared rules telling a secret from a reference to
   one: templates, identifiers, calls, class names, slugs, domains, query strings.)
-- core.security.detection.entropy_scan::scan_high_entropy (POS: unknown-credential tier of the leak detector.)
+- core.security.detection.entropy_scan::find_high_entropy, redact_high_entropy (POS: unknown-credential tier of the leak
+  detector; a token is found and replaced by position.)
+- core.security.detection.escaped_breaks::reading_breaks, rewriting_breaks (POS: the public functions read a line break
+  escaped in JSON text as whitespace and put it back.)
 - core.security.detection.token_start::TokenStartPattern (POS: the vendor-prefix shapes count only where a token starts.)
 
 [OUTPUT]
@@ -30,7 +30,6 @@ fully redacted (BEGIN to END) with type label preserved.
 
 [POS]
 Output-side credential leak detector. 40+ credential pattern matchers (API key prefixes + blockchain + cloud infra + ENV/JSON/Header context + Shannon entropy + PEM block-level multiline redaction) for preventing secret exfiltration.
-
 """
 
 from __future__ import annotations
@@ -39,7 +38,8 @@ import logging
 import re
 from functools import partial
 
-from myrm_agent_harness.core.security.detection.entropy_scan import scan_high_entropy
+from myrm_agent_harness.core.security.detection.entropy_scan import find_high_entropy, redact_high_entropy
+from myrm_agent_harness.core.security.detection.escaped_breaks import reading_breaks, rewriting_breaks
 from myrm_agent_harness.core.security.detection.secret_value import is_reference_value
 from myrm_agent_harness.core.security.detection.token_start import NUMBER_START, TOKEN_START, TokenStartPattern
 
@@ -346,6 +346,7 @@ def _collect_prefix_matches(content: str) -> set[str]:
     return matched
 
 
+@reading_breaks
 def scan_for_leaks(content: str) -> list[str]:
     """Scan content for credential patterns.
 
@@ -357,13 +358,13 @@ def scan_for_leaks(content: str) -> list[str]:
     matches = [name for name, pat in _ALL_PREFIX_STRUCTURAL if pat.search(content)]
     matches.extend(_scan_context_patterns(content))
 
-    entropy_hits = scan_high_entropy(content, _collect_prefix_matches(content))
-    if entropy_hits:
+    if find_high_entropy(content, _collect_prefix_matches(content)):
         matches.append("high_entropy_token")
 
     return matches
 
 
+@rewriting_breaks
 def redact_leaks(content: str) -> str:
     """Smart-redact detected credentials.
 
@@ -388,10 +389,9 @@ def redact_leaks(content: str) -> str:
     result = _AUTH_HEADER_PATTERN.sub(_redact_auth_match, result)
     result = _MNEMONIC_PATTERN.sub(_redact_mnemonic_match, result)
 
-    for _, token in scan_high_entropy(content, _collect_prefix_matches(content)):
-        result = result.replace(token, _smart_redact_value("high_entropy_token", token), 1)
-
-    return result
+    return redact_high_entropy(
+        result, _collect_prefix_matches(content), partial(_smart_redact_value, "high_entropy_token")
+    )
 
 
 def log_leaks(matches: list[str], content: str) -> None:

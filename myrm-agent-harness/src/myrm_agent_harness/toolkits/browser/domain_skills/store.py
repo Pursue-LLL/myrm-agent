@@ -1,8 +1,8 @@
 """Domain skill store — executable-layer domain-level learning.
 
 Manages manifest-based domain skill declarations. Each manifest maps a set
-of domain patterns to Python tool scripts that can be executed in the browser
-session sandbox (reuses ``execute_script`` AST safety).
+of domain patterns to Python tool scripts that ``browser_manage_tool`` (``run_site_tool``) imports
+and calls with the live browser session.
 
 Complements ``SiteExperienceStore`` (prompt-layer knowledge) with an
 executable layer: SiteExperience tells the Agent *what to avoid*;

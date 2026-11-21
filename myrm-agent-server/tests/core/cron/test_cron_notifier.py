@@ -11,13 +11,14 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
-from myrm_agent_harness.toolkits.cron import CronConfig, CronNotice, CronNoticeKind, CronScheduler
+from myrm_agent_harness.toolkits.cron import HEARTBEAT_JOB_NAME, CronConfig, CronNotice, CronNoticeKind, CronScheduler
 from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 from myrm_agent_harness.toolkits.cron.types import (
     CronJob,
     JobResult,
     JobStatus,
     JobType,
+    PauseReason,
     Schedule,
     ScheduleKind,
 )
@@ -59,18 +60,25 @@ def _english(monkeypatch: pytest.MonkeyPatch) -> None:
     ("notice", "level", "event_kind", "title", "message"),
     [
         (
-            CronNotice(CronNoticeKind.RUN_SUCCEEDED, _JOB, f"[{_JOB}] all watered", "chat-1"),
+            CronNotice(CronNoticeKind.RUN_SUCCEEDED, _JOB, "all watered", "chat-1"),
             "success",
             "voice_background_task_done",
             f"Reminder: {_JOB}",
             f"[{_JOB}] all watered",
         ),
         (
-            CronNotice(CronNoticeKind.RUN_FAILED, _JOB, f"[{_JOB}] pump is dry", "chat-1"),
+            CronNotice(CronNoticeKind.RUN_FAILED, _JOB, "pump is dry", "chat-1"),
             "error",
             "voice_background_task_done",
             f"Scheduled task failed: {_JOB}",
             f"[{_JOB}] pump is dry",
+        ),
+        (
+            CronNotice(CronNoticeKind.RUN_INTERRUPTED, _JOB, chat_id="chat-1"),
+            "warning",
+            "voice_background_task_done",
+            f"Scheduled task interrupted: {_JOB}",
+            "The app stopped while it was running, so this run did not finish.",
         ),
         (
             CronNotice(CronNoticeKind.JOB_EXPIRED, _JOB, chat_id="chat-1"),
@@ -91,10 +99,10 @@ def _english(monkeypatch: pytest.MonkeyPatch) -> None:
             "warning",
             "cron_job_paused",
             f"Scheduled task paused: {_JOB}",
-            "It hit a problem it could not recover from, so it was paused automatically. Check its run history, then resume it.",
+            "It hit a problem it could not recover from, so it was paused automatically. Open its Run History to see why, then resume it.",
         ),
     ],
-    ids=["succeeded", "failed", "expired", "max-fires", "paused-by-failure"],
+    ids=["succeeded", "failed", "interrupted", "expired", "max-fires", "paused-by-failure"],
 )
 async def test_each_notice_kind_reads_as_its_severity_title_and_message(
     bus: _RecordingBus, notice: CronNotice, level: str, event_kind: str, title: str, message: str
@@ -128,10 +136,26 @@ async def test_a_job_without_a_chat_publishes_an_empty_chat_id(bus: _RecordingBu
 
 
 @pytest.mark.parametrize(
-    ("locale", "title", "pause_title", "max_fires_message", "failure_message"),
+    ("locale", "title", "interrupted_title", "pause_title", "max_fires_message", "failure_message", "interrupted_message"),
     [
-        ("en", f"Reminder: {_JOB}", f"Scheduled task paused: {_JOB}", "It has run 3 times", "could not recover from"),
-        ("zh-CN", f"提醒：{_JOB}", f"定时任务已暂停：{_JOB}", "已执行 3 次", "无法自行恢复"),
+        (
+            "en",
+            f"Reminder: {_JOB}",
+            f"Scheduled task interrupted: {_JOB}",
+            f"Scheduled task paused: {_JOB}",
+            "It has run 3 times",
+            "could not recover from",
+            "did not finish",
+        ),
+        (
+            "zh-CN",
+            f"提醒：{_JOB}",
+            f"定时任务被中断：{_JOB}",
+            f"定时任务已暂停：{_JOB}",
+            "已执行 3 次",
+            "无法自行恢复",
+            "没有完成",
+        ),
     ],
 )
 async def test_titles_and_messages_speak_the_users_language(
@@ -139,22 +163,44 @@ async def test_titles_and_messages_speak_the_users_language(
     monkeypatch: pytest.MonkeyPatch,
     locale: str,
     title: str,
+    interrupted_title: str,
     pause_title: str,
     max_fires_message: str,
     failure_message: str,
+    interrupted_message: str,
 ) -> None:
     _speak(monkeypatch, locale)
 
     await publish_cron_notice(CronNotice(CronNoticeKind.RUN_SUCCEEDED, _JOB, "x"))
+    await publish_cron_notice(CronNotice(CronNoticeKind.RUN_INTERRUPTED, _JOB))
     await publish_cron_notice(CronNotice(CronNoticeKind.JOB_MAX_FIRES_REACHED, _JOB, max_fires=3))
     await publish_cron_notice(CronNotice(CronNoticeKind.JOB_PAUSED_BY_FAILURE, _JOB))
 
-    run, pause, failure_pause = (e.data for e in bus.notifications())
+    run, interrupted, pause, failure_pause = (e.data for e in bus.notifications())
     assert run["title"] == title
+    assert interrupted["title"] == interrupted_title
+    assert interrupted_message in interrupted["message"]
     assert pause["title"] == pause_title
     assert max_fires_message in pause["message"]
     assert failure_pause["title"] == pause_title
     assert failure_message in failure_pause["message"]
+
+
+@pytest.mark.parametrize(("locale", "name"), [("en", "Agent Auto-Check"), ("zh-CN", "Agent 自动巡检")])
+async def test_a_system_job_goes_by_its_catalog_name_not_its_stored_one(
+    bus: _RecordingBus, monkeypatch: pytest.MonkeyPatch, locale: str, name: str
+) -> None:
+    _speak(monkeypatch, locale)
+
+    await publish_cron_notice(CronNotice(CronNoticeKind.RUN_SUCCEEDED, HEARTBEAT_JOB_NAME, "all quiet", "chat-1"))
+    await publish_cron_notice(CronNotice(CronNoticeKind.JOB_PAUSED_BY_FAILURE, HEARTBEAT_JOB_NAME))
+
+    run, pause = (e.data for e in bus.notifications())
+    assert name in run["title"] and run["message"] == f"[{name}] all quiet"
+    assert name in pause["title"]
+    assert HEARTBEAT_JOB_NAME not in f"{run} {pause}"
+    # The refresh event only wakes the views, which read the job itself.
+    assert bus.events[0].data["job_name"] == HEARTBEAT_JOB_NAME
 
 
 @pytest.mark.parametrize("locale", ["en", "zh-CN"])
@@ -210,6 +256,7 @@ def _job(
     expires_at: datetime | None = None,
     max_fires: int | None = None,
     fire_count: int = 0,
+    consecutive_failures: int = 0,
 ) -> CronJob:
     return CronJob(
         id="job-1",
@@ -221,6 +268,7 @@ def _job(
         expires_at=expires_at,
         max_fires=max_fires,
         fire_count=fire_count,
+        consecutive_failures=consecutive_failures,
     )
 
 
@@ -265,31 +313,29 @@ async def test_a_job_the_scheduler_pauses_by_itself_tells_the_user(bus: _Recordi
     assert notification.data["meta_data"]["level"] == "warning"
 
 
-@pytest.mark.parametrize(
-    ("schedule", "result"),
-    [
-        (
-            Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(UTC) + timedelta(hours=1)),
-            JobResult(success=False, error="pump is dry"),
-        ),
-        (
-            _EVERY_HOUR,
-            JobResult(success=False, error="RUNAWAY_CIRCUIT_BREAKER: pump repeated 5 times", circuit_broken=True),
-        ),
-    ],
-    ids=["one-shot-fails", "loop-guard-trips"],
-)
-async def test_a_job_a_failure_pauses_tells_the_user_after_the_failed_run(
-    bus: _RecordingBus, schedule: Schedule, result: JobResult
-) -> None:
+async def test_a_one_shot_a_failure_pauses_tells_the_user_after_the_failed_run(bus: _RecordingBus) -> None:
     runner = _Runner()
-    runner.result = result
+    runner.result = JobResult(success=False, error="pump is dry")
+    once = Schedule(kind=ScheduleKind.ONCE, run_at=datetime.now(UTC) + timedelta(hours=1))
 
-    stored = await _fire(_job(schedule=schedule), runner)
+    stored = await _fire(_job(schedule=once), runner)
 
-    assert stored.status == JobStatus.PAUSED
+    assert (stored.status, stored.paused_reason) == (JobStatus.PAUSED, PauseReason.RUN_FAILURES)
     failed, paused = (e.data for e in bus.notifications())
     assert failed["title"] == f"Scheduled task failed: {_JOB}"
+    assert paused["title"] == f"Scheduled task paused: {_JOB}"
+    assert "paused automatically" in paused["message"]
+    assert paused["meta_data"]["level"] == "warning"
+
+
+async def test_a_loop_guard_trip_is_told_by_the_pause_it_causes_alone(bus: _RecordingBus) -> None:
+    runner = _Runner()
+    runner.result = JobResult(success=False, error="RUNAWAY_CIRCUIT_BREAKER: pump repeated 5 times", circuit_broken=True)
+
+    stored = await _fire(_job(), runner)
+
+    assert (stored.status, stored.paused_reason) == (JobStatus.PAUSED, PauseReason.CIRCUIT_BREAK)
+    (paused,) = (e.data for e in bus.notifications())
     assert paused["title"] == f"Scheduled task paused: {_JOB}"
     assert "paused automatically" in paused["message"]
     assert paused["meta_data"]["level"] == "warning"
@@ -305,10 +351,28 @@ async def test_a_run_a_crash_cut_short_tells_the_user_when_the_server_next_start
     await scheduler.stop()
 
     (notification,) = bus.notifications()
-    assert notification.data["title"] == f"Scheduled task failed: {_JOB}"
-    assert notification.data["message"].startswith(f"[{_JOB}] Interrupted")
-    assert notification.data["meta_data"]["level"] == "error"
+    assert notification.data["title"] == f"Scheduled task interrupted: {_JOB}"
+    assert notification.data["message"] == "The app stopped while it was running, so this run did not finish."
+    assert notification.data["meta_data"]["level"] == "warning"
     assert notification.data["meta_data"]["chat_id"] == "chat-9"
+
+
+async def test_a_crash_that_pauses_the_job_tells_the_user_after_the_interrupted_run(bus: _RecordingBus) -> None:
+    store = InMemoryCronStore()
+    await store.save_job(_job(consecutive_failures=2))
+    await store.mark_running("job-1")
+    scheduler = CronScheduler(store, {JobType.AGENT: _Runner()}, _Delivery(), config=CronConfig(), on_notice=publish_cron_notice)
+
+    await scheduler.start()
+    await scheduler.stop()
+
+    stored = await store.get_job("job-1")
+    assert stored is not None
+    assert (stored.status, stored.paused_reason) == (JobStatus.PAUSED, PauseReason.RUN_FAILURES)
+    interrupted, paused = (e.data for e in bus.notifications())
+    assert interrupted["title"] == f"Scheduled task interrupted: {_JOB}"
+    assert paused["title"] == f"Scheduled task paused: {_JOB}"
+    assert paused["meta_data"]["level"] == "warning"
 
 
 async def test_a_notice_raised_before_any_client_connects_is_waiting_for_the_first_one(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -316,7 +380,7 @@ async def test_a_notice_raised_before_any_client_connects_is_waiting_for_the_fir
     real_bus = ServerEventBus()
     monkeypatch.setattr("app.core.cron.notifier.get_event_bus", lambda: real_bus)
 
-    await publish_cron_notice(CronNotice(CronNoticeKind.RUN_FAILED, _JOB, f"[{_JOB}] Interrupted", "chat-1"))
+    await publish_cron_notice(CronNotice(CronNoticeKind.RUN_INTERRUPTED, _JOB, chat_id="chat-1"))
 
     late_client = real_bus.subscribe()
     replayed = [late_client.get_nowait().event_type for _ in range(late_client.qsize())]

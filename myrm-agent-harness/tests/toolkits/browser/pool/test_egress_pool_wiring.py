@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser import enhancers
 from myrm_agent_harness.toolkits.browser.pool import (
     BrowserInstance,
     BrowserPoolConfig,
@@ -43,11 +42,6 @@ def _browser() -> MagicMock:
     browser = MagicMock()
     browser.new_context = AsyncMock(return_value=context)
     return browser
-
-
-@pytest.fixture(autouse=True)
-def _no_page_scripts(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(enhancers, "install_document_script_injection", AsyncMock())
 
 
 def _proxy_option(browser: MagicMock) -> object:

@@ -8,19 +8,21 @@ orchestration's persistence ordering and scheduler notification, so they can be 
 - cron.engine.helpers::is_within_active_hours, next_eligible_run (POS: pure engine helpers: the active window and the next slot to book)
 - cron.engine.parser::compute_next_run, validate_cron_expr, validate_timezone (POS: 下一次触发时刻、cron 表达式与时区校验)
 - cron.triggers::TriggerConfig, WebhookTrigger, generate_webhook_path, generate_webhook_secret (POS: webhook 触发定义与凭据生成)
-- cron.types::CronJob, CronJobPatch, JobType, Schedule, ScheduleKind (POS: cron 数据模型)
+- cron.types::CronJob, CronJobPatch, JobType, Schedule, ScheduleKind, SYSTEM_JOB_NAME_PREFIX, is_system_job_name (POS: cron 数据模型)
 
 [OUTPUT]
-- CronValidationMixin: _validate_create / _validate_job_content / _validate_update_content /
-  _validate_schedule / _validate_context_from / _validate_resume_preconditions / _book_slot /
-  _ensure_webhook_credentials / _resolve_name_conflict
+- CronValidationMixin: _validate_create / _validate_name / _validate_rename / _validate_job_content /
+  _validate_update_content / _validate_schedule / _validate_context_from / _validate_resume_preconditions /
+  _book_slot / _ensure_webhook_credentials / _resolve_name_conflict
 
 [POS]
 Validation half of the cron CRUD manager. A mixin rather than free functions because every
 rule either needs the job store (reference and name checks) or the shell-enabled policy, both
 of which belong to the manager instance. ``_book_slot`` is the one booking a user's input makes
 (create, edit, resume): the next slot, or a refusal when the job's active window is one its
-schedule never reaches.
+schedule never reaches. ``_validate_name`` and ``_validate_rename`` keep the reserved names (the
+``__`` prefix) for the application's own jobs: a system job takes one and no other job does, and no
+rename moves a job into or out of that set.
 """
 
 from __future__ import annotations
@@ -40,7 +42,13 @@ from myrm_agent_harness.toolkits.cron.triggers import (
     generate_webhook_path,
     generate_webhook_secret,
 )
-from myrm_agent_harness.toolkits.cron.types import JobStatus, JobType, ScheduleKind
+from myrm_agent_harness.toolkits.cron.types import (
+    SYSTEM_JOB_NAME_PREFIX,
+    JobStatus,
+    JobType,
+    ScheduleKind,
+    is_system_job_name,
+)
 
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.cron.protocols import CronStore
@@ -50,6 +58,10 @@ if TYPE_CHECKING:
 # That proves the window unreachable only if the budget covered a whole daily cycle: a schedule that fires every few
 # seconds spends it within hours, and for it the dispatch guards keep skipping and rebooking.
 _UNREACHABLE_WINDOW_SPAN = timedelta(days=1)
+
+_RESERVED_NAME_MESSAGE = (
+    f"names starting with {SYSTEM_JOB_NAME_PREFIX!r} are reserved for the application's own jobs; choose another name"
+)
 
 
 def _once_has_passed(schedule: Schedule, now: datetime) -> bool:
@@ -97,6 +109,25 @@ class CronValidationMixin:
                 "no run of this schedule falls inside its active hours; widen the hours or change the schedule"
             )
         return slot
+
+    @staticmethod
+    def _validate_name(name: str, *, system: bool) -> None:
+        """A reserved name belongs to the application's own jobs, and a system job takes no other name.
+
+        The second direction closes a loophole: a job flagged as a system job under a name the listings show would
+        escape the plan's job quota, which counts only the user's jobs.
+        """
+        reserved = is_system_job_name(name)
+        if reserved and not system:
+            raise ValueError(_RESERVED_NAME_MESSAGE)
+        if system and not reserved:
+            raise ValueError(f"a system job's name must start with {SYSTEM_JOB_NAME_PREFIX!r}")
+
+    @staticmethod
+    def _validate_rename(current: str, new: str) -> None:
+        """No rename moves a job into or out of the reserved names."""
+        if new != current and (is_system_job_name(new) or is_system_job_name(current)):
+            raise ValueError(_RESERVED_NAME_MESSAGE)
 
     def _validate_create(
         self,

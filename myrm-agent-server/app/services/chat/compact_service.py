@@ -6,7 +6,7 @@ Stable import path for server callers. Implementation lives under ``compact/``.
 - compact.service, compact.persist, compact.idle_estimate, compact.archive (POS: submodules)
 
 [OUTPUT]
-- Re-exports: compact_chat, persist_compaction, CompactResult, idle estimate helpers, archive API
+- Re-exports: compact_chat, persist_compaction, CompactReason, CompactResult, idle estimate helpers, archive API
 
 [POS]
 Chat context compaction facade. Preserves ``app.services.chat.compact_service`` import path.
@@ -14,7 +14,7 @@ Chat context compaction facade. Preserves ``app.services.chat.compact_service`` 
 
 from __future__ import annotations
 
-from app.services.chat.compact._types import CompactResult
+from app.services.chat.compact._types import CompactReason, CompactResult
 from app.services.chat.compact.archive import get_archived_messages
 from app.services.chat.compact.idle_estimate import (
     estimate_compactable_context_tokens,
@@ -31,6 +31,7 @@ from app.services.chat.compact.persist import (
 from app.services.chat.compact.service import compact_chat
 
 __all__ = [
+    "CompactReason",
     "CompactResult",
     "compact_chat",
     "estimate_compactable_context_tokens",

@@ -8,13 +8,14 @@
 - app.core.channel_bridge.config_loader::load_user_configs (POS: decrypted user config loader)
 
 [OUTPUT]
-- ToolSurface: builtin tool flags, prompt mode, search depth, memory recall mode for this entry surface
+- ToolSurface: builtin tool flags, prompt mode, search depth, memory recall mode and web search mount for this entry surface
 - resolve_tool_surface(): pick the fast-search surface or the general web-chat surface
 
 [POS]
 Entry-surface stage of Agent request conversion. Fast mode is the only surface without bash and file-write tools
 (it keeps a read-only file_read_tool over spill files and uploads): it forces an answer_tool-only profile, wipes
-skills / MCP / subagents / media generation and mounts no memory tools.
+skills / MCP / subagents / media generation and mounts no memory tools. It also decides whether web search is
+mounted, from the search configuration and the profile alone.
 """
 
 from __future__ import annotations
@@ -42,6 +43,7 @@ class ToolSurface:
     is_fast: bool
     tool_flags: BuiltinToolFlags
     prompt_mode: str
+    enable_web_search: bool
     search_depth: str = "normal"
     memory_recall_mode: RecallMode = RecallMode.HYBRID
 
@@ -53,6 +55,11 @@ async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, s
     policy) — the saved Agent profile does not apply to a one-shot answer run — and mounts no memory
     tools: the user's memory still reaches the model through the injected block. A search config
     reloaded here is written back into ``sources`` because that is the value the mount reads.
+
+    Web search is mounted when a search service is configured and the surface asks for it: always in fast
+    mode, and in a general chat turn only when the profile carries ``web_search`` (the built-in tools panel
+    stores an unchecked tool as an absent entry). Whether the provider currently answers is not asked here;
+    a search that fails reports it when it runs.
     """
 
     from app.services.agent.profile.profile_resolver import resolve_builtin_tool_flags
@@ -82,8 +89,8 @@ async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, s
             resolve_builtin_tool_flags(fast_builtin, allow_answer_tool=True),
         )
         prompt_mode = "search"
-        sources.search_available = sources.search_cfg is not None
-        if not sources.search_available:
+        enable_web_search = sources.search_cfg is not None
+        if not enable_web_search:
             logger.warning(
                 "Fast search requested without resolved search_service_cfg; chat_id=%s",
                 request.chat_id,
@@ -101,11 +108,13 @@ async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, s
             is_fast=True,
             tool_flags=tool_flags,
             prompt_mode=prompt_mode,
+            enable_web_search=enable_web_search,
             search_depth=search_depth,
             memory_recall_mode=RecallMode.CONTEXT,
         )
 
-    if sources.search_cfg is None and "web_search" in profile.enabled_builtin_tools:
+    profile_wants_web_search = "web_search" in profile.enabled_builtin_tools
+    if sources.search_cfg is None and profile_wants_web_search:
         from app.core.channel_bridge.config_cache import (
             invalidate_user_configs_cache,
         )
@@ -119,12 +128,14 @@ async def resolve_tool_surface(request: AgentRequest, profile: ProfileContext, s
             sources.search_cfg = refreshed_configs.search_cfg
             sources.search_is_user_configured = bool(refreshed_configs.search_is_user_configured)
 
-    if sources.search_cfg is not None and "web_search" in profile.enabled_builtin_tools:
-        sources.search_available = True
-
     tool_flags = resolve_agent_mount(
         ExecutionSurface.WEB_CHAT,
         resolve_builtin_tool_flags(profile.enabled_builtin_tools),
     )
     prompt_mode = profile.resolved.prompt_mode if profile.resolved else "full"
-    return ToolSurface(is_fast=False, tool_flags=tool_flags, prompt_mode=prompt_mode)
+    return ToolSurface(
+        is_fast=False,
+        tool_flags=tool_flags,
+        prompt_mode=prompt_mode,
+        enable_web_search=profile_wants_web_search and sources.search_cfg is not None,
+    )

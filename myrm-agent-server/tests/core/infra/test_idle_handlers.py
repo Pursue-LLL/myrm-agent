@@ -3,6 +3,7 @@
 Tests context_compact_impl and register_all_idle_handlers.
 """
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -24,7 +25,7 @@ class TestContextCompactImpl:
         mock_session = AsyncMock()
 
         @asynccontextmanager
-        async def fake_get_session():
+        async def fake_get_session() -> AsyncIterator[AsyncMock]:
             yield mock_session
 
         with (
@@ -46,13 +47,13 @@ class TestContextCompactImpl:
         mock_result.compacted = False
         mock_result.tokens_saved = 0
         mock_result.message_count = 5
-        mock_result.reason = "too_few_messages (5 < 10)"
+        mock_result.reason = "too_few_messages"
 
         mock_compact_chat = AsyncMock(return_value=mock_result)
         mock_session = AsyncMock()
 
         @asynccontextmanager
-        async def fake_get_session():
+        async def fake_get_session() -> AsyncIterator[AsyncMock]:
             yield mock_session
 
         with (
@@ -65,7 +66,7 @@ class TestContextCompactImpl:
 
         assert result["compacted"] is False
         assert result["tokens_saved"] == 0
-        assert "too_few_messages" in result["reason"]
+        assert result["reason"] == "too_few_messages"
 
 
 class TestRegisterAllIdleHandlers:

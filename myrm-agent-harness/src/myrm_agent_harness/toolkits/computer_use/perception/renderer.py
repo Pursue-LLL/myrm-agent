@@ -73,15 +73,17 @@ def render_diff_tree(
 ) -> tuple[str, SnapshotMeta]:
     """Render an incremental diff for LLM consumption.
 
-    Produces a compact text block showing only added/updated/removed refs,
-    with total change count in the header.
+    Produces a compact text block showing only added/updated/removed refs, with the total change count in the
+    header. Because the @dref ids of the diff are registry ids, the text states which ids stay valid (the ones
+    it does not list) and which no longer are (the removed ones).
     """
     change_count = len(diff.added) + len(diff.updated) + len(diff.removed)
 
     if change_count == 0:
         body = (
             f"[app: {meta.app_name or 'unknown'} | scope: {meta.scope}]\n"
-            "Desktop state unchanged (0 changes vs previous snapshot)."
+            "Desktop state unchanged (0 changes vs previous snapshot). "
+            "All @ids from the previous snapshot are still valid."
         )
         token_estimate = max(1, len(body) // 4)
         enriched = SnapshotMeta(
@@ -97,7 +99,8 @@ def render_diff_tree(
 
     lines = [
         f"Desktop diff ({change_count} change{'s' if change_count != 1 else ''} "
-        f"vs previous snapshot, app: {meta.app_name or 'unknown'}):",
+        f"vs previous snapshot, app: {meta.app_name or 'unknown'}). "
+        "+ new, ~ changed, - removed. @ids not listed below are unchanged and still valid:",
     ]
 
     for el in diff.added:
@@ -111,7 +114,7 @@ def render_diff_tree(
         lines.append(f'~ @{upd.ref_id} {el.role} "{el.name}"{value_part} changed=[{fields_str}]')
 
     for ref_id in diff.removed:
-        lines.append(f"- @{ref_id} (removed)")
+        lines.append(f"- @{ref_id} (removed, no longer valid)")
 
     body = "\n".join(lines)
     token_estimate = max(1, len(body) // 4)

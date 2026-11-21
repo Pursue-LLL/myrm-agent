@@ -4,6 +4,7 @@
  * [INPUT]
  * @/components/features/settings/sections/system/StackUpdatePanel (POS: Central update status surface)
  * @/lib/deploy-mode (POS: Runtime detection and docs url helper)
+ * @/lib/constants/brand (POS: Official site address behind the website card)
  *
  * [OUTPUT]
  * AboutSection: Renders application overview, version metadata, diagnostics, and stack update panel.
@@ -13,7 +14,7 @@
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   IconGlobe,
   IconBook,
@@ -25,10 +26,11 @@ import {
   IconBriefcase,
   IconClock,
 } from '@/components/features/icons/PremiumIcons';
-import { Users, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 import BrandLogo from '@/components/features/app-shell/BrandLogo';
 import SettingsSection from '../SettingsSection';
 import { cn } from '@/lib/utils/classnameUtils';
+import { OFFICIAL_SITE_URL } from '@/lib/constants/brand';
 import { getDocsUrl, isTauriRuntime } from '@/lib/deploy-mode';
 import { Button } from '@/components/primitives/button';
 
@@ -121,6 +123,7 @@ const FALLBACK_VERSION = '0.1.0';
 
 const AboutSection = memo(() => {
   const t = useTranslations('settings.about');
+  const locale = useLocale();
   const [version, setVersion] = useState(FALLBACK_VERSION);
   const [engineVersion, setEngineVersion] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -181,7 +184,7 @@ const AboutSection = memo(() => {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 bg-background/60 px-2.5 py-1 rounded-md border border-border/40">
-                <IconCode className="w-3.5 h-3.5 text-emerald-500" />
+                <IconCode className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                 <span>
                   {t('engineVersion')}: <span className="text-foreground font-medium">v{engineVersion ?? '...'}</span>
                 </span>
@@ -197,8 +200,8 @@ const AboutSection = memo(() => {
               >
                 {copied ? (
                   <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                    <span className="text-emerald-500">{t('copiedDiagnostics')}</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
+                    <span className="text-emerald-700 dark:text-emerald-500">{t('copiedDiagnostics')}</span>
                   </>
                 ) : (
                   <>
@@ -345,12 +348,13 @@ const AboutSection = memo(() => {
 
       {/* 资源链接 */}
       <SettingsSection title={t('links.title')} description={t('links.description')}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* 卡片数为奇数时末张通栏，避免半行留白 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:[&>a:last-child:nth-child(odd)]:col-span-2">
           <LinkCard
             icon={IconGlobe}
             title={t('links.website.title')}
             description={t('links.website.description')}
-            href="https://myrmagent.com"
+            href={OFFICIAL_SITE_URL}
           />
           <LinkCard
             icon={IconGlobe}
@@ -362,13 +366,7 @@ const AboutSection = memo(() => {
             icon={IconBook}
             title={t('links.documentation.title')}
             description={t('links.documentation.description')}
-            href={getDocsUrl()}
-          />
-          <LinkCard
-            icon={Users}
-            title={t('links.community.title')}
-            description={t('links.community.description')}
-            href="https://discord.gg/myrmagent"
+            href={getDocsUrl('/getting-started/introduction', locale)}
           />
         </div>
       </SettingsSection>

@@ -184,18 +184,25 @@ airbag_rolled_back_message =
     工作区文件已恢复到目标开始前的状态。
 cron_notice_title = 提醒：{ $job_name }
 cron_notice_failed_title = 定时任务执行失败：{ $job_name }
+cron_notice_interrupted_title = 定时任务被中断：{ $job_name }
 cron_notice_paused_title = 定时任务已暂停：{ $job_name }
 cron_notice_expired_message =
     已到结束时间，已自动暂停。
 cron_notice_max_fires_message =
     已执行 { $max_fires } 次，达到执行次数上限，已自动暂停。
 cron_notice_failure_message =
-    遇到无法自行恢复的问题，已自动暂停。请查看运行历史，处理后再恢复。
+    遇到无法自行恢复的问题，已自动暂停。请在执行记录中查看原因，处理后再恢复。
+cron_notice_interrupted_message =
+    运行期间应用停止了，这次执行没有完成。
+cron_system_job_heartbeat = Agent 自动巡检
 new_session_started =  新对话已开始，下一条消息将开启新会话。
 compact_not_configured = ℹ 未配置压缩功能。
 compact_success =  上下文已压缩：{ $message_count } 条消息已摘要，约节省 { $tokens_saved } tokens。{ $topic_hint }
-compact_skipped = ℹ 跳过压缩：{ $reason }
-compact_failed =  压缩失败：{ $error }
+compact_topic_hint = （聚焦主题：{ $topic }）
+compact_skipped_nothing = ℹ 暂时无需压缩。
+compact_skipped_busy = ℹ 这个会话正在压缩中。
+compact_skipped_paused = ℹ 压缩暂时停用，请稍后再试。
+compact_failed =  压缩失败，请稍后再试。
 retry_not_configured = ℹ 未配置重试功能。
 retry_nothing = ℹ 没有可重试的内容。
 retry_failed = ℹ 重试失败。

@@ -14,9 +14,6 @@ import httpx
 import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient, Response
-from myrm_agent_harness.agent.meta_tools.bash._background.session_spawn_lifecycle import (
-    reset_spawn_lifecycle_for_tests,
-)
 from myrm_agent_harness.api.hooks import (
     get_background_registry,
     set_global_background_job_finish_handler,
@@ -45,11 +42,9 @@ def _build_system_app() -> FastAPI:
 def _clear_registry() -> Iterator[None]:
     registry = get_background_registry()
     registry._entries.clear()
-    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(ServerBackgroundJobFinishHandler())
     yield
     registry._entries.clear()
-    reset_spawn_lifecycle_for_tests()
     set_global_background_job_finish_handler(None)
 
 

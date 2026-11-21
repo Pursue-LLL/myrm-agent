@@ -20,6 +20,7 @@ export type {
   FailureAlertConfig,
   JobStatus,
   MonitorConfig,
+  PauseReason,
   PollTrigger,
   PrerequisiteCheckResponse,
   RunStatus,

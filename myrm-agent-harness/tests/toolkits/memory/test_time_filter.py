@@ -319,7 +319,7 @@ class TestSessionsRecallTimePassing:
         provider.search.assert_awaited_once()
         request = provider.search.call_args.args[0]
         assert request.since == datetime(2026, 4, 10, tzinfo=UTC)
-        assert request.until == datetime(2026, 4, 24, tzinfo=UTC)
+        assert request.until == datetime(2026, 4, 24, 23, 59, 59, 999999, tzinfo=UTC)
 
 
 class TestParseTimeBoundRelativeRange:

@@ -17,7 +17,7 @@
 
 [POS]
 Encrypted session persistence. Handles save/restore/list/delete with cookie domain filtering,
-normalised cookie injection (expires/sameSite), and origin-guarded localStorage via document-response script injection.
+normalised cookie injection (expires/sameSite), and origin-guarded localStorage (init script for later documents, immediate evaluation for open pages).
 """
 
 from __future__ import annotations
@@ -116,7 +116,7 @@ class SessionPersistence:
 
         Auto-filters expired sessions (default 30-day TTL).
         Cookies are normalised (expires/sameSite) before injection.
-        localStorage is injected inside the document response (zero network I/O).
+        localStorage is an init script for later documents of its origin and is written at once to open pages.
 
         Args:
             context: Browser context to inject state into.

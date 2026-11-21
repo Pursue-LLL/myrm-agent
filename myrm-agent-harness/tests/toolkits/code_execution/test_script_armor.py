@@ -17,11 +17,13 @@ import shlex
 import stat
 import subprocess
 import time
+import uuid
 from pathlib import Path
 from typing import NoReturn
 
 import pytest
 
+from myrm_agent_harness.core.security.detection.leak_detector import redact_leaks, scan_for_leaks
 from myrm_agent_harness.toolkits.code_execution.security.script_armor import (
     prepare_armored_command,
     sweep_stale_materialized_scripts,
@@ -341,3 +343,18 @@ class TestSweepStaleMaterializedScripts:
         assert sweep_stale_materialized_scripts(tmp_path, max_age_seconds=10.0) == 0
         monkeypatch.undo()
         assert stale_file.exists()
+
+
+class TestScriptNameInAListing:
+    """The script is listed by any ``ls -a`` of the workspace while a command runs, and the model reads the listing."""
+
+    def test_the_name_of_an_armored_script_is_no_credential_to_the_leak_detector(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # An id whose hex digits read as random to the entropy scan (a few ids do not, so a fresh one would not pin it).
+        monkeypatch.setattr("uuid.uuid4", lambda: uuid.UUID("6bd1b0fd-7950-43be-89d3-74bedb731800"))
+        with prepare_armored_command("echo hi", tmp_path) as shell_line:
+            listing = f"-rwx------@ 1 user staff 11559 Nov 18 18:52 {_script_of(shell_line).name}"
+
+            assert scan_for_leaks(listing) == []
+            assert redact_leaks(listing) == listing

@@ -45,7 +45,7 @@ def created_agent_id(auth_headers: dict[str, str]):
         "skill_ids": [],
         "tool_gateway_config": {
             "use_gateway": True,
-            "gateway_url": "https://api.test.myrm.ai/v1/gateway",
+            "gateway_url": "https://gateway.example.com/v1/gateway",
             "auth_token": "test_pat_token",
         },
     }
@@ -80,7 +80,7 @@ class TestAgentGatewayConfigE2E:
         agent = resp.json()["data"]
         assert agent["tool_gateway_config"] is not None
         assert agent["tool_gateway_config"]["use_gateway"] is True
-        assert agent["tool_gateway_config"]["gateway_url"] == "https://api.test.myrm.ai/v1/gateway"
+        assert agent["tool_gateway_config"]["gateway_url"] == "https://gateway.example.com/v1/gateway"
         assert agent["tool_gateway_config"]["auth_token"] == "test_pat_token"
 
     def test_update_agent_gateway_config(self, auth_headers: dict[str, str], created_agent_id: str) -> None:
@@ -88,7 +88,7 @@ class TestAgentGatewayConfigE2E:
         update_payload = {
             "tool_gateway_config": {
                 "use_gateway": False,
-                "gateway_url": "https://other.myrm.ai",
+                "gateway_url": "https://other-gateway.example.com",
                 "auth_token": "new_token",
             }
         }
@@ -109,7 +109,7 @@ class TestAgentGatewayConfigE2E:
         agent = resp.json()["data"]
         assert agent["tool_gateway_config"] is not None
         assert agent["tool_gateway_config"]["use_gateway"] is False
-        assert agent["tool_gateway_config"]["gateway_url"] == "https://other.myrm.ai"
+        assert agent["tool_gateway_config"]["gateway_url"] == "https://other-gateway.example.com"
         assert agent["tool_gateway_config"]["auth_token"] == "new_token"
 
     def test_create_agent_without_gateway_config(self, auth_headers: dict[str, str]) -> None:

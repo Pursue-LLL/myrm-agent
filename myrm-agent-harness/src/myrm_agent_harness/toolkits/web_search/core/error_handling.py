@@ -5,7 +5,8 @@
 
 [OUTPUT]
 - is_quota_or_rate_limit_error: Quota / rate-limit detection (chain hop + non-retryable)
-- is_persistent_quota_depleted_error: Detect persistent account quota exhaustion vs transient rate limits
+- is_persistent_quota_depleted_error: Detect persistent account quota exhaustion vs transient rate limits; a 402 counts
+  whether the exception carries it or a wrapping SearchAPIError holds it in its context
 - is_retryable_search_error: Return True when a failed search attempt may succeed after backoff.
 - build_search_error_context: Build structured context for a single failed search attempt.
 
@@ -126,8 +127,13 @@ _PERSISTENT_QUOTA_MARKERS: frozenset[str] = frozenset(
 
 
 def is_persistent_quota_depleted_error(exc: BaseException) -> bool:
-    """Return True when an error denotes account quota/credit exhaustion rather than transient rate limits."""
-    if _status_from_exception(exc) == 402:
+    """Return True when an error denotes account quota/credit exhaustion rather than transient rate limits.
+
+    A 402 is the account's own verdict whatever the body says. The chain sees the failure after ``WebSearcher`` wrapped it
+    in a ``SearchAPIError``, which keeps the status in its context instead of on the exception.
+    """
+    status = exc.context.status_code if isinstance(exc, SearchAPIError) else _status_from_exception(exc)
+    if status == 402:
         return True
     body = _response_body_snippet(exc) or ""
     combined = f"{exc!s} {body}".lower()

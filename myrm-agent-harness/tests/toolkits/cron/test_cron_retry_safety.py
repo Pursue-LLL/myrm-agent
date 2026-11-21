@@ -75,6 +75,7 @@ class TestRecurringJob:
         await executor._update_after_run(job, _failed(retry_safe=False), 1, _NOW)
 
         assert job.status == JobStatus.ACTIVE
+        assert job.next_run_at is not None
         assert job.next_run_at == compute_next_run(job.schedule, _NOW)
         assert job.next_run_at - _NOW > timedelta(minutes=1)
 
@@ -216,6 +217,18 @@ class TestFailureAlert:
         assert f"Last error: {error}\n" in text
         assert "destination" not in text
         assert delivery.deliver.call_args.args[1].metadata is None
+
+    @pytest.mark.asyncio
+    async def test_a_one_shot_that_failed_for_good_alerts_with_its_run_error(self) -> None:
+        """The alert is built from the job after the closing write, so the run's error is on the job by then."""
+        executor, store, delivery = _executor(_ALERT_AFTER_THREE)
+        job = _job(schedule=Schedule(kind=ScheduleKind.ONCE, run_at=_NOW))
+        _store_holds(store, job)
+
+        await executor._update_after_run(job, _failed(retry_safe=False, error="ValueError: no customer id"), 1, _NOW)
+
+        assert job.status == JobStatus.PAUSED
+        assert "Last error: ValueError: no customer id\n" in await self._alert_text(delivery)
 
     @pytest.mark.asyncio
     async def test_safe_failure_below_the_threshold_stays_quiet(self) -> None:

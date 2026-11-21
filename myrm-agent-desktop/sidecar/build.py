@@ -9,9 +9,11 @@ so the unpacking happens once, at install time.
 
 [INPUT]
 - bundle_inventory::HARNESS_PACKAGE, HOOKS_DIR, write_inventory_hooks, script_data_options, exclude_options,
-  installed_package_dir (POS: what the bundle must contain and which channel SDKs stay out)
+  installed_package_dir, installed_monty_worker, monty_options, monty_worker_name (POS: what the bundle must contain and
+  which channel SDKs stay out)
 - bundle_verify.py (POS: post-build gate that reads the finished bundle back; run as a subprocess)
-- stdio_runtime_hook.py, gc_runtime_hook.py (POS: runtime hooks for the standard streams and the boot's cycle GC)
+- stdio_runtime_hook.py, gc_runtime_hook.py, monty_runtime_hook.py (POS: runtime hooks for the standard streams, the
+  boot's cycle GC and the location of the script sandbox's worker)
 - The server's `app/main.py`, its SERVER_DATA files and shared/config/provider_legacy_remap.json (POS: the entry
   script and the data shipped beside it)
 
@@ -36,7 +38,10 @@ from bundle_inventory import (
     HARNESS_PACKAGE,
     HOOKS_DIR,
     exclude_options,
+    installed_monty_worker,
     installed_package_dir,
+    monty_options,
+    monty_worker_name,
     script_data_options,
     write_inventory_hooks,
 )
@@ -51,6 +56,7 @@ OUTPUT_DIR = PROJECT_ROOT / "myrm-agent-desktop" / "src-tauri" / "binaries"
 SHARED_PROVIDER_REMAP = PROJECT_ROOT / "shared" / "config" / "provider_legacy_remap.json"
 STDIO_RUNTIME_HOOK = Path(__file__).parent / "stdio_runtime_hook.py"
 GC_RUNTIME_HOOK = Path(__file__).parent / "gc_runtime_hook.py"
+MONTY_RUNTIME_HOOK = Path(__file__).parent / "monty_runtime_hook.py"
 BUNDLE_VERIFY = Path(__file__).parent / "bundle_verify.py"
 
 # Server data that code opens by a path relative to its own module (`Path(__file__)...`), as paths under the server
@@ -169,11 +175,17 @@ def _server_data_options(data_sep: str) -> list[str]:
     return options
 
 
-def pyinstaller_command(server_python: Path, work_dir: Path, harness_dir: Path = HARNESS_SOURCE_DIR) -> list[str]:
+def pyinstaller_command(
+    server_python: Path,
+    work_dir: Path,
+    harness_dir: Path = HARNESS_SOURCE_DIR,
+    monty_worker: Path = Path(monty_worker_name()),
+) -> list[str]:
     """PyInstaller invocation that writes the one-folder bundle to SIDECAR_DIR.
 
     First-party modules are not left to the import scan: the hooks that `write_inventory_hooks` puts in
-    `work_dir / HOOKS_DIR` list every one of them. `harness_dir` is the harness package the bundle ships.
+    `work_dir / HOOKS_DIR` list every one of them. `harness_dir` is the harness package the bundle ships and
+    `monty_worker` the script sandbox's worker executable; the defaults answer when only the command is looked at.
     """
     data_sep = ";" if SYSTEM == "windows" else ":"
     cmd = [
@@ -199,6 +211,7 @@ def pyinstaller_command(server_python: Path, work_dir: Path, harness_dir: Path =
         "--collect-data", HARNESS_PACKAGE,
         *_server_data_options(data_sep),
         *script_data_options(harness_dir, data_sep),
+        *monty_options(monty_worker, data_sep),
         "--add-data", f"{SHARED_PROVIDER_REMAP}{data_sep}shared/config",
         "--exclude-module", "matplotlib",
         "--exclude-module", "tkinter",
@@ -206,6 +219,7 @@ def pyinstaller_command(server_python: Path, work_dir: Path, harness_dir: Path =
         *exclude_options(),
         "--runtime-hook", str(STDIO_RUNTIME_HOOK),
         "--runtime-hook", str(GC_RUNTIME_HOOK),
+        "--runtime-hook", str(MONTY_RUNTIME_HOOK),
         "--distpath", str(OUTPUT_DIR),
         "--workpath", str(work_dir / "build"),
         "--specpath", str(work_dir),
@@ -259,6 +273,7 @@ def build_backend(*, skip_harness_install: bool = False) -> None:
     server_python = _server_python()
     # The bundle ships the harness the venv has installed (a wheel built from the checkout), not the checkout itself.
     harness_dir = installed_package_dir(server_python, HARNESS_PACKAGE)
+    monty_worker = installed_monty_worker(server_python)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     # Start from nothing at the target path (directory, file or symlink) so no file of an earlier build survives.
@@ -270,7 +285,7 @@ def build_backend(*, skip_harness_install: bool = False) -> None:
     # Work files stay outside OUTPUT_DIR: everything under it is shipped or ignored by git, never scratch.
     with tempfile.TemporaryDirectory(prefix="myrm-sidecar-build-") as work_dir:
         write_inventory_hooks(Path(work_dir) / HOOKS_DIR, SERVER_ROOT / "app", harness_dir)
-        cmd = pyinstaller_command(server_python, Path(work_dir), harness_dir)
+        cmd = pyinstaller_command(server_python, Path(work_dir), harness_dir, monty_worker)
         print("\nRunning PyInstaller...")
         print(f"Command: {' '.join(cmd)}\n")
         result = subprocess.run(cmd, cwd=SERVER_ROOT, check=False)

@@ -8,7 +8,7 @@
 
 1. **Agent 友好**：通过引用系统（@refs）和自愈定位器（O(1) BBox 特征）简化元素定位，消除因 DOM 变动导致的 Agent 崩溃，减少 Token 消耗。
 2. **高性能**：混合会话降级机制（静态页极速 HTTP 注入）、零拷贝页面复用、MutationObserver变化检测、感知哈希截图对比。
-3. **高安全**：URL scheme 白名单验证、四层纵深域名过滤（覆盖 Worker）、加密 Session 存储、审批机制与语义否决（Semantic Veto）。
+3. **高安全**：URL scheme 白名单验证、四层纵深域名过滤（含 Worker 的 HTTP 请求与 `blob:` / `data:` Worker）、加密 Session 存储、审批机制与语义否决（Semantic Veto）。
 4. **高可靠**：双引擎反爬机制（Patchright/Camoufox）、智能重试、精细化错误处理。
 
 ### 已登录站点与内网访问
@@ -104,6 +104,7 @@ Extension Bridge 与 SessionVault 让 Agent 复用已登录会话，且无需读
 - **DevToolsActivePort 自动发现**：AUTO 模式通过 `chrome_discovery.py` 扫描 Chrome/Edge/Chromium/Brave/Canary 的 DevToolsActivePort 文件，自动发现用户本地浏览器的动态 CDP 端口。4 阶段策略：文件扫描 → HTTP probe（完整 CDP API）→ inspect WebSocket path + TCP（`chrome://inspect` 模式）→ 固定端口 9222 HTTP 兜底。
 - **Local 可见 fallback**：server 层 `get_browser_launch_options()` 在 Local 模式设 `headless=False`（SaaS 仍默认 headless）
 - **多租户隔离**：不同 ContextType（CRAWL / AGENT / STEALTH）使用独立 BrowserContext
+- **证书默认校验**：`ContextFactory` 对除扩展上下文之外的每种上下文（CRAWL / AGENT / STEALTH，含接入的 CDP 浏览器里新建的上下文）显式写入 `ignore_https_errors=False`：浏览器会拒绝的证书（自签、过期、主机名不符、根不受信任）让页面加载失败，抛出带 `net::ERR_CERT_*` 的 `BrowserNavigationError`，它的恢复建议只让模型核对域名并如实告知用户，不去找绕过校验的办法。放开校验是运营方的决定：`BrowserConfig.ignore_https_errors`（默认 `False`；服务端由环境变量 `MYRM_BROWSER_IGNORE_HTTPS_ERRORS` 设置）对所有这类上下文生效，池在构造与 `update_proxy_pool` 两处建工厂时都传入它；上下文的创建者仍可经 `context_kwargs` 的 `ignore_https_errors` 单独覆盖。`browser_source=extension` 的用户浏览器不受影响，沿用用户自己的证书设置。证书只由浏览器自己校验：文档与子资源都由浏览器自己加载，驱动进程不取回文档，所以浏览器信任而驱动信任库不认的证书（企业 TLS 检测根、私有 CA）不会让页面丢掉脚本（DOM 增强、隐身、域名白名单的 CSP 与加固），表单 POST 也照常发出（`tests/toolkits/browser/test_script_delivery_integration.py` 用浏览器信任、驱动不信任的证书实测）。
 - **智能负载调度**：自动选择负载最低的 Context
 - **智能重试**：3次指数退避重试（2s/4s/8s），处理启动失败和网络异常
 - **并发安全销毁**：支持 `destroy_context` 显式回收资源，并具备严格的并发安全断言，防止销毁正在使用的页面。不拥有上下文的调用方用 `destroy_context(key, only_if_idle=True)`：上下文仍有页面在用时保留并返回 `False`，不抛异常。
@@ -467,10 +468,10 @@ Rejected dangerous schemes: javascript/file/data/blob/ftp. Got: javascript:alert
 
 ### 10. 四层纵深域名过滤
 
-**设计目标**：覆盖主线程和 Web Worker 的所有网络出口通道，防止数据泄露
+**设计目标**：封住请求过滤器看不到的出口通道（WebSocket、WebRTC、WebTransport）与 Worker 的 HTTP 请求，防止数据泄露；未覆盖的边界见「覆盖通道」
 
 ```
-Layer 0: CSP (Content-Security-Policy)   ← BROWSER KERNEL (主线程 + Worker)
+Layer 0: CSP (Content-Security-Policy)   ← BROWSER KERNEL (文档自身的连接)
 Layer 1: context.route('**/*')           ← PROTOCOL BLOCK (HTTP/HTTPS)
 Layer 2: addInitScript() + defineProperty ← MAIN THREAD HARD (WebRTC/SW)
 Layer 3: CDP Network.webSocketCreated     ← AUDIT VISIBILITY
@@ -485,7 +486,7 @@ Layer 3: CDP Network.webSocketCreated     ← AUDIT VISIBILITY
 
 **Layer 0（CSP）核心优势**：
 - 浏览器内核层执行（W3C 标准原生实现）
-- 自动覆盖主线程和所有 Web Worker（包括 WebSocket/EventSource/sendBeacon）
+- 覆盖文档自身发起的连接（fetch/XHR/WebSocket/EventSource/sendBeacon）；`blob:` / `data:` Worker 因 `worker-src` 回落到 `script-src` 被拒，从 URL 加载的 Worker 遵循它自己响应的策略、不受这份 CSP 约束，它的 HTTP 请求由 Layer 1 拦截（实测：Worker 里请求白名单之外的主机，CSP 无违规事件、目标站点 0 次命中；同样的 Worker 在没有白名单的上下文里请求成功），它自己开的 WebSocket 则不受任何一层约束（实测：连接到达白名单之外的主机，Layer 3 也没有审计行）
 - 成熟可靠，无法被页面脚本篡改
 
 **Layer 2 硬化机制**：
@@ -499,16 +500,26 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 ```
 
 **覆盖通道**：
-- Layer 0（CSP）: **主线程 + Worker**: fetch/XHR/WebSocket/EventSource/sendBeacon/importScripts
-- Layer 1: HTTP/HTTPS
-- Layer 2: RTCPeerConnection, WebTransport, Service Worker registration
-- Layer 3: WebSocket audit（含 Worker）
+- Layer 0（CSP）: **文档自身**: fetch/XHR/WebSocket/EventSource/sendBeacon；`blob:` / `data:` Worker 被拒；同源弹窗的首个文档在第一次构造 WebSocket / Worker / SharedWorker 之前补上同一份策略；带 opener 的弹窗里页面的第一个脚本有时先于这份脚本运行，那一刻打开的通道不在覆盖内（见下「脚本送达」）
+- Layer 1: HTTP/HTTPS（含 Worker 发起的请求；同源弹窗首个文档里的 fetch/XHR/sendBeacon/EventSource 同样经过它）
+- Layer 2: RTCPeerConnection, WebTransport, Service Worker registration（带 opener 的弹窗里同样可能晚到，见下「脚本送达」）
+- Layer 3: WebSocket audit（页面目标，只记日志；不含 Worker 自己开的 WebSocket）
+- 智能体自己的脚本（`BrowserSession.evaluate`）：在它运行的隔离世界里同样适用 Layer 0 与 Layer 2；覆盖止于脚本所在的窗口（见下「智能体自己的脚本」）
 
-**私网策略**：云托管（默认 `allow_private_networks=False`）下，导航守卫在 `goto` 之前对 URL 做 DNS 解析校验（所有地址必须为公网），context 过滤器对每个请求逐跳校验。本地模式 `BrowserSession(allow_private_networks=True)` 经 `context_kwargs` → `ContextFactory` → `install_domain_filter(allow_private_networks=…)` → Layer 1 `install_http_filter`，只放行「智能体显式导航到的私网源」（scheme + host + port，登记在 `utils/private_origins.private_origin_grants(context)`，导航守卫与过滤器共用同一份）：页面脚本 / 重定向 / iframe 指向其他私网地址仍被拦，云元数据端点（`169.254.169.254`、`metadata.google.internal` 等）永远被拦。本地模式先按字面主机分类，再对普通主机名做一次 DNS 查询（`core/security/redirect_hop_guard/name_resolution.py`，2 秒上限、15 秒缓存，失败也缓存）：只有解析到环回 / 链路本地 / 未指定地址或云元数据地址的域名（如 `127.0.0.1.nip.io`、攻击者控制的 A 记录）才视同该私网源——显式导航到的源放行，其他被拦，云元数据永不放行；解析到 RFC 1918、CGNAT、`198.18.0.0/15` 的结果不判定（代理与 fake-IP 会把公网域名映射到这些段），解析失败或超时不拦。过滤器仅检查 document 请求，子资源交给 Chromium 的私网访问规则。blocklist、allowlist、广告与资源类型规则照常生效，因此是否挂载域名列表或资源拦截，都不改变会话自己声明的私网策略；域名列表对入口 URL 与子资源由过滤器判定，对文档重定向的后续各跳由导航守卫在加载后回放判定（见下一段）。该标志与 allowlist 一样在 context 创建时生效，同一 `context_key` 以首个创建者的策略为准。
+**脚本送达**：Layer 0 与 Layer 2 的脚本由 `install_domain_filter` 经 `BrowserContext.add_init_script` 注册（DOM 增强与 STEALTH 脚本同理，由 `ContextFactory` 注册）。浏览器在上下文的文档里、页面自己的脚本之前运行它们，与文档由谁取回无关：顶层标签页、同源 iframe、`srcdoc`、脚本创建的 iframe、`target=_blank` 链接打开的页面、加了 `noopener` 的弹窗、表单 POST 的应答页，真实 Chromium 实测（带 opener 的弹窗除外，见下）；`tests/toolkits/browser/test_script_delivery_integration.py` 用浏览器信任、驱动不信任的证书守着这一点。CSP `<meta>` 由脚本在解析器创建 `<head>` 之后插入其首位，先于页面自己的脚本（head 阶段首个内联脚本、body、`DOMContentLoaded`、`load` 与 load 后 200 ms 五个检测阶段全部在策略之下）；没有 `<head>` 的文档（SVG）不设策略。带 opener 的弹窗（`window.open` 且没有 `noopener`）有两点不同（实测）。其一，patchright 1.64.4 的驱动（`lib/coreBundle.js`）只对没有 opener 的页面等 init script 注册完成再放行，有 opener 的页面不等，所以页面的第一个脚本有时先于 init script 运行：本机（macOS、负载 50 至 74）每种打开方式 500 次，同源 `window.open` 97 次、跨源（同站不同端口）`window.open` 5 次，`target=_blank` 链接（同源、跨源）、加了 `noopener` 的同源弹窗与标签页对照各 0 次；空闲机器上同源约 1%（经连接池的另一组测量），比例随负载升高。那一刻 Layer 0 与 Layer 2 守的通道没有守住：白名单只放行 `127.0.0.1`、弹窗的第一个内联脚本向白名单之外的主机开 WebSocket 的端到端探针（macOS、负载 100 至 115），标签页 20 次 0 次连上，同源弹窗 150 次 12 次连上；HTTP 通道仍由 Layer 1 判定。其二，同源弹窗复用自己的初始窗口，init script 通常只在那个 `about:blank` 上跑一次、不为随后的文档再跑，所以这个文档一开始没有 CSP `<meta>`（20 轮里 19 轮五个检测阶段都没有策略）；窗口上的全局加固（`RTCPeerConnection` 等）留在窗口里继续有效（22 个弹窗中 21 个从 head 阶段起即被拦，1 个在 head 阶段短暂暴露）；HTTP 通道由 Layer 1 判定，不依赖这份策略（实测：这样的弹窗里向白名单之外的主机发 fetch、XHR、sendBeacon、EventSource、图片与脚本请求，目标站点 0 次命中；不装过滤器的对照 6 次全部命中）。Layer 0 的脚本因此包装 `WebSocket` / `Worker` / `SharedWorker` 构造器：构造之前把同一份策略补进当前文档（每个文档只补一次），脚本先到的弹窗里这三类通道便与带策略的文档一样被拒；包装不抛异常、不自行判定，拒绝仍由浏览器给出（页面看到的是同样的 `securitypolicyviolation`，不是同步异常）。`tests/toolkits/browser/test_popup_channel_policy_integration.py` 在真实 Chromium 里让每条路线各自作为全新文档的第一个通道，分别在导航后的标签页与同源弹窗里运行（构造器本身、`prototype.constructor`、实例的 `constructor`、子类、`Reflect.construct`、另一个 realm、`blob:` / `data:` Worker 与 `blob:` SharedWorker，其中的脚本再开 WebSocket）：弹窗的判定与标签页一致，白名单之外的目标站点 0 次命中。第二个用例要看策略是怎样被补上的，需要一个开始时还没有策略的弹窗：遇到策略已先到的就关掉重开，最多 20 次，仍没有则失败。这类弹窗里 DOM 增强的 body 观察器不会重新挂接。
 
-**重定向链的判定时机**：patchright 不会把文档重定向的中间跳交给 route，所以链路在加载完成后用 `request.redirected_from` 回放判定；命中则把标签页重置为 `about:blank` 并抛 `BrowserNavigationBlockedError`，页面内容不会返回给调用方。回放时除私网 / 元数据判定外，还会把该 agent 配置的域名白名单 / 黑名单（`domain_filter/context_lists.py`，由请求过滤器绑定到 context）应用到入口 URL 之后的每一跳：白名单站点不能再通过重定向把标签页带到名单之外的域名，经第三方 IdP 的 OAuth 跳转在配置了白名单的 agent 上也按名单处理。入口 URL 仍由请求过滤器判定。文档注入路由（`enhancers/inject_route.py`）以 `max_redirects=0` 取回，3xx / 非 HTML 响应原样交还 Chromium，由浏览器自己执行重定向（页面 URL 与 origin 正确、cookie 正确、链路可见、请求只发一次）；表单 POST 等非幂等请求取回时关闭驱动的请求超时，失败则 abort 而不是交还 Chromium 重发，所以业务端点响应再慢也只提交一次。出站连接层：严格策略（云托管）下，池自己启动的 Chromium 的每个 context 都经 `EgressGuard`（`pool/egress_guard.py`，本机回环 SOCKS5 代理）出网。Chromium 把主机*名*交给代理，代理只解析一次、要求所有答案都是公网地址、只拨已校验的地址，所以重定向的中间跳、子资源、WebSocket、脚本发起的请求和 DNS rebinding 都到不了内部地址，内部服务一次请求也收不到（真实 Chromium 对照：不经守卫时攻击页的 8 种请求全部落到内部站点，经守卫 0 个）；被拒的连接在页面上表现为 `net::ERR_SOCKS_CONNECTION_FAILED`（Chromium 对所有 SOCKS5 拒绝码给同一个错误，实测），守卫停止后新连接失败为 `ERR_PROXY_CONNECTION_FAILED`，即浏览器没有网络（安全失败）。第一个受守卫的 context 创建前先过金丝雀（用一个不可能存在的域名开临时页，守卫必须听到这次连接，否则抛 `EgressGuardError`，不为一个无视代理设置的浏览器提供页面）。WebRTC 的 UDP 不经任何代理，守卫配置时池的启动参数带 `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`（实测：无该参数时 STUN 数据报发到回环 UDP 端口，有则 0 个）；配置代理后 Chromium 也不再直连 QUIC（WebTransport 实测 0 个数据报）。守卫只执行 SSRF 公网策略，不执行用户的 `network_blocklist`（见下）。守卫不适用于：本地模式与声明 `allow_private_networks` 的 context（私网本就允许）、自带代理的 context（代理池或显式代理，出口策略由代理运营方承担）、经 CDP / 远程 / 扩展接入的浏览器和 Camoufox（不是池启动的 Chromium，池无法为其配置）、SSRF 盾关闭、以及环境配置了 HTTP 代理（`http_proxy` / `https_proxy` / `all_proxy`，守卫直连会绕过该代理，启动时记一条告警）。web_fetch 的 L3 Stealth 层在同样的条件下为每次抓取单独起一个守卫（Scrapling 自己启动 Chromium，不走池），抓取结束即停。不在守卫范围内时，剩余边界依旧成立：Chromium 在判定之前会向未授权的内部地址发出一次 GET（响应不会交给调用方，也读不到内容）；本地模式对主机名的判定与 Chromium 自己的解析是两次独立查询，攻击者控制的 DNS 可在两次之间换答案（DNS rebinding）。这两点只有出站网络层（防火墙 / egress 代理，云托管由控制平面 iptables 承担）才能彻底阻止。web_fetch 的 HTTP / Stealth 层使用同一套策略（`web_fetch/fetchers/target_guard.py`），被策略拒绝的 URL 是终态，不会降级到下一层重试。用户的 `network_blocklist` 由同一模块的 `assert_not_blocklisted` 判定：HTTP 层的每一跳在请求之前判定；Stealth 层与浏览器层只判定入口 URL 与最终页面，中间跳在这两层不可见（浏览器层的池化上下文被所有用户共用，名单无法装进上下文）；命中同样是终态。
+**智能体自己的脚本**：`BrowserSession.evaluate`（`browser_manage_tool` 的 evaluate，以及 `browser_execute_script_tool` 脚本里的 `session.evaluate`）是智能体写的 JavaScript 进入页面的唯一入口。它交给 `page.evaluate`，由驱动在隔离世界里运行：构造器与 `window` 自成一套，只与页面共享 DOM。Layer 0 与 Layer 2 的脚本是 init script，跑在页面的主世界，隔离世界里既没有它们对 `WebSocket` / `Worker` / `SharedWorker` 的包装，也没有对 `RTCPeerConnection`、`WebTransport`、`serviceWorker.register` 的加固。`domain_filter/agent_world.py` 在挂了域名白名单的上下文里为智能体的脚本补上这两样：先在当前窗口运行同样两段脚本，再把智能体的原文交给内层 `eval`。策略 `<meta>` 每个文档只留一份（两个世界各有自己的记录、互相看不见，由文档 `<head>` 里是否已有同一份策略裁决）；加固每个窗口只做一次，此后每次调用只检查当前文档是否带着策略；检查用的全局函数以不可写、不可配置的方式定义，智能体的脚本删不掉也换不掉。原文保持自己的语义（开头的 `'use strict'`、报错位置，以 `function` 开头的文本按驱动的方式补括号）；没有白名单的上下文（含只有黑名单的）原样执行。HITL 的 JS 评估闸门先于这一层、看到的是智能体的原文。实测（真实 Chromium、patchright 1.64.4，白名单只放行 `127.0.0.1`，探针见 `tests/toolkits/browser/_channel_probe.py`，用例见 `tests/toolkits/browser/test_agent_world_policy_integration.py`）：
 
-**反爬检测友好**：保留 Web Worker 功能（避免 `new Worker()` 抛异常），与 browser-use（81K stars）策略一致
+- 同源弹窗里（复用窗口，文档没有策略 `<meta>`）直接用 `page.evaluate` 跑探针：指向白名单之外主机的九条路线（构造器本身、`prototype.constructor`、实例的 `constructor`、子类、`Reflect.construct`、`about:blank` 子框架的 realm、`blob:` / `data:` Worker、`blob:` SharedWorker）全部到达目标站点（9 次命中），`RTCPeerConnection` 发出 3 个 UDP 数据报，`WebTransport` 构造成功；经 `BrowserSession.evaluate` 运行同样的探针，目标站点 0 次命中、0 个数据报，三项加固均为 `SecurityError`，与导航后的标签页逐路线一致。
+- 导航后的标签页里文档自带策略，直接的 WebSocket 本来就被 `connect-src` 拒绝（0 次命中），但隔离世界里 `RTCPeerConnection` 与 `WebTransport` 照常构造（3 个数据报）；经 `BrowserSession.evaluate` 后三项均为 `SecurityError`、0 个数据报。
+- 能带策略的文档照常运行：HTML 页面、纯文本、JSON、没有 html / head / body 标签的片段、XHTML、图片，以及自带 `script-src 'self'` 或 `require-trusted-types-for 'script'` 的页面（八类文档逐一执行）；返回值、报错、`this`、严格模式与不带这一层时逐项一致（三种页面各 31 种写法）。SVG 没有 `<head>`，XML 文档里创建的元素不是 `meta` 元素，策略都放不进去：这两类文档里 `evaluate` 以 `JS evaluation refused` 拒绝，不在没有策略的文档里放行（XML 的树形查看页有 `<head>`，反复调用也只留下一个无效元素）。
+- 覆盖止于脚本所在的窗口。表达式通过 DOM 句柄够到的另一个 realm（iframe 的 `contentWindow`、`window.open` 返回的窗口）有自己的构造器：经 `about:blank` 子框架构造的 `RTCPeerConnection` 不受加固（有无这一层都发出 3 个数据报，STUN 地址写 `127.0.0.1` 或 `localhost` 一样），`WebTransport` 能构造、连接被继承来的策略以 `connect-src` 拒绝，`serviceWorker.register` 为 `InvalidStateError`。WebSocket 与 Worker 由那个文档自己带的策略裁决：`srcdoc` 子框架与 `window.open('')` 继承打开者的策略（0 次命中）；从 URL 加载的子框架与弹窗，在脚本取得句柄那一刻文档里没有策略 `<meta>`（载入后 3 s 内数为 0，对该框架做一次主世界 evaluate 后才为 1），从打开者构造的 WebSocket 到达了白名单之外的主机（各 1 次命中，有无这一层都一样）。云托管的严格策略下 RTC 的 UDP 由 `EgressGuard` 的启动参数关闭（见下）；其余通道要靠出站网络层兜底。
+
+**私网策略**：云托管（默认 `allow_private_networks=False`）下，导航守卫在 `goto` 之前对 URL 做 DNS 解析校验（所有地址必须为公网），context 过滤器对每个请求逐跳校验。本地模式 `BrowserSession(allow_private_networks=True)` 经 `context_kwargs` → `ContextFactory` → `install_domain_filter(allow_private_networks=…)` → Layer 1 `install_http_filter`，只放行「智能体显式导航到的私网源」（scheme + host + port，登记在 `utils/private_origins.private_origin_grants(context)`，导航守卫与过滤器共用同一份）：页面脚本 / 重定向 / iframe 指向其他私网地址仍被拦，云元数据端点（`169.254.169.254`、`metadata.google.internal` 等）永远被拦。Chromium 自己的 Local Network Access 检查在本地模式里另有一层限制（`chromium-1248` 实测）：页面里指向*另一个*环回 / 私网源的跨源子框架以 `net::ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS` 失败，该源是否已登记为显式导航的私网源、是否挂了域名过滤器都一样（四种组合下子框架均未加载、目标站点 0 次命中）；跨源 `fetch` 同样失败（`TypeError: Failed to fetch`，在两个源都已登记、未挂过滤器时测过）；顶层导航（脚本改 `location`、点链接、`window.open`）不受影响。给上下文授予 `local-network-access` 权限后子框架与 `fetch` 都能成功，但这会放开该上下文对所有环回 / 私网目标的这类请求，所以不默认授予。本地模式先按字面主机分类，再对普通主机名做一次 DNS 查询（`core/security/redirect_hop_guard/name_resolution.py`，2 秒上限、15 秒缓存，失败也缓存）：只有解析到环回 / 链路本地 / 未指定地址或云元数据地址的域名（如 `127.0.0.1.nip.io`、攻击者控制的 A 记录）才视同该私网源——显式导航到的源放行，其他被拦，云元数据永不放行；解析到 RFC 1918、CGNAT、`198.18.0.0/15` 的结果不判定（代理与 fake-IP 会把公网域名映射到这些段），解析失败或超时不拦。过滤器仅检查 document 请求，子资源交给 Chromium 的私网访问规则。blocklist、allowlist、广告与资源类型规则照常生效，因此是否挂载域名列表或资源拦截，都不改变会话自己声明的私网策略；域名列表对入口 URL 与子资源由过滤器判定，对文档重定向的后续各跳由导航守卫在加载后回放判定（见下一段）。该标志与 allowlist 一样在 context 创建时生效，同一 `context_key` 以首个创建者的策略为准。
+
+**重定向链的判定时机**：patchright 不会把文档重定向的中间跳交给 route，所以链路在加载完成后用 `request.redirected_from` 回放判定；命中则把标签页重置为 `about:blank` 并抛 `BrowserNavigationBlockedError`，页面内容不会返回给调用方。回放时除私网 / 元数据判定外，还会把该 agent 配置的域名白名单 / 黑名单（`domain_filter/context_lists.py`，由请求过滤器绑定到 context）应用到入口 URL 之后的每一跳：白名单站点不能再通过重定向把标签页带到名单之外的域名，经第三方 IdP 的 OAuth 跳转在配置了白名单的 agent 上也按名单处理。入口 URL 仍由请求过滤器判定。文档由浏览器自己加载并执行重定向（页面 URL 与 origin 正确、cookie 正确、链路可见、请求只发一次），表单 POST 也由浏览器自己发出，服务端只收到一次，答复比上下文的默认超时慢、或一直不来时也一样，后一种情形不拖住收尾（`tests/toolkits/browser/test_document_redirect_integration.py` 逐项数服务端收到的请求）。出站连接层：严格策略（云托管）下，池自己启动的 Chromium 的每个 context 都经 `EgressGuard`（`pool/egress_guard.py`，本机回环 SOCKS5 代理）出网。Chromium 把主机*名*交给代理，代理只解析一次、要求所有答案都是公网地址、只拨已校验的地址，所以重定向的中间跳、子资源、WebSocket、脚本发起的请求和 DNS rebinding 都到不了内部地址，内部服务一次请求也收不到（真实 Chromium 对照：不经守卫时攻击页的 8 种请求全部落到内部站点，经守卫 0 个）；被拒的连接在页面上表现为 `net::ERR_SOCKS_CONNECTION_FAILED`（Chromium 对所有 SOCKS5 拒绝码给同一个错误，实测），守卫停止后新连接失败为 `ERR_PROXY_CONNECTION_FAILED`，即浏览器没有网络（安全失败）。第一个受守卫的 context 创建前先过金丝雀（用一个不可能存在的域名开临时页，守卫必须听到这次连接，否则抛 `EgressGuardError`，不为一个无视代理设置的浏览器提供页面）。WebRTC 的 UDP 不经任何代理，守卫配置时池的启动参数带 `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`（实测：无该参数时 STUN 数据报发到回环 UDP 端口，有则 0 个）；配置代理后 Chromium 也不再直连 QUIC（WebTransport 实测 0 个数据报）。守卫只执行 SSRF 公网策略，不执行用户的 `network_blocklist`（见下）。守卫不适用于：本地模式与声明 `allow_private_networks` 的 context（私网本就允许）、自带代理的 context（代理池或显式代理，出口策略由代理运营方承担）、经 CDP / 远程 / 扩展接入的浏览器和 Camoufox（不是池启动的 Chromium，池无法为其配置）、SSRF 盾关闭、以及环境配置了 HTTP 代理（`http_proxy` / `https_proxy` / `all_proxy`，守卫直连会绕过该代理，启动时记一条告警）。web_fetch 的 L3 Stealth 层在同样的条件下为每次抓取单独起一个守卫（Scrapling 自己启动 Chromium，不走池），抓取结束即停。不在守卫范围内时，剩余边界依旧成立：Chromium 在判定之前会向未授权的内部地址发出一次 GET（响应不会交给调用方，也读不到内容）；本地模式对主机名的判定与 Chromium 自己的解析是两次独立查询，攻击者控制的 DNS 可在两次之间换答案（DNS rebinding）。这两点只有出站网络层（防火墙 / egress 代理，云托管由控制平面 iptables 承担）才能彻底阻止。web_fetch 的 HTTP / Stealth 层使用同一套策略（`web_fetch/fetchers/target_guard.py`），被策略拒绝的 URL 是终态，不会降级到下一层重试。用户的 `network_blocklist` 由同一模块的 `assert_not_blocklisted` 判定：HTTP 层的每一跳在请求之前判定；Stealth 层与浏览器层只判定入口 URL 与最终页面，中间跳在这两层不可见（浏览器层的池化上下文被所有用户共用，名单无法装进上下文）；命中同样是终态。
+
+**反爬检测友好**：不硬化 Web Worker 构造器（避免 `new Worker()` 抛异常）：从 URL 加载的 Worker 照常运行；挂了域名白名单的上下文里 `blob:` / `data:` Worker 由 Layer 0 拒绝。Layer 0 的脚本包装 `WebSocket` / `Worker` / `SharedWorker` 构造器用的是 `Proxy`，只在构造之前补上策略，不抛异常、不改行为。对照原生构造器，页面能观察到两处差异（`chromium-1248` 实测）：`Function.prototype.toString` 的结果缺少函数名（`function () { [native code] }`，原生为 `function WebSocket() { [native code] }`）；原生构造器抛出的 `TypeError`（例如不带参数）的 `stack` 多一帧 `at Object.construct (<anonymous>:…)`。其余与原生一致：`name`、`length`、`prototype.constructor === 构造器`、属性描述符、自有键、静态常量、子类化与带字段的子类、`bind`、猴子补丁 `prototype.send`、给全局赋值再还原、协议数组、同源 URL 的 Worker、无效 URL 的 `SyntaxError`（含其 `stack`）与不带 `new` 调用的报错
 
 ---
 
@@ -525,7 +536,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 
 代价：默认 Chromium 引擎的页面不会向会话上报 `console` 事件（macOS 真实 Chromium 实测：页面 `console.error` 已被独立的 CDP `Runtime` 监听收到，`ConsoleLogger` 仍为 0 条）。因此该引擎上 `browser_manage` 的 `console_log` 返回 `CONSOLE_CAPTURE_UNAVAILABLE`（说明控制台不可捕获、不能当作无报错，并指向 `network_log` / `evaluate`），而不是看似成功的空日志；Camoufox 会话照常返回捕获内容。`tests/toolkits/browser/session/test_console_capture_integration.py` 守着这一事实：驱动将来开始上报时该测试失败，提示撤掉「不可用」应答。
 
-**第二层：JS 反检测脚本（仅 STEALTH ContextType，通过 `enhancers.inject_route` 文档响应注入）**
+**第二层：JS 反检测脚本（仅 STEALTH ContextType，作为 init script 注册）**
 
 | # | 措施 | 说明 |
 |---|------|------|
@@ -618,7 +629,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 | `browser_interact_tool` | 15 种交互 + 可选 `steps[]` 批量 | click, dblclick, type, fill, fill_credential, press, hover, focus, select, scroll, scroll_to_bottom, upload_file, drag, check, uncheck；或 `steps[]` 一次调用多步 |
 | `browser_extract_tool` | 文本 + 截图 + 媒体URL + 结构化提取 + diff | text / screenshot / media / diff_fast / diff_accurate + extraction_schema |
 | `browser_manage_tool` | Tab + JS + 历史 + 对话框 + Session + Network + Web Vitals + 移动设备仿真 | 22 种 action（含 network_detail/network_replay/web_vitals/emulate + save/restore/list/delete_session；HITL 用 browser_ask_human_tool，无 wait_for_user） |
-| `browser_execute_script_tool` | **Code-as-Action 批量执行** + AST 特权API门禁 | _(执行 Python 脚本，AST 扫描 page.request/evaluate/context 等特权API → HITL 审批)_ |
+| `browser_execute_script_tool` | **Code-as-Action 批量执行**（隔离 worker） | _(脚本在 Monty worker 进程里运行，只能调用 `session.interact` 与 `session.evaluate`，两步都过语义 HITL 闸门)_ |
 | `browser_ask_human_tool` | **人类接管请求** | _(单一职责，Agent 触发 HITL interrupt + extension 横幅 / managed VNC)_ |
 
 #### browser_interact_tool — steps[] 批量模式
@@ -663,7 +674,7 @@ Loop Guard 与 Completion Guard 为兜底；正常路径由 Turn1 工具描述�
 
 #### URL blocklist（Settings → 安全策略）
 
-用户可编辑 `network_blocklist`（Settings `DomainBlocklistEditor` → server `SecurityConfig` → harness `BrowserSession.domain_blocklist`）。评估顺序：**blocklist DENY 优先于 allowlist HITL**。会话层在 `navigate()` 入口硬拦截（`BROWSER_URL_BLOCKLIST`）；`domain_filter` 四层过滤同步注入 blocklist 模式。
+用户可编辑 `network_blocklist`（Settings `DomainBlocklistEditor` → server `SecurityConfig` → harness `BrowserSession.domain_blocklist`）。评估顺序：**blocklist DENY 优先于 allowlist HITL**。会话层在 `navigate()` 入口硬拦截（`BROWSER_URL_BLOCKLIST`）；`domain_filter` 的 Layer 1 请求过滤同步按 blocklist 判定（CSP 与主线程硬化只随 allowlist 挂载）。
 
 #### 两阶段快照架构
 
@@ -776,7 +787,7 @@ browser_ask_human_tool(reason=...)              → browser_human_handover → A
 
 ### 语义级 DOM 高危动作拦截 (Semantic DOM Guard)
 
-在 **BrowserSession.interact**（覆盖 `browser_interact_tool` 与 `browser_execute_script` 内 `session.interact()`）的 click/dblclick 执行前，基于目标元素的 ARIA role 和 name 进行语义风险分类。匹配五大高危类别（destructive/financial/account/admin/publish）时，通过 LangGraph `interrupt()` 强制触发 HITL 审批，无论当前权限配置如何。`browser_execute_script_tool` 执行期间通过 `BrowserSession._hitl_caller_tool` 将 HITL/audit 的 `tool_name` 归因到脚本入口（`finally` 复位）。
+在 **BrowserSession.interact**（覆盖 `browser_interact_tool` 与 `browser_execute_script` 内 `session.interact()`）的 click/dblclick 执行前，基于目标元素的 ARIA role 和 name 进行语义风险分类。匹配五大高危类别（destructive/financial/account/admin/publish）时，通过 LangGraph `interrupt()` 强制触发 HITL 审批，无论当前权限配置如何。`browser_execute_script_tool` 执行期间通过 `BrowserSession._hitl_caller_tool` 将 HITL/audit 的 `tool_name` 归因到脚本入口（`finally` 复位）。脚本无法等人审批（中断会让脚本展开，恢复后前面的步骤又会重跑），所以脚本计划内（`utils/runtime/user_control.py::in_plan`）这条通路不调用 `interrupt()`：高风险步骤记一条 DENY 审计并抛 `ScriptApprovalRequiredError`，脚本即使捕获它，后续每一步也被拒绝；输出注明此前步骤已执行，这一步须放到脚本之外由人审批（见 §14）。
 
 **browser_manage evaluate**：L1 默认 `browser_evaluate` → DENY（`core/security/types.py`）；经 YOLO/allowlist 放行后，L2 变异 JS（`.click()`、`submit()`、`innerHTML=` 等；网络写操作按 `method` 字面量判定——POST/PUT/PATCH/DELETE，不限于 `fetch(`、与选项顺序和键是否加引号无关——以及 `sendBeacon(`）经 `classify_js_eval_risk` 仍走 HITL；只读表达式（如 `document.title`）直接执行。识别只看表达式里的字面量：运行时才算出的方法名（`{method: m}`）、有副作用的 GET、WebSocket 发送都不在识别范围，该闸门减少误操作，不是对抗恶意页面的边界。WebUI `high_risk_dom_action` 审批卡展示 `tool_input.expression`（zh/en `jsExpression`）。
 
@@ -849,7 +860,7 @@ BrowserError (root)
 
 浏览器导航重试由 `BrowserSession.navigate()` 内置完成：代理隔离重试、CAPTCHA 检测与引擎升级、blocked response 退避重试（见本节「CAPTCHA 检测与协调」及 navigation/ 章节）。middleware 层另有 `execute_with_retry` + circuit breaker 兜底整体环境故障。
 
-`Navigator._do_navigate` 内部错误分类：超时（builtin/patchright）先中止挂起的加载（`utils/page_health.abort_pending_navigation`：CDP `Page.stopLoading` 优先，`window.stop()` 兜底，均有界），再按 URL 是否已变化结算——已提交（文档已开始渲染）返回现有内容；**未提交**（服务端始终没有给出页面）抛 `BrowserNavigationError("… stalled: the server sent no page within …s.")` 并计入 circuit breaker；探活失败的页面抛 `PageUnresponsiveError`。非超时导航失败包装为 `BrowserNavigationError`（携带 url/error_text，智能诊断 + `format_for_llm`）；SSRF 安全拦截（`BrowserNavigationBlockedError`）原样透传不包装。页面就绪等待超时 soft-rescue（继续使用当前内容），consent 自动消除失败仅告警不阻断已成功的导航。
+`Navigator._do_navigate` 内部错误分类：超时（builtin/patchright）先中止挂起的加载（`utils/page_health.abort_pending_navigation`：CDP `Page.stopLoading` 优先，`window.stop()` 兜底，均有界），再按 URL 是否已变化结算——已提交（文档已开始渲染）返回现有内容；**未提交**（服务端始终没有给出页面）抛 `BrowserNavigationError("… stalled: the server sent no page within …s.")` 并计入 circuit breaker；探活失败的页面抛 `PageUnresponsiveError`。非超时导航失败包装为 `BrowserNavigationError`（携带 url/error_text；恢复建议由 `utils/navigation_recovery.py::navigation_recovery_suggestions` 按状态码与 Chromium 错误文本生成，`net::ERR_CERT_*` 是证书被浏览器拒绝的专门建议；`format_for_llm`）；SSRF 安全拦截（`BrowserNavigationBlockedError`）原样透传不包装。页面就绪等待超时 soft-rescue（继续使用当前内容），consent 自动消除失败仅告警不阻断已成功的导航。
 
 ### 卡死页面与 Stop 的恢复
 
@@ -930,15 +941,18 @@ ToolError(
 **设计目标**：打破单步工具调用的性能瓶颈（网络延迟、LLM 推理延迟），允许 Agent 生成并执行包含多个动作的 Python 脚本。
 
 **架构设计**：
-- **AST 动态重写**：自动拦截 `while` 和 `for` 循环，注入 `await asyncio.sleep(0)`，彻底防止死循环阻塞主事件循环。
-- **沙箱隔离**：使用受限的 `__builtins__`（移除 `__import__`, `eval`, `exec`, `open`, `exit` 等），确保脚本无法逃逸或破坏主进程。
-- **流式输出**：重写 `print` 函数，将脚本的输出通过 `session.notify_progress` 实时推送到前端控制台。
-- **ARIA 映射**：脚本中可以直接使用 `await session.interact("click", "e1")`，底层自动解析 `e1` 对应的 Playwright Locator。
+- **隔离的 worker 进程**：脚本由 `tools/script_runtime.py` 交给 Pydantic Monty 的 worker 子进程执行，从不在宿主解释器里运行（不使用 `exec`）。worker 有自己的堆，没有文件系统、网络与宿主对象；`import`、语法错误与没有任何语句的脚本（空脚本、全空白、只有注释）在运行前由 `vet_script` 拒绝，它也拒绝解析器无法接受的文本（孤立代理字符、嵌套过深的表达式）。脚本原文交给 Monty 运行（只统一换行），不做改写：顶层 `await`、`return` 可用，`session`、`refs` 已绑定，多行字符串里的内容（例如交给 `evaluate` 的 JS）原样到达步骤；与「函数体」字面不同的只有两处：辅助函数改写脚本里的名字用 `global`（不是 `nonlocal`），脚本第一行不能带缩进。这是解释器级（语言层）的隔离，不是操作系统级的：worker 与宿主以同一用户运行。
+- **只有两步**：脚本里的 `session` 是 `ScriptSession`，只暴露 `interact(action, ref, text)` 与 `evaluate(expression)`，宿主侧的 `BrowserSession`、Playwright 页面与上下文都够不着，所以没有需要扫描的「特权 API」。`interact` 与 `browser_interact_tool` 同一动作集，`evaluate` 回到 `BrowserSession.evaluate`，同样先过 JS 评估闸门，并在挂了域名白名单的上下文里带着白名单的策略运行（见 §10「智能体自己的脚本」）。
+- **有界**：墙钟 60 s（`asyncio.wait_for`）、worker CPU 时间 5 s（Monty 的 CPU 时钟在等浏览器步骤时暂停，慢页面不占额度）、worker 内存 64 MB、输出 20000 字符（超出截断并注明）。脚本因超时、出错或被止步而结束时，仍在进行的步骤被取消，不会在脚本结束后继续操作页面。
+- **流式输出**：`print` 的输出在脚本的下一步之前经 `session.notify_progress` 推送到前端控制台，最终输出也作为工具结果返回。
+- **ARIA 映射**：脚本中直接使用 `await session.interact("click", "e1")`，底层自动解析 `e1` 对应的 Playwright Locator；`refs` 是 ref ID 到 `{role, name, nth}` 的映射。
+- **模型可见契约**：工具描述 `_TOOL_DESCRIPTION` 写明脚本是 `async def (session, refs)` 的函数体、`session.interact` 与 `browser_interact_tool` 同一动作集、`refs` 是 ref ID 到 `{role, name}` 的映射、`print()` 输出即返回值、不可 import 也没有 `open`，以及超时秒数；超时秒数取自常量 `_SCRIPT_TIMEOUT_S`，描述与 `asyncio.wait_for` 共用同一个值。模型只看得到这段描述，`args_schema` 的类文档不会发送，因此不写；`tests/toolkits/browser/tools/test_execute_script_description.py` 同时守住这条描述与「浏览器工具的 `args_schema` 类不带文档」。
+- **运行时缺失**：`browser` extra 里的 `pydantic-monty` 没装，或平台没有它的 worker（Windows ARM64），或 worker 起不来时，工具照常注册，每次调用返回「运行时不可用」并建议改用 `browser_interact_tool` 的 `steps[]`，绝不退回进程内执行；其余浏览器工具不受影响。桌面安装包随带 worker（见桌面端 `DESKTOP_RELEASE_SYSTEM.md`）。
 
 **核心优势**：
-- **零延迟**：脚本在主进程的协程中运行，直接访问内存中的 `session` 对象，无需 CDP 连接或子进程通信。
-- **双重防护**：AST 注入和全局变量限制提供两层保障，开销很小。
-- **全栈兼容**：完美兼容 `LAUNCH`, `CONNECT`, `AUTO` 等所有浏览器启动模式（因为不依赖外部 CDP 端口）。
+- **隔离**：模型写的代码在独立进程的解释器里运行，碰不到宿主的内存、环境变量与文件；它在浏览器侧的全部能力是两个由闸门把守的步骤。
+- **批量**：一次调用跑完多步，省掉每步一次的 LLM 往返。
+- **与启动模式无关**：`LAUNCH`、`CONNECT`、`AUTO` 下都一样，步骤经 `BrowserSession` 执行，不依赖额外的 CDP 端口。
 
 ---
 
@@ -1014,7 +1028,7 @@ Frontend → POST /agents/agent-stream { resume_value: { action: "completed" } }
 
 - **围栏在工具层**（`tools/user_control_gate.py`，位于取消边界之内）：人占用期间，除 `browser_ask_human_tool` 外所有浏览器工具等待（含只读工具——此时截图会带出用户正在输入的内容）；等待超过 600s 抛 `UserTakeoverTimeoutError`，宁可锁住也不在人背后动手。Stop 结束一切对人的等待：等待原语 `UserControl.wait_released` 自身与运行的取消令牌赛跑（浏览器工具另有取消边界，桌面工具由围栏的 `cancelled_result` 返回「未执行」提示，见 `computer_use/_ARCH.md` §14）。
 - **交还后先看再动**：`browser_interact_tool` / `browser_execute_script_tool` 在模型成功执行 `browser_snapshot_tool` 之前返回固定提示（请重新 snapshot，并按页面现状决定，对方可能已完成其中一部分），不执行；在接管期间就已排队的动作一律不执行（模型没看到过新页面）。只有 snapshot 算「重新看过」：它是唯一会交回新 ref 的调用，`browser_inspect_tool` / `browser_extract_tool` / `browser_navigate_tool` / `browser_manage_tool` 只等待——读完文本后用旧 ref 点击，ref 仍会按角色加名称命中人换过的页面（实测：购物车页取 ref，人跳到支付页，extract 后旧 ref 点中了支付页的同名按钮）。`snapshot()` 在观察过期期间强制整树（`diff=False`），diff 会掩盖用户的改动。
-- **脚本跨越接管**：`browser_execute_script_tool` 一次调用内含多步 `session.interact`，工具围栏只在启动前把关一次。脚本以启动时模型已观察的交还代数为基准运行（`planned_against`），之后任一会话级步骤在等待结束后发现代数已变（人用过页面），即抛 `UserTakeoverDuringScriptError` 停止脚本，输出注明此前步骤已执行；脚本内自行 `session.snapshot()` 不会续期，需模型重新观察后重跑。脚本总预算 60s，更长的接管会因超时终止而不是续跑。
+- **脚本跨越接管**：`browser_execute_script_tool` 一次调用内含多步 `session.interact`，工具围栏只在启动前把关一次。脚本以启动时模型已观察的交还代数为基准运行（`planned_against`），之后任一会话级步骤在等待结束后发现代数已变（人用过页面），即抛 `UserTakeoverDuringScriptError` 停止脚本，输出注明此前步骤已执行；脚本里只有 `interact` 与 `evaluate` 两步、没有 `snapshot`，不存在脚本内自行续期，需模型重新观察后重跑。脚本总预算 60s，更长的接管会因超时终止而不是续跑。
 - **`browser_ask_human_tool` 豁免**：它是模型把浏览器交给人的入口，且 LangGraph `interrupt()` 恢复时会重跑该工具。
 - **围栏边界**：只拦模型能调用的工具，不拦 Agent 自己用 bash 起的进程；`UserControl` 是进程内状态，不支持多进程部署。
 - **谁置位**：由宿主调用 `get_user_control().acquire()/release()`（Server 的 `/webui/vnc/takeover`、`/resume` 经 `TakeoverCoordinator`，用户端 30s 心跳续租，300s 无心跳自动交还）。Harness 不含任何路由。
@@ -1048,7 +1062,7 @@ Manual refresh: GET /webui/browser/snapshot?chat_id=<active chat>
 - `viewData.sourceChatId` 与前台 chatId 不一致时不渲染截图（多 pane 隔离）
 - `get_active_browser_session(session_id)` 必须带 chat_id，避免多 chat 并行时串会话
 - `capture_browser_view_update_data` 内部 snapshot 使用 `publish_inspector_view=False`，避免嵌套双 emit
-- 与 Desktop Inspector 对齐：desktop 工具不在 TOOL_END 重复 fetchSnapshot
+- 与 Desktop Inspector 对齐：desktop 工具（`desktop_snapshot_tool` 除外）在 TOOL_END 只读智能体的注册表（`source=registry`，叠在当前屏幕上），不重新抓取前台
 
 **Desktop Inspector 对称（WebUI SSE + 多 pane 隔离）**：
 
@@ -1058,12 +1072,12 @@ DesktopSession desktop tools
 Frontend fileDiffEvents handler
   ↓ useDesktopInspectorStore.updateViewData(sourceChatId) — no auto openPanel
 Frontend toolLifecycleEvents TOOL_END (desktop_* except desktop_snapshot_tool)
-  ↓ fetchSnapshot only when stream chatId === foreground chatId
+  ↓ fetchSnapshot(true) = GET /webui/desktop/snapshot?source=registry&chat_id=… (the agent's registry over the current screen; no new capture) only when stream chatId === foreground chatId
 Frontend DESKTOP_CONTROL_APPROVAL_REQUEST
   ↓ openPanel only when stream chatId === foreground chatId
 Frontend DesktopLiveView / Toggle + visual approval consumers
   ↓ selectScopedDesktopViewData(viewData, active chatId)
-Manual refresh: GET /webui/desktop/snapshot (tags sourceChatId with foreground chat)
+Manual refresh: GET /webui/desktop/snapshot?source=live&chat_id=… (a new capture under the session's action lock; tags sourceChatId with foreground chat)
 ```
 
 **实现位置**：
@@ -1123,7 +1137,8 @@ browser/
 │   ├── extract.py — browser_extract_tool
 │   ├── manage.py — browser_manage_tool
 │   ├── download_actions.py — download_url / list_downloads 的结果、点击（元素或坐标）与导航到文件之后的下载汇总、动作应答之后才落定的下载提示（文件名与原因按不可信内容包装）
-│   ├── execute_script.py — browser_execute_script_tool（含 AST 特权API Scanner + HITL 门禁）
+│   ├── execute_script.py — browser_execute_script_tool（模型可见的脚本契约、`planned_against` 基准、`verify_goal`；脚本交给 script_runtime）
+│   ├── script_runtime.py — 脚本运行时（Monty worker 桥：只暴露 interact / evaluate 两步，墙钟 / CPU / 内存 / 输出上限，取消在途步骤，接管与审批止步）
 │   ├── takeover.py — browser_ask_human_tool（人类接管，LangGraph interrupt + extension 横幅 / managed VNC）
 │   ├── user_control_gate.py — 用户接管围栏（人占用期间工具等待，交还后动作须先重新观察）
 │   ├── cancel_boundary.py — Stop 感知边界（工具调用与取消令牌赛跑，卡死时恢复标签页并返回 CANCELLED_RESULT；非 Stop 取消与 Playwright driver 退出同样自愈；一次性重置提示；动作应答之后才落定的页面发起下载在之后的应答里告知一次）
@@ -1142,7 +1157,7 @@ browser/
 │   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
 │   ├── camoufox_launch.py (93 行) — Camoufox 启动（指纹持久化 + 损坏自愈）
-│   ├── context_factory.py (277 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载）
+│   ├── context_factory.py (328 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载、默认校验证书，运营方经 `BrowserConfig.ignore_https_errors` 放开）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
 │   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死，页面获取撞上它时按需巡检一次再重试；页面崩溃只为在用页面归还许可）
@@ -1197,10 +1212,11 @@ browser/
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
 │   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
+│   ├── navigation_recovery.py — 导航失败的恢复建议（按状态码与 Chromium 错误文本生成，含 `net::ERR_CERT_*` 证书被浏览器拒绝的专门步骤）
 │   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error（含原因链）/ close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
 ├── domain_filter/ — 四层域名过滤（CSP + HTTP + 主线程硬化 + CDP）；支持 allowlist + 用户 blocklist
 ├── session_vault/ — 加密 Session 存储（O(1) LRU + 内存限制 + 并发锁 + Metrics + 批量 API）
-├── exceptions.py (约 150 行) — 异常类型
+├── exceptions.py (408 行) — 异常类型
 ```
 
 **总计**：约 4,100 行核心代码，SOLID 原则，单一职责，高度模块化。

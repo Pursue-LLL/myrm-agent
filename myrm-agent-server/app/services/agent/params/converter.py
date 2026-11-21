@@ -217,7 +217,7 @@ async def convert_to_general_agent_params(
         mcp_cfg=profile.mcp_configs,
         user_instructions=profile.user_instructions,
         fetch_raw_webpage=request.fetch_raw_webpage,
-        enable_web_search=sources.search_available,
+        enable_web_search=surface.enable_web_search,
         web_search_profile_enabled="web_search" in profile.enabled_builtin_tools,
         search_is_user_configured=sources.search_is_user_configured,
         enable_web_fetch=resolve_enable_web_fetch(profile.agent_security_raw),

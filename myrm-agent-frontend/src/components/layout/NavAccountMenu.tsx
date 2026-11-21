@@ -4,26 +4,26 @@
  * [INPUT]
  * - @/store/useAuthStore (POS: 当前登录用户与登录/退出动作)
  * - @/hooks/billing/useSubscription (POS: 是否订阅 Pro)
- * - @/lib/deploy-mode::isLocalMode (POS: 本地部署不展示订阅入口)
+ * - @/lib/deploy-mode::isLocalMode / getDocsUrl (POS: 本地部署不展示订阅入口；文档入口指向按界面语言选择的介绍页)
  * - @/lib/auth-redirect::buildAuthLoginPath (POS: 登录后回到当前页面的路径)
  *
  * [OUTPUT]
- * - NavAccountMenu: 导航栏顶部的头像按钮与账号菜单（访客登录、订阅入口、设置、退出）
+ * - NavAccountMenu: 导航栏顶部的头像按钮与账号菜单（访客登录、订阅入口、设置、文档、退出）
  *
  * [POS]
  * 左侧导航栏的账号入口。头像是稳定的组件：导航栏任何更新都不会重建图片；头像地址变了会重新尝试加载。
  */
 import { memo, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Crown, CreditCard, FlaskConical, LogOut, Settings, User, Zap } from 'lucide-react';
+import { BookOpen, Crown, CreditCard, FlaskConical, LogOut, Settings, User, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/primitives/popover';
 import useAuthStore from '@/store/useAuthStore';
 import { useSubscription } from '@/hooks/billing/useSubscription';
-import { isLocalMode } from '@/lib/deploy-mode';
+import { getDocsUrl, isLocalMode } from '@/lib/deploy-mode';
 import { buildAuthLoginPath } from '@/lib/auth-redirect';
 
 interface UserAvatarProps {
@@ -58,6 +58,20 @@ function UserAvatar({ avatarUrl, name, failedUrl, onLoadFailed, size = 28 }: Use
   );
 }
 
+function DocsMenuLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-foreground hover:bg-accent transition-colors"
+    >
+      <BookOpen size={16} className="text-muted-foreground" />
+      <span>{label}</span>
+    </a>
+  );
+}
+
 interface NavAccountMenuProps {
   currentPathname: string;
   /** Called before leaving through a menu entry, so the mobile sidebar can close. */
@@ -68,11 +82,14 @@ export const NavAccountMenu = memo(function NavAccountMenu({ currentPathname, on
   const router = useRouter();
   const tPricing = useTranslations('pricing');
   const tUserMenu = useTranslations('userMenu');
+  const locale = useLocale();
   const { user, isLoading, logout, loginMock } = useAuthStore();
   const { isPro } = useSubscription();
   const isLocal = isLocalMode();
   const isDev = process.env.NODE_ENV === 'development';
   const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+
+  const docsUrl = getDocsUrl('/getting-started/introduction', locale);
 
   const displayName = user?.display_name || user?.email || tUserMenu('guest');
   const avatarProps = {
@@ -157,6 +174,9 @@ export const NavAccountMenu = memo(function NavAccountMenu({ currentPathname, on
                 <Settings size={16} className="text-muted-foreground" />
                 <span>{tUserMenu('settings')}</span>
               </Link>
+
+              {/* 文档 */}
+              <DocsMenuLink href={docsUrl} label={tUserMenu('documentation')} />
             </div>
 
             {/* 退出登录 */}
@@ -195,7 +215,7 @@ export const NavAccountMenu = memo(function NavAccountMenu({ currentPathname, on
               )}
             </div>
 
-            {/* 升级入口 + 设置链接 */}
+            {/* 升级入口 + 设置与文档链接 */}
             <div className="border-t border-border py-1">
               {/* 升级入口（仅 Sandbox 模式） */}
               {!isLocal && (
@@ -216,6 +236,7 @@ export const NavAccountMenu = memo(function NavAccountMenu({ currentPathname, on
                 <Settings size={16} className="text-muted-foreground" />
                 <span>{tUserMenu('settings')}</span>
               </Link>
+              <DocsMenuLink href={docsUrl} label={tUserMenu('documentation')} />
             </div>
           </>
         )}

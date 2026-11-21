@@ -1,6 +1,6 @@
 /**
  * [INPUT] services/config::getConfigSyncManager (POS: 配置同步管理器)
- * [INPUT] primitives/switch, input (POS: Shadcn UI 基础组件)
+ * [INPUT] primitives/switch (POS: Shadcn UI 基础组件)
  * [OUTPUT] CaptchaSolverCard: CAPTCHA auto-solver configuration card for Settings
  * [POS] CAPTCHA 自动解决配置卡片。支持启用/禁用和 API Key 输入。
  */

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { usePlanStore } from '@/store/chat/goals/usePlanStore';
 import type { Message } from '@/store/chat/types';
 import useChatStore from '@/store/useChatStore';
 import { RewindDialog } from '../RewindDialog';
@@ -10,6 +11,8 @@ const { toastMock, rewindToMessageMock } = vi.hoisted(() => ({
   toastMock: vi.fn(),
   rewindToMessageMock: vi.fn(),
 }));
+
+const fetchPlanMock = vi.fn(async (_chatId: string): Promise<void> => undefined);
 
 const stableT = (key: string, values?: Record<string, string | number>): string =>
   values?.count !== undefined ? `${key}:${String(values.count)}` : key;
@@ -40,16 +43,48 @@ const makeMessage = (id: string, role: Message['role']): Message => ({
 
 const renderDialog = (messageIndex = 2, messageId = 'u2') => {
   const onOpenChange = vi.fn();
-  render(
+  const { unmount } = render(
     <RewindDialog open onOpenChange={onOpenChange} chatId="c1" messageId={messageId} messageIndex={messageIndex} />,
   );
-  return { onOpenChange };
+  return { onOpenChange, unmount };
+};
+
+const composer = () => {
+  const { inputMessage, pendingExplicitSkillActivation } = useChatStore.getState();
+  return { inputMessage, pendingExplicitSkillActivation };
+};
+
+/** Rewind to `u2` with the server handing back `composerText`, and wait until the transcript has been cut. */
+const rewindWithComposerText = async (composerText: string) => {
+  useChatStore.setState({
+    messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+    loading: false,
+  });
+  rewindToMessageMock.mockResolvedValue({
+    data: {
+      success: true,
+      deleted_count: 2,
+      composer_text: composerText,
+      message_index: 1,
+      goal_paused: false,
+      reverted_files: [],
+    },
+  });
+  renderDialog();
+  fireEvent.click(screen.getByText('scopeConversation'));
+  fireEvent.click(screen.getByText('confirm'));
+  await waitFor(() => {
+    expect(useChatStore.getState().messages).toHaveLength(2);
+  });
 };
 
 describe('RewindDialog', () => {
   beforeEach(() => {
     rewindToMessageMock.mockReset();
     toastMock.mockReset();
+    fetchPlanMock.mockClear();
+    usePlanStore.setState({ fetchPlan: fetchPlanMock });
+    useChatStore.setState({ chatId: 'c1', inputMessage: '', pendingExplicitSkillActivation: null });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
   });
 
@@ -131,6 +166,152 @@ describe('RewindDialog', () => {
     });
     expect(useChatStore.getState().messages).toHaveLength(2);
     expect(useChatStore.getState().inputMessage).toBe('hello world');
+    expect(fetchPlanMock).toHaveBeenCalledWith('c1');
+  });
+
+  it('puts the skill chip and the text of a skill-driven message back into the composer', async () => {
+    await rewindWithComposerText('[use writer_skill] draft the memo');
+
+    expect(composer()).toEqual({
+      inputMessage: 'draft the memo',
+      pendingExplicitSkillActivation: { skillNames: ['writer_skill'], instruction: null },
+    });
+  });
+
+  it('keeps the instruction of a skill bundle on the chip instead of in the composer text', async () => {
+    await rewindWithComposerText('[use a_skill,b_skill] [instruction: be concise] 生成本周报告');
+
+    expect(composer()).toEqual({
+      inputMessage: '生成本周报告',
+      pendingExplicitSkillActivation: { skillNames: ['a_skill', 'b_skill'], instruction: 'be concise' },
+    });
+  });
+
+  it('clears a skill chip armed before the rewind when the restored message carries none', async () => {
+    useChatStore.setState({ pendingExplicitSkillActivation: { skillNames: ['stale_skill'] } });
+
+    await rewindWithComposerText('hello');
+
+    expect(composer()).toEqual({ inputMessage: 'hello', pendingExplicitSkillActivation: null });
+  });
+
+  it.each([
+    ['keeps an unsent draft below the restored text', 'hello', 'but shorter', 'hello\n\nbut shorter'],
+    ['keeps the draft alone when the restored message has no text', '', 'but shorter', 'but shorter'],
+    ['adds nothing for a blank draft', 'hello', ' \n ', 'hello'],
+    ['does not repeat a draft that already is the restored text', 'hello', ' hello ', 'hello'],
+  ])('%s', async (_name, restored, draft, expected) => {
+    useChatStore.setState({ inputMessage: draft });
+
+    await rewindWithComposerText(restored);
+
+    expect(composer().inputMessage).toBe(expected);
+  });
+
+  it('keeps a skill chip armed for the kept draft', async () => {
+    useChatStore.setState({
+      inputMessage: 'but shorter',
+      pendingExplicitSkillActivation: { skillNames: ['armed_skill'] },
+    });
+
+    await rewindWithComposerText('hello');
+
+    expect(composer()).toEqual({
+      inputMessage: 'hello\n\nbut shorter',
+      pendingExplicitSkillActivation: { skillNames: ['armed_skill'] },
+    });
+  });
+
+  it('lets the chip of the restored message replace the one armed for the kept draft', async () => {
+    useChatStore.setState({
+      inputMessage: 'but shorter',
+      pendingExplicitSkillActivation: { skillNames: ['armed_skill'] },
+    });
+
+    await rewindWithComposerText('[use writer_skill] hello');
+
+    expect(composer()).toEqual({
+      inputMessage: 'hello\n\nbut shorter',
+      pendingExplicitSkillActivation: { skillNames: ['writer_skill'], instruction: null },
+    });
+  });
+
+  it('leaves the open chat alone when the request settles after the user moved to another chat', async () => {
+    useChatStore.setState({
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+      loading: false,
+    });
+    let settleRewind: ((value: unknown) => void) | undefined;
+    rewindToMessageMock.mockReturnValue(
+      new Promise((resolve) => {
+        settleRewind = resolve;
+      }),
+    );
+    const { onOpenChange } = renderDialog();
+    fireEvent.click(screen.getByText('confirm'));
+
+    const otherChatMessages = [{ ...makeMessage('x1', 'user'), chatId: 'c2' }];
+    useChatStore.setState({ chatId: 'c2', messages: otherChatMessages, inputMessage: 'typing in c2' });
+    settleRewind?.({ data: { success: true, deleted_count: 2, composer_text: 'hello', message_index: 1 } });
+
+    await waitFor(() => {
+      expect(onOpenChange).toHaveBeenCalledWith(false);
+    });
+    expect(useChatStore.getState().messages).toBe(otherChatMessages);
+    expect(composer()).toEqual({ inputMessage: 'typing in c2', pendingExplicitSkillActivation: null });
+    expect(fetchPlanMock).not.toHaveBeenCalled();
+    expect(toastMock).toHaveBeenCalledWith({ title: 'success', description: undefined });
+  });
+
+  it('does not close what is shown now when the request settles after the dialog is gone', async () => {
+    useChatStore.setState({
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+      loading: false,
+    });
+    let settleRewind: ((value: unknown) => void) | undefined;
+    rewindToMessageMock.mockReturnValue(
+      new Promise((resolve) => {
+        settleRewind = resolve;
+      }),
+    );
+    const { onOpenChange, unmount } = renderDialog();
+    fireEvent.click(screen.getByText('confirm'));
+
+    unmount();
+    settleRewind?.({ data: { success: true, deleted_count: 2, composer_text: 'hello', message_index: 1 } });
+
+    await waitFor(() => {
+      expect(toastMock).toHaveBeenCalled();
+    });
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('marks the chosen scope as pressed', () => {
+    useChatStore.setState({ messages: [], loading: false });
+    renderDialog();
+    const pressed = (label: string) => screen.getByText(label).closest('button')?.getAttribute('aria-pressed');
+
+    expect([pressed('scopeBoth'), pressed('scopeConversation')]).toEqual(['true', 'false']);
+
+    fireEvent.click(screen.getByText('scopeConversation'));
+
+    expect([pressed('scopeBoth'), pressed('scopeConversation')]).toEqual(['false', 'true']);
+  });
+
+  it('shows the empty hint without asking for file changes when no assistant message follows the target', async () => {
+    useChatStore.setState({
+      messages: [makeMessage('u0', 'user'), makeMessage('a0', 'assistant'), makeMessage('u2', 'user')],
+      loading: false,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderDialog();
+
+    await waitFor(() => {
+      expect(screen.getByText('noFileSnapshots')).toBeInTheDocument();
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('shows files-reverted toast when both scope reverts files', async () => {

@@ -1,6 +1,6 @@
 # app/database/repositories/chat_repo 子包架构
 
-Chat / Message 仓储。类不持有实例状态：43 个方法全部是 `@staticmethod`，`db: AsyncSession` 由调用方传入；按实体拆成 4 个 mixin。`app.database.repositories.chat_repo` 导入路径不变，测试里 25 处 `patch("...chat_repo.ChatRepository.<method>")` 仍然命中同一个类对象。
+Chat / Message 仓储。类不持有实例状态：44 个方法全部是 `@staticmethod`，`db: AsyncSession` 由调用方传入；按实体拆成 4 个 mixin。`app.database.repositories.chat_repo` 导入路径不变，测试里 25 处 `patch("...chat_repo.ChatRepository.<method>")` 仍然命中同一个类对象。
 
 ## 文件清单
 
@@ -9,7 +9,7 @@ Chat / Message 仓储。类不持有实例状态：43 个方法全部是 `@stati
 | `__init__.py` | 子域出口 | 导出 `ChatRepository` 与 `SiblingDetail`（原模块对外面） | — |
 | `common.py` | 辅助 | logger、`_DTO_COMPUTED_FIELDS` / `_INCOGNITO_BLANKED_FIELDS`、`_answers_of_turn` 过滤条件 | — |
 | `chats.py` | 核心 | 聊天列表（侧边栏关键词按键入文本匹配标题、首条消息与消息正文：`%`、`_` 不是通配符；标题与首条消息保留键入的引号，消息正文去掉引号；只有空白的关键词不过滤）/详情、创建/更新、置顶、回收站生命周期、compaction CAS | ✅ |
-| `messages.py` | 核心 | 消息 CRUD、分页、FTS 搜索、extra-data 读写、FTS 命中 chat 解析 | ✅ |
+| `messages.py` | 核心 | 消息 CRUD、分页、FTS 搜索、extra-data 读写、FTS 命中 chat 解析；按位置（`(created_at, id)` 顺序）删除某条之后的消息，可只删给定 id 集合（`only_ids`），`message_ids_from` 取锚点及其后全部行（含不活跃的兄弟行）的 id | ✅ |
 | `siblings.py` | 核心 | assistant sibling 选择/计数/详情（`SiblingDetail`、`_SiblingGroupInfo`） | ✅ |
 | `routing.py` | 核心 | turn routing-tier 读取（`routingTier` 历史与动量窗口） | ✅ |
 | `store.py` | 核心 | `ChatRepository(ChatsMixin, MessagesMixin, SiblingsMixin, RoutingMixin)`，无 `__init__`、无实例状态 | — |

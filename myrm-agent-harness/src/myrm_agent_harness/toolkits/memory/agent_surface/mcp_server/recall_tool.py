@@ -159,7 +159,7 @@ def register_recall_tool(mcp: MCPServer, resolve: ManagerResolver) -> None:
                 When set, query is ignored and returns the attribute value directly.
             since: Only return memories created after this time.
                 Accepts relative shorthand or ISO 8601.
-            until: Only return memories created before this time.
+            until: Only return memories created up to this time; a date alone covers that whole day.
                 Accepts relative shorthand or ISO 8601.
         """
         mgr = resolve()
@@ -178,7 +178,7 @@ def register_recall_tool(mcp: MCPServer, resolve: ManagerResolver) -> None:
             types = valid or None
 
         parsed_since = _parse_time_bound(since)
-        parsed_until = _parse_time_bound(until)
+        parsed_until = _parse_time_bound(until, is_upper_bound=True)
         results = await mgr.search(
             query,
             memory_types=types,

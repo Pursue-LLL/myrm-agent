@@ -5,8 +5,9 @@ PyInstaller bundles what its scan of `import` statements reaches. The channel re
 backend: the build passed, the backend started, and twenty channel types answered "unavailable" in the installed app
 only. `sidecar/bundle_inventory.py` therefore hands PyInstaller every `.py` file of `app/` and of the harness package,
 and `bundle_verify.py` reads the finished bundle back. This pins the inventory against the registry and the tree, the
-SDKs the bundle leaves out against the code that imports them, the verifier against a bundle that lost a module, and
-the channel types the launch smoke creates against the registry and the SDKs.
+SDKs the bundle leaves out against the code that imports them, the verifier against a bundle that lost a module or the
+Monty worker that runs the agent's browser scripts, and the channel types the launch smoke creates against the
+registry and the SDKs.
 """
 
 from __future__ import annotations
@@ -261,10 +262,22 @@ def test_the_launch_smoke_accepts_a_refusal_only_where_the_provider_cannot_load_
     assert channels.UNAVAILABLE_WITHOUT_SDK <= left_out_channels
 
 
-def _bundle_with(tmp_path: Path, build: ModuleType, inventory: ModuleType, *, scripts: bool = True, data: bool = True) -> Path:
-    """A bundle directory whose `_internal` holds the domain tool scripts and the harness data files (or not)."""
+def _complete_bundle_modules(build: ModuleType, inventory: ModuleType) -> set[str]:
+    """The modules of a complete bundle's archive: every first-party module and the Monty client's."""
+    return _all_module_names(build, inventory) | set(inventory.MONTY_REQUIRED_MODULES)
+
+
+def _bundle_with(
+    tmp_path: Path, build: ModuleType, inventory: ModuleType, *, scripts: bool = True, data: bool = True, monty: bool = True
+) -> Path:
+    """A bundle directory whose `_internal` holds the tool scripts, the harness data files and the Monty worker (or not)."""
     executable = tmp_path / "bundle" / "backend"
     executable.parent.mkdir(parents=True)
+    if monty:
+        worker = executable.parent / "_internal" / inventory.MONTY_WORKER_DIR / inventory.monty_worker_name()
+        worker.parent.mkdir(parents=True)
+        worker.write_text("", encoding="utf-8")
+        worker.chmod(0o755)
     harness = build.HARNESS_SOURCE_DIR
     shipped = [
         *(inventory.domain_tool_scripts(harness) if scripts else []),
@@ -289,13 +302,13 @@ def test_the_verifier_accepts_a_bundle_that_holds_everything_the_inventory_asks_
 ) -> None:
     executable = _bundle_with(tmp_path, build, inventory)
 
-    assert _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory)) == []
+    assert _problems(verify, monkeypatch, build, executable, _complete_bundle_modules(build, inventory)) == []
 
 
 def test_the_verifier_names_a_lost_module_a_channel_sdk_that_got_in_and_a_script_that_is_absent(
     build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    everything = _all_module_names(build, inventory)
+    everything = _complete_bundle_modules(build, inventory)
     assert _A_PROVIDER_MODULE in everything
     executable = _bundle_with(tmp_path, build, inventory, scripts=False)
 
@@ -312,7 +325,7 @@ def test_the_verifier_names_each_harness_data_file_the_bundle_lost(
 ) -> None:
     executable = _bundle_with(tmp_path, build, inventory, data=False)
 
-    problems = _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory))
+    problems = _problems(verify, monkeypatch, build, executable, _complete_bundle_modules(build, inventory))
 
     data_files = inventory.harness_data_files(build.HARNESS_SOURCE_DIR)
     assert len(problems) == 1
@@ -328,10 +341,48 @@ def test_the_verifier_names_only_the_data_file_that_is_missing(
     lost = next(path for path in data_files if path.name != "model_catalog.json")
     (executable.parent / "_internal" / inventory.HARNESS_PACKAGE / lost.relative_to(build.HARNESS_SOURCE_DIR)).unlink()
 
-    problems = _problems(verify, monkeypatch, build, executable, _all_module_names(build, inventory))
+    problems = _problems(verify, monkeypatch, build, executable, _complete_bundle_modules(build, inventory))
 
     assert len(problems) == 1
     assert lost.name in problems[0] and "model_catalog.json" not in problems[0]
+
+
+def test_the_verifier_names_a_bundle_that_lost_the_monty_worker(
+    build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = _bundle_with(tmp_path, build, inventory, monty=False)
+
+    problems = _problems(verify, monkeypatch, build, executable, _complete_bundle_modules(build, inventory))
+
+    assert len(problems) == 1
+    assert "Monty worker is not in the bundle" in problems[0]
+    assert f"{inventory.MONTY_WORKER_DIR}/{inventory.monty_worker_name()}" in problems[0]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="Windows has no executable bit")
+def test_the_verifier_names_a_monty_worker_that_cannot_be_executed(
+    build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = _bundle_with(tmp_path, build, inventory)
+    (executable.parent / "_internal" / inventory.MONTY_WORKER_DIR / inventory.monty_worker_name()).chmod(0o644)
+
+    problems = _problems(verify, monkeypatch, build, executable, _complete_bundle_modules(build, inventory))
+
+    assert len(problems) == 1
+    assert "Monty worker in the bundle is not executable" in problems[0]
+
+
+def test_the_verifier_names_the_monty_client_module_the_compiled_core_needs_at_start_up(
+    build: ModuleType, inventory: ModuleType, verify: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = _bundle_with(tmp_path, build, inventory)
+    lost = f"{inventory.MONTY_PACKAGE}._binary"
+    assert lost in inventory.MONTY_REQUIRED_MODULES
+
+    problems = _problems(verify, monkeypatch, build, executable, _complete_bundle_modules(build, inventory) - {lost})
+
+    assert len(problems) == 1
+    assert "Monty client modules are not in the bundle" in problems[0] and lost in problems[0]
 
 
 def test_the_harness_data_the_runtime_reads_by_path_is_the_catalog_and_the_token_tables(

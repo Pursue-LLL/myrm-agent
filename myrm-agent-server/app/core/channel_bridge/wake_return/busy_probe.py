@@ -1,4 +1,4 @@
-"""Tell a wake turn that the member is mid-conversation in an IM chat.
+"""Tell whoever is about to take a chat (a wake turn, a rewind of its history) that the member is mid-conversation in IM.
 
 [INPUT]
 - app.channels.core.gateway::ChannelGateway (POS: says whether the router is running a turn for a conversation)
@@ -9,7 +9,8 @@
 
 [POS]
 The IM half of "is the chat free". An IM turn runs under the router's session gate, which the agent gateway does not
-see, so a wake turn would start beside it; the chat's origin names the gate key to ask.
+see, so a wake turn would start beside it and a rewind would rewrite the history under it; the chat's origin names the
+gate key to ask.
 """
 
 from __future__ import annotations

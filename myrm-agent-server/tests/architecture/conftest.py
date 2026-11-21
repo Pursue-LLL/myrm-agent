@@ -24,9 +24,14 @@ import pytest
 
 _ARCHITECTURE = Path(__file__).resolve().parent
 
-# desktop-contracts.yml runs test_desktop_*.py and public-tree-guards.yml runs the other two files, the latter without
+# desktop-contracts.yml runs test_desktop_*.py and public-tree-guards.yml runs the other three files, the latter without
 # any conftest. The trailing dots keep a name from matching a longer file name.
-RUN_BY_OTHER_WORKFLOWS = ("test_desktop_", "test_no_credential_literals.", "test_no_private_references.")
+RUN_BY_OTHER_WORKFLOWS = (
+    "test_brand_domain_gate.",
+    "test_desktop_",
+    "test_no_credential_literals.",
+    "test_no_private_references.",
+)
 
 
 def pytest_configure(config: pytest.Config) -> None:

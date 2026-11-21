@@ -7,6 +7,7 @@ import os
 import pytest
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
+from app.core.brand import CLIENT_ATTRIBUTION
 from tests.support.chrome_mcp_e2e import (
     _require_e2e_cdp_ready,
     dismiss_blocking_modals,
@@ -18,6 +19,7 @@ from tests.support.chrome_mcp_e2e import (
     wait_for_settings_layout,
     warm_ui_route,
 )
+from tests.support.server_client_attribution import server_client_attribution
 
 _VERIFY_VERCEL_GATEWAY_SETTINGS_JS = """(() => {
   try {
@@ -139,15 +141,16 @@ def test_vercel_ai_gateway_settings_ui_and_attribution_chrome_e2e() -> None:
     assert res_health.get("status") == "healthy"
 
     # 3. Verify Vercel AI Gateway attribution headers
-    gw_model = create_chat_model(
-        "openai/gpt-4o",
-        api_key="vca_test_mock_key",
-        base_url="https://ai-gateway.vercel.sh/v1",
-    )
+    with server_client_attribution():
+        gw_model = create_chat_model(
+            "openai/gpt-4o",
+            api_key="vca_test_mock_key",
+            base_url="https://ai-gateway.vercel.sh/v1",
+        )
     headers = getattr(gw_model, "model_kwargs", {}).get("extra_headers", {})
-    assert headers.get("HTTP-Referer") == "https://myrm.ai"
-    assert headers.get("X-Title") == "Myrm Agent"
-    assert headers.get("User-Agent") == "Myrm/1.0 (Vercel-AI-Gateway-Client)"
+    assert headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+    assert headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
+    assert headers.get("User-Agent") == CLIENT_ATTRIBUTION.vercel_user_agent
 
     # 4. Real user task flow: execute prompt with active test LLM to ensure working inference
     real_api_key = os.getenv("BASIC_API_KEY")

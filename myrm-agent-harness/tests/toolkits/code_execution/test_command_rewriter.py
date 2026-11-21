@@ -3,8 +3,8 @@
 Covers the container-convention ``/workspace`` substitution (only where a shell takes it as a path of its own), the
 limits of that lexical match as ``CommandRewriter.rewrite_workspace_paths`` documents them, the guard that protects an
 already-resolved real workspace path (e.g. eval graders embedding ``{workspace}`` where the cache layout ends in
-``/workspace``) from being re-expanded into a duplicated path, and that a search command such as grep reaches the
-shell as typed.
+``/workspace``) from being re-expanded into a duplicated path, that a search command such as grep reaches the
+shell as typed, and that the bash path quotes a workspace root the shell would split.
 """
 
 import os
@@ -102,8 +102,8 @@ _SEARCH_COMMANDS = [
 def _rewrite(command: str, workspace: str | None) -> str:
     rewriter = CommandRewriter()
     if workspace is None:
-        return rewriter.rewrite_workspace_paths(command, None)
-    return rewriter.rewrite_workspace_paths(command, Path(workspace))
+        return rewriter.rewrite_workspace_paths(command, None, posix_shell=True)
+    return rewriter.rewrite_workspace_paths(command, Path(workspace), posix_shell=True)
 
 
 class TestRewriteWorkspacePaths:
@@ -171,3 +171,14 @@ class TestBashCommandPreparation:
         executor = LocalExecutor(ExecutionConfig(), workspace_path=str(tmp_path))
 
         assert await executor._prepare_bash_command(command) == command
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="a Windows host runs cmd or PowerShell, which get the root as typed"
+)
+@pytest.mark.asyncio
+async def test_the_bash_path_quotes_a_workspace_root_the_shell_would_split(tmp_path: Path) -> None:
+    root = tmp_path / "My Docs"
+    executor = LocalExecutor(ExecutionConfig(), workspace_path=str(root))
+
+    assert await executor._prepare_bash_command("cat /workspace/x.txt") == f"cat '{root}'/x.txt"

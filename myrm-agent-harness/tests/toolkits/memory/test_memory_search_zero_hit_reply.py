@@ -9,14 +9,17 @@ a model that is not told the window concludes the memory does not exist.
 - toolkits.memory.agent_surface.memory_search_execution::search_memory_corpus (POS: memory corpus search of memory_search_tool)
 - toolkits.memory.agent_surface.memory_agent_tools.common::CATEGORY_TO_TYPE (POS: agent-visible category names)
 - toolkits.memory.agent_surface.memory_recall_budget::DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT (POS: the recall limits the reply quotes)
+- toolkits.memory.agent_surface.memory_recall_formatting::parse_time_bound (POS: the since/until parser of the recall tools)
 - toolkits.memory.setup::create_local_memory_manager (POS: embeddings-less local memory manager)
+- tests.support.host_clock::pin_host_clock_to_utc_plus_8 (POS: holds the process clock at UTC+8 for the block it wraps)
 
 [POS]
-Reply guard for a memory search that returns nothing.
+Reply guard for a memory search that returns nothing. Every test runs with the process clock at UTC+8, so a window read or written in the host's zone instead of UTC is hours off on a UTC host too.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -26,16 +29,25 @@ import pytest
 
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_agent_tools.common import CATEGORY_TO_TYPE
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_budget import DEFAULT_RECALL_LIMIT, MAX_RECALL_LIMIT
+from myrm_agent_harness.toolkits.memory.agent_surface.memory_recall_formatting import parse_time_bound
 from myrm_agent_harness.toolkits.memory.agent_surface.memory_search_execution import search_memory_corpus
 from myrm_agent_harness.toolkits.memory.setup import create_local_memory_manager
 from myrm_agent_harness.toolkits.memory.types import MemorySearchResult, MemoryType, SemanticMemory
+from tests.support.host_clock import pin_host_clock_to_utc_plus_8
 
 _PLAIN = "No relevant memories found."
 _MARCH_WINDOW_NOTE = (
-    f"{_PLAIN} This search was limited to memories saved after 2026-03-01 00:00 UTC and before 2026-03-31 00:00 UTC: "
+    f"{_PLAIN} This search was limited to memories saved after 2026-03-01 00:00 UTC and before 2026-03-31 23:59 UTC: "
     "since/until match when a memory was saved, not the date it describes. "
     "If the memory may have been saved outside this period, retry without since/until."
 )
+
+
+@pytest.fixture(autouse=True)
+def _host_clock_at_utc_plus_8() -> Iterator[None]:
+    """Run every test here with the process clock at UTC+8, so a time read as the host's local time is eight hours off."""
+    with pin_host_clock_to_utc_plus_8():
+        yield
 
 
 async def _search(
@@ -60,8 +72,8 @@ async def _search(
             category_to_type=CATEGORY_TO_TYPE,
             categories=categories,
             limit=None,
-            since=since,
-            until=until,
+            since=parse_time_bound(since),
+            until=parse_time_bound(until, is_upper_bound=True),
             domain=domain,
         )
 
@@ -142,8 +154,8 @@ async def test_a_memory_saved_before_the_window_is_only_found_without_it(tmp_pat
                 category_to_type=CATEGORY_TO_TYPE,
                 categories=["knowledge"],
                 limit=5,
-                since=since,
-                until=until,
+                since=parse_time_bound(since),
+                until=parse_time_bound(until, is_upper_bound=True),
             )
 
         windowed = await search(since="2026-03-01", until="2026-03-31")

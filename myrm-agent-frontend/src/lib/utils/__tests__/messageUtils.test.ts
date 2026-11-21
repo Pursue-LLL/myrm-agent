@@ -3,11 +3,16 @@ import {
   stripMarkdown,
   stripUiActionPayload,
   stripUserMessageDisplayText,
+  splitUserMessageForComposer,
   parseExplicitSkillActivation,
   buildExplicitSkillWireMessage,
   formatSkillChipLabel,
   getBrowserTimezone,
+  type ExplicitSkillActivation,
 } from '../messageUtils';
+
+/** The harness grammar's `MAX_REFERENCE_LIST_CHARS`: the web parse and the agent must agree on what is a tag. */
+const MAX_REFERENCE_LIST_CHARS = 1_024;
 
 describe('stripDatetimeTag', () => {
   it('removes current_datetime tags', () => {
@@ -51,7 +56,50 @@ describe('stripUserMessageDisplayText', () => {
     const input = '[use write_report_skill,send_feishu_skill] [instruction: be concise] 生成本周报告';
     expect(stripUserMessageDisplayText(input)).toBe('生成本周报告');
   });
+
+  it('keeps a prefix whose list is over the limit as ordinary text, as the agent reads it', () => {
+    const input = `[use ${'a'.repeat(MAX_REFERENCE_LIST_CHARS + 1)}] generate today report`;
+    expect(stripUserMessageDisplayText(input)).toBe(input);
+  });
 });
+
+type ParseCase = [name: string, text: string, expected: ExplicitSkillActivation | null];
+
+/** What the agent's `parse_use_tag` makes of the start of a message: a tag with its names and text, or ordinary text. */
+const TAG_CASES: ParseCase[] = [
+  ['trims the text behind the tag', '[use a] go  ', { skillNames: ['a'], instruction: null, userText: 'go' }],
+  [
+    'keeps a multi-line text whole',
+    '[use a] line1\nline2',
+    { skillNames: ['a'], instruction: null, userText: 'line1\nline2' },
+  ],
+  [
+    'takes any whitespace after the keyword and around the names',
+    '[use\n\t a , b ] go',
+    { skillNames: ['a', 'b'], instruction: null, userText: 'go' },
+  ],
+  [
+    'takes hyphenated names',
+    '[use my-skill,other-skill] go',
+    { skillNames: ['my-skill', 'other-skill'], instruction: null, userText: 'go' },
+  ],
+  ['ignores a tag that is not at the start', 'note\n[use a] go', null],
+  ['ignores a list without a name', '[use , ,] go', null],
+  ['reads the keyword in lower case only', '[USE a] go', null],
+  ['wants whitespace after the keyword', '[user] hello', null],
+];
+
+const UNCLOSED_INSTRUCTION = `[instruction:${' '.repeat(64_000)}x`;
+
+/** A long run of whitespace with no closing bracket after it, at both places in the tag where one can sit. */
+const FLOOD_CASES: ParseCase[] = [
+  ['after the keyword', `[use${' '.repeat(64_000)}`, null],
+  [
+    'after the instruction marker',
+    `[use a] ${UNCLOSED_INSTRUCTION}`,
+    { skillNames: ['a'], instruction: null, userText: UNCLOSED_INSTRUCTION },
+  ],
+];
 
 describe('parseExplicitSkillActivation', () => {
   it('parses single skill activation', () => {
@@ -69,6 +117,35 @@ describe('parseExplicitSkillActivation', () => {
       userText: 'run',
     });
   });
+
+  it.each(TAG_CASES)('%s', (_name, text, expected) => {
+    expect(parseExplicitSkillActivation(text)).toEqual(expected);
+  });
+
+  it('reads a list at the limit as a tag and one character more as ordinary text', () => {
+    const atLimit = 'a'.repeat(MAX_REFERENCE_LIST_CHARS);
+    expect(parseExplicitSkillActivation(`[use ${atLimit}] go`)?.skillNames).toEqual([atLimit]);
+    expect(parseExplicitSkillActivation(`[use ${atLimit}a] go`)).toBeNull();
+  });
+
+  it('accepts non-ASCII skill names like the agent does', () => {
+    expect(parseExplicitSkillActivation('[use 日报,周报] [instruction: 简短] 写本周总结')).toEqual({
+      skillNames: ['日报', '周报'],
+      instruction: '简短',
+      userText: '写本周总结',
+    });
+  });
+
+  it.each(FLOOD_CASES)('reads a flood of whitespace %s in linear time', (_where, text, expected) => {
+    // CPU time, not wall-clock: a busy machine stretches the latter without the pattern doing more work. A linear scan
+    // takes well under 1 ms; adjacent quantifiers that claim the same characters take hundreds of ms (bounded) to
+    // seconds.
+    const before = process.cpuUsage();
+    const parsed = parseExplicitSkillActivation(text);
+    const { user, system } = process.cpuUsage(before);
+    expect(parsed).toEqual(expected);
+    expect((user + system) / 1000).toBeLessThan(50);
+  });
 });
 
 describe('buildExplicitSkillWireMessage', () => {
@@ -76,6 +153,50 @@ describe('buildExplicitSkillWireMessage', () => {
     expect(buildExplicitSkillWireMessage({ skillNames: ['a_skill', 'b_skill'], instruction: 'brief' }, 'do work')).toBe(
       '[use a_skill,b_skill] [instruction: brief] do work',
     );
+  });
+});
+
+type ComposerSplitCase = [name: string, wire: string, expected: ReturnType<typeof splitUserMessageForComposer>];
+
+/** What the composer holds after a stored user message is given back: its text and, apart from it, the skill chip. */
+const COMPOSER_SPLIT_CASES: ComposerSplitCase[] = [
+  ['takes plain text as it is', 'plain text', { text: 'plain text', activation: null }],
+  [
+    'splits a skill tag from its text',
+    '[use daily_report_skill] generate today report',
+    { text: 'generate today report', activation: { skillNames: ['daily_report_skill'], instruction: null } },
+  ],
+  [
+    'keeps the instruction on the chip, not in the text',
+    '[use write_report_skill,send_feishu_skill] [instruction: be concise] 生成本周报告',
+    {
+      text: '生成本周报告',
+      activation: { skillNames: ['write_report_skill', 'send_feishu_skill'], instruction: 'be concise' },
+    },
+  ],
+  [
+    'gives an empty text for a tag without one',
+    '[use writer_skill]',
+    {
+      text: '',
+      activation: { skillNames: ['writer_skill'], instruction: null },
+    },
+  ],
+  [
+    'gives an empty text, not the instruction, for a tag with an instruction only',
+    '[use writer_skill] [instruction: only this]',
+    { text: '', activation: { skillNames: ['writer_skill'], instruction: 'only this' } },
+  ],
+];
+
+describe('splitUserMessageForComposer', () => {
+  it.each(COMPOSER_SPLIT_CASES)('%s', (_name, wire, expected) => {
+    const split = splitUserMessageForComposer(wire);
+
+    expect(split).toEqual(expected);
+    // Sending what the composer now holds reproduces the stored message byte for byte (no case here puts a closing
+    // bracket inside an instruction, which the tag grammar cannot carry).
+    expect(split.activation ? buildExplicitSkillWireMessage(split.activation, split.text) : split.text).toBe(wire);
   });
 });
 

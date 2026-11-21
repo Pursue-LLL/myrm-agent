@@ -78,6 +78,11 @@ def configure_logging() -> None:
     # evidence for whether silence needs a code-level gate, and at the default WARNING level the line is dropped.
     logging.getLogger("app.ai_agents.general_agent.ask_question_result").setLevel(logging.INFO)
 
+    # Production-visible desktop tool usage: which verbs are called and how each call ends is the evidence for which
+    # desktop work is worth doing, and at the default WARNING level the lines are dropped. They carry no element,
+    # text or application name.
+    logging.getLogger("myrm_agent_harness.toolkits.computer_use.desktop_session.action_log").setLevel(logging.INFO)
+
 
 def _suppress_library_logs(logger_name: str, level: int) -> None:
     """设置指定库的日志级别"""

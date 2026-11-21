@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - `@/services/agentFleet::getActiveSessions` (POS: 当前连接后端的进行中会话查询)
+ * - `@/lib/utils/withTimeout::withTimeout` (POS: 给 Promise 加等待上限，超时即拒绝)
  *
  * [OUTPUT]
  * - `useActiveSessionsGuard`: 切断当前连接前的活跃会话守卫，返回 `guard`（有生成中会话时挂起 `proceed` 等待确认）与确认对话框状态。
@@ -11,17 +12,11 @@
  */
 
 import { useCallback, useRef, useState } from 'react';
+import { withTimeout } from '@/lib/utils/withTimeout';
 import { getActiveSessions } from '@/services/agentFleet';
 
 /** 超过该时长无应答即视为当前连接不可达：切走不可达连接不应被前置查询卡住。 */
 const QUERY_TIMEOUT_MS = 3000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('active sessions query timed out')), ms);
-    promise.then(resolve, reject).finally(() => clearTimeout(timer));
-  });
-}
 
 interface PendingConfirm {
   count: number;

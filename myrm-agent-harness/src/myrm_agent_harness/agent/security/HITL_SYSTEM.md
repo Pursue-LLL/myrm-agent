@@ -304,13 +304,10 @@ const resumeValue = { decisions };
 - **载荷**：`build_interrupt_payload` 在动作请求里附 `reasonCode` 与 `reasonSubject`；`description` 仍是英文原文，且是普通字符串。
 - **渲染**：Web 卡片按 `toolApproval.reasons.<code>` 取中英文案并把主体填进句子；渠道卡片按 `approval_reason_<code>` 取渠道目录（en、zh-CN；繁体中文读 zh-CN，其他语言整张审批卡读英文）。没有码、码未知、目录里没有该码的句子时，显示 `description` 原文。shell 命令的发现是分析器写的英文短句，接在本地化的句子后面，所以这一类整句是中英混排；这样用户仍然知道命令为什么要确认。
 
-### 工具级AST安全门禁
-`browser_execute_script_tool` 在脚本执行前进行AST静态分析，检测绕过域名过滤/HITL守卫的特权API：
-- `page.request.*` (bypasses context.route())
-- `page.evaluate()` / `page.evaluate_handle()` (bypasses enforce_js_eval_guard)
-- `page.context` / `page.new_page()` / `page.new_context()` (unprotected context access)
+### 脚本沙箱与脚本内的审批
+`browser_execute_script_tool` 的脚本不在宿主进程里运行：`toolkits/browser/tools/script_runtime.py` 把它交给 Pydantic Monty 的 worker 子进程，脚本里的 `session` 只有 `interact` 与 `evaluate` 两个方法，拿不到浏览器会话、Playwright 页面或上下文，没有文件系统与网络，`import` 在运行前就被拒绝。绕过域名过滤与 HITL 守卫的特权接口因此不存在，也就没有需要扫描、需要单独批准的东西；脚本里的 `evaluate` 与单步调用一样，在挂了域名白名单的上下文里带着白名单的策略运行（`toolkits/browser/BROWSER_SYSTEM.md` §10「智能体自己的脚本」）。隔离是解释器级（语言层）的，不是操作系统级的：worker 与宿主以同一用户运行。墙钟 60 秒、worker 的 CPU 时间 5 秒、内存 64 MB、输出 20000 字符都有上限，脚本提前结束时它还在进行的步骤被取消。
 
-命中时触发独立 `interrupt(action_type="script_privileged_api")`，用户可审查脚本内容后批准或拒绝。
+脚本里的每一步回到宿主后，走与单步调用同一条语义 HITL 通路（`semantic_dom_hitl._require_hitl_approval`）。脚本是一次调用，写在步骤发生之前，中途不能暂停等人，且中断会让脚本展开、恢复后前面的步骤又会重跑，所以在脚本的计划内（`user_control.in_plan()`）这条通路不调用 `interrupt()`：高风险步骤记一条 DENY 审计并抛 `ScriptApprovalRequiredError`。脚本即使捕获了这个异常，之后的每一步也都被拒绝（`ScriptSession.stopped_by`）；工具结果告诉模型前面的步骤已执行，这一步要放到脚本之外（`browser_interact_tool` 或 `browser_manage_tool`）由人审批，再重新取快照规划其余步骤。接管同理：人在脚本进行期间用过页面（`plan_is_stale`），下一步以 `UserTakeoverDuringScriptError` 停下。
 
 ### 三态决策模型
 - **APPROVE**: 原样执行

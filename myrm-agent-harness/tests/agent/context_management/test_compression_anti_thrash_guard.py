@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
+import pytest
+
 from myrm_agent_harness.agent.context_management.strategies.compression.compression_anti_thrash_guard import (
     ANTI_THRASHING_STREAK_LIMIT,
     record_compression_effectiveness,
@@ -65,3 +69,61 @@ def test_record_creates_metrics_when_missing() -> None:
     updated = get_task_metrics(chat_id)
     assert updated is not None
     assert updated.compression_ineffective_streak == 1
+
+
+_INEFFECTIVE = 50
+_EFFECTIVE = 2_000
+
+
+@pytest.mark.parametrize(
+    ("streak_before", "ceiling", "tokens_saved", "streak_after"),
+    [
+        pytest.param(
+            0,
+            ANTI_THRASHING_STREAK_LIMIT,
+            _INEFFECTIVE,
+            1,
+            id="an-ineffective-attempt-extends-a-streak-below-the-ceiling",
+        ),
+        pytest.param(
+            ANTI_THRASHING_STREAK_LIMIT - 1,
+            ANTI_THRASHING_STREAK_LIMIT,
+            _INEFFECTIVE,
+            ANTI_THRASHING_STREAK_LIMIT,
+            id="an-ineffective-attempt-can-reach-the-ceiling",
+        ),
+        pytest.param(
+            ANTI_THRASHING_STREAK_LIMIT,
+            ANTI_THRASHING_STREAK_LIMIT,
+            _INEFFECTIVE,
+            ANTI_THRASHING_STREAK_LIMIT,
+            id="an-ineffective-attempt-does-not-pass-the-ceiling",
+        ),
+        pytest.param(
+            5, ANTI_THRASHING_STREAK_LIMIT, _INEFFECTIVE, 5, id="a-streak-already-above-the-ceiling-is-left-alone"
+        ),
+        pytest.param(
+            ANTI_THRASHING_STREAK_LIMIT,
+            ANTI_THRASHING_STREAK_LIMIT,
+            _EFFECTIVE,
+            0,
+            id="an-effective-attempt-still-clears-it",
+        ),
+        pytest.param(
+            ANTI_THRASHING_STREAK_LIMIT,
+            None,
+            _INEFFECTIVE,
+            ANTI_THRASHING_STREAK_LIMIT + 1,
+            id="without-a-ceiling-the-streak-keeps-growing",
+        ),
+    ],
+)
+def test_record_streak_ceiling(streak_before: int, ceiling: int | None, tokens_saved: int, streak_after: int) -> None:
+    chat_id = f"guard-record-ceiling-{uuid4().hex}"
+    create_task_metrics(chat_id).compression_ineffective_streak = streak_before
+
+    record_compression_effectiveness(chat_id, original_tokens=10_000, tokens_saved=tokens_saved, streak_ceiling=ceiling)
+
+    updated = get_task_metrics(chat_id)
+    assert updated is not None
+    assert updated.compression_ineffective_streak == streak_after

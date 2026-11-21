@@ -168,9 +168,10 @@ class TestDownloadsThePageStartsItself:
         caplog: pytest.LogCaptureFixture,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        # The document route hands the browser a page's response only once it has fetched all of it, so no body stalls
-        # in front of the browser while the route is in place. Deleting waits for a download to finish: only
-        # cancelling gets rid of a body that never does.
+        # An init script puts patchright's document pipeline in front of the browser: it reads each document response
+        # to its end before handing it over, so a body that stalls never reaches the browser. Leaving the enhancer out
+        # leaves this session without an init script. Deleting waits for a download to finish: only cancelling gets
+        # rid of a body that never does.
         monkeypatch.setattr(enhancers, "get_dom_enhancer_script", lambda: "")
         delay_verdicts(monkeypatch, _LATE_VERDICT_S)
         stalled_secret = replace(

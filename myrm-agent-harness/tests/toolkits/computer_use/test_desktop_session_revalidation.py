@@ -5,7 +5,6 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
 from myrm_agent_harness.toolkits.computer_use.dref.types import ElementRef, SnapshotMeta
-from myrm_agent_harness.toolkits.computer_use.types import ScreenInfo
 
 
 @pytest.fixture
@@ -20,52 +19,50 @@ def mock_config():
     return config
 
 
+def _button(ref_id: str, name: str, backend_key: str = "key") -> ElementRef:
+    return ElementRef(ref_id=ref_id, role="button", name=name, bbox=(0, 0, 10, 10), backend_key=backend_key)
+
+
+def _test_app_meta() -> SnapshotMeta:
+    return SnapshotMeta(ref_count=1, app_name="Test", window_title="Test", scope="foreground", needs_permission=False)
+
+
 @pytest.mark.asyncio
 async def test_desktop_interact_revalidation_success(mock_backend, mock_config):
     session = DesktopSession(backend=mock_backend, config=mock_config)
+    (ref,) = session._refs.adopt({"c0": _button("c0", "Test", "old-key")}, _test_app_meta())
     session._last_snapshot_time = time.time() - 6.0  # Force timeout
-    session._refs = MagicMock()
-
-    mock_meta = SnapshotMeta(
-        ref_count=1, app_name="Test", window_title="Test", scope="foreground", needs_permission=False
-    )
-    mock_refs = {"e0": ElementRef(ref_id="e0", role="button", name="Test", bbox=(0, 0, 10, 10), backend_key="key")}
-    session._refs.get.return_value = mock_refs["e0"]
+    fresh_capture = {"c7": _button("c7", "Test", "fresh-key")}
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
-            return_value=(mock_meta, mock_refs),
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
+            return_value=(_test_app_meta(), fresh_capture),
         ) as mock_capture,
-        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.invoke_element") as mock_invoke,
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
     ):
         mock_invoke.return_value.success = True
         session.desktop_snapshot = AsyncMock(return_value="Follow up")
 
-        result = await session.desktop_interact(ref="e0", action="click")
+        result = await session.desktop_interact(ref=ref, action="click")
 
-        mock_capture.assert_called_once_with(mock_backend, "foreground", None)
-        session._refs.replace.assert_called_once_with(mock_refs, mock_meta)
-        assert "Action 'click' on @e0 succeeded." in result
+        mock_capture.assert_called_once_with(mock_backend, "target", "Test")
+        assert mock_invoke.call_args.args[1].backend_key == "fresh-key"
+        assert f"Action 'click' on @{ref} succeeded." in result
 
 
 @pytest.mark.asyncio
 async def test_desktop_interact_revalidation_failure_ref_missing(mock_backend, mock_config):
     session = DesktopSession(backend=mock_backend, config=mock_config)
+    (ref,) = session._refs.adopt({"c0": _button("c0", "Test")}, _test_app_meta())
     session._last_snapshot_time = time.time() - 6.0  # Force timeout
-    session._refs = MagicMock()
-
-    mock_meta = SnapshotMeta(
-        ref_count=1, app_name="Test", window_title="Test", scope="foreground", needs_permission=False
-    )
-    mock_refs = {
-        "e1": ElementRef(ref_id="e1", role="button", name="Test", bbox=(0, 0, 10, 10), backend_key="key")
-    }  # e0 is missing
+    capture_without_the_element = {"c1": _button("c1", "Other")}
 
     with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot", return_value=(mock_meta, mock_refs)
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
+        return_value=(_test_app_meta(), capture_without_the_element),
     ):
-        result = await session.desktop_interact(ref="e0", action="click")
+        result = await session.desktop_interact(ref=ref, action="click")
 
         assert "Safety Re-validation failed" in result
         assert "is no longer found" in result
@@ -78,7 +75,7 @@ async def test_desktop_vision_action_refreshes_stale_screenshot(mock_backend, mo
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={"app_name": "Test", "window_title": "Test"},
         ),
         patch.object(session, "take_screenshot", new_callable=AsyncMock) as mock_shot,
@@ -111,7 +108,7 @@ async def test_desktop_vision_action_requires_app_approval(mock_backend, mock_co
 
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.inspect_backend",
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.vision.inspect_backend",
             return_value={"app_name": "Safari", "window_title": "Example"},
         ),
         patch.object(session, "click_at", new_callable=AsyncMock) as mock_click,
@@ -142,67 +139,29 @@ async def test_desktop_vision_action_success(mock_backend, mock_config):
 @pytest.mark.asyncio
 async def test_desktop_interact_revalidation_capture_error(mock_backend, mock_config):
     session = DesktopSession(backend=mock_backend, config=mock_config)
+    (ref,) = session._refs.adopt({"c0": _button("c0", "Test")}, _test_app_meta())
     session._last_snapshot_time = time.time() - 10.0
-    with patch(
-        "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
-        side_effect=RuntimeError("capture failed"),
-    ):
-        result = await session.desktop_interact(ref="e0", action="click")
-    assert "Could not re-verify screen state" in result
-
-
-@pytest.mark.asyncio
-async def test_desktop_interact_stale_ref(mock_backend, mock_config):
-    from myrm_agent_harness.toolkits.computer_use.dref.errors import DRefStaleError
-
-    session = DesktopSession(backend=mock_backend, config=mock_config)
-    session._last_snapshot_time = time.time()
-    session._refs = MagicMock()
-    session._refs.get.side_effect = DRefStaleError("stale ref")
-    result = await session.desktop_interact(ref="e0", action="click")
-    assert "stale ref" in result
-
-
-@pytest.mark.asyncio
-async def test_export_inspector_snapshot_success(mock_backend, mock_config):
-    from myrm_agent_harness.toolkits.computer_use.dref.types import BBox, ElementRef, SnapshotMeta
-
-    mock_backend.screen_info.return_value = ScreenInfo(width=1440, height=900, dpi_scale=2.0)
-    session = DesktopSession(backend=mock_backend, config=mock_config)
-    meta = SnapshotMeta(
-        ref_count=1,
-        app_name="TestApp",
-        window_title="Window",
-        scope="foreground",
-        needs_permission=False,
-    )
-    refs = {
-        "e0": ElementRef(
-            ref_id="e0",
-            role="button",
-            name="OK",
-            bbox=BBox(0, 0, 10, 10),
-            backend_key="k",
-        )
-    }
-    shot = MagicMock()
-    shot.success = True
-    shot.screenshot_base64 = "img"
-    shot.screenshot_size = (100, 80)
-
     with (
         patch(
-            "myrm_agent_harness.toolkits.computer_use.desktop_session.capture_snapshot",
-            return_value=(meta, refs),
+            "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
+            side_effect=RuntimeError("capture failed"),
         ),
-        patch.object(session, "take_screenshot", new_callable=AsyncMock, return_value=shot),
-        patch.object(session, "_emit_view_update", new_callable=AsyncMock),
+        patch("myrm_agent_harness.toolkits.computer_use.desktop_session.interact.invoke_element") as mock_invoke,
     ):
-        payload = await session.export_inspector_snapshot()
+        result = await session.desktop_interact(ref=ref, action="click")
+    assert "Could not re-verify screen state" in result
+    mock_invoke.assert_not_called()
 
-    assert payload["app_name"] == "TestApp"
-    assert payload["screenshot_base64"] == "img"
-    assert payload["refs"]
-    assert payload["screen_width"] == 1440
-    assert payload["screen_height"] == 900
-    assert payload["dpi_scale"] == 2.0
+
+@pytest.mark.asyncio
+async def test_an_unknown_reference_is_refused_as_stale_without_reading_the_screen(mock_backend, mock_config):
+    session = DesktopSession(backend=mock_backend, config=mock_config)
+    session._refs.adopt({"c0": _button("c0", "Test")}, _test_app_meta())
+    session._last_snapshot_time = time.time() - 60.0
+    with patch(
+        "myrm_agent_harness.toolkits.computer_use.desktop_session.guards.capture_snapshot",
+    ) as mock_capture:
+        result = await session.desktop_interact(ref="d99", action="click")
+    mock_capture.assert_not_called()
+    assert "d99" in result
+    assert "[REMEDY_HINT:" in result

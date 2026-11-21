@@ -1,89 +1,17 @@
-import type { ActionResult, SlashAction } from '@/types/command';
-import { compactChat, focusFlushChat } from '@/services/chat';
+/**
+ * [INPUT]
+ * - @/services/commands/* (POS: /compact、/focus、/goal、/yolo、/freeze、/loop 的执行服务，按需加载)
+ *
+ * [OUTPUT]
+ * - buildBuiltinActions: 内置 Slash 命令注册表
+ *
+ * [POS]
+ * 内置 Slash 命令定义。体量较大的命令把执行体交给 services/commands，注册表只保留元数据与委托。
+ */
+
+import type { SlashAction } from '@/types/command';
 import { showI18nToast } from '@/services/i18nToastService';
 import { toast } from 'sonner';
-
-function parseYoloArgs(inputValue: string): { action: 'toggle' | 'on' | 'off'; timeout?: number } {
-  const args = inputValue
-    .replace(/^\/yolo\s*/i, '')
-    .trim()
-    .toLowerCase();
-  if (!args) {
-    return { action: 'toggle' };
-  }
-  if (args === 'on') {
-    return { action: 'on' };
-  }
-  if (args === 'off') {
-    return { action: 'off' };
-  }
-
-  const timeoutMatch = args.match(/^(?:on\s+)?(\d+)\s*([smh]?)$/);
-  if (timeoutMatch) {
-    let seconds = parseInt(timeoutMatch[1], 10);
-    const unit = timeoutMatch[2] || 's';
-    if (unit === 'm') {
-      seconds *= 60;
-    } else if (unit === 'h') {
-      seconds *= 3600;
-    }
-    return { action: 'on', timeout: seconds };
-  }
-  return { action: 'toggle' };
-}
-
-export function parseLoopCommandClient(inputValue: string): {
-  intervalMs: number;
-  intervalDesc: string;
-  prompt: string;
-} {
-  const DEFAULT_MS = 600_000;
-  const MIN_MS = 60_000;
-  const rawArgs = inputValue.replace(/^\/loop\s*/i, '').trim();
-  if (!rawArgs) {
-    return { intervalMs: DEFAULT_MS, intervalDesc: '10m', prompt: '' };
-  }
-
-  const parseUnit = (numStr: string, unitStr?: string): { ms: number; desc: string } => {
-    const val = parseInt(numStr, 10);
-    const unit = (unitStr || 'm').toLowerCase();
-    let ms = val * 60_000;
-    let desc = `${val}m`;
-    if (unit.startsWith('s')) {
-      ms = Math.max(val * 1000, MIN_MS);
-      desc = `${Math.ceil(ms / 60000)}m`;
-    } else if (unit.startsWith('m')) {
-      ms = Math.max(val * 60000, MIN_MS);
-      desc = `${val}m`;
-    } else if (unit.startsWith('h')) {
-      ms = val * 3600000;
-      desc = `${val}h`;
-    } else if (unit.startsWith('d')) {
-      ms = val * 86400000;
-      desc = `${val}d`;
-    }
-    return { ms, desc };
-  };
-
-  const prefixMatch = rawArgs.match(
-    /^(?:every\s+)?(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?\s+(.+)$/i,
-  );
-  if (prefixMatch) {
-    const { ms, desc } = parseUnit(prefixMatch[1], prefixMatch[2]);
-    return { intervalMs: ms, intervalDesc: desc, prompt: prefixMatch[3].trim() };
-  }
-
-  const suffixMatch = rawArgs.match(
-    /\s+every\s+(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)?\s*$/i,
-  );
-  if (suffixMatch) {
-    const { ms, desc } = parseUnit(suffixMatch[1], suffixMatch[2]);
-    const prompt = rawArgs.slice(0, suffixMatch.index).trim();
-    return { intervalMs: ms, intervalDesc: desc, prompt };
-  }
-
-  return { intervalMs: DEFAULT_MS, intervalDesc: '10m', prompt: rawArgs };
-}
 
 export function buildBuiltinActions(): SlashAction[] {
   return [
@@ -95,50 +23,8 @@ export function buildBuiltinActions(): SlashAction[] {
       aliases: ['compress'],
       type: 'action',
       execute: async (inputValue: string) => {
-        const { default: useChatStore } = await import('@/store/useChatStore');
-        const { chatId, loadMessages } = useChatStore.getState();
-
-        if (!chatId) {
-          return { success: false, error: 'No active chat' };
-        }
-
-        const focusTopic = inputValue.replace(/^\/compact\s*/i, '').trim() || undefined;
-
-        const skipWarning = localStorage.getItem('dontRemindCompact') === 'true';
-        if (!skipWarning) {
-          showI18nToast('commands.builtin.compactToast', undefined, {
-            type: 'info',
-            duration: 5000,
-          });
-        }
-
-        const toastId = toast.loading('…');
-        try {
-          const result = await compactChat(chatId, focusTopic);
-          if (result.compacted) {
-            showI18nToast(
-              'commands.builtin.compacted',
-              {
-                messageCount: result.message_count,
-                tokensSaved: result.tokens_saved,
-              },
-              { type: 'success' },
-            );
-            toast.dismiss(toastId);
-            await loadMessages(chatId);
-          } else {
-            showI18nToast('commands.builtin.nothingToCompact', undefined, {
-              description: result.reason ?? undefined,
-              type: 'info',
-            });
-            toast.dismiss(toastId);
-          }
-          return { success: true, newInputValue: '' };
-        } catch {
-          showI18nToast('commands.builtin.compactionFailed', undefined, { type: 'error' });
-          toast.dismiss(toastId);
-          return { success: false, error: 'Compaction failed' };
-        }
+        const { executeCompactSlashCommand } = await import('@/services/commands/contextSlashCommands');
+        return executeCompactSlashCommand(inputValue);
       },
     },
     {
@@ -147,30 +33,8 @@ export function buildBuiltinActions(): SlashAction[] {
       description: 'commands.builtin.focus',
       type: 'action',
       execute: async () => {
-        const { default: useChatStore } = await import('@/store/useChatStore');
-        const { chatId, resetSessionState, loadMessages, stopMessage } = useChatStore.getState();
-
-        if (!chatId) {
-          return { success: false, error: 'No active chat' };
-        }
-
-        const toastId = toast.loading('…');
-        try {
-          stopMessage();
-
-          const result = await focusFlushChat(chatId);
-          if (result.cleared) {
-            showI18nToast('commands.builtin.focusSuccess', undefined, { type: 'success' });
-            toast.dismiss(toastId);
-            resetSessionState();
-            await loadMessages(chatId);
-          }
-          return { success: true, newInputValue: '' };
-        } catch {
-          showI18nToast('commands.builtin.focusFailed', undefined, { type: 'error' });
-          toast.dismiss(toastId);
-          return { success: false, error: 'Focus flush failed' };
-        }
+        const { executeFocusSlashCommand } = await import('@/services/commands/contextSlashCommands');
+        return executeFocusSlashCommand();
       },
     },
     {
@@ -180,40 +44,8 @@ export function buildBuiltinActions(): SlashAction[] {
       argsHint: '[on|off|<seconds>]',
       type: 'action',
       execute: async (inputValue: string) => {
-        const { getConfigSyncManager } = await import('@/services/config');
-        const syncManager = getConfigSyncManager();
-        const config = syncManager.get('securityConfig');
-        if (!config) {
-          return { success: false, error: 'Security config not loaded yet' };
-        }
-        const { action, timeout } = parseYoloArgs(inputValue);
-
-        const currentlyEnabled = config.yoloModeEnabled ?? false;
-
-        let newEnabled: boolean;
-        if (action === 'toggle') {
-          newEnabled = !currentlyEnabled;
-        } else if (action === 'on') {
-          newEnabled = true;
-        } else {
-          newEnabled = false;
-        }
-
-        syncManager.set('securityConfig', {
-          ...config,
-          yoloModeEnabled: newEnabled,
-          ...(newEnabled && timeout ? { yoloModeTimeout: timeout } : { yoloModeTimeout: undefined }),
-          ...(newEnabled ? { yoloModeEnabledAt: Math.floor(Date.now() / 1000) } : { yoloModeEnabledAt: undefined }),
-        });
-
-        if (newEnabled) {
-          const suffix = timeout ? ` (${timeout}s)` : '';
-          showI18nToast('commands.builtin.yoloEnabled', { timeout: suffix }, { type: 'warning' });
-        } else {
-          showI18nToast('commands.builtin.yoloDisabled', undefined, { type: 'success' });
-        }
-
-        return { success: true, newInputValue: '' };
+        const { executeYoloSlashCommand } = await import('@/services/commands/securitySlashCommands');
+        return executeYoloSlashCommand(inputValue);
       },
     },
     {
@@ -224,36 +56,8 @@ export function buildBuiltinActions(): SlashAction[] {
       aliases: ['estop'],
       type: 'action',
       execute: async (inputValue: string) => {
-        const { apiRequest } = await import('@/lib/api');
-        const args = inputValue
-          .replace(/^\/freeze\s*/i, '')
-          .trim()
-          .toLowerCase();
-        const shouldResume = args === 'off' || args === 'resume';
-
-        const toastId = toast.loading('…');
-        try {
-          await apiRequest<{ level: string; reason: string }>('/security/estop', {
-            method: 'POST',
-            body: JSON.stringify(
-              shouldResume ? { action: 'resume' } : { action: 'activate', reason: 'User triggered /freeze' },
-            ),
-          });
-
-          toast.dismiss(toastId);
-          if (shouldResume) {
-            showI18nToast('commands.builtin.freezeResumed', undefined, { type: 'success' });
-          } else {
-            showI18nToast('commands.builtin.freezeActivated', undefined, { type: 'warning' });
-          }
-          window.dispatchEvent(new Event('estop-changed'));
-          return { success: true, newInputValue: '' };
-        } catch (e) {
-          toast.dismiss(toastId);
-          const msg = e instanceof Error ? e.message : 'Unknown error';
-          showI18nToast('commands.builtin.freezeFailed', undefined, { type: 'error' });
-          return { success: false, error: msg };
-        }
+        const { executeFreezeSlashCommand } = await import('@/services/commands/securitySlashCommands');
+        return executeFreezeSlashCommand(inputValue);
       },
     },
     {
@@ -388,83 +192,8 @@ export function buildBuiltinActions(): SlashAction[] {
       argsHint: '<objective> | status | pause | resume | clear',
       type: 'action',
       execute: async (inputValue: string) => {
-        const { default: useChatStore } = await import('@/store/useChatStore');
-        const { fetchWithTimeout } = await import('@/lib/api');
-        const { chatId, loading, setIsGoalMode, setInputMessage } = useChatStore.getState();
-
-        if (!chatId) {
-          showI18nToast('commands.builtin.noActiveChat', undefined, { type: 'info' });
-          return { success: false, error: 'No active chat' };
-        }
-
-        const args = inputValue.replace(/^\/goal\s*/i, '').trim();
-        if (!args) {
-          showI18nToast('commands.builtin.goalUsage', undefined, { type: 'info' });
-          return { success: false, error: 'Missing goal arguments' };
-        }
-
-        const firstToken = args.split(/\s+/)[0]?.toLowerCase() ?? '';
-        const goalSubcommands = new Set(['status', 'pause', 'resume', 'clear', 'cancel']);
-
-        /** Sends a goal control; a goal still finishing its last step gets its own notice, not "command failed". */
-        const controlGoal = async (action: 'pause' | 'resume' | 'cancel', doneKey: string): Promise<ActionResult> => {
-          const { postGoalAction } = await import('@/store/chat/goals/goalActionClient');
-          const outcome = await postGoalAction(chatId, action);
-          if (outcome === 'done') {
-            showI18nToast(doneKey, undefined, { type: 'success' });
-            return { success: true, newInputValue: '' };
-          }
-          if (outcome !== 'held') {
-            showI18nToast(
-              outcome === 'busy' ? 'commands.builtin.goalActionBusy' : 'commands.builtin.goalActionFailed',
-              undefined,
-              {
-                type: 'error',
-              },
-            );
-          }
-          return { success: false, error: 'Goal command failed' };
-        };
-
-        try {
-          if (goalSubcommands.has(firstToken)) {
-            if (firstToken === 'status') {
-              const res = await fetchWithTimeout(`/goals/${chatId}/status`);
-              if (!res.ok) {
-                throw new Error(`Goal status failed with HTTP ${res.status}`);
-              }
-              const data = (await res.json()) as { goal?: { status?: string } | null };
-              if (!data.goal?.status) {
-                showI18nToast('commands.builtin.goalNoActive', undefined, { type: 'info' });
-              } else {
-                showI18nToast('commands.builtin.goalStatus', { status: data.goal.status }, { type: 'info' });
-              }
-              return { success: true, newInputValue: '' };
-            }
-            if (firstToken === 'pause') {
-              return await controlGoal('pause', 'commands.builtin.goalPaused');
-            }
-            if (firstToken === 'resume') {
-              return await controlGoal('resume', 'commands.builtin.goalResumed');
-            }
-            if (firstToken === 'clear' || firstToken === 'cancel') {
-              return await controlGoal('cancel', 'commands.builtin.goalCleared');
-            }
-          }
-
-          if (loading) {
-            showI18nToast('chat.fork.streamingBlocked', undefined, { type: 'warning' });
-            return { success: false, error: 'Cannot set goal while streaming' };
-          }
-
-          setIsGoalMode(true);
-          setInputMessage(args);
-          showI18nToast('commands.builtin.goalSet', undefined, { type: 'info' });
-          return { success: true, newInputValue: '' };
-        } catch {
-          showI18nToast('commands.builtin.goalActionFailed', undefined, { type: 'error' });
-          return { success: false, error: 'Goal command failed' };
-        }
+        const { executeGoalSlashCommand } = await import('@/services/commands/goalSlashCommand');
+        return executeGoalSlashCommand(inputValue);
       },
     },
     {

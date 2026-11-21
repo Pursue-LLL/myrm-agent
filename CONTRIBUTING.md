@@ -187,7 +187,7 @@ Called from other HTTP trees or lifecycle hooks:
 | `bitable_copilot/` | Multidimensional table copilot and field extraction engine |
 | `event/` | `api/events/`, agent stream persistence |
 | `ssh_bridge/` | Secure tunneling and key authentication bridge for remote hosts |
-| `meeting_notes/` | Meeting audio scribe: chunked ASR scheduling + LLM minutes distillation + wiki raw publish |
+| `meeting_notes/` | Live meeting notes: rolling LLM minutes distillation of finalized transcript lines + wiki raw publish |
 | `loop/` | Session-scoped loop scheduling with turn arbiter (`api/chats/{chat_id}/loop`) |
 | `ui_interaction/` | Reverse UI handshake between harness `ExtensionUIContext` and clients (`api/chats/chat/ui_interaction.py`) |
 

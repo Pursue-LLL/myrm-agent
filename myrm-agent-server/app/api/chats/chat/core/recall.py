@@ -74,8 +74,6 @@ async def list_conversation_recall_entries(
                 "snippet": row.snippet,
                 "summary": row.summary,
                 "last_message_at": (row.last_message_at.isoformat() if row.last_message_at else None),
-                "created_at": row.created_at.isoformat() if row.created_at else None,
-                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
                 "is_excluded": row.is_excluded,
             }
             for row in rows

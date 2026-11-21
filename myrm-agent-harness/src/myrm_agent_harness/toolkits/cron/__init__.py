@@ -41,7 +41,7 @@ Provides:
 - Built-in implementations: ShellJobRunner, InMemoryCronStore, WebhookDelivery
 - Triggers: EventTrigger, SystemEventTrigger, WebhookTrigger, PollTrigger, StreamTrigger, TriggerConfig
 - Situation Report: SituationSection, SituationReportBuilder, SituationContext
-- Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, ScheduleKind, etc.
+- Types: CronJob, CronJobPatch, CronConfig, JobStatus, JobType, PauseReason, ScheduleKind, SYSTEM_JOB_NAME_PREFIX, is_system_job_name, etc.
 - Blueprint contract: BlueprintJobSpec
 
 [POS]
@@ -113,6 +113,7 @@ from myrm_agent_harness.toolkits.cron.triggers import (
     trigger_config_to_dict,
 )
 from myrm_agent_harness.toolkits.cron.types import (
+    SYSTEM_JOB_NAME_PREFIX,
     CronConfig,
     CronJob,
     CronJobPatch,
@@ -125,12 +126,14 @@ from myrm_agent_harness.toolkits.cron.types import (
     JobResult,
     JobStatus,
     JobType,
+    PauseReason,
     RunNowOutcome,
     RunStatus,
     Schedule,
     ScheduleKind,
     SessionTarget,
     TransientErrorKind,
+    is_system_job_name,
 )
 
 __all__ = [
@@ -139,6 +142,7 @@ __all__ = [
     "CRON_MANAGE_TOOL_DESCRIPTION_ZH",
     "DEFAULT_CRON_TOOL_DESCRIPTION_LOCALE",
     "HEARTBEAT_JOB_NAME",
+    "SYSTEM_JOB_NAME_PREFIX",
     "BlueprintJobSpec",
     "ConcurrencyLock",
     "ConnectorErrorCategory",
@@ -166,6 +170,7 @@ __all__ = [
     "JobStatus",
     "JobType",
     "NotificationRunner",
+    "PauseReason",
     "PollTrigger",
     "ResultDelivery",
     "RouterJobRunner",
@@ -196,6 +201,7 @@ __all__ = [
     "generate_webhook_path",
     "generate_webhook_secret",
     "get_heartbeat_status",
+    "is_system_job_name",
     "matching_run_statuses",
     "redact_connector_url",
     "resolve_cron_tool_description",

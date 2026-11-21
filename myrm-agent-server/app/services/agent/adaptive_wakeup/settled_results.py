@@ -9,15 +9,16 @@
 
 [POS]
 A wake turn exists to hand the agent results it has not seen. A background task can settle while the agent's own turn
-is still running; if that turn lists its subagents it reads the result there, and the wake turn queued behind it would
-answer the same result a second time. The wake turn asks this ledger just before it would start.
+is still running; if that turn lists its subagents or waits on its background job it reads the result there, and the
+wake turn queued behind it would answer the same result a second time. The wake turn asks this ledger just before it would start.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 
-# The harness keeps at most this many settled children around, so a chat never has more to remember.
+# Bounds the marks a chat piles up: a mark is dropped only when a wake turn answers its settlement, so the mark of a
+# result a wake turn already delivered stays until it ages out.
 _MAX_READ_PER_CHAT = 200
 
 

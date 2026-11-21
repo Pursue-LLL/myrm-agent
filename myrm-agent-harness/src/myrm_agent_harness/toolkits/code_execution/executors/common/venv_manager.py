@@ -8,7 +8,7 @@ Manages shared virtual environment creation, initialization, and pip command rew
 - infra.data_dir::resolve_data_dir (POS: Single entry point for the Myrm state root; harness and server code derive every state path from it)
 
 [OUTPUT]
-- VenvManager: Shared virtual environment manager (lazy create, pip rewrite, crash-safe discard).
+- VenvManager: Shared virtual environment manager (lazy create, pip rewrite with a quoted path, crash-safe discard).
 
 [POS]
 Virtual environment management service.
@@ -16,6 +16,7 @@ Virtual environment management service.
 
 import asyncio
 import logging
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -158,6 +159,9 @@ class VenvManager:
     async def rewrite_pip_command(self, command: str) -> str:
         """Rewrite pip install commands to use the shared venv's pip.
 
+        The pip path is spliced into the shell's text, so it goes in quoted: a data directory with a space or an
+        apostrophe still gives one command word.
+
         Args:
             command: Original command string.
 
@@ -176,10 +180,11 @@ class VenvManager:
         if not pip_path.exists():
             return command
 
+        pip = shlex.quote(str(pip_path))
         if stripped.startswith("pip3 install"):
-            new_command = command.replace("pip3 install", f"{pip_path} install", 1)
+            new_command = command.replace("pip3 install", f"{pip} install", 1)
         else:
-            new_command = command.replace("pip install", f"{pip_path} install", 1)
+            new_command = command.replace("pip install", f"{pip} install", 1)
 
         logger.warning(f" [VenvManager] Rewrote pip command: {command_preview(new_command, 100)}")
         return new_command

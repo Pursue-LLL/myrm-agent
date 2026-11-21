@@ -84,7 +84,7 @@ AUTO_APPROVED_BUILTIN_TOOLS: dict[str, str] = {
 # as a valid third governance state, so it does not flag them as uncovered.
 EXPLICIT_MCP_FALLBACK_TOOLS: frozenset[str] = frozenset(
     {
-        "browser_execute_script_tool",  # arbitrary JS execution — keep ASK (plus in-tool HITL for privileged APIs)
+        "browser_execute_script_tool",  # runs a model-written script (in an isolated worker) — keep ASK
     }
 )
 

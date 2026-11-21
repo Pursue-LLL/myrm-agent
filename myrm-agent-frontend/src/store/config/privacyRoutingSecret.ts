@@ -22,7 +22,7 @@ const SECRET_ROW = 'privacyRoutingSecret';
 /** 后端没有这一行（从未保存过密钥）或这次没取到时，隔多久再问一次；有行之后命中缓存，不再请求。 */
 const MISSING_ROW_RECHECK_MS = 10_000;
 
-let pendingLoad: Promise<void> | null = null;
+let pendingLoad: Promise<boolean> | null = null;
 let missingRowCheckedAt = Number.NEGATIVE_INFINITY;
 
 export function readPrivacyRoutingSecret(): string {

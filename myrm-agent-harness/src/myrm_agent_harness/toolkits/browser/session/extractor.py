@@ -37,7 +37,7 @@ from myrm_agent_harness.toolkits.browser.diff.screenshot_comparator import (
 from myrm_agent_harness.toolkits.browser.utils.selectors import PASSWORD_FIELD_SELECTOR
 
 if TYPE_CHECKING:
-    from patchright.async_api import Page
+    from patchright.async_api import Page, PdfMargins
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ _PDF_FOOTER_TEMPLATE = (
     '<span class="pageNumber"></span>/<span class="totalPages"></span></span>'
     "</div>"
 )
-_PDF_MARGIN = {"top": "20px", "bottom": "28px", "left": "0", "right": "0"}
+_PDF_MARGIN: PdfMargins = {"top": "20px", "bottom": "28px", "left": "0", "right": "0"}
 
 
 class Extractor:
@@ -327,7 +327,7 @@ class Extractor:
             }
         """
         try:
-            return await self._page.evaluate(js)
+            return bool(await self._page.evaluate(js))
         except Exception:
             return False
 
@@ -519,7 +519,7 @@ class Extractor:
         if imgs:
             lines.append(f"## Images ({len(imgs)} found)")
             for idx, img in enumerate(imgs, 1):
-                parts = [img["url"]]
+                parts = [str(img["url"])]
                 dims = []
                 if img.get("w") and img.get("h"):
                     dims.append(f"{img['w']}x{img['h']}")

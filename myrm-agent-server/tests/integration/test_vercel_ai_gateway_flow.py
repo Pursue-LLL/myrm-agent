@@ -9,8 +9,10 @@ import pytest
 from dotenv import load_dotenv
 from myrm_agent_harness.toolkits.llms.core.llm import create_chat_model
 
+from app.core.brand import CLIENT_ATTRIBUTION
 from app.core.channel_bridge.config_readiness import ProviderConfigChecker
 from app.core.channel_bridge.model_resolver import resolve_model_config
+from tests.support.server_client_attribution import server_client_attribution
 
 # Load test secrets if available
 test_env_path = Path(__file__).resolve().parents[2] / ".env.test"
@@ -21,15 +23,16 @@ if test_env_path.exists():
 @pytest.mark.integration
 def test_vercel_ai_gateway_attribution_headers_injection() -> None:
     """Verify that models pointing to ai-gateway.vercel.sh automatically inject required attribution headers."""
-    gw_model = create_chat_model(
-        "openai/gpt-4o",
-        api_key="vca_test_mock_key",
-        base_url="https://ai-gateway.vercel.sh/v1",
-    )
+    with server_client_attribution():
+        gw_model = create_chat_model(
+            "openai/gpt-4o",
+            api_key="vca_test_mock_key",
+            base_url="https://ai-gateway.vercel.sh/v1",
+        )
     headers = getattr(gw_model, "model_kwargs", {}).get("extra_headers", {})
-    assert headers.get("HTTP-Referer") == "https://myrm.ai"
-    assert headers.get("X-Title") == "Myrm Agent"
-    assert headers.get("User-Agent") == "Myrm/1.0 (Vercel-AI-Gateway-Client)"
+    assert headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+    assert headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
+    assert headers.get("User-Agent") == CLIENT_ATTRIBUTION.vercel_user_agent
 
 
 @pytest.mark.integration
@@ -64,8 +67,8 @@ def test_vercel_ai_gateway_provider_configuration_validation() -> None:
     assert resolved.model == "openai/anthropic/claude-3-5-sonnet"
     assert resolved.model_kwargs is not None
     extra_headers = resolved.model_kwargs.get("extra_headers", {})
-    assert extra_headers.get("HTTP-Referer") == "https://myrm.ai"
-    assert extra_headers.get("X-Title") == "Myrm Agent"
+    assert extra_headers.get("HTTP-Referer") == CLIENT_ATTRIBUTION.site_url
+    assert extra_headers.get("X-Title") == CLIENT_ATTRIBUTION.app_name
 
 
 @pytest.mark.integration

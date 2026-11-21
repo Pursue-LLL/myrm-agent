@@ -2,8 +2,8 @@
 
 Covers credential masking at construction (str(e) is the propagation path to the
 LLM) and in format_for_llm(), plus the RefNotFoundError URL-change suggestion,
-which must not surface full query strings, and the recovery hint a connection
-the network policy refused gets.
+which must not surface full query strings, and the recovery hints a connection
+the network policy refused and a certificate the browser rejected get.
 """
 
 from __future__ import annotations
@@ -102,3 +102,20 @@ class TestNavigationErrorEgressRefusal:
         err = BrowserNavigationError("Navigation failed", error_text="net::ERR_CONNECTION_REFUSED")
 
         assert "network policy" not in " ".join(err.recovery_suggestions)
+
+
+class TestNavigationErrorCertificateRejection:
+    def test_a_rejected_certificate_gets_certificate_advice_in_what_the_agent_reads(self) -> None:
+        err = BrowserNavigationError(
+            "Navigation failed",
+            url="https://self-signed.example/",
+            error_text="Page.goto: net::ERR_CERT_AUTHORITY_INVALID at https://self-signed.example/",
+        )
+
+        assert "certificate" in err.recovery_suggestions[0]
+        assert "certificate" in err.format_for_llm()
+
+    def test_other_failures_do_not_mention_certificates(self) -> None:
+        err = BrowserNavigationError("Navigation failed", error_text="net::ERR_CONNECTION_REFUSED")
+
+        assert "certificate" not in " ".join(err.recovery_suggestions)

@@ -3,7 +3,8 @@
 The LLM loop is replaced by a scripted stream; selection, attribution of tool outcomes and the run-end
 write all go through the real product chain (``[use skill]`` preload -> ``track_skill_execution`` ->
 ``commit_skill_run_usage`` -> ``.stats.json``). A ``[use a,b]`` bundle puts every skill it delivers into the
-loaded set the model runs with; tool attenuation takes the lowest trust over that set.
+loaded set the model runs with; tool attenuation takes the lowest trust over that set. A skill whose SOP cannot be
+read is not delivered, so it is not counted as a use.
 """
 
 from __future__ import annotations
@@ -77,6 +78,15 @@ async def _run(skills_root: Path, query: str) -> SkillUsageStats:
     return SkillStatsCollector().get_stats(skills_root / "alpha")
 
 
+class _BackendThatCannotReadBeta(LocalSkillBackend):
+    """Serves every skill but beta, whose SKILL.md read fails the way unavailable storage does."""
+
+    async def get_skill_content(self, skill_name: str) -> str:
+        if skill_name == "beta":
+            raise OSError("storage unavailable")
+        return await super().get_skill_content(skill_name)
+
+
 @pytest.mark.asyncio
 async def test_run_with_mostly_failing_tools_is_one_failed_use(
     skills_root: Path, monkeypatch: pytest.MonkeyPatch
@@ -123,6 +133,22 @@ async def test_bundle_run_loads_every_delivered_skill_and_counts_one_use_each(
 
     assert sorted(loaded_during_run) == ["alpha", "beta"]
     assert (alpha.call_count, beta.call_count) == (1, 1)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("refs", "alpha_uses"), [("beta,alpha", 1), ("beta", 0)], ids=["partial", "total"])
+async def test_a_skill_whose_sop_cannot_be_read_is_not_counted_as_used(
+    skills_root: Path, monkeypatch: pytest.MonkeyPatch, refs: str, alpha_uses: int
+) -> None:
+    """The ledger is what the Curator ages skills by, so a skill the run was never given must not appear in it."""
+    _script_run(monkeypatch)
+    agent = SkillAgent(llm=AsyncMock(), skill_backend=_BackendThatCannotReadBeta(skills_root))
+
+    _ = [event async for event in agent.run(f"[use {refs}] go")]
+    await wait_all_background_tasks()
+
+    assert SkillStatsCollector().get_stats(skills_root / "alpha").call_count == alpha_uses
+    assert not (skills_root / "beta" / ".stats.json").exists()
 
 
 @pytest.mark.asyncio
