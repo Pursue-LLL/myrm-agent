@@ -26,7 +26,7 @@ bash/
   _compression/                  # 输出压缩域（语义压缩/eviction/声明式过滤）
   _security/                     # 安全域（执行前预检）
   _background/                   # 后台任务域（registry/ledger/spill/progress）
-  scripts/                       # 前台命令的注入头 resilience_init.sh（非交互默认值、包管理器环境注入、git 凭证/身份注入与输出整形；后台作业与自动让出的构建/测试命令不带）
+  scripts/                       # 每条 bash 命令（前台与后台作业）前置的注入头 resilience_init.sh（非交互默认值、包管理器环境注入、GitHub 凭证助手、无身份沙箱的提交身份兜底）
 ```
 
 ## File & Submodule Index
@@ -47,7 +47,7 @@ bash/
 | `_executor/_ARCH.md` | Doc | 执行器域架构文档。 |
 | `_executor/executor.py` | Core | BashExecutor 聚合根（DI 编排，MRO: Execute → Background → Prepare → Context）。 |
 | `_executor/execute_mixin.py` | Core | 同步 execute() 编排；stdout/stderr 对称 eviction；失败路径双流落盘。 |
-| `_executor/background_mixin.py` | Core | 后台进程 spawn（与前台命令同一起跑目录，命令里的 `/workspace` 与前台一样换成该目录（目录名带空格或 shell 元字符时加引号），由平台自己的 bash 读命令）+ 裸尾 `&` 剥离。 |
+| `_executor/background_mixin.py` | Core | 后台进程 spawn（与前台命令同一起跑目录，命令里的 `/workspace` 与前台一样换成该目录（目录名带空格或 shell 元字符时加引号），由平台自己的 bash 读命令，前面带与前台同一份注入头；没有 bash 的宿主由 `sh` 读不带头的命令）+ 裸尾 `&` 剥离。 |
 | `_executor/prepare_mixin.py` | Core | MCP proxy、代码类型检测、保存脚本路由（该脚本不得调用 MCP 工具）、技能 staging。 |
 | `_executor/context_mixin.py` | Core | ExecutionContext 构建、OAuth issuer 作用域、事件日志。 |
 | `_executor/constants.py` | Internal | 共享常量（MCP 超时下限）。 |

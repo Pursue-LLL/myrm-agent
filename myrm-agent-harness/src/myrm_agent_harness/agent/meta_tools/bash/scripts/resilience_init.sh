@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Resilience Init Script
-# Prepended to each command BashExecutor.execute runs: non-interactive defaults, smart env injection for package
-# managers, GitHub credentials and a commit identity for git, and compact git status/diff output.
+# Prepended to every command BashExecutor runs, foreground or background: non-interactive defaults, smart env
+# injection for package managers, GitHub credentials for git over HTTPS, and a commit identity for sandboxes without one.
 
 # -----------------------------------------------------------------------------
 # Global Defense Environment Variables
 # -----------------------------------------------------------------------------
-# Force non-interactive mode to prevent Agent from hanging on prompts (e.g., npm init)
-export CI=1
+# Force non-interactive mode to prevent Agent from hanging on prompts (e.g., npm init); a value the caller set stays
+export CI="${CI:-1}"
 # Disable telemetry to speed up execution and reduce noise
 export NEXT_TELEMETRY_DISABLED=1
 export NUXT_TELEMETRY_DISABLED=1
@@ -31,189 +31,68 @@ _inject_smart_env() {
     done
 
     if [ $should_inject -eq 1 ]; then
-        SKIP_ENV_VALIDATION=1 IGNORE_ENV_VALIDATION=1 command $cmd_name "$@"
+        SKIP_ENV_VALIDATION=1 IGNORE_ENV_VALIDATION=1 command "$cmd_name" "$@"
     else
-        command $cmd_name "$@"
+        command "$cmd_name" "$@"
     fi
 }
 
 # -----------------------------------------------------------------------------
-# GitHub Credential & Identity Injection (clone / push / commit)
+# GitHub Credentials for git over HTTPS
 # -----------------------------------------------------------------------------
-# When GITHUB_TOKEN is present (injected by the credential pipeline), HTTPS
-# GitHub clones and pushes authenticate automatically, and commits get a resolved
-# identity even in freshly-provisioned sandboxes that have no global git config.
-
-_git_is_https_github_remote() {
-    case "$1" in
-        https://github.com/* | http://github.com/* | https://www.github.com/*) return 0 ;;
-        *) return 1 ;;
-    esac
+# git's environment configuration reaches every git this command starts: `git -C`, a script it runs, a package manager
+# fetching a git dependency. The helper below is scoped to the URL https://github.com, so another host, plain http and
+# www.github.com never see the token. It hands out GITHUB_TOKEN (the credential pipeline sets it for the command) only
+# while no other credential helper applies to that URL: git also tells every configured helper to store what it was
+# given, and the keychain of a user must not keep a short-lived token. The lookup leaves out the helper's own entry by
+# dropping the count of the environment configuration.
+_register_github_credential_helper() {
+    # One entry per shell, however often this script runs in it.
+    [ -n "${_github_credential_helper_registered:-}" ] && return 0
+    _github_credential_helper_registered=1
+    local index="${GIT_CONFIG_COUNT:-0}"
+    # shellcheck disable=SC2016 # the single quotes are deliberate: the shell git starts for the helper expands the variables
+    local helper='!f() { [ "$1" = get ] && [ -n "${GITHUB_TOKEN:-}" ] && [ -z "$(unset GIT_CONFIG_COUNT; git config --get-urlmatch credential.helper https://github.com)" ] && printf "username=git\npassword=%s\n" "$GITHUB_TOKEN"; }; f'
+    export "GIT_CONFIG_KEY_${index}=credential.https://github.com.helper" \
+        "GIT_CONFIG_VALUE_${index}=${helper}" \
+        "GIT_CONFIG_COUNT=$((index + 1))"
 }
-
-_git_has_existing_credentials() {
-    [ -n "$(command git config --get credential.helper 2>/dev/null)" ] && return 0
-    [ -f "$HOME/.git-credentials" ] && return 0
-    return 1
-}
-
-_git_remote_url() {
-    local branch remote
-    branch=$(command git symbolic-ref --short HEAD 2>/dev/null)
-    remote=$(command git config --get "branch.${branch}.remote" 2>/dev/null)
-    [ -z "$remote" ] && remote="origin"
-    command git remote get-url "$remote" 2>/dev/null
-}
-
-_git_resolve_identity() {
-    local name email login cached cname cemail cache_file
-    name=$(command git config --get user.name 2>/dev/null) || name=""
-    email=$(command git config --get user.email 2>/dev/null) || email=""
-    if [ -z "$name" ] || [ -z "$email" ]; then
-        if [ -n "${GITHUB_TOKEN:-}" ]; then
-            cache_file="${TMPDIR:-/tmp}/myrm_gh_identity"
-            if [ -f "$cache_file" ]; then
-                cached=$(cat "$cache_file")
-                cname="${cached%%|*}"
-                cemail="${cached#*|}"
-                [ -z "$name" ] && name="$cname"
-                [ -z "$email" ] && email="$cemail"
-            fi
-            if [ -z "$name" ] || [ -z "$email" ]; then
-                login=$(curl -fsSL --max-time 5 -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                    https://api.github.com/user 2>/dev/null \
-                    | grep -o '"login":"[^"]*"' | head -n 1 | cut -d'"' -f4)
-                if [ -n "$login" ]; then
-                    [ -z "$name" ] && name="$login"
-                    [ -z "$email" ] && email="${login}@users.noreply.github.com"
-                    printf '%s|%s' "$name" "$email" > "$cache_file" 2>/dev/null || true
-                fi
-            fi
-        fi
-    fi
-    [ -z "$name" ] && name="myrm-agent"
-    [ -z "$email" ] && email="myrm-agent@users.noreply.github.com"
-    printf '%s|%s' "$name" "$email"
-}
-
-# Runs git with the GitHub token when the remote URL in $1 is a plain HTTPS GitHub URL and the sandbox has no
-# credentials of its own; otherwise runs git untouched. The rest of the arguments are the whole git command line.
-_git_with_github_credentials() {
-    local url="$1"
-    shift
-    if [ -n "${GITHUB_TOKEN:-}" ] && _git_is_https_github_remote "$url" && ! _git_has_existing_credentials; then
-        # The token is referenced via the environment (never inlined), so it
-        # cannot inject shell metacharacters into the credential helper. The
-        # helper is host-scoped: it only answers for github.com hosts, so the
-        # token is never handed to third-party HTTPS git servers the agent may
-        # clone from or push to (e.g. a self-hosted GitLab remote or a raw HTTPS URL).
-        # shellcheck disable=SC2016 # the single quotes are deliberate: git's helper shell expands ${GITHUB_TOKEN}
-        command git -c 'credential.helper=!f() { host=""; while IFS= read -r line; do case "$line" in host=*) host="${line#host=}";; esac; done; if [ "$host" = "github.com" ] || [ "$host" = "www.github.com" ]; then echo username=git; echo password="${GITHUB_TOKEN}"; fi; }; f' "$@"
-    else
-        command git "$@"
-    fi
-}
-
-_git_clone() {
-    local arg url=""
-    for arg in "$@"; do
-        if _git_is_https_github_remote "$arg"; then
-            url="$arg"
-            break
-        fi
-    done
-    _git_with_github_credentials "$url" "$@"
-}
-
-_git_push() {
-    local url=""
-    # Looking up the remote spawns three git processes, so it is skipped when there is no token to hand out.
-    if [ -n "${GITHUB_TOKEN:-}" ]; then
-        # A repository without that remote makes the lookup fail, which must not end a script running under `set -e`.
-        url=$(_git_remote_url) || url=""
-    fi
-    _git_with_github_credentials "$url" "$@"
-}
-
-_git_commit() {
-    if ! command git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        command git "$@"
-        return $?
-    fi
-    if ! command git config --get user.name >/dev/null 2>&1 || ! command git config --get user.email >/dev/null 2>&1; then
-        local ident name email
-        ident=$(_git_resolve_identity)
-        name="${ident%%|*}"
-        email="${ident#*|}"
-        command git -c "user.name=${name}" -c "user.email=${email}" "$@"
-        return $?
-    fi
-    command git "$@"
-}
+_register_github_credential_helper
 
 # -----------------------------------------------------------------------------
-# Command Hijacking
+# Commit Identity
 # -----------------------------------------------------------------------------
-
-# The clone, push and commit helpers hand the whole argument list, subcommand included, on to git.
+# A sandbox without a git identity fails every commit with "Author identity unknown". The subcommands that write a
+# commit get a fallback for whichever of name and email the repository, the user or the environment leaves unset.
 git() {
-    local subcommand="${1:-}" arg
-    if [ "$subcommand" = "clone" ]; then
-        _git_clone "$@"
-    elif [ "$subcommand" = "status" ]; then
-        local has_format_arg=0
-        for arg in "$@"; do
-            if [ "$arg" = "--short" ] || [ "$arg" = "-s" ] || [ "$arg" = "--porcelain" ]; then
-                has_format_arg=1
-                break
-            fi
-        done
-        if [ $has_format_arg -eq 0 ]; then
-            shift
-            # Force English locale to ensure predictable output if any non-porcelain text leaks
-            LC_ALL=C command git status --porcelain -b -uall "$@"
-            local exit_code=$?
-            if [ $exit_code -eq 0 ]; then
-                echo "[System Note: Command was automatically optimized for machine readability]"
-            fi
-            return $exit_code
-        else
-            command git "$@"
-        fi
-    elif [ "$subcommand" = "diff" ]; then
-        shift
-        local has_stat_arg=0
-        local has_no_compact_arg=0
-        local diff_args=()
-        for arg in "$@"; do
-            if [ "$arg" = "--stat" ] || [ "$arg" = "--numstat" ] || [ "$arg" = "--shortstat" ] || [ "$arg" = "--name-only" ]; then
-                has_stat_arg=1
-            fi
-            if [ "$arg" = "--no-compact" ]; then
-                has_no_compact_arg=1
-            else
-                diff_args+=("$arg")
-            fi
-        done
+    local -a global=()
+    # The options before the subcommand come along unchanged; -C and --git-dir also decide whose configuration is read.
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            -C | -c | --git-dir | --work-tree | --namespace | --super-prefix)
+                [ $# -ge 2 ] || break
+                global+=("$1" "$2")
+                shift 2
+                ;;
+            -*)
+                global+=("$1")
+                shift
+                ;;
+            *) break ;;
+        esac
+    done
 
-        # The "+" form keeps an empty array from being an unbound variable under `set -u` in bash 3.2, the bash macOS ships.
-        if [ $has_stat_arg -eq 0 ] && [ $has_no_compact_arg -eq 0 ]; then
-            echo "[System Note: Command was automatically optimized. Showing --stat summary first.]"
-            LC_ALL=C command git diff --stat ${diff_args[@]+"${diff_args[@]}"}
-            echo ""
-            echo "--- Changes ---"
-            LC_ALL=C command git diff ${diff_args[@]+"${diff_args[@]}"}
-            return $?
-        else
-            LC_ALL=C command git diff ${diff_args[@]+"${diff_args[@]}"}
-        fi
-    elif [ "$subcommand" = "push" ]; then
-        _git_push "$@"
-    elif [ "$subcommand" = "commit" ]; then
-        _git_commit "$@"
-    else
-        command git "$@"
-    fi
+    # The "+" form keeps an empty array from being an unbound variable under `set -u` in bash 3.2, the bash macOS ships.
+    case "${1:-}" in
+        commit | merge | cherry-pick | revert | rebase | am | pull | tag | notes)
+            local -a identity=()
+            command git ${global[@]+"${global[@]}"} config user.name >/dev/null 2>&1 || identity+=(-c user.name=myrm-agent)
+            command git ${global[@]+"${global[@]}"} config user.email >/dev/null 2>&1 ||
+                identity+=(-c user.email=myrm-agent@users.noreply.github.com)
+            command git ${identity[@]+"${identity[@]}"} ${global[@]+"${global[@]}"} "$@"
+            ;;
+        *) command git ${global[@]+"${global[@]}"} "$@" ;;
+    esac
 }
 
 # The package managers share the smart env injection above.

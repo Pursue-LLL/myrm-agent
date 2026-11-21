@@ -15,15 +15,21 @@ import contextlib
 import logging
 import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
+from typing import cast
+from unittest.mock import patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
+from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
 from myrm_agent_harness.toolkits.code_execution.executors.models import (
     AsyncProcessProtocol,
     ExecutionContext,
 )
+from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import NullProvider
+from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxStatus
 
 
 @pytest.fixture
@@ -31,43 +37,36 @@ def workspace(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _make_executor(workspace: Path) -> object:
-    from unittest.mock import patch
-
-    from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-    from myrm_agent_harness.toolkits.code_execution.sandbox.providers.null import NullProvider
-    from myrm_agent_harness.toolkits.code_execution.sandbox.sandbox_types import SandboxStatus
-
-    config = ExecutionConfig()
-    executor = LocalExecutor(config)
+def _make_executor(workspace: Path) -> LocalExecutor:
+    executor = LocalExecutor(ExecutionConfig())
     executor.bind_workspace(str(workspace))
 
     # Force disable OS sandbox for unit tests — we test spawn_background_process
     # behavior, not sandbox wrapping (which has dedicated tests in test_os_sandbox.py).
     null_result = (NullProvider(), SandboxStatus(enabled=False, provider_name="null", reason="test"))
-    patcher = patch(
+    patch(
         "myrm_agent_harness.toolkits.code_execution.sandbox.detector.detect_sandbox_provider",
         return_value=null_result,
-    )
-    patcher.start()
+    ).start()
     # Also patch the import path used inside the function
-    patcher2 = patch(
+    patch(
         "myrm_agent_harness.toolkits.code_execution.sandbox.detect_sandbox_provider",
         return_value=null_result,
-    )
-    patcher2.start()
-
-    executor._test_sandbox_patchers = [patcher, patcher2]  # type: ignore[attr-defined]
+    ).start()
     return executor
 
 
 @pytest.fixture(autouse=True)
-def _cleanup_sandbox_patcher() -> None:
+def _cleanup_sandbox_patcher() -> Iterator[None]:
     """Cleanup sandbox patcher after each test."""
-    yield  # type: ignore[misc]
-    import unittest.mock
+    yield
+    patch.stopall()
 
-    unittest.mock.patch.stopall()
+
+def _reader(stream: object) -> asyncio.StreamReader:
+    """Both spawn modes (PTY and PIPE) hand out asyncio stream readers."""
+    assert isinstance(stream, asyncio.StreamReader)
+    return stream
 
 
 @pytest.mark.asyncio
@@ -111,17 +110,15 @@ async def test_spawn_full_duplex_communication(workspace: Path) -> None:
 
     process = await executor.spawn_background_process(context)
     try:
-        process.stdin.write(b"hello\n")  # type: ignore[union-attr]
-        await process.stdin.drain()  # type: ignore[union-attr]
-        process.stdin.close()  # type: ignore[union-attr]
+        stdin = cast("asyncio.StreamWriter", process.stdin)  # the PTY shim has the same write/drain/close surface
+        stdin.write(b"hello\n")
+        await stdin.drain()
+        stdin.close()
 
         collected = b""
         for _ in range(20):
             try:
-                data = await asyncio.wait_for(
-                    process.stdout.readline(),  # type: ignore[union-attr]
-                    timeout=2.0,
-                )
+                data = await asyncio.wait_for(_reader(process.stdout).readline(), timeout=2.0)
             except TimeoutError:
                 break
             if not data:
@@ -155,13 +152,13 @@ async def test_spawn_stderr_capture(workspace: Path) -> None:
         await process.wait()
 
         if process.stderr is not None:
-            stderr_data = await process.stderr.readline()
+            stderr_data = await _reader(process.stderr).readline()
             assert b"error output" in stderr_data
         else:
             # PTY mode merges stderr into stdout — read from stdout instead
             found = False
             for _ in range(10):
-                line = await asyncio.wait_for(process.stdout.readline(), timeout=2.0)  # type: ignore[union-attr]
+                line = await asyncio.wait_for(_reader(process.stdout).readline(), timeout=2.0)
                 if not line:
                     break
                 if b"error output" in line:
@@ -191,7 +188,7 @@ async def test_spawn_pristine_environment(workspace: Path) -> None:
 
         process = await executor.spawn_background_process(context)
         try:
-            line = await process.stdout.readline()  # type: ignore[union-attr]
+            line = await _reader(process.stdout).readline()
             result = line.decode("utf-8").strip()
             assert result == "NOT_FOUND", f"Secret env var leaked to child: {result}"
         finally:
@@ -217,7 +214,7 @@ async def test_spawn_user_env_injected(workspace: Path) -> None:
 
     process = await executor.spawn_background_process(context)
     try:
-        line = await process.stdout.readline()  # type: ignore[union-attr]
+        line = await _reader(process.stdout).readline()
         result = line.decode("utf-8").strip()
         assert result == "custom-val-12345"
     finally:
@@ -374,6 +371,27 @@ async def test_spawn_background_process_logs_a_masked_command(
     try:
         assert "Spawning background" in caplog.text
         assert "abc123xyz" not in caplog.text
+    finally:
+        process.terminate()
+        await process.wait()
+
+
+@pytest.mark.asyncio
+async def test_spawn_background_process_logs_what_was_issued(workspace: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """The shell text of a job starts with a header of its own, and the line is cut: it quotes the issued command."""
+    caplog.set_level(logging.INFO)
+    executor = _make_executor(workspace)
+
+    context = ExecutionContext(
+        code=sys.executable,
+        args=["-c", "# a header line\n" * 100 + "pass"],
+        original_code="the-issued-command",
+        workspace_root=str(workspace),
+    )
+
+    process = await executor.spawn_background_process(context)
+    try:
+        assert "Spawning background: the-issued-command" in caplog.text
     finally:
         process.terminate()
         await process.wait()

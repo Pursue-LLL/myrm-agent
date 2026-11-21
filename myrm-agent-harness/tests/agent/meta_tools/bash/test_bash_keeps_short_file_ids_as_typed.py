@@ -65,4 +65,5 @@ async def test_a_background_command_is_spawned_with_the_id_as_typed(registered_i
         await bash.spawn_background(f"tail -f {registered_id}", session_id="s")
 
     spawned = code_executor.spawn_background_process.await_args.args[0].args[1]
-    assert spawned == f"tail -f {registered_id}"
+    assert spawned.endswith(f"tail -f {registered_id}")
+    assert REGISTERED_PATH not in spawned

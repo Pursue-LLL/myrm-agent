@@ -1,11 +1,11 @@
 """A log line that quotes a command quotes what the model typed and shows no credential typed into it.
 
 The audit log and the background-job registry keep a command through ``redact_command_line``. The log lines that quote
-one (a blocked path, a failed run, a shell fallback) go through ``command_preview``; the line that reports a rewritten
-path counts the paths and quotes no command. ``--key X`` is the shape that only the entry knows: the shared log
-formatter leaves it as written, so a line that shows the command unmasked shows the value. A bash run writes two lines
-about its command, when it starts and when it fails: both quote the command as the model typed it, not the text the
-tool puts before it. Each test names the line it drives, so a test cannot pass because that line never ran.
+one (a blocked path, the start and the failure of a run, a shell fallback) go through ``command_preview`` and quote the
+command the agent issued, not the shell text built from it; the line that reports a rewritten path counts the paths and
+quotes no command. ``--key X`` is the shape that only the entry knows: the shared log formatter leaves it as written, so
+a line that shows the command unmasked shows the value. Each test names the line it drives, so a test cannot pass
+because that line never ran.
 """
 
 from __future__ import annotations
@@ -188,6 +188,30 @@ class TestLocalExecutor:
         line = _logged_line(caplog, "Executing Bash")
         assert "echo typed-by-the-model" in line
         assert _TOOL_PREFIX not in line
+
+    @pytest.mark.asyncio
+    async def test_a_failed_run_quotes_the_issued_command_and_not_the_header_in_front_of_it(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.INFO)
+        executor = LocalExecutor(ExecutionConfig(), workspace_path=str(tmp_path))
+        try:
+            await executor.execute_bash(
+                ExecutionContext(
+                    code="# a header line\n" * 40 + f"false {_KEY}",
+                    original_code=f"false {_KEY}",
+                    session_id="log-sites",
+                    work_dir=str(tmp_path),
+                    workspace_root=str(tmp_path),
+                    timeout=30,
+                )
+            )
+        finally:
+            await executor.close()
+        assert "Executing Bash (Persistent): false" in caplog.text
+        assert "cmd: false" in caplog.text
+        assert "# a header line" not in caplog.text
+        assert _SECRET not in caplog.text
 
 
 class TestSkillDynamicContext:

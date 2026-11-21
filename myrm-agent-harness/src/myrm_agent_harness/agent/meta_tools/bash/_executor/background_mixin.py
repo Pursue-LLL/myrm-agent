@@ -15,7 +15,8 @@
 - BashExecutorBackgroundMixin.spawn_background: starts the command in the executor's root; the shell reads ``/workspace`` as that root, while the threat check, the job list and the execution record keep the command as typed
 
 [POS]
-Long-running shell spawn via background process registry; bypasses skill/python fast path.
+Long-running shell spawn via background process registry; bypasses skill/python fast path. A bash job reads the same
+resilience header as a foreground command.
 """
 
 from __future__ import annotations
@@ -51,6 +52,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_POSIX_SH = "sh"
+
 
 def _background_shell() -> str:
     """The shell that reads a background command: the platform's bash, the one the foreground session runs.
@@ -58,7 +61,7 @@ def _background_shell() -> str:
     Without one (Windows with PowerShell or cmd) it is the ``sh`` on PATH.
     """
     platform_info = detect_platform()
-    return platform_info.shell_path if platform_info.shell_type == "bash" else "sh"
+    return platform_info.shell_path if platform_info.shell_type == "bash" else _POSIX_SH
 
 
 def strip_trailing_background_ampersand(command: str) -> str:
@@ -90,6 +93,7 @@ class BashExecutorBackgroundMixin:
         @property
         def config(self) -> ExecutionConfig: ...
         def _execution_workspace_root(self, session_root: str | None) -> str | None: ...
+        def _inject_resilience_script(self, prepared_code: str) -> str: ...
         async def _log_bash_command_execution(
             self,
             command: str,
@@ -154,9 +158,13 @@ class BashExecutorBackgroundMixin:
 
         network_config = self.config.network
 
+        # The header is bash text: the ``sh`` that stands in on a host without bash must not read it.
+        shell = _background_shell()
+        script = shell_command if shell == _POSIX_SH else self._inject_resilience_script(shell_command)
+
         context = ExecutionContext(
-            code=_background_shell(),
-            args=["-c", shell_command],
+            code=shell,
+            args=["-c", script],
             original_code=command,
             session_id=session_id,
             work_dir="/workspace",
