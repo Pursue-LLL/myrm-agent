@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   clearOfflineQueue,
-  isNetworkError,
   isRecoverableSyncError,
   loadOfflineQueue,
   saveOfflineQueue,
@@ -63,9 +62,7 @@ describe('offline queue storage', () => {
 });
 
 describe('offline failure classification', () => {
-  it('treats fetch and network type errors, and backend-unavailable messages, as transient', () => {
-    expect(isNetworkError(new TypeError('Failed to fetch'))).toBe(true);
-    expect(isNetworkError(new Error('Failed to fetch'))).toBe(false);
+  it('treats the backend-unavailable result and network or offline messages as transient', () => {
     expect(isRecoverableSyncError('Backend not available')).toBe(true);
     expect(isRecoverableSyncError('You are OFFLINE')).toBe(true);
     expect(isRecoverableSyncError('Validation failed')).toBe(false);

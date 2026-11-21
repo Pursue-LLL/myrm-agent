@@ -22,7 +22,6 @@ import { withoutBlockedSearchChanges } from './e2eSearchSyncGate';
 import { applyReplayedChanges, recordSyncedChanges } from './localWrites';
 import {
   clearOfflineQueue,
-  isNetworkError,
   isRecoverableSyncError,
   loadOfflineQueue,
   saveOfflineQueue,
@@ -183,19 +182,7 @@ export class ConfigOutbox {
 
       return result;
     } catch (error) {
-      // 网络错误：保存到离线队列
-      if (isNetworkError(error)) {
-        console.warn('[ConfigSync] Network error, saving to offline queue');
-        this.enqueueOfflineChanges(mergedChanges);
-        this.host.setStatus('offline');
-        return {
-          success: false,
-          conflicts: [],
-          newVersions: new Map(),
-          error: 'Network error, changes saved to offline queue',
-        };
-      }
-
+      // 适配器把传输失败折算成失败结果（见 `adapters/_ARCH.md`），走到这里的是后端明确拒绝的写入。
       console.warn('[ConfigSync] Sync failed:', error);
       this.host.setStatus('error');
       throw error;

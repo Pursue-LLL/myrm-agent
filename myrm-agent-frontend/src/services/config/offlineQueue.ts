@@ -6,7 +6,7 @@
  * [OUTPUT]
  * loadOfflineQueue / saveOfflineQueue / clearOfflineQueue: the `localStorage` queue of changes that could not reach the backend.
  * takeUnpersistableOfflineEntries: lifts entries for non-allowlisted keys out of browser storage.
- * isNetworkError / isRecoverableSyncError: tell a transient failure (retry later) from a real one.
+ * isRecoverableSyncError: tells a write that never reached a backend (retry later) from one the backend refused.
  *
  * [POS]
  * Persistence half of the config sync layer's offline support. Only allowlisted keys are ever written; every other
@@ -95,10 +95,7 @@ export function takeUnpersistableOfflineEntries(): ConfigChange[] {
   return unpersistable;
 }
 
-export function isNetworkError(error: unknown): boolean {
-  return error instanceof TypeError && (error.message.includes('fetch') || error.message.includes('network'));
-}
-
+/** Whether `SyncResult.error` says the write never reached a backend (see `BACKEND_NOT_AVAILABLE_ERROR`). */
 export function isRecoverableSyncError(error: string): boolean {
   const normalized = error.toLowerCase();
   return (

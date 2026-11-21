@@ -1,7 +1,17 @@
 /**
- * 配置适配器基类
+ * [INPUT]
+ * - `../types` ConfigAdapter / SyncResult / createInitialVersion / incrementVersion (POS: adapter contract, backend answer, version arithmetic)
  *
- * 提供通用的工具方法和默认实现
+ * [OUTPUT]
+ * BaseConfigAdapter: device id, version helpers and the abstract adapter surface.
+ * BACKEND_NOT_AVAILABLE_ERROR / backendUnavailableSyncResult: the failed `SyncResult` of a write that never reached a backend.
+ * isTransportFailure: whether a rejected `fetch()` call is a delivery failure rather than a bug.
+ *
+ * [POS]
+ * What the Tauri and Sandbox adapters share. Both answer a reachability failure the same way, because the sync layer
+ * keeps a write for a later retry only when it sees this result: reads (`getAll` / `get`) throw, so "unknown" is never
+ * mistaken for "no such row", and `sync` returns the failed result instead of throwing. Whatever else a backend refuses
+ * is an error the caller sees.
  */
 
 import type {
@@ -14,6 +24,27 @@ import type {
   ConfigValueMap,
 } from '../types';
 import { createInitialVersion, incrementVersion } from '../types';
+
+/** `SyncResult.error` of a write that did not reach a backend that could take it; `isRecoverableSyncError` matches it. */
+export const BACKEND_NOT_AVAILABLE_ERROR = 'Backend not available';
+
+export function backendUnavailableSyncResult(): SyncResult {
+  return {
+    success: false,
+    conflicts: [],
+    newVersions: new Map<ConfigKey, ConfigVersion>(),
+    error: BACKEND_NOT_AVAILABLE_ERROR,
+  };
+}
+
+/**
+ * A `fetch()` that produced no response: offline, DNS or TLS failure (a `TypeError` in every browser, whatever its
+ * wording) or the adapter's own timeout abort. Apply it to the `fetch()` call only; a `TypeError` from handling the
+ * answer is a bug and must stay visible.
+ */
+export function isTransportFailure(error: unknown): boolean {
+  return error instanceof TypeError || (error instanceof DOMException && error.name === 'AbortError');
+}
 
 /**
  * 适配器基类
