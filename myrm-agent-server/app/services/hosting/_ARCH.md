@@ -23,7 +23,7 @@ Artifact 多目标发布业务层。封装 Vercel / HTTP Webhook 托管 API，�
 | `decryptor_shell.py` | ✅ 核心 | 访客侧解锁页（口令卡片 + Web Crypto 解密并挂载的脚本，含两阶段 CSSOM 拓扑资源解析与安全上下文预检；输入去首尾空白后再派生密钥，因为发布方加密前已 `strip`；两条提示带 `role="alert"`，文案不出现机制名词；所有颜色都写在样式表里，脚本与行内样式不设颜色，由 `test_decryptor_shell_contrast.py` 守卫；`<title>` 经 `html.escape`） |
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用；vault 对象从 artifact 所属会话的工作区读取；随入口文件发布的静态文件取自 `Artifact.source_path` 所指文件的同级目录（文件已不在则只发 vault 里的版本，不按文件名搜索）；没有 `source_path` 的行按文件名回退并记一条 WARNING |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
-| `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |
+| `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验：协议、主机名、DNS 解析后的每个地址都交给框架唯一的 IP 黑名单 `is_blocked_ip` 判定（私网、环回、链路本地、云元数据、CGNAT、组播、IPv4 映射的私网地址一律拒；代理 fake-IP 使用的 `198.18.0.0/15` 放行，Clash / Surge 把公网域名都解析到这一段，拒了就等于这类机器上所有 webhook 都发不出去） |
 | `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory；conditional mount（hosting 已配置时加载）；复用 `orchestrator.publish_artifact_to_target` |
 | `providers/*.py` | ✅ 核心 | Vercel 与 HTTP Webhook 两个 HostingProvider 实现（`vercel_client.py` 为 Vercel provider 私有客户端、`_archive.py` 为共享 ZIP 归档工具，均同域内） |
 

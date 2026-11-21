@@ -26,6 +26,20 @@ def test_validate_webhook_url_allows_public_ip() -> None:
         assert validate_webhook_url("https://public.example/hook") == "https://public.example/hook"
 
 
+@pytest.mark.parametrize("address", ["169.254.169.254", "100.64.0.7", "224.0.0.1", "fe80::1", "::ffff:10.0.0.1"])
+def test_validate_webhook_url_blocks_every_internal_address_class(address: str) -> None:
+    """Cloud metadata, carrier-grade NAT, multicast, link-local and IPv4-mapped private answers all stay blocked."""
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", return_value=[(2, 1, 6, "", (address, 0))]):
+        with pytest.raises(SSRFValidationError, match="blocked address"):
+            validate_webhook_url("https://internal.example/hook")
+
+
+def test_validate_webhook_url_allows_the_fake_ip_range_proxies_hand_out_for_public_names() -> None:
+    """A fake-IP proxy (Clash, Surge) answers every public name with a 198.18.0.0/15 address; that is not an internal host."""
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", return_value=[(2, 1, 6, "", ("198.18.0.156", 0))]):
+        assert validate_webhook_url("https://public.example/hook") == "https://public.example/hook"
+
+
 @pytest.mark.asyncio
 async def test_webhook_client_does_not_follow_redirect_to_private_ip() -> None:
     from app.services.hosting.packager import PublishFile
