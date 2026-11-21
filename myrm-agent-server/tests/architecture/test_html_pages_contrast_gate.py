@@ -42,6 +42,10 @@ _CHECKED_BY: dict[str, str] = {
 
 # Modules that mention an HTML tag without writing a page a browser shows.
 _NOT_A_PAGE: dict[str, str] = {
+    "app/api/chats/test_fixtures/artifact_share.py": (
+        "seeds a chart page as artifact content for the share e2e (a canvas, no text or controls); "
+        "the Markdown report it seeds is rendered by markdown_page.py, registered above"
+    ),
     "app/api/chats/test_fixtures/wechat_draft.py": "article fragments fed to the draft compliance scanner; never served",
     "app/core/security/share/__init__.py": "its docstring names the <html lang> attribute; it writes no markup",
 }
