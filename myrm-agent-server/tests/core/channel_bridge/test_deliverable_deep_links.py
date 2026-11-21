@@ -9,6 +9,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.channels.core.outbound_prepare import downgrade_components
+from app.channels.types import OutboundMessage
+from app.channels.types.components import ActionButton, ComponentRow
+from app.channels.types.status import ChannelCapabilities
 from app.core.channel_bridge.executor_helpers import (
     ShareableArtifact,
     StreamAccumulator,
@@ -17,6 +21,11 @@ from app.services.artifacts.share.share_create import CreatedArtifactShare
 from app.services.audit.share_events import ShareSource
 
 _WORKSPACE = "/tmp/chat-workspace"
+
+
+def _buttons(rows: tuple[ComponentRow, ...]) -> list[ActionButton]:
+    """The buttons of the returned rows."""
+    return [component for row in rows for component in row if isinstance(component, ActionButton)]
 
 
 class TestBuildArtifactDeepLinks:
@@ -41,8 +50,8 @@ class TestBuildArtifactDeepLinks:
         )
 
         acc = StreamAccumulator()
-        buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert buttons == ()
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        assert rows == ()
 
     @pytest.mark.asyncio
     @patch(
@@ -65,9 +74,9 @@ class TestBuildArtifactDeepLinks:
         )
 
         with caplog.at_level(logging.WARNING):
-            buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
 
-        assert buttons == ()
+        assert rows == ()
         assert any("no public ingress base URL" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -97,9 +106,9 @@ class TestBuildArtifactDeepLinks:
         )
 
         with caplog.at_level(logging.WARNING):
-            buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
 
-        assert buttons == ()
+        assert rows == ()
         assert any("no artifact versions found" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -138,9 +147,9 @@ class TestBuildArtifactDeepLinks:
         )
 
         with caplog.at_level(logging.WARNING):
-            buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
 
-        assert len(buttons) == 1
+        assert len(rows) == 1
         assert any("no version_id in DB" in record.message and "art-missing" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -182,9 +191,9 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-missing", "gone.html", "text/html"),
         )
-        buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert len(buttons) == 1
-        btn = buttons[0]
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        assert len(rows) == 1
+        btn = _buttons(rows)[0]
         assert btn.url == "https://app.example.com/api/v1/public/artifact-share/tok-abc123"
         assert btn.label == "View interactive page"
 
@@ -224,8 +233,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert len(buttons) == 1
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        assert len(rows) == 1
         # Non-named label path → channel_t called without filename kwarg.
         call_kwargs = mock_t.call_args.kwargs
         assert "filename" not in call_kwargs
@@ -263,9 +272,9 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
         acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.html", "text/html"))
         with caplog.at_level(logging.WARNING):
-            buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
 
-        assert [b.url for b in buttons] == ["https://app.example.com/api/v1/public/artifact-share/tok-2"]
+        assert [b.url for b in _buttons(rows)] == ["https://app.example.com/api/v1/public/artifact-share/tok-2"]
         assert any("Failed to create share link for artifact art-001" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -374,9 +383,9 @@ class TestBuildArtifactDeepLinks:
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "html"))
         with caplog.at_level(logging.WARNING):
-            buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
 
-        assert buttons == ()
+        assert rows == ()
         assert any("Failed to create artifact share links" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -403,8 +412,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert buttons == ()
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        assert rows == ()
 
     @pytest.mark.asyncio
     @patch(
@@ -421,8 +430,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert buttons == ()
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        assert rows == ()
 
     @pytest.mark.asyncio
     @patch(
@@ -458,10 +467,55 @@ class TestBuildArtifactDeepLinks:
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
         acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
-        buttons = await build_artifact_deep_links(acc, "zh", _WORKSPACE)
-        assert len(buttons) == 2
+        rows = await build_artifact_deep_links(acc, "zh", _WORKSPACE)
+        assert len(rows) == 2
         # channel_t called with artifact_deep_link_named for multi
         assert mock_t.call_args_list[0].args[1] == "artifact_deep_link_named"
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
+        new_callable=AsyncMock,
+        return_value={"art-001": "ver-001", "art-002": "ver-002"},
+    )
+    @patch(
+        "app.core.infra.ingress.resolve_public_link_base",
+        new_callable=AsyncMock,
+        return_value="https://app.example.com",
+    )
+    @patch(
+        "app.services.artifacts.share.share_create.create_artifact_share",
+        new_callable=AsyncMock,
+        side_effect=[CreatedArtifactShare("tok-1", 604800), CreatedArtifactShare("tok-2", 604800)],
+    )
+    @patch("app.channels.i18n.channel_t", side_effect=lambda _l, _k, **kw: kw.get("filename", "view"))
+    async def test_each_link_is_a_row_the_outbound_pipeline_accepts(
+        self,
+        mock_t: MagicMock,
+        mock_create: AsyncMock,
+        mock_base: AsyncMock,
+        mock_versions: AsyncMock,
+    ):
+        """A bare button where a row belongs makes outbound preparation raise (a button is not iterable)."""
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
+        acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        assert [len(row) for row in rows] == [1, 1]
+
+        reply = OutboundMessage(channel="telegram", recipient_id="r", content="done", user_id="u", components=rows)
+
+        native = downgrade_components(reply, ChannelCapabilities(buttons=True), channel_name="telegram")
+        assert native.components == rows
+
+        text_only = downgrade_components(reply, ChannelCapabilities(buttons=False), channel_name="telegram")
+        assert text_only.components == ()
+        assert "artifact-share/tok-1" in text_only.content
+        assert "artifact-share/tok-2" in text_only.content
 
     @pytest.mark.asyncio
     @patch(
@@ -493,6 +547,6 @@ class TestBuildArtifactDeepLinks:
 
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "text/html"))
-        buttons = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
         # Creation failed, so no button is generated.
-        assert buttons == ()
+        assert rows == ()

@@ -131,11 +131,12 @@ async def build_artifact_deep_links(
     locale: str,
     workspace_root: str | None,
 ) -> tuple[ComponentRow, ...]:
-    """Create registered share links for shareable artifacts and return them as buttons; empty when none can be made.
+    """Create registered share links for shareable artifacts and return them as buttons, one row each; empty when none can be made.
 
     Links are created like the share dialog creates them (signed, bundle snapshot, registered), so each one is listed
     in the share manager and can be revoked. ``workspace_root`` is the chat's workspace; artifacts that belong to a chat
-    are read from that chat's own workspace regardless.
+    are read from that chat's own workspace regardless. A button is never returned bare: the outbound pipeline walks a
+    message's rows, and channels cap the buttons of one row, which a long file name would also crowd.
     """
     if not acc.shareable_artifacts:
         return ()
@@ -208,7 +209,7 @@ async def build_artifact_deep_links(
     except Exception:
         logger.warning("Failed to create artifact share links", exc_info=True)
 
-    return tuple(buttons)
+    return tuple((button,) for button in buttons)
 
 
 async def fetch_artifact_versions(artifact_ids: list[str]) -> dict[str, str]:
