@@ -3,13 +3,14 @@
 The job starts in the directory ``/workspace`` means to the executor, which for a chat bound to a project is the
 project and not the chat's own storage directory, and starting it leaves the executor bound where it was. A command
 that names ``/workspace`` reaches that directory too. Bash reads it, as it reads a foreground command, whatever ``sh``
-is on the host, and behind the same header.
+is on the host, and behind the same header. On the terminal the job has, no pager waits for a key.
 """
 
 from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -81,14 +82,32 @@ async def test_a_job_commits_with_the_fallback_identity(
     (tmp_path / "home").mkdir()
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
 
-    # A job has a terminal, so a ``git log`` that does not turn the pager off waits for a key.
     job = await shared_real_stack.run_background(
         "git init -q -b main repo && cd repo && echo x > a && git add a && git commit -qm job"
-        " && git --no-pager log -1 --format='%an <%ae>'"
+        " && git log -1 --format='%an <%ae>'"
     )
 
     assert job.exit_code == 0, job.stderr
     assert "myrm-agent <myrm-agent@users.noreply.github.com>" in job.stdout
+
+
+async def test_a_job_does_not_stop_at_a_pager(shared_real_stack: RealBashStack) -> None:
+    """A job has a terminal, so a pager that waits at the first page would hold it until it is killed."""
+    repo = shared_real_stack.workspace / "history"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True)
+    # The repository itself asks for ``less``, which outranks ``PAGER``; only ``GIT_PAGER`` overrules it.
+    subprocess.run(["git", "config", "core.pager", "less"], cwd=repo, check=True)
+    history = "".join(
+        f"commit refs/heads/main\ncommitter t <t@example.com> {1_700_000_000 + n} +0000\ndata 2\nc\n\n"
+        for n in range(80)
+    )
+    subprocess.run(["git", "fast-import", "--quiet"], cwd=repo, input=history.encode(), check=True)
+
+    job = await shared_real_stack.run_background("cd history && git log --oneline && echo listed")
+
+    assert job.exit_code == 0, job.stderr
+    assert "listed" in job.stdout
 
 
 async def test_a_job_of_a_chat_with_its_own_workspace_starts_there(tmp_path: Path) -> None:

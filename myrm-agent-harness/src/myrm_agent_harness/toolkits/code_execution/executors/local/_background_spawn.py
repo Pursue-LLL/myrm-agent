@@ -16,7 +16,8 @@ PTY-first on POSIX hosts without OS sandbox; falls back to PIPE via `_background
 [POS]
 Background process spawning. Handles sandbox wrapping, environment sanitization,
 memory limits, process group management, non-interactive CI-mode environment
-defaults (``CI`` / ``NO_COLOR`` / ``DEBIAN_FRONTEND`` / ``PYTHONUNBUFFERED``),
+defaults (``CI`` / ``NO_COLOR`` / ``DEBIAN_FRONTEND`` / ``PYTHONUNBUFFERED``), a pager
+that never waits for a key (``PAGER`` and ``GIT_PAGER`` pinned to ``cat``),
 and an 8 MiB ``StreamReader.limit``: the buffer a job may fill before its pipe is
 paused, so a burst of output (docker manifests, pytest dumps) does not stall the job
 while the reader records it.
@@ -132,17 +133,21 @@ async def spawn_background_process(
         venv_bin = str(venv_path / "bin")
         env["PATH"] = venv_bin + os.pathsep + env.get("PATH", "")
 
-    # Non-interactive defaults: a background spawn has no TTY by definition,
-    # so we tell common toolchains to skip colour escapes (which corrupt the
-    # progress parser), suppress interactive prompts (apt/debconf hangs are
-    # silent killers) and act like a CI run (npm/yarn switch to predictable
-    # output). ``setdefault`` lets the caller still override per-job.
+    # A job's output is read by a program (the progress parser, the model), not watched on a terminal: tell
+    # toolchains to skip colour escapes (which corrupt the progress parser), suppress interactive prompts
+    # (apt/debconf hangs are silent killers) and act like a CI run (npm/yarn switch to predictable output).
+    # ``setdefault`` keeps a value the host exports; ``context.env``, merged below, still overrides per job.
     env.setdefault("CI", "true")
     env.setdefault("NO_COLOR", "1")
     env.setdefault("FORCE_COLOR", "0")
     env.setdefault("TERM", "dumb")
     env.setdefault("DEBIAN_FRONTEND", "noninteractive")
     env.setdefault("PYTHONUNBUFFERED", "1")
+    # On a PTY (the default on POSIX without an OS sandbox) git, man and gh see a real terminal and page their
+    # output, so the job would sit at the first page until a key arrives. GIT_PAGER outranks a user's
+    # ``core.pager``; PAGER is on the host allow-list, so it is assigned, or a host's ``less`` would reach the job.
+    env["PAGER"] = "cat"
+    env["GIT_PAGER"] = "cat"
 
     if context.env:
         env.update(sanitize_env(context.env))
