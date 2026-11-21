@@ -11,7 +11,7 @@
 [OUTPUT]
 - SERVER_NAME: the name the probe server is configured under
 - ProbeServer: the tools the pool hands to a session, by the name the server declares them under, and the safety records registered for them (the judged ones, or the loosest ones)
-- connect_probe_server: connect over stdio or streamable HTTP and yield the ProbeServer
+- connect_probe_server: connect over stdio, streamable HTTP or SSE and yield the ProbeServer
 
 [POS]
 Harness pytest-only helper shared by the MCP annotations tests, so each of them runs the real server, converter,
@@ -87,7 +87,7 @@ class ProbeServer:
 
 @asynccontextmanager
 async def connect_probe_server(
-    transport: Literal["stdio", "streamable_http"],
+    transport: Literal["stdio", "streamable_http", "sse"],
     marks_dir: Path,
     *,
     host_serial: bool = False,
@@ -107,8 +107,9 @@ async def connect_probe_server(
                 type="stdio", command=sys.executable, args=[str(_SERVER_SCRIPT), str(marks_dir)], **common
             )
         else:
-            live = await start_live_server(build_annotations_probe_server(marks_dir).streamable_http_app())
-            config = MCPConfig(type="streamable_http", url=f"{live.base_url}{HTTP_ENDPOINT_PATH[transport]}", **common)
+            server = build_annotations_probe_server(marks_dir)
+            live = await start_live_server(server.sse_app() if transport == "sse" else server.streamable_http_app())
+            config = MCPConfig(type=transport, url=f"{live.base_url}{HTTP_ENDPOINT_PATH[transport]}", **common)
         connection = await manager.get_connection([config])
         tools = {tool.name.removeprefix(_CALL_PREFIX): tool for tool in connection.tools_by_server[SERVER_NAME]}
         yield ProbeServer(marks_dir=marks_dir, host_serial=host_serial, tools=tools)
