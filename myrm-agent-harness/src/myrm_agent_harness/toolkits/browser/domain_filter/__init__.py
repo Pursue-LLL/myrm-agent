@@ -54,11 +54,11 @@ the expression runs in, once per window, so an expression gets the policy and th
 - build_csp_meta_script, build_init_script: re-exported page-side scripts of Layers 0 and 2
 
 [POS]
-Deep domain filtering, resource blocking, and ad/tracker domain blocking module for the browser toolkit.
-Called by ContextFactory during context creation. Layer 1 judges every HTTP(S) request of the context; Layers 0
-and 2 cover what it cannot see (WebSocket, Workers started from a blob or data URL, WebRTC, WebTransport and
-Service Worker registration). Resource type blocking (image/stylesheet/script/font/media) and the ad/tracker
-domain blocklist (~3500 domains via ad_domains.py) are applied by Layer 1.
+Deep domain filtering, resource blocking, and ad/tracker domain blocking module for the browser toolkit, called by
+ContextFactory during context creation. Layer 1 judges every HTTP(S) request of the context and applies resource type
+blocking (image/stylesheet/script/font/media) and the ad/tracker domain blocklist (~3500 domains via ad_domains.py);
+Layers 0 and 2 cover what it cannot see (WebSocket, Workers started from a blob or data URL, WebRTC, WebTransport and
+Service Worker registration).
 """
 
 from __future__ import annotations

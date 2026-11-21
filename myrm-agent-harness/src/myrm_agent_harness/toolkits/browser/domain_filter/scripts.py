@@ -16,10 +16,10 @@
 [POS]
 The two scripts ``install_domain_filter`` registers with ``BrowserContext.add_init_script`` for the page's main world,
 and that ``domain_filter.agent_world`` runs again in the world the agent's own JavaScript runs in. The browser runs an
-init script in every document it creates, before the page's own scripts, whatever fetched the document. A popup that
-keeps its opener is the exception: the driver lets its page start before the init scripts are registered, so the page's
-first script can run first, and a same-origin popup's reused window runs them once, on ``about:blank``; the Layer 0
-script covers the reused-window case itself (see Layer 0 in the package docstring and ``BROWSER_SYSTEM.md`` section 10).
+init script in every document it creates before the page's own scripts, except in a popup that keeps its opener: the
+driver lets that page start before the init scripts are registered, so its first script can run first, and a
+same-origin popup's reused window runs them once, on ``about:blank``, which the Layer 0 script covers itself (see
+Layer 0 in the package docstring and ``BROWSER_SYSTEM.md`` section 10).
 """
 
 from __future__ import annotations
