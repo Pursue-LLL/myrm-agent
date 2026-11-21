@@ -14,9 +14,10 @@ Usage:
 - agent.acp.default_factory::DefaultAgentFactory (POS: Minimal BaseAgent factory) [lazy]
 - agent.acp.skill_factory::SkillAgentFactory (POS: Full-featured SkillAgent factory) [lazy]
 - toolkits.acp.server.server::run_server (POS: ACP server runner over streams) [lazy]
+- core.security.redact::RedactingFormatter (POS: Log formatter that masks secrets in every line)
 
 [OUTPUT]
-- main: CLI entry point supporting stdio and UDS transports
+- main: CLI entry point supporting stdio and UDS transports; every log line goes to stderr with secrets masked
 
 [POS]
 CLI entry point for standalone ACP server daemon.
@@ -33,10 +34,25 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from myrm_agent_harness.core.security.redact import RedactingFormatter
+
 if TYPE_CHECKING:
     from myrm_agent_harness.toolkits.acp.server.bridge import AgentFactory
 
 logger = logging.getLogger(__name__)
+
+_LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+
+def _stderr_handler() -> logging.Handler:
+    """The daemon's only log sink: stderr (stdout carries the protocol), each line masked for secrets.
+
+    The executor logs the output of a failed command as it came, so masking happens here, at the sink, the way
+    the server masks its own logs.
+    """
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(RedactingFormatter(_LOG_FORMAT))
+    return handler
 
 
 def _create_factory(agent_type: str) -> AgentFactory:
@@ -118,11 +134,7 @@ def main() -> None:
     args = parser.parse_args()
 
     log_level = logging.DEBUG if args.verbose else logging.INFO
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        stream=sys.stderr,
-    )
+    logging.basicConfig(level=log_level, handlers=[_stderr_handler()])
 
     try:
         factory = _create_factory(args.agent_type)
