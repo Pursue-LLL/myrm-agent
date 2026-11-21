@@ -2,9 +2,11 @@
 
 [OUTPUT]
 - Aggregate facade re-exporting every public name from the ``share`` subpackage:
-  - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, decode_unverified_payload
+  - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, token_log_id, decode_unverified_payload
+  - share_links: ShareKind + the one definition of the public share link path/URL for each token kind
   - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
+  - share_csp: the CDN origins and Content-Security-Policy of a served artifact share page
   - share_locale: visitor language negotiation (Accept-Language) for the share pages, plus the per-language
     ``<html lang>`` and footer brand line every share page uses
   - share_status_page: browser-friendly share 404 page (state catalog in English/Chinese) + Accept-based JSON fallback
@@ -23,6 +25,7 @@ from app.core.security.share.share_attempt_guard import (
     record_password_failure,
     record_password_success,
 )
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, SHARE_CDN_SOURCES
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import (
     b64url_decode,
@@ -33,7 +36,9 @@ from app.core.security.share.share_hmac import (
     parse_share_token,
     sign_share_token,
     token_fingerprint,
+    token_log_id,
 )
+from app.core.security.share.share_links import ShareKind, share_link_path, share_link_url
 from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang, resolve_share_lang
 from app.core.security.share.share_password_page import (
     password_gate_response,
@@ -54,9 +59,12 @@ from app.core.security.share.share_unlock import (
 )
 
 __all__ = [
+    "ARTIFACT_SHARE_CSP",
     "HTML_LANG",
     "SHARE_BRAND",
+    "SHARE_CDN_SOURCES",
     "SHARE_PRIVACY_HEADERS",
+    "ShareKind",
     "ShareLang",
     "ShareLinkState",
     "attach_unlock_cookie",
@@ -76,9 +84,12 @@ __all__ = [
     "render_share_status_html",
     "resolve_gate_password",
     "resolve_share_lang",
+    "share_link_path",
+    "share_link_url",
     "share_not_found",
     "sign_share_token",
     "token_fingerprint",
+    "token_log_id",
     "unlock_cookie_name",
     "wants_html",
 ]

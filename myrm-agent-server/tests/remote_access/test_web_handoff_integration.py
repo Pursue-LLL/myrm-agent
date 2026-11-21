@@ -23,7 +23,7 @@ def _patch_tunnel_running(monkeypatch: pytest.MonkeyPatch) -> None:
     manager._state = TunnelState.RUNNING
     manager._public_url = "https://tunnel-test.example.com"
     monkeypatch.setattr(
-        "app.remote_access.mobile_deep_link.get_tunnel_manager",
+        "app.remote_access.tunnel_manager.get_tunnel_manager",
         lambda: manager,
     )
 

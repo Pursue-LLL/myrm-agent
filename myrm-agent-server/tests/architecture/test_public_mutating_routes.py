@@ -31,6 +31,10 @@ _SELF_AUTHENTICATED: dict[Operation, str] = {
     ),
     ("POST", "/api/v1/public/artifact-share/{token}/"): "same gate as the bare token route",
     ("POST", "/api/v1/public/artifact-share/{token}/{asset_path}"): "same gate as the bare token route",
+    ("POST", "/api/v1/public/chat-share/{token}"): (
+        "read-only serving: the HMAC-signed token in the path and an optional body password gate access, "
+        "wrong passwords are locked out per share and client (app/api/chats/chat/share/public.py `get_public_chat_share`)"
+    ),
     ("POST", "/webui/auth/login"): "username and password in the body, failed attempts rate limited (WebuiAuthService.login)",
     ("POST", "/webui/auth/setup"): "one-time setup token, refused once an admin exists (WebuiAuthService.setup_admin)",
     ("POST", "/webui/auth/token-exchange"): "short-lived temp token (WebuiAuthService.exchange_temp_token)",

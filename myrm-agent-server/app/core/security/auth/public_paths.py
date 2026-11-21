@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 # Open to every method: static webui entrypoints, the browser-login handshake and routes that carry their own
-# credential (artifact-share token).
+# credential (the artifact-share and chat-share tokens). A share link is opened by someone who has no account here,
+# so every link `core.security.share.share_links` can build must be listed.
 PUBLIC_PATH_PREFIXES: tuple[str, ...] = (
     "/api/v1/public/artifact-share",
+    "/api/v1/public/chat-share",
     "/api/v1/webui/welcome",
     "/webui/auth/",
     "/docs",

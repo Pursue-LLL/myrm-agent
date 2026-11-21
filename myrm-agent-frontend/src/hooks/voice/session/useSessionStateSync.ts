@@ -12,7 +12,9 @@
  *
  * [POS]
  * Keeps the session state in step with the active transport (Agent bridge, OpenAI Realtime or Gemini Live).
- * A transport that drops while the session is running ends the session.
+ * A transport that drops while the session is running ends the session without stopSession ever running, so
+ * whatever must happen when a session ends (publishing the live meeting minutes) follows the session turning
+ * inactive, never the stopSession call.
  */
 
 import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
@@ -29,6 +31,17 @@ interface UseSessionStateSyncOptions {
   /** True while a session is running; cleared here when the transport drops. */
   sessionActiveRef: MutableRefObject<boolean>;
   setSessionState: Dispatch<SetStateAction<VoiceSessionState>>;
+}
+
+/** The transport is gone and nobody pressed stop: this is the only place the session can end. */
+function endSessionIfRunning(
+  sessionActiveRef: MutableRefObject<boolean>,
+  setSessionState: Dispatch<SetStateAction<VoiceSessionState>>,
+): void {
+  if (sessionActiveRef.current) {
+    sessionActiveRef.current = false;
+    setSessionState('inactive');
+  }
 }
 
 export function useSessionStateSync({
@@ -55,10 +68,7 @@ export function useSessionStateSync({
         setSessionState('speaking');
         break;
       case 'disconnected':
-        if (sessionActiveRef.current) {
-          sessionActiveRef.current = false;
-          setSessionState('inactive');
-        }
+        endSessionIfRunning(sessionActiveRef, setSessionState);
         break;
     }
   }, [mode, agentBridgeState, sessionActiveRef, setSessionState]);
@@ -83,10 +93,7 @@ export function useSessionStateSync({
         break;
       case 'error':
       case 'idle':
-        if (sessionActiveRef.current) {
-          sessionActiveRef.current = false;
-          setSessionState('inactive');
-        }
+        endSessionIfRunning(sessionActiveRef, setSessionState);
         break;
     }
   }, [mode, realtimeState, sessionActiveRef, setSessionState]);
@@ -109,10 +116,7 @@ export function useSessionStateSync({
         break;
       case 'error':
       case 'idle':
-        if (sessionActiveRef.current) {
-          sessionActiveRef.current = false;
-          setSessionState('inactive');
-        }
+        endSessionIfRunning(sessionActiveRef, setSessionState);
         break;
     }
   }, [mode, geminiLiveState, sessionActiveRef, setSessionState]);

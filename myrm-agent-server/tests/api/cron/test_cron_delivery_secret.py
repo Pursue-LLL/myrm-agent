@@ -10,10 +10,12 @@ Test-delivery endpoint (POST /{job_id}/test-delivery):
 - 404 for unknown job, 400 for non-deliverable channels
 - reuses the real ChannelResultDelivery pipeline for webhook channels
 - supports not-yet-saved override configs
+- leaves the job exactly as it was, whether the delivery succeeds or fails
 """
 
 from __future__ import annotations
 
+import asyncio
 from typing import Generator
 from unittest.mock import AsyncMock, patch
 
@@ -34,8 +36,12 @@ class FakeDelivery:
 
 
 @pytest.fixture
-def cron_manager() -> CronManager:
-    store = InMemoryCronStore()
+def store() -> InMemoryCronStore:
+    return InMemoryCronStore()
+
+
+@pytest.fixture
+def cron_manager(store: InMemoryCronStore) -> CronManager:
     scheduler = CronScheduler(
         store=store,
         runners={},
@@ -74,6 +80,19 @@ def _create_webhook_job(client: TestClient, url: str = "https://hooks.example.co
     )
     assert resp.status_code == 201
     return resp.json()
+
+
+def _put_failing_state(store: InMemoryCronStore, job_id: str, *, failures: int, error: str) -> None:
+    """Give the stored job the failure streak a real run leaves; the API has no way to set one."""
+
+    async def apply() -> None:
+        job = await store.get_job(job_id)
+        assert job is not None
+        job.consecutive_failures = failures
+        job.last_error = error
+        await store.save_job(job)
+
+    asyncio.run(apply())
 
 
 class TestWebhookSecretStability:
@@ -257,30 +276,22 @@ class TestTestDeliveryEndpoint:
         assert sent_job.delivery.target == "https://alerts.example.com/f2"
         assert sent_job.delivery.secret == failure_secret
 
-    def test_test_to_heal_resets_consecutive_failures(self, client: TestClient, cron_manager: CronManager) -> None:
-        """Successful test delivery on active degraded delivery immediately clears failure state."""
-        import asyncio
-
-        from myrm_agent_harness.toolkits.cron.types import CronJobPatch
-
+    @pytest.mark.parametrize("delivery_fails", [False, True], ids=["delivered", "failed"])
+    def test_the_job_is_left_as_it_was(self, client: TestClient, store: InMemoryCronStore, delivery_fails: bool) -> None:
+        """A test delivery says nothing about the job's runs: whatever it finds, the job stays untouched."""
         job = _create_webhook_job(client)
-        asyncio.run(
-            cron_manager.update_job(
-                job["id"],
-                CronJobPatch(consecutive_failures=3, last_error="502 Bad Gateway"),
-            )
-        )
-        degraded_job = client.get(f"/cron/{job['id']}").json()
-        assert (degraded_job["consecutive_failures"], degraded_job["last_error"]) == (3, "502 Bad Gateway")
+        _put_failing_state(store, str(job["id"]), failures=3, error="HTTP 502: Bad Gateway")
+        before = client.get(f"/cron/{job['id']}").json()
+        assert (before["consecutive_failures"], before["last_error"]) == (3, "HTTP 502: Bad Gateway")
 
         mock_delivery = AsyncMock()
+        if delivery_fails:
+            mock_delivery.deliver.side_effect = RuntimeError("Webhook returned 404: Not Found")
         with patch(
             "app.core.cron.adapters.channel_delivery.ChannelResultDelivery",
             return_value=mock_delivery,
         ):
-            resp = client.post(f"/cron/{job['id']}/test-delivery")
-        assert resp.status_code == 200
+            resp = client.post(f"/cron/{job['id']}/test-delivery", json={})
 
-        healed_job = client.get(f"/cron/{job['id']}").json()
-        assert healed_job["consecutive_failures"] == 0
-        assert healed_job["last_error"] is None
+        assert resp.status_code == (502 if delivery_fails else 200)
+        assert client.get(f"/cron/{job['id']}").json() == before

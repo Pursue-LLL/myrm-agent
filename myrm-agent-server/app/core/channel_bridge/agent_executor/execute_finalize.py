@@ -181,7 +181,7 @@ async def finalize_channel_stream_reply(
 
     # A share button never replaces the attachment or the oversize note: whether the link opens depends on how the
     # instance is reached from outside, which the sender cannot check, and a link that fails would leave the file lost.
-    artifact_components = await build_artifact_deep_links(acc, resolve_message_locale(msg))
+    artifact_components = await build_artifact_deep_links(acc, resolve_message_locale(msg), workspace_root)
 
     error_type: str | None = None
     if not content.strip() and not oversized_notes and not compressed_notes:

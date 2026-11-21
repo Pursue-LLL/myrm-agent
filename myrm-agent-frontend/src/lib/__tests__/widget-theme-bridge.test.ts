@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   HOST_THEME_MUTATION_ATTRIBUTES,
+  buildWidgetCSP,
   buildWidgetStyleBlock,
   resolveThemeVars,
   subscribeHostThemeVars,
@@ -78,5 +79,26 @@ describe('widget-theme-bridge', () => {
     const css = buildWidgetStyleBlock({ '--primary': '#2563eb', '--is-dark': '0' });
 
     expect(css).toContain('*,*::before,*::after{animation-duration:0.01ms !important');
+  });
+
+  // The server's share page (`share_csp.py`, kept equal to this list by
+  // `test_share_csp_parity.py`) lets a shared widget load from the same CDNs, so a widget that renders
+  // here renders when shared. Connections stay closed in both places.
+  it('buildWidgetCSP lets scripts, styles and fonts load from the pinned CDN list and keeps connections closed', () => {
+    const cdn = [
+      'https://cdnjs.cloudflare.com',
+      'https://cdn.jsdelivr.net',
+      'https://unpkg.com',
+      'https://esm.sh',
+      'https://fonts.googleapis.com',
+      'https://fonts.gstatic.com',
+    ].join(' ');
+    const csp = buildWidgetCSP();
+
+    expect(csp).toContain(`script-src 'unsafe-inline' ${cdn};`);
+    expect(csp).toContain(`style-src 'unsafe-inline' ${cdn};`);
+    expect(csp).toContain(`font-src ${cdn};`);
+    expect(csp).toContain("default-src 'none';");
+    expect(csp).toContain("connect-src 'none';");
   });
 });

@@ -1,4 +1,4 @@
-"""Artifact share domain: token signing, bundle materialization, registry ledger.
+"""Artifact share domain: token signing, bundle materialization, registry ledger, link creation.
 
 [INPUT]
 - Artifact metadata (name, artifact_type) from the artifact API.
@@ -11,12 +11,13 @@
     shareability predicates
   - share_bundle: ShareBundleManifest + bundle_dir_for_claims /
     materialize_share_bundle / resolve_share_bundle_file / purge_expired_share_bundles
+  - share_create: create_artifact_share (sign + snapshot + register) + CreatedArtifactShare / ShareRegistrationError
   - share_registry: ActiveShareRow + register/list/revoke/expire ledger operations
 
 [POS]
 Server business layer. Single artifact-share domain shared by the artifact API
 surface, public share endpoints and deliverable deep links; token/bundle/registry
-are always used together, so they stay co-located under one facade.
+and the creation service that ties them together stay co-located under one facade.
 """
 
 from app.services.artifacts.share.share_bundle import (
@@ -27,6 +28,11 @@ from app.services.artifacts.share.share_bundle import (
     purge_expired_share_bundles,
     resolve_share_bundle_file,
 )
+from app.services.artifacts.share.share_create import (
+    CreatedArtifactShare,
+    ShareRegistrationError,
+    create_artifact_share,
+)
 from app.services.artifacts.share.share_registry import (
     ActiveShareRow,
     is_token_revoked,
@@ -36,6 +42,7 @@ from app.services.artifacts.share.share_registry import (
     revoke_share,
 )
 from app.services.artifacts.share.share_token import (
+    DEFAULT_TTL_SECONDS,
     ArtifactShareClaims,
     create_artifact_share_token,
     is_shareable_artifact,
@@ -45,11 +52,15 @@ from app.services.artifacts.share.share_token import (
 )
 
 __all__ = [
+    "DEFAULT_TTL_SECONDS",
     "ActiveShareRow",
     "ArtifactShareClaims",
+    "CreatedArtifactShare",
     "ShareBundleManifest",
+    "ShareRegistrationError",
     "bundle_asset_count",
     "bundle_dir_for_claims",
+    "create_artifact_share",
     "create_artifact_share_token",
     "is_shareable_artifact",
     "is_shareable_artifact_name",

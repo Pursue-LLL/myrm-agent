@@ -5,8 +5,9 @@ import pytest
 from app.core.infra.ingress import (
     get_public_ingress_base_url,
     invalidate_public_ingress_cache,
-    resolve_share_url_base,
+    resolve_public_link_base,
 )
+from app.remote_access.tunnel_manager import TunnelManager, TunnelState
 
 
 @pytest.fixture(autouse=True)
@@ -14,6 +15,14 @@ def _clear_ingress_cache():
     invalidate_public_ingress_cache()
     yield
     invalidate_public_ingress_cache()
+
+
+@pytest.fixture(autouse=True)
+def tunnel(monkeypatch: pytest.MonkeyPatch) -> TunnelManager:
+    """A stopped tunnel manager (no public URL); tests that need a live tunnel set its state."""
+    manager = TunnelManager()
+    monkeypatch.setattr("app.remote_access.tunnel_manager.get_tunnel_manager", lambda: manager)
+    return manager
 
 
 @pytest.fixture
@@ -79,26 +88,52 @@ async def test_get_public_ingress_base_url_uses_short_lived_cache(mock_settings,
 
 
 @pytest.mark.asyncio
-async def test_resolve_share_url_base_returns_ingress(mock_settings, mock_load_personal_settings):
+async def test_resolve_public_link_base_returns_ingress(mock_settings, mock_load_personal_settings):
     mock_settings.cp_public_ingress_url = "https://share.example.com/"
 
-    base = await resolve_share_url_base()
+    base = await resolve_public_link_base()
 
     assert base == "https://share.example.com"
 
 
 @pytest.mark.asyncio
-async def test_resolve_share_url_base_falls_back_when_empty(mock_settings, mock_load_personal_settings):
+async def test_resolve_public_link_base_falls_back_when_empty(mock_settings, mock_load_personal_settings):
     mock_settings.cp_public_ingress_url = None
     mock_load_personal_settings.return_value = {}
 
-    assert await resolve_share_url_base() == ""
-    assert await resolve_share_url_base(fallback="http://testserver") == "http://testserver"
+    assert await resolve_public_link_base() == ""
+    assert await resolve_public_link_base(fallback="http://testserver") == "http://testserver"
 
 
 @pytest.mark.asyncio
-async def test_resolve_share_url_base_falls_back_on_error(mock_settings, mock_load_personal_settings):
+async def test_resolve_public_link_base_falls_back_on_error(mock_settings, mock_load_personal_settings):
     mock_settings.cp_public_ingress_url = None
     mock_load_personal_settings.side_effect = RuntimeError("boom")
 
-    assert await resolve_share_url_base(fallback="http://origin") == "http://origin"
+    assert await resolve_public_link_base(fallback="http://origin") == "http://origin"
+
+
+@pytest.mark.asyncio
+async def test_resolve_public_link_base_prefers_running_tunnel(tunnel, mock_settings, mock_load_personal_settings):
+    """A live tunnel beats a configured ingress, which may be the address of an earlier tunnel run."""
+    tunnel._state = TunnelState.RUNNING
+    tunnel._public_url = "https://tunnel.example.com/"
+    mock_settings.cp_public_ingress_url = "https://old.example.com"
+
+    assert await resolve_public_link_base(fallback="http://origin") == "https://tunnel.example.com"
+    mock_load_personal_settings.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("state", "public_url"),
+    [(TunnelState.STOPPED, "https://stale.example.com"), (TunnelState.RUNNING, "")],
+)
+async def test_resolve_public_link_base_ignores_a_tunnel_without_a_live_address(
+    tunnel, mock_settings, mock_load_personal_settings, state, public_url
+):
+    tunnel._state = state
+    tunnel._public_url = public_url
+    mock_settings.cp_public_ingress_url = "https://cp.example.com"
+
+    assert await resolve_public_link_base() == "https://cp.example.com"

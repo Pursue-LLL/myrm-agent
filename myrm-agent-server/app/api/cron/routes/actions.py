@@ -4,7 +4,7 @@
 - cron.routes.helpers (POS: conversion utilities and manager accessor)
 - cron.schemas (POS: request/response Pydantic models)
 - myrm_agent_harness.toolkits.cron.types::RunNowOutcome (POS: what a manual-run request came to)
-- myrm_agent_harness.toolkits.cron.types::CronJob / CronJobPatch / JobResult (POS: cron job domain types the test payload and the failure-streak reset are built from)
+- myrm_agent_harness.toolkits.cron.types::CronJob / JobResult (POS: cron job domain types the test payload is built from)
 - myrm_agent_harness.toolkits.cron::CronManagerPort (POS: typing seam between the cron agent tools and the object that manages jobs)
 - myrm_agent_harness.toolkits.cron.delivery::WebhookDelivery (POS: built-in webhook ResultDelivery for cron job results)
 - core.cron.adapters.channel_delivery::ChannelResultDelivery (POS: ResultDelivery implementation via the Channel Gateway)
@@ -14,7 +14,7 @@
 - POST /{job_id}/pause — pause job
 - POST /{job_id}/resume — resume job
 - POST /{job_id}/trigger — start one manual trial run (202; 404 when missing or not active; 409 when already running)
-- POST /{job_id}/test-delivery — send a one-off payload through the job's saved delivery, or the given not-yet-saved one (404 unknown job; 400 channel without outbound delivery; 502 delivery failed; a pass on the saved delivery clears the job's consecutive failures and last error)
+- POST /{job_id}/test-delivery — send a one-off payload through the job's saved delivery, or the given not-yet-saved one (404 unknown job; 400 channel without outbound delivery; 502 delivery failed); the job itself is never modified
 - POST /{job_id}/reset-baseline — reset monitor baseline
 
 [POS]
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from myrm_agent_harness.toolkits.cron import CronManagerPort
-from myrm_agent_harness.toolkits.cron.types import CronJob, CronJobPatch, JobResult, RunNowOutcome
+from myrm_agent_harness.toolkits.cron.types import CronJob, JobResult, RunNowOutcome
 
 from app.api.cron.schemas import (
     CronJobResponse,
@@ -143,14 +143,6 @@ async def _run_test_delivery(
         await pipeline.deliver(test_job, result)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
-
-    # Test-to-heal: If test succeeded on the job's active delivery and it was degraded/down, reset consecutive failures
-    if body is None or (not body.delivery and not body.failure_delivery):
-        if job.consecutive_failures > 0 or job.last_error:
-            await mgr.update_job(
-                job.id,
-                CronJobPatch(consecutive_failures=0, clear_last_error=True),
-            )
 
     return DeliveryTestResponse(delivered=True)
 

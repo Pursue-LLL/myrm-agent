@@ -9,8 +9,8 @@
 | `types.ts`               | 会话状态 `VoiceSessionState` 与传输模式 `VoiceSessionMode`，由 `useVoiceSession.ts` 重新导出                                                                                                  |
 | `speakableSegments.ts`   | 纯函数：回复文本按句末符号切成可朗读片段，末尾没有终止符的残片单独保留                                                                                                                        |
 | `usePttScreenContext.ts` | PTT 屏幕上下文融合：缓存 `voice-ptt-context`（截图、窗口标题、选中文本或屏幕文字），转写到达时附加到消息；PTT 模式下截图仍在传输时最多等待 250 ms，超过 30 s 的上下文丢弃，每份上下文只用一次 |
-| `useSessionStateSync.ts` | 把当前模式对应的传输（Agent bridge / OpenAI Realtime / Gemini Live）的连接状态映射为会话状态；传输断开且会话仍在运行时结束会话；其他模式的传输状态不参与                                        |
-| `useSessionEvents.ts`    | 窗口事件桥：`myrm-voice-toggle` / `myrm-voice-interrupt` / `myrm-voice-replay` 驱动会话，`myrm-voice-state-update` 对外广播会话状态与音量                                                      |
+| `useSessionStateSync.ts` | 把当前模式对应的传输（Agent bridge / OpenAI Realtime / Gemini Live）的连接状态映射为会话状态；传输断开且会话仍在运行时结束会话（不经 `stopSession`，会话结束时的收尾须跟随会话变为非活动）；其他模式的传输状态不参与                                        |
+| `useSessionEvents.ts`    | 窗口事件桥：`myrm-voice-toggle` / `myrm-voice-interrupt` / `myrm-voice-replay` 驱动会话，`myrm-voice-state-update` 对外广播会话状态与音量；这些事件只在这里监听，别处再监听同一事件会让它执行两次                                                      |
 
 ## 测试
 

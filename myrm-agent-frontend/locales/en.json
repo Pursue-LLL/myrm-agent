@@ -9349,7 +9349,10 @@
       "unassigned": "Unassigned",
       "due": "Due",
       "lines": "{count, plural, one {# line} other {# lines}}",
-      "risks": "Risks"
+      "risks": "Risks",
+      "saved": "Meeting notes saved to your knowledge base",
+      "saveFailed": "Couldn't save the meeting notes",
+      "retry": "Retry"
     }
   },
   "stt": {
@@ -17547,7 +17550,8 @@
         "reviewCta": "Go to pending review",
         "skipped": "A review with the same title was already stored today; duplicate skipped",
         "empty": "Please enter your review first",
-        "error": "Submission failed; please retry later"
+        "error": "Submission failed; please retry later",
+        "securityBlocked": "The review was not stored because it contains credentials or other sensitive content. Remove them and submit again."
       },
       "ledger": {
         "title": "Five-layer knowledge asset overview",

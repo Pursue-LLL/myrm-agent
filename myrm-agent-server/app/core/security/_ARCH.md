@@ -58,7 +58,7 @@ security/
 | `session_overlay.py` | 请求级安全覆盖：`PRESET_OVERLAYS` / `apply_session_preset`（会话预设 hitl / accept_edits / explore）与 `SecurityOverlaySpec`（预设、会话授权、远程准入、/learn 授权四层覆盖的可序列化数据，随 `GeneralAgentParams` 下发到 `GeneralAgent`；会话授权是渠道里 `/yolo on [秒]` 的 `YoloGrant`（开启时刻 + 时限，写入后以服务端的 `yolo_mode_*` 键取代已保存的 YOLO 计时）与委派任务的审批窗口 `approval_window_seconds`；叠加顺序为预设 → 会话授权 → 远程准入 → /learn 抬升，远程准入关闭 YOLO 的优先级高于授权）。渠道回合与 converter 请求时 `apply` 一次；每轮 `sync_wrapper_security_from_store` 重载已保存的 securityConfig 后再 `apply` 一次，已保存配置因此不会放宽、也不会冲掉本次请求的覆盖 |
 | `client_address.py` | `client_ip(connection)`：限流、锁定与 IP 名单共用的唯一客户端地址来源，取 ASGI 服务器解析后的 `client`，传输层没有对端时为 `unknown`。`X-Forwarded-For` / `X-Real-IP` 是访客可写的文本，应用代码一律不读；uvicorn 只对 `FORWARDED_ALLOW_IPS`（默认 `127.0.0.1`，禁填 `*`）里的对端应用 `X-Forwarded-For` 并改写 `client`，所以配置过的反代被采信、伪造的头被忽略。反代没有列入时所有访客共用反代地址，限流变严而不是被绕过；`tests/architecture/test_client_ip_single_source.py` 禁止其余应用代码读这些头 |
 | `auth/`（子包） | 认证原语子包，含 `control_plane_guard.py`（CP 鉴权、内部端点 Origin/Host 门禁、Fail-Closed 本地回环检查）等 |
-| `share/`（子包） | 分享链接安全子域，含 5 个模块：`share_hmac.py`（HMAC-SHA256 签名层 + token_fingerprint）、`share_headers.py`（隐私头常量）、`share_status_page.py`（失效页/JSON 404 分流）、`share_unlock.py`（解锁 cookie 机制）、`share_password_page.py`（密码门页面）。`share/__init__.py` 为聚合门面，统一 re-export。 |
+| `share/`（子包） | 分享链接安全子域，含 8 个模块：`share_hmac.py`（HMAC-SHA256 签名层 + token_fingerprint / token_log_id）、`share_links.py`（分享链接形态的唯一定义）、`share_attempt_guard.py`（密码门暴力破解锁定）、`share_locale.py`（访客语言协商）、`share_headers.py`（隐私头常量）、`share_status_page.py`（失效页/JSON 404 分流）、`share_unlock.py`（解锁 cookie 机制）、`share_password_page.py`（密码门页面）。`share/__init__.py` 为聚合门面，统一 re-export。 |
 | `integration_write_patterns.py` | 业务层 shell 命令分析的集成写模式：委托框架层 `register_integration_write_patterns` 注册 |
 
 ---

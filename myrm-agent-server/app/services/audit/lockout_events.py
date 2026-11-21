@@ -3,7 +3,7 @@
 [INPUT]
 - app.middleware.auth_audit (POS: auth audit JSONL writer, ``RATE_LIMIT_EXCEEDED`` event type)
 - app.platform_utils.deployment_capabilities (POS: whether this deployment keeps an auth audit trail)
-- app.core.security.share.share_hmac::token_fingerprint (POS: non-reversible share token id)
+- app.core.security.share.share_hmac::token_log_id (POS: short non-reversible share token id for logs)
 
 [OUTPUT]
 - report_lockout: record that a client was just locked out of a credential check
@@ -24,16 +24,13 @@ from typing import Literal
 
 from starlette.requests import Request
 
-from app.core.security.share.share_hmac import token_fingerprint
+from app.core.security.share.share_hmac import token_log_id
 from app.middleware.auth_audit import AuthEventType, log_auth_event
 from app.platform_utils.deployment_capabilities import get_deployment_capabilities
 
 logger = logging.getLogger(__name__)
 
 LockoutScope = Literal["share_password", "webui_login"]
-
-# Enough hex digits to tell shares apart in an audit view without exposing the full token hash.
-_SUBJECT_LENGTH = 12
 
 
 def report_lockout(scope: LockoutScope, *, client: str, subject: str | None = None) -> None:
@@ -50,4 +47,4 @@ def report_lockout(scope: LockoutScope, *, client: str, subject: str | None = No
 def report_share_lockout(request: Request, token: str) -> None:
     """Record that the requesting client was just locked out of the share behind *token*."""
     client = request.client.host if request.client else "unknown"
-    report_lockout("share_password", client=client, subject=token_fingerprint(token)[:_SUBJECT_LENGTH])
+    report_lockout("share_password", client=client, subject=token_log_id(token))

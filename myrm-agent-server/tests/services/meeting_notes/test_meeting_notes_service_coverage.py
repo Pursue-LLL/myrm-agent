@@ -162,8 +162,6 @@ async def test_publish_meeting_notes_renders_risks(
 ) -> None:
     from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-    import app.services.wiki.source_sync.publish_helpers as helpers
-
     structure = WikiStructure(base_dir=tmp_path)
     captured: dict[str, Any] = {}
 
@@ -172,9 +170,9 @@ async def test_publish_meeting_notes_renders_risks(
         captured["relative_path"] = relative_path
         return _raw_publish_result(relative_path, written=True)
 
-    monkeypatch.setattr(helpers, "publish_source_markdown", _fake_publish)
-    monkeypatch.setattr(helpers, "build_frontmatter", lambda **_kwargs: "---\n")
-    monkeypatch.setattr(helpers, "sanitize_path_segment", lambda segment: segment)
+    monkeypatch.setattr(svc_mod, "publish_source_markdown", _fake_publish)
+    monkeypatch.setattr(svc_mod, "build_frontmatter", lambda **_kwargs: "---\n")
+    monkeypatch.setattr(svc_mod, "sanitize_path_segment", lambda segment: segment)
 
     notes = StructuredMeetingNotes(title="Plan", summary="S", risks=("Vendor lock-in",))
     published = await svc_mod.publish_meeting_notes(structure, notes, "[00:00] hi", True, None)
@@ -190,16 +188,14 @@ async def test_publish_meeting_notes_skips_unwritten_result(
     """A blocked/skipped publish must not be reported as a published path."""
     from myrm_agent_harness.toolkits.wiki import WikiStructure
 
-    import app.services.wiki.source_sync.publish_helpers as helpers
-
     structure = WikiStructure(base_dir=tmp_path)
 
     async def _fake_publish(structure: object, *, relative_path: str, content: str, **_kwargs: object) -> Any:
         return _raw_publish_result(relative_path, written=False, security_blocked=True)
 
-    monkeypatch.setattr(helpers, "publish_source_markdown", _fake_publish)
-    monkeypatch.setattr(helpers, "build_frontmatter", lambda **_kwargs: "---\n")
-    monkeypatch.setattr(helpers, "sanitize_path_segment", lambda segment: segment)
+    monkeypatch.setattr(svc_mod, "publish_source_markdown", _fake_publish)
+    monkeypatch.setattr(svc_mod, "build_frontmatter", lambda **_kwargs: "---\n")
+    monkeypatch.setattr(svc_mod, "sanitize_path_segment", lambda segment: segment)
 
     notes = StructuredMeetingNotes(title="Plan", summary="S", risks=("r",))
     assert await svc_mod.publish_meeting_notes(structure, notes, "t", False, None) == []

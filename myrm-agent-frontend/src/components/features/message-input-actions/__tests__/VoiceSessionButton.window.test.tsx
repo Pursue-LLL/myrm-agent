@@ -1,8 +1,8 @@
 /**
- * The running session as a user sees it: the spoken stop command, the overlay and its minimised bubble, and the
- * remote controls the pet surface sends.
+ * The running session as a user sees it: the spoken stop command, the overlay and its minimised bubble. The remote
+ * controls of the pet surface are owned by the voice session hook, which the button must not shadow.
  */
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { LISTENING, enableVoice, kit, mockVoiceSession, renderVoiceButton, resetVoiceKit } from './voiceSessionKit';
 
@@ -145,72 +145,28 @@ describe('VoiceSessionButton session', () => {
   });
 
   describe('remote controls from the pet surface', () => {
-    const emit = (name: string) =>
-      act(() => {
-        window.dispatchEvent(new CustomEvent(name));
-      });
+    // The session hook alone answers these events and broadcasts the state; a second listener here would act twice.
+    it.each(['myrm-voice-toggle', 'myrm-voice-interrupt', 'myrm-voice-replay'])(
+      'leaves %s to the session hook',
+      (name) => {
+        enableVoice();
+        mockVoiceSession(LISTENING);
+        renderVoiceButton();
 
-    it('toggles the session', () => {
-      enableVoice();
-      const { refresh } = renderVoiceButton();
+        act(() => {
+          window.dispatchEvent(new CustomEvent(name));
+        });
 
-      emit('myrm-voice-toggle');
-      expect(kit.voice.startSession).toHaveBeenCalledTimes(1);
+        expect(kit.voice.startSession).not.toHaveBeenCalled();
+        expect(kit.voice.stopSession).not.toHaveBeenCalled();
+        expect(kit.voice.interruptTTS).not.toHaveBeenCalled();
+        expect(kit.voice.speakResponse).not.toHaveBeenCalled();
+      },
+    );
 
-      mockVoiceSession(LISTENING);
-      refresh();
-      emit('myrm-voice-toggle');
-      expect(kit.voice.stopSession).toHaveBeenCalledTimes(1);
-    });
-
-    it('interrupts speech only while a session runs', () => {
-      enableVoice();
-      const { refresh } = renderVoiceButton();
-      emit('myrm-voice-interrupt');
-      expect(kit.voice.interruptTTS).not.toHaveBeenCalled();
-
-      mockVoiceSession(LISTENING);
-      refresh();
-      emit('myrm-voice-interrupt');
-
-      expect(kit.voice.interruptTTS).toHaveBeenCalledTimes(1);
-    });
-
-    it('replays the last spoken text', async () => {
-      enableVoice();
-      mockVoiceSession(LISTENING);
-      kit.lastSpokenText.mockReturnValue('Last words');
-      renderVoiceButton();
-
-      emit('myrm-voice-replay');
-
-      await waitFor(() => expect(kit.voice.speakResponse).toHaveBeenCalledWith('Last words'));
-    });
-
-    it('replays nothing when nothing was spoken yet', async () => {
-      enableVoice();
-      mockVoiceSession(LISTENING);
-      renderVoiceButton();
-
-      emit('myrm-voice-replay');
-
-      await waitFor(() => expect(kit.lastSpokenText).toHaveBeenCalled());
-      expect(kit.voice.speakResponse).not.toHaveBeenCalled();
-    });
-
-    it('stops answering once the button is gone', () => {
-      enableVoice();
-      const { unmount } = renderVoiceButton();
-      unmount();
-
-      emit('myrm-voice-toggle');
-
-      expect(kit.voice.startSession).not.toHaveBeenCalled();
-    });
-
-    it('tells the pet surface what the session is doing', () => {
-      const updates: Array<{ voiceState: string; audioLevel: number }> = [];
-      const listener = (event: Event) => updates.push((event as CustomEvent<(typeof updates)[number]>).detail);
+    it('leaves the state broadcast to the session hook', () => {
+      const updates: Event[] = [];
+      const listener = (event: Event) => updates.push(event);
       window.addEventListener('myrm-voice-state-update', listener);
       enableVoice();
       const { refresh } = renderVoiceButton();
@@ -219,10 +175,7 @@ describe('VoiceSessionButton session', () => {
       refresh();
       window.removeEventListener('myrm-voice-state-update', listener);
 
-      expect(updates).toEqual([
-        { voiceState: 'idle', audioLevel: 0 },
-        { voiceState: 'listening', audioLevel: 0.5 },
-      ]);
+      expect(updates).toEqual([]);
     });
   });
 });

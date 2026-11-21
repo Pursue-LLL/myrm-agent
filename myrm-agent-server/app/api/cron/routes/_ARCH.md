@@ -9,7 +9,7 @@ Cron 分域路由注册。上级文档：[../../_ARCH.md](../../_ARCH.md)。
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Cron job REST endpoints. | ✅ |
-| `actions.py` | 模块 | Cron 任务生命周期动作端点（duplicate/pause/resume/trigger/test-delivery/reset-baseline）；`trigger` 起一次手动试跑：已启动 202，任务已在运行 409，不存在或未启用 404，拒绝时任务保持原样；`test-delivery` 把一次性载荷送进真实投递链路（`ChannelResultDelivery`）：不带请求体测已保存的投递，带 `delivery` 或 `failure_delivery` 测未保存的配置，任务不存在 404，渠道无需外发（chat/silent/none）400，投递失败 502，对已保存投递测试通过后清零连续失败次数与最近错误 | ✅ |
+| `actions.py` | 模块 | Cron 任务生命周期动作端点（duplicate/pause/resume/trigger/test-delivery/reset-baseline）；`trigger` 起一次手动试跑：已启动 202，任务已在运行 409，不存在或未启用 404，拒绝时任务保持原样；`test-delivery` 把一次性载荷送进真实投递链路（`ChannelResultDelivery`）：不带请求体测已保存的投递，带 `delivery` 或 `failure_delivery` 测未保存的配置，任务不存在 404，渠道无需外发（chat/silent/none）400，投递失败 502；测试不改任务，投递成败都一样，任务的状态、连续失败次数与最近错误保持原样（`tests/api/cron/test_cron_delivery_secret.py`） | ✅ |
 | `blueprints.py` | 模块 | `GET/POST /blueprints` — 中英双语（en/zh）蓝图目录与 fill；委托 `core.cron.blueprints` SSOT | ✅ |
 | `connector_health.py` | 模块 | `GET /connectors/health` — 连接器健康聚合与降级状态查询端点 | ✅ |
 | `heartbeat.py` | 模块 | Heartbeat REST endpoints. Supports `agent_id` binding for Agent Profile inheritance; the enable prompt passes the risk gate (`reject_if_risky`) before it is stored; the status carries `paused_reason`, the reason the scheduler switched the heartbeat off by itself (none when the user did). | ✅ |

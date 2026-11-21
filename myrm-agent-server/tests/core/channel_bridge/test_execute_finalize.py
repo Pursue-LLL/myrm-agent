@@ -46,19 +46,17 @@ async def _finalize(
     workspace_root: str | None = None,
     message: InboundMessage | None = None,
     account_guidance: bool = False,
+    deep_links: AsyncMock | None = None,
 ) -> tuple[MagicMock, OutboundMessage]:
     """Run finalize with the share buttons ``components`` the deep-link build would return; return (persist_mock, reply)."""
+    deep_links = deep_links or AsyncMock(return_value=components)
     with (
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.resolve_chat_workspace_root",
             new_callable=AsyncMock,
             return_value=workspace_root or "",
         ),
-        patch(
-            "app.core.channel_bridge.agent_executor.execute_finalize.build_artifact_deep_links",
-            new_callable=AsyncMock,
-            return_value=components,
-        ),
+        patch("app.core.channel_bridge.agent_executor.execute_finalize.build_artifact_deep_links", new=deep_links),
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.persist_assistant_message",
         ) as persist_mock,
@@ -94,6 +92,16 @@ async def test_deep_link_success_keeps_oversized_note() -> None:
     assert "8.0 MB" in persisted
     assert "report.pdf" in persisted
     assert reply.components == (button,)
+
+
+@pytest.mark.asyncio
+async def test_share_buttons_are_built_for_the_chats_workspace(tmp_path: Path) -> None:
+    """Artifacts that belong to no chat are read from the chat's workspace, so the button build is given it."""
+    acc = StreamAccumulator()
+    acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
+    deep_links = AsyncMock(return_value=())
+    await _finalize(acc, deep_links=deep_links, workspace_root=str(tmp_path))
+    assert deep_links.await_args.args[2] == str(tmp_path)
 
 
 @pytest.mark.asyncio

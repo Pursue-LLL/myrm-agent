@@ -10,7 +10,7 @@
 |------|------|------|-------|
 | `models.py` | 核心模型 | 会议纪要强类型模型：待办项与结构化纪要 | ✅ |
 | `service.py` | 核心服务 | LLM 纪要蒸馏与 wiki raw 发布编排门面；导出 `distill_meeting_notes` / `publish_meeting_notes` | ✅ |
-| `live_notes.py` | 核心服务 | 会中实时链路：消费 final 转录 -> 防抖分段 -> 滚动结构化纪要（复用 `distill_meeting_notes`）与会话注册表 | ✅ |
+| `live_notes.py` | 核心服务 | 会中实时链路：消费 final 转录 -> 防抖分段 -> 滚动结构化纪要（复用 `distill_meeting_notes`）；会议结束的一次性 `finalize`；会话注册表 | ✅ |
 
 ## 关键依赖
 
@@ -19,8 +19,9 @@
 
 ## 边界
 
-- **单条实时链路**：`live_notes.py` 在会中逐行消费 final 转录并滚动蒸馏；会议结束时由 finalize 路由经 `publish_meeting_notes` 发布。本层不读音频文件，也不做转写。
-- **知识库范围由调用方定**：`publish_meeting_notes` 写入调用方传入的 `WikiStructure`；按智能体选择知识库由路由依赖 `get_scoped_wiki_archiver`（`agent_id` 查询参数）完成，本层不再接收智能体标识。
+- **单条实时链路**：`live_notes.py` 在会中逐行消费 final 转录并滚动蒸馏；会议结束时由 finalize 路由调用 `LiveNotesSession.finalize`，经调用方提供的发布回调（`publish_meeting_notes`）写入知识库。本层不读音频文件，也不做转写。
+- **知识库范围由调用方定**：`publish_meeting_notes` 写入调用方传入的 `WikiStructure`；按智能体选择知识库由路由依赖 `get_scoped_wiki_archiver`（`agent_id` 查询参数）完成，本层不接收智能体标识。
+- **结束只发布一次**：同一会话的并发 `finalize`（双击停止、重试赶上慢的首次请求）共享同一次蒸馏与发布，调用方各自取消不会中断这次运行；成功结果被记住（赶在注册表释放前的调用拿到同一结果而不是再发布一份），失败则清除，下一次调用在完好的会话上重试。
 - **发布契约规范**：`publish_meeting_notes` 仅返回真实写入（`written=True`）的库相对路径（Vault-relative path，如 `meeting-notes/*.md`），绝不泄露宿主机绝对路径，对安全拦截或跳过的结果返回空列表。
 - **同名不丢会议**：目标文件已存在时按 `-2`/`-3`… 自动改用空闲文件名（`_free_meeting_note_path`），避免 LLM 同名标题被 raw gate 跳过而导致整场会议静默丢失。
 - **转录幂等**：`LiveNotesSession.ingest` 接受 `line_id`，重复 id 视为重投直接忽略（去重窗口 `_DEDUPE_WINDOW` 有界），保证 at-least-once 投递下逐字稿不重复。

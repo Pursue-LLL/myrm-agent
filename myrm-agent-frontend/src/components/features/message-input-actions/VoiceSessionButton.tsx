@@ -12,7 +12,9 @@
  * Voice session trigger. Renders a mic-session button that opens VoiceSessionOverlay,
  * bridging useVoiceSession with the chat store for message sending and TTS playback.
  * Supports audio_only, agent_bridge, openai_realtime, and gemini_live modes; announces
- * voice background task completion via the voice-bg-done event across all modes.
+ * voice background task completion via the voice-bg-done event across all modes. The remote
+ * controls of the pet surface (toggle / interrupt / replay, state broadcast) belong to
+ * useVoiceSession alone: a second listener here would act on the same event twice.
  */
 
 'use client';
@@ -198,52 +200,9 @@ const VoiceSessionButton = memo(({ disabled = false, keyterms }: VoiceSessionBut
     if (voice.isActive) {
       voice.stopSession();
     } else {
-      setBubbleMinimized(false);
       voice.startSession();
     }
   }, [voice]);
-
-  // Handle remote voice toggle / interrupt / replay events from Pet Surface
-  useEffect(() => {
-    const handleRemoteToggle = () => {
-      handleToggle();
-    };
-    const handleRemoteInterrupt = () => {
-      if (voice.isActive) {
-        voice.interruptTTS();
-      }
-    };
-    const handleRemoteReplay = () => {
-      import('@/hooks/voice/useTTS').then(({ getLastSpokenText }) => {
-        const last = getLastSpokenText();
-        if (last) {
-          voice.speakResponse(last);
-        }
-      });
-    };
-
-    window.addEventListener('myrm-voice-toggle', handleRemoteToggle);
-    window.addEventListener('myrm-voice-interrupt', handleRemoteInterrupt);
-    window.addEventListener('myrm-voice-replay', handleRemoteReplay);
-
-    return () => {
-      window.removeEventListener('myrm-voice-toggle', handleRemoteToggle);
-      window.removeEventListener('myrm-voice-interrupt', handleRemoteInterrupt);
-      window.removeEventListener('myrm-voice-replay', handleRemoteReplay);
-    };
-  }, [handleToggle, voice]);
-
-  // Sync voice state to pet surface
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent('myrm-voice-state-update', {
-        detail: {
-          voiceState: voice.sessionState === 'inactive' ? 'idle' : voice.sessionState,
-          audioLevel: voice.audioLevel,
-        },
-      }),
-    );
-  }, [voice.sessionState, voice.audioLevel]);
 
   if (!voiceEnabled) {
     return null;

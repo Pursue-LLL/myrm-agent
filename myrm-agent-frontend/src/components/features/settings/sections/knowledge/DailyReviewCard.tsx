@@ -3,7 +3,7 @@
 /**
  * [INPUT]
  * - ./WikiAgentScopeContext::useWikiAgentScope (POS: agent vault the review is stored into)
- * - @/lib/api::apiRequest (POS: unified frontend API request entry)
+ * - @/lib/api::apiRequest, ApiError (POS: unified frontend API request entry; ApiError.businessCode carries the server's error code)
  * - @/services/wikiService::buildWikiApiPath (POS: Wiki endpoint path builder with optional agent_id query)
  * - POST {text, title} to /wiki/daily-review
  * - useTranslations('settings.wiki') (POS: i18n locale namespace)
@@ -16,7 +16,8 @@
  * evidence in the selected agent's vault and compiled into four-dimension knowledge
  * drafts (Projects / Knowledge / Methods / Comparisons) that await human review before
  * publish. Failures show the localized message only: the server's reasons are English
- * diagnostics, not user copy.
+ * diagnostics, not user copy. A security block is the one failure that names its cause: the
+ * text holds credentials, so only editing the text, which is kept, can make a retry succeed.
  */
 
 import Link from 'next/link';
@@ -27,7 +28,7 @@ import { Button } from '@/components/primitives/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/primitives/card';
 import { Input } from '@/components/primitives/input';
 import { Textarea } from '@/components/primitives/textarea';
-import { apiRequest } from '@/lib/api';
+import { ApiError, apiRequest } from '@/lib/api';
 import { buildWikiApiPath } from '@/services/wikiService';
 import { useWikiAgentScope } from './WikiAgentScopeContext';
 
@@ -72,8 +73,12 @@ export default function DailyReviewCard() {
       setResult({ skipped, agentScopeId });
       setText('');
       setTitle('');
-    } catch {
-      setError(t('dailyReview.error'));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.businessCode === 'security_blocked'
+          ? t('dailyReview.securityBlocked')
+          : t('dailyReview.error'),
+      );
     } finally {
       setSubmitting(false);
     }

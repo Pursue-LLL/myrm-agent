@@ -8,6 +8,7 @@
 - create_share_token / sign_share_token / parse_share_token / is_password_protected
 - decode_unverified_payload: signature-less payload read (JSON objects only) for lifecycle lookups
 - token_fingerprint: deterministic non-reversible lookup key for persisted shares
+- token_log_id: short fingerprint prefix that names a share in logs and audit events
 - sign_share_token: sign with an explicit ``exp`` (used to rebuild persisted
   links from registry fields); create_share_token derives exp from ttl
 
@@ -28,6 +29,9 @@ from collections.abc import Mapping
 from app.config.settings import settings
 
 _TOKEN_VERSION = 1
+
+# Enough hex digits to tell shares apart in a log or audit view without exposing the full token hash.
+_LOG_ID_LENGTH = 12
 
 
 def _signing_secret(salt: str) -> bytes:
@@ -178,3 +182,8 @@ def token_fingerprint(token: str) -> str:
     cheap equality key for lookups and revocation checks.
     """
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def token_log_id(token: str) -> str:
+    """Short fingerprint prefix that names a share in logs and audit events without exposing anything usable."""
+    return token_fingerprint(token)[:_LOG_ID_LENGTH]

@@ -10,6 +10,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
 | `test_spillover_limits_parity.py` | 前端 `spillover.ts` 的长粘贴阈值（字数、词元压力、预览长度）与六类字符权重（小写与空白、大写、数字、其余 ASCII、非 ASCII 窄字符、宽字符）必须等于 harness `ContextGuardConfig` / `estimate_token_pressure`（输入框提示「将存为文件」与服务端落盘必须对同一段文本同时成立） |
+| `test_share_csp_parity.py` | 工件分享页放行的 CDN 名单（`share_csp.SHARE_CDN_SOURCES`）必须等于应用内预览的 `CDN_ALLOWLIST`（前端 `widget-theme-bridge.ts`）、且覆盖组件提示词里点名的每个 CDN（分享页名单落后于预览，含图表的工件分享出去就是空白）；自带名单读取器的正反校准用例；前端源码不在检出里时只跳过与预览比对的那条 |
 | `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
 | `test_doctor_component_names_parity.py` | 体检页组件标题表：后端所有 `HealthReport(component_name="…")` 字面量 == 前端 `doctorReportView.ts` 的 `COMPONENT_NAMES`（后端新增探针漏登记，或前端留着已删探针的名字与中英文案，都会失败）|
 | `test_tool_stuck_pause_clients.py` | loop guard 暂停：Web 前端 `toolsProgressEvents.ts` 与扩展侧栏 `approval.js` 比较 `action_type` 用的字面量必须含 harness 的 `TOOL_STUCK_ACTION_TYPE`（改了标记而客户端没跟，暂停会在那里被当成待回答的审批）；检出里没有该客户端的源码时跳过 |
@@ -87,6 +88,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_memory_router_mounts.py` | `app/api/memory/router.py` 里无条件挂载（对所有用户可见）的子路由必须登记在 `data/memory_default_mounts.txt`：新增路由要么收进 `settings.memory_labs_enabled` 开关，要么写明默认可见调用方 file:line；路由消费者门禁会把「只有隐藏面板的 service 引用」算作调用方，拦不住进程内演示引擎，所以单独把关。解析源码而非导入；写明的调用方（路径相对仓库根）必须是真实存在的非测试文件里的有效行号；自带检测器正反例自检 |
 | `data/memory_default_mounts.txt` | 无条件挂载的记忆子路由台账：裸行是门禁引入前的存量，只许删除；`挂载名 \| 调用方 file:line` 是引入后经论证放行的新增 |
 | `test_public_mutating_routes.py` | 变更类路由（POST/PUT/PATCH/DELETE）跳过认证中间件只有一种合法理由：handler 自己认证调用方；此类路由必须登记在测试内的表里并写明认证方式，未登记（例如公开前缀把运维动作一并放行）或登记后不再公开都会失败 |
+| `test_public_share_admission.py` | 分享链接发出什么路径就必须放行什么路径：`ShareKind` × 令牌得到的每种链接都有一条 GET 路由服务它，链接路径对匿名访客放行（收链接的人在本机没有账号），该种类路径下的每个操作（含密码表单回传的 POST）都被认证中间件放行；新增分享种类或改链接路径而没改放行清单，收链接的人会被要求登录；对着装配后的整张路由表检查，单个路由器的测试看不到这一类缺口 |
 | `test_openapi_operation_ids.py` | 全量公开 API 的 OpenAPI operationId 必须唯一：同一 (method, path) 重复注册（后者被静默遮蔽）或单个 `api_route` 挂多个 method 都会失败，一个路径只允许一个 handler |
 | `test_public_routes_reachable.py` | 全量公开 API 的每个路由都由自己的 handler 服务：FastAPI 用第一个匹配的路由接请求，带路径参数的路由（`/artifacts/{artifact_id}`、`/config/{config_key}`、`/{media_id}/tags`、`/{memory_type}/{memory_id}`）注册在字面兄弟路径之前时，会接走兄弟的请求、兄弟的 handler 永远不运行；按每个路由自己的路径造请求，被前面路由接走的会失败，修法是把字面路径排在前面 |
 | `test_openapi_schema_refs.py` | 公开 API 快照（`tests/support/public_api_app.py`，不含 `app/main.py` 直接挂载的内部/管理/兼容路由）的 OpenAPI 里每个 `#/components/schemas/…` 引用都必须在组件表里：请求或响应模型含任意类、生成不出 JSON schema 时，FastAPI 会放弃该组件却留下引用，`/openapi.json` 与 Swagger UI 就解析不了那个操作的请求体；只有服务端独自注入、客户端从不发送的字段才可以用 `SkipJsonSchema` 藏起来 |

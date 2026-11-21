@@ -9349,7 +9349,10 @@
       "unassigned": "待定",
       "due": "截止",
       "lines": "{count, plural, other {# 行}}",
-      "risks": "风险"
+      "risks": "风险",
+      "saved": "会议纪要已存入知识库",
+      "saveFailed": "会议纪要保存失败",
+      "retry": "重试"
     }
   },
   "stt": {
@@ -17547,7 +17550,8 @@
         "reviewCta": "前往待审面板",
         "skipped": "今天已提交过同名复盘，未重复入库",
         "empty": "请输入复盘内容",
-        "error": "提交失败，请稍后重试"
+        "error": "提交失败，请稍后重试",
+        "securityBlocked": "复盘含有凭证或其他敏感内容，未存入。请删除这些内容后重新提交。"
       },
       "ledger": {
         "title": "五层知识资产全局态势",
