@@ -32,7 +32,8 @@ async def client(db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> A
 
 
 async def _known_groups(client: AsyncClient) -> list[str]:
-    return (await client.get(_KNOWN_GROUPS_URL)).json()["data"]["channel_keys"]
+    channel_keys: list[str] = (await client.get(_KNOWN_GROUPS_URL)).json()["data"]["channel_keys"]
+    return channel_keys
 
 
 async def _seen_by_channel(client: AsyncClient) -> dict[str, bool]:
