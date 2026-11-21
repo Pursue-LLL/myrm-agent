@@ -9,11 +9,11 @@ Discord 渠道 Provider 实现（入站/出站、凭证、路由）。上级文�
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
 | `__init__.py` | 入口 | Discord channel provider. | ✅ |
-| `channel.py` | 模块 | Discord channel implementation with Forum channel support: credentials, capabilities, gateway lifecycle (a stop leaves voice within a bound; the voice manager lives as long as the gateway client) and health probe; builds the client with `allowed_mentions` that keep user and reply pings but never `@everyone`, `@here` or role pings; composes the three mixins below. | ✅ |
+| `channel.py` | 模块 | Discord channel implementation with Forum channel support: credentials, capabilities (no native buttons or select menus), gateway lifecycle (a stop leaves voice within a bound; the voice manager lives as long as the gateway client) and health probe; builds the client with `allowed_mentions` that keep user and reply pings but never `@everyone`, `@here` or role pings; composes the three mixins below. | ✅ |
 | `config.py` | 模块 | Discord channel configuration. | ✅ |
-| `helpers.py` | 模块 | Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects; forum detection, thread titles and native reply targets. | ✅ |
+| `helpers.py` | 模块 | Pure-function helpers for the Discord channel. Converts framework message objects to Discord native objects; forum detection, thread titles and native reply targets. `build_discord_components` (a `discord.ui.View` of buttons and select menus) has no outbound caller. | ✅ |
 | `inbound.py` | 模块 | `DiscordInboundMixin`: gateway message / reaction / interaction parsing, reply context, media extraction, auto-threading and history fetch. A message names its author by `sender_id` only; the router's resolvers assign `user_id`. | ✅ |
-| `outbound.py` | 模块 | `DiscordOutboundMixin`: REST sending with `render()` multi-chunk delivery through `deliver_chunks`, forum threads (tags via `ForumChannel.flags.require_tag`), placeholder / edit / delete / react / typing. The placeholder edit puts the rendered reply in an embed as it is; the reasoning is already in that text when the reply shows it, so the embed has no footer. | ✅ |
+| `outbound.py` | 模块 | `DiscordOutboundMixin`: REST sending with `render()` multi-chunk delivery through `deliver_chunks`, forum threads (tags via `ForumChannel.flags.require_tag`), placeholder / edit / delete / react / typing. The placeholder edit puts the rendered reply in an embed as it is; the reasoning is already in that text when the reply shows it, so the embed has no footer. It sends text and files only: buttons and select menus are never passed to Discord, so `prepare_outbound` renders them as text lines (the capabilities declare neither). | ✅ |
 | `voice_control.py` | 模块 | `DiscordVoiceMixin`: opus loading, `VoiceManager` wiring (one manager per gateway client, kept across READY events), join / leave / play_audio, voice-input emission (a speaker is checked against the access policy before their audio is transcribed) and the `/voice` slash command, whose caller is checked against the access policy first (every action but the read-only status also needs the owner). Every reply is a channel catalog message rendered in the caller's Discord language, and a leave with no session answers that the bot is not in a voice channel without leaving. | ✅ |
 
 ## Reply Threading / Quote 保真
@@ -83,6 +83,7 @@ Discord provider 完整实现了 `ReplyContext` 协议（与其他 7 个渠道�
 | `test_discord_reply_context.py` | `_parse_reply_context` / `_resolve_mentioned` 单元测试（reference.resolved API 验证） |
 | `test_discord_embed_and_contract.py` | Embed/View 纯函数、`ChannelTestBase` 契约合规、入站消息与按钮交互分发（机器人自己的消息与非组件交互被忽略）、编辑方法由 Discord 渠道自己实现、媒体与投递错误分类 |
 | `test_discord_outbound_edges.py` | 占位消息、删除、反应与输入提示在 Discord 够不着或拒绝时的去向；只有文件的消息；不是可发消息频道的 id |
+| `test_discord_outbound_components.py` | 按钮与选择菜单在 Discord 的去向：能力声明不含原生组件；链接按钮、回调按钮与选择菜单经真实 `prepare_outbound` 降成文字行，`send` 发出的内容就是这段文字、不带 `view` |
 | `test_discord_reasoning.py` | 推理在 Discord 里只出现一次、是 Markdown 引用而非 HTML 标签；占位消息的编辑结果不带页脚；回复隐藏推理时占位消息里一点也不剩 |
 | `test_discord_deduplication.py` | Discord 消息去重单元测试 |
 | `test_discord_splitter_integration.py` | Splitter 对 Discord 消息拆分约束的集成测试 |

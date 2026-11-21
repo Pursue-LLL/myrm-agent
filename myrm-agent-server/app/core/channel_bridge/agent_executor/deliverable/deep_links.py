@@ -47,7 +47,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Discord renders five component rows at most and each link is a row of its own; the artifacts past it still arrive as attachments.
+# Bounds the link rows one reply carries: past this many artifacts a reply gets no further share links
+# (every file still arrives as an attachment).
 MAX_SHARE_BUTTONS = 5
 
 

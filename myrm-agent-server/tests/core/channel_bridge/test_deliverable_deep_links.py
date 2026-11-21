@@ -541,7 +541,7 @@ class TestBuildArtifactDeepLinks:
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
-        """Discord renders five rows at most: the others get no link made (their attachments still go out)."""
+        """Only the first MAX_SHARE_BUTTONS artifacts get a share link made; the others still go out as attachments."""
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             MAX_SHARE_BUTTONS,
             build_artifact_deep_links,
