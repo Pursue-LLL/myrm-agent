@@ -131,7 +131,7 @@ describe('ConfigSyncManager offline replay hydrate', () => {
     });
 
     Object.assign(outboxOf(manager), {
-      changeQueue: [
+      queue: [
         {
           key: 'personalSettings',
           value: pending,

@@ -3,7 +3,7 @@
  * - `./conflictResolution` resolveConflicts / ConflictContext (POS: conflict tiers; the live caches and the adapter are handed in)
  * - `./e2eSearchSyncGate` withoutBlockedSearchChanges (POS: E2E switch that keeps the search config local)
  * - `./localWrites` applyReplayedChanges / recordSyncedChanges (POS: cache bookkeeping of writes made on this device)
- * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / clearOfflineQueue / takeUnpersistableOfflineEntries (POS: browser-storage half of the offline queue)
+ * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / removeOfflineEntries / takeUnpersistableOfflineEntries (POS: browser-storage half of the offline queue)
  * - `./offlineReplay` mergeLatestChanges / partitionOfflineChanges (POS: one change per key, replay staleness gate)
  * - `./types` ConfigChange / SyncResult / SyncStatus (POS: queued write, backend answer, manager state)
  *
@@ -15,38 +15,65 @@
  * Everything between `ConfigSyncManager.set()` and the backend. The manager keeps the caches and the read path; the
  * outbox owns the pending changes and the timers and listeners that move them, so `dispose()` can release them all.
  * The host is read at call time because the manager replaces its cache tables when it (re)initialises.
+ *
+ * Sending is one batch at a time: a batch is built only after the previous answer is applied, so it carries the
+ * version that answer returned instead of racing it into a conflict with this device's own write. An answer settles
+ * the keys it names and nothing else: accepted keys are acknowledged (merge base, cache, stored copy), clashing keys go
+ * to the resolver, every other change stays queued. While the user is asked about a clash, newer edits of that key
+ * wait for the answer and every other key keeps flowing.
  */
 import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext } from './conflictResolution';
 import { withoutBlockedSearchChanges } from './e2eSearchSyncGate';
 import { applyReplayedChanges, recordSyncedChanges } from './localWrites';
 import {
-  clearOfflineQueue,
   isRecoverableSyncError,
   loadOfflineQueue,
+  removeOfflineEntries,
   saveOfflineQueue,
   takeUnpersistableOfflineEntries,
 } from './offlineQueue';
 import { mergeLatestChanges, partitionOfflineChanges } from './offlineReplay';
-import type { ConfigChange, ConfigKey, SyncResult, SyncStatus } from './types';
+import type { ConfigChange, ConfigKey, ConfigVersion, SyncResult, SyncStatus } from './types';
 
 // 防抖延迟（毫秒）
 const SYNC_DEBOUNCE_MS = 1000;
 
 export interface OutboxHost {
-  context(): Omit<ConflictContext, 'requeue'>;
+  context(): ConflictContext;
   ensureKeyLoaded(key: ConfigKey): Promise<boolean>;
   initialize(): Promise<unknown>;
   isInitialized(): boolean;
   setStatus(status: SyncStatus): void;
 }
 
+interface SendOptions {
+  /** Replay keeps the version each entry was based on instead of the latest confirmed one. */
+  preserveExpectedVersion?: boolean;
+}
+
+/** One send: the backend's answer, and the settlement of the clashes it raised (which may wait for the user). */
+interface Delivery {
+  result: SyncResult;
+  settled: Promise<void>;
+}
+
+const nothingSent = (): Delivery => ({
+  result: { success: true, conflicts: [], newVersions: new Map() },
+  settled: Promise.resolve(),
+});
+
 export class ConfigOutbox {
-  private changeQueue: ConfigChange[] = [];
+  private queue: ConfigChange[] = [];
   /** 非白名单键的待重放变更：不允许留在浏览器存储里，只在内存里等待重放。 */
   private memoryOnlyOfflineChanges: ConfigChange[] = [];
   private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private onlineHandlerRegistered = false;
+  /** The latest send in the chain: the next one starts when it ends. */
+  private lastSend: Promise<unknown> = Promise.resolve();
+  private lastEditTime = 0;
+  /** Keys whose clash with the server is being settled: their newer edits stay queued until it is. */
+  private readonly clashing = new Set<ConfigKey>();
   private readonly handleOnline = (): void => {
     void this.retryOfflineQueue();
   };
@@ -55,24 +82,24 @@ export class ConfigOutbox {
 
   /** `immediate` 跳过防抖并先把队列落盘：安全关键写入不能被「用户操作后立刻关闭页面」丢掉。 */
   enqueue(change: ConfigChange, immediate: boolean): void {
-    this.changeQueue.push(change);
+    this.queue.push(this.stamped(change));
     if (immediate) {
-      saveOfflineQueue(this.changeQueue);
+      saveOfflineQueue(this.queue);
       this.cancelScheduledSync();
-      void this.flushSync();
+      void this.flush();
       return;
     }
     this.scheduleSyncDebounced();
   }
 
   dropBlockedChanges(): void {
-    this.changeQueue = withoutBlockedSearchChanges(this.changeQueue);
+    this.queue = withoutBlockedSearchChanges(this.queue);
   }
 
   /** 强制立即同步 */
   async forceSync(): Promise<SyncResult> {
     this.cancelScheduledSync();
-    return this.flushSync();
+    return this.flush();
   }
 
   /** 含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里：先移进内存。 */
@@ -96,12 +123,12 @@ export class ConfigOutbox {
     const { cache, resolver } = this.host.context();
     const replayable = await partitionOfflineChanges(pending, cache, resolver);
     this.memoryOnlyOfflineChanges = [];
-    clearOfflineQueue();
+    removeOfflineEntries(pending.filter((change) => !replayable.includes(change)));
     if (replayable.length > 0) {
       const sink = this.host.context();
       applyReplayedChanges(sink, sink.deviceId, replayable);
-      this.changeQueue = replayable;
-      await this.flushSync({ preserveExpectedVersion: true });
+      this.queue = replayable;
+      await this.flush({ preserveExpectedVersion: true });
     }
   }
 
@@ -122,11 +149,17 @@ export class ConfigOutbox {
     this.onlineHandlerRegistered = false;
   }
 
+  /** Edit times order two edits of one key in the store, so no two edits share one. */
+  private stamped(change: ConfigChange): ConfigChange {
+    this.lastEditTime = Math.max(change.timestamp, this.lastEditTime + 1);
+    return { ...change, timestamp: this.lastEditTime };
+  }
+
   /** 防抖同步 */
   private scheduleSyncDebounced(): void {
     this.cancelScheduledSync();
     this.syncDebounceTimer = setTimeout(() => {
-      this.flushSync();
+      void this.flush();
     }, SYNC_DEBOUNCE_MS);
   }
 
@@ -137,69 +170,147 @@ export class ConfigOutbox {
     }
   }
 
-  /** 立即同步所有待处理变更 */
-  private async flushSync(options?: { preserveExpectedVersion?: boolean }): Promise<SyncResult> {
-    this.changeQueue = withoutBlockedSearchChanges(this.changeQueue);
-    if (this.changeQueue.length === 0) {
-      return {
-        success: true,
-        conflicts: [],
-        newVersions: new Map(),
-      };
+  /** Sends what is queued; returns once the answer is applied and every clash it raised is settled. */
+  private async flush(options?: SendOptions): Promise<SyncResult> {
+    const { result, settled } = await this.exclusive(() => this.sendQueued(options));
+    await settled;
+    return result;
+  }
+
+  /** Runs `task` after every earlier send has ended; a failed send does not stop the chain. */
+  private exclusive<T>(task: () => Promise<T>): Promise<T> {
+    const run = this.lastSend.then(task);
+    this.lastSend = run.catch(() => undefined);
+    return run;
+  }
+
+  /** One batch of the queued changes whose key is not being settled: the latest value per key. */
+  private sendQueued(options?: SendOptions): Promise<Delivery> {
+    this.queue = withoutBlockedSearchChanges(this.queue);
+    const ready = this.queue.filter((change) => !this.clashing.has(change.key));
+    if (ready.length === 0) {
+      return Promise.resolve(nothingSent());
     }
+    this.queue = this.queue.filter((change) => this.clashing.has(change.key));
+    const batch = mergeLatestChanges(ready, this.host.context().baseCache, options?.preserveExpectedVersion === true);
+    return this.deliver(batch);
+  }
 
-    const { adapter, baseCache } = this.host.context();
-    // 合并同一 key 的连续变更，取最后一个
-    const mergedChanges = mergeLatestChanges(this.changeQueue, baseCache, options?.preserveExpectedVersion === true);
-    this.changeQueue = [];
-
+  private async deliver(batch: ConfigChange[]): Promise<Delivery> {
     this.host.setStatus('syncing');
-
+    let result: SyncResult;
     try {
-      const result = await adapter.sync(mergedChanges);
-
-      if (result.success) {
-        // 清空离线队列
-        clearOfflineQueue();
-
-        const sink = this.host.context();
-        recordSyncedChanges(sink, sink.deviceId, mergedChanges, result.newVersions);
-
-        this.host.setStatus('idle');
-      } else if (result.conflicts.length > 0) {
-        // 处理冲突：重新加载冲突的配置
-        await resolveConflicts(this.conflictContext(), result.conflicts);
-        this.host.setStatus('idle');
-      } else if (result.error) {
-        console.warn('[ConfigSync] Sync failed:', result.error);
-        if (isRecoverableSyncError(result.error)) {
-          this.enqueueOfflineChanges(mergedChanges);
-          this.host.setStatus('offline');
-        } else {
-          this.host.setStatus('error');
-        }
-      }
-
-      return result;
+      result = await this.host.context().adapter.sync(batch);
     } catch (error) {
       // 适配器把传输失败折算成失败结果（见 `adapters/_ARCH.md`），走到这里的是后端明确拒绝的写入。
       console.warn('[ConfigSync] Sync failed:', error);
       this.host.setStatus('error');
       throw error;
     }
+    return { result, settled: this.settle(batch, result, true) };
   }
 
-  private conflictContext(): ConflictContext {
-    return { ...this.host.context(), requeue: (changes) => this.enqueueOfflineChanges(changes) };
+  /**
+   * Applies an answer to the batch it answers. Accepted keys are acknowledged; clashing keys go to the resolver
+   * (`resolveClashes`) or, on a re-send, wait for the next flush; keys the answer does not name stay queued.
+   */
+  private async settle(batch: ConfigChange[], result: SyncResult, resolveClashes: boolean): Promise<void> {
+    const clashed = new Set(result.conflicts);
+    const accepted: ConfigChange[] = [];
+    const rejected: ConfigChange[] = [];
+    const unnamed: ConfigChange[] = [];
+    for (const change of batch) {
+      if (clashed.has(change.key)) {
+        rejected.push(change);
+      } else if (result.success || result.newVersions.has(change.key)) {
+        accepted.push(change);
+      } else {
+        unnamed.push(change);
+      }
+    }
+    this.acknowledge(accepted, result.newVersions);
+
+    if (clashed.size > 0 && resolveClashes) {
+      this.retain(unnamed);
+      await this.reconcile(rejected, result.conflicts);
+      return;
+    }
+    if (result.error) {
+      console.warn('[ConfigSync] Sync failed:', result.error);
+      if (!isRecoverableSyncError(result.error)) {
+        this.host.setStatus('error');
+        return;
+      }
+    }
+    this.retain([...rejected, ...unnamed]);
+    this.host.setStatus(result.error ? 'offline' : 'idle');
   }
 
-  private enqueueOfflineChanges(changes: ConfigChange[]): void {
+  /** The backend accepted these: the merge base moves to what it holds, and the stored copies they cover go. */
+  private acknowledge(accepted: ConfigChange[], versions: ReadonlyMap<ConfigKey, ConfigVersion>): void {
+    if (accepted.length === 0) {
+      return;
+    }
+    const sink = this.host.context();
+    recordSyncedChanges(sink, sink.deviceId, accepted, versions);
+    removeOfflineEntries(accepted);
+  }
+
+  /**
+   * Keeps changes the backend did not take: queued again, stored again (allowlisted keys), retried by the timer.
+   * They go in front of the queue so a newer edit of the same key stays the latest.
+   */
+  private retain(changes: ConfigChange[]): void {
     if (changes.length === 0) {
       return;
     }
-    this.changeQueue.push(...changes);
+    this.queue.unshift(...changes);
     saveOfflineQueue(changes);
     this.scheduleSyncDebounced();
+  }
+
+  /**
+   * Settles the clashing keys with the server and re-sends the local values that are kept. Newer edits of these keys
+   * wait in the queue meanwhile; the re-send is one more batch of the same chain, so nothing overtakes it.
+   */
+  private async reconcile(rejected: ConfigChange[], keys: ConfigKey[]): Promise<void> {
+    for (const key of keys) {
+      this.clashing.add(key);
+    }
+    // The re-sent value is the cached one, the latest edit made so far: it settles the stored copies up to that edit
+    // and not those of edits made while the user decides.
+    const editedAt = new Map<ConfigKey, number>();
+    for (const change of [...rejected, ...this.queue]) {
+      editedAt.set(change.key, Math.max(editedAt.get(change.key) ?? 0, change.timestamp));
+    }
+    try {
+      const { resend, unresolved } = await resolveConflicts(this.host.context(), keys);
+      this.retain(rejected.filter((change) => unresolved.includes(change.key)));
+      if (resend.length > 0) {
+        const edits = resend.map((change) => ({ ...change, timestamp: editedAt.get(change.key) ?? change.timestamp }));
+        await this.exclusive(() => this.resend(edits));
+      } else {
+        this.host.setStatus(unresolved.length > 0 ? 'offline' : 'idle');
+      }
+    } finally {
+      for (const key of keys) {
+        this.clashing.delete(key);
+      }
+      if (this.queue.length > 0) {
+        this.scheduleSyncDebounced();
+      }
+    }
+  }
+
+  private async resend(changes: ConfigChange[]): Promise<void> {
+    try {
+      const result = await this.host.context().adapter.sync(changes);
+      await this.settle(changes, result, false);
+    } catch (error) {
+      console.warn('[ConfigSync] Conflict retry error, saving to offline queue:', error);
+      this.retain(changes);
+      this.host.setStatus('offline');
+    }
   }
 
   private async retryOfflineQueue(): Promise<void> {
@@ -209,8 +320,8 @@ export class ConfigOutbox {
       return;
     }
     await this.replayOfflineChanges(this.collectOfflineChanges());
-    if (this.changeQueue.length > 0) {
-      await this.flushSync();
+    if (this.queue.length > 0) {
+      await this.flush();
     }
   }
 }

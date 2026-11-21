@@ -1,18 +1,21 @@
 /**
  * [INPUT]
+ * - `./configFingerprint` valuesEqual (POS: deep equality for config values)
  * - `./offlinePersistableKeys` OFFLINE_PERSISTABLE_CONFIG_KEYS (POS: the only keys allowed to touch browser storage)
  * - `./types` ConfigChange (POS: one pending config write)
  *
  * [OUTPUT]
- * loadOfflineQueue / saveOfflineQueue / clearOfflineQueue: the `localStorage` queue of changes that could not reach the backend.
+ * loadOfflineQueue / saveOfflineQueue / removeOfflineEntries: the `localStorage` queue of changes that have not been settled by the backend.
  * takeUnpersistableOfflineEntries: lifts entries for non-allowlisted keys out of browser storage.
  * isRecoverableSyncError: tells a write that never reached a backend (retry later) from one the backend refused.
  *
  * [POS]
  * Persistence half of the config sync layer's offline support. Only allowlisted keys are ever written; every other
  * key is retried from memory by `ConfigSyncManager` and is gone after a reload, so no secret lands in clear text next to
- * the page's scripts. Replay decisions live in `offlineReplay.ts`.
+ * the page's scripts. An entry leaves the store only when the backend settled that key (`removeOfflineEntries`); a
+ * newer edit of the same key stays. Replay decisions live in `offlineReplay.ts`.
  */
+import { valuesEqual } from './configFingerprint';
 import { OFFLINE_PERSISTABLE_CONFIG_KEYS } from './offlinePersistableKeys';
 import type { ConfigChange } from './types';
 
@@ -22,10 +25,14 @@ function isPersistable(change: ConfigChange): boolean {
   return OFFLINE_PERSISTABLE_CONFIG_KEYS.has(change.key);
 }
 
-/** Same key queued twice: keep the latest value but the EARLIEST base version (the server version the edit diverged from). */
+/**
+ * Same key queued twice: keep the latest value but the EARLIEST base version (the server version the edit diverged from).
+ * "Latest" is by edit time, not by arrival: a change retained after a failed send reaches the store after the newer
+ * edits made while it was in flight, and must not overwrite them.
+ */
 function mergeOfflineChanges(changes: ConfigChange[]): ConfigChange[] {
   const byKey = new Map<ConfigChange['key'], ConfigChange>();
-  for (const change of changes) {
+  for (const change of [...changes].sort((a, b) => a.timestamp - b.timestamp)) {
     const existing = byKey.get(change.key);
     byKey.set(
       change.key,
@@ -64,11 +71,37 @@ export function saveOfflineQueue(changes: ConfigChange[]): void {
   }
 }
 
-export function clearOfflineQueue(): void {
-  if (typeof window === 'undefined') {
+/** The stored copy of an edit `settled` covers: the same edit or an older one; the same millisecond counts only for the same value. */
+function isSettledBy(entry: ConfigChange, settled: ConfigChange): boolean {
+  return (
+    entry.key === settled.key &&
+    (entry.timestamp < settled.timestamp ||
+      (entry.timestamp === settled.timestamp && valuesEqual(entry.value, settled.value)))
+  );
+}
+
+/**
+ * Drops from browser storage what the backend settled: per key, the stored copy of the settled edit and of every older
+ * one. A newer edit of the same key, saved while the settled one was in flight, and every other key stay queued.
+ */
+export function removeOfflineEntries(settled: ConfigChange[]): void {
+  if (typeof window === 'undefined' || settled.length === 0) {
     return;
   }
-  localStorage.removeItem(OFFLINE_QUEUE_KEY);
+  const stored = loadOfflineQueue();
+  const remaining = stored.filter((entry) => !settled.some((change) => isSettledBy(entry, change)));
+  if (remaining.length === stored.length) {
+    return;
+  }
+  try {
+    if (remaining.length > 0) {
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+    } else {
+      localStorage.removeItem(OFFLINE_QUEUE_KEY);
+    }
+  } catch (error) {
+    console.warn('[ConfigSync] Failed to update offline queue:', error);
+  }
 }
 
 /**
