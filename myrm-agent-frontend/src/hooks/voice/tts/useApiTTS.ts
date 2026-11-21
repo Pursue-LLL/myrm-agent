@@ -11,7 +11,7 @@
  * [POS]
  * API TTS engine. Streams `/tts/synthesize-stream` into a MediaSource buffer, falls back to the one-shot
  * `/tts/synthesize` blob when MediaSource cannot play MP3, and reports a failed synthesis through a toast.
- * Only one instance speaks at a time: starting speech stops whichever instance (message row) was speaking.
+ * Only one API instance speaks at a time: starting speech stops whichever instance (message row) was speaking.
  */
 
 'use client';
