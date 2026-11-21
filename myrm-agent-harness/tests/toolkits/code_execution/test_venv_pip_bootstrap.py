@@ -4,6 +4,7 @@ and every command or snippet that names pip waits for it."""
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import os
 import sys
@@ -109,6 +110,20 @@ async def test_pip_is_installed_by_ensurepip_in_the_venv_without_the_parent_pyth
     assert "PYTHONPATH" not in bootstrap.env
 
 
+async def test_the_bootstrap_writes_to_a_file_so_it_outlives_a_parent_that_exits_first(tmp_path: Path) -> None:
+    """ensurepip prints while it installs; into a pipe nobody reads any more that kills it and leaves the venv without pip."""
+    spawn = FakeVenvSpawn()
+    manager = _manager(tmp_path)
+
+    with patch(VENV_SPAWN, side_effect=spawn):
+        await manager.get_python_executable()
+        await manager.ensure_pip_ready_for("pip --version")
+
+    (bootstrap,) = spawn.bootstraps
+    assert isinstance(bootstrap.stdout, io.BufferedIOBase)
+    assert bootstrap.stderr is bootstrap.stdout
+
+
 @pytest.mark.parametrize("text", NAMING_PIP)
 async def test_text_naming_pip_waits_for_the_bootstrap(tmp_path: Path, text: str) -> None:
     spawn = FakeVenvSpawn(hold_bootstrap=True)
@@ -136,6 +151,71 @@ async def test_text_not_naming_pip_does_not_wait(tmp_path: Path, text: str) -> N
         assert not (tmp_path / "venvs" / "bin" / "pip").exists()
         spawn.release.set()
         await manager.ensure_pip_ready_for("pip --version")
+
+
+async def test_a_pip_command_arriving_while_the_venv_is_being_created_waits_for_the_creation_and_then_for_pip(
+    tmp_path: Path,
+) -> None:
+    spawn = FakeVenvSpawn(hold_creation=True, hold_bootstrap=True)
+    manager = _manager(tmp_path)
+
+    with patch(VENV_SPAWN, side_effect=spawn):
+        creation = asyncio.create_task(manager.get_python_executable())
+        await _let_the_loop_run()
+        waiter = asyncio.create_task(manager.ensure_pip_ready_for("pip --version"))
+        await _let_the_loop_run()
+        spawn.release_creation.set()
+        await asyncio.wait_for(creation, timeout=1)
+        await _let_the_loop_run()
+        assert not waiter.done()
+        spawn.release.set()
+        await asyncio.wait_for(waiter, timeout=1)
+
+    assert (tmp_path / "venvs" / "bin" / "pip").exists()
+
+
+async def test_a_pip_command_with_no_venv_yet_creates_it_and_waits_for_pip(tmp_path: Path) -> None:
+    spawn = FakeVenvSpawn(hold_bootstrap=True)
+    manager = _manager(tmp_path)
+
+    with patch(VENV_SPAWN, side_effect=spawn):
+        waiter = asyncio.create_task(manager.ensure_pip_ready_for("pip list"))
+        await _let_the_loop_run()
+        assert not waiter.done()
+        spawn.release.set()
+        await asyncio.wait_for(waiter, timeout=1)
+
+    assert len(spawn.creations) == 1
+    assert (tmp_path / "venvs" / "bin" / "pip").exists()
+
+
+async def test_text_not_naming_pip_never_creates_the_venv(tmp_path: Path) -> None:
+    spawn = FakeVenvSpawn()
+    manager = _manager(tmp_path)
+
+    with patch(VENV_SPAWN, side_effect=spawn):
+        await manager.ensure_pip_ready_for("ls -la")
+
+    assert spawn.calls == []
+
+
+async def test_a_command_not_starting_with_pip_install_waits_for_a_venv_that_is_being_created(tmp_path: Path) -> None:
+    spawn = FakeVenvSpawn(hold_creation=True, hold_bootstrap=True)
+    manager = _manager(tmp_path)
+
+    with patch(VENV_SPAWN, side_effect=spawn):
+        creation = asyncio.create_task(manager.get_python_executable())
+        await _let_the_loop_run()
+        rewrite = asyncio.create_task(manager.rewrite_pip_command("pip --version"))
+        await _let_the_loop_run()
+        spawn.release_creation.set()
+        await asyncio.wait_for(creation, timeout=1)
+        await _let_the_loop_run()
+        assert not rewrite.done()
+        spawn.release.set()
+        rewritten = await asyncio.wait_for(rewrite, timeout=1)
+
+    assert rewritten == "pip --version"
 
 
 async def test_pip_install_is_rewritten_to_the_venv_pip_once_it_exists(tmp_path: Path) -> None:
@@ -269,10 +349,12 @@ async def test_discard_cancels_the_pending_bootstrap_and_the_next_use_builds_aga
         assert manager.discard() is True
         await _let_the_loop_run()
         assert spawn.cancelled_bootstraps == 1
-        await asyncio.wait_for(manager.ensure_pip_ready_for("pip list"), timeout=1)
+        waiter = asyncio.create_task(manager.ensure_pip_ready_for("pip list"))
+        await _let_the_loop_run()
+        assert len(spawn.creations) == 2
         spawn.release.set()
+        await asyncio.wait_for(waiter, timeout=1)
         interpreter = await manager.get_python_executable()
-        await manager.ensure_pip_ready_for("pip list")
 
     assert interpreter == str(tmp_path / "venvs" / "bin" / "python")
     assert len(spawn.creations) == 2

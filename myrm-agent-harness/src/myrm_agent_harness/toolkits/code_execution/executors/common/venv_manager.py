@@ -21,6 +21,7 @@ import os
 import re
 import shutil
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -206,37 +207,39 @@ class VenvManager:
         """Install pip into the new venv with ``ensurepip``, the step ``python -m venv`` runs when it is not told to skip pip.
 
         It runs the way ``venv`` runs it: from the venv's own interpreter, with ``VIRTUAL_ENV`` set and the parent's
-        ``PYTHONHOME`` and ``PYTHONPATH`` removed so that neither can shadow the venv. When it fails, the venv is dropped and
-        Python falls back to the system interpreter, as it does when the creation itself fails.
+        ``PYTHONHOME`` and ``PYTHONPATH`` removed so that neither can shadow the venv. Its output goes to a file, not to
+        pipes: pip prints while it installs, and a pipe nobody reads any more kills it, which would leave the venv without
+        pip whenever this process exits first. When it fails, the venv is dropped and Python falls back to the system
+        interpreter, as it does when the creation itself fails.
         """
         started = time.monotonic()
         env = {**os.environ, "VIRTUAL_ENV": str(venv_path)}
         env.pop("PYTHONHOME", None)
         env.pop("PYTHONPATH", None)
-        try:
-            process = await asyncio.create_subprocess_exec(
-                str(python_path),
-                "-m",
-                "ensurepip",
-                "--upgrade",
-                "--default-pip",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-                cwd=str(venv_path),
-            )
-            _stdout, stderr = await guarded_communicate(
-                process, _PIP_BOOTSTRAP_TIMEOUT_SECONDS, label="venv pip bootstrap"
-            )
-        except Exception as exc:
-            reason = str(exc)
-        else:
-            if process.returncode == 0:
-                logger.info(
-                    f" [VenvManager] Shared venv pip installed in {time.monotonic() - started:.1f}s: {venv_path}"
+        with tempfile.TemporaryFile() as log:
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    str(python_path),
+                    "-m",
+                    "ensurepip",
+                    "--upgrade",
+                    "--default-pip",
+                    stdout=log,
+                    stderr=log,
+                    env=env,
+                    cwd=str(venv_path),
                 )
-                return
-            reason = stderr.decode("utf-8", errors="replace")
+                await guarded_communicate(process, _PIP_BOOTSTRAP_TIMEOUT_SECONDS, label="venv pip bootstrap")
+            except Exception as exc:
+                reason = str(exc)
+            else:
+                if process.returncode == 0:
+                    logger.info(
+                        f" [VenvManager] Shared venv pip installed in {time.monotonic() - started:.1f}s: {venv_path}"
+                    )
+                    return
+                log.seek(0)
+                reason = log.read().decode("utf-8", errors="replace")
 
         if (venv_path / "bin" / "pip").exists():
             # Another process finished the same venv; its pip is as good as the one this bootstrap failed to install.
@@ -247,13 +250,17 @@ class VenvManager:
         await asyncio.to_thread(self._delete, venv_path)
 
     async def ensure_pip_ready_for(self, text: str) -> None:
-        """Wait for the background pip bootstrap when ``text`` names pip; any other text returns at once.
+        """Wait until the shared venv has pip when ``text`` names pip; any other text returns at once.
 
         PATH puts the shared venv's ``bin`` first, so a command that names pip must not start before the venv has one:
-        it would reach a pip outside the venv. The bootstrap keeps running when the caller is cancelled.
+        it would reach a pip outside the venv. A venv that is not created yet is created first. The bootstrap keeps
+        running when the caller is cancelled.
         """
+        if not mentions_pip(text):
+            return
+        await self.get_python_executable()
         bootstrap = self._pip_bootstrap
-        if bootstrap is not None and not bootstrap.done() and mentions_pip(text):
+        if bootstrap is not None and not bootstrap.done():
             await asyncio.wait((bootstrap,))
 
     async def rewrite_pip_command(self, command: str) -> str:
@@ -267,13 +274,11 @@ class VenvManager:
         Returns:
             Rewritten command string.
         """
+        await self.ensure_pip_ready_for(command)
+
         stripped = command.strip()
         if not (stripped.startswith("pip install") or stripped.startswith("pip3 install")):
-            await self.ensure_pip_ready_for(command)
             return command
-
-        await self.get_python_executable()
-        await self.ensure_pip_ready_for(command)
 
         venv_path = self.get_venv_path()
         pip_path = venv_path / "bin" / "pip"
