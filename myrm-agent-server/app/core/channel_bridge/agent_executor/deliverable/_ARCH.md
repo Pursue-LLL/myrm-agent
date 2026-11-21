@@ -16,7 +16,8 @@
 ## 测试
 
 - `tests/core/channel_bridge/test_deliverable_collect.py` — artifact 收集（可分享追踪、超限深链/压缩/提示三态、多交付物、空文件跳过）
-- `tests/core/channel_bridge/test_deliverable_deep_links.py` — 深链按钮构建与失败兜底（含：返回的行能通过出站管线的组件降级）
+- `tests/core/channel_bridge/test_deliverable_deep_links.py` — 深链按钮构建（单个与多个 artifact 的标签与 URL、没有版本的 artifact 不出按钮、经分享服务登记、无会话工作区时回落到运行根、数量上限；含：返回的行能通过出站管线的组件降级）
+- `tests/core/channel_bridge/test_deliverable_deep_links_degradation.py` — 链接建不成时的失败兜底：无 artifact、无入口地址、无版本、某个 artifact 缺 version_id、数据库不可用、分享创建失败，都只丢链接（返回空或少一行）、不抛错；缺入口地址、无版本、缺 version_id、数据库不可用与单个分享创建失败还断言 WARNING 日志
 - `tests/core/channel_bridge/test_deliverable_artifact_versions.py` — 最新版本号批量查询
 - `tests/core/channel_bridge/test_deliverable_scanner.py` — 路径扫描、超限压缩/提示与文本剥离
 - `tests/core/channel_bridge/test_deliverable_media.py` — 附件大小上限格式化与渐进压缩（透明保留、失败回退）
