@@ -36,9 +36,6 @@ class FakeSender:
             return NotifyResult(success=False, channel=target.channel, error=self._error)
         return NotifyResult(success=True, channel=target.channel)
 
-    async def list_available_targets(self) -> list[NotifyTarget]:
-        return []
-
 
 @pytest.fixture
 def single_target_config() -> NotifyToolConfig:

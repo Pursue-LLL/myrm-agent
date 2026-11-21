@@ -143,20 +143,9 @@ def _bridge_with_send_now(**send_now_kwargs: object) -> MagicMock:
 
 class TestChannelNotificationSender:
     @pytest.mark.asyncio
-    async def test_list_available_targets(self) -> None:
-        targets = (
-            NotifyTarget(channel="telegram", recipient_id="123"),
-            NotifyTarget(channel="slack", recipient_id="C456"),
-        )
-        sender = ChannelNotificationSender(targets)
-        result = await sender.list_available_targets()
-        assert len(result) == 2
-        assert result[0].channel == "telegram"
-
-    @pytest.mark.asyncio
     async def test_send_success(self) -> None:
         target = NotifyTarget(channel="telegram", recipient_id="123")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
         bridge = _bridge_with_send_now(return_value="msg-abc")
 
         with patch.dict("sys.modules", {"app.core.channel_bridge": bridge}):
@@ -174,7 +163,7 @@ class TestChannelNotificationSender:
     async def test_send_success_without_platform_message_id(self) -> None:
         """Channels that report no ids (e.g. DingTalk) still count as delivered."""
         target = NotifyTarget(channel="dingtalk", recipient_id="u1")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
         bridge = _bridge_with_send_now(return_value=None)
 
         with patch.dict("sys.modules", {"app.core.channel_bridge": bridge}):
@@ -186,7 +175,7 @@ class TestChannelNotificationSender:
     @pytest.mark.asyncio
     async def test_send_fails_when_gateway_none(self) -> None:
         target = NotifyTarget(channel="telegram", recipient_id="123")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
 
         mock_channel_bridge = MagicMock()
         mock_channel_bridge.channel_gateway = None
@@ -200,7 +189,7 @@ class TestChannelNotificationSender:
     @pytest.mark.asyncio
     async def test_send_fails_when_channel_not_registered(self) -> None:
         target = NotifyTarget(channel="telegram", recipient_id="123")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
         bridge = _bridge_with_send_now(side_effect=ChannelSendError("No channel registered for 'telegram'"))
 
         with patch.dict("sys.modules", {"app.core.channel_bridge": bridge}):
@@ -212,7 +201,7 @@ class TestChannelNotificationSender:
     @pytest.mark.asyncio
     async def test_send_reports_delivery_failure_reason(self) -> None:
         target = NotifyTarget(channel="slack", recipient_id="C456")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
         bridge = _bridge_with_send_now(side_effect=ChannelSendError("channel send returned no message_id"))
 
         with patch.dict("sys.modules", {"app.core.channel_bridge": bridge}):
@@ -225,7 +214,7 @@ class TestChannelNotificationSender:
     @pytest.mark.asyncio
     async def test_send_fails_when_channel_stopped(self) -> None:
         target = NotifyTarget(channel="slack", recipient_id="C456")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
         bridge = _bridge_with_send_now(side_effect=ChannelSendError("Channel 'slack' is stopped"))
 
         with patch.dict("sys.modules", {"app.core.channel_bridge": bridge}):
@@ -238,7 +227,7 @@ class TestChannelNotificationSender:
     @pytest.mark.asyncio
     async def test_send_handles_unexpected_exception(self) -> None:
         target = NotifyTarget(channel="telegram", recipient_id="123")
-        sender = ChannelNotificationSender((target,))
+        sender = ChannelNotificationSender()
 
         mock_channel_bridge = MagicMock()
         mock_channel_bridge.channel_gateway = MagicMock()

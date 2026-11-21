@@ -17,6 +17,7 @@ Agents 经 `app.ai_agents.general_agent.factory` → `factory_wiring.append_chan
 - 集合外的值、缺 `destination` 的调用（含只带 `channel`、`target` 的）由工具的参数校验拒绝，不发送；校验在审批之后执行，审批卡先显示模型给的原值。
 - 审批卡里的参数就是 `destination`，所批即所发。聊天里每次发送都需人批准、没有「始终允许」，YOLO 会话同样暂停（`tests/services/agent/outbound_notify/test_channel_notify_approval_graph.py`）。
 - 使用条件只写在工具说明里（含「点名的收件人不在目的地里、或对应多个目的地时先问用户」），系统提示不追加段落。
+- `notify_targets` 只有点名投递这一个读取方。系统驱动的推送（如批处理完成）一律发布 `SYSTEM_NOTIFICATION` 事件，由 `NotificationDispatcher` 按用户的「通知投递」送达，不读这些目的地，也不经 `ChannelNotificationSender` 直发。
 
 ## 文件清单
 

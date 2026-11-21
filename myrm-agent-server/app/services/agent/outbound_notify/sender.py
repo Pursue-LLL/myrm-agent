@@ -35,11 +35,6 @@ _MAX_LABEL_CHARS = 32
 class ChannelNotificationSender:
     """Sends notifications via ChannelGateway bus send_now (synchronous delivery result)."""
 
-    __slots__ = ("_targets",)
-
-    def __init__(self, targets: tuple[NotifyTarget, ...]) -> None:
-        self._targets = targets
-
     async def send(
         self,
         target: NotifyTarget,
@@ -96,10 +91,6 @@ class ChannelNotificationSender:
                 error=str(exc),
             )
 
-    async def list_available_targets(self) -> list[NotifyTarget]:
-        """Return configured targets."""
-        return list(self._targets)
-
 
 def _text(value: object) -> str:
     """The stripped string, or an empty string for anything that is not text."""
@@ -151,4 +142,4 @@ def create_notification_sender(
     destinations = _build_destinations(raw_targets)
     if not destinations:
         return None
-    return ChannelNotificationSender(tuple(destinations.values())), NotifyToolConfig(destinations=destinations)
+    return ChannelNotificationSender(), NotifyToolConfig(destinations=destinations)
