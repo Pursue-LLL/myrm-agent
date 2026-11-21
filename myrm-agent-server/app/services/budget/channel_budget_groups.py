@@ -11,9 +11,10 @@
 - mark_known_groups: Channel statuses each with ``known``, whether a chat of that group is on record
 
 [POS]
-Read side of the budget panel's group picker. A group is known once its channel has created a chat for it, which is the
-same match the guard, the cost recovery and the audit make; a policy whose key no chat extends has never been charged,
-which is what the panel points out for a key typed by hand.
+Read side of the budget panel's group picker. A group is known while a chat of it is on record, matched on the key's
+segment boundary (``channel_key_extends``) as the cost recovery and the audit do (the guard looks up the exact budget
+key of each live group message instead); the panel flags a policy whose key no chat extends, so a key typed by hand
+can be checked.
 """
 
 from __future__ import annotations
