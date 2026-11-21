@@ -5,7 +5,9 @@
 - app.services.skills.evolution_review.disk_content::apply_content_update (POS: Evolution 全量内容落盘与回滚)
 [OUTPUT]
 - Tests that the route answers 404 outside local mode and for a skill that is not on disk without recording anything,
-  and that the proposal it records is a pending one for the skill as it is on disk, which applies to that file.
+  that the proposal it records is a pending one for the skill as it is on disk, which applies to that file, that the
+  proposal belongs to the agent the request names, and that a skill given an owner is stored as that agent's own, so
+  the production apply for another agent forks it and leaves the owner's file as it was.
 [POS]
 The proposal the Chrome E2E approves is pinned here in-process: what the route records, and that the production apply
 accepts it, without the browser stack.
@@ -117,3 +119,48 @@ async def test_the_recorded_proposal_is_pending_for_the_file_on_disk_and_applies
 
     applied = skill_md.read_text(encoding="utf-8")
     assert "1. first-step" in applied and applied.rstrip().endswith("2. added-step")
+
+
+async def test_the_proposal_belongs_to_the_agent_the_request_names_and_the_store_is_left_alone(
+    skill_md: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store_of_the_apply = MagicMock()
+    monkeypatch.setattr(fixtures, "get_skill_store", store_of_the_apply)
+
+    answer = await fixtures.seed_evolution_proposal(_REQUEST.model_copy(update={"agent_id": "agent-b"}))
+
+    approval = await load_approval_record(answer["evolution_id"])
+    assert approval is not None and approval.agent_id == "agent-b"
+    store_of_the_apply.assert_not_called()
+
+
+async def test_a_skill_given_an_owner_is_forked_for_another_agent_and_the_owners_file_stays(
+    skills_dir: Path, skill_md: Path, snapshot: AsyncMock, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    store = MagicMock()
+    store.save_skill = AsyncMock()
+    monkeypatch.setattr(fixtures, "get_skill_store", lambda: store)
+
+    answer = await fixtures.seed_evolution_proposal(
+        _REQUEST.model_copy(update={"agent_id": "agent-b", "owner_agent_id": "agent-a"})
+    )
+
+    (stored,) = (call.args[0] for call in store.save_skill.await_args_list)
+    assert (stored.skill_id, stored.name, stored.path) == (answer["skill_id"], "report-builder", str(skill_md))
+    assert stored.environment is not None and stored.environment.custom_tags == {"scope_agent_id": "agent-a"}
+
+    approval = await load_approval_record(answer["evolution_id"])
+    assert approval is not None
+    payload = approval_payload(approval)
+    assert payload is not None
+    store.get_skill.return_value = stored
+    store.save_skill.reset_mock()
+
+    await apply_content_update(payload, store, "agent-b")
+
+    (fork,) = (call.args[0] for call in store.save_skill.await_args_list)
+    forked_md = skills_dir / "report-builder-fork" / "SKILL.md"
+    assert fork.skill_id.startswith("fork_") and payload.skill_id == fork.skill_id
+    assert fork.environment is not None and fork.environment.custom_tags == {"scope_agent_id": "agent-b"}
+    assert forked_md.read_text(encoding="utf-8").rstrip().endswith("2. added-step")
+    assert skill_md.read_text(encoding="utf-8") == _SKILL_MD

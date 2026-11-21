@@ -13,6 +13,9 @@
   API at the same instant leave every approved skill in that agent's skill_ids, none dropped
 - test_a_clean_new_skill_is_applied_and_stamped_without_review: a review result for a new, clean skill is applied on its
   own and its record carries the time it was resolved
+- test_a_draft_that_cannot_be_written_goes_back_to_review_and_can_be_approved_again: approving a draft whose name no
+  skill can have is answered as not materialized, the draft is pending again with no resolution time and nothing is
+  bound or enabled, and approving it again under a valid name writes and binds the skill
 
 [POS]
 The reviewer model's output is the one input a test cannot choose, so review results are fed through the production
@@ -109,6 +112,11 @@ def _skills_to_clean_up(api_url: str, dir_names: list[str]) -> Iterator[None]:
         http_json("POST", f"{api_url}{_SKILLS}/test/cleanup-growth-skills", body={"dir_names": dir_names})
 
 
+def _approve(api_url: str, draft_id: str, skill_name: str | None = None) -> dict[str, object]:
+    body: dict[str, object] = {} if skill_name is None else {"skill_name": skill_name}
+    return _object(http_json("POST", f"{api_url}{_SKILLS}/drafts/{draft_id}/approve", body=body))
+
+
 def _approve_at_once(api_url: str, draft_ids: list[str]) -> list[dict[str, object]]:
     """Approve every draft through the API, all requests released together.
 
@@ -196,3 +204,41 @@ def test_a_clean_new_skill_is_applied_and_stamped_without_review() -> None:
         assert _drafts_of(api_url, agent_id, "PENDING_REVIEW") == {}
         (new_skill_id,) = _enabled_local_ids(api_url) - enabled_before
         assert _MARKER_APPROVED in _fetch_skill_md(api_url, new_skill_id)
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_a_draft_that_cannot_be_written_goes_back_to_review_and_can_be_approved_again() -> None:
+    api_url = get_e2e_api_url()
+    suffix = uuid.uuid4().hex[:8]
+    unwritable = f"9-unwritable-{suffix}"  # a skill name has to start with a letter
+    renamed = f"renamed-skill-{suffix}"
+    with _skills_to_clean_up(api_url, [renamed]), _owned_agent(api_url, suffix) as agent_id:
+        enabled_before = _enabled_local_ids(api_url)
+        bound_before = _agent_skill_ids(api_url, agent_id)
+        _feed_review_result(api_url, unwritable, agent_id)
+
+        held = _drafts_of(api_url, agent_id, "PENDING_REVIEW")
+        assert set(held) == {unwritable}, sorted(held)
+        draft_id = str(held[unwritable]["id"])
+
+        refused = _approve(api_url, draft_id)
+
+        assert refused.get("materialized") is False, refused
+        pending_again = _drafts_of(api_url, agent_id, "PENDING_REVIEW")
+        assert set(pending_again) == {unwritable}, sorted(pending_again)
+        assert pending_again[unwritable]["reviewed_at"] is None, pending_again[unwritable]
+        assert _drafts_of(api_url, agent_id, "APPROVED") == {}
+        assert _agent_skill_ids(api_url, agent_id) == bound_before
+        assert _enabled_local_ids(api_url) == enabled_before
+
+        written = _approve(api_url, draft_id, renamed)
+
+        assert written.get("materialized") is True, written
+        (new_skill_id,) = _enabled_local_ids(api_url) - enabled_before
+        assert new_skill_id in _agent_skill_ids(api_url, agent_id)
+        assert _MARKER_APPROVED in _fetch_skill_md(api_url, new_skill_id)
+        assert set(_drafts_of(api_url, agent_id, "APPROVED")) == {unwritable}
+        assert _drafts_of(api_url, agent_id, "PENDING_REVIEW") == {}
