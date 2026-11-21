@@ -5,8 +5,7 @@
 - app.api.integrations.mcp.resource::router (POS: MCP App UI resource proxy mounted on this router)
 - app.api.integrations.mcp.schemas::MCPScanData, MCPToolDetail, MCPVerifyData, scan_result_to_data (POS: Verify and scan response models)
 - app.services.integrations.mcp_posture::enforce_mcp_config_posture, enforce_mcp_runtime_posture, resolve_mcp_config_scan (POS: Deployment-mode MCP posture and config scan)
-- myrm_agent_harness.toolkits.mcp::MCPAgent (POS: MCP client used for the single-handshake verify)
-- myrm_agent_harness.toolkits.mcp.annotations::recorded_annotations (POS: the hints a server declared for a tool, as the host recorded them)
+- myrm_agent_harness.toolkits.mcp::MCPAgent / recorded_annotations (POS: MCP client used for the single-handshake verify, and the hints a server declared for a tool as the host recorded them)
 - app.platform_utils.deployment_capabilities::get_deployment_capabilities (POS: Deployment mode capabilities)
 
 [OUTPUT]
@@ -23,8 +22,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
-from myrm_agent_harness.toolkits.mcp import MCPAgent
-from myrm_agent_harness.toolkits.mcp.annotations import recorded_annotations
+from myrm_agent_harness.toolkits.mcp import MCPAgent, recorded_annotations
 from myrm_agent_harness.toolkits.mcp.security import (
     MCPConfigScanResult,
     MCPResponseError,
