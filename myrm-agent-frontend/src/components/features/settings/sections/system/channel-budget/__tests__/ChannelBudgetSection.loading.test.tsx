@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - ../ChannelBudgetSection (POS: panel under test)
+ * - ../useChannelAudit::AUDIT_DAYS (POS: Audit window an unfolded channel asks for)
  * - ./channelBudgetTestKit (POS: shared fixtures)
  *
  * [OUTPUT]
@@ -14,6 +15,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
+import { AUDIT_DAYS } from '../useChannelAudit';
 import { deferred } from '@/test-utils/deferred';
 import {
   AUDIT_TOGGLE,
@@ -244,6 +246,18 @@ describe('ChannelBudgetSection audit panel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getChannelBudgets).mockResolvedValue(twoChannels);
+  });
+
+  // The toggle names the window with the same number, so the two cannot drift apart.
+  it('asks for the window that the toggle names', async () => {
+    vi.mocked(getChannelAudit).mockResolvedValue(auditOf(CHANNEL_KEY, [auditEntry('alice', 3)]));
+
+    render(<ChannelBudgetSection />);
+    const [toggle] = await screen.findAllByText(AUDIT_TOGGLE);
+    fireEvent.click(toggle);
+    await screen.findByText('alice');
+
+    expect(getChannelAudit).toHaveBeenCalledWith(CHANNEL_KEY, AUDIT_DAYS);
   });
 
   it('says the spending data could not be loaded, not that there is none, and loads again when unfolded again', async () => {
