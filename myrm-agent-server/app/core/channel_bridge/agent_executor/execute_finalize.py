@@ -2,7 +2,6 @@
 
 [INPUT]
 - app.channels.types::InboundMessage, MediaAttachment, OutboundMessage, SessionPolicy (POS: Channel message types.)
-- app.channels.core.outbound_media::discard_ephemeral_media (POS: temp attachment cleanup)
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, persist_assistant_message (POS: Stream accumulation for channel turns.)
 - agent_executor.deliverable::build_artifact_deep_links (POS: Artifact delivery helpers for ChannelAgentExecutor.)
 - agent_executor.deliverable::append_deliverable_notes, collect_deliverable_paths_from_text, resolve_chat_workspace_root (POS: Channel deliverable attachment mode. Complements artifact event collection in deliverable.deep_links.collect_channel_artifacts.)
@@ -31,7 +30,6 @@ import tempfile
 
 from myrm_agent_harness.utils.text_utils import strip_internal_markers
 
-from app.channels.core.outbound_media import discard_ephemeral_media
 from app.channels.routing.friendly_errors import ERROR_TYPE_METADATA_KEY, friendly_error_text
 from app.channels.types import (
     InboundMessage,
@@ -141,8 +139,8 @@ async def finalize_channel_stream_reply(
             existing_filenames={m.filename for m in acc.file_attachments if m.filename},
         )
 
-    oversized_raw = list(dict.fromkeys(scanned_oversized + acc.oversized_deliverables))
-    compressed_raw = list(dict.fromkeys(scanned_compressed + acc.compressed_deliverables))
+    oversized_notes = list(dict.fromkeys(scanned_oversized + acc.oversized_deliverables))
+    compressed_notes = list(dict.fromkeys(scanned_compressed + acc.compressed_deliverables))
 
     media_list: list[MediaAttachment] = []
     if acc.last_image_base64:
@@ -181,17 +179,9 @@ async def finalize_channel_stream_reply(
     media_list.extend(acc.file_attachments)
     media_list.extend(scanned_attachments)
 
-    artifact_components, linked_filenames = await build_artifact_deep_links(
-        acc,
-        resolve_message_locale(msg),
-    )
-
-    # Deep-linked artifacts get buttons, so their duplicate attachment and
-    # fallback note are suppressed.
-    discard_ephemeral_media(m for m in media_list if m.filename in linked_filenames)
-    media_list = [m for m in media_list if m.filename not in linked_filenames]
-    oversized_notes = [(fname, size) for fname, size in oversized_raw if fname not in linked_filenames]
-    compressed_notes = compressed_raw
+    # A share button never replaces the attachment or the oversize note: whether the link opens depends on how the
+    # instance is reached from outside, which the sender cannot check, and a link that fails would leave the file lost.
+    artifact_components = await build_artifact_deep_links(acc, resolve_message_locale(msg))
 
     error_type: str | None = None
     if not content.strip() and not oversized_notes and not compressed_notes:

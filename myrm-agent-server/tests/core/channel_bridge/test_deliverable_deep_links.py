@@ -23,9 +23,8 @@ class TestBuildArtifactDeepLinks:
         )
 
         acc = StreamAccumulator()
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
-        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
@@ -53,10 +52,9 @@ class TestBuildArtifactDeepLinks:
         )
 
         with caplog.at_level(logging.WARNING):
-            buttons, linked = await build_artifact_deep_links(acc, "en")
+            buttons = await build_artifact_deep_links(acc, "en")
 
         assert buttons == ()
-        assert linked == frozenset()
         assert any("no public ingress base URL" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -91,10 +89,9 @@ class TestBuildArtifactDeepLinks:
         )
 
         with caplog.at_level(logging.WARNING):
-            buttons, linked = await build_artifact_deep_links(acc, "en")
+            buttons = await build_artifact_deep_links(acc, "en")
 
         assert buttons == ()
-        assert linked == frozenset()
         assert any("no artifact versions found" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -137,10 +134,9 @@ class TestBuildArtifactDeepLinks:
         )
 
         with caplog.at_level(logging.WARNING):
-            buttons, linked = await build_artifact_deep_links(acc, "en")
+            buttons = await build_artifact_deep_links(acc, "en")
 
         assert len(buttons) == 1
-        assert linked == frozenset({"report.html"})
         assert any("no version_id in DB" in record.message and "art-missing" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
@@ -186,9 +182,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-missing", "gone.html", "text/html"),
         )
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert len(buttons) == 1
-        assert linked == frozenset({"chart.html"})
         btn = buttons[0]
         assert btn.url == "https://app.example.com/public/artifact-share/tok-abc123"
         assert btn.label == "View interactive page"
@@ -233,9 +228,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert len(buttons) == 1
-        assert linked == frozenset({"chart.html"})
         # Non-named label path → channel_t called without filename kwarg.
         call_kwargs = mock_t.call_args.kwargs
         assert "filename" not in call_kwargs
@@ -280,9 +274,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
-        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
@@ -313,9 +306,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
-        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
@@ -340,9 +332,8 @@ class TestBuildArtifactDeepLinks:
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
         )
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
-        assert linked == frozenset()
 
     @pytest.mark.asyncio
     @patch(
@@ -382,11 +373,10 @@ class TestBuildArtifactDeepLinks:
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
         acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
-        buttons, linked = await build_artifact_deep_links(acc, "zh")
+        buttons = await build_artifact_deep_links(acc, "zh")
         assert len(buttons) == 2
         # channel_t called with artifact_deep_link_named for multi
         assert mock_t.call_args_list[0].args[1] == "artifact_deep_link_named"
-        assert linked == frozenset({"a.html", "b.pdf"})
 
     @pytest.mark.asyncio
     @patch(
@@ -422,7 +412,6 @@ class TestBuildArtifactDeepLinks:
 
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "text/html"))
-        buttons, linked = await build_artifact_deep_links(acc, "en")
-        # Token failed, no buttons generated, nothing linked.
+        buttons = await build_artifact_deep_links(acc, "en")
+        # Token failed, so no button is generated.
         assert buttons == ()
-        assert linked == frozenset()

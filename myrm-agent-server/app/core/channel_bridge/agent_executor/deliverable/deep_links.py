@@ -10,14 +10,14 @@
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
-- build_artifact_deep_links: (ActionButton rows, linked filenames) with signed public share URLs (logs WARNING when ingress base URL missing or artifact versions unavailable)
+- build_artifact_deep_links: ActionButton rows with signed public share URLs (logs WARNING when ingress base URL missing or artifact versions unavailable)
 - fetch_artifact_versions: batch DB lookup for latest artifact version IDs
 
 [POS]
 Artifact delivery helpers for ChannelAgentExecutor. Converts harness artifact
 events into IM media attachments and optional share-link buttons for HTML/PDF/docs.
-Oversized artifacts degrade to share buttons or user-facing notes; callers drop
-the note and matching attachments when a share button was produced.
+Oversized artifacts degrade to a user-facing note, with a share button next to it. A button never replaces
+the attachment or the note: whether its link opens depends on how the instance is reached from outside.
 """
 
 from __future__ import annotations
@@ -82,8 +82,7 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
 
         if file_size > MAX_CHANNEL_ATTACHMENT_BYTES:
             # Oversized: compress raster images into attachments; shareable
-            # artifacts get a share button plus a fallback note (so deep-link
-            # failure still surfaces the file to the user); otherwise note only.
+            # artifacts get a share button next to the note; otherwise note only.
             if is_compressible_image(fname):
                 compressed = compress_oversized_image(
                     file_path,
@@ -126,19 +125,10 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
                 )
 
 
-async def build_artifact_deep_links(
-    acc: StreamAccumulator,
-    locale: str,
-) -> tuple[tuple[ComponentRow, ...], frozenset[str]]:
-    """Generate public share link buttons for shareable artifacts.
-
-    Returns ``(components, linked_filenames)``. ``linked_filenames`` names the
-    artifacts that received a working share button, so callers can suppress the
-    matching oversized-deliverable notes and redundant attachments when deep
-    links succeed.
-    """
+async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tuple[ComponentRow, ...]:
+    """Generate public share link buttons for shareable artifacts; empty when no link can be built."""
     if not acc.shareable_artifacts:
-        return (), frozenset()
+        return ()
 
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
@@ -155,7 +145,7 @@ async def build_artifact_deep_links(
         logger.warning(
             "Skipping artifact deep links: no public ingress base URL configured",
         )
-        return (), frozenset()
+        return ()
 
     artifact_ids = [aid for aid, _, _ in acc.shareable_artifacts]
     version_map = await fetch_artifact_versions(artifact_ids)
@@ -164,10 +154,9 @@ async def build_artifact_deep_links(
             "Skipping artifact deep links: no artifact versions found for %d artifact(s)",
             len(artifact_ids),
         )
-        return (), frozenset()
+        return ()
 
     buttons: list[ActionButton] = []
-    linked_filenames: set[str] = set()
     multi = len(acc.shareable_artifacts) > 1
 
     for artifact_id, filename, artifact_type in acc.shareable_artifacts:
@@ -202,11 +191,8 @@ async def build_artifact_deep_links(
                 url=share_url,
             )
         )
-        linked_filenames.add(filename)
 
-    if not buttons:
-        return (), frozenset()
-    return (tuple(buttons), frozenset(linked_filenames))
+    return tuple(buttons)
 
 
 async def fetch_artifact_versions(artifact_ids: list[str]) -> dict[str, str]:

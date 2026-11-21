@@ -1,8 +1,7 @@
 """Tests for finalize_channel_stream_reply deliverable-note / deep-link interplay.
 
-Covers the deep-link failure fallback: oversized shareable deliverables must
-surface as a textual note when no share button was produced, and must be
-suppressed when a button exists.
+A share button is added next to the attachment and the oversize note, never in place of them: the link may not
+open from outside, and the file must still reach the sender.
 """
 
 from __future__ import annotations
@@ -37,7 +36,7 @@ def _make_message() -> InboundMessage:
 
 async def _finalize(
     acc: StreamAccumulator,
-    build_result: tuple[tuple, frozenset],
+    components: tuple[object, ...] = (),
     *,
     channel_budget_key: str | None = None,
     memory_settings: dict[str, object] | None = None,
@@ -48,7 +47,7 @@ async def _finalize(
     message: InboundMessage | None = None,
     account_guidance: bool = False,
 ) -> tuple[MagicMock, OutboundMessage]:
-    """Run finalize with deep-link build mocked; return (persist_mock, reply)."""
+    """Run finalize with the share buttons ``components`` the deep-link build would return; return (persist_mock, reply)."""
     with (
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.resolve_chat_workspace_root",
@@ -58,7 +57,7 @@ async def _finalize(
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.build_artifact_deep_links",
             new_callable=AsyncMock,
-            return_value=build_result,
+            return_value=components,
         ),
         patch(
             "app.core.channel_bridge.agent_executor.execute_finalize.persist_assistant_message",
@@ -84,21 +83,22 @@ async def _finalize(
 
 
 @pytest.mark.asyncio
-async def test_deep_link_success_suppresses_oversized_note() -> None:
+async def test_deep_link_success_keeps_oversized_note() -> None:
+    """The button sits next to the note: if the link does not open, the note still names the file."""
     acc = StreamAccumulator()
     acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
     acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
     button = MagicMock()
-    persist_mock, reply = await _finalize(acc, ((button,), frozenset({"report.pdf"})))
+    persist_mock, reply = await _finalize(acc, (button,))
     persisted = persist_mock.call_args.args[1]
-    assert "oversized" not in persisted
-    assert "report.pdf" not in persisted
+    assert "8.0 MB" in persisted
+    assert "report.pdf" in persisted
     assert reply.components == (button,)
 
 
 @pytest.mark.asyncio
-async def test_deep_link_success_drops_duplicate_attachment() -> None:
-    """Linked artifacts get a button, so their plain attachment is removed."""
+async def test_deep_link_success_keeps_attachment() -> None:
+    """Linked artifacts get a button, and their plain attachment is still delivered."""
     acc = StreamAccumulator()
     acc.file_attachments.append(
         MediaAttachment(
@@ -110,8 +110,8 @@ async def test_deep_link_success_drops_duplicate_attachment() -> None:
     )
     acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
     button = MagicMock()
-    _persist_mock, reply = await _finalize(acc, ((button,), frozenset({"report.pdf"})))
-    assert reply.media == ()
+    _persist_mock, reply = await _finalize(acc, (button,))
+    assert [m.filename for m in reply.media] == ["report.pdf"]
     assert reply.components == (button,)
 
 
@@ -128,7 +128,7 @@ async def test_deep_link_failure_keeps_attachment() -> None:
         )
     )
     acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
     assert len(reply.media) == 1
     assert reply.media[0].filename == "report.pdf"
     assert reply.components == ()
@@ -139,7 +139,7 @@ async def test_deep_link_failure_keeps_oversized_note() -> None:
     acc = StreamAccumulator()
     acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
     acc.shareable_artifacts.append(ShareableArtifact("art-1", "report.pdf", "application/pdf"))
-    persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    persist_mock, reply = await _finalize(acc)
     persisted = persist_mock.call_args.args[1]
     assert "8.0 MB" in persisted
     assert "report.pdf" in persisted
@@ -151,7 +151,7 @@ async def test_compressed_note_always_kept() -> None:
     """Compression notes are unrelated to deep links and must never be filtered."""
     acc = StreamAccumulator()
     acc.compressed_deliverables.append(("photo.png", "6.0 MB"))
-    persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    persist_mock, reply = await _finalize(acc)
     persisted = persist_mock.call_args.args[1]
     assert "6.0 MB" in persisted
     assert "photo.png" in persisted
@@ -163,7 +163,7 @@ async def test_empty_content_with_button_uses_deliverable_text() -> None:
     """Empty content with a deep-link button must not fall back to the empty-reply text."""
     acc = StreamAccumulator()
     button = MagicMock()
-    persist_mock, reply = await _finalize(acc, ((button,), frozenset()))
+    persist_mock, reply = await _finalize(acc, (button,))
     persisted = persist_mock.call_args.args[1]
     assert persisted == "Deliverable attached."
     assert reply.components == (button,)
@@ -181,7 +181,7 @@ async def test_empty_content_with_plain_attachment_uses_deliverable_text() -> No
             mime_type="image/jpeg",
         )
     )
-    persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    persist_mock, reply = await _finalize(acc)
     persisted = persist_mock.call_args.args[1]
     assert persisted == "Deliverable attached."
     assert reply.components == ()
@@ -198,7 +198,7 @@ async def test_screenshot_base64_saved_to_temp_file() -> None:
     acc.last_image_mime = "image/png"
     acc.draft.feed({"type": "message", "data": "Here is the screenshot."})
 
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
     assert len(reply.media) == 1
     assert reply.media[0].media_type == MediaType.IMAGE
     assert reply.media[0].filename == "screenshot.png"
@@ -216,7 +216,7 @@ async def test_screenshot_base64_save_failure_is_graceful() -> None:
     acc.last_image_mime = "image/jpeg"
     acc.draft.feed({"type": "message", "data": "Screenshot failed but reply continues."})
 
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
     assert reply.media == ()
 
 
@@ -228,7 +228,7 @@ async def test_screenshot_url_attachment() -> None:
     acc.last_image_mime = "image/jpeg"
     acc.draft.feed({"type": "message", "data": "See the screenshot."})
 
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
     assert len(reply.media) == 1
     assert reply.media[0].url == "https://example.com/shot.jpg"
     assert reply.media[0].filename == "screenshot.jpg"
@@ -238,13 +238,13 @@ async def test_screenshot_url_attachment() -> None:
 async def test_empty_response_fallback() -> None:
     """An empty turn says so in the sender's language and is flagged, so a delegated task is not reported as done."""
     acc = StreamAccumulator()
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
     assert reply.content == "No response generated."
     assert reply.metadata["error_type"] == "empty_response"
 
     message = _make_message()
     message.metadata["locale"] = "zh-CN"
-    _persist_mock, reply = await _finalize(StreamAccumulator(), ((), frozenset()), message=message)
+    _persist_mock, reply = await _finalize(StreamAccumulator(), message=message)
     assert reply.content == "未生成回复。"
 
 
@@ -256,7 +256,7 @@ async def test_channel_cost_recorded_when_budget_key() -> None:
     with patch(
         "app.services.budget.channel_budget.record_channel_cost",
     ) as record_mock:
-        await _finalize(acc, ((), frozenset()), channel_budget_key="tg:user-1")
+        await _finalize(acc, channel_budget_key="tg:user-1")
     record_mock.assert_called_once_with("tg:user-1", 0.12)
 
 
@@ -267,7 +267,7 @@ async def test_auto_title_generated_for_new_chat() -> None:
     with patch(
         "app.core.channel_bridge.agent_executor.execute_finalize.asyncio.create_task",
     ) as create_task_mock:
-        await _finalize(acc, ((), frozenset()), chat_history=[])
+        await _finalize(acc, chat_history=[])
     create_task_mock.assert_called_once()
     assert create_task_mock.call_args.args[0].__name__ == "generate_channel_title"
 
@@ -279,7 +279,7 @@ async def test_no_auto_title_for_existing_chat() -> None:
     with patch(
         "app.core.channel_bridge.agent_executor.execute_finalize.asyncio.create_task",
     ) as create_task_mock:
-        await _finalize(acc, ((), frozenset()), chat_history=[object()])
+        await _finalize(acc, chat_history=[object()])
     create_task_mock.assert_not_called()
 
 
@@ -287,7 +287,7 @@ async def test_no_auto_title_for_existing_chat() -> None:
 async def test_session_auto_reset_metadata() -> None:
     acc = StreamAccumulator()
     acc.draft.feed({"type": "message", "data": "Continuing after reset."})
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()), session_was_auto_reset=True)
+    _persist_mock, reply = await _finalize(acc, session_was_auto_reset=True)
     assert reply.metadata is not None
     assert "session_auto_reset" in reply.metadata
 
@@ -301,7 +301,6 @@ async def test_cost_metadata_when_enabled() -> None:
     acc.draft.feed({"type": "message", "data": "Done."})
     _persist_mock, reply = await _finalize(
         acc,
-        ((), frozenset()),
         memory_settings={"enableCostEstimation": True},
     )
     assert reply.metadata is not None
@@ -317,7 +316,7 @@ async def test_sources_sorted_by_index_metadata() -> None:
         {"index": "not-a-number", "title": "c"},
     ]
     acc.draft.feed({"type": "message", "data": "Sourced reply."})
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
     assert reply.metadata is not None
     titles = [s["title"] for s in reply.metadata["sources"]]  # type: ignore[typeddict-item]
     # Non-numeric index → key 0 → sorts first; numeric 1 then 2 follow.
@@ -335,7 +334,6 @@ async def test_workspace_attachment_scanned_and_stripped(
     acc.draft.feed({"type": "message", "data": "Report saved to workspace/report.pdf"})
     _persist_mock, reply = await _finalize(
         acc,
-        ((), frozenset()),
         workspace_root=str(tmp_path),
     )
     assert len(reply.media) == 1
@@ -354,7 +352,6 @@ async def test_content_and_note_lines_concatenated(tmp_path: Path) -> None:
     acc.draft.feed({"type": "message", "data": "Here is the result: workspace/big.bin"})
     persist_mock, reply = await _finalize(
         acc,
-        ((), frozenset()),
         workspace_root=str(tmp_path),
     )
     persisted = persist_mock.call_args.args[1]
@@ -365,8 +362,8 @@ async def test_content_and_note_lines_concatenated(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_deep_linked_compressed_attachment_is_released_immediately(tmp_path: Path) -> None:
-    """A temp attachment dropped in favour of a share button is never delivered, so its file goes at once."""
+async def test_temp_attachment_next_to_a_share_button_is_left_for_the_bus_to_delete() -> None:
+    """The attachment is still delivered next to the button, so finalize must not delete its file: the bus does."""
     import tempfile
 
     with tempfile.NamedTemporaryFile(suffix=".jpg", prefix="deliverable_", delete=False) as tmp:
@@ -375,7 +372,8 @@ async def test_deep_linked_compressed_attachment_is_released_immediately(tmp_pat
     acc.file_attachments.append(MediaAttachment(media_type=MediaType.IMAGE, path=tmp.name, filename="chart.jpg", ephemeral=True))
     acc.shareable_artifacts.append(ShareableArtifact("art-1", "chart.jpg", "image/jpeg"))
 
-    _persist_mock, reply = await _finalize(acc, ((MagicMock(),), frozenset({"chart.jpg"})))
+    _persist_mock, reply = await _finalize(acc, (MagicMock(),))
 
-    assert reply.media == ()
-    assert not Path(tmp.name).exists()
+    assert [m.path for m in reply.media] == [tmp.name]
+    assert Path(tmp.name).is_file()
+    Path(tmp.name).unlink()

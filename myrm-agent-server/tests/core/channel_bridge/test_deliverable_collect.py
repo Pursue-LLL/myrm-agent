@@ -125,8 +125,8 @@ class TestCollectMultipleArtifacts:
             },
             acc,
         )
-        # Oversized shareable artifacts are both deep-linked AND carry a fallback
-        # note, so a failed deep-link build still surfaces the file to the user.
+        # Oversized shareable artifacts are both deep-linked AND carry a note,
+        # so a share link that cannot be built or opened still names the file.
         assert len(acc.file_attachments) == 0
         assert len(acc.shareable_artifacts) == 1
         assert acc.oversized_deliverables == [("huge.html", "6.0 MB")]
@@ -147,9 +147,8 @@ class TestCollectMultipleArtifacts:
             ShareableArtifact("art-001", "report.pdf", "application/pdf"),
         )
         acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
-        buttons, linked = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en")
         assert buttons == ()
-        assert linked == frozenset()
         # Note must stay present when no button was produced.
         assert acc.oversized_deliverables == [("report.pdf", "8.0 MB")]
 
