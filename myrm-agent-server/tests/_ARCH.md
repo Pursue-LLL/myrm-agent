@@ -64,6 +64,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_process_state_isolation.py` | 单元 | 登记簿里留着一个事件循环已关闭、永远跑不完的任务时：丢掉它之后排空登记簿会等到还活着的任务做完（不丢的话 `gather` 抛 “The future belongs to a different loop”、排空提前返回，活任务还没完成） |
 | `support/oversized_paste.py` | 辅助 | `paste_over_the_limit`（刚过人写文本停车线 `USER_TEXT_LIMITS` 的重复文本）、`paste_between_the_limits`（过了 harness 默认线、没过人写文本线：渠道文档会被停车、人写的文本原样进提示）：测试按限额常量定样本大小，不写死字符数 |
 | `support/chat_workspace.py` | 辅助 | `chats_bound_to_workspaces`：把会话 id 映射到各自的临时工作区（`default=` 给所有未列出的会话），让读取会话文件的接口测试不依赖进程目录 |
+| `support/hosting_api.py` | 辅助 | 托管 API 集成测试共用：`seed_webhook_target`、`seed_html_artifact` 造数，`public_dns` 把 SSRF 校验的解析桩成公网地址，`CHAT_ID` 是夹具绑定工作区的会话；`api/files/conftest.py` 的 `hosting_integration_client` 夹具与下面两个托管 API 测试文件共用 |
 | `support/bounded_wait.py` | 辅助 | `assert_bounded_wait(timeout, *, limit=60)`：断言传给连接的等待上限是正数且不超过上限（`None` 表示永不放弃，`0` 与布尔值也不是等待上限，都不通过）；渠道连接测试与邮件技能脚本测试共用 |
 | `support/live_chat_model.py` | 辅助 | `live_chat_model(*, model, api_key, base_url, temperature, max_tokens, timeout)`：异步上下文管理器，产出一个 HTTP 客户端随进入它的那个测试的事件循环打开、随测试关闭的 `ChatOpenAI`。langchain-openai 在进程内共用一个缓存的异步客户端，其连接池里的连接绑在第一个测试的事件循环上，之后的测试会报 `Event loop is closed`；所有调真实模型的测试都经它构造模型，不直接 `ChatOpenAI(...)`。请求超时只认 `ChatOpenAI` 的 `timeout`（注入客户端自己的超时不生效），所以只有 `timeout` 参数是真上限 |
 | `support/test_live_chat_model.py` | 单元 | 本机 HTTP/1.1 长连接假服务上，三次各占一个事件循环的调用全部得到回答（裸 `ChatOpenAI` 第二次就抛 `Event loop is closed`；去掉客户端注入该用例即失败） |
@@ -118,6 +119,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/storage/test_credentials_store.py` | 单元 | 渠道凭据默认落在 `state_dir` 下而非进程目录，换个目录重新启动后登录仍在，显式目录优先 |
 | `api/files/test_vault_api.py` | 单元 | vault 对象读取：按 `chat_id` 取该会话工作区、按指向对象的 artifact 反查所属会话、无主对象回退默认根、缺失对象 404 |
 | `api/files/test_provenance_api.py` | 单元 | 来源中心列表与详情里的产物大小，各取自该产物所属会话的工作区而非进程目录 |
+| `api/files/test_hosting_integration.py` | 集成 | 发布主链路（真实预检、vault、编排；仅外部 HTTP 被替身）：预检、发布、WebSocket 轮询、重发布、多目标发布 |
+| `api/files/test_hosting_targets_api.py` | 单元 | 托管目标与凭据 API（真实路由与数据库）：目标 CRUD 生命周期、不存在的目标 404、凭据读写与状态、连通性测试 |
 | `platform_utils/test_workspace_root.py` | 单元 | `get_workspace_root`：运行之外取进程工作目录，运行之内取该次运行绑定的根 |
 | `services/instance_archive/test_incognito_files.py` | 模块 | 网页无痕会话写在磁盘上的东西不进导出：真实 `build_export` 下 `harness/workspaces/chat_<id>/`（含嵌套目录）不入包、其余会话与转写导入的工作区照常入包，目录名按整段路径分量比对（`chat_incognito` 不藏掉 `chat_incognito-2`）；子代理 checkpoint 库不论在 `data/` 下还是状态目录顶层都不入包；无法判定哪些会话是无痕时导出失败且不留文件；无痕工作区下读不到的路径不记入“备份不完整”；并把工作区位置、目录名与子代理库文件名钉到真实运行时（`WorkspaceService.workspaces_root`、`default_chat_workspace_path`、`resolve_subagent_checkpoint_db_path`） |
 | `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |
