@@ -12,7 +12,6 @@ from app.services.hosting.targets import (
     HOSTING_TARGETS_KEY,
     delete_hosting_target,
     get_default_hosting_target,
-    get_default_hosting_target_from_list,
     get_hosting_target,
     list_hosting_targets,
     save_hosting_targets,
@@ -112,15 +111,6 @@ async def test_set_default_hosting_target(db_session: AsyncSession) -> None:
 async def test_set_default_missing_raises(db_session: AsyncSession) -> None:
     with pytest.raises(ValueError, match="Hosting target not found"):
         await set_default_hosting_target(db_session, "nope")
-
-
-def test_get_default_hosting_target_from_list() -> None:
-    targets = [
-        HostingTarget(id="a", name="A", provider_type="vercel", config={}, is_default=False),
-        HostingTarget(id="b", name="B", provider_type="vercel", config={}, is_default=True),
-    ]
-    assert get_default_hosting_target_from_list(targets) is not None
-    assert get_default_hosting_target_from_list([]) is None
 
 
 @pytest.mark.asyncio

@@ -195,13 +195,6 @@ async def get_default_hosting_target(db: AsyncSession) -> HostingTarget | None:
     return targets[0]
 
 
-def get_default_hosting_target_from_list(targets: list[HostingTarget]) -> HostingTarget | None:
-    for target in targets:
-        if target.is_default:
-            return target
-    return targets[0] if targets else None
-
-
 async def set_default_hosting_target(db: AsyncSession, target_id: str) -> HostingTarget:
     targets = await list_hosting_targets(db)
     selected = next((t for t in targets if t.id == target_id), None)
