@@ -128,7 +128,6 @@ class TestGeneratedClientIsValidPython:
                 "/tmp/x.sock",
                 auth_token="t",
                 trace_nonce="abc123",
-                read_only_tools=frozenset(),
                 tcp_port=tcp_port,
             )
             ast.parse(code)

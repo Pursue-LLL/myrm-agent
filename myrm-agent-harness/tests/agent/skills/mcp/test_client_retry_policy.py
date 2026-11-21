@@ -1,70 +1,76 @@
-"""Retry policy for the generated MCP IPC client.
+"""A generated MCP IPC client sends each call once and never replays it.
 
-A connection failure can happen after the request reached the server, so replaying
-a mutating call risks duplicate side effects (two issues, two messages). Only
-tools advertising ``readOnlyHint`` may be retried.
+A connection failure can happen after the request reached the server, so replaying a call risks duplicate side
+effects (two issues, two messages), and a server's own claim that a tool only reads cannot be checked.
 """
 
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 
 import pytest
 
 from myrm_agent_harness.agent.skills.mcp.client_templates import generate_ipc_client_code
 
+Namespace = dict[str, object]
 
-def _build_client(*, read_only: frozenset[str], attempts: list[str]) -> dict[str, object]:
-    """Compile the generated client and stub its transport with a counter."""
-    source = generate_ipc_client_code(
-        "/tmp/does-not-matter.sock",
-        auth_token="t",
-        trace_nonce="n",
-        read_only_tools=read_only,
-    )
-    namespace: dict[str, object] = {}
+
+def _build_client(make_failure: Callable[[Namespace], BaseException], attempts: list[str]) -> Namespace:
+    """Compile the generated client and stub its transport with one that counts attempts and always fails."""
+    source = generate_ipc_client_code("/tmp/does-not-matter.sock", auth_token="t", trace_nonce="n")
+    namespace: Namespace = {}
     exec(compile(source, "<generated_client>", "exec"), namespace)  # noqa: S102 - executing our own generated module
 
     async def failing_request(skill: str, tool: str, params: dict[str, object]) -> object:
         attempts.append(f"{skill}.{tool}")
-        raise ConnectionError("simulated mid-flight disconnect")
+        raise make_failure(namespace)
 
     namespace["_ipc_request"] = failing_request
     return namespace
 
 
-def test_mutating_tool_is_not_retried() -> None:
+@pytest.mark.parametrize(
+    "make_failure",
+    [
+        lambda _ns: ConnectionError("simulated mid-flight disconnect"),
+        lambda _ns: BrokenPipeError("simulated broken pipe"),
+        lambda _ns: FileNotFoundError("simulated missing socket"),
+        lambda _ns: asyncio.IncompleteReadError(b"", 4),
+    ],
+    ids=["connection-error", "broken-pipe", "missing-socket", "incomplete-read"],
+)
+@pytest.mark.parametrize("tool", ["create-issue", "ping"])
+def test_a_connection_failure_is_attempted_exactly_once(
+    make_failure: Callable[[Namespace], BaseException], tool: str
+) -> None:
     attempts: list[str] = []
-    client = _build_client(read_only=frozenset(), attempts=attempts)
+    client = _build_client(make_failure, attempts)
 
     with pytest.raises(Exception, match="Connection"):
-        asyncio.run(client["_call"]("mcp_skill", "create-issue", {"title": "x"}))  # type: ignore[operator]
+        asyncio.run(client["_call"]("mcp_skill", tool, {}))  # type: ignore[operator]
 
-    assert attempts == ["mcp_skill.create-issue"], "a write must be attempted exactly once"
+    assert attempts == [f"mcp_skill.{tool}"]
 
 
-def test_read_only_tool_is_retried_once() -> None:
+def test_a_host_reported_error_is_raised_as_it_came() -> None:
+    """A server-side error is deterministic: it reaches the script after one attempt, not wrapped a second time."""
     attempts: list[str] = []
-    client = _build_client(read_only=frozenset({"mcp_skill.ping"}), attempts=attempts)
+    client = _build_client(lambda ns: ns["MCPError"]("boom", "mcp_skill", "ping"), attempts)  # type: ignore[operator]
 
-    with pytest.raises(Exception, match="Failed after"):
+    with pytest.raises(Exception, match="boom") as raised:
         asyncio.run(client["_call"]("mcp_skill", "ping", {}))  # type: ignore[operator]
 
-    assert attempts == ["mcp_skill.ping", "mcp_skill.ping"], "read-only may retry once"
+    assert str(raised.value) == "[mcp_skill.ping] boom"
+    assert attempts == ["mcp_skill.ping"]
 
 
-def test_host_reported_error_is_never_retried() -> None:
-    """A server-side error is deterministic; retrying cannot change the outcome."""
+def test_an_unexpected_failure_reaches_the_script_as_an_mcp_error() -> None:
     attempts: list[str] = []
-    client = _build_client(read_only=frozenset({"mcp_skill.ping"}), attempts=attempts)
+    client = _build_client(lambda _ns: ValueError("bad payload"), attempts)
 
-    async def failing_request(skill: str, tool: str, params: dict[str, object]) -> object:
-        attempts.append(f"{skill}.{tool}")
-        raise client["MCPError"]("boom", skill, tool)  # type: ignore[operator]
-
-    client["_ipc_request"] = failing_request
-
-    with pytest.raises(Exception, match="boom"):
+    with pytest.raises(Exception, match=r"\[mcp_skill\.ping\] ValueError: bad payload") as raised:
         asyncio.run(client["_call"]("mcp_skill", "ping", {}))  # type: ignore[operator]
 
+    assert type(raised.value).__name__ == "MCPError"
     assert attempts == ["mcp_skill.ping"]

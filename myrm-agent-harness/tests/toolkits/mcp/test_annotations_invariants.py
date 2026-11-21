@@ -3,6 +3,8 @@
 A server's hints are its own unverified statements, so they may tighten what the host does and may let tools of
 different servers run side by side, but nothing else. Each test drives one family of consumers, through a real MCP
 server and the production connection pool, and asserts the consumers stay as strict as for an unannotated tool.
+The families that once trusted a hint run twice: under the records the pool makes, and under the loosest record a
+consumer could ever meet, so they hold even if the hand-off stopped judging.
 
 [INPUT]
 - tests.support.mcp_testkit.probe_connection::connect_probe_server, ProbeServer (POS: the probe server seen through the production pool)
@@ -11,9 +13,10 @@ server and the production connection pool, and asserts the consumers stay as str
 - myrm_agent_harness.agent.skills.mcp.ipc_request_policy (POS: refusals of the PTC IPC server in read-only scopes)
 - myrm_agent_harness.agent.skills.mcp.executor::SkillExecutor (POS: injects the generated PTC client)
 - myrm_agent_harness.agent._factory.mcp_routing::_wrap_direct_tool_with_cache (POS: the direct-call result cache)
+- myrm_agent_harness.agent.skills.mcp.proxy_service::MCPSkillProxyService (POS: the PTC call path and its result cache)
 
 [OUTPUT]
-- Tests of the approval, read-only sandbox, IPC gate, untrusted-turn, no-replay and cache invariants.
+- Tests of the approval, read-only sandbox, IPC gate, untrusted-turn, no-replay and cache invariants (direct and PTC).
 
 [POS]
 Guards the hand-off from a server's declarations to every consumer of the host's safety metadata, so a later change
@@ -24,10 +27,12 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import replace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio
 from langchain_core.messages import ToolCall
+from langchain_core.tools import BaseTool
 
 from myrm_agent_harness.agent._factory.mcp_routing import _wrap_direct_tool_with_cache
 from myrm_agent_harness.agent.middlewares.approval._allow_always import protected_instruction_file_target
@@ -39,6 +44,7 @@ from myrm_agent_harness.agent.skills.mcp.cache_policy import get_cache_buckets
 from myrm_agent_harness.agent.skills.mcp.executor import SkillExecutor
 from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, IPCEndpoint, MCPIPCRequest
 from myrm_agent_harness.agent.skills.mcp.ipc_request_policy import read_only_policy_error, script_file_policy_error
+from myrm_agent_harness.agent.skills.mcp.proxy_service import MCPSkillProxyService
 from myrm_agent_harness.agent.skills.runtime.registry import SkillRegistry
 from myrm_agent_harness.agent.sub_agents.builder import filter_tools
 from myrm_agent_harness.agent.sub_agents.types import SubagentConfig, WorkspacePolicy
@@ -59,10 +65,18 @@ async def _connected(tmp_path_factory: pytest.TempPathFactory) -> AsyncIterator[
 
 
 @pytest.fixture
-def probe(_connected: ProbeServer) -> ProbeServer:
-    """The connected probe server with its registrations in place (``tests/conftest.py`` empties them per test)."""
+def judged_probe(_connected: ProbeServer) -> ProbeServer:
+    """The connected probe server with the records the pool makes (``tests/conftest.py`` empties them per test)."""
     _connected.register()
     return _connected
+
+
+@pytest.fixture(params=["judged", "loosest"])
+def probe(request: pytest.FixtureRequest, judged_probe: ProbeServer) -> ProbeServer:
+    """The probe server under the pool's records and, worse, under the loosest record a consumer could ever meet."""
+    if request.param == "loosest":
+        judged_probe.register_loosest()
+    return judged_probe
 
 
 def _spellings(probe: ProbeServer) -> list[str]:
@@ -108,8 +122,8 @@ def test_read_only_scopes_refuse_every_script_call(probe: ProbeServer) -> None:
         assert script_file_policy_error(request, CallerScope(script_file=True)), tool_name
 
 
-def test_every_tool_still_counts_as_effectful(probe: ProbeServer) -> None:
-    names = [probe.call_name(name) for name in probe.tools]
+def test_every_tool_still_counts_as_effectful(judged_probe: ProbeServer) -> None:
+    names = [judged_probe.call_name(name) for name in judged_probe.tools]
 
     assert all(is_mutating_tool(name) for name in names)
     assert all(protected_instruction_file_target(name, {"path": "/workspace/AGENTS.md"}) for name in names)
@@ -156,13 +170,24 @@ async def test_ptc_client_never_replays_a_call(probe: ProbeServer, monkeypatch: 
         assert attempts == [tool_name], f"{tool_name} must be attempted exactly once"
 
 
-async def test_a_write_clears_the_direct_result_cache_whatever_it_declares(probe: ProbeServer) -> None:
+def _with_flat_read_only_hint(tool: BaseTool) -> BaseTool:
+    """The tool as a naive converter would hand it over: the hint as a flat metadata key, which the wrapper once read."""
+    return tool.model_copy(update={"metadata": {**(tool.metadata or {}), "readOnlyHint": True}})
+
+
+@pytest.mark.parametrize("flat_hint", [False, True], ids=["declared", "flat-hint-on-the-tool"])
+async def test_a_write_clears_the_direct_result_cache_whatever_it_declares(
+    judged_probe: ProbeServer, flat_hint: bool
+) -> None:
     config = MCPConfig(
         name=SERVER_NAME, type="stdio", command="echo", cache_ttl_seconds=60, cacheable_tools=["list_items"]
     )
-    list_items = _wrap_direct_tool_with_cache(probe.tools["list_items"], config)
-    append_item = _wrap_direct_tool_with_cache(probe.tools["append_item"], config)
-    items_file = probe.marks_dir / "items.txt"
+    write_tool = judged_probe.tools["append_item"]
+    list_items = _wrap_direct_tool_with_cache(judged_probe.tools["list_items"], config)
+    append_item = _wrap_direct_tool_with_cache(
+        _with_flat_read_only_hint(write_tool) if flat_hint else write_tool, config
+    )
+    items_file = judged_probe.marks_dir / "items.txt"
     items_file.unlink(missing_ok=True)
     get_cache_buckets().clear()
     token = chat_id_var.set("annotations-invariants")
@@ -178,4 +203,53 @@ async def test_a_write_clears_the_direct_result_cache_whatever_it_declares(probe
         assert '"result": "outside,a"' in await list_items.ainvoke({})
     finally:
         chat_id_var.reset(token)
+        get_cache_buckets().clear()
+
+
+async def test_a_write_clears_the_ptc_result_cache_whatever_the_registry_holds(probe: ProbeServer) -> None:
+    read, write = "list_items", "append_item"
+    skill = SkillMetadata(
+        name=probe.skill_name,
+        description="probe",
+        mcp=MCPSkillData(
+            server=SERVER_NAME,
+            tools=[read, write],
+            config=[
+                {
+                    "name": SERVER_NAME,
+                    "type": "stdio",
+                    "command": "echo",
+                    "cache_ttl_seconds": 60,
+                    "cacheable_tools": [read],
+                }
+            ],
+        ),
+    )
+    registry = SkillRegistry()
+    registry.register(skill)
+    connection = MagicMock()
+    connection.call = AsyncMock(return_value=({"type": "text", "text": "ok"}, None))
+    manager = MagicMock()
+    manager.get_connection = AsyncMock(return_value=connection)
+    service = MCPSkillProxyService()
+    get_cache_buckets().clear()
+    try:
+        with (
+            patch("myrm_agent_harness.agent.skills.runtime.registry.skill_registry", registry),
+            patch(
+                "myrm_agent_harness.toolkits.mcp.connection_manager.get_mcp_connection_manager",
+                AsyncMock(return_value=manager),
+            ),
+        ):
+            await service.invoke_tool(probe.skill_name, read, {}, session_id="annotations-invariants")
+            await service.invoke_tool(probe.skill_name, read, {}, session_id="annotations-invariants")
+            assert connection.call.await_count == 1, (
+                "the read must be served from the cache for this test to mean anything"
+            )
+
+            await service.invoke_tool(probe.skill_name, write, {"item": "a"}, session_id="annotations-invariants")
+            await service.invoke_tool(probe.skill_name, read, {}, session_id="annotations-invariants")
+
+        assert connection.call.await_count == 3
+    finally:
         get_cache_buckets().clear()

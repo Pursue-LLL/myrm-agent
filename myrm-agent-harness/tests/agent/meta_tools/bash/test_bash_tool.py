@@ -310,14 +310,6 @@ async def test_bash_tool_success_emits_stderr_evicted_ref() -> None:
     assert call.kwargs["storage_truncated"] is False
 
 
-def test_mcp_min_timeout_constant_exceeds_ipc_client() -> None:
-    """_MCP_MIN_TIMEOUT must be > IPC client TOTAL_TIMEOUT (90s)."""
-    from myrm_agent_harness.agent.meta_tools.bash._executor.executor import _MCP_MIN_TIMEOUT
-    from myrm_agent_harness.agent.skills.mcp.client_templates import TOTAL_TIMEOUT
-
-    assert _MCP_MIN_TIMEOUT > TOTAL_TIMEOUT
-
-
 def test_mcp_min_timeout_is_120() -> None:
     from myrm_agent_harness.agent.meta_tools.bash._executor.executor import _MCP_MIN_TIMEOUT
 

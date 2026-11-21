@@ -105,23 +105,6 @@ class MCPSkillProxyService:
     - 相同参数且命中显式 cache_ttl_seconds + cacheable_tools 的调用按会话缓存
     """
 
-    @staticmethod
-    def _is_read_only_tool(skill_name: str, tool_name: str) -> bool:
-        """Return True only when the MCP server declared ``readOnlyHint``.
-
-        Fail-closed: an unknown tool is treated as mutating. Caching a write or a
-        status poll would either swallow the side effect or pin a stale value.
-        """
-        from myrm_agent_harness.core.security.tool_registry.registry import (
-            get_ptc_safety_metadata,
-        )
-
-        entry = get_ptc_safety_metadata(skill_name, tool_name)
-        if entry is None:
-            return False
-        safety, _annotations = entry
-        return safety.is_read_only
-
     def _canonical_cache_tool_name(self, skill_name: str, tool_name: str) -> str:
         """Resolve caller tool name to the MCP catalog name for cache keys."""
         from myrm_agent_harness.agent.skills.mcp.tool_name_utils import (
@@ -177,7 +160,6 @@ class MCPSkillProxyService:
         cleaned_params = prepare_mcp_call_arguments(params, input_schema)
 
         cache_key: str | None = None
-        is_read_only = self._is_read_only_tool(skill_name, matched_for_schema)
         cache_ttl = resolve_cache_ttl(skill_meta_for_schema, matched_for_schema)
         if cache_ttl is not None:
             server_name = (
@@ -186,7 +168,7 @@ class MCPSkillProxyService:
             cache_key = make_cache_key(session_id, server_name, matched_for_schema, cleaned_params)
             cached_result = get_cache_buckets().get(cache_ttl).get(cache_key)
             if cached_result is not None:
-                logger.debug(f"{log_prefix} Read-only cache hit: {skill_name}.{tool_name}")
+                logger.debug(f"{log_prefix} Cache hit: {skill_name}.{tool_name}")
                 return cached_result
 
         logger.info(f"{log_prefix} Invoking: {skill_name}.{tool_name}")
@@ -198,8 +180,9 @@ class MCPSkillProxyService:
 
         if cache_key is not None and cache_ttl is not None:
             get_cache_buckets().get(cache_ttl).set(cache_key, result)
-        elif not is_read_only and not is_explicitly_cacheable(skill_meta_for_schema, matched_for_schema):
-            # A write can invalidate list/detail results cached earlier in this
+        elif not is_explicitly_cacheable(skill_meta_for_schema, matched_for_schema):
+            # A call that is not on the cache allowlist may be a write, and a server's own claim that it only
+            # reads cannot be checked. A write can invalidate list/detail results cached earlier in this
             # session. Clearing all buckets is conservative but avoids stale reads
             # without keeping a second index from session key to bucket.
             get_cache_buckets().clear()

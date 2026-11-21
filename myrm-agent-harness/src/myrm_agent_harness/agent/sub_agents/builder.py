@@ -7,12 +7,12 @@ Pure functions and utilities used by SubagentManager to prepare child agents.
 - utils.token_economics.tracker::TokenTracker (POS: LLM call metadata tracker. ContextVar-based request-level tracking supporting both streaming and non-streaming modes.)
 - agent.types::AgentRuntimeConfig (POS: Agent core runtime type definitions. Defines completion status, run statistics, quote attachments, workspace bindings, and runtime specs.)
 - agent.sub_agents.types::DelegationCapabilityManifest (POS: Subagent subsystem core type definitions. Defines all subagent-related data types, enums, and protocols.)
-- core.security.tool_registry::resolve_safety_metadata, resolve_permission_type (POS: tool safety metadata incl. MCP readOnlyHint, fail-closed for unknown tools; tool name → permission type)
+- core.security.tool_registry::resolve_permission_type (POS: tool name → permission type)
 - toolkits.mcp.config::is_mcp_tool_name (POS: ``mcp__{server}__{tool}`` name recognition)
 
 [OUTPUT]
 - build_parent_delegatable_toolkit: Parent tools eligible for L3 child ⊆ parent delegation.
-- filter_tools: Apply tool safety isolation after catalog admission; READ_ONLY_SANDBOX configs also drop MCP tools that do not declare `readOnlyHint`, external-agent sessions and knowledge-store writes.
+- filter_tools: Apply tool safety isolation after catalog admission; READ_ONLY_SANDBOX configs also drop every MCP tool, external-agent sessions and knowledge-store writes.
 - resolve_llm: Resolve child LLM with optional complexity-tier routing.
 - truncate_result: Truncate text to approximate token limit (4 chars per token).
 - merge_child_stats: Merge child agent's token usage into the parent tracker.
@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, cast
 
 from langchain_core.tools import BaseTool
 
-from myrm_agent_harness.core.security.tool_registry import resolve_permission_type, resolve_safety_metadata
+from myrm_agent_harness.core.security.tool_registry import resolve_permission_type
 from myrm_agent_harness.toolkits.mcp.config import is_mcp_tool_name
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
@@ -90,23 +90,17 @@ def build_parent_delegatable_toolkit(parent_agent: BaseAgent) -> list[BaseTool]:
     return list(by_name.values())
 
 
-def _is_side_effect_mcp_tool(tool_name: str) -> bool:
-    """True for an MCP tool its server did not annotate as read-only.
-
-    Same classification as the approval fast-path: MCP defaults are pessimistic, so an unannotated tool
-    counts as one that may change external state.
-    """
-    return is_mcp_tool_name(tool_name) and not resolve_safety_metadata(tool_name).is_read_only
-
-
 # Permission types the ``readonly`` security profile denies besides file writes: a read-only child
 # neither starts an external agent session nor writes the shared knowledge store.
 _READ_ONLY_FORBIDDEN_PERMISSIONS = frozenset({"invoke_external_agent", "knowledge_write"})
 
 
 def _escapes_read_only_sandbox(tool_name: str) -> bool:
-    """True for a tool whose effect reaches beyond the read-only child's workspace."""
-    return _is_side_effect_mcp_tool(tool_name) or resolve_permission_type(tool_name) in _READ_ONLY_FORBIDDEN_PERMISSIONS
+    """True for a tool whose effect reaches beyond the read-only child's workspace.
+
+    Every MCP tool counts: a server's own statement that a tool only reads is not something the host can check.
+    """
+    return is_mcp_tool_name(tool_name) or resolve_permission_type(tool_name) in _READ_ONLY_FORBIDDEN_PERMISSIONS
 
 
 def filter_tools(config: SubagentConfig, parent_tools: list[BaseTool]) -> list[BaseTool]:
@@ -114,8 +108,8 @@ def filter_tools(config: SubagentConfig, parent_tools: list[BaseTool]) -> list[B
 
     L1: DelegationCapabilityManifest.leaf_blocked_tools (always blocked)
     L2: config.tools (allowlist) + config.disallowed_tools (blocklist); a READ_ONLY_SANDBOX config
-        also drops every tool that escapes the sandbox (side-effect MCP tools, external agent
-        sessions, knowledge-store writes)
+        also drops every tool that escapes the sandbox (MCP tools, external agent sessions,
+        knowledge-store writes)
     L3: child ⊆ parent intersection
     """
     parent_tool_names = {t.name for t in parent_tools}

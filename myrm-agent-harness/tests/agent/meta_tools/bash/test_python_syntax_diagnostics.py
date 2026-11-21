@@ -30,7 +30,6 @@ def _skill_executor(monkeypatch: pytest.MonkeyPatch, code: str) -> SkillExecutor
     monkeypatch.setattr(executor, "_extract_python_code", lambda _command: code)
     monkeypatch.setattr(executor, "get_skill_mcp_config", lambda _name: [MagicMock()])
     monkeypatch.setattr(executor, "_generate_mcp_client_code", lambda *args, **kwargs: CLIENT)
-    monkeypatch.setattr(executor, "_collect_read_only_tools", lambda _name: frozenset())
     return executor
 
 

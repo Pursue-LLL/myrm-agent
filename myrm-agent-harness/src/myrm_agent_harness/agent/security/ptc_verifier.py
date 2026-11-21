@@ -2,7 +2,7 @@
 
 Performs static analysis on Python code embedded within bash commands
 to extract MCP intent and arguments (e.g., path parameters) before execution.
-This enables fine-grained Path Policy enforcement and Fast-Path Auto-Approve for PTC calls.
+This enables fine-grained Path Policy enforcement and shows the approval card the tool a script calls.
 
 [INPUT]
 - toolkits.code_execution.python_extractor::extract_python_from_bash (POS: Unified Python extraction with quote-aware parsing)
@@ -12,8 +12,8 @@ This enables fine-grained Path Policy enforcement and Fast-Path Auto-Approve for
 - extract_ptc_intent: Extract MCP skill/tool intent and arguments from a bash command.
 
 [POS]
-AST-based static analysis for PTC scripts. Extracts MCP intent and enables
-Fast-Path Auto-Approve for read-only tools while preventing RCE bypass.
+AST-based static analysis for PTC scripts. Extracts MCP intent so the path policy and
+the approval card see the tool a script calls, while preventing RCE bypass.
 """
 
 from __future__ import annotations

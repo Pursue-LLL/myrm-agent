@@ -91,12 +91,12 @@ class CallerScope:
     """Agent identity for MCP scope-gate policy lookup; distinct from session_id."""
     workspace_root: str | None = None
     readonly_workspace: bool = False
-    """True when the run holds a read-only capability handle: the server then refuses every MCP tool
-    that does not declare readOnlyHint. Carried here, not read from the capability ContextVar, because
-    the handler runs in the server's task, which cannot observe the calling run's handle."""
+    """True when the run holds a read-only capability handle: the server then refuses every MCP tool.
+    Carried here, not read from the capability ContextVar, because the handler runs in the server's task,
+    which cannot observe the calling run's handle."""
     script_file: bool = False
     """True when the run is a saved script file: the host approved the command, never the file's code, so the
-    server refuses every MCP tool that does not declare readOnlyHint."""
+    server refuses every MCP tool."""
 
 
 @dataclass(frozen=True, slots=True)

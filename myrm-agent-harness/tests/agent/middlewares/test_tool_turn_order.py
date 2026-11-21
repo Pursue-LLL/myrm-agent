@@ -25,7 +25,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 
 from myrm_agent_harness.agent.middlewares._session_context import set_security_config
-from myrm_agent_harness.agent.security.tool_registry import TOOL_SAFETY_METADATA, SafetyMetadata
+from myrm_agent_harness.agent.security.tool_registry import TOOL_PERMISSION_MAP, TOOL_SAFETY_METADATA, SafetyMetadata
 from myrm_agent_harness.agent.security.types import PrivacyPolicy, SecurityConfig
 from tests.support.shipped_graph import shipped_agent, shipped_session
 
@@ -150,6 +150,8 @@ def _session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
         TOOL_SAFETY_METADATA, READ_ONLY_TOOL, SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
     )
     monkeypatch.setitem(TOOL_SAFETY_METADATA, MUTATING_TOOL, SafetyMetadata(is_destructive=True))
+    # The read-only tool is governed as a built-in read, which runs without an approval card, as the built-in reads do.
+    monkeypatch.setitem(TOOL_PERMISSION_MAP, READ_ONLY_TOOL, "file_read")
     with shipped_session(tmp_path):
         yield
 

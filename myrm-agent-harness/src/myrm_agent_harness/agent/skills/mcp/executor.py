@@ -169,7 +169,7 @@ class SkillExecutor:
             mcp_config = self.get_skill_mcp_config(identifier)
             logger.info(f"Detected MCP skill: {identifier}")
 
-        ipc_client_code = self._generate_mcp_client_code(endpoint, self._collect_read_only_tools(identifier))
+        ipc_client_code = self._generate_mcp_client_code(endpoint)
         prepared_code = f"{ipc_client_code}\n\n# === User Code ===\n{user_code}"
 
         return SkillExecutionContext(
@@ -323,14 +323,13 @@ class SkillExecutor:
         return extract_python_from_bash(command)
 
     @staticmethod
-    def _generate_mcp_client_code(endpoint: IPCEndpoint, read_only_tools: frozenset[str]) -> str:
+    def _generate_mcp_client_code(endpoint: IPCEndpoint) -> str:
         """生成 MCP IPC 客户端代码
 
         通过 Unix Socket 与 Agent 主进程通信。
 
         Args:
             endpoint: 这次执行专属的 IPC 服务端
-            read_only_tools: 允许断连重试的 `skill.tool` 集合（仅 readOnlyHint）
 
         Returns:
             MCP 客户端代码字符串
@@ -341,36 +340,8 @@ class SkillExecutor:
             endpoint.socket_path,
             auth_token=endpoint.auth_token,
             trace_nonce=endpoint.trace_nonce,
-            read_only_tools=read_only_tools,
             tcp_port=endpoint.tcp_port,
         )
-
-    @staticmethod
-    def _collect_read_only_tools(skill_name: str) -> frozenset[str]:
-        """Collect `skill.tool` names the MCP server declared read-only.
-
-        Consumed by the generated client so connection-failure retries never
-        replay a mutating call. Unknown tools are excluded (fail-closed).
-        """
-        from myrm_agent_harness.agent.skills.mcp.builtin_registry import BUILTIN_SKILL_NAME
-        from myrm_agent_harness.agent.skills.runtime.registry import skill_registry
-        from myrm_agent_harness.core.security.tool_registry.registry import (
-            get_ptc_safety_metadata,
-        )
-
-        if skill_name == BUILTIN_SKILL_NAME:
-            return frozenset()
-
-        skill_meta = skill_registry.get_mcp_skill_for_ipc(skill_name)
-        if not skill_meta or not skill_meta.mcp:
-            return frozenset()
-
-        read_only: set[str] = set()
-        for tool_name in skill_meta.mcp.tools:
-            entry = get_ptc_safety_metadata(skill_name, tool_name)
-            if entry is not None and entry[0].is_read_only:
-                read_only.add(f"{skill_name}.{tool_name}")
-        return frozenset(read_only)
 
 
 # 全局实例（使用默认 API 前缀）

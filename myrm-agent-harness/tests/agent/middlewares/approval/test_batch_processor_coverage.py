@@ -395,8 +395,8 @@ class TestPTCPathPolicy:
         assert has_deny or has_ptc_pending, "Path outside workspace should be denied or escalated"
 
     @pytest.mark.asyncio
-    async def test_ptc_path_within_workspace_allows(self, monkeypatch):
-        """PTC tool accessing path within workspace passes path policy."""
+    async def test_ptc_path_within_workspace_still_asks(self, monkeypatch):
+        """A PTC call whose path passes the path policy still asks: a read-only-looking record is no permission."""
         from myrm_agent_harness.agent.security.tool_registry import SafetyMetadata
 
         monkeypatch.setattr(
@@ -405,10 +405,7 @@ class TestPTCPathPolicy:
         )
         monkeypatch.setattr(
             "myrm_agent_harness.agent.security.tool_registry.get_ptc_safety_metadata",
-            lambda skill, tool: (
-                SafetyMetadata(is_read_only=True, is_concurrent_safe=True),
-                {"readOnlyHint": True},
-            ),
+            lambda skill, tool: (SafetyMetadata(is_read_only=True, is_concurrent_safe=True), {}),
         )
 
         config = SecurityConfig(ruleset=(PermissionRule("code_interpreter", "*", PermissionAction.ASK),))
@@ -422,7 +419,7 @@ class TestPTCPathPolicy:
             ),
         ]
 
-        approved, _denied, _pending = await evaluate_tool_batch(
+        approved, _denied, pending = await evaluate_tool_batch(
             tool_calls,
             config,
             is_cron=False,
@@ -431,7 +428,8 @@ class TestPTCPathPolicy:
             args_hashes={},
         )
 
-        assert len(approved) == 1, "Read-only PTC within workspace should Fast-Path approve"
+        assert len(approved) == 0
+        assert len(pending) == 1
 
     @pytest.mark.asyncio
     async def test_ptc_path_ask_escalation(self, monkeypatch):

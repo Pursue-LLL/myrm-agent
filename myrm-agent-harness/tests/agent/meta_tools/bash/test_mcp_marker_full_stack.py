@@ -9,7 +9,8 @@ script that made a call was a garbled marker line, ``metadata`` was empty, and a
 printed nothing returned none of its tool results.
 
 A script saved to a file and started as ``python file.py`` is read by the host and runs through the same
-path, limited to read-only MCP tools; any other way of starting it is left to the shell.
+path, but may call no MCP tool (the host approved the command, never the file's code); any other way of starting
+it is left to the shell.
 """
 
 from __future__ import annotations
@@ -86,9 +87,8 @@ async def tool(tmp_path: Path) -> AsyncIterator[BaseTool]:
     _SCOPES.clear()
     _MCP_CALLS.clear()
     skill_registry.clear()
-    register_ptc_safety_metadata(
-        "mcp_demo_skill", "list_pods", SafetyMetadata(is_read_only=True), {"readOnlyHint": True}
-    )
+    # A record no server claim can produce: ``list_pods`` looks read-only to every gate that reads the registry.
+    register_ptc_safety_metadata("mcp_demo_skill", "list_pods", SafetyMetadata(is_read_only=True), {})
     skill_registry.register(
         SkillMetadata(
             name="mcp_demo_skill",
@@ -241,8 +241,10 @@ from skills.mcp_demo_skill import list_pods
 
 
 async def main():
-    r = await list_pods()
-    print('pods:', len(r['pods']), __name__)
+    try:
+        await list_pods()
+    except Exception as exc:
+        print('refused:', type(exc).__name__, __name__)
 
 
 if __name__ == '__main__':
@@ -270,17 +272,16 @@ async def test_a_saved_script_that_imports_a_skill_runs_with_the_skill_runtime(
 
     out = await _run_command(tool, tmp_path, command)
 
-    assert "pods: 40 __main__" in str(out["content"])
+    assert "refused: MCPError __main__" in str(out["content"]), (
+        "the import resolves and the host's gate answers the call"
+    )
     assert "__MCP_DATA__" not in str(out["content"])
     assert _ENDPOINTS[-1].trace_nonce not in str(out), "the marker nonce must never reach the model"
-    source = _sources(out)[0]
-    assert source["skill_name"] == "mcp_demo_skill"
-    assert [call["tool_name"] for call in _calls(source)] == ["list_pods"]
-    assert _MCP_CALLS == ["list_pods"]
+    assert _MCP_CALLS == [], "the gate stops the call before it reaches the MCP server"
 
 
 @pytest.mark.asyncio
-async def test_a_saved_script_runs_under_a_scope_that_limits_it_to_read_only_tools(
+async def test_a_saved_script_runs_under_a_scope_that_marks_it_as_a_saved_script(
     tool: BaseTool, tmp_path: Path
 ) -> None:
     _save(tmp_path, _SAVED_SCRIPT)
@@ -295,34 +296,31 @@ async def test_a_saved_script_runs_under_a_scope_that_limits_it_to_read_only_too
 
 
 @pytest.mark.asyncio
-async def test_a_saved_script_cannot_call_a_mutating_tool_but_inline_python_can(tool: BaseTool, tmp_path: Path) -> None:
-    _save(
-        tmp_path,
-        "import asyncio\nfrom skills.mcp_demo_skill import delete_pod\nasyncio.run(delete_pod(name='api-001'))\n",
-        "wipe.py",
-    )
+@pytest.mark.parametrize("tool_name", ["delete_pod", "list_pods"])
+async def test_a_saved_script_cannot_call_any_mcp_tool_but_inline_python_can(
+    tool: BaseTool, tmp_path: Path, tool_name: str
+) -> None:
+    """``list_pods`` is held under a read-only record here: it is refused all the same, like a writing tool."""
+    call = f"import asyncio\nfrom skills.mcp_demo_skill import {tool_name}\nasyncio.run({tool_name}())"
+    _save(tmp_path, f"{call}\n", "call.py")
 
     with pytest.raises(ToolError) as excinfo:
-        await _run_command(tool, tmp_path, "python3 wipe.py")
+        await _run_command(tool, tmp_path, "python3 call.py")
 
     message = str(excinfo.value)
     assert "saved script" in message
     assert "inline Python" in message
-    assert _MCP_CALLS == [], "the mutating tool must never reach the MCP server from a saved script"
+    assert _MCP_CALLS == [], "no MCP tool may reach the MCP server from a saved script"
 
-    inline = "import asyncio\nfrom skills.mcp_demo_skill import delete_pod\nasyncio.run(delete_pod(name='api-001'))"
-    await _run_command(tool, tmp_path, f"python3 << 'PYEOF'\n{inline}\nPYEOF\n")
-    assert _MCP_CALLS == ["delete_pod"]
+    await _run_command(tool, tmp_path, f"python3 << 'PYEOF'\n{call}\nPYEOF\n")
+    assert list(_MCP_CALLS) == [tool_name]
 
 
 @pytest.mark.asyncio
-async def test_a_failing_saved_script_names_its_file_and_the_calls_that_already_ran(
-    tool: BaseTool, tmp_path: Path
-) -> None:
+async def test_a_failing_saved_script_names_its_file(tool: BaseTool, tmp_path: Path) -> None:
     _save(
         tmp_path,
-        "import asyncio\nfrom skills.mcp_demo_skill import list_pods\n"
-        "asyncio.run(list_pods())\nraise RuntimeError('boom after one call')\n",
+        "from skills.mcp_demo_skill import list_pods\nraise RuntimeError('boom before any call')\n",
         "fails.py",
     )
 
@@ -330,9 +328,9 @@ async def test_a_failing_saved_script_names_its_file_and_the_calls_that_already_
         await _run_command(tool, tmp_path, "python3 fails.py")
 
     message = str(excinfo.value)
-    assert "RuntimeError: boom after one call" in message
-    assert "mcp_demo_skill.list_pods x1" in message
+    assert "RuntimeError: boom before any call" in message
     assert "fails.py" in message
+    assert "repeats their effects" not in message, "no call ran, so there is nothing to warn about"
     assert "__MCP_DATA__" not in message
 
 

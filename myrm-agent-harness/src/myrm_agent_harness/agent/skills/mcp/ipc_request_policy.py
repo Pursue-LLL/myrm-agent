@@ -8,8 +8,8 @@ hold no server state, so they live apart from the connection handling in ``ipc_p
 - ipc_proxy.MCPIPCRequest, CallerScope (type only): The request under inspection and the run it belongs to.
 
 [OUTPUT]
-- read_only_policy_error: Read-only sandbox scope for MCP calls made from scripts.
-- script_file_policy_error: Read-only limit for scripts started from a saved file, whose code the host never reviewed.
+- read_only_policy_error: Read-only sandbox scope for MCP calls made from scripts: only built-in tools may run.
+- script_file_policy_error: Limit for scripts started from a saved file, whose code the host never reviewed: only built-in tools may run.
 - path_policy_error: Workspace path policy for tool parameters naming a path.
 - scope_gate_error: Employee/agent-scoped MCP discovery gate.
 - REQUEST_GATES: The gates in the order the server applies them, each with the name its refusal is logged under.
@@ -27,54 +27,47 @@ if TYPE_CHECKING:
     from myrm_agent_harness.agent.skills.mcp.ipc_proxy import CallerScope, MCPIPCRequest
 
 
-def _declares_read_only(request: MCPIPCRequest) -> bool:
-    """True for builtins (they do not touch external state) and for MCP tools declaring readOnlyHint.
+def _is_builtin(request: MCPIPCRequest) -> bool:
+    """True for the host's own script tools; they do not touch external state.
 
-    A tool the host holds no safety metadata for counts as mutating (fail-closed).
+    No MCP tool is exempt: what a server says about its own tool is not something the host can check.
     """
     from myrm_agent_harness.agent.skills.mcp.builtin_registry import BUILTIN_SKILL_NAME
-    from myrm_agent_harness.core.security.tool_registry.registry import (
-        get_ptc_safety_metadata,
-    )
 
-    if request.skill_name == BUILTIN_SKILL_NAME:
-        return True
-    entry = get_ptc_safety_metadata(request.skill_name, request.tool_name)
-    return entry is not None and entry[0].is_read_only
+    return request.skill_name == BUILTIN_SKILL_NAME
 
 
 def read_only_policy_error(request: MCPIPCRequest, scope: CallerScope) -> str | None:
     """Enforce the caller's read-only scope on MCP calls made from scripts.
 
-    The direct Function-Calling path drops or blocks non-read-only MCP tools
-    inside a read-only sandbox. Scripts bypassed that filtering entirely, so a
-    read-only verifier could still mutate external state through PTC. This is
-    the enforcement point for that path.
+    The direct Function-Calling path drops every MCP tool inside a read-only sandbox. Scripts bypassed that
+    filtering entirely, so a read-only verifier could still mutate external state through PTC. This is the
+    enforcement point for that path.
 
     Returns an error message when blocked, else ``None``.
     """
-    if not scope.readonly_workspace or _declares_read_only(request):
+    if not scope.readonly_workspace or _is_builtin(request):
         return None
     return (
         f"MCP tool '{request.skill_name}.{request.tool_name}' is blocked: the calling run "
-        "is in a read-only sandbox. Only tools declaring readOnlyHint may run here."
+        "is in a read-only sandbox, where scripts cannot call MCP tools."
     )
 
 
 def script_file_policy_error(request: MCPIPCRequest, scope: CallerScope) -> str | None:
-    """Limit a saved script to read-only MCP tools.
+    """Keep MCP tools out of reach of a saved script.
 
-    Inline Python is approved call by call from its own code, so a mutating MCP tool is reviewed before it runs. A
-    saved script reaches the server as a plain ``python file.py`` command: the approval covers the command, not the
-    file's code, so letting it mutate would hand the model a way around that review.
+    Inline Python is approved call by call from its own code, so an MCP tool is reviewed before it runs. A saved
+    script reaches the server as a plain ``python file.py`` command: the approval covers the command, not the
+    file's code, so letting it call a tool would hand the model a way around that review.
 
     Returns an error message when blocked, else ``None``.
     """
-    if not scope.script_file or _declares_read_only(request):
+    if not scope.script_file or _is_builtin(request):
         return None
     return (
         f"MCP tool '{request.skill_name}.{request.tool_name}' is blocked: this code runs from a saved script, "
-        "and a saved script may only call tools declaring readOnlyHint. "
+        "and a saved script cannot call MCP tools. "
         "Call it from inline Python in bash_code_execute_tool instead."
     )
 

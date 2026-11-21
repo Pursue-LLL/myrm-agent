@@ -7,7 +7,7 @@
 ## 阶段顺序
 
 1. `preflight.py`：操作符当按键名、不可信入口围栏、只读研究租约，三道门在读任何策略之前拒绝。
-2. `policy.py`：权限引擎给首个判定；PTC 代理调用再叠加其参数的路径策略；只读 MCP 工具快速放行。
+2. `policy.py`：权限引擎给首个判定；PTC 代理调用再叠加其参数的路径策略，并带上服务端声明的谨慎提示给审批卡；不放宽判定（MCP 服务端自报的只读不能把 ASK 变成 ALLOW）。
 3. `allowlist.py`：ASK 命中 allowlist 条目、或命中可信工作区声明的命令前缀（仅限调用启动的那条单条命令）才放行；批量双保险、资金、不可逆社交、受保护指令文件（`is_protected_instruction_write` 读码判定）、其余只能由人答复的写入（`is_human_only` 读码判定，如 Git 钩子与配置）五道门对两类命中一视同仁、不可越过；组织策略忽略 allowlist 时两类命中一并忽略。
 4. `allow_gates.py`：任何来源的 ALLOW，遇不可逆社交、资金、不可逆破坏性 shell，或 auto-mode 拒绝阈值被突破，退回 ASK。
 5. ALLOW 的落定：`taint.py`（会话污点与工具 sink 冲突则转人工或交安全复核）；无污点时 `allow_review.py`（auto-mode 的外部代理出站复核与 shell 升级复核，通过后放行）。
@@ -22,7 +22,7 @@
 | `loop.py` | 核心 | `evaluate_calls`：组装批上下文，逐调用按阶段顺序判定 | ✅ |
 | `state.py` | 核心 | `BatchContext`（一批内不变的判定依据）、`CallState`（单个调用的判定与审批卡上下文）、`Verdicts`（三个结果列表与落定方式） | ✅ |
 | `preflight.py` | 核心 | 读策略之前的三道拒绝门 | ✅ |
-| `policy.py` | 核心 | 引擎首个判定、PTC 路径策略、只读 MCP 快速放行 | ✅ |
+| `policy.py` | 核心 | 引擎首个判定、PTC 路径策略与审批卡的谨慎提示；不放宽判定 | ✅ |
 | `allowlist.py` | 核心 | allowlist 条目与可信工作区声明前缀的命中、不可越过的五道门、组织策略忽略 allowlist | ✅ |
 | `allow_gates.py` | 核心 | ALLOW 的统一复核：社交不可逆、资金、破坏性 shell、auto-mode 暂停 | ✅ |
 | `taint.py` | 核心 | 污点 sink 冲突检测；冲突的 ALLOW 退回 ASK，auto-mode 下可由安全复核落定 | ✅ |

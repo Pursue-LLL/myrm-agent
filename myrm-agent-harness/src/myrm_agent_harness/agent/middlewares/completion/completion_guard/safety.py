@@ -12,7 +12,7 @@ may be repeated. Classification order:
    never go unverified.
 
 [INPUT]
-- core.security.tool_registry::resolve_safety_metadata (POS: tool safety metadata incl. MCP readOnlyHint)
+- core.security.tool_registry::resolve_safety_metadata (POS: tool safety metadata; an MCP tool always resolves as effectful, because a server's own hints are never taken as read-only)
 
 [OUTPUT]
 - FINISH_TOOL_NAMES: the tool a model calls to hand in its answer

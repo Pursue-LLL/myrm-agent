@@ -109,7 +109,7 @@ Layer 3: child ⊆ parent 交集约束
          → 子 agent 工具集 ⊆ 父 agent 工具集
 
 Layer 4: Fine-grained Sandboxing (readonly)
-         → 支持通过 readonly 参数在运行时过滤文件写/命令执行等具有副作用的工具，实现细粒度安全沙箱。原生写/编辑/命令工具由 `disallowed_tools` 剔除；所有 `READ_ONLY_SANDBOX` 配置（readonly 子 Agent 与 Verifier）在 `builder.filter_tools` 中还会剔除逃出沙箱的工具：未声明 `readOnlyHint` 的 MCP 工具（与审批快速通道同一判据 `resolve_safety_metadata`，未标注按有副作用处理；判据是 MCP server 自报的注解，框架不核实其真伪）、权限类型为 `invoke_external_agent` 的外部 Agent 会话（`invoke_acp_agent_tool`）、权限类型为 `knowledge_write` 的知识库写入（`wiki_ingest_tool` / `wiki_apply_tool`），与 `readonly` 安全档案拒绝的权限一致。
+         → 支持通过 readonly 参数在运行时过滤文件写/命令执行等具有副作用的工具，实现细粒度安全沙箱。原生写/编辑/命令工具由 `disallowed_tools` 剔除；所有 `READ_ONLY_SANDBOX` 配置（readonly 子 Agent 与 Verifier）在 `builder.filter_tools` 中还会剔除逃出沙箱的工具：所有 MCP 工具（MCP server 自报的 `readOnlyHint` 等注解是它自己的声明，框架无法核实，所以不据此放行）、权限类型为 `invoke_external_agent` 的外部 Agent 会话（`invoke_acp_agent_tool`）、权限类型为 `knowledge_write` 的知识库写入（`wiki_ingest_tool` / `wiki_apply_tool`），与 `readonly` 安全档案拒绝的权限一致。
          → 当父 Security Profile 全局 `file_write=DENY`，或父 agent 自身运行在不含 WRITE 的 OCap 句柄下时，`spawn_prep.coerce_spawn_readonly()` 自动抬升 readonly（delegate + DW 共用 SSOT）。`delegate_task_tool` 的重复委派指纹含 `effective_readonly`，只改 readonly 的委派不会被误判为重复。
 
 Layer 5: OCap spawn handle（delegate_task 单/批量模式）

@@ -139,26 +139,23 @@ def test_request_cannot_rekey_its_session_ceiling() -> None:
 
 
 def _register_mcp_tool(*, read_only: bool) -> None:
+    """Hold a record for the tool; ``read_only=True`` is one no server claim can produce, and no gate may trust it."""
     from myrm_agent_harness.core.security.tool_registry.registry import (
         register_ptc_safety_metadata,
     )
     from myrm_agent_harness.core.security.tool_registry.safety_table import SafetyMetadata
 
-    register_ptc_safety_metadata(
-        "mcp_demo_skill",
-        "create-record",
-        SafetyMetadata(is_read_only=read_only),
-        {"readOnlyHint": read_only},
-    )
+    register_ptc_safety_metadata("mcp_demo_skill", "create-record", SafetyMetadata(is_read_only=read_only), {})
 
 
 def _create_record(**extra: object) -> dict[str, object]:
     return {"skill_name": "mcp_demo_skill", "tool_name": "create-record", "params": {}, **extra}
 
 
-def test_read_only_scope_blocks_mutating_mcp_tool() -> None:
-    """A read-only verifier must not mutate external state through a script."""
-    _register_mcp_tool(read_only=False)
+@pytest.mark.parametrize("read_only", [False, True], ids=["mutating-record", "read-only-record"])
+def test_read_only_scope_blocks_every_mcp_tool(read_only: bool) -> None:
+    """A read-only verifier must not reach external state through a script, whatever the registry holds."""
+    _register_mcp_tool(read_only=read_only)
     server = _server(CallerScope(session_id="s1", readonly_workspace=True))
 
     (body,) = _exchange(server, [_create_record()])
@@ -178,21 +175,18 @@ def test_request_cannot_lift_the_read_only_scope() -> None:
     assert "read-only" in str(body["error"]).lower()
 
 
-def test_read_only_scope_allows_read_only_mcp_tool() -> None:
-    """readOnlyHint tools remain usable inside a read-only sandbox."""
-    _register_mcp_tool(read_only=True)
+def test_read_only_scope_allows_builtin_tools() -> None:
     server = _server(CallerScope(session_id="s1", readonly_workspace=True))
 
-    (body,) = _exchange(server, [_create_record()])
+    (body,) = _exchange(server, [_notify()])
 
-    # The tool has no real MCP config registered, so dispatch fails on lookup;
-    # what matters is that the policy gate let the call through.
-    assert "read-only" not in str(body.get("error") or "").lower()
+    assert body["success"] is True
 
 
-def test_saved_script_scope_blocks_mutating_mcp_tool() -> None:
-    """Only the command of a saved script was approved, so its code may not change external state."""
-    _register_mcp_tool(read_only=False)
+@pytest.mark.parametrize("read_only", [False, True], ids=["mutating-record", "read-only-record"])
+def test_saved_script_scope_blocks_every_mcp_tool(read_only: bool) -> None:
+    """Only the command of a saved script was approved, so its code may call no tool, whatever the registry holds."""
+    _register_mcp_tool(read_only=read_only)
     server = _server(CallerScope(session_id="s1", script_file=True))
 
     (body,) = _exchange(server, [_create_record()])
@@ -204,7 +198,7 @@ def test_saved_script_scope_blocks_mutating_mcp_tool() -> None:
 
 
 def test_saved_script_scope_blocks_a_tool_without_safety_metadata() -> None:
-    """A tool the host holds no readOnlyHint for is treated as mutating."""
+    """A tool the host holds no record for is refused like any other MCP tool."""
     server = _server(CallerScope(session_id="s1", script_file=True))
 
     (body,) = _exchange(server, [{**_create_record(), "tool_name": "never-registered"}])
@@ -224,16 +218,6 @@ def test_request_cannot_lift_the_saved_script_scope() -> None:
     assert "saved script" in str(body["error"]).lower()
 
 
-def test_saved_script_scope_allows_read_only_mcp_tool() -> None:
-    _register_mcp_tool(read_only=True)
-    server = _server(CallerScope(session_id="s1", script_file=True))
-
-    (body,) = _exchange(server, [_create_record()])
-
-    # No real MCP config is registered, so dispatch fails on lookup; the policy gate let the call through.
-    assert "saved script" not in str(body.get("error") or "").lower()
-
-
 def test_saved_script_scope_allows_builtin_tools() -> None:
     server = _server(CallerScope(session_id="s1", script_file=True))
 
@@ -242,7 +226,7 @@ def test_saved_script_scope_allows_builtin_tools() -> None:
     assert body["success"] is True
 
 
-def test_inline_scope_is_not_restricted_to_read_only_tools() -> None:
+def test_inline_scope_is_not_restricted_to_builtin_tools() -> None:
     """Inline Python is reviewed per call by the approval layer, so the IPC server does not second-guess it."""
     _register_mcp_tool(read_only=False)
     server = _server(CallerScope(session_id="s1"))

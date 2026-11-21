@@ -40,7 +40,6 @@ class SafetyMetadata:
     is_read_only: bool = False
     is_concurrent_safe: bool = False
     is_destructive: bool = False
-    is_open_world: bool = False
     is_idempotent: bool = False
     taint_label: str | None = None
     taint_extractor: Callable[[dict[str, object]], str | None] | str | None = None

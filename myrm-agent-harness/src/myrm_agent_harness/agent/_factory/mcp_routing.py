@@ -190,7 +190,11 @@ class MCPRoutingResult:
 
 
 def _wrap_direct_tool_with_cache(tool: BaseTool, cfg: MCPConfig) -> BaseTool:
-    """Give Direct FC tools the same result cache as PTC without changing routing."""
+    """Give Direct FC tools the same result cache as PTC without changing routing.
+
+    Only an explicitly cacheable tool is served from the cache, and every other call clears it: a write must
+    never leave a stale read behind, and a server's own statement that a tool only reads cannot be checked.
+    """
     if not isinstance(tool, BaseTool):
         return tool
     metadata = getattr(tool, "metadata", {}) or {}
@@ -200,7 +204,6 @@ def _wrap_direct_tool_with_cache(tool: BaseTool, cfg: MCPConfig) -> BaseTool:
         getattr(cfg, "cache_ttl_seconds", None),
         getattr(cfg, "cacheable_tools", None),
     )
-    read_only = bool(metadata.get("readOnlyHint", False))
 
     async def cached_call(**params: object) -> object:
         session_id = chat_id_var.get().strip()
@@ -219,7 +222,7 @@ def _wrap_direct_tool_with_cache(tool: BaseTool, cfg: MCPConfig) -> BaseTool:
         result = await tool.ainvoke(params)
         if cache_key is not None and cache_ttl is not None:
             get_cache_buckets().get(cache_ttl).set(cache_key, result)
-        elif not read_only and not is_explicitly_cacheable_config(policy, tool.name):
+        elif not is_explicitly_cacheable_config(policy, tool.name):
             get_cache_buckets().clear()
         return result
 

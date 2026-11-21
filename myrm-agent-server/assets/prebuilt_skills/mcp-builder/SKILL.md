@@ -25,8 +25,8 @@ contract:
     - description: "Building many tools at once without incremental testing"
       mitigation: "Start with 1-2 core tools, verify they work, then add more"
       severity: medium
-    - description: "Missing tool annotations — all tools default to requiring approval"
-      mitigation: "Always set readOnlyHint:true on read operations so they auto-approve"
+    - description: "Expecting readOnlyHint to remove approval prompts — annotations are the server's own unverified claims"
+      mitigation: "Annotate each tool honestly and never rely on an annotation to skip approval: Myrm decides approvals from the user's own settings"
       severity: high
     - description: "Ignoring error handling — agent receives raw exceptions"
       mitigation: "Catch all exceptions and return actionable error messages"
@@ -37,14 +37,14 @@ contract:
       validation_method: "Run verification script that connects and lists tools"
       is_required: true
     - step_id: annotations_set
-      description: "All tools have correct readOnlyHint/destructiveHint annotations"
-      validation_method: "Inspect tool metadata, verify read-only operations are marked"
+      description: "All tools have accurate readOnlyHint/destructiveHint annotations"
+      validation_method: "Inspect tool metadata, verify read operations are marked read-only and deletes or overwrites are marked destructive"
       is_required: true
     - step_id: myrm_registered
       description: "Server is registered and accessible in conversation"
       validation_method: "Call a tool through the agent and verify response"
       is_required: true
-  success_criteria: "MCP server is registered, tools work in conversation, read-only tools auto-approve"
+  success_criteria: "MCP server is registered, tools work in conversation, annotations match what each tool does"
   estimated_duration_seconds: 2400
 ---
 
@@ -55,7 +55,7 @@ contract:
 
 When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
 
-Build MCP servers that connect external services to the agent. Quality is measured by: tools work reliably, annotations enable smooth approval flow, errors are actionable.
+Build MCP servers that connect external services to the agent. Quality is measured by: tools work reliably, annotations describe each tool honestly, errors are actionable.
 
 ---
 
@@ -328,16 +328,18 @@ The framework automatically scans MCP servers on connection. Ensure:
 | **Response size** | Tools don't return unbounded data | Paginate, limit response size |
 | **Tool count** | Max 1000 tools per server | Keep focused — prefer fewer quality tools |
 
-### 3.3 Annotations (Critical for UX)
+### 3.3 Annotations (Describe Each Tool Honestly)
 
-| Annotation | Effect | When to Set |
+Myrm treats annotations as the server's own unverified claims. They label tools and can only make Myrm more careful; they never skip an approval.
+
+| Annotation | What Myrm does with it | When to Set |
 |-----------|--------|-------------|
-| `readOnlyHint: true` | Tool auto-approves (no user confirmation) | GET/list/search operations |
-| `destructiveHint: true` | Extra warning shown to user | DELETE/overwrite operations |
-| `idempotentHint: true` | Safe to retry on failure | PUT/upsert operations |
-| `openWorldHint: true` | Tool accesses external network | Any API call |
+| `readOnlyHint: true` | Shown as "Declared read-only" in the tool list; may let the host run the tool in parallel with others. Never skips an approval | GET/list/search operations |
+| `destructiveHint: true` | Shown as "Declared destructive" in the tool list and as a caution when a script calls the tool; the tool is never run in parallel | DELETE/overwrite operations |
+| `idempotentHint: true` | Recorded only: the host never retries or replays a call because of it | PUT/upsert operations |
+| `openWorldHint: true` | Shown as a caution when a script calls the tool | Any call that reaches an external system |
 
-**If you omit annotations, ALL tools require manual approval.** Always annotate.
+**Every MCP tool call goes through the user's approval settings, annotated or not.** Annotate for accuracy: a wrong annotation (for example `readOnlyHint` on a tool that writes) only misleads the person reading the label, so set `destructiveHint` on anything that deletes or overwrites.
 
 ---
 
@@ -391,8 +393,8 @@ After registration, verify the server works:
 
 1. Start a new conversation
 2. The agent discovers the MCP server tools automatically
-3. Ask the agent to use a read-only tool first (should auto-approve)
-4. Then test a write operation (should show approval dialog)
+3. Ask the agent to use a read-only tool first and check that it returns real data
+4. Then test a write operation and check that the approval card names the tool and what it will change
 
 ---
 
@@ -400,7 +402,7 @@ After registration, verify the server works:
 
 | Anti-Pattern | Problem | Fix |
 |-------------|---------|-----|
-| No annotations | Everything requires approval clicks | Set `readOnlyHint: true` on reads |
+| Wrong annotations | `readOnlyHint` on a tool that writes mislabels it for the person who reads the label | Annotate honestly; set `destructiveHint` on deletes and overwrites |
 | Hardcoded secrets | Security risk, not portable | Use environment variables |
 | Unbounded responses | Token explosion, slow agent | Paginate, limit to 50 items |
 | Vague tool names | Agent picks wrong tool | Use `verb_noun` naming: `list_issues`, `create_project` |

@@ -1,14 +1,16 @@
 """Architecture gate: what an MCP server declares about a tool reaches the host through ``judge`` and nowhere else.
 
-A server's hints are its own unverified statements. Three source-level facts keep them from loosening anything:
+A server's hints are its own unverified statements. Four source-level facts keep them from loosening anything:
 
+- the hints are named, and so read, in ``judge``'s module only: no other module looks a hint up by its name;
 - the parallel-safety bit has two readers, the conflict gate and the turn ledger;
 - only the built-in safety table and ``judge`` may raise a field of a safety record, and ``judge`` raises
   nothing but the parallel-safety bit (``tests/toolkits/mcp/test_annotations.py`` pins its output);
 - the field a converted tool carries its declarations in is written by the converter and read back by
   ``recorded_annotations`` only, so no consumer interprets the hints on its own.
 
-A new reader, writer or reader of the field fails here and has to be argued for in the same change.
+A new reader of a hint, reader of the parallel-safety bit, raiser of a safety record or user of the field fails here
+and has to be argued for in the same change.
 """
 
 from __future__ import annotations
@@ -31,6 +33,9 @@ _PARALLEL_READERS = {
 _RECORD_WRITERS = {"core/security/tool_registry/safety_table.py", "toolkits/mcp/annotations.py"}
 _BUILT_IN_TABLE = {"core/security/tool_registry/safety_table.py"}
 _DECLARATION_FIELD_USERS = {"toolkits/mcp/annotations.py", "toolkits/mcp/tool_converter.py"}
+_HINT_READERS = {"toolkits/mcp/annotations.py"}
+_HINT_WIRE_NAMES = {"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
+_HINT_ATTRIBUTES = {"read_only_hint", "destructive_hint", "idempotent_hint", "open_world_hint"}
 
 
 @functools.cache
@@ -94,3 +99,18 @@ def test_the_declaration_field_is_written_and_read_in_one_place_each() -> None:
     }
 
     assert users == _DECLARATION_FIELD_USERS
+
+
+def test_a_hint_is_looked_up_by_name_in_one_module_only() -> None:
+    spellings = _HINT_WIRE_NAMES | _HINT_ATTRIBUTES
+    readers = {
+        relative
+        for relative, tree in _modules(*spellings)
+        if any(
+            (isinstance(node, ast.Constant) and node.value in spellings)
+            or (isinstance(node, ast.Attribute) and node.attr in _HINT_ATTRIBUTES)
+            for node in ast.walk(tree)
+        )
+    }
+
+    assert readers == _HINT_READERS

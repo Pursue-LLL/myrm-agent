@@ -33,7 +33,7 @@ PTC（程序化工具调用）
 - `bash_code_execute` Turn1 **不** inject `myrm_tools` stub（CI：`test_bash_native_ptc_removed.py`）。
 - `ptc/` RpcServer **仅**服务 DW PTC（`inject_ptc_for_python_execution`）。
 - MCP PTC 与 DW PTC 同族，实现路径分离。
-- MCP PTC 的 `skills.*` 命名空间只在宿主自己读到代码的执行里存在：内联 Python，以及裸 `[cd <工作区根> &&] python[3] <file>.py` 形态、且导入宿主能服务的 MCP 技能的保存脚本（`saved_script.py`；脚本以 `__main__` 在同一进程内执行，服务端范围 `script_file` 只放行只读 MCP 工具，写类工具须在内联 Python 里调用以走命令级审批）。带参数、管道、环境变量前缀等其他启动形态交给 shell，没有该命名空间。
+- MCP PTC 的 `skills.*` 命名空间只在宿主自己读到代码的执行里存在：内联 Python，以及裸 `[cd <工作区根> &&] python[3] <file>.py` 形态、且导入宿主能服务的 MCP 技能的保存脚本（`saved_script.py`；脚本以 `__main__` 在同一进程内执行，服务端范围 `script_file` 拒绝一切 MCP 工具，须在内联 Python 里调用以走命令级审批）。带参数、管道、环境变量前缀等其他启动形态交给 shell，没有该命名空间。
 
 **产品对外**：仅暴露 **动态工作流（DW PTC）**；MCP PTC 为引擎内部能力。
 

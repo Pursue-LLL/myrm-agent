@@ -10,8 +10,8 @@ Agent-in-Sandbox 模式下，代码通过 subprocess 执行，需要 IPC 回调�
 特性：
 - 异步调用，支持 asyncio.gather() 并发
 - 统一错误处理
-- 自动重试（连接错误时）
-- 总超时控制
+- 请求只发一次、失败即抛出，从不重放：连接可能在请求到达服务端之后才断开，重放会让写操作重复生效，
+  而工具自称"只读"无法核实
 - 请求只带调用内容与 token：会话、工作区、只读状态属于服务端（``CallerScope``），
   脚本无法自称。
 
@@ -29,50 +29,20 @@ PTC 子进程注入的 IPC 客户端代码生成器。负责构造 ``tools.*`` /
 
 import json
 
-MAX_RETRIES = 1
-RETRY_DELAY = 0.5
-TOTAL_TIMEOUT = 90
 TRACE_PREVIEW_CHARS = 2000
 
 
 def _generate_base_code() -> str:
-    """生成基础代码（错误类 + 配置 + 重试逻辑）"""
+    """生成基础代码（错误类 + 配置）"""
     return f'''
 # === MCP Client Base ===
 class MCPError(Exception):
     """MCP 调用错误"""
-    def __init__(self, msg: str, skill: str = "", tool: str = "", retryable: bool = False):
-        self.msg, self.skill, self.tool, self.retryable = msg, skill, tool, retryable
+    def __init__(self, msg: str, skill: str = "", tool: str = ""):
+        self.msg, self.skill, self.tool = msg, skill, tool
         super().__init__(f"[{{skill}}.{{tool}}] {{msg}}" if skill else msg)
 
-# 重试配置
-MAX_RETRIES = {MAX_RETRIES}
-RETRY_DELAY = {RETRY_DELAY}
-TOTAL_TIMEOUT = {TOTAL_TIMEOUT}
 _TRACE_PREVIEW_CHARS = {TRACE_PREVIEW_CHARS}
-
-async def _retry_call(call_fn, skill: str, tool: str):
-    """通用重试逻辑"""
-    import time
-    start, retries, last_err = time.time(), 0, None
-
-    while retries <= MAX_RETRIES:
-        if time.time() - start > TOTAL_TIMEOUT:
-            raise MCPError(f"Timeout ({{TOTAL_TIMEOUT}}s)", skill, tool)
-        try:
-            return await call_fn()
-        except MCPError as e:
-            if not e.retryable:
-                raise
-            last_err = e
-            retries += 1
-            if retries <= MAX_RETRIES:
-                await asyncio.sleep(RETRY_DELAY * retries)
-        except Exception as e:
-            raise MCPError(f"{{type(e).__name__}}: {{e}}", skill, tool)
-
-    err_detail = f" (last error: {{last_err.msg}})" if last_err else ""
-    raise MCPError(f"Failed after {{MAX_RETRIES}} retries{{err_detail}}", skill, tool)
 '''
 
 
@@ -265,7 +235,6 @@ def generate_ipc_client_code(
     socket_path: str,
     auth_token: str,
     trace_nonce: str,
-    read_only_tools: frozenset[str] | None = None,
     tcp_port: int = 0,
 ) -> str:
     """生成 Unix Socket IPC 客户端代码。
@@ -275,8 +244,6 @@ def generate_ipc_client_code(
         auth_token: 服务端下发的 bearer token；服务端拒绝没有它的请求。
         trace_nonce: 服务端下发的标记 nonce。宿主只接受带该 nonce 的调用标记，
             因此工具返回的文本无法伪造引用或截断真实标记。
-        read_only_tools: 声明 ``readOnlyHint`` 的 ``skill.tool`` 全名集合。只有这些
-            调用允许在网络中断后重试；写操作重放会造成重复副作用。
         tcp_port: 服务端以 loopback TCP 监听时的端口（Windows 走这条路径）。为 0
             时客户端连接 Unix socket。
     """
@@ -284,7 +251,6 @@ def generate_ipc_client_code(
     module_system = _generate_module_system()
     tools_module_system = _generate_tools_module_system()
 
-    read_only_literal = json.dumps(sorted(read_only_tools or ()))
     tcp_port_literal = str(tcp_port) if tcp_port else "0"
 
     return f'''
@@ -293,7 +259,6 @@ import sys, types, json, asyncio, uuid, base64
 # IPC 配置
 _SOCKET_PATH = {json.dumps(socket_path)}
 _TRACE_ID = uuid.uuid4().hex
-_READ_ONLY_TOOLS = frozenset({read_only_literal})
 _AUTH_TOKEN = {json.dumps(auth_token)}
 _TRACE_NONCE = {json.dumps(trace_nonce)}
 _TCP_PORT = {tcp_port_literal}
@@ -330,28 +295,24 @@ async def _ipc_request(skill: str, tool: str, params: dict):
         response = json.loads(resp_data.decode())
 
         if not response.get("success"):
-            _err = MCPError(response.get("error", "Unknown error"), skill, tool)
-            # 宿主已明确判定失败：重试无法改变结果，且写操作可能已产生副作用。
-            _err.retryable = False
-            raise _err
+            raise MCPError(response.get("error", "Unknown error"), skill, tool)
         return response.get("result")
     finally:
         writer.close()
         await writer.wait_closed()
 
 async def _call(skill: str, tool: str, params: dict):
-    """IPC 调用入口（带重试）"""
-    # 断连类错误可能发生在请求发出之后。只有只读工具能安全重放；
-    # 写操作重试会造成重复副作用（重复建单、重复发消息）。
-    retry_safe = f"{{skill}}.{{tool}}" in _READ_ONLY_TOOLS
-
-    async def do_call():
-        try:
-            return await _ipc_request(skill, tool, params)
-        except (ConnectionError, BrokenPipeError, FileNotFoundError, asyncio.IncompleteReadError) as e:
-            raise MCPError(f"Connection: {{e}}", skill, tool, retryable=retry_safe)
-
-    result = await _retry_call(do_call, skill, tool)
+    """IPC 调用入口：请求只发一次，失败即抛出"""
+    # 断连类错误可能发生在请求发出之后，重放会让写操作重复生效（重复建单、重复发消息）；
+    # 工具自称"只读"无法核实，所以任何调用都不重放。
+    try:
+        result = await _ipc_request(skill, tool, params)
+    except MCPError:
+        raise
+    except (ConnectionError, BrokenPipeError, FileNotFoundError, asyncio.IncompleteReadError) as e:
+        raise MCPError(f"Connection: {{e}}", skill, tool)
+    except Exception as e:
+        raise MCPError(f"{{type(e).__name__}}: {{e}}", skill, tool)
     # Citation trace for the host. Two properties matter:
     # 1. The payload is base64 so no tool result can contain the marker delimiters and
     #    silently truncate or swallow the real marker.
