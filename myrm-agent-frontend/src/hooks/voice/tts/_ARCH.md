@@ -7,7 +7,7 @@ TTS 输出门面 [`../useTTS.ts`](../useTTS.ts) 的内部模块：浏览器 Spee
 | 文件               | 职责                                                                                                                                                                                                                         |
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `types.ts`         | 播放状态 `TTSState`、引擎选择 `TTSMode`、两个引擎共用的 `UseTTSOptions` / `UseTTSReturn`；`TTSMode` 由 `useTTS.ts` 重新导出                                                                                                  |
-| `useBrowserTTS.ts` | 浏览器引擎：`window.speechSynthesis` 朗读去掉 markdown 的文本，`speak` 先取消正在进行的朗读；浏览器不支持时所有控制都是空操作                                                                                                 |
+| `useBrowserTTS.ts` | 浏览器引擎：`window.speechSynthesis` 朗读去掉 markdown 的文本，`speak` 取代正在进行的朗读（去掉 markdown 后没有内容则不动朗读队列）；朗读队列是整页共享的，实例只在持有当前那段话时才取消队列（`stop`、卸载、`speak`）、才响应其事件，没在朗读的消息行不会打断别的行；浏览器不支持时所有控制都是空操作；回归 `../__tests__/useBrowserTTS.test.ts` |
 | `useApiTTS.ts`     | API 引擎：`/tts/synthesize-stream` 边收边播（MediaSource），浏览器的 MediaSource 不支持 MP3 时退回一次性取回的 `/tts/synthesize`；合成失败用 toast 提示（503 提示服务端未启用 Edge TTS，其余提示朗读失败）；停止时中止请求并释放音频与对象 URL |
 
 ## 依赖
