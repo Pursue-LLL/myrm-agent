@@ -272,7 +272,6 @@ function useApiTTS(options: UseTTSOptions): UseTTSReturn {
       const reader = resp.body.getReader();
       let started = false;
 
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
