@@ -11,9 +11,9 @@
 - regate_allowed: send an ALLOW back to ASK when a gate no allow source may lift applies
 
 [POS]
-Fourth decision stage. An ALLOW can come from the engine, a read-only fast path or the allowlist; none of them may lift
-a socially irreversible action, a financial spend or an irreversible destructive shell command, and none may outlast a
-breached denial threshold in auto mode.
+Fourth decision stage. An ALLOW can come from the engine or the allowlist; neither may lift a socially irreversible
+action, a financial spend or an irreversible destructive shell command, and neither may outlast a breached denial
+threshold in auto mode.
 """
 
 from __future__ import annotations
