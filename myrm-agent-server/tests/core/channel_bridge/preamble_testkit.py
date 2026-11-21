@@ -1,13 +1,15 @@
 """Shared builders for the preamble tests.
 
 An inbound message, user configs, ``build_channel_execution_agent`` with every argument but the varying ones at its plain
-default, the params its agent is created from, and the turn it assembles for a message.
+default, the params its agent is created from, the turn it assembles for a message, and the preamble itself with every
+collaborator stood in for.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from myrm_agent_harness.agent.security import CredentialTrack
@@ -15,12 +17,17 @@ from myrm_agent_harness.toolkits.web_search import SearchServiceConfig
 
 from app.ai_agents.agents import GeneralAgentParams
 from app.channels.routing.identity_scope import TurnMemoryScope
-from app.channels.types import InboundMessage
+from app.channels.types import InboundMessage, OutboundMessage, SessionPolicy, TopicContext
 from app.core.channel_bridge.agent_executor.execute_preamble.agent import build_channel_execution_agent
+from app.core.channel_bridge.agent_executor.execute_preamble.preamble import prepare_channel_execution
+from app.core.channel_bridge.agent_executor.execute_preamble.session import ChannelSessionContext
 from app.core.channel_bridge.agent_executor.execute_preamble.types import ChannelAgentBuildOutcome, ChannelAgentBuildResult
 from app.core.channel_bridge.config_loader import UserConfigs
+from app.core.channel_bridge.wake_return import WakeOrigins
 from app.core.types.business import MCPServerConfig, ModelConfig
 from app.services.agent.profile.profile_resolver import ResolvedAgentProfile
+
+_PREAMBLE = "app.core.channel_bridge.agent_executor.execute_preamble.preamble"
 
 OWNER_MEMORY_SCOPE = TurnMemoryScope(policy=None, extra_namespaces=(), is_compartment=False)
 
@@ -141,3 +148,48 @@ async def build_live_turn(
 
     assert outcome.result is not None
     return outcome.result, captured["params"]
+
+
+@dataclass(frozen=True)
+class PreambleProbe:
+    """What the preamble asked of its collaborators: the agent build, the agent-profile lookups and the session resolution."""
+
+    builder: AsyncMock
+    profiles: MagicMock
+    session: AsyncMock
+
+
+@contextmanager
+def stubbed_preamble() -> Iterator[PreambleProbe]:
+    """``prepare_channel_execution`` with every collaborator stood in for; the agent build ends the turn with an early reply."""
+    early_reply = OutboundMessage(channel="feishu", recipient_id="chat9", content="stop here", user_id="")
+    builder = AsyncMock(return_value=ChannelAgentBuildOutcome(early_reply=early_reply))
+    profiles = MagicMock()
+    profiles.resolve = AsyncMock(return_value=None)
+    session = AsyncMock(
+        return_value=ChannelSessionContext(
+            session_key="telegram:chat-1",
+            chat_id="chat-db-1",
+            chat_history=[],
+            session_was_auto_reset=False,
+            session_policy=SessionPolicy(),
+            query="hi",
+            pre_events=(),
+        )
+    )
+    with (
+        patch(f"{_PREAMBLE}.get_wake_origins", return_value=WakeOrigins()),
+        patch("app.services.budget.enforcer.should_block_execution", AsyncMock(return_value=False)),
+        patch("app.services.budget.channel_budget.should_block_channel", return_value=False),
+        patch(f"{_PREAMBLE}.load_user_configs", AsyncMock(return_value=minimal_user_configs())),
+        patch(f"{_PREAMBLE}.get_agent_profile_resolver", return_value=profiles),
+        patch(f"{_PREAMBLE}.enrich_channel_user_instructions", AsyncMock(return_value="")),
+        patch(f"{_PREAMBLE}.resolve_channel_session_context", session),
+        patch(f"{_PREAMBLE}.build_channel_execution_agent", builder),
+    ):
+        yield PreambleProbe(builder=builder, profiles=profiles, session=session)
+
+
+async def prepare(msg: InboundMessage, topic: TopicContext | None) -> None:
+    """Run the preamble for ``msg`` served by ``topic`` (inside ``stubbed_preamble``)."""
+    await prepare_channel_execution(AsyncMock(), msg, is_resume=False, topic_context=topic, untrusted_sender=False)

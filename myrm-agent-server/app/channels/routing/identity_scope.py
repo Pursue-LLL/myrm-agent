@@ -82,7 +82,7 @@ def resolve_team_identity(
     msg: InboundMessage,
 ) -> ResolvedTeamIdentity:
     """Map a topic binding + inbound message to a team identity spec."""
-    if topic is None or topic.identity_revoked or not topic.agent_id:
+    if topic is None or topic.effective_agent_id is None:
         return ResolvedTeamIdentity(
             spec=TeamIdentitySpec(),
             memory_namespace=None,

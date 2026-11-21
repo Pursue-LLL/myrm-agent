@@ -3,9 +3,7 @@
 [INPUT]
 - app.channels.protocols.turn_management::RetryHandler, RetryResult, UndoHandler, UndoResult
 - app.channels.types::InboundMessage
-- app.core.channel_bridge.agent_executor::resolve_session_key
-- app.core.channel_bridge.config_loader::load_user_configs
-- app.core.channel_bridge.config_parsers::extract_session_policy, session_policy_from_agent_dict
+- app.core.channel_bridge.command_session::resolve_command_session_key (POS: Session key a message's conversation is stored under)
 - app.services.chat.chat_service::ChatService
 - app.services.files.revert_hydrate::cleanup_persisted_snapshots (POS: Server-side revert snapshot disk hydrate and cleanup)
 - myrm_agent_harness.agent.meta_tools.file_ops.revert_service::RevertService
@@ -28,13 +26,8 @@ from dataclasses import dataclass
 from myrm_agent_harness.agent.meta_tools.file_ops.revert_service import RevertService
 
 from app.channels.protocols.turn_management import RetryResult, UndoResult
-from app.channels.types import InboundMessage, SessionPolicy
-from app.core.channel_bridge.agent_executor import resolve_session_key
-from app.core.channel_bridge.config_loader import load_user_configs
-from app.core.channel_bridge.config_parsers import (
-    extract_session_policy,
-    session_policy_from_agent_dict,
-)
+from app.channels.types import InboundMessage
+from app.core.channel_bridge.command_session import resolve_command_session_key
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
@@ -44,28 +37,6 @@ logger = logging.getLogger(__name__)
 class RevertMessagesOutcome:
     reverted_count: int
     not_revertible_count: int
-
-
-async def _resolve_session_with_agent(msg: InboundMessage) -> tuple[str, str | None]:
-    """Resolve session key and agent_id, respecting per-agent session policy."""
-    configs = await load_user_configs()
-    session_policy = SessionPolicy()
-    if configs.personal_settings_dict:
-        session_policy = extract_session_policy(configs.personal_settings_dict)
-
-    from app.core.channel_bridge.compact_handler import ChannelCompactHandler
-
-    agent_id = await ChannelCompactHandler._resolve_bound_agent_id(msg)
-
-    if agent_id:
-        from app.services.agent.profile.profile_resolver import get_agent_profile_resolver
-
-        profile = await get_agent_profile_resolver().resolve(agent_id)
-        if profile and profile.session_policy and isinstance(profile.session_policy, dict):
-            session_policy = session_policy_from_agent_dict(profile.session_policy)
-
-    session_key = await resolve_session_key(msg, session_policy, agent_id=agent_id)
-    return session_key, agent_id
 
 
 async def _revert_messages(session_id: str, message_ids: list[str]) -> RevertMessagesOutcome:
@@ -115,7 +86,7 @@ class ChannelRetryHandler:
     """Business-layer RetryHandler for /retry command."""
 
     async def __call__(self, msg: InboundMessage, user_id: str) -> RetryResult:
-        session_key, _ = await _resolve_session_with_agent(msg)
+        session_key = await resolve_command_session_key(msg)
 
         chat = await ChatService.get_channel_chat_by_key(session_key)
         if not chat:
@@ -145,7 +116,7 @@ class ChannelUndoHandler:
     """Business-layer UndoHandler for /undo command."""
 
     async def __call__(self, msg: InboundMessage, user_id: str) -> UndoResult:
-        session_key, _ = await _resolve_session_with_agent(msg)
+        session_key = await resolve_command_session_key(msg)
 
         chat = await ChatService.get_channel_chat_by_key(session_key)
         if not chat:

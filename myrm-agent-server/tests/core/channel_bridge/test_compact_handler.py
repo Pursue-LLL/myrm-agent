@@ -37,15 +37,20 @@ async def _session() -> AsyncIterator[MagicMock]:
 
 
 @pytest.fixture
-def compaction() -> Iterator[AsyncMock]:
+def chat_lookup() -> Iterator[AsyncMock]:
+    """The lookup of the conversation to compact, recorded."""
+    lookup = AsyncMock(return_value=SimpleNamespace(id="chat-1"))
+    with patch(f"{_MODULE}.ChatService.get_or_create_channel_chat", lookup):
+        yield lookup
+
+
+@pytest.fixture
+def compaction(chat_lookup: AsyncMock) -> Iterator[AsyncMock]:
     """The compaction service, recorded; whatever the handler looks up on the way to it is stood in for."""
     service = AsyncMock(return_value=ServiceCompactResult(compacted=True, message_count=12, tokens_saved=3400))
     with (
-        patch(f"{_MODULE}.load_user_configs", AsyncMock(return_value=SimpleNamespace(personal_settings_dict=None))),
-        patch(f"{_MODULE}.resolve_session_key", AsyncMock(return_value="telegram:c1")),
+        patch(f"{_MODULE}.resolve_command_session_key", AsyncMock(return_value="telegram:c1")),
         patch(f"{_MODULE}.get_session", _session),
-        patch(f"{_MODULE}.ChatService.get_or_create_channel_chat", AsyncMock(return_value=SimpleNamespace(id="chat-1"))),
-        patch.object(ChannelCompactHandler, "_resolve_bound_agent_id", AsyncMock(return_value=None)),
         patch(f"{_MODULE}.compact_chat", service),
     ):
         yield service
@@ -55,6 +60,12 @@ async def test_a_command_reaches_the_service_as_a_persons_request(compaction: As
     await ChannelCompactHandler()(_MESSAGE, "uid1", focus_topic="billing")
 
     compaction.assert_awaited_once_with(ANY, "chat-1", focus_topic="billing", explicit_request=True)
+
+
+async def test_the_conversation_compacted_is_the_one_the_command_resolves(compaction: AsyncMock, chat_lookup: AsyncMock) -> None:
+    await ChannelCompactHandler()(_MESSAGE, "uid1")
+
+    chat_lookup.assert_awaited_once_with("telegram:c1", "telegram")
 
 
 async def test_a_compaction_that_happened_carries_its_counts(compaction: AsyncMock) -> None:
