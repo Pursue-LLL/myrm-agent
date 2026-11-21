@@ -3,12 +3,16 @@
 [INPUT]
 - raw_path: Local filesystem path string
 - existing_skills: Currently active skills list
+- compute_id_fn: Stable skill id of a skill directory (the provider's `compute_local_skill_id`)
+- myrm_agent_harness.backends.skills.scanning::scan_skill_directory, compute_scan_summary (POS: the directory scan and its 0-100 score)
 
 [OUTPUT]
-- preview_skill_path: Probed skill list and validation report
+- preview_skill_path: Probed skill list and validation report; each item carries `is_safe` and `security_score`, and a
+  skill whose scan could not complete is reported unsafe
 
 [POS]
-- core/skills/providers/local_preview.py: Local skill discovery and dry-run diagnosis
+- core/skills/providers/local_preview.py: Local skill discovery and dry-run diagnosis. The adopt gate
+  (`api/skills/local.py`) judges the score attached here, so a scan that fails must read as unsafe, never as clean
 """
 
 from __future__ import annotations
@@ -28,13 +32,16 @@ logger = logging.getLogger(__name__)
 
 SKILL_MD_FILE = "SKILL.md"
 _MAX_SKILL_FILE_SIZE = 1 * 1024 * 1024  # 1 MB
+# Score of a skill whose scan could not complete: below the adopt gate's threshold of 50, like the
+# 40 the gate and the UI assume for an unsafe item that carries no score.
+_UNSCANNED_SCORE = 40
 
 
 def _extract_skill_preview(
     skill_dir: Path,
     rel_path: str,
     existing_names: dict[str, Skill],
-    compute_id_fn: Callable[[str, str], str],
+    compute_id_fn: Callable[[Path], str],
 ) -> dict[str, object] | None:
     skill_md = skill_dir / SKILL_MD_FILE
     if not skill_md.is_file():
@@ -64,10 +71,13 @@ def _extract_skill_preview(
         except Exception:
             pass
 
+    raw_metadata = raw_yaml.get("metadata")
+    yaml_metadata: dict[str, object] = raw_metadata if isinstance(raw_metadata, dict) else {}
+
     tags: list[str] = []
     candidate_tags: object = raw_yaml.get("tags")
-    if candidate_tags is None and isinstance(raw_yaml.get("metadata"), dict):
-        candidate_tags = raw_yaml["metadata"].get("tags")
+    if candidate_tags is None:
+        candidate_tags = yaml_metadata.get("tags")
     if candidate_tags is None and hasattr(frontmatter, "tags"):
         candidate_tags = frontmatter.tags
     if candidate_tags is None and isinstance(frontmatter.metadata, dict):
@@ -82,8 +92,8 @@ def _extract_skill_preview(
     author: str | None = None
     if raw_yaml.get("author"):
         author = str(raw_yaml["author"])
-    elif isinstance(raw_yaml.get("metadata"), dict) and raw_yaml["metadata"].get("author"):
-        author = str(raw_yaml["metadata"]["author"])
+    elif yaml_metadata.get("author"):
+        author = str(yaml_metadata["author"])
     elif isinstance(frontmatter.metadata, dict) and "author" in frontmatter.metadata:
         author = str(frontmatter.metadata["author"])
 
@@ -121,8 +131,12 @@ def _extract_skill_preview(
             threat_summary = f"Security score {scan_sum.score}/100 (< 50 threshold): {scan_res.summary}"
         elif not scan_res.is_clean:
             threat_summary = f"Security score {scan_sum.score}/100: {scan_res.summary}"
-    except Exception as scan_err:
-        logger.debug("Security scan skipped for %s: %s", skill_name, scan_err)
+    except Exception:
+        # A skill the scan could not take is not a clean skill: it must neither preview as safe nor pass the adopt gate.
+        logger.warning("Security scan failed for %s", skill_name, exc_info=True)
+        is_safe = False
+        security_score = _UNSCANNED_SCORE
+        threat_summary = "The security scan could not be completed"
 
     return {
         "name": skill_name,
@@ -147,7 +161,8 @@ def preview_skill_path(
     raw_path: str,
     existing_skills: list[Skill] | None = None,
     max_scan_entries: int = 100,
-    compute_id_fn: callable = None,
+    *,
+    compute_id_fn: Callable[[Path], str],
 ) -> tuple[Path, bool, bool, list[dict[str, object]], str | None]:
     """Dry-run probe a path for local skills without modifying provider state."""
     raw_path_str = str(raw_path)
