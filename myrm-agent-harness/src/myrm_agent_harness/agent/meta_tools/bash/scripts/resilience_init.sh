@@ -64,6 +64,7 @@ _register_github_credential_helper
 # -----------------------------------------------------------------------------
 # A sandbox without a git identity fails every commit with "Author identity unknown". The subcommands that write a
 # commit get a fallback for whichever of name and email the repository, the user or the environment leaves unset.
+# A function lives in the shell that reads this script: a script file the command starts keeps the identity of the host.
 git() {
     local -a global=()
     # The options before the subcommand come along unchanged; -C and --git-dir also decide whose configuration is read.

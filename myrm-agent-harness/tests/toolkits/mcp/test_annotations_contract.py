@@ -1,4 +1,4 @@
-"""Contract of a server's declared tool annotations, from the wire to the scheduler, over both transports.
+"""Contract of a server's declared tool annotations, from the wire to the scheduler, over every transport.
 
 A real MCP server declares hints on its tools; the production connection pool converts, processes and registers them.
 These tests read what the pool produced: the declarations ride in the tool's own metadata field and nowhere else, the
@@ -56,7 +56,7 @@ class Seen:
     records: dict[str, tuple[SafetyMetadata, MCPAnnotations]]
 
 
-@pytest_asyncio.fixture(scope="module", params=("stdio", "streamable_http"))
+@pytest_asyncio.fixture(scope="module", params=("stdio", "streamable_http", "sse"))
 async def seen(request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory) -> AsyncIterator[Seen]:
     async with connect_probe_server(request.param, tmp_path_factory.mktemp("probe")) as probe:
         yield Seen(probe, probe.registered())
