@@ -619,7 +619,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 
 ### 8 工具 → 35+ 能力映射
 
-压缩 Playwright MCP 的 24+ 个独立工具为 8 个语义分组工具，通过 `action` 参数扩展：
+能力按 8 个语义分组工具组织，通过 `action` 参数扩展：
 
 | 工具 | 覆盖能力 | action 参数 |
 |------|---------|------------|
@@ -1228,6 +1228,3 @@ browser/
 
 - [Patchright 官方文档](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)
 - [Playwright ARIA Snapshot](https://playwright.dev/docs/aria-snapshots)
-- [MCP Playwright](https://github.com/microsoft/playwright-mcp)
-- [agent-browser](https://github.com/Kernel-Dirichlet/agent-browser)
-- [browser-use](https://github.com/browser-use/browser-use)

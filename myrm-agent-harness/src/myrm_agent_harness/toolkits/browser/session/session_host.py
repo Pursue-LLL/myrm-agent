@@ -13,9 +13,9 @@
 - utils.runtime.user_control::UserControl, DEFAULT_WAIT_TIMEOUT_S (POS: control hold and wait budget the mixins' takeover wait is typed against)
 
 [OUTPUT]
-- SessionHost: base of the interaction, download, navigation, tab, page, CAPTCHA, network and lifecycle mixins; declares the
-  attributes and methods the BrowserSession aggregate root and its mixins provide to one another. Type-checking only:
-  at runtime it is `object`, so the MRO of BrowserSession is unchanged.
+- SessionHost: base of the interaction, download, navigation, tab, page, CAPTCHA, network, lifecycle and takeover
+  mixins; declares the attributes and methods the BrowserSession aggregate root and its mixins provide to one
+  another. Type-checking only: at runtime it is `object`, so the MRO of BrowserSession is unchanged.
 
 [POS]
 Single typed declaration of what a session mixin may rely on from its host, so a mixin does not

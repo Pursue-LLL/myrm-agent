@@ -8,10 +8,10 @@
 - extract_page_media: lists a page's high-value media URLs as Markdown text
 
 [POS]
-Media half of content extraction, split from ``extractor.Extractor`` so that class stays a thin facade over text,
-screenshot, PDF and visual-content readers. One script per frame collects images (lazy-loaded included), videos,
-audio and OG/Twitter preview images; icons, logos and tiny decorative images are dropped, URLs are de-duplicated
-across frames, and the listing is bounded in size.
+Media half of content extraction: ``extractor.Extractor.extract_media`` delegates here, so ``Extractor`` stays a thin
+facade over the text, screenshot, PDF and visual-content readers. One script per frame collects images (lazy-loaded
+included), videos, audio and OG/Twitter preview images; icons, logos and tiny decorative images are dropped, URLs are
+de-duplicated across frames, and the listing is bounded in size.
 """
 
 from __future__ import annotations

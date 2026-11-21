@@ -9,7 +9,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
 | `test_toolkits_agent_boundary.py` | Gate | AST：`toolkits/` 禁止 import `myrm_agent_harness.agent` | — |
-| `test_no_out_of_repo_imports.py` | Gate | AST：禁止 module-level 把仓库外路径注入 `sys.path` 后再 import（裸名只认同目录的模块，仓库里别处的同名文件不算；含检测器自证 sample，防退化为 no-op） | — |
+| `test_no_out_of_repo_imports.py` | Gate | AST：module-level 的每条绝对 import 必须能在仓库内（含本包）、标准库、`uv.lock` 声明的依赖或同目录模块里解析（裸名只认同目录的模块，仓库里别处的同名文件不算）；既拦「向上爬出检出再注入 `sys.path`」，也拦「不改路径、直接 import 仓库外的模块」；含检测器自证 sample，防退化为 no-op | — |
 | `test_sub_agents_types_boundary.py` | Gate | `sub_agents/types.py` 禁止依赖 `agent.meta_tools.*`，并锁定 `hitl_tool_policy` canonical SSOT 导入 | — |
 | `test_toolkits_test_mirror.py` | Gate | `tests/toolkits/<name>/` 须镜像 `src/.../toolkits/<name>/` 且含 `test_*.py` | — |
 | `test_backends_agent_boundary.py` | Gate | AST：`backends/` 禁止 module-level import `myrm_agent_harness.agent` | — |
