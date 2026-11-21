@@ -22,6 +22,7 @@ import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext, ConfigConflictResolver, RecordSink } from './conflictResolution';
 import { isE2eBlockedKey, withoutBlockedSearchChanges } from './e2eSearchSyncGate';
 import { landLateRecords, loadInitialConfigs } from './initialLoad';
+import { applyReplayedChanges, buildLocalRecord, recordSyncedChanges } from './localWrites';
 import {
   clearOfflineQueue,
   isNetworkError,
@@ -228,7 +229,7 @@ class ConfigSyncManager {
     const currentVersion = current?.meta.version ?? createInitialVersion();
 
     // 1. 乐观更新缓存
-    const newRecord = this.buildRecord(key, value, incrementVersion(currentVersion));
+    const newRecord = buildLocalRecord(key, value, incrementVersion(currentVersion), this.deviceId);
     this.cache.set(key, newRecord as ConfigRecord);
 
     // 2. 通知监听器
@@ -333,17 +334,7 @@ class ConfigSyncManager {
         // 清空离线队列
         clearOfflineQueue();
 
-        // 同步成功：cache/baseCache 必须与 mergedChanges 一致（offline replay 等路径可能未先乐观更新）
-        for (const change of mergedChanges) {
-          const fallbackVersion = this.cache.get(change.key)?.meta.version ?? createInitialVersion();
-          const newRecord = this.buildRecord(
-            change.key,
-            change.value,
-            result.newVersions.get(change.key) ?? incrementVersion(fallbackVersion),
-          );
-          this.cache.set(change.key, newRecord);
-          this.baseCache.set(change.key, cloneDeep(newRecord));
-        }
+        recordSyncedChanges(this.recordSink(), this.deviceId, mergedChanges, result.newVersions);
 
         this._status = 'idle';
       } else if (result.conflicts.length > 0) {
@@ -381,25 +372,9 @@ class ConfigSyncManager {
     }
   }
 
-  /** 与 set() 的乐观写入同语义：新记录不带 `unreadable`，用户显式保存即解除「读不出」标记。 */
-  private buildRecord<K extends ConfigKey>(key: K, value: ConfigValueMap[K], version: string): ConfigRecord<K> {
-    return {
-      key,
-      value,
-      meta: {
-        version,
-        updatedAt: new Date().toISOString(),
-        deviceId: (this.adapter as BaseConfigAdapter).getDeviceId(),
-      },
-    };
-  }
-
-  /** Apply queued change values to cache (mirrors set() optimistic write for offline replay). */
-  private applyPendingChangesToCache(changes: ConfigChange[]): void {
-    for (const change of mergeLatestChanges(changes, this.baseCache)) {
-      const currentVersion = this.cache.get(change.key)?.meta.version ?? createInitialVersion();
-      this.cache.set(change.key, this.buildRecord(change.key, change.value, incrementVersion(currentVersion)));
-    }
+  /** 本机写入的记录以它作为作者。 */
+  private get deviceId(): string {
+    return (this.adapter as BaseConfigAdapter).getDeviceId();
   }
 
   /** 读取时才取 cache：`initialize()` 会整体替换两张缓存表。 */
@@ -411,7 +386,7 @@ class ConfigSyncManager {
     return {
       ...this.recordSink(),
       adapter: this.adapter,
-      deviceId: (this.adapter as BaseConfigAdapter).getDeviceId(),
+      deviceId: this.deviceId,
       resolver: this.conflictResolver,
       requeue: (changes) => this.enqueueOfflineChanges(changes),
     };
@@ -471,7 +446,7 @@ class ConfigSyncManager {
     this.memoryOnlyOfflineChanges = [];
     clearOfflineQueue();
     if (replayable.length > 0) {
-      this.applyPendingChangesToCache(replayable);
+      applyReplayedChanges(this.recordSink(), this.deviceId, replayable);
       this.changeQueue = replayable;
       await this.flushSync({ preserveExpectedVersion: true });
     }
