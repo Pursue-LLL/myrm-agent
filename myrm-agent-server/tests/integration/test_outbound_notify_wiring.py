@@ -159,7 +159,7 @@ def test_profile_resolver_filtering_then_factory() -> None:
     sender_result = create_notification_sender(notify_targets)
     assert sender_result is not None
     sender, config = sender_result
-    assert config.destinations == {"telegram#1": NotifyTarget(channel="telegram", recipient_id="123", label="")}
+    assert config.destinations == {"telegram#1": NotifyTarget(channel="telegram", recipient_id="123")}
     assert sender is not None
 
 

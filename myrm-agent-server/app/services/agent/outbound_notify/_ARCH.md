@@ -19,6 +19,11 @@ Agents 经 `app.ai_agents.general_agent.factory` → `factory_wiring.append_chan
 - 使用条件只写在工具说明里（含「点名的收件人不在目的地里、或对应多个目的地时先问用户」），系统提示不追加段落。
 - `notify_targets` 只有点名投递这一个读取方。系统驱动的推送（如批处理完成）一律发布 `SYSTEM_NOTIFICATION` 事件，由 `NotificationDispatcher` 按用户的「通知投递」送达，不读这些目的地，也不经 `ChannelNotificationSender` 直发。
 
+## 发送上限
+
+- 上限按工具实例计数：`NotifyToolConfig.rate_limit_per_session`，默认 10，应用不提供配置入口（`create_notification_sender` 只传 `destinations`）。超出的调用返回错误，不发送。
+- 名额在发送前占用，上限检查与占用之间没有 `await`，所以同一轮并行的调用也受限；失败的发送同样占用名额（`tests/services/agent/outbound_notify/test_channel_notify_session_limit.py`）。
+
 ## 文件清单
 
 | 文件 | 地位 | 职责 | I/O/P |

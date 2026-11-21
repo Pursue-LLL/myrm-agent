@@ -128,7 +128,7 @@ def _build_destinations(raw_targets: tuple[dict[str, str], ...]) -> dict[str, No
         destination, suffix = base, 2
         while destination in destinations:
             destination, suffix = f"{base}-{suffix}", suffix + 1
-        destinations[destination] = NotifyTarget(channel=channel, recipient_id=recipient_id, label=label)
+        destinations[destination] = NotifyTarget(channel=channel, recipient_id=recipient_id)
     return destinations
 
 
