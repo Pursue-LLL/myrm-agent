@@ -269,12 +269,12 @@ async def _ensure_not_revoked(
     token: str,
     request: Request,
 ) -> Response | None:
-    """Reject requests whose token has been manually revoked.
+    """Reject requests whose token was revoked or never registered.
 
-    Returns a 404 status page for revoked links (browsers) or ``None`` when the
-    share is still valid. Called before token authentication on every public
-    entry so a revoked share (password-protected or not) is denied immediately
-    without presenting the password gate or touching the on-disk bundle.
+    Returns a 404 status page (browsers) or ``None`` when the share is still
+    valid. Called before token authentication on every public entry so a
+    refused share (password-protected or not) is denied immediately without
+    presenting the password gate or touching the on-disk bundle.
     """
     try:
         revoked = await is_token_revoked(db, token)

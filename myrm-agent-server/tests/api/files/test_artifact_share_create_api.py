@@ -255,7 +255,7 @@ async def test_create_share_rejects_ambiguous_multi_html(share_client, html_arti
 @pytest.mark.asyncio
 async def test_create_share_materialize_error_mapping(share_client, html_artifact, exc: Exception, status: int) -> None:
     with patch(
-        "app.api.files.artifact_share_api.materialize_share_bundle",
+        "app.services.artifacts.share.share_create.materialize_share_bundle",
         new_callable=AsyncMock,
         side_effect=exc,
     ):

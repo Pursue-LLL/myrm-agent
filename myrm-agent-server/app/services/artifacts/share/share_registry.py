@@ -9,11 +9,12 @@
 
 [OUTPUT]
 - register_share / list_active_shares / revoke_share / purge_expired_shares
-- is_token_revoked: public-access gate check
+- is_token_revoked: public-access gate check (a revoked or unregistered token is refused)
 
 [POS]
 Server business layer. Gives share links a manual lifecycle on top of the
 stateless HMAC token: register on create, list active links, revoke on demand.
+A token missing from the registry is refused like a revoked one.
 Revocation commits ``revoked_at`` (logged for audit) then deletes the on-disk
 bundle, so the public gate refuses both existing files and any re-materialization
 attempt. ``list_active_shares`` also exposes ``version_id`` so the API layer can
@@ -35,7 +36,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security.share.share_hmac import token_fingerprint
+from app.core.security.share.share_hmac import decode_unverified_payload, token_fingerprint, token_log_id
 from app.database.models import Artifact, ArtifactShareRecord
 
 from .share_bundle import bundle_dir_for_claims
@@ -200,13 +201,19 @@ async def revoke_share(db: AsyncSession, record_id: str) -> bool:
 
 
 async def is_token_revoked(db: AsyncSession, token: str) -> bool:
-    """Gate check: ``True`` when a registered token has been manually revoked.
+    """Gate check: ``True`` when the token was revoked or is not in the registry.
 
-    Unknown tokens (created before the registry shipped, or never persisted)
-    return ``False`` so legacy share links keep working.
+    Every link this server hands out is registered when it is created, so a token the registry does not know did not
+    come from a completed creation. Refusing it keeps a link from being valid while nobody can list or revoke it. A
+    token that merely looks like one of ours is logged; text that decodes to nothing is not, so a scanner cannot
+    flood the log.
     """
     record = await _find_by_fingerprint(db, token_fingerprint(token))
-    return record is not None and record.revoked_at is not None
+    if record is None:
+        if decode_unverified_payload(token) is not None:
+            logger.warning("Refusing a share token that is not in the registry: token=%s", token_log_id(token))
+        return True
+    return record.revoked_at is not None
 
 
 async def purge_expired_shares(db: AsyncSession) -> int:

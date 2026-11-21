@@ -4,13 +4,14 @@
 - app.core.channel_bridge.executor_helpers::StreamAccumulator, ShareableArtifact (POS: Stream accumulation for channel turns.)
 - app.channels.types::MediaAttachment (POS: Channel message types.)
 - deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
-- app.services.artifacts.share.share_token (POS: HMAC share token for artifact deep links.)
+- app.services.artifacts.share.share_create (POS: sign + snapshot + register one share link, shared with the share dialog.)
+- app.database.connection::get_session (POS: DB session for the share registry.)
 - app.core.infra.ingress::resolve_public_link_base (POS: Public base of links opened elsewhere: running tunnel, else ingress.)
 - app.core.security.share.share_links (POS: where each share token kind is served.)
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
-- build_artifact_deep_links: ActionButton rows with signed public share URLs (logs WARNING when ingress base URL missing or artifact versions unavailable)
+- build_artifact_deep_links: ActionButton rows with registered, signed public share URLs (logs WARNING when ingress base URL missing, artifact versions unavailable or a link cannot be created)
 - fetch_artifact_versions: batch DB lookup for latest artifact version IDs
 
 [POS]
@@ -125,8 +126,17 @@ def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) 
                 )
 
 
-async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tuple[ComponentRow, ...]:
-    """Generate public share link buttons for shareable artifacts; empty when no link can be built."""
+async def build_artifact_deep_links(
+    acc: StreamAccumulator,
+    locale: str,
+    workspace_root: str | None,
+) -> tuple[ComponentRow, ...]:
+    """Create registered share links for shareable artifacts and return them as buttons; empty when none can be made.
+
+    Links are created like the share dialog creates them (signed, bundle snapshot, registered), so each one is listed
+    in the share manager and can be revoked. ``workspace_root`` is the chat's workspace; artifacts that belong to a chat
+    are read from that chat's own workspace regardless.
+    """
     if not acc.shareable_artifacts:
         return ()
 
@@ -134,7 +144,9 @@ async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tupl
     from app.channels.types.components import ActionButton, ButtonStyle
     from app.core.infra.ingress import resolve_public_link_base
     from app.core.security.share.share_links import ShareKind, share_link_url
-    from app.services.artifacts.share.share_token import create_artifact_share_token
+    from app.database.connection import get_session
+    from app.platform_utils.workspace_root import get_workspace_root
+    from app.services.artifacts.share.share_create import create_artifact_share
 
     base_url = await resolve_public_link_base()
     if not base_url:
@@ -152,41 +164,47 @@ async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tupl
         )
         return ()
 
+    root = workspace_root or str(get_workspace_root())
     buttons: list[ActionButton] = []
     multi = len(acc.shareable_artifacts) > 1
 
-    for artifact_id, filename, artifact_type in acc.shareable_artifacts:
-        version_id = version_map.get(artifact_id)
-        if not version_id:
-            logger.warning(
-                "Skipping deep link for artifact %s (%s): no version_id in DB",
-                artifact_id,
-                filename,
-            )
-            continue
-        try:
-            token, _ = create_artifact_share_token(
-                artifact_id,
-                version_id,
-                artifact_type=artifact_type or None,
-            )
-        except Exception:
-            logger.warning("Failed to create share token for artifact %s", artifact_id)
-            continue
+    try:
+        async with get_session() as db:
+            for artifact_id, filename, artifact_type in acc.shareable_artifacts:
+                version_id = version_map.get(artifact_id)
+                if not version_id:
+                    logger.warning(
+                        "Skipping deep link for artifact %s (%s): no version_id in DB",
+                        artifact_id,
+                        filename,
+                    )
+                    continue
+                try:
+                    created = await create_artifact_share(
+                        db,
+                        root,
+                        artifact_id=artifact_id,
+                        version_id=version_id,
+                        artifact_type=artifact_type or None,
+                    )
+                except Exception:
+                    logger.warning("Failed to create share link for artifact %s", artifact_id, exc_info=True)
+                    continue
 
-        share_url = share_link_url(ShareKind.ARTIFACT, token, base_url)
-        if multi:
-            label = channel_t(locale, "artifact_deep_link_named", filename=filename)
-        else:
-            label = channel_t(locale, "artifact_deep_link")
-        buttons.append(
-            ActionButton(
-                label=str(label),
-                action_id=f"artifact:share:{artifact_id}",
-                style=ButtonStyle.PRIMARY,
-                url=share_url,
-            )
-        )
+                if multi:
+                    label = channel_t(locale, "artifact_deep_link_named", filename=filename)
+                else:
+                    label = channel_t(locale, "artifact_deep_link")
+                buttons.append(
+                    ActionButton(
+                        label=str(label),
+                        action_id=f"artifact:share:{artifact_id}",
+                        style=ButtonStyle.PRIMARY,
+                        url=share_link_url(ShareKind.ARTIFACT, created.token, base_url),
+                    )
+                )
+    except Exception:
+        logger.warning("Failed to create artifact share links", exc_info=True)
 
     return tuple(buttons)
 

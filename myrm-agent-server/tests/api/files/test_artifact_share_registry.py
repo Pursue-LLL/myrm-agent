@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security.share import token_log_id
 from app.services.artifacts.share.share_bundle import bundle_dir_for_claims
 from app.services.artifacts.share.share_registry import (
     is_token_revoked,
@@ -173,9 +174,20 @@ async def test_register_share_reraises_when_conflict_has_no_existing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_is_token_revoked_unknown_token_returns_false(db_session) -> None:
+async def test_is_token_revoked_refuses_a_token_the_registry_never_saw_and_logs_it(db_session, caplog) -> None:
     token, _ = create_artifact_share_token("art-1", "ver-1", ttl_seconds=3600)
-    assert await is_token_revoked(db_session, token) is False
+    with caplog.at_level(logging.WARNING):
+        assert await is_token_revoked(db_session, token) is True
+    assert token_log_id(token) in caplog.text
+    assert token not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_is_token_revoked_refuses_undecodable_text_without_a_log_line(db_session, caplog) -> None:
+    """A scanner probing random paths must not be able to flood the log."""
+    with caplog.at_level(logging.WARNING):
+        assert await is_token_revoked(db_session, "not-a-share-token") is True
+    assert caplog.records == []
 
 
 @pytest.mark.asyncio

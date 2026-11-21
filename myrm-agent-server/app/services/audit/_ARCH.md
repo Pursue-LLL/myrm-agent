@@ -9,7 +9,7 @@
 | 文件 | 职责 |
 |------|------|
 | `auth_log_reader.py` | 读取本地 `auth_audit.jsonl`，序列化为 API 事件字典 |
-| `lockout_events.py` | 暴力破解锁定上报：锁定生效的瞬间（非每次被拒请求，攻击期间不会刷屏）记一条 WARNING，并在启用认证审计的部署（sandbox / 远程 WebUI）写 `rate_limit_exceeded` 审计事件；只记客户端地址、范围（分享密码门 / WebUI 登录）与分享令牌指纹前 12 位，不含密码或可用令牌 |
+| `lockout_events.py` | 暴力破解锁定上报：锁定生效的瞬间（非每次被拒请求，攻击期间不会刷屏）记一条 WARNING，并在启用认证审计的部署（sandbox / 远程 WebUI）写 `rate_limit_exceeded` 审计事件；只记客户端地址、范围（分享密码门 / WebUI 登录）与分享令牌的短指纹（`share_hmac.token_log_id`），不含密码或可用令牌 |
 
 ## 依赖
 

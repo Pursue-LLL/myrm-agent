@@ -8,9 +8,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.artifacts.share.share_registry import (
-    token_fingerprint,
-)
+from app.services.artifacts.share.share_registry import token_fingerprint
+from app.services.artifacts.share.share_token import create_artifact_share_token
 from app.services.hosting.packager import PublishFile
 
 pytestmark = pytest.mark.usefixtures("chats_share_workspace")
@@ -168,7 +167,7 @@ async def test_register_share_failure_returns_500(share_client, html_artifact) -
             return_value=(html_artifact, _single_file_files()),
         ),
         patch(
-            "app.api.files.artifact_share_api.register_share",
+            "app.services.artifacts.share.share_create.register_share",
             new_callable=AsyncMock,
             side_effect=RuntimeError("db down"),
         ),
@@ -207,6 +206,16 @@ async def test_public_access_denied_after_revoke(share_client, html_artifact, tm
     serve_after = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert serve_after.status_code == 404
     assert "revoked" in serve_after.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_public_access_denied_for_a_token_that_was_never_registered(share_client, html_artifact) -> None:
+    """A signed token nobody registered cannot be listed or revoked, so the public entry refuses it."""
+    token, _ = create_artifact_share_token(html_artifact.id, "ver-1", ttl_seconds=3600)
+
+    response = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
+
+    assert response.status_code == 404
 
 
 @pytest.mark.asyncio

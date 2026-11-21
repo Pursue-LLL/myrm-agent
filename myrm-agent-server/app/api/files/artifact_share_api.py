@@ -1,8 +1,8 @@
 """Authenticated artifact share-link lifecycle (create / list / revoke).
 
 [INPUT]
-- app.services.artifacts.share.share_token (POS: HMAC token create/parse)
-- app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
+- app.services.artifacts.share.share_token (POS: HMAC token rebuild + shareability checks)
+- app.services.artifacts.share.share_create (POS: sign + snapshot bundle + register one link, shared with IM buttons)
 - app.services.artifacts.share.share_registry (POS: share-link lifecycle registry)
 - app.database.models.artifact::Artifact (POS: artifact + versions metadata)
 - app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
@@ -29,7 +29,6 @@ reachable outside the local host in hosted/tunneled deployments (falls back to
 
 from __future__ import annotations
 
-import logging
 from calendar import timegm
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -43,23 +42,15 @@ from app.core.infra.ingress import resolve_public_link_base
 from app.core.security.share.share_links import ShareKind, share_link_path
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
-from app.services.artifacts.share.share_bundle import materialize_share_bundle
+from app.services.artifacts.share.share_create import ShareRegistrationError, create_artifact_share
 from app.services.artifacts.share.share_registry import (
     ActiveShareRow,
     list_active_shares,
-    register_share,
     revoke_share,
 )
-from app.services.artifacts.share.share_token import (
-    ArtifactShareClaims,
-    create_artifact_share_token,
-    is_shareable_artifact,
-    rebuild_artifact_share_token,
-)
+from app.services.artifacts.share.share_token import is_shareable_artifact, rebuild_artifact_share_token
 
 from .artifact_share_public import public_router as public_router
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -152,51 +143,32 @@ async def create_artifact_share_preview(
         raise HTTPException(status_code=400, detail="Artifact has no versions to share")
 
     latest = sorted(artifact.versions, key=lambda v: v.created_at, reverse=True)[0]
-    ttl_seconds = body.ttl_days * 24 * 3600
-    token, expires_at = create_artifact_share_token(
-        artifact.id,
-        latest.id,
-        ttl_seconds=ttl_seconds,
-        artifact_type=share_type,
-        password=body.password,
-    )
-    claims = ArtifactShareClaims(
-        artifact_id=artifact.id,
-        version_id=latest.id,
-        exp=expires_at,
-        artifact_type=share_type,
-    )
     try:
-        await materialize_share_bundle(db, workspace_root, claims)
+        created = await create_artifact_share(
+            db,
+            workspace_root,
+            artifact_id=artifact.id,
+            version_id=latest.id,
+            artifact_type=share_type,
+            ttl_seconds=body.ttl_days * 24 * 3600,
+            password=body.password,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Artifact content not found") from exc
+    except ShareRegistrationError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    try:
-        await register_share(
-            db,
-            token=token,
-            artifact_id=artifact.id,
-            version_id=latest.id,
-            artifact_type=share_type,
-            password_protected=body.password is not None,
-            expires_at_unix=expires_at,
-            share_path=share_link_path(ShareKind.ARTIFACT, token) if body.password is not None else None,
-        )
-    except Exception as exc:
-        logger.error("Failed to register share link: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to register share link") from exc
-
-    share_path = share_link_path(ShareKind.ARTIFACT, token)
+    share_path = share_link_path(ShareKind.ARTIFACT, created.token)
     base = await resolve_public_link_base()
     return CreateArtifactShareResponse(
-        token=token,
+        token=created.token,
         share_path=share_path,
         share_url=_absolute_share_url(base, share_path),
-        expires_at=expires_at,
+        expires_at=created.expires_at,
         artifact_id=artifact.id,
         version_id=latest.id,
         password_protected=body.password is not None,

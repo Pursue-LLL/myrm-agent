@@ -4,7 +4,7 @@
 - app.core.security.share.share_hmac (POS: shared HMAC signing primitives)
 
 [OUTPUT]
-- create_artifact_share_token / parse_artifact_share_token
+- create_artifact_share_token / parse_artifact_share_token; DEFAULT_TTL_SECONDS: lifetime of a link when the caller sets none
 - rebuild_artifact_share_token: reconstruct unprotected tokens from persisted
   registry fields (deterministic HMAC → same payload + expiry yields the same
   token), so GUI list endpoints can expose the share path without storing it
@@ -32,7 +32,7 @@ from app.core.security.share.share_hmac import (
 )
 
 _SALT = "artifact-share"
-_DEFAULT_TTL_SECONDS = 7 * 24 * 3600
+DEFAULT_TTL_SECONDS = 7 * 24 * 3600
 _MAX_TTL_SECONDS = 30 * 24 * 3600
 _SHAREABLE_ARTIFACT_TYPES: frozenset[str] = frozenset(
     {ArtifactType.HTML.value, ArtifactType.PDF.value, ArtifactType.DOCUMENT.value}
@@ -52,7 +52,7 @@ def create_artifact_share_token(
     artifact_id: str,
     version_id: str,
     *,
-    ttl_seconds: int = _DEFAULT_TTL_SECONDS,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
     artifact_type: str | None = None,
     password: str | None = None,
 ) -> tuple[str, int]:

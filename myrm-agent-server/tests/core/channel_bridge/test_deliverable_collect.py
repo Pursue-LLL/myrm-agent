@@ -144,7 +144,7 @@ class TestCollectMultipleArtifacts:
             ShareableArtifact("art-001", "report.pdf", "application/pdf"),
         )
         acc.oversized_deliverables.append(("report.pdf", "8.0 MB"))
-        buttons = await build_artifact_deep_links(acc, "en")
+        buttons = await build_artifact_deep_links(acc, "en", "/tmp/chat-workspace")
         assert buttons == ()
         # Note must stay present when no button was produced.
         assert acc.oversized_deliverables == [("report.pdf", "8.0 MB")]

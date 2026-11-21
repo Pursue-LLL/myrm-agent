@@ -9,6 +9,7 @@ import pytest
 
 from app.core.security.share.share_hmac import sign_share_token
 from app.core.security.share.share_unlock import unlock_cookie_name
+from app.services.artifacts.share.share_registry import register_share
 from app.services.hosting.packager import PublishFile
 
 pytestmark = pytest.mark.usefixtures("chats_share_workspace")
@@ -221,7 +222,7 @@ async def test_password_share_post_without_password_gate(share_client, html_arti
 
 
 @pytest.mark.asyncio
-async def test_password_share_post_short_remaining_serves_directly(share_client, html_artifact) -> None:
+async def test_password_share_post_short_remaining_serves_directly(share_client, html_artifact, db_session) -> None:
     """POST unlock with <60s remaining serves content instead of 303-looping.
 
     When the share is too close to expiry to issue an unlock cookie, a
@@ -232,11 +233,22 @@ async def test_password_share_post_short_remaining_serves_directly(share_client,
     files = {
         "index.html": PublishFile(path="index.html", content="<html/>", encoding="utf-8"),
     }
+    expires_at = int(time.time()) + 30
     short_token = sign_share_token(
         {"aid": html_artifact.id, "vid": "short-version", "p": 1},
         salt="artifact-share",
-        exp=int(time.time()) + 30,
+        exp=expires_at,
         password="s3cret",
+    )
+    # Only registered links are served; the API's minimum lifetime is a day, so this short one is registered directly.
+    await register_share(
+        db_session,
+        token=short_token,
+        artifact_id=html_artifact.id,
+        version_id="short-version",
+        artifact_type=None,
+        password_protected=True,
+        expires_at_unix=expires_at,
     )
     with patch(
         "app.services.artifacts.share.share_bundle.resolve_artifact_deploy_files",
