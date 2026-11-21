@@ -8,8 +8,9 @@
  * bootstrapSettingsSync: 应用启动时的配置同步顺序，不会 reject。
  *
  * [POS]
- * 先等数据库就绪，再启动 ConfigSyncManager 并装上冲突解决器，随后加载关键配置；其余 Store 等浏览器空闲再加载。
- * 任何一步失败都会退回「各 Store 直接用默认值启动」，数据库未就绪时则什么都不启动。
+ * 先装上冲突解决器（别的入口可能在数据库就绪前就启动同步并重放离线变更），等数据库就绪后启动 ConfigSyncManager，
+ * 随后加载关键配置；其余 Store 等浏览器空闲再加载。
+ * 任何一步失败都会退回「各 Store 直接用默认值启动」，数据库未就绪时只留下解决器，同步与各 Store 都不启动。
  */
 import { whenDatabaseReady } from '@/lib/platform-readiness';
 import { scheduleWhenIdle } from '@/lib/utils/scheduleWhenIdle';
@@ -33,13 +34,16 @@ function initSecondaryStores(): Promise<unknown> {
 
 export async function bootstrapSettingsSync(resolveConflict: ConfigConflictResolver): Promise<void> {
   try {
+    // 先装解决器：别的入口（如 ensureKeyLoaded）可能在数据库就绪前就启动同步并重放离线变更，
+    // 那次重放没有解决器就只能静默采用服务端值，用户的离线编辑无从取舍。
+    const manager = getConfigSyncManager();
+    manager.setConflictResolver(resolveConflict);
+
     if (!(await whenDatabaseReady())) {
       console.warn('[SettingsSync] Backend not available; configuration sync was not started');
       return;
     }
 
-    const manager = getConfigSyncManager();
-    manager.setConflictResolver(resolveConflict);
     await manager.initialize();
     await manager.runStartupNormalization();
 

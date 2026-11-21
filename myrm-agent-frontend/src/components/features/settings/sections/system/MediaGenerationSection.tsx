@@ -93,6 +93,14 @@ async function testMediaConfig(
   return { ok: false, message: data.message ?? 'Test failed' };
 }
 
+/** Resolves once the settings are on the backend: a change that could only be kept for a later retry is not a save. */
+async function syncSettings(): Promise<void> {
+  const { success, error } = await getConfigSyncManager().forceSync();
+  if (!success) {
+    throw new Error(error ?? 'The settings did not reach the backend');
+  }
+}
+
 function videoKeyStatus(status: MediaProviderStatus | undefined): KeyStatus | undefined {
   if (!status) {
     return undefined;
@@ -244,7 +252,7 @@ const MediaGenerationSection = memo(() => {
     try {
       addApiKey(configId, videoApiKey.trim(), 'Video Generation');
 
-      await getConfigSyncManager().forceSync();
+      await syncSettings();
 
       setProviderStatuses(await fetchMediaProviderStatus());
       setVideoApiKey('');
@@ -271,7 +279,7 @@ const MediaGenerationSection = memo(() => {
         throw new Error(`No provider row to hold the key of '${imageKeyProvider}'`);
       }
 
-      await getConfigSyncManager().forceSync();
+      await syncSettings();
       setImageApiKey('');
 
       toast.success(t('apiKeySaved'));

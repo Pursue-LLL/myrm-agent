@@ -1,7 +1,8 @@
 /**
  * What a write made on this device leaves in the cached copies: a plain record authored by this device, one version
- * past the cached record while queued changes are replayed, and the confirmed version as both the copy and an
- * independent merge base once a sync succeeded.
+ * past the cached record (and the subscribers told) while queued changes are replayed, and the confirmed version as an
+ * independent merge base once a sync succeeded (and as the copy too, unless a newer edit of the key replaced it
+ * meanwhile).
  */
 
 import { cloneDeep } from 'lodash-es';
@@ -34,6 +35,14 @@ function cachesHolding(cached: ConfigRecord[]) {
   };
 }
 
+/** The cache `set()` leaves behind: the edited value as the copy, the last confirmed value as the merge base. */
+function writtenLocally(edited: unknown, confirmed: unknown) {
+  return {
+    cache: new Map([['chatSettings' as ConfigKey, record('chatSettings', edited, '1000_0')]]),
+    baseCache: new Map([['chatSettings' as ConfigKey, record('chatSettings', confirmed, '1000_0')]]),
+  };
+}
+
 describe('local writes', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -57,7 +66,7 @@ describe('local writes', () => {
   it('replays the latest queued value of each key one version past the cached record, leaving the merge base alone', () => {
     const caches = cachesHolding([record('chatSettings', { n: 0 }, '1000_0', { unreadable: true })]);
 
-    applyReplayedChanges(caches, DEVICE, [
+    applyReplayedChanges({ ...caches, notify: vi.fn() }, DEVICE, [
       change('chatSettings', { n: 1 }),
       change('chatSettings', { n: 2 }),
       change('securityConfig', { s: 1 }),
@@ -72,8 +81,27 @@ describe('local writes', () => {
     expect(caches.baseCache.has('securityConfig')).toBe(false);
   });
 
-  it('records a synced change on the version the server answered, as the copy and as an independent merge base', () => {
+  it('tells the subscribers about each replayed value, after the cache holds it', () => {
     const caches = cachesHolding([record('chatSettings', { n: 0 }, '1000_0')]);
+    const cachedWhenTold = new Map<ConfigKey, unknown>();
+    const notify = vi.fn((key: ConfigKey) => {
+      cachedWhenTold.set(key, caches.cache.get(key)?.value);
+    });
+
+    applyReplayedChanges({ ...caches, notify }, DEVICE, [
+      change('chatSettings', { n: 1 }),
+      change('chatSettings', { n: 2 }),
+      change('securityConfig', { s: 1 }),
+    ]);
+
+    expect(notify).toHaveBeenCalledTimes(2);
+    expect(notify).toHaveBeenCalledWith('chatSettings', { n: 2 }, caches.cache.get('chatSettings')?.meta);
+    expect(notify).toHaveBeenCalledWith('securityConfig', { s: 1 }, caches.cache.get('securityConfig')?.meta);
+    expect(Object.fromEntries(cachedWhenTold)).toEqual({ chatSettings: { n: 2 }, securityConfig: { s: 1 } });
+  });
+
+  it('records a synced change on the version the server answered, as the copy and as an independent merge base', () => {
+    const caches = writtenLocally({ n: 1 }, { n: 0 });
 
     recordSyncedChanges(caches, DEVICE, [change('chatSettings', { n: 1 })], new Map([['chatSettings', '2000_7']]));
 
@@ -86,11 +114,30 @@ describe('local writes', () => {
   });
 
   it('bumps the cached version for a synced change the server named no version for', () => {
-    const caches = cachesHolding([record('chatSettings', { n: 0 }, '1000_0')]);
+    const caches = writtenLocally({ n: 1 }, { n: 0 });
 
     recordSyncedChanges(caches, DEVICE, [change('chatSettings', { n: 1 })], new Map());
 
     expect(caches.cache.get('chatSettings')?.meta.version).toBe(`${NOW}_0`);
     expect(caches.baseCache.get('chatSettings')?.meta.version).toBe(`${NOW}_0`);
+  });
+
+  it('moves only the merge base when the cache already holds a newer edit of the key', () => {
+    const caches = writtenLocally({ n: 2 }, { n: 0 });
+    const newer = caches.cache.get('chatSettings');
+
+    recordSyncedChanges(caches, DEVICE, [change('chatSettings', { n: 1 })], new Map([['chatSettings', '2000_7']]));
+
+    expect(caches.cache.get('chatSettings')).toBe(newer);
+    expect(caches.baseCache.get('chatSettings')).toMatchObject({ value: { n: 1 }, meta: { version: '2000_7' } });
+  });
+
+  it('fills the copy from the synced change when nothing is cached for the key', () => {
+    const caches = cachesHolding([]);
+
+    recordSyncedChanges(caches, DEVICE, [change('chatSettings', { n: 1 })], new Map([['chatSettings', '2000_7']]));
+
+    expect(caches.cache.get('chatSettings')).toMatchObject({ value: { n: 1 }, meta: { version: '2000_7' } });
+    expect(caches.baseCache.get('chatSettings')).toEqual(caches.cache.get('chatSettings'));
   });
 });

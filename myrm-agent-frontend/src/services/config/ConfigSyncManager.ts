@@ -5,9 +5,8 @@
  *
  * 核心特性：
  * - 乐观更新：先更新 UI，再异步同步
- * - 防抖同步：避免频繁写入
+ * - 写入出口（防抖、离线队列、重放、联网重试）由 `outbox.ts` 承担；只有白名单内的非敏感键落盘（`offlineQueue.ts`）
  * - 主题 fast-path：personalSettings 主题字段变更立即 flush + offline queue 落盘
- * - 离线支持：网络不可用时保存到本地队列；只有白名单内的非敏感键落盘，其余键只在内存里重试（`offlineQueue.ts`）
  * - 冲突检测：版本号乐观锁；冲突分级消解见 `conflictResolution.ts`，离线重放的过期闸门见 `offlineReplay.ts`
  */
 
@@ -18,51 +17,45 @@ import { cloneDeep } from 'lodash-es';
 import { valuesEqual } from './configFingerprint';
 import { ConfigListenerRegistry } from './configListeners';
 import type { ConfigChangeListener } from './configListeners';
-import { resolveConflicts } from './conflictResolution';
-import type { ConflictContext, ConfigConflictResolver, RecordSink } from './conflictResolution';
-import { isE2eBlockedKey, withoutBlockedSearchChanges } from './e2eSearchSyncGate';
+import type { ConfigConflictResolver, RecordSink } from './conflictResolution';
+import { isE2eBlockedKey } from './e2eSearchSyncGate';
 import { landLateRecords, loadInitialConfigs } from './initialLoad';
-import { applyReplayedChanges, buildLocalRecord, recordSyncedChanges } from './localWrites';
-import {
-  clearOfflineQueue,
-  isNetworkError,
-  isRecoverableSyncError,
-  loadOfflineQueue,
-  saveOfflineQueue,
-  takeUnpersistableOfflineEntries,
-} from './offlineQueue';
-import { mergeLatestChanges, partitionOfflineChanges } from './offlineReplay';
+import { buildLocalRecord } from './localWrites';
+import { ConfigOutbox } from './outbox';
 import { reloadKeysFromServer } from './serverReload';
 import { runStartupNormalization } from './startupNormalization';
 import { isThemePersonalSettingsChange } from './themePersonalSettingsSync';
 import { BaseConfigAdapter, TauriConfigAdapter, SandboxConfigAdapter } from './adapters';
-import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigChange, ConfigValueMap, SyncResult } from './types';
+import type { ConfigAdapter, ConfigKey, ConfigRecord, ConfigValueMap, SyncResult, SyncStatus } from './types';
 import { createInitialVersion, incrementVersion } from './types';
 
 export type { ConfigChangeListener } from './configListeners';
 export type { ConfigConflictResolution, ConfigConflictResolver } from './conflictResolution';
-
-// 防抖延迟（毫秒）
-const SYNC_DEBOUNCE_MS = 1000;
-
-/** 同步状态 */
-export type SyncStatus = 'idle' | 'loading' | 'syncing' | 'error' | 'offline';
 
 /** 配置同步管理器 */
 class ConfigSyncManager {
   private adapter: ConfigAdapter;
   private cache: Map<ConfigKey, ConfigRecord> = new Map();
   private baseCache: Map<ConfigKey, ConfigRecord> = new Map();
-  private changeQueue: ConfigChange[] = [];
-  /** 非白名单键的待重放变更：不允许留在浏览器存储里，只在内存里等待重放。 */
-  private memoryOnlyOfflineChanges: ConfigChange[] = [];
-  private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new ConfigListenerRegistry();
   private conflictResolver: ConfigConflictResolver | null = null;
   private _status: SyncStatus = 'idle';
   private _isInitialized = false;
   private _initializingPromise: Promise<Map<ConfigKey, ConfigRecord>> | null = null;
-  private onlineHandlerRegistered = false;
+  private readonly outbox = new ConfigOutbox({
+    context: () => ({
+      ...this.recordSink(),
+      adapter: this.adapter,
+      deviceId: this.deviceId,
+      resolver: this.conflictResolver,
+    }),
+    ensureKeyLoaded: (key) => this.ensureKeyLoaded(key),
+    initialize: () => this.initialize(),
+    isInitialized: () => this._isInitialized,
+    setStatus: (status) => {
+      this._status = status;
+    },
+  });
 
   constructor() {
     this.adapter = isLocalMode() ? new TauriConfigAdapter() : new SandboxConfigAdapter();
@@ -103,14 +96,15 @@ class ConfigSyncManager {
     this._status = 'loading';
 
     try {
-      // 先于后端可达性检查：含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里。
-      this.memoryOnlyOfflineChanges.push(...takeUnpersistableOfflineEntries());
+      // 先于后端可达性检查：含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里，
+      // 无从归属账号的积压也不该留到联网后被重放。
+      this.outbox.prepareStoredQueue();
 
       if (isLocalMode()) {
         const ready = await ensureLocalBackendReady();
         if (!ready) {
           this._status = 'offline';
-          this.registerOnlineHandler();
+          this.outbox.registerOnlineHandler();
           void ensurePlatformReadiness().then((snapshot) => {
             if (snapshot.database && !this._isInitialized) {
               void this.initialize();
@@ -120,7 +114,7 @@ class ConfigSyncManager {
         }
       }
 
-      const offlineChanges = this.collectOfflineChanges();
+      const offlineChanges = this.outbox.collectOfflineChanges();
       const coreFirst = !isLocalMode() && this.adapter instanceof SandboxConfigAdapter;
 
       const { configs, loadRemaining } = await loadInitialConfigs(this.adapter, coreFirst);
@@ -136,14 +130,14 @@ class ConfigSyncManager {
         },
       );
 
-      await this.replayOfflineChanges(offlineChanges);
-      this.registerOnlineHandler();
+      await this.outbox.replayOfflineChanges(offlineChanges);
+      this.outbox.registerOnlineHandler();
 
       return this.cache;
     } catch (error) {
       console.warn('[ConfigSync] Initialization failed, entering offline mode for retry:', error);
       this._status = 'offline';
-      this.registerOnlineHandler();
+      this.outbox.registerOnlineHandler();
       return this.cache;
     }
   }
@@ -237,37 +231,21 @@ class ConfigSyncManager {
 
     // E2E 隔离：搜索配置只改本地缓存，不进入同步队列
     if (isE2eBlockedKey(key)) {
-      this.changeQueue = withoutBlockedSearchChanges(this.changeQueue);
+      this.outbox.dropBlockedChanges();
       return;
     }
 
-    // 3. 记录待同步变更
-    this.changeQueue.push({
-      key,
-      value,
-      expectedVersion: currentVersion,
-      timestamp: Date.now(),
-    });
-
-    // 4. 安全关键路径 fast-path：securityConfig 立即 flush（YOLO 关闭等安全变更
+    // 3. 记录待同步变更。安全关键路径 fast-path：securityConfig 立即 flush（YOLO 关闭等安全变更
     //    不应受 1s debounce 影响——否则用户操作后立刻关闭/刷新页面会丢失变更，
-    //    造成「UI 显示已关闭但后端仍开启」的安全假象）。
-    if (
+    //    造成「UI 显示已关闭但后端仍开启」的安全假象）；其余走防抖同步。
+    const immediate =
       key === 'securityConfig' ||
       (key === 'personalSettings' &&
         isThemePersonalSettingsChange(
           current?.value as ConfigValueMap['personalSettings'] | undefined,
           value as ConfigValueMap['personalSettings'],
-        ))
-    ) {
-      saveOfflineQueue(this.changeQueue);
-      this.cancelScheduledSync();
-      void this.flushSync();
-      return;
-    }
-
-    // 5. 防抖同步
-    this.scheduleSyncDebounced();
+        ));
+    this.outbox.enqueue({ key, value, expectedVersion: currentVersion, timestamp: Date.now() }, immediate);
   }
 
   /** 删除配置 */
@@ -286,90 +264,13 @@ class ConfigSyncManager {
   }
 
   /** 强制立即同步 */
-  async forceSync(): Promise<SyncResult> {
-    this.cancelScheduledSync();
-    return this.flushSync();
+  forceSync(): Promise<SyncResult> {
+    return this.outbox.forceSync();
   }
 
-  /** 防抖同步 */
-  private scheduleSyncDebounced(): void {
-    this.cancelScheduledSync();
-    this.syncDebounceTimer = setTimeout(() => {
-      this.flushSync();
-    }, SYNC_DEBOUNCE_MS);
-  }
-
-  private cancelScheduledSync(): void {
-    if (this.syncDebounceTimer) {
-      clearTimeout(this.syncDebounceTimer);
-      this.syncDebounceTimer = null;
-    }
-  }
-
-  /** 立即同步所有待处理变更 */
-  private async flushSync(options?: { preserveExpectedVersion?: boolean }): Promise<SyncResult> {
-    this.changeQueue = withoutBlockedSearchChanges(this.changeQueue);
-    if (this.changeQueue.length === 0) {
-      return {
-        success: true,
-        conflicts: [],
-        newVersions: new Map(),
-      };
-    }
-
-    // 合并同一 key 的连续变更，取最后一个
-    const mergedChanges = mergeLatestChanges(
-      this.changeQueue,
-      this.baseCache,
-      options?.preserveExpectedVersion === true,
-    );
-    this.changeQueue = [];
-
-    this._status = 'syncing';
-
-    try {
-      const result = await this.adapter.sync(mergedChanges);
-
-      if (result.success) {
-        // 清空离线队列
-        clearOfflineQueue();
-
-        recordSyncedChanges(this.recordSink(), this.deviceId, mergedChanges, result.newVersions);
-
-        this._status = 'idle';
-      } else if (result.conflicts.length > 0) {
-        // 处理冲突：重新加载冲突的配置
-        await resolveConflicts(this.conflictContext(), result.conflicts);
-        this._status = 'idle';
-      } else if (result.error) {
-        console.warn('[ConfigSync] Sync failed:', result.error);
-        if (isRecoverableSyncError(result.error)) {
-          this.enqueueOfflineChanges(mergedChanges);
-          this._status = 'offline';
-        } else {
-          this._status = 'error';
-        }
-      }
-
-      return result;
-    } catch (error) {
-      // 网络错误：保存到离线队列
-      if (isNetworkError(error)) {
-        console.warn('[ConfigSync] Network error, saving to offline queue');
-        this.enqueueOfflineChanges(mergedChanges);
-        this._status = 'offline';
-        return {
-          success: false,
-          conflicts: [],
-          newVersions: new Map(),
-          error: 'Network error, changes saved to offline queue',
-        };
-      }
-
-      console.warn('[ConfigSync] Sync failed:', error);
-      this._status = 'error';
-      throw error;
-    }
+  /** 释放定时器与联网监听（单例被重置或替换时调用）。 */
+  dispose(): void {
+    this.outbox.dispose();
   }
 
   /** 本机写入的记录以它作为作者。 */
@@ -380,16 +281,6 @@ class ConfigSyncManager {
   /** 读取时才取 cache：`initialize()` 会整体替换两张缓存表。 */
   private recordSink(): RecordSink {
     return { cache: this.cache, baseCache: this.baseCache, notify: this.notifyListeners.bind(this) };
-  }
-
-  private conflictContext(): ConflictContext {
-    return {
-      ...this.recordSink(),
-      adapter: this.adapter,
-      deviceId: this.deviceId,
-      resolver: this.conflictResolver,
-      requeue: (changes) => this.enqueueOfflineChanges(changes),
-    };
   }
 
   /** 首屏之后才到的记录（后台预加载、按需读取单个 key）统一从这里落进缓存空缺；缓存已有的 key 不被迟到的答复覆盖。 */
@@ -403,60 +294,6 @@ class ConfigSyncManager {
       return;
     }
     this.listeners.notify(key, value, meta);
-  }
-
-  private enqueueOfflineChanges(changes: ConfigChange[]): void {
-    if (changes.length === 0) {
-      return;
-    }
-    this.changeQueue.push(...changes);
-    saveOfflineQueue(changes);
-    this.scheduleSyncDebounced();
-  }
-
-  private registerOnlineHandler(): void {
-    if (typeof window === 'undefined' || this.onlineHandlerRegistered) {
-      return;
-    }
-    this.onlineHandlerRegistered = true;
-    window.addEventListener('online', () => {
-      void this.retryOfflineQueue();
-    });
-  }
-
-  private async retryOfflineQueue(): Promise<void> {
-    // 启动失败时服务端状态从未载入：先重新初始化（它自己会载入并重放队列），仍不可达就留在队列里等下一次联网。
-    await this.initialize();
-    if (!this._isInitialized) {
-      return;
-    }
-    await this.replayOfflineChanges(this.collectOfflineChanges());
-    if (this.changeQueue.length > 0) {
-      await this.flushSync();
-    }
-  }
-
-  /** 待重放的离线变更：内存里的非白名单条目 + 浏览器存储里的白名单条目。 */
-  private collectOfflineChanges(): ConfigChange[] {
-    return [...this.memoryOnlyOfflineChanges, ...loadOfflineQueue()];
-  }
-
-  /** 服务端已前进的过期条目被丢弃（服务端值胜出）；其余乐观写入缓存后带着原基准版本同步。 */
-  private async replayOfflineChanges(pending: ConfigChange[]): Promise<void> {
-    if (pending.length === 0) {
-      return;
-    }
-    console.warn(`[ConfigSync] Found ${pending.length} offline changes, syncing...`);
-    // 渐进加载下缓存只含核心键：队列里的非核心键没补载入就比对，会把「没取到」当成「服务端已前进」。
-    await Promise.all(pending.map((change) => this.ensureKeyLoaded(change.key)));
-    const replayable = await partitionOfflineChanges(pending, this.cache, this.conflictResolver);
-    this.memoryOnlyOfflineChanges = [];
-    clearOfflineQueue();
-    if (replayable.length > 0) {
-      applyReplayedChanges(this.recordSink(), this.deviceId, replayable);
-      this.changeQueue = replayable;
-      await this.flushSync({ preserveExpectedVersion: true });
-    }
   }
 }
 
@@ -480,6 +317,7 @@ export function getConfigSyncManager(): ConfigSyncManager {
 
 /** 重置配置同步管理器（仅用于测试） */
 export function resetConfigSyncManager(): void {
+  _instance?.dispose();
   _instance = null;
 }
 

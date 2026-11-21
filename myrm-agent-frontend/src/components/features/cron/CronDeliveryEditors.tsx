@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Webhook, MessageSquare, BellOff, Send, Activity } from 'lucide-react';
+import { AlertTriangle, Webhook, MessageSquare, BellOff, Send } from 'lucide-react';
+import ConnectorHealthBadge from './ConnectorHealthBadge';
 import { WebhookGuide } from './WebhookGuide';
 import { EditorToggle } from './EditorToggle';
 import { Button } from '@/components/primitives/button';
 import { Input } from '@/components/primitives/input';
 import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-group';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils/classnameUtils';
 import type { CronJob } from '@/services/cron';
 import { testCronDelivery, updateCronJob } from '@/services/cron';
 import { listChannelStatuses } from '@/services/channels';
@@ -126,19 +126,24 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
   const connectedChannels = useConnectedChannels();
   const serverChannel = fromApiChannel(job.delivery?.channel ?? 'chat');
   const rawTarget = job.delivery?.target ?? '';
+  const serverImTarget = serverChannel === 'whatsapp' ? fromWaTarget(rawTarget) : rawTarget;
   const [localChannel, setLocalChannel] = useState(serverChannel);
   const [webhookUrl, setWebhookUrl] = useState(rawTarget);
-  const [imTarget, setImTarget] = useState(serverChannel === 'whatsapp' ? fromWaTarget(rawTarget) : rawTarget);
+  const [imTarget, setImTarget] = useState(serverImTarget);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
   const isImChannel = needsDeliveryTarget(localChannel);
 
-  useEffect(() => {
+  // The server's delivery replaces what the fields hold whenever it changes (after a save, or an edit elsewhere).
+  // Done while rendering rather than in an effect, so the old value is never shown for a frame.
+  const [shownFor, setShownFor] = useState({ serverChannel, rawTarget });
+  if (shownFor.serverChannel !== serverChannel || shownFor.rawTarget !== rawTarget) {
+    setShownFor({ serverChannel, rawTarget });
     setLocalChannel(serverChannel);
     setWebhookUrl(rawTarget);
-    setImTarget(serverChannel === 'whatsapp' ? fromWaTarget(rawTarget) : rawTarget);
-  }, [serverChannel, rawTarget]);
+    setImTarget(serverImTarget);
+  }
 
   const handleChannelChange = async (ch: string) => {
     if (ch === localChannel) {
@@ -223,27 +228,7 @@ export function DeliveryEditor({ job, onUpdated }: EditorProps) {
     <div className="rounded-lg border bg-card px-3 py-2.5 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground block">{t('deliveryLabel')}</span>
-        {job.delivery?.target && (
-          <span
-            className={cn(
-              'inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border font-medium',
-              job.consecutive_failures >= 3
-                ? 'bg-destructive/10 text-destructive-text border-destructive/20'
-                : job.consecutive_failures > 0
-                  ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
-                  : 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
-            )}
-          >
-            <Activity className="h-2.5 w-2.5" />
-            <span data-testid="connector-health-badge">
-              {job.consecutive_failures >= 3
-                ? t('connectorStatusDown')
-                : job.consecutive_failures > 0
-                  ? t('connectorStatusDegraded')
-                  : t('connectorStatusHealthy')}
-            </span>
-          </span>
-        )}
+        {job.delivery?.target && <ConnectorHealthBadge job={job} />}
       </div>
       <ChannelToggleGroup
         value={localChannel}
@@ -306,27 +291,30 @@ export function FailureDeliveryEditor({ job, onUpdated }: EditorProps) {
   const t = useTranslations('cron');
   const connectedChannels = useConnectedChannels();
   const existing = job.failure_delivery;
-  const initCh = fromApiChannel(existing?.channel ?? 'webhook');
-  const initTarget = existing?.target ?? '';
+  const serverChannel = fromApiChannel(existing?.channel ?? 'webhook');
+  const serverTarget = existing?.target ?? '';
+  const serverImTarget = serverChannel === 'whatsapp' ? fromWaTarget(serverTarget) : serverTarget;
   const [enabled, setEnabled] = useState(!!existing);
-  const [channel, setChannel] = useState(initCh);
-  const [webhookUrl, setWebhookUrl] = useState(initTarget);
-  const [imTarget, setImTarget] = useState(initCh === 'whatsapp' ? fromWaTarget(initTarget) : initTarget);
+  const [channel, setChannel] = useState(serverChannel);
+  const [webhookUrl, setWebhookUrl] = useState(serverTarget);
+  const [imTarget, setImTarget] = useState(serverImTarget);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
   const isImChannel = needsDeliveryTarget(channel);
 
-  useEffect(() => {
-    setEnabled(!!job.failure_delivery);
-    if (job.failure_delivery) {
-      const ch = fromApiChannel(job.failure_delivery.channel ?? 'webhook');
-      const tgt = job.failure_delivery.target ?? '';
-      setChannel(ch);
-      setWebhookUrl(tgt);
-      setImTarget(ch === 'whatsapp' ? fromWaTarget(tgt) : tgt);
+  // Same as `DeliveryEditor`: a changed failure delivery replaces what the fields hold. With none, only the toggle
+  // follows (the editor closes) and the fields keep what they hold.
+  const [shownFor, setShownFor] = useState(existing);
+  if (shownFor !== existing) {
+    setShownFor(existing);
+    setEnabled(!!existing);
+    if (existing) {
+      setChannel(serverChannel);
+      setWebhookUrl(serverTarget);
+      setImTarget(serverImTarget);
     }
-  }, [job.failure_delivery]);
+  }
 
   const handleToggle = async () => {
     if (enabled) {

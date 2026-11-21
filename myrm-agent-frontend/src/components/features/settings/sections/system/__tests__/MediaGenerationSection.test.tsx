@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { MediaProviderStatus } from '@/lib/utils/media';
+import type { SyncResult } from '@/services/config/types';
 import MediaGenerationSection from '../MediaGenerationSection';
 
 interface ProviderRow {
@@ -19,7 +20,7 @@ const kit = vi.hoisted(() => ({
   setImageGeneration: vi.fn(),
   setVideoGeneration: vi.fn(),
   addApiKey: vi.fn<(providerId: string, key: string, remark: string) => void>(),
-  forceSync: vi.fn(async () => undefined),
+  forceSync: vi.fn<() => Promise<SyncResult>>(),
   success: vi.fn<(text: string) => void>(),
   error: vi.fn<(text: string) => void>(),
   fetch: vi.fn<(url: string, init: RequestInit) => Promise<{ json: () => Promise<unknown> }>>(),
@@ -63,6 +64,14 @@ const status = (overrides: Partial<MediaProviderStatus> = {}): MediaProviderStat
   ...overrides,
 });
 
+/** What the sync manager answers while the backend cannot be reached: the change is kept, not saved. */
+const unreachable: SyncResult = {
+  success: false,
+  conflicts: [],
+  newVersions: new Map(),
+  error: 'Backend not available',
+};
+
 const providerWithKey = (id: string): ProviderRow => ({
   id,
   isEnabled: true,
@@ -96,7 +105,7 @@ beforeEach(() => {
     gemini: status(),
     xai: status({ name: 'xAI Grok', defaultModel: 'grok-imagine-video', models: [] }),
   };
-  kit.forceSync.mockResolvedValue(undefined);
+  kit.forceSync.mockResolvedValue({ success: true, conflicts: [], newVersions: new Map() });
   kit.addApiKey.mockImplementation((providerId, key) => {
     kit.providers = [...kit.providers, { ...providerWithKey(providerId), apiKeys: [{ key, isActive: true }] }];
   });
@@ -264,6 +273,21 @@ describe('MediaGenerationSection image choice', () => {
     expect(screen.getByPlaceholderText('Enter API Key')).toHaveValue('sk-new');
   });
 
+  it('says the key was not saved when the backend could not be reached', async () => {
+    kit.config = { imageGeneration: imageConfig({ model: 'xai/grok-imagine-image' }) };
+    kit.statuses = {};
+    kit.forceSync.mockResolvedValue(unreachable);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const user = userEvent.setup();
+    await renderSection();
+
+    await user.type(screen.getByPlaceholderText('Enter API Key'), 'sk-new');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(kit.error).toHaveBeenCalledWith('Failed to save API Key'));
+    expect(kit.success).not.toHaveBeenCalled();
+  });
+
   it('tests the connection of the chosen model with its own provider', async () => {
     kit.config = { imageGeneration: imageConfig() };
     kit.providers = [providerWithKey('openai')];
@@ -405,5 +429,29 @@ describe('MediaGenerationSection video choice', () => {
 
     await waitFor(() => expect(kit.success).toHaveBeenCalledWith('API Key saved successfully'));
     expect(kit.addApiKey).toHaveBeenCalledExactlyOnceWith('gemini', 'sk-video', 'Video Generation');
+  });
+
+  it('says the key was not saved when the backend could not be reached, and keeps what was typed', async () => {
+    kit.config = {
+      videoGeneration: {
+        provider: 'gemini',
+        model: 'veo-3.1-fast-generate-preview',
+        fallbackProviders: [],
+        timeoutSeconds: 300,
+        maxRetries: 1,
+      },
+    };
+    kit.statuses = { gemini: status({ hasApiKey: false, configured: false }) };
+    kit.forceSync.mockResolvedValue(unreachable);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const user = userEvent.setup();
+    await renderSection();
+
+    await user.type(screen.getByPlaceholderText('Enter API Key'), 'sk-video');
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(kit.error).toHaveBeenCalledWith('Failed to save API Key'));
+    expect(kit.success).not.toHaveBeenCalled();
+    expect(screen.getByPlaceholderText('Enter API Key')).toHaveValue('sk-video');
   });
 });

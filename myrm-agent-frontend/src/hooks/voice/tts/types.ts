@@ -5,7 +5,9 @@
  * [OUTPUT]
  * TTSState: playback state of one TTS engine
  * TTSMode: engine that voices the text (browser SpeechSynthesis or the backend API)
- * UseTTSOptions / UseTTSReturn: options and controls shared by both engines and the useTTS facade
+ * TTSEngine: controls every engine exposes
+ * UseTTSOptions: engine selector and provider accepted by useTTS
+ * UseTTSReturn: what useTTS returns, the engine's controls plus toggle
  *
  * [POS]
  * Type vocabulary shared by the TTS engines and the useTTS facade;
@@ -16,18 +18,19 @@ export type TTSState = 'idle' | 'playing' | 'paused' | 'loading';
 export type TTSMode = 'browser' | 'api';
 
 export interface UseTTSOptions {
-  rate?: number;
-  lang?: string;
   mode?: TTSMode;
   provider?: string;
 }
 
-export interface UseTTSReturn {
+export interface TTSEngine {
   state: TTSState;
   speak: (text: string) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
-  toggle: (text: string) => void;
   supported: boolean;
+}
+
+export interface UseTTSReturn extends TTSEngine {
+  toggle: (text: string) => void;
 }

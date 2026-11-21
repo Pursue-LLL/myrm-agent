@@ -14,10 +14,11 @@ import {
 } from '@/components/features/cron/CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import type { ChannelStatus } from '@/services/channels';
-import { updateCronJob } from '@/services/cron';
-import type { CronJob } from '@/services/cron';
+import { getConnectorsHealth, updateCronJob } from '@/services/cron';
+import type { ConnectorHealthItem, CronJob } from '@/services/cron';
 
 vi.mock('@/services/cron', () => ({
+  getConnectorsHealth: vi.fn(),
   updateCronJob: vi.fn(),
   testCronDelivery: vi.fn(),
 }));
@@ -30,6 +31,15 @@ const RECIPIENT = '+8613812345678';
 
 const chatJob = { id: 'job-1', consecutive_failures: 0, delivery: { channel: 'chat' } } as CronJob;
 
+const HOOK_A = 'https://hooks.example.com/a';
+const HOOK_B = 'https://hooks.example.com/b';
+const webhookJob = {
+  id: 'job-1',
+  consecutive_failures: 5,
+  delivery: { channel: 'webhook', target: HOOK_A },
+} as CronJob;
+const toHook = (job: CronJob, target: string): CronJob => ({ ...job, delivery: { channel: 'webhook', target } });
+
 function connect(...names: string[]): void {
   vi.mocked(listChannelStatuses).mockResolvedValue(names.map((name) => ({ name, status: 'running' }) as ChannelStatus));
 }
@@ -37,6 +47,7 @@ function connect(...names: string[]): void {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(updateCronJob).mockResolvedValue(chatJob);
+  vi.mocked(getConnectorsHealth).mockResolvedValue({ items: [], total: 0, degraded_count: 0, down_count: 0 });
 });
 
 describe('needsDeliveryTarget 收件人判定', () => {
@@ -113,11 +124,94 @@ describe('DeliveryEditor', () => {
   });
 });
 
+describe('DeliveryEditor 目的地健康度', () => {
+  // webhookJob 自己连续失败 5 次（如模型报错），这与投递目的地是否可达无关，徽标只认目的地的投递记录。
+  const destination = (status: ConnectorHealthItem['status']): ConnectorHealthItem => ({
+    target: HOOK_A,
+    channel: 'webhook',
+    status,
+    total_deliveries: 4,
+    failed_deliveries: status === 'healthy' ? 0 : 3,
+    consecutive_failures: status === 'healthy' ? 0 : 3,
+    bound_job_ids: ['job-1'],
+  });
+
+  it.each([
+    ['healthy', 'connectorStatusHealthy'],
+    ['down', 'connectorStatusDown'],
+  ] as const)('目的地 %s 时徽标显示目的地的状态，而不是任务自己的失败次数', async (status, label) => {
+    connect();
+    vi.mocked(getConnectorsHealth).mockResolvedValue({
+      items: [destination(status)],
+      total: 1,
+      degraded_count: 0,
+      down_count: status === 'down' ? 1 : 0,
+    });
+    render(<DeliveryEditor job={webhookJob} onUpdated={vi.fn()} />);
+
+    expect(await screen.findByTestId('connector-health-badge')).toHaveTextContent(label);
+  });
+
+  it('不出站的投递没有目的地，也就不查询健康度', async () => {
+    connect();
+    render(<DeliveryEditor job={chatJob} onUpdated={vi.fn()} />);
+    await screen.findByRole('radio', { name: 'deliveryNone' });
+
+    expect(getConnectorsHealth).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('connector-health-badge')).not.toBeInTheDocument();
+  });
+});
+
+describe('DeliveryEditor 与服务端状态同步', () => {
+  it('服务端的投递地址变化后（保存或别处修改），输入框跟随服务端', async () => {
+    connect();
+    const { rerender } = render(<DeliveryEditor job={webhookJob} onUpdated={vi.fn()} />);
+    expect(await screen.findByRole('textbox')).toHaveValue(HOOK_A);
+
+    rerender(<DeliveryEditor job={toHook(webhookJob, HOOK_B)} onUpdated={vi.fn()} />);
+
+    expect(screen.getByRole('textbox')).toHaveValue(HOOK_B);
+  });
+
+  it('服务端的投递没有变化时，正在输入的内容不会被冲掉', async () => {
+    connect();
+    const user = userEvent.setup();
+    const { rerender } = render(<DeliveryEditor job={webhookJob} onUpdated={vi.fn()} />);
+    await user.type(await screen.findByRole('textbox'), '/draft');
+
+    rerender(<DeliveryEditor job={{ ...webhookJob }} onUpdated={vi.fn()} />);
+
+    expect(screen.getByRole('textbox')).toHaveValue(`${HOOK_A}/draft`);
+  });
+});
+
 describe('FailureDeliveryEditor', () => {
+  const ALERT = 'https://alerts.example.com/hook';
   const failureJob = {
     ...chatJob,
-    failure_delivery: { channel: 'webhook', target: 'https://alerts.example.com/hook' },
+    failure_delivery: { channel: 'webhook', target: ALERT },
   } as CronJob;
+
+  it('服务端的失败通知变化后，输入框跟随服务端', async () => {
+    connect();
+    const { rerender } = render(<FailureDeliveryEditor job={failureJob} onUpdated={vi.fn()} />);
+    expect(await screen.findByRole('textbox')).toHaveValue(ALERT);
+
+    const changed = { ...failureJob, failure_delivery: { channel: 'webhook', target: HOOK_B } } as CronJob;
+    rerender(<FailureDeliveryEditor job={changed} onUpdated={vi.fn()} />);
+
+    expect(screen.getByRole('textbox')).toHaveValue(HOOK_B);
+  });
+
+  it('服务端清除了失败通知后，编辑区收起', async () => {
+    connect();
+    const { rerender } = render(<FailureDeliveryEditor job={failureJob} onUpdated={vi.fn()} />);
+    await screen.findByRole('textbox');
+
+    rerender(<FailureDeliveryEditor job={{ ...failureJob, failure_delivery: null } as CronJob} onUpdated={vi.fn()} />);
+
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
 
   it('选中没有示例 ID 的渠道时展示收件人输入框，保存时一并提交收件人', async () => {
     connect('signal');

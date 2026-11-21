@@ -39,6 +39,9 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
+/** The outbox is private to the manager; the test seeds a queued change that has no optimistic cache write behind it. */
+const outboxOf = (target: ConfigSyncManager): object => (target as unknown as { outbox: object }).outbox;
+
 describe('ConfigSyncManager offline replay hydrate', () => {
   let manager: ConfigSyncManager;
 
@@ -127,8 +130,8 @@ describe('ConfigSyncManager offline replay hydrate', () => {
         }),
     });
 
-    Object.assign(manager, {
-      changeQueue: [
+    Object.assign(outboxOf(manager), {
+      queue: [
         {
           key: 'personalSettings',
           value: pending,

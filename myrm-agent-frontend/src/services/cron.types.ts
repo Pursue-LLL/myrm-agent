@@ -150,9 +150,7 @@ export type MonitorFailureCountSource = 'persistent_state' | 'memory_fallback';
 export interface ConnectorFailureDetail {
   category: string;
   target: string;
-  status_code?: number | null;
   message?: string;
-  duration_ms?: number | null;
   timestamp?: string;
 }
 
@@ -425,12 +423,10 @@ export interface ConnectorHealthItem {
   total_deliveries: number;
   failed_deliveries: number;
   consecutive_failures: number;
-  last_status_code?: number | null;
   last_error_category?: string | null;
   last_error_message?: string | null;
   last_delivery_at?: string | null;
   last_failed_at?: string | null;
-  fix_suggestion?: string | null;
   bound_job_ids: string[];
 }
 

@@ -6,11 +6,15 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
+from myrm_agent_harness.toolkits.cron.engine.connector_health import delivery_target_key
 from myrm_agent_harness.toolkits.cron.engine.executor import _output_hash
 from myrm_agent_harness.toolkits.cron.types import (
     CronConfig,
+    CronJob,
+    CronRunRecord,
     DeliveryConfig,
     DeliveryStatus,
     FailureAlertConfig,
@@ -100,6 +104,19 @@ class TestTryDeliver:
         assert "network error" in (error or "")
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("failure", "named"),
+        [(TimeoutError(), "TimeoutError"), (httpx.ReadTimeout(""), "ReadTimeout")],
+        ids=["TimeoutError", "ReadTimeout"],
+    )
+    async def test_a_failure_without_text_is_recorded_by_its_type(self, failure: Exception, named: str) -> None:
+        executor, _, delivery = make_executor()
+        delivery.deliver = AsyncMock(side_effect=failure)
+        status, error = await executor._try_deliver(make_job(), JobResult(success=True, output="some output"))
+        assert status == DeliveryStatus.FAILED
+        assert error == named
+
+    @pytest.mark.asyncio
     async def test_duplicate_output_skipped(self) -> None:
         executor, _, _ = make_executor()
         job = make_job(deduplicate=True, last_output_hash=_output_hash("same output"))
@@ -129,6 +146,73 @@ class TestTryDeliver:
         result = JobResult(success=True, output="new output")
         await executor._try_deliver(job, result)
         assert job.last_output_hash == _output_hash("new output")
+
+
+# ---------------------------------------------------------------------------
+# The destination key a run record carries
+# ---------------------------------------------------------------------------
+
+WEBHOOK = DeliveryConfig(channel="webhook", target="https://api.example.com/hook?token=secret99")
+
+
+async def _record_run(job: CronJob, *, result: JobResult, delivery_error: Exception | None = None) -> CronRunRecord:
+    """Run the job once through a fresh executor and hand back the record it saved."""
+    executor, store, delivery = make_executor()
+    if delivery_error is not None:
+        delivery.deliver = AsyncMock(side_effect=delivery_error)
+    runner = AsyncMock()
+    runner.run = AsyncMock(return_value=result)
+    await executor.run_and_record(job, runner)
+    store.save_run.assert_awaited_once()
+    record: CronRunRecord = store.save_run.await_args.args[0]
+    return record
+
+
+class TestRunDeliveryKey:
+    @pytest.mark.asyncio
+    async def test_a_delivered_run_carries_the_key_of_its_destination(self) -> None:
+        record = await _record_run(make_job(delivery=WEBHOOK), result=JobResult(success=True, output="report"))
+        assert record.delivery_status == DeliveryStatus.DELIVERED
+        assert record.metadata is not None
+        assert record.metadata["delivery_key"] == delivery_target_key("webhook", WEBHOOK.target)
+        assert "secret99" not in str(record.metadata)
+
+    @pytest.mark.asyncio
+    async def test_a_failed_delivery_carries_the_same_key(self) -> None:
+        record = await _record_run(
+            make_job(delivery=WEBHOOK),
+            result=JobResult(success=True, output="report"),
+            delivery_error=RuntimeError("Webhook returned 502: Bad Gateway"),
+        )
+        assert record.delivery_status == DeliveryStatus.FAILED
+        assert record.metadata is not None
+        assert record.metadata["delivery_key"] == delivery_target_key("webhook", WEBHOOK.target)
+        assert "connector_failure" in record.metadata
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("delivery", "output"),
+        [
+            (DeliveryConfig(channel="chat"), "report"),
+            (DeliveryConfig(channel="none"), "report"),
+            (WEBHOOK, "[SILENT]"),
+        ],
+        ids=["in-app-channel", "no-delivery", "skipped-delivery"],
+    )
+    async def test_a_run_that_reached_no_destination_carries_no_key(
+        self, delivery: DeliveryConfig, output: str
+    ) -> None:
+        record = await _record_run(make_job(delivery=delivery), result=JobResult(success=True, output=output))
+        assert "delivery_key" not in (record.metadata or {})
+
+    @pytest.mark.asyncio
+    async def test_the_runner_cannot_name_the_destination(self) -> None:
+        record = await _record_run(
+            make_job(delivery=WEBHOOK),
+            result=JobResult(success=True, output="report", metadata={"delivery_key": "forged"}),
+        )
+        assert record.metadata is not None
+        assert record.metadata["delivery_key"] == delivery_target_key("webhook", WEBHOOK.target)
 
 
 # ---------------------------------------------------------------------------
