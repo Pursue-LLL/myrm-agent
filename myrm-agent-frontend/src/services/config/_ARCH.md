@@ -15,7 +15,7 @@
 | `localWrites.ts`               | 核心 | 本机写入的记录簿记（纯函数，缓存经参数传入）：`buildLocalRecord` 造出记录（不带 `unreadable`，用户显式保存即解除「读不出」标记）；`applyReplayedChanges` 在离线重放前把队列里每个 key 的最新值乐观写进缓存（与 `set()` 同语义）；`recordSyncedChanges` 在同步成功后把已发送的变更落成缓存与独立的合并基线拷贝 | ✅    |
 | `conflictResolution.ts`        | 核心 | 版本冲突分级消解（见下表）与冲突解决器类型；通过 `ConflictContext` 接收管理器的缓存与回调，自身无状态；重试仍失败时变更放回队列，本地值不丢；key 从未加载（没有基线）时不拿服务端值当基线：服务端独有的字段并入，重叠字段交给解决器，同设备写入的版本也不静默保留；`adoptServerRecord` 把服务端记录同时落到缓存、合并基线与订阅者（`RecordSink`），冲突消解、`landLateRecords`（后台预加载、`ensureKeyLoaded`）、`reloadKeys` 共用这一个落地动作                                                                                                                                                                                                                                                                                                                                                               | ✅    |
 | `serverReload.ts`              | 核心 | 后端在页面存活期间改了配置行后的重载（迁移向导写模型槽位 / 已导入密钥 / MCP 服务器 / 全局指令；插件导入与卸载写 MCP 服务器）：按 key 取后端当前记录并 `adoptServerRecord`，缓存、合并基线、订阅者一起前进，下一次保存带的是后端的版本而不是旧基线；**本地有尚未同步改动的 key（缓存值与合并基线不同）保留不动**，交给常规同步对账；读取进行期间被本地写入过的 key 同样保留（应答早于那次写入）；缓存已是后端版本的 key 不重复通知；读取失败整体抛出、缓存不动；自身无状态，缓存经 `RecordSink` 传入 | ✅    |
-| `initialLoad.ts`               | 核心 | 首屏加载：失败重试 3 次；Sandbox 模式先取核心 key、其余以延迟启动的 thunk（同样重试 3 次）交还管理器后台预加载，本地模式一次取全；`landLateRecords` 把迟到记录落进缓存空缺（缓存已有的 key 保留：迟到的答复可能比用户期间保存的值更旧），经 `adoptServerRecord` 一起进缓存、基线拷贝并通知订阅者                                                                                                                                                                                                                                                                                                                                                                                          | ✅    |
+| `initialLoad.ts`               | 核心 | 首屏加载：最多尝试 3 次；Sandbox 模式先取核心 key、其余以延迟启动的 thunk（同样最多尝试 3 次）交还管理器后台预加载，本地模式一次取全；`landLateRecords` 把迟到记录落进缓存空缺（缓存已有的 key 保留：迟到的答复可能比用户期间保存的值更旧），经 `adoptServerRecord` 一起进缓存、基线拷贝并通知订阅者                                                                                                                                                                                                                                                                                                                                                                                          | ✅    |
 | `configListeners.ts`           | 辅助 | 按 key 的订阅者注册表，单个订阅者抛错不影响其余订阅者                                                                                                                                                                                                                                                                                                                                                                                                                                                     | ✅    |
 | `startupNormalization.ts`      | 辅助 | 启动归一化遍历（Web Lock 内），写入走管理器的 `commitIfDirty`，因此不会覆盖读不出的密文行                                                                                                                                                                                                                                                                                                                                                                                                                 | ✅    |
 | `e2eSearchSyncGate.ts`         | 辅助 | E2E 测试开关：E2E 运行里搜索配置只留在本地，不进同步队列也不通知订阅者；未设置标志时为空操作，生产构建从不读标志                                                                                                                                                                                                                                                                                                                                                                                                              | ✅    |
@@ -50,7 +50,7 @@
 ## 渐进加载与订阅通知
 
 Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/personalSettings），
-其余 key（含 `securityConfig`）后台异步预加载（失败重试 3 次）。预加载写入缓存时**同步通知订阅者**——
+其余 key（含 `securityConfig`）后台异步预加载（最多尝试 3 次）。预加载写入缓存时**同步通知订阅者**——
 否则「配置就绪后兜底」类逻辑（如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。缓存里已有的 key 不被迟到的答复覆盖（用户在读取进行中保存的值、先到的同 key 答复都保留），迟到的答复只补空缺。
 读取即决策的路径（安全预设、本地模型密钥、发送前的搜索服务检查、离线队列重放前的比对）应使用 `ensureKeyLoaded(key)` 显式等待目标 key 同步；它返回状态是否已知（缓存命中，或服务端已答复，含「没有这一行」为 true；请求失败为 false，永不抛出），状态未知时的去向由调用方决定，需要等待上限时配合 `@/lib/utils/withTimeout`。
 
@@ -79,7 +79,7 @@ Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/p
 | T0   | fingerprint 相同       | 不写入                 |
 | T1   | 三向合并成功           | 静默合并               |
 | T2   | 同 `deviceId` 版本冲突，且有基线 | 静默保留本地           |
-| T3   | 跨设备同字段冲突；或没有基线时的同字段冲突 | `ConfigConflictDialog`（只能二选一，多个冲突排队逐个作答） |
+| T3   | 写入方 `deviceId` 与本设备不同（另一台设备，或服务端自己写入的行）的同字段冲突；或没有基线时的同字段冲突 | `ConfigConflictDialog`（只能二选一，多个冲突排队逐个作答） |
 
 没有基线指该 key 在本机从未加载（例如后台预加载失败后用户先改了它）：此时服务端独有的字段并入本地值，重叠字段无论由谁写入都走 T3。
 
