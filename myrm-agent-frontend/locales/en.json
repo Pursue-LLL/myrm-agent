@@ -21050,7 +21050,14 @@
       "auditDetails": "Spending by sender (7d)",
       "auditLoading": "Loading audit data...",
       "auditEmpty": "No spending data for this period",
-      "auditMessages": "msgs"
+      "auditMessages": "msgs",
+      "auditFailed": "Spending data for this period could not be loaded. Collapse and expand this section to try again.",
+      "limitOutOfRange": "Enter a daily limit between {min} and {max} USD.",
+      "deleteConfirmTitle": "Delete this channel budget?",
+      "deleteConfirmDescription": "Once deleted, {name} has no daily limit and its spending is no longer capped.",
+      "loadFailedTitle": "Channel budgets could not be loaded",
+      "loadFailedDesc": "Something went wrong while loading your channel budgets. Try again later.",
+      "loadFailedStaleDesc": "The channels below come from the last successful load and may be out of date."
     },
     "about": {
       "title": "About",

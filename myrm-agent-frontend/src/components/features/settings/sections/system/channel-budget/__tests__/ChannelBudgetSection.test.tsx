@@ -1,8 +1,21 @@
+/**
+ * [INPUT]
+ * - ../ChannelBudgetSection (POS: panel under test)
+ * - ./channelBudgetTestKit (POS: shared fixtures)
+ *
+ * [OUTPUT]
+ * - Test suite for the audit, the saves, the add form and the limit boxes of the channel budget panel
+ *
+ * [POS]
+ * Pins what the panel sends and shows once a channel is configured: the audit bars, the patch of each edit, the whole
+ * policy of a new channel, and how a limit box and the add form handle what is typed.
+ */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
 import { deferred } from '@/test-utils/deferred';
+import { CHANNEL_KEY, auditEntry, channelStatus, nextTick, policyOf, stableT } from './channelBudgetTestKit';
 import {
   createChannelBudget,
   getChannelAudit,
@@ -11,10 +24,7 @@ import {
   type ChannelAuditEntry,
   type ChannelBudgetPolicy,
   type ChannelBudgetsResponse,
-  type ChannelBudgetStatus,
 } from '@/services/budget';
-
-const stableT = (key: string) => key;
 
 vi.mock('next-intl', () => ({
   useTranslations: () => stableT,
@@ -28,37 +38,7 @@ vi.mock('@/services/budget', () => ({
   getChannelAudit: vi.fn(),
 }));
 
-const CHANNEL_KEY = 'telegram:group:g-1';
-
-const channelStatus = (todayCostUsd: number): ChannelBudgetStatus => ({
-  channel_key: CHANNEL_KEY,
-  label: '',
-  enabled: true,
-  daily_limit_usd: 2,
-  today_cost_usd: todayCostUsd,
-  remaining_usd: Math.max(2 - todayCostUsd, 0),
-  usage_pct: (todayCostUsd / 2) * 100,
-  status: 'ok',
-});
-
-const auditEntry = (senderId: string, totalCostUsd: number): ChannelAuditEntry => ({
-  sender_id: senderId,
-  message_count: 3,
-  total_cost_usd: totalCostUsd,
-});
-
-const policyOf = (dailyLimitUsd: number): ChannelBudgetPolicy => ({
-  channel_key: CHANNEL_KEY,
-  daily_limit_usd: dailyLimitUsd,
-  warning_threshold: 0.8,
-  enabled: true,
-  label: '',
-});
-
 type PolicySave = ReturnType<typeof deferred<ChannelBudgetPolicy>>;
-
-/** Lets every promise already queued settle, so a test can look at the screen after a save has fully finished. */
-const nextTick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 async function openAudit(todayCostUsd: number, entries: ChannelAuditEntry[]) {
   vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [], statuses: [channelStatus(todayCostUsd)] });
@@ -157,13 +137,13 @@ describe('ChannelBudgetSection saving', () => {
 
     render(<ChannelBudgetSection />);
     const limitInput = await screen.findByDisplayValue<HTMLInputElement>('2');
-    fireEvent.change(limitInput, { target: { value: '0' } });
+    fireEvent.change(limitInput, { target: { value: '3' } });
     fireEvent.blur(limitInput);
 
     await waitFor(() => expect(limitInput.value).toBe('2'));
     fireEvent.blur(limitInput);
     expect(updateChannelBudget).toHaveBeenCalledTimes(1);
-    expect(updateChannelBudget).toHaveBeenCalledWith(CHANNEL_KEY, { daily_limit_usd: 0 });
+    expect(updateChannelBudget).toHaveBeenCalledWith(CHANNEL_KEY, { daily_limit_usd: 3 });
   });
 
   it('sends nothing and puts the stored limit back when the box is left empty', async () => {

@@ -2,7 +2,8 @@
 
 /**
  * [INPUT]
- * - react::memo, useState (POS: React core and state hook)
+ * - react::useState (POS: React state hook)
+ * - ./channelLimit (POS: Range of a channel's daily limit)
  *
  * [OUTPUT]
  * - ChannelLimitInput: Inline daily-limit box of a channel budget; saves on blur, then shows the limit in force again.
@@ -13,7 +14,8 @@
  * save is the next edit and stays.
  */
 
-import { memo, useState } from 'react';
+import { useState } from 'react';
+import { CHANNEL_LIMIT_MAX_USD, CHANNEL_LIMIT_MIN_USD } from './channelLimit';
 
 interface ChannelLimitInputProps {
   /** The limit in force. */
@@ -24,7 +26,7 @@ interface ChannelLimitInputProps {
   onSave: (limit: number) => Promise<void>;
 }
 
-const ChannelLimitInput = memo<ChannelLimitInputProps>(({ value, label, onSave }) => {
+const ChannelLimitInput = ({ value, label, onSave }: ChannelLimitInputProps) => {
   // null while the user has typed nothing that a blur has not handled yet, so the box shows the limit in force.
   const [draft, setDraft] = useState<string | null>(null);
 
@@ -42,8 +44,8 @@ const ChannelLimitInput = memo<ChannelLimitInputProps>(({ value, label, onSave }
     <input
       type="number"
       aria-label={label}
-      min={0.01}
-      max={10000}
+      min={CHANNEL_LIMIT_MIN_USD}
+      max={CHANNEL_LIMIT_MAX_USD}
       step="any"
       value={draft ?? String(value)}
       onChange={(e) => setDraft(e.target.value)}
@@ -51,7 +53,6 @@ const ChannelLimitInput = memo<ChannelLimitInputProps>(({ value, label, onSave }
       className="w-20 text-right text-xs font-mono px-1.5 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
     />
   );
-});
-ChannelLimitInput.displayName = 'ChannelLimitInput';
+};
 
 export default ChannelLimitInput;

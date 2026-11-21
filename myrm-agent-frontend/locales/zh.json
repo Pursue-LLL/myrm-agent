@@ -21050,7 +21050,14 @@
       "auditDetails": "按发送者统计花费（7天）",
       "auditLoading": "加载审计数据...",
       "auditEmpty": "该时段暂无花费数据",
-      "auditMessages": "条"
+      "auditMessages": "条",
+      "auditFailed": "无法加载该时段的花费数据，收起后重新展开即可重试。",
+      "limitOutOfRange": "每日限额需在 {min} 到 {max} 美元之间。",
+      "deleteConfirmTitle": "删除这个频道预算？",
+      "deleteConfirmDescription": "删除后，{name} 不再有每日限额，花费将不再受限。",
+      "loadFailedTitle": "无法加载频道预算",
+      "loadFailedDesc": "加载频道预算时出了点问题，请稍后重试。",
+      "loadFailedStaleDesc": "下方的频道来自上一次成功的加载，可能已不是最新。"
     },
     "about": {
       "title": "关于",

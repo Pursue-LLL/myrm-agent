@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { IconRefresh, IconAlertCircle } from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
 import BudgetPolicySection from './BudgetPolicySection';
-import ChannelBudgetSection from './ChannelBudgetSection';
+import ChannelBudgetSection from './channel-budget/ChannelBudgetSection';
 import AgentCommerceBudgetSection from './AgentCommerceBudgetSection';
 import MemoryGuardianCard from '../knowledge/MemoryGuardianCard';
 import AgentUsageCard from './AgentUsageCard';

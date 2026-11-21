@@ -45,7 +45,7 @@ vi.mock('@/services/wiki/evidenceMetrics', async (importOriginal) => ({
 
 vi.mock('../usageExport', () => ({ downloadUsageCsv: vi.fn() }));
 vi.mock('../BudgetPolicySection', () => ({ default: () => null }));
-vi.mock('../ChannelBudgetSection', () => ({ default: () => null }));
+vi.mock('../channel-budget/ChannelBudgetSection', () => ({ default: () => null }));
 vi.mock('../AgentCommerceBudgetSection', () => ({ default: () => null }));
 vi.mock('../../knowledge/MemoryGuardianCard', () => ({ default: () => null }));
 vi.mock('../AgentUsageCard', () => ({ default: () => null }));
