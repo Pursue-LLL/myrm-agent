@@ -4,7 +4,8 @@
 
 [INPUT]
 - sqlalchemy (POS: async DB session for UserConfig)
-- app.services.config.encryption (POS: AES-GCM field encryption)
+- app.services.config.encryption (POS: AES-GCM field encryption; the per-target rows are sealed by key prefix)
+- app.services.hosting.targets::credential_config_key (POS: the config key of a target's credentials)
 
 [OUTPUT]
 - save/load/delete hosting target credentials with legacy Vercel migration
@@ -24,15 +25,17 @@ from app.config.deploy_mode import is_sandbox
 from app.database.connection import get_session
 from app.database.models.config import UserConfig
 from app.services.config.encryption import get_encryption_service
-from app.services.hosting.targets import LEGACY_VERCEL_TARGET_ID, get_hosting_target, list_hosting_targets, save_hosting_targets
+from app.services.hosting.targets import (
+    LEGACY_VERCEL_TARGET_ID,
+    credential_config_key,
+    get_hosting_target,
+    list_hosting_targets,
+    save_hosting_targets,
+)
 from app.services.hosting.types import TargetCredentialStatus
 
 VERCEL_CREDENTIALS_KEY = "vercelDeployCredentials"
 PLATFORM_TOKEN_ENV = "VERCEL_PLATFORM_TOKEN"
-
-
-def _credential_key(target_id: str) -> str:
-    return f"hostingTargetCredentials:{target_id}"
 
 
 def decrypt_credentials(raw_value: object, is_encrypted: bool) -> dict[str, object]:
@@ -68,7 +71,9 @@ def token_from_credentials(credentials: dict[str, object]) -> str | None:
 
 
 async def load_credentials_row(db: AsyncSession, target_id: str) -> UserConfig | None:
-    return (await db.execute(select(UserConfig).where(UserConfig.config_key == _credential_key(target_id)))).scalars().first()
+    return (
+        (await db.execute(select(UserConfig).where(UserConfig.config_key == credential_config_key(target_id)))).scalars().first()
+    )
 
 
 async def load_target_credentials(db: AsyncSession, target_id: str) -> dict[str, object]:
@@ -86,7 +91,7 @@ async def save_target_credentials(
     device_id: str = "webui",
 ) -> dict[str, str]:
     service = get_encryption_service()
-    key = _credential_key(target_id)
+    key = credential_config_key(target_id)
     stored_value, is_encrypted = service.encrypt_if_needed(key, credentials)
     if is_encrypted and isinstance(stored_value, str):
         stored_value = {"_cipher": stored_value}

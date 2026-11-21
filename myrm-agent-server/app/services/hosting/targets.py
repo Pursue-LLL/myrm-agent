@@ -4,9 +4,11 @@
 
 [INPUT]
 - sqlalchemy (POS: async DB session for UserConfig JSON blobs)
+- app.services.config.encryption::HOSTING_TARGET_CREDENTIALS_PREFIX (POS: key family of the per-target credentials rows)
 
 [OUTPUT]
 - list/create/update/delete hosting targets with legacy Vercel ID normalization
+- credential_config_key: the config row that holds one target's credentials
 """
 
 from __future__ import annotations
@@ -20,11 +22,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models.config import UserConfig
-from app.services.config.encryption import get_encryption_service
+from app.services.config.encryption import HOSTING_TARGET_CREDENTIALS_PREFIX, get_encryption_service
 from app.services.hosting.types import HostingTarget, ProviderType
 
 HOSTING_TARGETS_KEY = "hostingTargets"
 LEGACY_VERCEL_TARGET_ID = "legacy-vercel-default"
+
+
+def credential_config_key(target_id: str) -> str:
+    """The config row that holds the credentials of one target."""
+    return f"{HOSTING_TARGET_CREDENTIALS_PREFIX}{target_id}"
 
 
 def _parse_targets(raw: object) -> list[HostingTarget]:

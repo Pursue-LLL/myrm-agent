@@ -12,6 +12,8 @@ based on deploy mode and sensitive config keys.
 [OUTPUT]
 - ConfigEncryptionService: business-layer encryption service
 - get_encryption_service: singleton factory
+- is_sensitive_config / is_credentials_row: which config rows are sealed, and which of them hold one account's credentials
+- HOSTING_TARGET_CREDENTIALS_PREFIX: key family of the per-target hosting credentials rows
 
 [POS]
 Business-layer encryption policy. Framework provides tools; business layer
@@ -73,17 +75,26 @@ SENSITIVE_CONFIG_KEYS: frozenset[str] = frozenset(
 )
 
 
+# One row per hosting target, named ``<prefix><target id>``: the exact-key whitelist cannot list them.
+HOSTING_TARGET_CREDENTIALS_PREFIX = "hostingTargetCredentials:"
+
+
+def is_credentials_row(key: str) -> bool:
+    """Whether a config row holds one account's credentials.
+
+    Every ``*Credentials`` key, which includes the channel-instance keys (``<channel>_<id>Credentials``), and the
+    per-target hosting rows.
+    """
+    return key.endswith("Credentials") or key.startswith(HOSTING_TARGET_CREDENTIALS_PREFIX)
+
+
 def is_sensitive_config(key: str) -> bool:
     """Check whether a config key contains sensitive data (API keys etc.).
 
-    Matches the exact whitelist in ``SENSITIVE_CONFIG_KEYS`` plus any
-    channel-instance credential key (``<channel>_<id>Credentials``) so that
-    multi-instance credentials get the same encryption treatment as their
-    default-instance counterparts.
+    Matches the exact whitelist in ``SENSITIVE_CONFIG_KEYS`` plus every credentials row, so multi-instance and
+    per-target credentials get the same encryption treatment as their default-instance counterparts.
     """
-    if key in SENSITIVE_CONFIG_KEYS:
-        return True
-    return key.endswith("Credentials")
+    return key in SENSITIVE_CONFIG_KEYS or is_credentials_row(key)
 
 
 class ConfigEncryptionService:

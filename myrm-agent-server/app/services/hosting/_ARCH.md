@@ -14,8 +14,8 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 |------|------|------|
 | `orchestrator.py` | ✅ 核心 | `publish_artifact_to_target` — 预检、provider 调度、publication 持久化 |
 | `registry.py` | ✅ 核心 | Provider 注册表 |
-| `targets.py` | ✅ 核心 | UserConfig 中 hosting target CRUD |
-| `credentials.py` | ✅ 核心 | 按 target 加密存储凭证 + legacy Vercel 迁移 |
+| `targets.py` | ✅ 核心 | UserConfig 中 hosting target CRUD；`credential_config_key` 给出某个目标的凭据行键 |
+| `credentials.py` | ✅ 核心 | 按 target 存储凭证（`hostingTargetCredentials:<目标 id>` 一目标一行，按键前缀判为敏感，落盘即加密，换机不随归档携带、需重新录入）+ legacy Vercel 迁移 |
 | `publication_store.py` | ✅ 核心 | `artifact_publications` 表 CRUD |
 | `packager.py` | ✅ 核心 | Vault 收集 + HTML 依赖解析 + 单 HTML 入口智能归一化 + 敏感目录排除 |
 | `viewer_scaffold.py` | ✅ 核心 | 单文件文档（PDF/Excel/Word/Markdown/图片）自适应阅读器外壳生成与 `index.html` 脚手架 |
