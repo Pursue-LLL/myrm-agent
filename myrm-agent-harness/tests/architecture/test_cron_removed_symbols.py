@@ -40,6 +40,9 @@ _REMOVED = (
     "_execute_and_persist",  # scheduler entry that ran a claimed job; _dispatch is the guarded run
     "execute_fn",  # StartupRecovery's run callback; admit_fn books and launches
     "generate_fix_suggestion",  # per-category troubleshooting text; a failed delivery is reported by category and message
+    "ConnectorHealthStatus",  # health state of a destination; judging health from failures is the application's rule
+    "_NON_OUTBOUND_CHANNELS",  # channels that stay inside the application; the application decides which those are
+    "PROCESS_ERROR",  # failure category for a connector's child process; no delivery runs one
 )
 
 

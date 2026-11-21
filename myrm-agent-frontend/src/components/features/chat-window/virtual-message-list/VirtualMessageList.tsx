@@ -5,8 +5,9 @@
  * 2. 所属文件夹的 _ARCH.md
  *
  * [INPUT]
- * - @tanstack/react-virtual::useVirtualizer (POS: 虚拟滚动核心库)
+ * - @tanstack/react-virtual::useVirtualizer, defaultRangeExtractor (POS: 虚拟滚动核心库与它默认的渲染范围)
  * - @/store/chat/types::Message (POS: 消息类型定义)
+ * - @/store/useSpeakingRowStore::useSpeakingRowStore (POS: 正在朗读的消息行，该行必须常驻)
  * - ./MessageRow (POS: 单条消息行组件)
  * - ./useMessageHeights (POS: 消息高度缓存 Hook)
  * - ./useVirtualListScroll (POS: 滚动监听：用户滚动意图、触顶翻页、防抖保存镜像)
@@ -21,21 +22,23 @@
  *   - 支持向上滚动加载历史
  *   - 支持搜索结果跳转定位和高亮：每条高亮只居中一次，记录在页面传入的 centeredHighlightRef 里
  *   - 支持 L1/L2 自动滚动跟随与视口持久化镜像恢复
+ *   - 正在朗读的消息行常驻：滚出可视区域也不卸载，朗读不会被虚拟化打断
  *   - 通过 scrollToMessageRef 暴露 scrollToIndex 给外部组件
  *   - 通过 scrollToBottomRef 暴露 scrollToBottom 给外部组件
  *   - 通过 onUserScrolledChange 通知外部滚动状态变化
  *
  * [POS]
  * 高性能虚拟滚动消息列表。替代传统的 messages.map 渲染方式，
- * 无论消息数量多少，DOM 数量保持固定（~10-15 个），确保
+ * 无论消息数量多少，DOM 数量保持固定（~10-15 个，朗读时多常驻一行），确保
  * 长对话场景下的流畅体验。是聊天性能优化的核心组件。
  */
 
 'use client';
 
 import { useRef, useEffect, useCallback, memo } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { defaultRangeExtractor, useVirtualizer, type Range } from '@tanstack/react-virtual';
 import type { Message } from '@/store/chat/types';
+import { useSpeakingRowStore } from '@/store/useSpeakingRowStore';
 import { useScrollPositionRestore } from '@/hooks/ui/useScrollPositionRestore';
 import MessageBoxLoading from '../../message-box/MessageBoxLoading';
 import { MessageRow } from './MessageRow';
@@ -122,6 +125,19 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
       }
     }, [chatId, clearCache]);
 
+    // 正在朗读的行必须常驻：朗读属于发起它的那一行，行被虚拟化卸载，声音就断了
+    const speakingRowIndex = useSpeakingRowStore((state) => state.rowIndex);
+    const rangeExtractor = useCallback(
+      (range: Range) => {
+        const indexes = defaultRangeExtractor(range);
+        if (speakingRowIndex === null || speakingRowIndex >= range.count || indexes.includes(speakingRowIndex)) {
+          return indexes;
+        }
+        return [...indexes, speakingRowIndex].sort((a, b) => a - b);
+      },
+      [speakingRowIndex],
+    );
+
     // 虚拟化器
     const virtualizer = useVirtualizer({
       count: messages.length,
@@ -137,6 +153,7 @@ const VirtualMessageList = memo<VirtualMessageListProps>(
         return role === 'user' ? 80 : DEFAULT_MESSAGE_HEIGHT;
       },
       overscan: OVERSCAN,
+      rangeExtractor,
       // 启用动态测量
       measureElement: (element) => {
         return element.getBoundingClientRect().height;

@@ -486,9 +486,6 @@ from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorErrorCategory as ConnectorErrorCategory,
 )
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
-    ConnectorHealthStatus as ConnectorHealthStatus,
-)
-from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     classify_connector_error as classify_connector_error,
 )
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (

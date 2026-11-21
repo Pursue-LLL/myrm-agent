@@ -213,9 +213,11 @@ class TestRunAndRecordTracing:
         assert "connector_failure" in run_record.metadata
         conn_fail = run_record.metadata["connector_failure"]
         assert isinstance(conn_fail, dict)
+        assert set(conn_fail) == {"category", "target"}
         assert conn_fail["category"] == "http_server_error"
         assert "secret99" not in conn_fail["target"]
-        assert "502" in conn_fail["message"]
+        assert run_record.delivery_error is not None
+        assert "502" in run_record.delivery_error
 
         assert job.consecutive_failures == 3
 

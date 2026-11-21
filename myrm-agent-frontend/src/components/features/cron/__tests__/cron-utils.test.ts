@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CRON_OVERDUE_THRESHOLD_MS,
   computeStats,
+  connectorCategoryHintKey,
   connectorCategoryLabelKey,
   filterJobs,
   formatRelativeTime,
@@ -215,23 +216,30 @@ describe('triggerSourceLabelKey', () => {
   });
 });
 
-describe('connectorCategoryLabelKey', () => {
+describe('connectorCategoryLabelKey and connectorCategoryHintKey', () => {
   it.each([
-    ['auth_failure', 'connectorCategoryAuth'],
-    ['http_client_error', 'connectorCategoryClient'],
-    ['http_server_error', 'connectorCategoryServer'],
-    ['timeout', 'connectorCategoryTimeout'],
-    ['network_unreachable', 'connectorCategoryNetwork'],
-    ['payload_contract', 'connectorCategoryPayload'],
-    ['process_error', 'connectorCategoryProcess'],
-    ['unknown', 'connectorCategoryUnknown'],
-  ])('labels the category %s with %s', (category, labelKey) => {
+    ['auth_failure', 'connectorCategoryAuth', 'connectorCategoryAuthHint'],
+    ['http_client_error', 'connectorCategoryClient', 'connectorCategoryClientHint'],
+    ['http_server_error', 'connectorCategoryServer', 'connectorCategoryServerHint'],
+    ['timeout', 'connectorCategoryTimeout', 'connectorCategoryTimeoutHint'],
+    ['network_unreachable', 'connectorCategoryNetwork', 'connectorCategoryNetworkHint'],
+    ['payload_contract', 'connectorCategoryPayload', 'connectorCategoryPayloadHint'],
+    ['address_rejected', 'connectorCategoryAddress', 'connectorCategoryAddressHint'],
+    ['unknown', 'connectorCategoryUnknown', 'connectorCategoryUnknownHint'],
+  ])('words the category %s with %s and %s', (category, labelKey, hintKey) => {
     expect(connectorCategoryLabelKey(category)).toBe(labelKey);
+    expect(connectorCategoryHintKey(category)).toBe(hintKey);
   });
 
-  it.each(['', 'made-up-category', 'constructor', 'toString', '__proto__'])('reads %j as unknown', (category) => {
-    expect(connectorCategoryLabelKey(category)).toBe('connectorCategoryUnknown');
-  });
+  // A category with no wording of its own reads as unknown: an empty one, one the server does not record
+  // (`process_error`), and the names every object inherits.
+  it.each(['', 'process_error', 'made-up-category', 'constructor', 'toString', '__proto__'])(
+    'reads %j as unknown',
+    (category) => {
+      expect(connectorCategoryLabelKey(category)).toBe('connectorCategoryUnknown');
+      expect(connectorCategoryHintKey(category)).toBe('connectorCategoryUnknownHint');
+    },
+  );
 });
 
 describe('isFailedRunStatus', () => {

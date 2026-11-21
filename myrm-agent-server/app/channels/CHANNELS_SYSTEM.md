@@ -535,7 +535,7 @@ StreamCoordinator
 | 渠道 | 协议 | 入站 | 出站 | 流式 | 组件 | 诊断 |
 |------|------|:----:|:----:|:----:|:----:|:----:|
 | Telegram | Bot API (polling/webhook) | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Discord | Gateway WebSocket + REST | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Discord | Gateway WebSocket + REST | ✅ | ✅ | ✅ | ⬇️ | ✅ |
 | WhatsApp | Baileys Node.js bridge | ✅ | ✅ | ✅ | ⬇️ | ✅ |
 | Slack | Events API + Socket Mode | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Feishu/Lark | Webhook + Open API | ✅ | ✅ | ✅ | ✅ | ✅ |

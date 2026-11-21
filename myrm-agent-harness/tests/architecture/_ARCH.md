@@ -9,7 +9,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | 文件 | 地位 | 职责 | I/O/P |
 | --- | --- | --- | --- |
 | `test_toolkits_agent_boundary.py` | Gate | AST：`toolkits/` 禁止 import `myrm_agent_harness.agent` | — |
-| `test_no_out_of_repo_imports.py` | Gate | AST：禁止 module-level 把仓库外路径注入 `sys.path` 后再 import（裸名只认同目录的模块，仓库里别处的同名文件不算；含检测器自证 sample，防退化为 no-op） | — |
+| `test_no_out_of_repo_imports.py` | Gate | AST：module-level 的每条绝对 import 必须能在仓库内（含本包）、标准库、`uv.lock` 声明的依赖或同目录模块里解析（裸名只认同目录的模块，仓库里别处的同名文件不算）；既拦「向上爬出检出再注入 `sys.path`」，也拦「不改路径、直接 import 仓库外的模块」；含检测器自证 sample，防退化为 no-op | — |
 | `test_sub_agents_types_boundary.py` | Gate | `sub_agents/types.py` 禁止依赖 `agent.meta_tools.*`，并锁定 `hitl_tool_policy` canonical SSOT 导入 | — |
 | `test_toolkits_test_mirror.py` | Gate | `tests/toolkits/<name>/` 须镜像 `src/.../toolkits/<name>/` 且含 `test_*.py` | — |
 | `test_backends_agent_boundary.py` | Gate | AST：`backends/` 禁止 module-level import `myrm_agent_harness.agent` | — |
@@ -60,7 +60,7 @@ CI 架构门禁：层边界、分形文档、PyPI wheel 打包不变量、tool r
 | `test_bash_executor_reexport.py` | Gate | `meta_tools/bash/_executor/executor.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_code_execute_tool_reexport.py` | Gate | `meta_tools/bash/bash_code_execute_tool.py` `__all__` 聚合 re-export 完整性 | — |
 | `test_bash_native_ptc_removed.py` | Gate | bash 路径禁止 Turn1 native PTC stub（`_ptc_tools_ref` / `inject_ptc_for_python_execution` / `get_ptc_description`） | — |
-| `test_cron_removed_symbols.py` | Gate | cron toolkit 已删符号零残留：`parse_loop_command_input` / `parse_natural_interval` / `is_top_of_hour_cron` / `compute_stagger_offset_s` / `active_streams`，以及先清空下次触发时间再运行的认领协议留下的符号（`claim_due` / `is_stale_run` / `list_orphaned_active` / `_recover_stale_runs` / `_active_jobs` / `_execute_and_persist` / `execute_fn`），以及按类别生成排障文案的 `generate_fix_suggestion`（投递失败只报类别与原因）不得再出现在 `toolkits/cron` 的模块与 `_ARCH.md` 里（整词匹配，较长的名字不误报；含检测器正反例自证） | — |
+| `test_cron_removed_symbols.py` | Gate | cron toolkit 已删符号零残留：`parse_loop_command_input` / `parse_natural_interval` / `is_top_of_hour_cron` / `compute_stagger_offset_s` / `active_streams`，以及先清空下次触发时间再运行的认领协议留下的符号（`claim_due` / `is_stale_run` / `list_orphaned_active` / `_recover_stale_runs` / `_active_jobs` / `_execute_and_persist` / `execute_fn`），按类别生成排障文案的 `generate_fix_suggestion`（投递失败只报类别与原因），以及目的地健康三态 `ConnectorHealthStatus`（由服务端按失败记录判定）、渠道集合 `_NON_OUTBOUND_CHANNELS`（哪些渠道不对外由应用决定）、连接器子进程失败类别 `PROCESS_ERROR`（没有投递会起子进程），都不得再出现在 `toolkits/cron` 的模块与 `_ARCH.md` 里（整词匹配，较长的名字不误报；含检测器正反例自证） | — |
 | `test_no_ghost_registry_metadata.py` | Gate | `tool_registry.py` metadata maps 不得含无 @tool 源的幽灵键 | — |
 | `test_types_reexport.py` | Gate | `backends/skills/types/` `__all__` 聚合 re-export 完整性 | — |
 | `test_validate_arch_inventory.py` | Gate | `_ARCH.md` 文件表 vs 同级 `.py` 一致性（table-only 解析）；含 agent/ 与全 harness subprocess gate、单测与跨仓 server md-refs gate | — |

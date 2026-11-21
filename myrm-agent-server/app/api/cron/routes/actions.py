@@ -8,6 +8,7 @@
 - myrm_agent_harness.toolkits.cron::CronManagerPort (POS: typing seam between the cron agent tools and the object that manages jobs)
 - myrm_agent_harness.toolkits.cron.delivery::WebhookDelivery (POS: built-in webhook ResultDelivery for cron job results)
 - core.cron.adapters.channel_delivery::ChannelResultDelivery (POS: ResultDelivery implementation via the Channel Gateway)
+- core.cron.adapters.delivery_resolver::NON_OUTBOUND_CHANNELS (POS: business-layer cron delivery rules; the channels that deliver nowhere outside)
 - core.infra.ingress_requirement::invalidate_ingress_requirement_cache (POS: single source of truth for the Ingress requirement)
 - platform_utils.sandbox.entitlements.entitlement_guard::EntitlementGuardError (POS: resolves SaaS sandbox entitlements)
 
@@ -35,6 +36,7 @@ from app.api.cron.schemas import (
     DeliveryTestRequest,
     DeliveryTestResponse,
 )
+from app.core.cron.adapters.delivery_resolver import NON_OUTBOUND_CHANNELS
 from app.core.infra.ingress_requirement import invalidate_ingress_requirement_cache
 
 from . import helpers as _h
@@ -122,7 +124,7 @@ async def _run_test_delivery(
     else:
         config = job.delivery
 
-    if config.channel in ("chat", "silent", "none"):
+    if config.channel in NON_OUTBOUND_CHANNELS:
         raise HTTPException(
             status_code=400,
             detail=f"Channel '{config.channel}' does not support test delivery",

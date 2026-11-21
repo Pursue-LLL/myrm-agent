@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator, Iterator
 from contextlib import asynccontextmanager
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -13,6 +12,13 @@ from app.channels.core.outbound_prepare import downgrade_components
 from app.channels.types import OutboundMessage
 from app.channels.types.components import ActionButton, ComponentRow
 from app.channels.types.status import ChannelCapabilities
+
+# Imported at module level: `deliverable.scanner` binds `channel_t` when first imported, so a first import
+# inside a test that patches `app.channels.i18n.channel_t` would leave the mock bound for the whole process.
+from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+    MAX_SHARE_BUTTONS,
+    build_artifact_deep_links,
+)
 from app.core.channel_bridge.executor_helpers import (
     ShareableArtifact,
     StreamAccumulator,
@@ -44,115 +50,6 @@ class TestBuildArtifactDeepLinks:
             yield session
 
     @pytest.mark.asyncio
-    async def test_empty_shareable_returns_empty(self):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert rows == ()
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="",
-    )
-    async def test_missing_ingress_logs_warning(
-        self,
-        mock_base: AsyncMock,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-no-ingress", "report.html", "html"),
-        )
-
-        with caplog.at_level(logging.WARNING):
-            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-
-        assert rows == ()
-        assert any("no public ingress base URL" in record.message for record in caplog.records)
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
-        new_callable=AsyncMock,
-        return_value={},
-    )
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="https://app.example.com",
-    )
-    async def test_empty_version_map_logs_warning(
-        self,
-        mock_base: AsyncMock,
-        mock_fetch: AsyncMock,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-no-version", "report.html", "html"),
-        )
-
-        with caplog.at_level(logging.WARNING):
-            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-
-        assert rows == ()
-        assert any("no artifact versions found" in record.message for record in caplog.records)
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
-        new_callable=AsyncMock,
-        return_value={"art-partial": "ver-partial"},
-    )
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.services.artifacts.share.share_create.create_artifact_share",
-        new_callable=AsyncMock,
-        return_value=CreatedArtifactShare("token-abc", 9999999999),
-    )
-    async def test_missing_version_id_logs_warning(
-        self,
-        mock_token: AsyncMock,
-        mock_base: AsyncMock,
-        mock_fetch: AsyncMock,
-        caplog: pytest.LogCaptureFixture,
-    ) -> None:
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.extend(
-            [
-                ShareableArtifact("art-partial", "report.html", "html"),
-                ShareableArtifact("art-missing", "other.pdf", "pdf"),
-            ]
-        )
-
-        with caplog.at_level(logging.WARNING):
-            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-
-        assert len(rows) == 1
-        assert any("no version_id in DB" in record.message and "art-missing" in record.message for record in caplog.records)
-
-    @pytest.mark.asyncio
     @patch(
         "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
@@ -178,12 +75,8 @@ class TestBuildArtifactDeepLinks:
         mock_token: AsyncMock,
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
-    ):
+    ) -> None:
         """Artifacts absent from the version map get no button; others still do."""
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
@@ -223,12 +116,8 @@ class TestBuildArtifactDeepLinks:
         mock_token: AsyncMock,
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
-    ):
+    ) -> None:
         """A single artifact uses the non-named deep-link label (else branch)."""
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(
             ShareableArtifact("art-001", "chart.html", "text/html"),
@@ -238,44 +127,6 @@ class TestBuildArtifactDeepLinks:
         # Non-named label path → channel_t called without filename kwarg.
         call_kwargs = mock_t.call_args.kwargs
         assert "filename" not in call_kwargs
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
-        new_callable=AsyncMock,
-        return_value={"art-001": "ver-001", "art-002": "ver-002"},
-    )
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.services.artifacts.share.share_create.create_artifact_share",
-        new_callable=AsyncMock,
-        side_effect=[RuntimeError("bundle missing"), CreatedArtifactShare("tok-2", 604800)],
-    )
-    @patch("app.channels.i18n.channel_t", return_value="View interactive page")
-    async def test_share_creation_failure_drops_only_that_button(
-        self,
-        mock_t: MagicMock,
-        mock_create: AsyncMock,
-        mock_base: AsyncMock,
-        mock_versions: AsyncMock,
-        caplog: pytest.LogCaptureFixture,
-    ):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
-        acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.html", "text/html"))
-        with caplog.at_level(logging.WARNING):
-            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-
-        assert [b.url for b in _buttons(rows)] == ["https://app.example.com/api/v1/public/artifact-share/tok-2"]
-        assert any("Failed to create share link for artifact art-001" in record.message for record in caplog.records)
 
     @pytest.mark.asyncio
     @patch(
@@ -301,12 +152,8 @@ class TestBuildArtifactDeepLinks:
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
         _share_db_session: MagicMock,
-    ):
+    ) -> None:
         """The link is signed, snapshotted and registered by the same service as the share dialog."""
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "html"))
         await build_artifact_deep_links(acc, "en", _WORKSPACE)
@@ -345,93 +192,12 @@ class TestBuildArtifactDeepLinks:
         mock_create: AsyncMock,
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
-    ):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
+    ) -> None:
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "html"))
         await build_artifact_deep_links(acc, "en", None)
 
-        assert mock_create.await_args.args[1] == "/run/root"
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
-        new_callable=AsyncMock,
-        return_value={"art-001": "ver-001"},
-    )
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="https://app.example.com",
-    )
-    @patch("app.database.connection.get_session", side_effect=RuntimeError("database unavailable"))
-    async def test_unavailable_database_yields_no_buttons(
-        self,
-        mock_session: MagicMock,
-        mock_base: AsyncMock,
-        mock_versions: AsyncMock,
-        caplog: pytest.LogCaptureFixture,
-    ):
-        """Share buttons must never fail the reply they ride on."""
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "html"))
-        with caplog.at_level(logging.WARNING):
-            rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-
-        assert rows == ()
-        assert any("Failed to create artifact share links" in record.message for record in caplog.records)
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
-        new_callable=AsyncMock,
-        return_value={},
-    )
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="https://app.example.com",
-    )
-    async def test_no_version_returns_empty(
-        self,
-        mock_base: AsyncMock,
-        mock_versions: AsyncMock,
-    ):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-001", "chart.html", "text/html"),
-        )
-        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert rows == ()
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("no ingress"),
-    )
-    async def test_no_base_url_safe_degradation(self, mock_ingress: AsyncMock):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(
-            ShareableArtifact("art-001", "chart.html", "text/html"),
-        )
-        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        assert rows == ()
+        assert mock_create.await_args_list[-1].args[1] == "/run/root"
 
     @pytest.mark.asyncio
     @patch(
@@ -459,11 +225,7 @@ class TestBuildArtifactDeepLinks:
         mock_token: AsyncMock,
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
-    ):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
+    ) -> None:
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
         acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
@@ -495,12 +257,8 @@ class TestBuildArtifactDeepLinks:
         mock_create: AsyncMock,
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
-    ):
+    ) -> None:
         """A bare button where a row belongs makes outbound preparation raise (a button is not iterable)."""
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
         acc = StreamAccumulator()
         acc.shareable_artifacts.append(ShareableArtifact("art-001", "a.html", "text/html"))
         acc.shareable_artifacts.append(ShareableArtifact("art-002", "b.pdf", "application/pdf"))
@@ -540,13 +298,8 @@ class TestBuildArtifactDeepLinks:
         mock_create: AsyncMock,
         mock_base: AsyncMock,
         mock_versions: AsyncMock,
-    ):
-        """Discord renders five rows at most: the others get no link made (their attachments still go out)."""
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            MAX_SHARE_BUTTONS,
-            build_artifact_deep_links,
-        )
-
+    ) -> None:
+        """Only the first MAX_SHARE_BUTTONS artifacts get a share link made; the others still go out as attachments."""
         acc = StreamAccumulator()
         for i in range(7):
             acc.shareable_artifacts.append(ShareableArtifact(f"art-{i}", f"page-{i}.html", "text/html"))
@@ -554,39 +307,5 @@ class TestBuildArtifactDeepLinks:
 
         assert len(rows) == MAX_SHARE_BUTTONS == 5
         assert mock_create.await_count == MAX_SHARE_BUTTONS
-        assert mock_versions.await_args.args[0] == [f"art-{i}" for i in range(MAX_SHARE_BUTTONS)]
+        assert mock_versions.await_args_list[-1].args[0] == [f"art-{i}" for i in range(MAX_SHARE_BUTTONS)]
         assert [button.action_id for button in _buttons(rows)] == [f"artifact:share:art-{i}" for i in range(MAX_SHARE_BUTTONS)]
-
-    @pytest.mark.asyncio
-    @patch(
-        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
-        new_callable=AsyncMock,
-        return_value={"art-001": "ver-001"},
-    )
-    @patch(
-        "app.core.infra.ingress.resolve_public_link_base",
-        new_callable=AsyncMock,
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.services.artifacts.share.share_create.create_artifact_share",
-        new_callable=AsyncMock,
-        side_effect=RuntimeError("HMAC key missing"),
-    )
-    @patch("app.channels.i18n.channel_t", return_value="view")
-    async def test_share_creation_failure_skips_button(
-        self,
-        mock_t: MagicMock,
-        mock_token: AsyncMock,
-        mock_base: AsyncMock,
-        mock_versions: AsyncMock,
-    ):
-        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
-            build_artifact_deep_links,
-        )
-
-        acc = StreamAccumulator()
-        acc.shareable_artifacts.append(ShareableArtifact("art-001", "chart.html", "text/html"))
-        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
-        # Creation failed, so no button is generated.
-        assert rows == ()

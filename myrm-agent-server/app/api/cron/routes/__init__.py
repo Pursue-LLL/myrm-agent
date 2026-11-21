@@ -7,7 +7,7 @@ from fastapi import APIRouter
 
 from .actions import router as actions_router
 from .blueprints import router as blueprints_router
-from .connector_health import router as connector_health_router
+from .delivery_health import router as delivery_health_router
 from .heartbeat import router as heartbeat_router
 from .jobs import router as jobs_router
 from .prerequisite import router as prerequisite_router
@@ -19,7 +19,7 @@ from .triggers import router as triggers_router
 __all__ = [
     "actions_router",
     "blueprints_router",
-    "connector_health_router",
+    "delivery_health_router",
     "heartbeat_router",
     "jobs_router",
     "prerequisite_router",
@@ -37,7 +37,7 @@ router = APIRouter()
 # because jobs_router has /{job_id} wildcard that would otherwise
 # swallow paths like /runs/all, /stats/usage, etc.
 router.include_router(blueprints_router)
-router.include_router(connector_health_router)
+router.include_router(delivery_health_router)
 router.include_router(heartbeat_router)
 router.include_router(prerequisite_router)
 router.include_router(scheduler_health_router)

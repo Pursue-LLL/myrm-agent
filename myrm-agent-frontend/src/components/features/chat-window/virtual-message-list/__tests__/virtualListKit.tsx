@@ -3,6 +3,7 @@
  * - vitest::vi (POS: 模块替身登记)
  * - @/store/useChatStore (POS: 被测组件读取的真实 store)
  * - @/hooks/ui/useScrollPositionRestore (POS: 真实的滚动镜像总线，镜像写进 sessionStorage)
+ * - @tanstack/react-virtual::Range (POS: 虚拟化器的渲染范围类型，选项探针据此声明 rangeExtractor)
  *
  * [OUTPUT]
  * - kit: 虚拟化器替身的可观测句柄（可见窗口、总高度、scrollToIndex / measure 调用、收到的选项）
@@ -14,10 +15,12 @@
  *
  * [POS]
  * VirtualMessageList 行为测试的共享底座。必须先于 ../VirtualMessageList 导入：vi.mock 在本模块求值时登记。
- * 虚拟化器是库、不是被测对象，所以换成窗口可控的替身；滚动镜像、store 与消息行都是真实的。
+ * 虚拟化器是库、不是被测对象，所以换成窗口可控的替身（库的其余导出保持真实，如默认渲染范围）；
+ * 滚动镜像、store 与消息行都是真实的。
  */
 import { act, cleanup, fireEvent, render } from '@testing-library/react';
 import type { MutableRefObject, RefObject } from 'react';
+import type { Range } from '@tanstack/react-virtual';
 import { vi, type Mock } from 'vitest';
 import type { ScrollFollowMirrorEntry } from '@/hooks/ui/useScrollPositionRestore';
 import type { Message } from '@/store/chat/types';
@@ -27,6 +30,7 @@ import VirtualMessageList from '../VirtualMessageList';
 interface VirtualizerOptionsProbe {
   count: number;
   overscan: number;
+  rangeExtractor: (range: Range) => number[];
   estimateSize: (index: number) => number;
   measureElement: (element: Element) => number;
   getScrollElement: () => HTMLElement | null;
@@ -51,7 +55,8 @@ const kit = vi.hoisted(() => {
 });
 export { kit };
 
-vi.mock('@tanstack/react-virtual', () => ({
+vi.mock('@tanstack/react-virtual', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tanstack/react-virtual')>()),
   useVirtualizer: (options: VirtualizerOptionsProbe) => {
     kit.state.options = options;
     return kit.virtualizer;

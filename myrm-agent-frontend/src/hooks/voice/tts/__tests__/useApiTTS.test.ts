@@ -9,18 +9,15 @@ vi.mock('@/lib/utils/toast', () => ({ toast: { error: toastError } }));
 
 // Every message row mounts its own engine instance and audio elements play independently of each other, so nothing
 // but the engine keeps two rows audible at once. The fakes model that: each synthesis answers at once unless the test
-// holds it back, and every audio element stays audible until the engine pauses it. jsdom has no MediaSource, so the
-// engine takes its one-shot synthesis path.
+// holds it back, and every audio element stays audible until the engine pauses it or the test lets it end. jsdom has
+// no MediaSource, so the engine takes its one-shot synthesis path.
 class FakeAudio {
   static instances: FakeAudio[] = [];
-  src: string;
   paused = true;
   onplay: (() => void) | null = null;
   onended: (() => void) | null = null;
-  onerror: (() => void) | null = null;
 
-  constructor(src = '') {
-    this.src = src;
+  constructor() {
     FakeAudio.instances.push(this);
   }
 
@@ -34,9 +31,7 @@ class FakeAudio {
     this.paused = true;
   }
 
-  removeAttribute() {
-    this.src = '';
-  }
+  removeAttribute() {}
 
   load() {}
 }
@@ -101,6 +96,14 @@ async function speak(row: Row, text: string) {
     row.result.current.speak(text);
   });
   await settle();
+}
+
+/** The audio plays to its last sample on its own, the way a real element ends without anyone stopping it. */
+function endNaturally(audio: FakeAudio) {
+  act(() => {
+    audio.paused = true;
+    audio.onended?.();
+  });
 }
 
 describe('useApiTTS', () => {
@@ -191,5 +194,21 @@ describe('useApiTTS', () => {
     expect(audible()).toBe(1);
     expect(second.result.current.state).toBe('idle');
     expect(third.result.current.state).toBe('playing');
+  });
+
+  it('lets another row speak after the speaking row has finished on its own', async () => {
+    stubSynthesis();
+    const first = renderRow();
+    const second = renderRow();
+
+    await speak(first, 'first row');
+    endNaturally(FakeAudio.instances[0]);
+    expect(first.result.current.state).toBe('idle');
+    await speak(second, 'second row');
+
+    expect(audible()).toBe(1);
+    expect(first.result.current.state).toBe('idle');
+    expect(second.result.current.state).toBe('playing');
+    expect(toastError).not.toHaveBeenCalled();
   });
 });

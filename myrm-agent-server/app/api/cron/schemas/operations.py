@@ -3,10 +3,10 @@
 - myrm_agent_harness.toolkits.cron.types::PauseReason (POS: Cron job domain types.)
 
 [OUTPUT]
-- HeartbeatEnableRequest, HeartbeatStatusResponse, PrerequisiteCheckRequest, PrerequisiteCheckResponse, ConnectorHealthResponse, ConnectorsHealthListResponse
+- HeartbeatEnableRequest, HeartbeatStatusResponse, PrerequisiteCheckRequest, PrerequisiteCheckResponse, DeliveryHealthResponse
 
 [POS]
-Cron API schemas: heartbeat, prerequisite checks and connector health.
+Cron API schemas: heartbeat, prerequisite checks and delivery health.
 """
 
 from __future__ import annotations
@@ -73,22 +73,10 @@ class PrerequisiteCheckResponse(BaseModel):
     override_allowed: bool = True
 
 
-class ConnectorHealthResponse(BaseModel):
-    target: str
-    channel: str
+class DeliveryHealthResponse(BaseModel):
+    """What the destination a job delivers to has done in the last day; the failure fields are empty while healthy."""
+
     status: str
-    total_deliveries: int
-    failed_deliveries: int
-    consecutive_failures: int
+    failure_streak: int
     last_error_category: str | None = None
-    last_error_message: str | None = None
-    last_delivery_at: datetime | None = None
     last_failed_at: datetime | None = None
-    bound_job_ids: list[str] = Field(default_factory=list)
-
-
-class ConnectorsHealthListResponse(BaseModel):
-    items: list[ConnectorHealthResponse]
-    total: int
-    degraded_count: int
-    down_count: int

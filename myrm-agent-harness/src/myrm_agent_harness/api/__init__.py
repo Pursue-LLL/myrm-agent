@@ -42,7 +42,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "ConfigIncompleteError": ("myrm_agent_harness.api.config", "ConfigIncompleteError"),
     "ConflictSeverity": ("myrm_agent_harness.core.artifacts.fact_check", "ConflictSeverity"),
     "ConnectorErrorCategory": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "ConnectorErrorCategory"),
-    "ConnectorHealthStatus": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "ConnectorHealthStatus"),
     "CronStore": ("myrm_agent_harness.api.protocols", "CronStore"),
     "DesktopCaptureDriver": ("myrm_agent_harness.toolkits.computer_use.recording", "DesktopCaptureDriver"),
     "DesktopRecordedEvent": ("myrm_agent_harness.toolkits.computer_use.recording", "DesktopRecordedEvent"),

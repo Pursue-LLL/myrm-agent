@@ -175,7 +175,7 @@ class ChannelCapabilities:
     Interactive component flags:
     - ``buttons``: native ActionButton rendering (Telegram InlineKeyboard, etc.)
     - ``quick_replies``: native QuickReply rendering (WhatsApp quick-replies, etc.)
-    - ``select_menus``: native SelectMenu rendering (Discord StringSelect, etc.)
+    - ``select_menus``: native SelectMenu rendering (without it a menu is downgraded to a text list of its options)
 
     Mutation flags (used by Router to decide streaming strategy):
     - ``edit``: channel implements edit_message

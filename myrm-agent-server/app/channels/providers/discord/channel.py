@@ -191,9 +191,9 @@ class DiscordChannel(DiscordInboundMixin, DiscordOutboundMixin, DiscordVoiceMixi
 
     capabilities = ChannelCapabilities(
         markdown=True,
-        buttons=True,
+        buttons=False,
         quick_replies=False,
-        select_menus=True,
+        select_menus=False,
         threads=True,
         edit=True,
         delete=True,

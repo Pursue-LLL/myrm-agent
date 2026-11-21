@@ -10,11 +10,11 @@
 
 [POS]
 Shared state between the context-level request filter (judges every request it is handed) and the
-navigation guard (judges the redirect hops the filter is never handed). Both ask the same policy
-about the same context, so a hostname gets the same verdict whichever way it was reached. Keyed by
-the ``BrowserContext`` object like ``utils.private_origins``: pooled contexts are created per
-policy, so the lists never leak between sessions. ``domain_filter.agent_world`` reads the allowlist from here to
-decide whether the agent's own JavaScript needs the page-side policy.
+navigation guard (judges the redirect hops the filter is never handed), so a hostname gets the same
+verdict whichever way it was reached; keyed by the ``BrowserContext`` object like ``utils.private_origins``,
+and pooled contexts are created per policy, so the lists never leak between sessions.
+``domain_filter.agent_world`` reads the allowlist from here to decide whether the agent's own JavaScript
+needs the page-side policy.
 """
 
 from __future__ import annotations

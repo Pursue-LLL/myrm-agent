@@ -36,6 +36,7 @@ from app.api.cron.schemas import (
     TriggerConfigResponse,
     WebhookTriggerResponse,
 )
+from app.core.cron.adapters.delivery_resolver import NON_OUTBOUND_CHANNELS
 from app.services.workspace.workspace_path_policy import (
     WorkspacePathValidationError,
     ensure_root_grantable,
@@ -229,7 +230,7 @@ def _delivery_from_request(
     """
     if not d:
         return DeliveryConfig()
-    if d.channel not in ("chat", "silent", "none") and not d.target:
+    if d.channel not in NON_OUTBOUND_CHANNELS and not d.target:
         raise ValueError(f'Delivery target is required for channel "{d.channel}"')
     if d.channel == "webhook":
         return DeliveryConfig(

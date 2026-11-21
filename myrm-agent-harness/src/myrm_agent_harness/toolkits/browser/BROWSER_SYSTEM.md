@@ -83,8 +83,8 @@ Extension Bridge 与 SessionVault 让 Agent 复用已登录会话，且无需读
 
 | 指标 | 状态 |
 |------|------|
-| 最大文件行数 | 716 行（GlobalBrowserPool） |
-| 精细化错误处理 | ✅ 11 种异常类型 |
+| 最大文件行数 | 485 行（`session/browser_session_navigation_mixin.py`） |
+| 精细化错误处理 | ✅ 13 种异常类型 |
 | 智能重试 | ✅ 会话内置导航/代理/CAPTCHA 重试 |
 | 生产就绪 | ✅ |
 
@@ -462,7 +462,7 @@ ValueError: Blocked URL scheme: 'javascript' not allowed (only http/https/about 
 Rejected dangerous schemes: javascript/file/data/blob/ftp. Got: javascript:alert(1)
 ```
 
-**测试覆盖**：16 个测试，覆盖允许/拒绝场景、边界情况（缺少 scheme、相对 URL、大小写不敏感）
+**测试覆盖**：`tests/toolkits/browser/test_navigator.py`，覆盖允许/拒绝场景、边界情况（缺少 scheme、相对 URL、大小写不敏感）与私网放开后 scheme 检查仍然生效
 
 ---
 
@@ -619,7 +619,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 
 ### 8 工具 → 35+ 能力映射
 
-压缩 Playwright MCP 的 24+ 个独立工具为 8 个语义分组工具，通过 `action` 参数扩展：
+能力按 8 个语义分组工具组织，通过 `action` 参数扩展：
 
 | 工具 | 覆盖能力 | action 参数 |
 |------|---------|------------|
@@ -628,7 +628,7 @@ Object.defineProperty(window, 'RTCPeerConnection', {
 | `browser_snapshot_tool` | ARIA 快照 + iframe + Token 优化 + cursor-interactive | `scope`, `compact`, `selector`, `max_tokens`, `diff`, `cursor_interactive` |
 | `browser_interact_tool` | 15 种交互 + 可选 `steps[]` 批量 | click, dblclick, type, fill, fill_credential, press, hover, focus, select, scroll, scroll_to_bottom, upload_file, drag, check, uncheck；或 `steps[]` 一次调用多步 |
 | `browser_extract_tool` | 文本 + 截图 + 媒体URL + 结构化提取 + diff | text / screenshot / media / diff_fast / diff_accurate + extraction_schema |
-| `browser_manage_tool` | Tab + JS + 历史 + 对话框 + Session + Network + Web Vitals + 移动设备仿真 | 22 种 action（含 network_detail/network_replay/web_vitals/emulate + save/restore/list/delete_session；HITL 用 browser_ask_human_tool，无 wait_for_user） |
+| `browser_manage_tool` | Tab + JS + 历史 + 对话框 + Session + 录制（trace / HAR）+ Network + Web Vitals + 移动设备仿真 + 下载 + 站点经验与站点工具 | 35 种 action（含 network_detail/network_replay/web_vitals/emulate、save/restore/list/delete_session、trace/har 录制、download_url/list_downloads、站点经验与站点工具；HITL 用 browser_ask_human_tool，无 wait_for_user） |
 | `browser_execute_script_tool` | **Code-as-Action 批量执行**（隔离 worker） | _(脚本在 Monty worker 进程里运行，只能调用 `session.interact` 与 `session.evaluate`，两步都过语义 HITL 闸门)_ |
 | `browser_ask_human_tool` | **人类接管请求** | _(单一职责，Agent 触发 HITL interrupt + extension 横幅 / managed VNC)_ |
 
@@ -1146,36 +1146,35 @@ browser/
 │   ├── _semantic_risk.py — 语义 DOM 风险分类（浏览器动作前置 + JS eval 模式；元素词典 SSOT 上移至 core/security/detection/semantic_risk.py，与桌面语义门共享）
 │   └── common.py — 工具共享工具函数
 ├── pool/
-│   ├── browser_pool.py (273 行) — GlobalBrowserPool（全局调度中枢：池状态、构造与预热，行为由下面几个 mixin 组成）
-│   ├── pool_acquisition.py (293 行) — PoolAcquisitionMixin（取页 / 还页 / 销毁上下文；取页撞上 Playwright driver 退出时踢掉死浏览器后重试一次）
-│   ├── pool_scheduling.py (147 行) — PoolSchedulingMixin（每个引擎与启动模式一个启动器、最空闲浏览器选择）
-│   ├── pool_lifecycle.py (186 行) — PoolLifecycleMixin（30 秒后台循环、关闭、热更新；关闭撞上 Playwright driver 已退出时结束该浏览器的进程）
-│   ├── pool_diagnostics.py (187 行) — PoolDiagnosticsMixin（stats / health / 页面归属）
-│   ├── page_acquisition.py (89 行) — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
-│   ├── browser_launcher.py (400 行) — BrowserLauncher（Chromium 启动前 sanitize_env + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试；每个 driver 一个令牌，启动的 Chromium 都带着它，driver 已死时据此结束它留下的浏览器）
-│   ├── driver_leftovers.py (85 行) — 已死 Playwright driver 留下的浏览器：driver 令牌（`DRIVER_ENV_VAR`）与按令牌结束浏览器主进程（`terminate_driver_browsers`，SIGKILL，不抛异常）
+│   ├── browser_pool.py — GlobalBrowserPool（全局调度中枢：池状态、构造与预热，行为由下面几个 mixin 组成）
+│   ├── pool_acquisition.py — PoolAcquisitionMixin（取页 / 还页 / 销毁上下文；取页撞上 Playwright driver 退出时踢掉死浏览器后重试一次）
+│   ├── pool_scheduling.py — PoolSchedulingMixin（每个引擎与启动模式一个启动器、最空闲浏览器选择）
+│   ├── pool_lifecycle.py — PoolLifecycleMixin（30 秒后台循环、关闭、热更新；关闭撞上 Playwright driver 已退出时结束该浏览器的进程）
+│   ├── pool_diagnostics.py — PoolDiagnosticsMixin（stats / health / 页面归属）
+│   ├── page_acquisition.py — PageAcquisition（取页途中被取消或失败时归还许可与已取出的页面）
+│   ├── browser_launcher.py — BrowserLauncher（Chromium 启动前 sanitize_env + Camoufox 启动前就绪闸门 + 启动与 CDP 连接遇到 Playwright driver 进程消失都换新 driver 再重试；每个 driver 一个令牌，启动的 Chromium 都带着它，driver 已死时据此结束它留下的浏览器）
+│   ├── driver_leftovers.py — 已死 Playwright driver 留下的浏览器：driver 令牌（`DRIVER_ENV_VAR`）与按令牌结束浏览器主进程（`terminate_driver_browsers`，SIGKILL，不抛异常）
 │   ├── chromium_install.py — Zero-config Chromium 自动安装 with CDN mirror fallback（同一时刻只装一次，失败后冷却）
 │   ├── camoufox_availability.py — Camoufox 就绪探针（不下载；启动器 / restart 预检 / Doctor 共用）
-│   ├── camoufox_launch.py (93 行) — Camoufox 启动（指纹持久化 + 损坏自愈）
-│   ├── context_factory.py (328 行) — ContextFactory（Context 工厂；新建的上下文默认不接受下载、默认校验证书，运营方经 `BrowserConfig.ignore_https_errors` 放开）
+│   ├── camoufox_launch.py — Camoufox 启动（指纹持久化 + 损坏自愈）
+│   ├── context_factory.py — ContextFactory（Context 工厂；新建的上下文默认不接受下载、默认校验证书，运营方经 `BrowserConfig.ignore_https_errors` 放开）
 │   ├── emulation.py — 浏览器环境仿真配置（含移动设备五维字段）
 │   ├── device_profiles.py — 精选移动设备 profile 注册表（含 landscape 横屏视口）
 │   ├── crash_watchdog.py — 崩溃看门狗（浏览器级 CDP 探针优先，池内页面第二意见；Playwright driver 已退出的浏览器不问页面直接判死，页面获取撞上它时按需巡检一次再重试；页面崩溃只为在用页面归还许可）
-│   └── page_pool.py (223 行) — PagePool（只发放健康页面）
+│   └── page_pool.py — PagePool（只发放健康页面）
 ├── diff/
 │   ├── types.py — ComparisonResult Protocol + FastComparisonResult + AccurateComparisonResult
 │   ├── fast_comparator.py — FastComparator（dHash，~2ms）
 │   └── accurate_comparator.py — AccurateComparator（Canvas API，~100ms）
 ├── snapshot/
-│   ├── aria_types.py (119 行) — 数据类型定义
-│   ├── aria_acquisition.py (182 行) — Layer 1：ARIA 树获取
-│   ├── aria_parser.py (116 行) — Layer 2：YAML 解析
-│   ├── aria_enhancer.py (237 行) — Layer 3：树增强
-│   ├── aria_renderer.py (99 行) — Layer 4：文本渲染
-│   ├── parser.py (323 行) — 向后兼容接口
-│   ├── frame_snapshot.py (378 行) — 单 Frame 增量快照管理
-│   ├── page_snapshot.py (222 行) — 多 Frame 聚合快照管理
-│   └── observer_scripts.py (196 行) — JavaScript 脚本
+│   ├── aria_types.py — 数据类型定义
+│   ├── aria_acquisition.py — Layer 1：ARIA 树获取
+│   ├── aria_parser.py — Layer 2：YAML 解析
+│   ├── aria_enhancer.py — Layer 3：树增强
+│   ├── aria_renderer.py — Layer 4：文本渲染
+│   ├── frame_snapshot.py — 单 Frame 增量快照管理
+│   ├── page_snapshot.py — 多 Frame 聚合快照管理
+│   └── observer_scripts.py — JavaScript 脚本
 ├── session/
 │   ├── browser_session.py — BrowserSession 聚合根（组合各 mixin；自身承载 snapshot/inspect、ref 查询、进度通知、统计）
 │   ├── browser_session_navigation_mixin.py — navigate / 重试 / 引擎升级 / 卡死页面自愈衔接
@@ -1211,16 +1210,26 @@ browser/
 │   ├── dialog_manager.py — JS dialog 生命周期
 │   ├── download/ — 文件下载：DownloadConfig（下载目录与它所在的受信根 `confined_to`（均必填）、体积上限、配额、超时、并发、扩展名白名单、页面发起下载的放行策略；传给 BrowserSession 即开启下载支持，未传则会话没有下载管理器，其浏览器上下文不接受任何下载）、DownloadManager（任何下载，显式请求的和页面自己发起的，先核对来源地址再落盘；被拒的取消并删除，处理完毕的下载不在浏览器里留副本，放弃的请求中止其导航）、DownloadStorage（读浏览器已下载完成的那一份、独占创建的唯一文件名、不跟随链接地落盘、目录配额）、DownloadOutcomes（已保存文件、被拒记录，以及尚无应答告知过的页面发起下载结果：每个结果只告知一次）、记录与 DownloadError
 │   └── consent_dismisser.py — Cookie consent 自动 dismiss
-│   （Navigator 位于 `navigation/` 包，BrowserSession 与 BrowserFetcher 共用）
 ├── utils/
 │   ├── navigation_recovery.py — 导航失败的恢复建议（按状态码与 Chromium 错误文本生成，含 `net::ERR_CERT_*` 证书被浏览器拒绝的专门步骤）
 │   └── page_health.py — 浏览器/页面健康原语（abort_pending_navigation / probe_alive / probe_browser_alive / is_driver_closed_error（含原因链）/ close_page_bounded / detach_cdp_bounded / PageUnresponsiveError / DriverClosedError）
 ├── domain_filter/ — 四层域名过滤（CSP + HTTP + 主线程硬化 + CDP）；支持 allowlist + 用户 blocklist
 ├── session_vault/ — 加密 Session 存储（O(1) LRU + 内存限制 + 并发锁 + Metrics + 批量 API）
-├── exceptions.py (408 行) — 异常类型
+├── navigation/ — Navigator（节流 + 熔断 + 智能等待 + 同意弹窗处理）与文档级 SSRF 守卫，BrowserSession 与 BrowserFetcher 共用
+├── enhancers/ — DOM 增强脚本：池建的每个上下文把它注册为 init script（React fiber 钩子、可交互元素注册表、SPA 追踪器）
+├── action_capture/ — 与智能体无关的 DOM 动作录制器：把点击、输入、选择、按键、导航记成结构化的 ActionStep 序列，供服务端的浏览器技能录制向导使用
+├── domain_skills/ — 域名可执行技能：manifest 驱动的 Python 工具注册表，脚本经 `browser_manage_tool` 的 `run_site_tool` 按需加载
+├── doctor/ — Browser Doctor：启动前诊断（依赖、配置、环境、浏览器可启动性），以及先预演再执行的残留进程与残留目录清理
+├── assets/ — 随包分发的静态数据（`ad_domains.txt`：广告与跟踪域名黑名单，由 `domain_filter/ad_domains.py` 读取）
+├── observability.py — 视频录制配置与清理、进度通知
+├── process_owner.py — 浏览器进程归属戳（`MYRM_BROWSER_OWNER=<pid>:<start_ms>`）与 `read_owner_state`
+├── recording_manager.py — 统一的录制管理（生命周期与文件管理）
+├── url_routing.py — 私网与公网混合导航的 URL 路由（沙箱模式下私网地址走 Extension Bridge 回退）
+├── __main__.py — 浏览器工具包诊断的命令行入口
+└── exceptions.py — 异常类型
 ```
 
-**总计**：约 4,100 行核心代码，SOLID 原则，单一职责，高度模块化。
+本树只列主要文件与子包，每个目录的完整文件清单见它的 `_ARCH.md`；设计上遵循 SOLID 与单一职责，按职责拆成模块化的子包。
 
 ---
 
@@ -1228,6 +1237,3 @@ browser/
 
 - [Patchright 官方文档](https://github.com/Kaliiiiiiiiii-Vinyzu/patchright)
 - [Playwright ARIA Snapshot](https://playwright.dev/docs/aria-snapshots)
-- [MCP Playwright](https://github.com/microsoft/playwright-mcp)
-- [agent-browser](https://github.com/Kernel-Dirichlet/agent-browser)
-- [browser-use](https://github.com/browser-use/browser-use)
