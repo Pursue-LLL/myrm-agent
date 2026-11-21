@@ -113,7 +113,7 @@ class AppSettings(BaseSettings):
     app_base_url: str = Field(
         default="",
         validation_alias="APP_BASE_URL",
-        description="[O] Public web URL (no trailing slash) for clickable links in IM notifications; empty keeps relative paths",
+        description="[O] Public web URL (no trailing slash) for the project link in a finished batch's IM message; empty omits the link",
     )
 
     # --- [P] Deploy paths ---

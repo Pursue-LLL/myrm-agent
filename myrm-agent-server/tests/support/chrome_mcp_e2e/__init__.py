@@ -50,7 +50,14 @@ from cdp_chat.support import (
 )
 from chrome_mcp.client import ChromeMcpClient, McpPage
 
-from .api import get_first_enabled_model, guarded_httpx_request, guarded_urlopen, http_json, prepare_e2e_ui_session
+from .api import (
+    get_first_enabled_model,
+    guarded_httpx_request,
+    guarded_urlopen,
+    http_json,
+    http_json_once,
+    prepare_e2e_ui_session,
+)
 from .bridge import wait_for_react_e2e_bridge
 from .chat import attach_chat_and_wait_agent_binding, ensure_chat_route, wait_for_chat_send_idle, wait_for_security_preset_trigger
 from .open_page import OpenMcpPageSession, open_mcp_page, open_mcp_page_async
@@ -94,6 +101,7 @@ __all__ = [
     "guarded_httpx_request",
     "guarded_urlopen",
     "http_json",
+    "http_json_once",
     "navigate_mcp_page",
     "open_mcp_page",
     "open_mcp_page_async",

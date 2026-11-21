@@ -74,29 +74,25 @@ class SandboxRuntime:
     archive_checkpoint_ext: "ArchiveCheckpointMemoryExtension"
 
 
-def load_channel_notify_tool(agent_wrapper: "GeneralAgent", tools: list[object]) -> bool:
-    channel_notify_tool_loaded = False
+def load_channel_notify_tool(agent_wrapper: "GeneralAgent", tools: list[object]) -> None:
     try:
         from app.services.agent.outbound_notify.factory_wiring import (
             append_channel_notify_tool,
         )
 
-        target_count = append_channel_notify_tool(
+        destination_count = append_channel_notify_tool(
             agent_wrapper.notify_targets,
             tools,
             allowed_roots=agent_wrapper.declared_allowed_roots,
             is_readonly=getattr(agent_wrapper, "is_readonly", False),
         )
-        if target_count:
-            channel_notify_tool_loaded = True
+        if destination_count:
             logger.info(
-                "Loaded channel_notify_tool (%d targets) [Turn1]",
-                target_count,
+                "Loaded channel_notify_tool (%d destinations) [Turn1]",
+                destination_count,
             )
     except Exception as e:
         logger.warning("channel_notify_tool load failed (degraded): %s", e)
-
-    return channel_notify_tool_loaded
 
 
 async def build_sandbox_runtime(

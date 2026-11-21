@@ -10,11 +10,16 @@ export type HumanizeContext = {
   description?: string;
   text?: string;
   target?: string;
+  destination?: string;
   skillName?: string;
   action?: string;
   mcpServer?: string;
   mcpTool?: string;
 };
+
+/** A configured destination is `channel:label`, well under this; the cap only keeps a model's stray value from
+ * stretching the card. */
+const MAX_DESTINATION_CHARS = 80;
 
 function readStringField(input: Record<string, unknown>, keys: string[]): string | undefined {
   for (const key of keys) {
@@ -33,6 +38,7 @@ export function extractContextFromToolInput(input: Record<string, unknown>): Hum
   const query = readStringField(input, ['query', 'search_query', 'pattern']);
   const url = readStringField(input, ['url', 'href']);
   const target = readStringField(input, ['target', 'channel', 'recipient']);
+  const destination = readStringField(input, ['destination']);
   const skillName = readStringField(input, ['name', 'skill_name']);
   const action = readStringField(input, ['action']);
   const text = readStringField(input, ['text', 'content', 'message']);
@@ -45,6 +51,7 @@ export function extractContextFromToolInput(input: Record<string, unknown>): Hum
     description,
     text: text ? trunc(text, 70) : undefined,
     target,
+    destination: destination ? trunc(destination, MAX_DESTINATION_CHARS) : undefined,
     skillName,
     action,
   };

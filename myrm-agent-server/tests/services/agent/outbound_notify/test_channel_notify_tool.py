@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from app.channels.types.messages import MediaAttachment
 from app.services.agent.outbound_notify import (
@@ -13,6 +14,9 @@ from app.services.agent.outbound_notify import (
     NotifyToolConfig,
     create_channel_notify_tool,
 )
+
+DESTINATION = "telegram:My TG"
+TARGET = NotifyTarget(channel="telegram", recipient_id="chat_123", label="My TG")
 
 
 class FakeSender:
@@ -32,35 +36,40 @@ class FakeSender:
             return NotifyResult(success=False, channel=target.channel, error=self._error)
         return NotifyResult(success=True, channel=target.channel)
 
-    async def list_available_targets(self) -> list[NotifyTarget]:
-        return []
-
 
 @pytest.fixture
 def single_target_config() -> NotifyToolConfig:
-    return NotifyToolConfig(
-        allowed_targets=(NotifyTarget(channel="telegram", recipient_id="chat_123", label="My TG"),),
-        rate_limit_per_session=3,
-        max_body_length=100,
-    )
+    return NotifyToolConfig(destinations={DESTINATION: TARGET}, rate_limit_per_session=3, max_body_length=100)
 
 
 @pytest.mark.asyncio
 async def test_empty_body_rejected(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({"channel": "telegram", "target": "", "body": "   "})
+    result = await tool.ainvoke({"destination": DESTINATION, "body": "   "})
     assert "empty" in result.lower()
     assert len(sender.calls) == 0
 
 
-@pytest.mark.asyncio
-async def test_no_targets_configured() -> None:
-    config = NotifyToolConfig(allowed_targets=())
-    sender = FakeSender()
-    tool = create_channel_notify_tool(sender, config)
-    result = await tool.ainvoke({"channel": "telegram", "target": "", "body": "hello"})
-    assert "no notification targets configured" in result.lower()
+def test_tool_needs_at_least_one_destination() -> None:
+    with pytest.raises(ValueError, match="at least one destination"):
+        create_channel_notify_tool(FakeSender(), NotifyToolConfig(destinations={}))
+
+
+def test_destination_is_the_only_required_choice_and_an_enum() -> None:
+    config = NotifyToolConfig(
+        destinations={DESTINATION: TARGET, "slack#2": NotifyTarget(channel="slack", recipient_id="C9")},
+    )
+    schema = create_channel_notify_tool(FakeSender(), config).get_input_jsonschema()
+    assert schema["required"] == ["destination"]
+    assert set(schema["properties"]) == {"destination", "body", "attachments"}
+    assert schema["properties"]["destination"]["enum"] == [DESTINATION, "slack#2"]
+
+
+def test_description_tells_the_model_to_ask_when_the_destination_is_not_clear(single_target_config: NotifyToolConfig) -> None:
+    description = create_channel_notify_tool(FakeSender(), single_target_config).description
+    assert "not one of the destinations" in description
+    assert "ask the user instead" in description
 
 
 @pytest.mark.asyncio
@@ -69,10 +78,10 @@ async def test_rate_limit_enforced(single_target_config: NotifyToolConfig) -> No
     tool = create_channel_notify_tool(sender, single_target_config)
 
     for _ in range(3):
-        result = await tool.ainvoke({"channel": "", "target": "", "body": "msg"})
+        result = await tool.ainvoke({"destination": DESTINATION, "body": "msg"})
         assert "success" in result.lower()
 
-    result = await tool.ainvoke({"channel": "", "target": "", "body": "over limit"})
+    result = await tool.ainvoke({"destination": DESTINATION, "body": "over limit"})
     assert "rate limit" in result.lower()
     assert len(sender.calls) == 3
 
@@ -82,7 +91,7 @@ async def test_body_truncation(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
     long_body = "x" * 200
-    await tool.ainvoke({"channel": "", "target": "", "body": long_body})
+    await tool.ainvoke({"destination": DESTINATION, "body": long_body})
     assert len(sender.calls) == 1
     sent_body = sender.calls[0][1]
     assert len(sent_body) <= 100 + len("\n\n[...truncated]")
@@ -93,29 +102,40 @@ async def test_body_truncation(single_target_config: NotifyToolConfig) -> None:
 async def test_successful_send(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({"channel": "telegram", "target": "chat_123", "body": "hello"})
-    assert "success" in result.lower()
-    assert "telegram" in result.lower()
+    result = await tool.ainvoke({"destination": DESTINATION, "body": "hello"})
+    assert result == f"Notification sent successfully to {DESTINATION}."
     assert len(sender.calls) == 1
-    assert sender.calls[0][0].recipient_id == "chat_123"
+    assert sender.calls[0][0] == TARGET
 
 
 @pytest.mark.asyncio
 async def test_failed_send_error(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender(should_fail=True, error="connection timeout")
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({"channel": "", "target": "", "body": "hello"})
+    result = await tool.ainvoke({"destination": DESTINATION, "body": "hello"})
     assert "error" in result.lower()
     assert "connection timeout" in result
 
 
 @pytest.mark.asyncio
-async def test_target_not_found(single_target_config: NotifyToolConfig) -> None:
+@pytest.mark.parametrize("destination", ["telegram:chat_123", "Telegram:My TG", "telegram", "My TG", ""])
+async def test_destination_outside_the_configured_set_is_rejected_listing_the_choices(
+    single_target_config: NotifyToolConfig, destination: str
+) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({"channel": "discord", "target": "", "body": "hello"})
-    assert "not found" in result.lower() or "not allowed" in result.lower()
-    assert "telegram:chat_123" in result
+    with pytest.raises(ValidationError, match=DESTINATION):
+        await tool.ainvoke({"destination": destination, "body": "hello"})
+    assert len(sender.calls) == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("args", [{"body": "hello"}, {"channel": "telegram", "target": "chat_123", "body": "hello"}])
+async def test_call_without_a_destination_is_rejected(single_target_config: NotifyToolConfig, args: dict[str, str]) -> None:
+    sender = FakeSender()
+    tool = create_channel_notify_tool(sender, single_target_config)
+    with pytest.raises(ValidationError, match="destination"):
+        await tool.ainvoke(args)
     assert len(sender.calls) == 0
 
 
@@ -140,8 +160,7 @@ async def test_attachment_with_local_file(single_target_config: NotifyToolConfig
     try:
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "Report attached",
                 "attachments": [tmp_file],
             }
@@ -163,8 +182,7 @@ async def test_attachment_with_url(single_target_config: NotifyToolConfig) -> No
     tool = create_channel_notify_tool(sender, single_target_config)
     result = await tool.ainvoke(
         {
-            "channel": "",
-            "target": "",
+            "destination": DESTINATION,
             "body": "Check this image",
             "attachments": ["https://example.com/photo.png"],
         }
@@ -184,8 +202,7 @@ async def test_url_with_query_params_resolves_correct_type(single_target_config:
     tool = create_channel_notify_tool(sender, single_target_config)
     result = await tool.ainvoke(
         {
-            "channel": "",
-            "target": "",
+            "destination": DESTINATION,
             "body": "AI generated chart",
             "attachments": [
                 "https://oaidalleapiprodscus.blob.core.windows.net/chart.png?se=2024-01-01&sp=r&sv=2023-11-03&sig=xxx"
@@ -207,8 +224,7 @@ async def test_attachment_file_not_found(single_target_config: NotifyToolConfig,
     missing = str(tmp_path / "missing-report.pdf")
     result = await tool.ainvoke(
         {
-            "channel": "",
-            "target": "",
+            "destination": DESTINATION,
             "body": "Report",
             "attachments": [missing],
         }
@@ -234,8 +250,7 @@ async def test_attachment_rejects_path_outside_workspace(
     try:
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "Report",
                 "attachments": [outside_path],
             }
@@ -267,8 +282,7 @@ async def test_no_body_with_attachment_only(single_target_config: NotifyToolConf
     try:
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "",
                 "attachments": [tmp_file],
             }
@@ -282,8 +296,18 @@ async def test_no_body_with_attachment_only(single_target_config: NotifyToolConf
 async def test_empty_body_and_no_attachments_rejected(single_target_config: NotifyToolConfig) -> None:
     sender = FakeSender()
     tool = create_channel_notify_tool(sender, single_target_config)
-    result = await tool.ainvoke({"channel": "", "target": "", "body": "   ", "attachments": []})
+    result = await tool.ainvoke({"destination": DESTINATION, "body": "   ", "attachments": []})
     assert "empty" in result.lower()
+    assert len(sender.calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_blank_attachment_entries_are_not_attachments(single_target_config: NotifyToolConfig) -> None:
+    """An empty body with only blank attachment entries has nothing to send, so it is not sent as an empty message."""
+    sender = FakeSender()
+    tool = create_channel_notify_tool(sender, single_target_config)
+    result = await tool.ainvoke({"destination": DESTINATION, "body": "", "attachments": ["  ", ""]})
+    assert "cannot both be empty" in result
     assert len(sender.calls) == 0
 
 
@@ -308,8 +332,7 @@ async def test_multiple_attachments(single_target_config: NotifyToolConfig) -> N
     try:
         result = await tool.ainvoke(
             {
-                "channel": "",
-                "target": "",
+                "destination": DESTINATION,
                 "body": "Multiple files",
                 "attachments": [tmp_file, "https://example.com/logo.jpg"],
             }
@@ -345,8 +368,7 @@ async def test_relative_attachment_path_auto_resolved_under_allowed_root(
 
     result = await tool.ainvoke(
         {
-            "channel": "",
-            "target": "",
+            "destination": DESTINATION,
             "body": "Here is the report",
             "attachments": ["reports/summary.pdf"],
         }
@@ -365,8 +387,7 @@ async def test_empty_attachment_entry_skipped(single_target_config: NotifyToolCo
     tool = create_channel_notify_tool(sender, single_target_config)
     result = await tool.ainvoke(
         {
-            "channel": "",
-            "target": "",
+            "destination": DESTINATION,
             "body": "test",
             "attachments": ["  ", "", "https://example.com/file.png"],
         }

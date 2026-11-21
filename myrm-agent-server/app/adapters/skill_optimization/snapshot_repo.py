@@ -7,6 +7,7 @@
 - sqlalchemy (POS: Python ORM框架)
 - AsyncSession (POS: SQLAlchemy异步会话)
 - SkillVersionModel (POS: Skill版本ORM模型)
+- app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 
 [OUTPUT]
 - SnapshotRepository: Skill版本CRUD操作类
@@ -25,6 +26,7 @@ from myrm_agent_harness.agent.skills.optimization.types import SkillVersion
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.factory import acquire_write_lock
 from app.database.models.skill_optimization import SkillVersionModel
 
 logger = logging.getLogger(__name__)
@@ -167,6 +169,9 @@ class SnapshotRepository:
         Raises:
             ValueError: 版本不存在
         """
+        # Read-then-write: take the write lock first, or a writer committing between the read and the update fails the activation.
+        await acquire_write_lock(self.session)
+
         # 1. 先验证目标版本存在（不修改任何数据）
         result = await self.session.execute(
             select(SkillVersionModel).where(

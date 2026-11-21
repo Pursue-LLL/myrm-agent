@@ -3,14 +3,16 @@
 [INPUT]
 - app.database.models.batch_directory::BatchDirectoryProjectModel (POS: 批量项目持久化)
 - myrm_agent_harness.agent.security.path_security::is_dangerous_path (POS: 路径安全校验)
+- app.services.event.app_event_bus::get_event_bus (POS: SYSTEM_NOTIFICATION 事件总线，经通知投递/Web Push/WebUI 扇出)
 
 [OUTPUT]
 - fetch_project_task_models: 按 batch_project_id 查询任务（服务内复用）
 - _latest_tasks_per_directory: 每目录取最新任务（重试后聚合口径）
 - _project_to_dict / _aggregate_statuses / _resolve_directory: 序列化与校验助手
 - _reopen_running: 项目回置 running 并刷新聚合（重试/重跑/恢复共用，支持 expected_status 条件更新防并发覆盖）
-- _format_duration / _format_batch_summary: 耗时格式化与站内/渠道共享的批次结果正文（标题 + 统计行 + 耗时 + 失败目录列表/缺产物提示）
-- _send_completion_notification: 批次终态系统通知（携带 action_url 深链）+ IM 渠道结果摘要投递
+- _format_duration / _format_batch_summary: 耗时格式化与站内通知行/完成事件共享的批次结果正文（标题 + 统计行 + 耗时 + 失败目录列表/缺产物提示）
+- _send_completion_notification: 批次终态站内通知行（携带 action_url 深链）+ 一次 SYSTEM_NOTIFICATION 事件
+- _publish_completion_event: 把批次结果发布到系统通知管道（IM 与 Web Push 按用户的通知设置，WebUI 弹窗与铃铛随事件刷新）
 - _PROJECT_TERMINAL_STATUSES / _BATCH_PAUSE_BLOCK_REASON / _BATCH_APPROVER: 批次终态与暂停/审批标记常量
 
 [POS]
@@ -21,6 +23,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,9 +31,11 @@ from myrm_agent_harness.toolkits.kanban.types import TaskStatus
 from sqlalchemy import select
 from sqlalchemy import update as sa_update
 
+from app.config.settings import settings
 from app.database.connection import get_session
 from app.database.models.batch_directory import BatchDirectoryProjectModel
 from app.database.models.kanban import KanbanTaskModel
+from app.services.event.app_event_bus import AppEvent, AppEventType, get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +46,7 @@ _PROJECT_TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 # 批次暂停冻结标记（写入任务的 blocked_reason，恢复时据此筛选）
 _BATCH_PAUSE_BLOCK_REASON = "batch_pause"
 _BATCH_APPROVER = "batch:approve-all"
-# 渠道/站内消息中最多列出的失败目录数（防超长刷屏）
+# 站内通知行与完成事件中最多列出的失败目录数（防超长刷屏）
 _MAX_FAILED_DIRECTORIES_IN_SUMMARY = 10
 
 
@@ -268,17 +273,17 @@ def _format_batch_summary(
     completed: int,
     failed: int,
     missing: list[str],
-    failed_directories: list[str] = (),
+    failed_directories: Sequence[str] = (),
     duration_seconds: int | None = None,
 ) -> tuple[str, str]:
     """Return (title, summary lines) for a finished batch project.
 
-    Both the in-app notification (title + message) and the channel push
-    (multi-line body with a details link) share this wording so the two
-    surfaces stay consistent. ``missing`` lists directories that completed
-    without their declared artifacts; ``failed_directories`` names the
-    directories that did not complete (truncated to keep the message short);
-    ``duration_seconds`` reports the wall-clock runtime (omitted when unknown).
+    Both the in-app notification row (title + message) and the completion
+    event share this wording so the surfaces stay consistent. ``missing``
+    lists directories that completed without their declared artifacts;
+    ``failed_directories`` names the directories that did not complete
+    (truncated to keep the message short); ``duration_seconds`` reports the
+    wall-clock runtime (omitted when unknown).
     """
     if status == "completed":
         title = f"Batch complete: {project_name}"
@@ -309,10 +314,10 @@ async def _send_completion_notification(
     missing_artifact_directories: list[str] | None = None,
     failed_directories: list[str] | None = None,
 ) -> None:
+    """Record the result in the in-app list, then announce it once on the notification pipeline."""
     async with get_session() as session:
         model = await session.get(BatchDirectoryProjectModel, project_id)
         project_name = model.name if model is not None else project_id
-        agent_id = model.agent_id if model is not None else None
         duration_seconds: int | None = None
         if model is not None and model.started_at is not None and model.finished_at is not None:
             duration_seconds = max(0, int((model.finished_at - model.started_at).total_seconds()))
@@ -346,100 +351,31 @@ async def _send_completion_notification(
             "action_url": f"/batch-directories/{project_id}",
         },
     )
-
-    await _send_channel_notification(
-        agent_id=agent_id,
-        project_name=project_name,
-        status=status,
-        total=total,
-        completed=completed,
-        failed=failed,
-        missing=missing,
-        failed_directories=failed_directories or [],
-        duration_seconds=duration_seconds,
-        project_id=project_id,
-    )
+    _publish_completion_event(project_id=project_id, status=status, title=title, message=message)
 
 
-async def _load_agent_notify_targets(
-    agent_id: str,
-) -> tuple[dict[str, str], ...]:
-    """Return the agent's configured IM notification targets (empty when none).
+def _publish_completion_event(*, project_id: str, status: str, title: str, message: str) -> None:
+    """Announce a finished batch on the system notification pipeline.
 
-    Any resolution failure (missing agent, bad payload) degrades to no
-    targets — the caller treats that as "no channel push".
+    The pipeline delivers it to what the user configured (notification deliveries for IM, Web Push, the in-app
+    toast and bell), so the batch never picks recipients. ``level`` colours the toast. ``project_id`` makes each
+    payload unique: the bus drops an event identical to the one before it, which would swallow the second of two
+    projects with equal names and results. A details link is only added when ``APP_BASE_URL`` makes it absolute,
+    since a relative path means nothing outside the app. The terminal status is already committed, so a failed
+    publish is logged and dropped.
     """
-    try:
-        from app.services.agent.profile.profile_resolver import (
-            get_agent_profile_resolver,
-        )
-
-        resolved = await get_agent_profile_resolver().resolve(agent_id)
-        return resolved.notify_targets if resolved is not None else ()
-    except Exception as exc:
-        logger.warning("Failed to load notify targets for agent %s: %s", agent_id, exc)
-        return ()
-
-
-async def _send_channel_notification(
-    agent_id: str | None,
-    project_name: str,
-    status: str,
-    total: int,
-    completed: int,
-    failed: int,
-    missing: list[str],
-    project_id: str,
-    failed_directories: list[str] = (),
-    duration_seconds: int | None = None,
-) -> None:
-    """Push the batch summary to the executing agent's IM notification targets.
-
-    Best-effort delivery: failures are logged and never block the in-app
-    notification path. Without a configured agent or targets this is a no-op.
-    The details link is absolute when ``APP_BASE_URL`` is set (cloud deployments)
-    and falls back to a relative path otherwise.
-    """
-    if not agent_id:
-        return
-    raw_targets = await _load_agent_notify_targets(agent_id)
-    if not raw_targets:
-        return
-
-    from app.config.settings import settings
-    from app.services.agent.outbound_notify.sender import create_notification_sender
-
-    try:
-        sender_result = create_notification_sender(raw_targets)
-    except Exception as exc:
-        logger.warning("Failed to build channel sender for agent %s: %s", agent_id, exc)
-        return
-    if sender_result is None:
-        return
-    sender, _config = sender_result
-
-    title, summary = _format_batch_summary(
-        status=status,
-        project_name=project_name,
-        total=total,
-        completed=completed,
-        failed=failed,
-        missing=missing,
-        failed_directories=failed_directories,
-        duration_seconds=duration_seconds,
-    )
     base_url = settings.app_base_url.strip().rstrip("/")
-    details_url = f"{base_url}/batch-directories/{project_id}" if base_url else f"/batch-directories/{project_id}"
-    body = f"{title}\n{summary}\nDetails: {details_url}"
-
-    for target in sender.list_available_targets():
-        try:
-            result = await sender.send(target, body)
-            if not result.success:
-                logger.warning(
-                    "Channel notification delivery failed: channel=%s error=%s",
-                    target.channel,
-                    result.error,
-                )
-        except Exception as exc:
-            logger.warning("Channel notification error on %s: %s", target.channel, exc)
+    body = f"{message}\nDetails: {base_url}/batch-directories/{project_id}" if base_url else message
+    try:
+        get_event_bus().publish(
+            AppEvent(
+                event_type=AppEventType.SYSTEM_NOTIFICATION,
+                data={
+                    "title": title,
+                    "message": body,
+                    "meta_data": {"level": "success" if status == "completed" else "warning", "project_id": project_id},
+                },
+            )
+        )
+    except Exception as exc:
+        logger.warning("Failed to publish batch completion event for project %s: %s", project_id, exc)
