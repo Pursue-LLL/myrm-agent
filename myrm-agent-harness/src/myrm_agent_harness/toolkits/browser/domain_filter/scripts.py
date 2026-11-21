@@ -100,7 +100,7 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
 
 
 def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
-    """Generate the script that gives every document the allowlist's CSP ``<meta>`` and keeps it there.
+    """Generate the script that puts the allowlist's CSP ``<meta>`` on a document that does not carry it.
 
     The browser enforces the policy for the connections the document itself makes, and keeps enforcing it after a page
     script removes the ``<meta>``, removes the head or rewrites the document (measured on Chromium; the Firefox family
