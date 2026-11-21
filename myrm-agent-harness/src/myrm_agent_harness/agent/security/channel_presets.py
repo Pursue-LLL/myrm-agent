@@ -167,17 +167,17 @@ def build_channel_security_config(
     """Build a SecurityConfig combining channel presets with user + agent overrides.
 
     Merge order (last-match-wins):
-    1. DEFAULT_RULESET (base)
+    1. Baseline: DEFAULT_RULESET, plus the local browser relaxation when ``local_mode`` (the defaults of a
+       local user, which every explicit rule below outranks)
     2. User-defined rules (from UI SecurityPolicySection)
     3. Agent-level overrides (per-agent security policy)
     4. Channel preset rules (highest priority — channel restrictions cannot be bypassed)
-    5. Local relaxation (if ``local_mode`` — relaxes browser restrictions for local users)
 
     Agent merge semantics:
     - capabilities: intersection (Agent can only restrict, not expand)
     - allowed_roots: union (Agent can grant additional paths)
     - forbidden_paths: always preserved (cannot be overridden)
-    - ruleset: Agent rules merged on top (higher priority)
+    - ruleset: the agent's own rules merged on top (higher priority)
     - timeout: Agent overrides user (if configured)
 
     For Cron jobs, a **non-empty** ``declared_capabilities`` replaces the capability
@@ -191,9 +191,10 @@ def build_channel_security_config(
     channel_type = resolve_channel_type(channel_name)
     preset = CHANNEL_PRESETS[channel_type]
 
-    user_config = parse_security_config(user_config_raw)
-    agent_config = parse_security_config(agent_security_raw)
-    effective = _merge_user_and_agent(user_config, agent_config)
+    baseline = merge(DEFAULT_RULESET, _LOCAL_BROWSER_RELAXATION) if local_mode else DEFAULT_RULESET
+    user_config = parse_security_config(user_config_raw, base_ruleset=baseline)
+    agent_config = parse_security_config(agent_security_raw, base_ruleset=baseline)
+    effective = _merge_user_and_agent(user_config, agent_config, baseline)
 
     if effective:
         capabilities = _merge_capabilities(preset.capabilities, effective.capabilities)
@@ -203,13 +204,10 @@ def build_channel_security_config(
         path_policy = effective.path_policy
     else:
         capabilities = preset.capabilities
-        ruleset = merge(DEFAULT_RULESET, preset.ruleset)
+        ruleset = merge(baseline, preset.ruleset)
         timeout = 120
         timeout_behavior = "deny"
         path_policy = PathPolicy()
-
-    if local_mode:
-        ruleset = merge(ruleset, _LOCAL_BROWSER_RELAXATION)
 
     if channel_type == ChannelType.CRON and declared_capabilities:
         capabilities = _build_declared_capability_set(declared_capabilities)
@@ -309,35 +307,49 @@ def _action_severity(action: PermissionAction) -> int:
             return 2
 
 
+def _own_rules(ruleset: PermissionRuleset, baseline: PermissionRuleset) -> PermissionRuleset:
+    """The rules a parsed config added behind the baseline ruleset it was parsed over."""
+    return ruleset[len(baseline) :] if ruleset[: len(baseline)] == baseline else ruleset
+
+
 def _merge_ruleset_with_ceiling(
-    base_ruleset: PermissionRuleset,
+    user_ruleset: PermissionRuleset,
     agent_ruleset: PermissionRuleset,
+    baseline: PermissionRuleset,
 ) -> PermissionRuleset:
-    """Merge agent rules onto a base ruleset under the Least Privilege Ceiling.
+    """Merge agent rules onto a user ruleset under the Least Privilege Ceiling.
 
     Anti-privilege-escalation guarantee:
     An agent rule is accepted if and only if its action is AT LEAST as restrictive
-    as the base ruleset evaluation for that (permission, pattern). If an agent rule
-    attempts to relax permissions (e.g. ALLOW when base is ASK/DENY, or ASK when
-    base is DENY), it is rejected/suppressed so that agent overrides can only
+    as the user ruleset evaluation for that (permission, pattern). If an agent rule
+    attempts to relax permissions (e.g. ALLOW when the user ruleset says ASK/DENY, or
+    ASK when it says DENY), it is rejected/suppressed so that agent overrides can only
     tighten security, never expand it.
+
+    Only the agent's own rules are judged. The baseline both configs were parsed over is
+    already in the user ruleset, and re-appending the agent's copy of it would put the
+    baseline's wildcard allow behind every deny the user wrote.
     """
     valid_agent_rules: list[PermissionRule] = []
-    for rule in agent_ruleset:
-        base_effective = evaluate(rule.permission, rule.pattern, base_ruleset)
-        if _action_severity(rule.action) >= _action_severity(base_effective.action):
+    for rule in _own_rules(agent_ruleset, baseline):
+        user_effective = evaluate(rule.permission, rule.pattern, user_ruleset)
+        if _action_severity(rule.action) >= _action_severity(user_effective.action):
             valid_agent_rules.append(rule)
-    return merge(base_ruleset, tuple(valid_agent_rules))
+    return merge(user_ruleset, tuple(valid_agent_rules))
 
 
-def _merge_user_and_agent(user: SecurityConfig | None, agent: SecurityConfig | None) -> SecurityConfig | None:
+def _merge_user_and_agent(
+    user: SecurityConfig | None,
+    agent: SecurityConfig | None,
+    baseline: PermissionRuleset = DEFAULT_RULESET,
+) -> SecurityConfig | None:
     """Merge user-level config with per-agent overrides.
 
     - capabilities: intersection (Agent restricts, never expands)
     - allowed_roots: union (Agent can grant additional paths)
     - forbidden_paths: always DEFAULT (cannot be overridden)
-    - ruleset: with a user config, agent rules are merged under the Least Privilege
-      Ceiling (can tighten, never escalate). Without a user config the agent config
+    - ruleset: with a user config, the agent's own rules (those behind *baseline*) are merged under the
+      Least Privilege Ceiling (can tighten, never escalate). Without a user config the agent config
       is used as-is, so untrusted (externally supplied) overrides must be restricted
       by the business layer before they reach this function.
     - timeout: Agent overrides user if explicitly configured (non-default)
@@ -358,7 +370,7 @@ def _merge_user_and_agent(user: SecurityConfig | None, agent: SecurityConfig | N
     else:
         caps = user.capabilities
 
-    ruleset = _merge_ruleset_with_ceiling(user.ruleset, agent.ruleset)
+    ruleset = _merge_ruleset_with_ceiling(user.ruleset, agent.ruleset, baseline)
 
     from myrm_agent_harness.core.security.types import AccessRoot
 

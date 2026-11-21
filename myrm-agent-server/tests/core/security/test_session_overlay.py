@@ -1,7 +1,9 @@
 """Unit tests for the request-scoped security overlays (session presets, session grants, remote admission, /learn authoring)."""
 
 import pytest
-from myrm_agent_harness.agent.security.config import remote_exposed_permissions
+from myrm_agent_harness.agent.security.config import from_config, remote_exposed_permissions
+from myrm_agent_harness.agent.security.engine import evaluate
+from myrm_agent_harness.agent.security.types import DEFAULT_RULESET, PermissionAction, SecurityConfig
 
 from app.core.security.session_overlay import PRESET_OVERLAYS, SecurityOverlaySpec, YoloGrant, apply_session_preset
 
@@ -35,6 +37,7 @@ class TestApplySessionPreset:
     def test_accept_edits_merges_overlay(self) -> None:
         base: dict[str, object] = {"yoloModeEnabled": False, "permissions": {"*": "ask"}}
         result = apply_session_preset(base, "accept_edits")
+        assert result is not None
         assert result is not base
         assert result["yoloModeEnabled"] is False
         assert result["autoModeEnabled"] is True
@@ -45,6 +48,7 @@ class TestApplySessionPreset:
     def test_explore_merges_overlay(self) -> None:
         base: dict[str, object] = {"yoloModeEnabled": False, "permissions": {"*": "ask"}}
         result = apply_session_preset(base, "explore")
+        assert result is not None
         assert result is not base
         assert isinstance(result["permissions"], dict)
         assert result["permissions"]["file_write"] == "deny"
@@ -53,6 +57,18 @@ class TestApplySessionPreset:
         assert result["permissions"]["spawn_subagent"] == "allow"
         assert result["permissions"]["invoke_external_agent"] == "deny"
         assert "autoModeEnabled" not in result
+
+    @pytest.mark.parametrize("preset", ["accept_edits", "explore"])
+    def test_a_saved_denial_outranks_the_preset(self, preset: str) -> None:
+        """The preset's wildcard allow cannot reopen a saved denial, nor can a softer value it names for it."""
+        base: dict[str, object] = {"permissions": {"web_search_tool": "deny", "shell_exec": "deny"}}
+        result = apply_session_preset(base, preset)
+        assert result is not None
+        permissions = result["permissions"]
+        assert isinstance(permissions, dict)
+        for permission in ("web_search_tool", "shell_exec"):
+            verdict = evaluate(permission, "*", DEFAULT_RULESET, from_config(permissions)).action
+            assert verdict is PermissionAction.DENY, permission
 
     def test_base_none_with_accept_edits_creates_new_dict(self) -> None:
         result = apply_session_preset(None, "accept_edits")
@@ -105,6 +121,12 @@ class TestPresetOverlaysStructure:
         for op in write_ops:
             assert permissions[op] == "deny", f"{op} should be deny in explore"
 
+    def test_explore_overlay_denies_everything_the_readonly_profile_denies(self) -> None:
+        profile_denials = {rule.permission for rule in SecurityConfig.readonly().ruleset if rule.action is PermissionAction.DENY}
+        permissions = PRESET_OVERLAYS["explore"]["permissions"]
+        assert isinstance(permissions, dict)
+        assert profile_denials <= {key for key, action in permissions.items() if action == "deny"}
+
     def test_explore_overlay_allows_read_operations(self) -> None:
         overlay = PRESET_OVERLAYS["explore"]
         permissions = overlay["permissions"]
@@ -139,7 +161,9 @@ class TestSecurityOverlaySpec:
         permissions = result["permissions"]
         assert isinstance(permissions, dict)
         assert permissions["file_edit"] == "deny"
-        assert _SAVED["permissions"]["file_edit"] == "allow"  # type: ignore[index]
+        saved_permissions = _SAVED["permissions"]
+        assert isinstance(saved_permissions, dict)
+        assert saved_permissions["file_edit"] == "allow"
 
     def test_remote_exposed_denies_and_turns_yolo_off(self) -> None:
         result = SecurityOverlaySpec(trust_zone="remote_exposed", admission_path="tunnel").apply(_SAVED)
@@ -187,7 +211,7 @@ class TestSecurityOverlaySpec:
 
     def test_spec_is_immutable(self) -> None:
         with pytest.raises(ValueError):
-            SecurityOverlaySpec().preset = "explore"  # type: ignore[misc]
+            SecurityOverlaySpec().preset = "explore"
 
 
 class TestSessionGrants:

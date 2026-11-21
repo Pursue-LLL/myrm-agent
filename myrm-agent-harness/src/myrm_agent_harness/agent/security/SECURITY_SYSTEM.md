@@ -1216,21 +1216,22 @@ _LOCAL_BROWSER_RELAXATION = (
 )
 ```
 
-本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。Navigator 按私网源授权策略判定：会话显式导航（含 `download_url`）到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝；URL scheme 检查与 URL 规范化照常执行。
+本地模式用户拥有本机和局域网控制权，内网导航、表单填充、上传下载和会话管理无需审批。放宽规则属于基线层（`DEFAULT_RULESET` 之后、用户与 Agent 规则之前）：用户、Agent 或渠道预设对同一权限写下的 deny / ask 盖得过它。Navigator 按私网源授权策略判定：会话显式导航（含 `download_url`）到的私网源放行，经重定向、脚本或 DNS 解析到的其他环回 / 链路本地地址仍拒绝，云元数据永远拒绝；URL scheme 检查与 URL 规范化照常执行。
 
 **web_fetch 内网放宽**：本地模式下 `FetchEngine` 和 `web_fetch_tool` 跳过 SSRF 检查，允许抓取 `localhost`、`192.168.*`、`10.*`、`172.16-31.*` 等内网地址。三层 SSRF 检查（工具入口层 → 引擎层 → Navigator 层）均尊重 `allow_private_networks` 标志。
 
 ### 配置合并优先级
 
 ```
-1. DEFAULT_RULESET（基线）
+1. 基线：DEFAULT_RULESET；local_mode=True 时再叠加本地模式放宽规则
 2. 用户自定义规则（来自 UI SecurityPolicySection）
 3. Agent 级覆盖（每 Agent 安全策略，见十五）
 4. 渠道预设规则（最高优先级 — 渠道限制不可被用户配置绕过）
-5. 本地模式放宽规则（如果 local_mode=True）
 ```
 
 能力集合并策略：正向能力取交集（工具必须同时被预设和用户配置授权），否定能力从预设中始终保留（代表硬性渠道约束）。
+
+**请求级覆盖层的叠加**：服务端的会话预设与远程准入把自己的权限键叠在已保存的权限表之上，叠加用 `config.layer_permissions`。权限表的键序就是规则序（`from_config`），后者优先，所以叠加层的键排在已保存的键之后，并替换同名键的值；已保存的拒绝一律最终有效——具名键的 `deny` 既不会被叠加层的通配 allow 解开，也不会被叠加层给同一权限写的更松的值解开；叠加层没点名的、含 deny 的模式表同样排在叠加层之后；通配键（如白名单用户的 `*: deny`）保持原位。只读会话预设的权限键由 `read_only_permissions()` 给出：`SecurityConfig.readonly()` 的规则加上 `knowledge_write`、`desktop_control` 两项拒绝（`readonly()` 的通配 allow 会放开这两类写操作）。
 
 ---
 
@@ -1512,7 +1513,7 @@ Agent security_overrides
 | network_blocklist | 并集（Agent 可追加封禁域名） | URL hostname 硬拒绝（DENY，先于 domain HITL） |
 | domain_hitl_enabled | OR（任一方启用则启用） | 浏览器导航域名级审批开关 |
 | injection_policy | OR-严格（任一方 `fail_closed` 则 `fail_closed`） | Prompt injection 策略只能升级不能降级 |
-| ruleset | Agent merge 到用户上（Agent 优先级更高） | last-match-wins |
+| ruleset | 只把 Agent 自己新增的规则（排在基线之后的部分）merge 到用户上（Agent 优先级更高），且每条规则的动作不得比用户规则对该规则自身（权限, 模式）的评估结果更宽松（天花板：只收紧，不放宽；通配权限的规则如 `*: allow` 只与用户的通配结果比较）；Agent 配置里与用户相同的基线副本不再追加；没有用户配置时原样采用 Agent 配置 | last-match-wins |
 | timeout | Agent 覆盖用户（如果非默认值） | Agent 特化 |
 
 ### 数据流

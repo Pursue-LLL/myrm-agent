@@ -9,13 +9,17 @@ CapabilitySet, and PathPolicy objects.
 [OUTPUT]
 - from_config(): deserialise permission rules from config dict
 - normalize_delegate_permissions(): fan-out legacy delegate_agent permission key
-- parse_security_config(): full SecurityConfig from JSON
+- parse_security_config(): full SecurityConfig from JSON, its explicit rules laid over a base ruleset
+- remote_exposed_permissions() / read_only_permissions(): the permission keys of the two restrictive request overlays
+- layer_permissions(): lay an overlay's permission keys over a saved map without undoing a saved denial
 
 [POS]
 Called at application startup and on config updates. Pure functions.
 """
 
 from __future__ import annotations
+
+from collections.abc import Mapping
 
 from myrm_agent_harness.agent.security.engine import merge
 from myrm_agent_harness.agent.security.types import (
@@ -159,7 +163,11 @@ def _yolo_timer(raw: dict[str, object], snake_key: str, camel_key: str) -> objec
     return raw[snake_key] if snake_key in raw else raw.get(camel_key)
 
 
-def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | None:
+def parse_security_config(
+    raw: dict[str, object] | None,
+    *,
+    base_ruleset: PermissionRuleset = DEFAULT_RULESET,
+) -> SecurityConfig | None:
     """Parse a JSON config dict into a SecurityConfig.
 
     Expected format::
@@ -178,6 +186,9 @@ def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | Non
             }
         }
 
+    *base_ruleset* is the rule layer every explicit ``permissions`` rule is laid over (last match wins), so
+    an explicit rule always outranks it.
+
     Returns None if *raw* is None or empty — meaning "no config, use defaults".
     """
     if not raw:
@@ -194,7 +205,7 @@ def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | Non
     if isinstance(capabilities_raw, list):
         capabilities = _parse_capabilities(capabilities_raw)
 
-    ruleset: PermissionRuleset = DEFAULT_RULESET
+    ruleset: PermissionRuleset = base_ruleset
     permissions_raw = raw.get("permissions")
     matrix_raw = raw.get("capabilityMatrix", raw.get("capability_matrix"))
 
@@ -212,7 +223,7 @@ def parse_security_config(raw: dict[str, object] | None) -> SecurityConfig | Non
         normalized = normalize_delegate_permissions(typed_permissions)
         expanded = expand_capability_surface_permissions(normalized)
         user_ruleset = from_config(expanded)
-        ruleset = merge(DEFAULT_RULESET, user_ruleset)
+        ruleset = merge(base_ruleset, user_ruleset)
 
     path_policy = PathPolicy()
     path_policy_raw = raw.get("pathPolicy")
@@ -299,6 +310,43 @@ def _ruleset_to_permissions(ruleset: PermissionRuleset) -> dict[str, str]:
 def remote_exposed_permissions() -> dict[str, str]:
     """Deny-only permission keys for remote-exposed HTTP admission."""
     return _ruleset_to_permissions(SecurityConfig.remote_exposed().ruleset)
+
+
+# State-changing permission types that ``SecurityConfig.readonly()`` leaves to its wildcard allow. A read-only
+# session denies them too: the wildcard would otherwise open them without the approval the default rules ask for.
+_READ_ONLY_EXTRA_DENIALS = ("knowledge_write", "desktop_control")
+
+
+def read_only_permissions() -> dict[str, str]:
+    """Permission keys of a read-only chat session: the ``readonly()`` profile plus the extra denials."""
+    permissions = _ruleset_to_permissions(SecurityConfig.readonly().ruleset)
+    permissions.update(dict.fromkeys(_READ_ONLY_EXTRA_DENIALS, PermissionAction.DENY.value))
+    return permissions
+
+
+def layer_permissions[V](saved: Mapping[str, V], overlay: Mapping[str, V]) -> dict[str, V]:
+    """Lay a request overlay's permission keys over a saved permission map without letting it undo a saved denial.
+
+    The map's key order is the rule order (``from_config``) and the last matching rule wins, so the overlay's keys
+    go behind the saved ones and replace the saved value of any key they name. A saved denial is final: it moves
+    behind the overlay's keys, so neither the overlay's wildcard allow nor a softer value the overlay names for
+    the same permission can reopen it. A pattern → action map holding a denial is held final only when the overlay
+    does not name its key, because the two cannot be compared pattern by pattern. Wildcard keys keep their place:
+    a saved ``*: deny`` is the base of an allow-list whose named allows must stay behind it.
+    """
+    deny = PermissionAction.DENY.value
+
+    def is_final(key: str, value: V) -> bool:
+        if "*" in key:
+            return False
+        if value == deny:
+            return True
+        return key not in overlay and isinstance(value, dict) and deny in value.values()
+
+    pinned = {key: value for key, value in saved.items() if is_final(key, value)}
+    replaced = {key: value for key, value in saved.items() if key not in overlay and key not in pinned}
+    named = {key: value for key, value in overlay.items() if key not in pinned}
+    return {**replaced, **named, **pinned}
 
 
 def security_config_to_dict(config: SecurityConfig) -> dict[str, object]:

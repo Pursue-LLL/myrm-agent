@@ -6,7 +6,7 @@ Agent 点名投递的出站 Channel 通知：把 `notify_targets` 规范化成�
 
 上级文档：[../_ARCH.md](../_ARCH.md)。
 
-Agents 经 `app.ai_agents.general_agent.factory` → `factory_wiring.append_channel_notify_tool`（Turn1，`notify_targets` 里有可用的行且非只读安全模式时）挂载。投递失败经 `send_now` 结算（DLQ + `channel_bridge.handle_dead_letter`）后抛出，工具把原因回给模型。持久化 dedupe 见 `SqliteDeliveryNotifyLedger`（`state_dir/delivery_notify_ledger.db`）。子 Agent 不可继承 notify 工具（`register_leaf_blocked_tools`）。只读安全预设阻断出站工具挂载以防止数据泄密。
+Agents 经 `app.ai_agents.general_agent.factory` → `factory_wiring.append_channel_notify_tool`（Turn1，`notify_targets` 里有可用的行时）挂载。投递失败经 `send_now` 结算（DLQ + `channel_bridge.handle_dead_letter`）后抛出，工具把原因回给模型。持久化 dedupe 见 `SqliteDeliveryNotifyLedger`（`state_dir/delivery_notify_ledger.db`）。子 Agent 不可继承 notify 工具（`register_leaf_blocked_tools`）。挂载不看安全预设：只读会话预设（explore）在权限层拒绝 `channel_notify_tool` 的调用（`tests/core/security/test_overlay_verdicts.py`）。
 
 前端 recipient 选择：`GET /channels/manage/status`、`GET /channels/manage/pairings`。
 
