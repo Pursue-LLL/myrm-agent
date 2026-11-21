@@ -103,6 +103,12 @@ export function humanizeToolLine(
     }
     return translate(t, `${prefix}.save_skill_generic`, {});
   }
+  if (normalized === 'channel_notify') {
+    // The destination is the name the user configured, shown as the model gave it: what is approved is what is sent.
+    return ctx.destination
+      ? translate(t, `${prefix}.send_message`, { destination: ctx.destination })
+      : translate(t, `${prefix}.send_message_generic`, {});
+  }
   if (
     normalized.includes('send_message') ||
     normalized.includes('send_file') ||
