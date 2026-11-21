@@ -9369,7 +9369,10 @@
       "unassigned": "待定",
       "due": "截止",
       "lines": "{count, plural, other {# 行}}",
-      "risks": "风险"
+      "risks": "风险",
+      "saved": "会议纪要已存入知识库",
+      "saveFailed": "会议纪要保存失败",
+      "retry": "重试"
     }
   },
   "stt": {

@@ -8,7 +8,7 @@ vi.mock('@/lib/backend-health', async (importOriginal) => ({
 }));
 
 import { getApiUrl } from '@/lib/api';
-import { finalizeLiveMeeting, getLiveMeetingSnapshot, ingestLiveTranscript } from '@/services/liveMeeting';
+import { finalizeLiveMeeting, finalizeLiveMeetingOnPageExit, ingestLiveTranscript } from '@/services/liveMeeting';
 
 const fetchSpy = vi.fn();
 
@@ -27,16 +27,24 @@ afterEach(() => {
 
 describe('liveMeeting requests on the wire', () => {
   it.each([
-    ['ingest', () => ingestLiveTranscript('meeting 1', { id: 'line-1', text: 'hi' }), '/ingest', 'POST'],
-    ['snapshot', () => getLiveMeetingSnapshot('meeting 1'), '', 'GET'],
-    ['finalize', () => finalizeLiveMeeting('meeting 1'), '/finalize', 'POST'],
-  ])('sends the %s request to the API base URL exactly once', async (_name, call, suffix, method) => {
+    ['ingest', () => ingestLiveTranscript('meeting 1', { id: 'line-1', text: 'hi' }), '/ingest'],
+    ['finalize', () => finalizeLiveMeeting('meeting 1'), '/finalize'],
+  ])('sends the %s request to the API base URL exactly once', async (_name, call, suffix) => {
     await call();
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe(getApiUrl(`/wiki/meeting-notes/live/meeting%201${suffix}`));
-    expect(init).toMatchObject({ method });
+    expect(init).toMatchObject({ method: 'POST' });
+  });
+
+  it('sends the page-exit finalize as a keepalive request, in the agent scope, before the page can go away', () => {
+    finalizeLiveMeetingOnPageExit('meeting 1', 'agent 1');
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe(getApiUrl('/wiki/meeting-notes/live/meeting%201/finalize?agent_id=agent%201'));
+    expect(init).toMatchObject({ method: 'POST', keepalive: true });
   });
 
   it.each([

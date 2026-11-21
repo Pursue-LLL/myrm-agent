@@ -4,7 +4,7 @@
  * - ../VoiceSessionButton (POS: 被测组件)
  *
  * [OUTPUT]
- * - kit: 替身句柄：语音会话 hook、聊天 store、最近一次朗读的文本、浮层与气泡收到的属性
+ * - kit: 替身句柄：语音会话 hook、聊天 store、浮层与气泡收到的属性
  * - VOICE_KEYS: 按钮读取的设置键（用户浏览器里已有的存档，属于契约）
  * - resetVoiceKit: 卸载组件、清空存储（含页面内存里替浏览器暂存的设置）、语音会话回到空闲、聊天回到安静
  * - mockVoiceSession: 从下一次渲染起语音会话 hook 返回的状态
@@ -68,7 +68,6 @@ const kit = vi.hoisted(() => ({
     agentConfig: undefined as { agentId?: string } | undefined,
   },
   useVoiceSession: vi.fn<(options: VoiceSessionOptions) => VoiceSessionStub>(),
-  lastSpokenText: vi.fn<() => string | null>(),
   overlayProps: null as OverlayProps | null,
   bubbleProps: null as BubbleProps | null,
 }));
@@ -96,7 +95,6 @@ vi.mock('@/components/features/voice/VoiceBubble', () => ({
 vi.mock('@/components/features/settings/Tooltip', () => ({
   default: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('@/hooks/voice/useTTS', () => ({ getLastSpokenText: () => kit.lastSpokenText() }));
 
 export const VOICE_KEYS = {
   enabled: 'voiceSessionEnabled',
@@ -134,7 +132,6 @@ export function resetVoiceKit(): void {
   Object.assign(kit.chat, { chatId: 'chat-1', messages: [], loading: false, agentConfig: undefined });
   kit.overlayProps = null;
   kit.bubbleProps = null;
-  kit.lastSpokenText.mockReturnValue(null);
   mockVoiceSession();
 }
 

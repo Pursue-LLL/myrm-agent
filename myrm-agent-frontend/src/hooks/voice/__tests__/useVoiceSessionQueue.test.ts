@@ -29,15 +29,11 @@ const geminiMock = vi.hoisted(() => ({
   disconnect: vi.fn(),
 }));
 
-const liveNotesMock = vi.hoisted(() => {
-  const finalize = vi.fn();
-  return {
-    hook: vi.fn(),
-    finalize,
-    // Stable identity, like the memoised return of the real hook.
-    value: { sessionId: 'live-test', snapshot: null, ingest: vi.fn(), finalize },
-  };
-});
+const liveNotesMock = vi.hoisted(() => ({
+  hook: vi.fn(),
+  // Stable identity, like the memoised return of the real hook.
+  value: { sessionId: 'live-test', snapshot: null, ingest: vi.fn() },
+}));
 
 vi.mock('../useLiveMeetingNotes', () => ({
   useLiveMeetingNotes: (...args: unknown[]) => {
@@ -256,7 +252,7 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     expect(geminiMock.connect).toHaveBeenCalledOnce();
   });
 
-  it('replayLastTTS triggers speech for last spoken text (F13 DoD)', () => {
+  it('speaks the last response again when the replay event arrives (F13 DoD)', () => {
     const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
 
     act(() => {
@@ -266,10 +262,81 @@ describe('useVoiceSession speakResponse queue insertion', () => {
     expect(ttsMock.speak).toHaveBeenLastCalledWith('Important instruction.');
 
     act(() => {
-      result.current.replayLastTTS();
+      window.dispatchEvent(new Event('myrm-voice-replay'));
     });
     expect(ttsMock.speak).toHaveBeenCalledTimes(2);
     expect(ttsMock.speak).toHaveBeenLastCalledWith('Important instruction.');
+  });
+
+  it('replays the whole last response from its first sentence, not just the sentence spoken last', () => {
+    const { result, rerender } = renderHook(() =>
+      useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }),
+    );
+    act(() => {
+      result.current.startSession();
+      result.current.speakResponse('First sentence. Second sentence.');
+    });
+    for (let sentence = 0; sentence < 2; sentence += 1) {
+      act(() => {
+        ttsState.value = 'idle';
+        rerender();
+      });
+    }
+    expect(ttsMock.speak.mock.calls.map(([text]) => text)).toEqual(['First sentence.', 'Second sentence.']);
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm-voice-replay'));
+    });
+
+    expect(ttsMock.speak).toHaveBeenCalledTimes(3);
+    expect(ttsMock.speak).toHaveBeenLastCalledWith('First sentence.');
+  });
+
+  it('replays nothing when nothing was spoken yet', () => {
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
+    act(() => {
+      result.current.startSession();
+    });
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm-voice-replay'));
+    });
+
+    expect(ttsMock.speak).not.toHaveBeenCalled();
+  });
+
+  it('stops speech on the interrupt event only while the session is speaking', () => {
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm-voice-interrupt'));
+    });
+    expect(ttsMock.stop).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.startSession();
+      result.current.speakResponse('A long answer.');
+    });
+    act(() => {
+      window.dispatchEvent(new Event('myrm-voice-interrupt'));
+    });
+
+    expect(ttsMock.stop).toHaveBeenCalledOnce();
+  });
+
+  it('starts and stops the session once per toggle event', () => {
+    const { result } = renderHook(() => useVoiceSession({ enabled: true, mode: 'audio_only', fullDuplex: true }));
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm-voice-toggle'));
+    });
+    expect(speechMock.startRecording).toHaveBeenCalledOnce();
+    expect(result.current.isActive).toBe(true);
+
+    act(() => {
+      window.dispatchEvent(new Event('myrm-voice-toggle'));
+    });
+    expect(result.current.isActive).toBe(false);
   });
 
   it('formats context prioritizing selectedText over extractedText when voice-ptt-context is received', async () => {
@@ -371,22 +438,23 @@ describe('useVoiceSession live meeting notes', () => {
       useVoiceSession({ enabled: true, mode: 'agent_bridge', fullDuplex: true, chatId: 'chat-1', agentId: 'agent-1' }),
     );
 
-    expect(liveNotesMock.hook).toHaveBeenLastCalledWith('chat-1', 'agent-1');
+    expect(liveNotesMock.hook).toHaveBeenLastCalledWith('chat-1', 'agent-1', false);
   });
 
-  it('publishes the live notes once when the session stops, not when it starts', () => {
+  it('tells the live notes when the session is running, which is what ends a meeting', () => {
     const { result } = renderHook(() =>
       useVoiceSession({ enabled: true, mode: 'agent_bridge', fullDuplex: true, chatId: 'chat-1' }),
     );
+    expect(liveNotesMock.hook).toHaveBeenLastCalledWith('chat-1', undefined, false);
 
     act(() => {
       result.current.startSession();
     });
-    expect(liveNotesMock.finalize).not.toHaveBeenCalled();
+    expect(liveNotesMock.hook).toHaveBeenLastCalledWith('chat-1', undefined, true);
 
     act(() => {
       result.current.stopSession();
     });
-    expect(liveNotesMock.finalize).toHaveBeenCalledOnce();
+    expect(liveNotesMock.hook).toHaveBeenLastCalledWith('chat-1', undefined, false);
   });
 });

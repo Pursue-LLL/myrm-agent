@@ -2,7 +2,7 @@
  * [INPUT]
  * hooks/voice/useSpeechInput (POS: Speech-to-text input with multi-backend STT)
  * hooks/voice/useTTS (POS: Text-to-speech output with browser and API backends)
- * hooks/voice/useLiveMeetingNotes (POS: In-meeting live notes session: transcript upload + rolling structured notes)
+ * hooks/voice/useLiveMeetingNotes (POS: In-meeting live notes session: transcript upload, rolling structured notes, minutes published when the session ends)
  * hooks/voice/session/usePttScreenContext (POS: PTT screen context fusion into outgoing voice messages)
  * hooks/voice/session/useSessionStateSync (POS: Mirrors the active transport's connection state into the session state)
  * hooks/voice/session/useSessionEvents (POS: Window event bridge: toggle / interrupt / replay in, state broadcast out)
@@ -73,7 +73,6 @@ interface UseVoiceSessionReturn {
   stopSession: () => void;
   interruptTTS: () => void;
   speakResponse: (text: string, options?: { queue?: boolean }) => void;
-  replayLastTTS: () => void;
   interimText: string;
   audioLevel: number;
   ttsState: ReturnType<typeof useTTS>['state'];
@@ -123,7 +122,9 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   const tts = useTTS({ mode: ttsMode, provider: ttsProvider });
 
-  const liveNotes = useLiveMeetingNotes(chatId, agentId);
+  const isActive = sessionState !== 'inactive';
+  // The live notes publish their minutes on the falling edge of `isActive`, whichever way the session ended.
+  const liveNotes = useLiveMeetingNotes(chatId, agentId, isActive);
 
   const agentBridge = useVoiceAgentBridge({
     enabled: mode === 'agent_bridge',
@@ -353,9 +354,6 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
   }, [enabled, speech, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const stopSession = useCallback(() => {
-    // Publish the in-meeting rolling notes when the session ends; a successful finalize
-    // also clears the board so the next session starts fresh.
-    void liveNotes.finalize();
     sessionActiveRef.current = false;
     pendingTTSRef.current = [];
     isSpeakingRef.current = false;
@@ -375,7 +373,7 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
     }
 
     setSessionState('inactive');
-  }, [speech, tts, mode, agentBridge, realtimeVoice, geminiLive, liveNotes]);
+  }, [speech, tts, mode, agentBridge, realtimeVoice, geminiLive]);
 
   const interruptTTS = useCallback(() => {
     if (mode === 'openai_realtime' || mode === 'gemini_live') {
@@ -441,12 +439,11 @@ export function useVoiceSession(options: UseVoiceSessionOptions): UseVoiceSessio
 
   return {
     sessionState,
-    isActive: sessionState !== 'inactive',
+    isActive,
     startSession,
     stopSession,
     interruptTTS,
     speakResponse,
-    replayLastTTS,
     interimText: isRealtime
       ? realtimeVoice.interimText
       : isGeminiLive

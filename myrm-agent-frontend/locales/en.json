@@ -9369,7 +9369,10 @@
       "unassigned": "Unassigned",
       "due": "Due",
       "lines": "{count, plural, one {# line} other {# lines}}",
-      "risks": "Risks"
+      "risks": "Risks",
+      "saved": "Meeting notes saved to your knowledge base",
+      "saveFailed": "Couldn't save the meeting notes",
+      "retry": "Retry"
     }
   },
   "stt": {

@@ -10,6 +10,7 @@
  * [POS]
  * Window event bridge of the voice session. Satellites (Tauri Pet companion, global shortcuts) drive the session through
  * `myrm-voice-toggle` / `myrm-voice-interrupt` / `myrm-voice-replay` and observe it through `myrm-voice-state-update`.
+ * It is the only listener of these events: a second one anywhere would act on the same event twice.
  */
 
 import { useEffect, type MutableRefObject } from 'react';
