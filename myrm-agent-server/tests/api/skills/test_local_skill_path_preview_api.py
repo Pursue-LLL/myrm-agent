@@ -76,6 +76,12 @@ Run safely.
         assert item["is_safe"] is True
 
 
+def _security_score(item: dict[str, object]) -> int:
+    score = item["security_score"]
+    assert isinstance(score, int)
+    return score
+
+
 def test_provider_preview_flags_a_skill_whose_python_the_scan_cannot_take() -> None:
     """A script the scanner cannot read is a high finding, so the skill previews as unsafe."""
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -92,7 +98,7 @@ def test_provider_preview_flags_a_skill_whose_python_the_scan_cannot_take() -> N
 
         assert exists
         assert items[0]["is_safe"] is False
-        assert items[0]["security_score"] < 50
+        assert _security_score(items[0]) < 50
 
 
 def _write_blind_manifest_skill(skill_dir: Path) -> None:
@@ -112,7 +118,7 @@ def test_provider_preview_blocks_a_skill_whose_package_json_the_audit_cannot_tak
         _, _, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
 
         assert items[0]["is_safe"] is False
-        assert items[0]["security_score"] < 50
+        assert _security_score(items[0]) < 50
 
 
 def test_provider_preview_blocks_a_skill_when_the_scan_itself_fails(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,7 +138,7 @@ def test_provider_preview_blocks_a_skill_when_the_scan_itself_fails(monkeypatch:
         _, _, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
 
         assert items[0]["is_safe"] is False
-        assert items[0]["security_score"] < 50
+        assert _security_score(items[0]) < 50
         assert items[0]["threat_summary"] == "The security scan could not be completed"
         assert items[0]["security"] is None
 
