@@ -12,7 +12,7 @@ module adds the ones whose name only hints at it (``--key``, ``--auth``, ``--bea
 - engine::redact_sensitive_text (POS: Redaction pipeline and public API of the redactor)
 
 [OUTPUT]
-- redact_command_line(command) -> str — the command with every credential masked; whitespace and line breaks as written
+- redact_command_line(command) -> str — the command with the credentials its parameter names, command rules and value shapes give away masked; whitespace and line breaks as written
 - command_preview(command, limit) -> str — the first ``limit`` characters of the masked command, ``...`` after a cut
 
 [POS]
@@ -58,14 +58,14 @@ def _redact_named_parameters(command: str) -> str:
 
 
 def redact_command_line(command: str) -> str:
-    """Return ``command`` with every credential in it masked: the named parameters, then the shared redactor."""
+    """Return ``command`` with the credentials it gives away by name, command rule or value shape masked."""
     if not command or not isinstance(command, str):
         return command
     return redact_sensitive_text(_redact_named_parameters(command))
 
 
 def command_preview(command: str, limit: int) -> str:
-    """Return the first ``limit`` characters of ``command`` with every credential masked, ``...`` after a cut.
+    """Return the first ``limit`` characters of ``command`` masked as ``redact_command_line`` does, ``...`` after a cut.
 
     The command is masked whole and cut afterwards: a value cut off before its closing quote is an unterminated quote,
     which the named pass does not match, so the characters of it before the cut would stay.
