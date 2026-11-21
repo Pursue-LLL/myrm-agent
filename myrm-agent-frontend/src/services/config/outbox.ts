@@ -3,7 +3,7 @@
  * - `./conflictResolution` resolveConflicts / ConflictContext (POS: conflict tiers; the live caches and the adapter are handed in)
  * - `./e2eSearchSyncGate` withoutBlockedSearchChanges (POS: E2E switch that keeps the search config local)
  * - `./localWrites` applyReplayedChanges / recordSyncedChanges (POS: cache bookkeeping of writes made on this device)
- * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / removeOfflineEntries / takeUnpersistableOfflineEntries (POS: browser-storage half of the offline queue)
+ * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / removeOfflineEntries / takeUnpersistableOfflineEntries / discardUnattributedOfflineQueue (POS: per-account browser-storage half of the offline queue)
  * - `./offlineReplay` mergeLatestChanges / decideReplay (POS: one change per key on the confirmed version, per-change replay decisions)
  * - `./outboxAnswer` mergeAnswers / partitionByAnswer (POS: how a backend answer maps onto the batch it answers)
  * - `./types` ConfigChange / SyncResult / SyncStatus (POS: queued write, backend answer, manager state)
@@ -39,6 +39,7 @@ import type { ConflictContext } from './conflictResolution';
 import { withoutBlockedSearchChanges } from './e2eSearchSyncGate';
 import { applyReplayedChanges, recordSyncedChanges } from './localWrites';
 import {
+  discardUnattributedOfflineQueue,
   isRecoverableSyncError,
   loadOfflineQueue,
   removeOfflineEntries,
@@ -112,8 +113,12 @@ export class ConfigOutbox {
     return this.flush();
   }
 
-  /** 含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里：先移进内存。 */
-  liftUnpersistableEntries(): void {
+  /**
+   * 启动时先整理浏览器存储里上次留下的队列：无从归属账号的积压丢弃（不能确认是这个账号的编辑）；
+   * 含密钥的条目不能在后端不可达期间继续明文留在存储里，先移进内存。
+   */
+  prepareStoredQueue(): void {
+    discardUnattributedOfflineQueue();
     this.memoryOnlyOfflineChanges.push(...takeUnpersistableOfflineEntries());
   }
 

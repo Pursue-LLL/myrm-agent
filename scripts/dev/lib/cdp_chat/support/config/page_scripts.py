@@ -4,23 +4,29 @@
 - e2e_core.dev_ports::shared_api_base (POS: default ports of the user, shared dev and isolated stacks)
 
 [OUTPUT]
-- CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS: drop queued offline config writes of the page
+- CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS: drop the queued offline config writes of the page, whichever account queued them
 - PUT_E2E_CLEAR_SEARCH_CONFIG_JS, PUT_E2E_YOLO_CONFIG_JS, PUT_E2E_HITL_CONFIG_JS: PUT the pinned config through the page
 
 [POS]
-Scripts that write the pinned config through the page's own API layer and clear its offline queue.
+Scripts that write the pinned config through the page's own API layer and clear its offline queues.
 """
 
 from __future__ import annotations
 
 from e2e_core.dev_ports import shared_api_base
 
+# Every signed-in account keeps its own offline queue under `config-offline-queue:<userId>`; a session whose token
+# names no account uses the bare `config-offline-queue` key.
+_DROP_OFFLINE_QUEUES_JS = """Object.keys(localStorage)
+      .filter((key) => key === 'config-offline-queue' || key.startsWith('config-offline-queue:'))
+      .forEach((key) => localStorage.removeItem(key));"""
+
 CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS = """(() => {
   try {
-    localStorage.removeItem('config-offline-queue');
+    __DROP_OFFLINE_QUEUES__
   } catch (_) {}
   return { ok: true };
-})()"""
+})()""".replace("__DROP_OFFLINE_QUEUES__", _DROP_OFFLINE_QUEUES_JS)
 
 PUT_E2E_CLEAR_SEARCH_CONFIG_JS = """(async () => {
   const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
@@ -56,7 +62,7 @@ PUT_E2E_CLEAR_SEARCH_CONFIG_JS = """(async () => {
     return { ok: configs.length === 0, configCount: configs.length };
   };
   try {
-    localStorage.removeItem('config-offline-queue');
+    __DROP_OFFLINE_QUEUES__
     window.__MYRM_E2E_BLOCK_SEARCH_SYNC__ = true;
     const value = { searchServiceConfigs: [] };
     let lastPutStatus = 0;
@@ -103,7 +109,7 @@ PUT_E2E_CLEAR_SEARCH_CONFIG_JS = """(async () => {
   } catch (error) {
     return { ok: false, err: String(error) };
   }
-})()"""
+})()""".replace("__DROP_OFFLINE_QUEUES__", _DROP_OFFLINE_QUEUES_JS)
 
 PUT_E2E_YOLO_CONFIG_JS = """(async () => {
   const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
@@ -113,7 +119,7 @@ PUT_E2E_YOLO_CONFIG_JS = """(async () => {
     return { ok: false, err: 'no-api-base' };
   }
   try {
-    localStorage.removeItem('config-offline-queue');
+    __DROP_OFFLINE_QUEUES__
     const nowSec = Math.floor(Date.now() / 1000);
     const value = {
       yoloModeEnabled: true,
@@ -174,7 +180,7 @@ PUT_E2E_YOLO_CONFIG_JS = """(async () => {
   } catch (error) {
     return { ok: false, err: String(error), targets };
   }
-})()""".replace("__SHARED_API_BASE__", shared_api_base())
+})()""".replace("__SHARED_API_BASE__", shared_api_base()).replace("__DROP_OFFLINE_QUEUES__", _DROP_OFFLINE_QUEUES_JS)
 
 PUT_E2E_HITL_CONFIG_JS = """(async () => {
   const privateApi = String(window.__MYRM_E2E_API_BASE__ || '').replace(/\\/+$/, '');
@@ -184,7 +190,7 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
     return { ok: false, err: 'no-api-base' };
   }
   try {
-    localStorage.removeItem('config-offline-queue');
+    __DROP_OFFLINE_QUEUES__
     const value = {
       yoloModeEnabled: false,
       yoloModeEnabledAt: null,
@@ -249,4 +255,4 @@ PUT_E2E_HITL_CONFIG_JS = """(async () => {
   } catch (error) {
     return { ok: false, err: String(error), targets };
   }
-})()""".replace("__SHARED_API_BASE__", shared_api_base())
+})()""".replace("__SHARED_API_BASE__", shared_api_base()).replace("__DROP_OFFLINE_QUEUES__", _DROP_OFFLINE_QUEUES_JS)

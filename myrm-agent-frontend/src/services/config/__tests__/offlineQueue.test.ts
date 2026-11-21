@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  discardUnattributedOfflineQueue,
   isRecoverableSyncError,
   loadOfflineQueue,
   removeOfflineEntries,
   saveOfflineQueue,
+  takeUnpersistableOfflineEntries,
 } from '@/services/config/offlineQueue';
 import type { ConfigChange } from '@/services/config/types';
+import { cpToken, queueKeyOf } from './fakeCloudBackend';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -114,6 +117,85 @@ describe('settled entries leave the offline queue', () => {
 
     expect(localStorageMock.setItem).not.toHaveBeenCalled();
     expect(localStorageMock.removeItem).not.toHaveBeenCalled();
+  });
+});
+
+describe('offline queue per account', () => {
+  const signIn = (userId: string | null) => {
+    if (userId === null) {
+      localStorageMock.removeItem('auth_token');
+    } else {
+      localStorageMock.setItem('auth_token', cpToken(userId));
+    }
+  };
+
+  beforeEach(() => {
+    localStorageMock.clear();
+    vi.clearAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  it('keeps the queue of each account apart', () => {
+    signIn('alice');
+    saveOfflineQueue([change('chatSettings', { a: 1 }, '1000_0')]);
+
+    signIn('bob');
+    expect(loadOfflineQueue()).toEqual([]);
+    saveOfflineQueue([change('commands', { c: 1 }, '1000_0')]);
+
+    signIn('alice');
+    expect(loadOfflineQueue().map((queued) => queued.key)).toEqual(['chatSettings']);
+    expect(localStorageMock.getItem(queueKeyOf('alice'))).not.toBeNull();
+    expect(localStorageMock.getItem(queueKeyOf('bob'))).not.toBeNull();
+    expect(localStorageMock.getItem('config-offline-queue')).toBeNull();
+  });
+
+  it('settles stored entries in the queue of the signed-in account only', () => {
+    signIn('alice');
+    saveOfflineQueue([change('chatSettings', { a: 1 }, '1000_0', 2)]);
+    signIn('bob');
+    saveOfflineQueue([change('chatSettings', { a: 9 }, '1000_0', 2)]);
+
+    removeOfflineEntries([change('chatSettings', { a: 9 }, '1000_0', 2)]);
+
+    expect(loadOfflineQueue()).toEqual([]);
+    signIn('alice');
+    expect(loadOfflineQueue()).toEqual([expect.objectContaining({ value: { a: 1 } })]);
+  });
+
+  it('lifts secret-bearing entries out of the queue of the signed-in account only', () => {
+    signIn('alice');
+    localStorageMock.setItem(
+      queueKeyOf('alice'),
+      JSON.stringify([change('providers', { secret: 'x' }, '1000_0'), change('chatSettings', { a: 1 }, '1000_0')]),
+    );
+    localStorageMock.setItem(queueKeyOf('bob'), JSON.stringify([change('providers', { secret: 'y' }, '1000_0')]));
+
+    expect(takeUnpersistableOfflineEntries().map((lifted) => lifted.key)).toEqual(['providers']);
+
+    expect(loadOfflineQueue().map((queued) => queued.key)).toEqual(['chatSettings']);
+    expect(localStorageMock.getItem(queueKeyOf('bob'))).toContain('"y"');
+  });
+
+  it('keeps the queue of a session that names no account under the bare key', () => {
+    signIn(null);
+
+    saveOfflineQueue([change('chatSettings', { a: 1 }, '1000_0')]);
+
+    expect(localStorageMock.getItem('config-offline-queue')).not.toBeNull();
+    discardUnattributedOfflineQueue();
+    expect(loadOfflineQueue()).toHaveLength(1);
+  });
+
+  it('drops the backlog that belongs to no account once an account is signed in', () => {
+    localStorageMock.setItem('config-offline-queue', JSON.stringify([change('chatSettings', { a: 1 }, '1000_0')]));
+    signIn('alice');
+    saveOfflineQueue([change('commands', { c: 1 }, '1000_0')]);
+
+    discardUnattributedOfflineQueue();
+
+    expect(localStorageMock.getItem('config-offline-queue')).toBeNull();
+    expect(loadOfflineQueue().map((queued) => queued.key)).toEqual(['commands']);
   });
 });
 

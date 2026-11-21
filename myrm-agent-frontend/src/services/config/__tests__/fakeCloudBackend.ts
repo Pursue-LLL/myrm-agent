@@ -81,6 +81,13 @@ export function serveCloudBackend(options: CloudBackendOptions = {}): RecordedWr
   return writes;
 }
 
-/** The keys in the stored offline queue. */
-export const storedKeys = (): string[] =>
-  (JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) ?? '[]') as ConfigChange[]).map((change) => change.key);
+/** The keys in a stored offline queue: the bare one unless the queue of a signed-in account is asked for. */
+export const storedKeys = (queueKey: string = OFFLINE_QUEUE_KEY): string[] =>
+  (JSON.parse(localStorage.getItem(queueKey) ?? '[]') as ConfigChange[]).map((change) => change.key);
+
+/** The key under which the queue of `userId` is stored. */
+export const queueKeyOf = (userId: string): string => `${OFFLINE_QUEUE_KEY}:${userId}`;
+
+/** An API token of `userId` in the layout the client decodes: `<userId>:<expiry>.<signature>`, base64url encoded. */
+export const cpToken = (userId: string): string =>
+  btoa(`${userId}:4102444800.signature`).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

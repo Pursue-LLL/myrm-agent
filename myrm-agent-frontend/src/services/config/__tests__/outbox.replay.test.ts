@@ -10,7 +10,7 @@ import type { ConfigConflictResolution } from '@/services/config/conflictResolut
 import { saveOfflineQueue } from '@/services/config/offlineQueue';
 import type { ConfigOutbox } from '@/services/config/outbox';
 import type { ConfigChange, ConfigKey } from '@/services/config/types';
-import { OFFLINE_QUEUE_KEY, serveCloudBackend, storedKeys } from './fakeCloudBackend';
+import { OFFLINE_QUEUE_KEY, cpToken, queueKeyOf, serveCloudBackend, storedKeys } from './fakeCloudBackend';
 import type { RecordedWrite } from './fakeCloudBackend';
 
 vi.mock('@/lib/deploy-mode', () => ({
@@ -23,8 +23,11 @@ vi.mock('@/lib/backend-health', () => ({
 vi.mock('@/lib/platform-readiness', () => ({
   ensurePlatformReadiness: vi.fn(),
 }));
+
+/** The API token of the session; a token that names no account keeps the bare queue key. */
+const session = vi.hoisted(() => ({ token: 'test-token' }));
 vi.mock('@/lib/guest', () => ({
-  getAuthToken: () => 'test-token',
+  getAuthToken: () => session.token,
 }));
 
 /** A change left by an earlier session, based on server version `1000_5` unless said otherwise. */
@@ -42,6 +45,7 @@ describe('replay of leftover changes (cloud mode)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.spyOn(console, 'warn').mockImplementation(() => {});
+    session.token = 'test-token';
     resetConfigSyncManager();
     localStorage.clear();
   });
@@ -251,5 +255,36 @@ describe('replay of leftover changes (cloud mode)', () => {
     });
 
     expect(outbox.collectOfflineChanges().map((change) => change.key)).toEqual(['commands']);
+  });
+
+  it('keeps the leftovers of one account out of the configuration of another, until their owner is back', async () => {
+    const writes = serveCloudBackend();
+    session.token = cpToken('alice');
+    saveOfflineQueue([leftover('commands', { c: 1 })]);
+
+    session.token = cpToken('bob');
+    await getConfigSyncManager().initialize();
+
+    expect(writes).toEqual([]);
+    expect(storedKeys(queueKeyOf('alice'))).toEqual(['commands']);
+
+    resetConfigSyncManager();
+    session.token = cpToken('alice');
+    await getConfigSyncManager().initialize();
+
+    expect(sentKeys(writes)).toEqual(['commands']);
+    expect(storedKeys(queueKeyOf('alice'))).toEqual([]);
+  });
+
+  it('drops a backlog that belongs to no account instead of replaying it into the signed-in account', async () => {
+    const writes = serveCloudBackend();
+    saveOfflineQueue([leftover('commands', { c: 1 })]);
+    expect(storedKeys()).toEqual(['commands']);
+
+    session.token = cpToken('alice');
+    await getConfigSyncManager().initialize();
+
+    expect(writes).toEqual([]);
+    expect(localStorage.getItem(OFFLINE_QUEUE_KEY)).toBeNull();
   });
 });

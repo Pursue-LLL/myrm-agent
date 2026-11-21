@@ -1,5 +1,7 @@
 /**
  * [INPUT]
+ * - `@/lib/auth-cp-token` parseCpAuthTokenUserId (POS: client-side parser for control-plane API tokens)
+ * - `@/lib/guest` getAuthToken (POS: the session's API token, null when nobody is signed in)
  * - `./configFingerprint` valuesEqual (POS: deep equality for config values)
  * - `./offlinePersistableKeys` OFFLINE_PERSISTABLE_CONFIG_KEYS (POS: the only keys allowed to touch browser storage)
  * - `./types` ConfigChange (POS: one pending config write)
@@ -7,6 +9,7 @@
  * [OUTPUT]
  * loadOfflineQueue / saveOfflineQueue / removeOfflineEntries: the `localStorage` queue of changes that have not been settled by the backend.
  * takeUnpersistableOfflineEntries: lifts entries for non-allowlisted keys out of browser storage.
+ * discardUnattributedOfflineQueue: drops the backlog that belongs to no account once an account is signed in.
  * isRecoverableSyncError: tells a write that never reached a backend (retry later) from one the backend refused.
  *
  * [POS]
@@ -14,12 +17,25 @@
  * key is retried from memory by `ConfigSyncManager` and is gone after a reload, so no secret lands in clear text next to
  * the page's scripts. An entry leaves the store only when the backend settled that key (`removeOfflineEntries`); a
  * newer edit of the same key stays. Replay decisions live in `offlineReplay.ts`.
+ *
+ * Each account has its own queue: a browser profile shared by two accounts never replays one account's leftovers into
+ * the other's configuration. A session whose token names no account (local mode) uses the bare key.
  */
+import { parseCpAuthTokenUserId } from '@/lib/auth-cp-token';
+import { getAuthToken } from '@/lib/guest';
 import { valuesEqual } from './configFingerprint';
 import { OFFLINE_PERSISTABLE_CONFIG_KEYS } from './offlinePersistableKeys';
 import type { ConfigChange } from './types';
 
+/** The key of a queue that belongs to no particular account; a signed-in account's queue lives under `<key>:<userId>`. */
 const OFFLINE_QUEUE_KEY = 'config-offline-queue';
+
+/** Read per call: the signed-in account can change while the page lives. */
+function queueKey(): string {
+  const token = getAuthToken();
+  const userId = token ? parseCpAuthTokenUserId(token) : null;
+  return userId ? `${OFFLINE_QUEUE_KEY}:${userId}` : OFFLINE_QUEUE_KEY;
+}
 
 function isPersistable(change: ConfigChange): boolean {
   return OFFLINE_PERSISTABLE_CONFIG_KEYS.has(change.key);
@@ -47,7 +63,7 @@ export function loadOfflineQueue(): ConfigChange[] {
     return [];
   }
   try {
-    const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
+    const stored = localStorage.getItem(queueKey());
     return stored ? (JSON.parse(stored) as ConfigChange[]) : [];
   } catch {
     return [];
@@ -65,7 +81,7 @@ export function saveOfflineQueue(changes: ConfigChange[]): void {
   }
   try {
     const merged = mergeOfflineChanges([...loadOfflineQueue(), ...persistable]);
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(merged));
+    localStorage.setItem(queueKey(), JSON.stringify(merged));
   } catch (error) {
     console.warn('[ConfigSync] Failed to save offline queue:', error);
   }
@@ -93,14 +109,19 @@ export function removeOfflineEntries(settled: ConfigChange[]): void {
   if (remaining.length === stored.length) {
     return;
   }
+  writeStoredQueue(remaining, 'Failed to update offline queue:');
+}
+
+/** Stores `entries` as the account's queue, or removes the queue when nothing is left. */
+function writeStoredQueue(entries: ConfigChange[], failureMessage: string): void {
   try {
-    if (remaining.length > 0) {
-      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining));
+    if (entries.length > 0) {
+      localStorage.setItem(queueKey(), JSON.stringify(entries));
     } else {
-      localStorage.removeItem(OFFLINE_QUEUE_KEY);
+      localStorage.removeItem(queueKey());
     }
   } catch (error) {
-    console.warn('[ConfigSync] Failed to update offline queue:', error);
+    console.warn(`[ConfigSync] ${failureMessage}`, error);
   }
 }
 
@@ -115,17 +136,26 @@ export function takeUnpersistableOfflineEntries(): ConfigChange[] {
   if (unpersistable.length === 0) {
     return [];
   }
+  writeStoredQueue(stored.filter(isPersistable), 'Failed to remove unpersistable offline entries:');
+  return unpersistable;
+}
+
+/**
+ * The bare key's backlog was written by a session that named no account: once an account is signed in nobody can tell
+ * whose edits those are, so it is dropped rather than replayed into this account's configuration.
+ */
+export function discardUnattributedOfflineQueue(): void {
+  if (typeof window === 'undefined' || queueKey() === OFFLINE_QUEUE_KEY) {
+    return;
+  }
   try {
-    const kept = stored.filter(isPersistable);
-    if (kept.length > 0) {
-      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(kept));
-    } else {
+    if (localStorage.getItem(OFFLINE_QUEUE_KEY) !== null) {
       localStorage.removeItem(OFFLINE_QUEUE_KEY);
+      console.warn('[ConfigSync] Dropped an offline queue that belongs to no known account');
     }
   } catch (error) {
-    console.warn('[ConfigSync] Failed to remove unpersistable offline entries:', error);
+    console.warn('[ConfigSync] Failed to drop the unattributed offline queue:', error);
   }
-  return unpersistable;
 }
 
 /** Whether `SyncResult.error` says the write never reached a backend (see `BACKEND_NOT_AVAILABLE_ERROR`). */

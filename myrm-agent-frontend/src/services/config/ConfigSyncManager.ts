@@ -96,8 +96,9 @@ class ConfigSyncManager {
     this._status = 'loading';
 
     try {
-      // 先于后端可达性检查：含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里。
-      this.outbox.liftUnpersistableEntries();
+      // 先于后端可达性检查：含密钥的条目不能在后端不可达期间继续明文留在浏览器存储里，
+      // 无从归属账号的积压也不该留到联网后被重放。
+      this.outbox.prepareStoredQueue();
 
       if (isLocalMode()) {
         const ready = await ensureLocalBackendReady();
