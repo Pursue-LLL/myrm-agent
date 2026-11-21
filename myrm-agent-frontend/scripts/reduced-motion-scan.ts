@@ -126,6 +126,8 @@ export function findUnguardedMotionSurface(path: string, source: string): Reduce
 export const ALLOWED_WITHOUT_GUARD: Readonly<Record<string, string>> = {
   'myrm-agent-server/app/api/webui/welcome_page.py':
     '欢迎页只有一次性的 0.5s fadeIn，不是循环动画；且它只在本地启动引导时出现一次',
+  'myrm-agent-server/app/api/chats/test_fixtures/artifact_share.py':
+    '图表页只是把 Chart.js 的动画关掉（`animation: false`），页面里没有任何动效；它是分享页 e2e 的种子内容，不是我们设计的页面',
 };
 
 /**
