@@ -13,7 +13,7 @@ Pytest-only helpers that run real MCP servers and launch gates for the transport
 | `launch_gates.py` | Core | Patch targets and `RecordingTrustGate` for the stdio launch gates (workspace trust + OSV malware check) shared by actor and enumeration tests | ✅ |
 | `cancel_probe_server.py` | Core | Real MCP server (runnable as a stdio script, importable for HTTP) whose `slow` tool writes `started` and, when the server cancels it, `cancelled` marker files, plus a `fast` tool; lets caller-cancellation tests prove the cancel reached the server over every transport | ✅ |
 | `annotations_probe_server.py` | Core | Real MCP server (runnable as a stdio script, importable for HTTP) with one tool per declaration shape (honest read-only, read-only that writes, destructive, contradictory, open-world, idempotent-only, undeclared) plus a writer/reader pair over a shared item file; `DECLARED` states what each tool declares, in the host's own spelling | ✅ |
-| `probe_connection.py` | Core | `connect_probe_server`: the probe server over stdio or streamable HTTP seen through the production connection pool, as `ProbeServer` (processed tools keyed by declared name, the skill name, the model-facing call name, `register()` to repeat the pool's registration after `tests/conftest.py` empties the registry) | ✅ |
+| `probe_connection.py` | Core | `connect_probe_server`: the probe server over stdio, streamable HTTP or SSE seen through the production connection pool, as `ProbeServer` (processed tools keyed by declared name, the skill name, the model-facing call name, `register()` to repeat the pool's registration after `tests/conftest.py` empties the registry) | ✅ |
 
 ## Key Dependencies
 

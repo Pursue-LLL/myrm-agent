@@ -2,7 +2,7 @@
 
 The job starts in the directory ``/workspace`` means to the executor, which for a chat bound to a project is the
 project and not the chat's own storage directory, and starting it leaves the executor bound where it was. Bash reads
-it, as it reads a foreground command, whatever ``sh`` is on the host.
+it, as it reads a foreground command, whatever ``sh`` is on the host, and behind the same header.
 """
 
 from __future__ import annotations
@@ -54,6 +54,31 @@ async def test_starting_a_job_leaves_a_later_python_run_in_the_project(shared_re
     await shared_real_stack.run_background("true")
 
     assert "in_project.txt" in await shared_real_stack.run(_LIST_CWD)
+
+
+async def test_a_job_reads_the_header_a_foreground_command_reads(shared_real_stack: RealBashStack) -> None:
+    job = await shared_real_stack.run_background('echo "ci=$CI"; type git')
+
+    assert job.exit_code == 0, job.stderr
+    assert "git is a function" in job.stdout
+    assert "ci=true" in job.stdout, "the CI value the spawn set stays"
+
+
+async def test_a_job_commits_with_the_fallback_identity(
+    shared_real_stack: RealBashStack, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A developer's own identity, found through the home directory, must not decide what the job sees."""
+    (tmp_path / "home").mkdir()
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    # A job has a terminal, so a ``git log`` that does not turn the pager off waits for a key.
+    job = await shared_real_stack.run_background(
+        "git init -q -b main repo && cd repo && echo x > a && git add a && git commit -qm job"
+        " && git --no-pager log -1 --format='%an <%ae>'"
+    )
+
+    assert job.exit_code == 0, job.stderr
+    assert "myrm-agent <myrm-agent@users.noreply.github.com>" in job.stdout
 
 
 async def test_a_job_of_a_chat_with_its_own_workspace_starts_there(tmp_path: Path) -> None:
