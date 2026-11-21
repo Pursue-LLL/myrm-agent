@@ -57,9 +57,9 @@ class AgentProtocol(Protocol):
     def run(
         self,
         query: str,
-        cancel_token: object | None = None,
+        *,
+        cancel_token: CancellationToken | None = None,
         context: dict[str, object] | None = None,
-        **kwargs: object,
     ) -> AsyncGenerator[dict[str, object]]:
         """Run the agent and yield streaming events."""
         ...
