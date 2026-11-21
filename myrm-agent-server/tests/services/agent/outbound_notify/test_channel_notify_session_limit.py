@@ -1,7 +1,7 @@
 """Session limit of channel_notify_tool while sends are in flight or failing.
 
-A model can emit several tool calls in one turn and the agent loop runs them concurrently, so the limit has to hold
-while earlier sends are still in flight; a failed send has taken its slot as well.
+A model can emit several tool calls in one turn and a host may run them concurrently, so the limit has to hold while
+earlier sends are still in flight; a failed send has taken its slot as well.
 """
 
 from __future__ import annotations
