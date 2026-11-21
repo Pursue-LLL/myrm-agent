@@ -114,7 +114,7 @@ async def build_general_agent(
     if agent_wrapper.enable_kanban:
         await _setup_kanban_tools(agent_wrapper, tools)
 
-    await agent_wrapper._setup_artifact_publish_tool(tools)
+    await agent_wrapper._setup_artifact_publish_tool(tools, effective_chat_id)
 
     from app.ai_agents.general_agent.external_agents import (
         needs_runtime_pool,

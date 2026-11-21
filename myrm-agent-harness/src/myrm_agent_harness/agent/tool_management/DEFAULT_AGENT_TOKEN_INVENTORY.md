@@ -216,7 +216,7 @@ Token 明细（tiktoken o200k_base）：
 | 89 | image_tool | 120 | `server/ai_agents/media_tools/image_agent_tool.py` | 图像生成与编辑工具；描述不含模型名，所有内置档案均为 120；没有默认模型 | enabled_builtin_tools: image_generation，且已选图像模型、凭证或网关就绪 |
 | 90 | video_tool | 106 | `server/ai_agents/media_tools/video_agent_tool.py` | 视频生成工具；描述不含供应商与模型名，所有内置供应商均为 106（参数 schema 按供应商能力裁剪，不计入描述）；没有默认供应商 | enabled_builtin_tools: video_generation，且已选供应商与模型、凭证或网关就绪 |
 | 91 | tts_generate | 53 | `server/ai_agents/media_tools/tts_agent_tool.py` | 语音合成工具；没有默认供应商与音色 | enabled_builtin_tools: tts，且已选供应商与音色、凭证或网关就绪 |
-| 92 | artifact_publish | 78 | `server/services/hosting/agent_publish_tool.py` | 工件/网页在线打包与托管发布 | server 凭证就绪 |
+| 92 | artifact_publish | 94 | `server/services/hosting/agent_publish_tool.py` | 按工作区路径发布一个文件（网页、PDF、表格、Markdown 等）到托管目标，网页在同一文件夹里链接的样式、脚本与图片随它一起发布；参数是文件路径，不是工件 id | 已配置托管目标，或有旧版 Vercel 令牌、运营方平台 Vercel 令牌 |
 
 > 注：`x-live-search` 采用 Prebuilt Skill + 沙箱标准脚本 PTC（Programmatic Tool Calling）范式，0 Action Tool 注册（Turn1 0 Token 开销，不污染 Action Space）。
 
@@ -315,7 +315,7 @@ Token 明细（tiktoken o200k_base）：
 | System Prompt 层 | **1,946** |
 | CORE 工具层 | **1,536** |
 | HIGH_PRIORITY 工具层 | **2,452** |
-| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,679（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,220 + EXTERNAL 5 个 ~459；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
+| EXTENDED + EXTERNAL（37 + 5 = 42 工具） | ~6,695（**粗估**：§四 各行描述值求和，EXTENDED 37 个 ~6,220 + EXTERNAL 5 个 ~475；`measure_turn1_token_inventory.py` 只构建 Turn-1 默认的 13 个工具，这两层不由它计量） |
 | schema wrapper 包装 | **3,575** (55 工具 × 65) |
 | 动态注入 | ~1,200 |
 | 消息格式 | ~500 |

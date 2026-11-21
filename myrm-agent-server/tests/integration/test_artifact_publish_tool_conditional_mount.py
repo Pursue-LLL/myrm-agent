@@ -24,7 +24,7 @@ async def test_artifact_publish_tool_mounts_when_credentials_present() -> None:
         new_callable=AsyncMock,
         return_value=True,
     ):
-        await mixin._setup_artifact_publish_tool(tools)
+        await mixin._setup_artifact_publish_tool(tools, "chat-1")
 
     assert len(tools) == 1
     assert getattr(tools[0], "name", None) == "artifact_publish"
@@ -43,7 +43,7 @@ async def test_artifact_publish_tool_skipped_without_credentials() -> None:
         new_callable=AsyncMock,
         return_value=False,
     ):
-        await mixin._setup_artifact_publish_tool(tools)
+        await mixin._setup_artifact_publish_tool(tools, "chat-1")
 
     assert len(tools) == 0
 
@@ -60,6 +60,6 @@ async def test_artifact_publish_tool_graceful_on_import_error() -> None:
         "app.services.hosting.credentials.has_any_hosting_credentials",
         side_effect=ImportError("hosting module unavailable"),
     ):
-        await mixin._setup_artifact_publish_tool(tools)
+        await mixin._setup_artifact_publish_tool(tools, "chat-1")
 
     assert len(tools) == 0

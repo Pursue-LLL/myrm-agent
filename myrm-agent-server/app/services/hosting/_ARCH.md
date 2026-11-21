@@ -24,7 +24,7 @@ Artifact 多目标发布业务层。封装 Vercel / HTTP Webhook 托管 API，�
 | `artifact_files.py` | ✅ 核心 | `resolve_artifact_deploy_files` — publish/share 共用；vault 对象从 artifact 所属会话的工作区读取；随入口文件发布的静态文件取自 `Artifact.source_path` 所指文件的同级目录（文件已不在则只发 vault 里的版本，不按文件名搜索）；没有 `source_path` 的行按文件名回退并记一条 WARNING |
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验：协议、主机名、DNS 解析后的每个地址都交给框架唯一的 IP 黑名单 `is_blocked_ip` 判定（私网、环回、链路本地、云元数据、CGNAT、组播、IPv4 映射的私网地址一律拒；代理 fake-IP 使用的 `198.18.0.0/15` 放行，Clash / Surge 把公网域名都解析到这一段，拒了就等于这类机器上所有 webhook 都发不出去） |
-| `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory；conditional mount（hosting 已配置时加载）；复用 `orchestrator.publish_artifact_to_target` |
+| `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory，按工作区路径发布一个文件：路径必须落在会话工作区内（符号链接与用户授权的工作区外目录都不放行），经 `LocalArtifactProcessor` 以当前会话的 chat id 登记为工件（一个文件一个工件，改动后再发布更新同一页面；被过滤的文件拒绝），再交给 `orchestrator.publish_artifact_to_target`；先确认有发布目标再登记，没有目标时不留工件；只有运营方平台令牌的租户在此获得默认 Vercel 目标；conditional mount（有托管目标、旧版 Vercel 令牌或平台令牌时加载） |
 | `providers/*.py` | ✅ 核心 | Vercel 与 HTTP Webhook 两个 HostingProvider 实现（`vercel_client.py` 为 Vercel provider 私有客户端、`_archive.py` 为共享 ZIP 归档工具，均同域内） |
 
 ---
@@ -32,6 +32,7 @@ Artifact 多目标发布业务层。封装 Vercel / HTTP Webhook 托管 API，�
 ## 依赖关系
 
 - `httpx`：异步 HTTP（webhook 禁用 follow_redirects）
+- `app.core.artifacts`：`agent_publish_tool.py` 用 `LocalArtifactProcessor` 登记工件；harness `get_executor`：会话工作区与路径解析
 - 调用方：`app/api/files/hosting_api.py`、`artifact_share_api.py`、`agent_publish_tool.py`（Agent tool）
 
 ---
@@ -56,4 +57,4 @@ Artifact 多目标发布业务层。封装 Vercel / HTTP Webhook 托管 API，�
 
 ## Prompt Cache
 
-`artifact_publish` tool 仅在用户配置了 hosting target 时 conditional mount（~100 tok）。未配置用户零 token 开销。
+`artifact_publish` tool 仅在用户有可发布的目标（托管目标、旧版 Vercel 令牌或运营方平台令牌）时 conditional mount（描述 94 tok，o200k_base）。其余用户零 token 开销。
