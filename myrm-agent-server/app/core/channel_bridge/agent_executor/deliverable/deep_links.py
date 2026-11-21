@@ -11,7 +11,7 @@
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
-- build_artifact_deep_links: ActionButton rows with registered, signed public share URLs (logs WARNING when ingress base URL missing, artifact versions unavailable or a link cannot be created)
+- build_artifact_deep_links: ActionButton rows (one button per row, at most MAX_SHARE_BUTTONS) with registered, signed public share URLs (logs WARNING when ingress base URL missing, artifact versions unavailable or a link cannot be created)
 - fetch_artifact_versions: batch DB lookup for latest artifact version IDs
 
 [POS]
@@ -46,6 +46,9 @@ if TYPE_CHECKING:
     from app.channels.types.components import ComponentRow
 
 logger = logging.getLogger(__name__)
+
+# Discord renders five component rows at most and each link is a row of its own; the artifacts past it still arrive as attachments.
+MAX_SHARE_BUTTONS = 5
 
 
 def collect_channel_artifacts(event: dict[str, object], acc: StreamAccumulator) -> None:
@@ -135,11 +138,18 @@ async def build_artifact_deep_links(
 
     Links are created like the share dialog creates them (signed, bundle snapshot, registered), so each one is listed
     in the share manager and can be revoked. ``workspace_root`` is the chat's workspace; artifacts that belong to a chat
-    are read from that chat's own workspace regardless. A button is never returned bare: the outbound pipeline walks a
-    message's rows, and channels cap the buttons of one row, which a long file name would also crowd.
+    are read from that chat's own workspace regardless. Each button is a row of its own (the outbound pipeline walks a
+    message's rows, and the buttons of one row share its width), and only the first ``MAX_SHARE_BUTTONS`` artifacts get one.
     """
     if not acc.shareable_artifacts:
         return ()
+    shareable = acc.shareable_artifacts[:MAX_SHARE_BUTTONS]
+    if len(shareable) < len(acc.shareable_artifacts):
+        logger.info(
+            "Share buttons limited to %d of %d artifact(s); the others are delivered as attachments only",
+            len(shareable),
+            len(acc.shareable_artifacts),
+        )
 
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
@@ -157,7 +167,7 @@ async def build_artifact_deep_links(
         )
         return ()
 
-    artifact_ids = [aid for aid, _, _ in acc.shareable_artifacts]
+    artifact_ids = [aid for aid, _, _ in shareable]
     version_map = await fetch_artifact_versions(artifact_ids)
     if not version_map:
         logger.warning(
@@ -168,11 +178,11 @@ async def build_artifact_deep_links(
 
     root = workspace_root or str(get_workspace_root())
     buttons: list[ActionButton] = []
-    multi = len(acc.shareable_artifacts) > 1
+    multi = len(shareable) > 1
 
     try:
         async with get_session() as db:
-            for artifact_id, filename, artifact_type in acc.shareable_artifacts:
+            for artifact_id, filename, artifact_type in shareable:
                 version_id = version_map.get(artifact_id)
                 if not version_id:
                     logger.warning(

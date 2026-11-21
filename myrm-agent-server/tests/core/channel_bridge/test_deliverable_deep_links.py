@@ -521,6 +521,46 @@ class TestBuildArtifactDeepLinks:
     @patch(
         "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
         new_callable=AsyncMock,
+        return_value={f"art-{i}": f"ver-{i}" for i in range(7)},
+    )
+    @patch(
+        "app.core.infra.ingress.resolve_public_link_base",
+        new_callable=AsyncMock,
+        return_value="https://app.example.com",
+    )
+    @patch(
+        "app.services.artifacts.share.share_create.create_artifact_share",
+        new_callable=AsyncMock,
+        return_value=CreatedArtifactShare("tok", 604800),
+    )
+    @patch("app.channels.i18n.channel_t", side_effect=lambda _l, _k, **kw: kw.get("filename", "view"))
+    async def test_only_the_first_artifacts_get_a_share_button(
+        self,
+        mock_t: MagicMock,
+        mock_create: AsyncMock,
+        mock_base: AsyncMock,
+        mock_versions: AsyncMock,
+    ):
+        """Discord renders five rows at most: the others get no link made (their attachments still go out)."""
+        from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
+            MAX_SHARE_BUTTONS,
+            build_artifact_deep_links,
+        )
+
+        acc = StreamAccumulator()
+        for i in range(7):
+            acc.shareable_artifacts.append(ShareableArtifact(f"art-{i}", f"page-{i}.html", "text/html"))
+        rows = await build_artifact_deep_links(acc, "en", _WORKSPACE)
+
+        assert len(rows) == MAX_SHARE_BUTTONS == 5
+        assert mock_create.await_count == MAX_SHARE_BUTTONS
+        assert mock_versions.await_args.args[0] == [f"art-{i}" for i in range(MAX_SHARE_BUTTONS)]
+        assert [button.action_id for button in _buttons(rows)] == [f"artifact:share:art-{i}" for i in range(MAX_SHARE_BUTTONS)]
+
+    @pytest.mark.asyncio
+    @patch(
+        "app.core.channel_bridge.agent_executor.deliverable.deep_links.fetch_artifact_versions",
+        new_callable=AsyncMock,
         return_value={"art-001": "ver-001"},
     )
     @patch(
