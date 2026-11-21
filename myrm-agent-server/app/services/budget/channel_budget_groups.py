@@ -67,8 +67,8 @@ async def mark_known_groups(statuses: list[dict[str, object]]) -> list[dict[str,
 
 
 async def _keys_with_a_chat(keys: list[str]) -> set[str]:
-    """The ``keys`` that a chat extends; one index probe per key that stops at the first chat, so the cost follows the
-    number of keys and never the history of a group."""
+    """The ``keys`` that a chat extends; one index probe per key that stops at the first chat, so the other chats of a
+    group are never read."""
     async with get_session_factory()() as session:
         return {
             key
