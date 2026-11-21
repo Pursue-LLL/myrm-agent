@@ -206,7 +206,7 @@ class SSRFResult:
 
 ### 3.2.1 Shell Command Analyzer
 
-**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `protected_instruction_command.py`（受保护指令文件的写形态）
+**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_readings.py`（读法：喂给规则的文本）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `protected_instruction_command.py`（受保护指令文件的写形态）
 
 统一 Shell 命令安全分析模块，多层检测（带引号感知预处理）：
 
@@ -218,7 +218,7 @@ class SSRFResult:
 | Layer 2.5: SQL 语句守卫 | ESCALATE | 数据库客户端命令（`psql`/`mysql`/`sqlite3`/`sqlcmd`/`mongosh`）中的破坏性 SQL；作用于引号剥离前的原始命令，以捕获单引号内的 SQL（`sql_statement_guard.py`） |
 | Layer 3: 可疑模式 | ESCALATE | `curl \| sh`, `eval`, `base64 -d`, `kill`/`pkill`/`killall` 等 |
 | Layer 3c: 受保护指令文件改写 | ESCALATE | 重定向写入，或 `sed -i`、`tee`、`cp`、`mv`、`rm`、`truncate`（及其 PowerShell / cmd 写法：`Set-Content`、`Remove-Item`、`copy`、`del` 等）点名，或解释器（`python`/`node`/`ruby`/`perl`）在同一条命令里以写方式打开 `AGENTS.md`、`CLAUDE.md`、`SOUL.md`、`.cursor/rules` 等受保护指令文件（bash 工具里按 Python 源码运行的文本不在此列，见下）；只读分类器判为 SAFE 的命令不算改写；作用于原始命令，证据是匹配到的名字（`protected_instruction_command.py`） |
-| 读法：逐条命令、逐层包装 | 同各层 | Layer 2 到 3c 对命令的每一种读法各判一遍：原文；原文里的每条命令（`split_command_spans` 按 `;`、`&&`、`\|\|`、`\|`、`&`、换行切开，所以 `rm -rf ~&&echo done` 与 `ls; rm -rf ~` 都在命令处收尾，规则照样命中），每条命令还读一遍去掉末尾紧贴的分组右括号后的样子（`(cd d && echo x > uv.lock)` 里的 `uv.lock)` 照样命中以文件名收尾的规则）；不论 shell 站在命令的什么位置（`sudo` 之后、`then` 之后、`docker exec ctr` 之后、重定向之后、`case` 分支里）的 `sh -c` / `eval` 脚本与 `trap` 的处理脚本（逐词尝试 `read_commands` 的结果），以及 `$(...)` 与反引号的命令体（`substitution_bodies`）。`sudo` / `env` / `timeout` / `xargs` 之后的命令按它所在的位置带引号原样判定：规则本来就不看命令在文本里的位置，它的参数里被引号包住的文字照常被遮蔽（`env git commit -m 'never run rm -rf ~'` 不是威胁）。每条读法只展开一次，读法的条数（`MAX_COMMAND_READINGS`）与字符总量都有上限防 DoS；同一条威胁只报一次，原文的威胁排在后面读法的之前；快照触发（`is_destructive_command`）与集成写入判定（`is_integration_mutation_command`）读的是同一组文本。删除根目录与家目录的 `rm` 规则把操作数的结尾认到空白、命令末尾或不带空格就结束它的字符（`rm -fr / >log`、`find . -exec rm -fr / \;`、`(rm -rf ~)`） |
+| 读法：逐条命令、逐层包装 | 同各层 | Layer 2 到 3c 对命令的每一种读法各判一遍（读法由 `shell_command_readings.command_readings` 给出）：原文；原文里的每条命令（`split_command_spans` 按 `;`、`&&`、`\|\|`、`\|`、`&`、换行切开，所以 `rm -rf ~&&echo done` 与 `ls; rm -rf ~` 都在命令处收尾，规则照样命中），每条命令还读一遍去掉末尾紧贴的分组右括号后的样子（`(cd d && echo x > uv.lock)` 里的 `uv.lock)` 照样命中以文件名收尾的规则）；不论 shell 站在命令的什么位置（`sudo` 之后、`then` 之后、`docker exec ctr` 之后、重定向之后、`case` 分支里）的 `sh -c` / `eval` 脚本与 `trap` 的处理脚本（逐词尝试 `read_commands` 的结果），以及 `$(...)` 与反引号的命令体（`substitution_bodies`）。`sudo` / `env` / `timeout` / `xargs` 之后的命令按它所在的位置带引号原样判定：规则本来就不看命令在文本里的位置，它的参数里被引号包住的文字照常被遮蔽（`env git commit -m 'never run rm -rf ~'` 不是威胁）。每条读法只展开一次，读法的条数（`MAX_COMMAND_READINGS`）与字符总量（`MAX_READING_CHARS`）都有上限防 DoS：脚本与命令体先读（藏在引号里的内容在别的读法里看不到），每条命令单读的几条只填上限剩下的空位；脚本与命令体装不下时整行拒绝（BLOCK，类别 `obfuscation`，提示拆成单独的命令），而单读的命令超出上限（长 heredoc、长脚本）只按已读到的判，不因长度被拒；同一条威胁只报一次，原文的威胁排在后面读法的之前；快照触发（`is_destructive_command`）与集成写入判定（`is_integration_mutation_command`）读的是同一组文本。删除根目录与家目录的 `rm` 规则把操作数的结尾认到空白、命令末尾或不带空格就结束它的字符（`rm -fr / >log`、`find . -exec rm -fr / \;`、`(rm -rf ~)`） |
 
 引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`;` 与 `&&`、`||`、`\|` 一样只是连接命令的符号，不是威胁：`find -exec {} \;` 的转义分号、`for … do …; done` 不触发任何规则，连在后面的每条命令各自照规则判定。
 

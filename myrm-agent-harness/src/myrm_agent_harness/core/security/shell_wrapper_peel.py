@@ -55,8 +55,8 @@ DENY_WRAPPER_DEPTH: Final = 64
 
 # The most commands one line may expand to. A command whose every word is its own substitution is what makes
 # this necessary: the readings branch at each level, so depth alone would still let a short line ask for a
-# huge tree. The cap is far above any line a person or an agent writes, and past it the extra commands are
-# simply not read (the command itself is still judged).
+# huge tree. The cap is far above any line a person or an agent writes. Past it the deny walk does not read the
+# extra commands (the command itself is still judged), and the analyzer refuses a line whose scripts do not fit.
 MAX_COMMAND_READINGS: Final = 256
 
 _ASSIGNMENT_RE: Final = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
