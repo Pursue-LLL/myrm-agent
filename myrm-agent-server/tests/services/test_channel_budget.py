@@ -6,14 +6,15 @@ record_channel_cost, and _build_status_dict.
 
 from __future__ import annotations
 
+import pytest
 from myrm_agent_harness.utils.token_economics.budget_guard import BudgetStatus
 
 from app.services.budget.channel_budget import (
-    ChannelBudgetPolicy,
     ChannelBudgetRegistry,
     record_channel_cost,
     should_block_channel,
 )
+from app.services.budget.channel_budget_policy import ChannelBudgetPolicy
 
 
 class TestChannelBudgetPolicy:
@@ -166,6 +167,22 @@ class TestChannelBudgetRegistry:
         assert st is not None
         assert st["today_cost_usd"] > 0.8
 
+    def test_reconfigure_keeps_the_larger_of_the_counted_cost_and_the_recovered_cost(self) -> None:
+        reg = self._make_registry()
+        policy = ChannelBudgetPolicy(channel_key="ch:rk", daily_limit_usd=5.0)
+        reg.configure(policy, initial_cost=0.2)
+        reg.record_cost("ch:rk", 0.5)
+
+        reg.configure(policy, initial_cost=0.0)  # a recovered cost older than the count, or one that could not be read
+        st = reg.get_status("ch:rk")
+        assert st is not None
+        assert st["today_cost_usd"] == pytest.approx(0.7)
+
+        reg.configure(policy, initial_cost=0.9)  # a recovered cost newer than the count
+        st = reg.get_status("ch:rk")
+        assert st is not None
+        assert st["today_cost_usd"] == pytest.approx(0.9)
+
     def test_usage_pct_calculation(self) -> None:
         reg = self._make_registry()
         reg.configure(
@@ -192,57 +209,57 @@ class TestShouldBlockChannel:
     def test_returns_false_for_unconfigured_channel(self) -> None:
         assert should_block_channel("unknown:channel") is False
 
-    def test_returns_false_when_budget_ok(self, monkeypatch: object) -> None:
+    def test_returns_false_when_budget_ok(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.budget import channel_budget as mod
 
         reg = ChannelBudgetRegistry()
         reg.configure(ChannelBudgetPolicy(channel_key="ch:ok", daily_limit_usd=10.0))
-        monkeypatch.setattr(mod, "_registry", reg)  # type: ignore[attr-defined]
+        monkeypatch.setattr(mod, "_registry", reg)
 
         assert should_block_channel("ch:ok") is False
 
-    def test_returns_true_when_budget_exceeded(self, monkeypatch: object) -> None:
+    def test_returns_true_when_budget_exceeded(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.budget import channel_budget as mod
 
         reg = ChannelBudgetRegistry()
         reg.configure(ChannelBudgetPolicy(channel_key="ch:ex", daily_limit_usd=0.5))
         reg.record_cost("ch:ex", 0.6)
-        monkeypatch.setattr(mod, "_registry", reg)  # type: ignore[attr-defined]
+        monkeypatch.setattr(mod, "_registry", reg)
 
         assert should_block_channel("ch:ex") is True
 
 
 class TestRecordChannelCost:
-    def test_noop_for_zero_cost(self, monkeypatch: object) -> None:
+    def test_noop_for_zero_cost(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.budget import channel_budget as mod
 
         reg = ChannelBudgetRegistry()
         reg.configure(ChannelBudgetPolicy(channel_key="ch:z", daily_limit_usd=1.0))
-        monkeypatch.setattr(mod, "_registry", reg)  # type: ignore[attr-defined]
+        monkeypatch.setattr(mod, "_registry", reg)
 
         record_channel_cost("ch:z", 0.0)
         st = reg.get_status("ch:z")
         assert st is not None
         assert st["today_cost_usd"] == 0.0
 
-    def test_noop_for_negative_cost(self, monkeypatch: object) -> None:
+    def test_noop_for_negative_cost(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.budget import channel_budget as mod
 
         reg = ChannelBudgetRegistry()
         reg.configure(ChannelBudgetPolicy(channel_key="ch:n", daily_limit_usd=1.0))
-        monkeypatch.setattr(mod, "_registry", reg)  # type: ignore[attr-defined]
+        monkeypatch.setattr(mod, "_registry", reg)
 
         record_channel_cost("ch:n", -1.0)
         st = reg.get_status("ch:n")
         assert st is not None
         assert st["today_cost_usd"] == 0.0
 
-    def test_records_positive_cost(self, monkeypatch: object) -> None:
+    def test_records_positive_cost(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.services.budget import channel_budget as mod
 
         reg = ChannelBudgetRegistry()
         reg.configure(ChannelBudgetPolicy(channel_key="ch:rc", daily_limit_usd=5.0))
-        monkeypatch.setattr(mod, "_registry", reg)  # type: ignore[attr-defined]
+        monkeypatch.setattr(mod, "_registry", reg)
 
         record_channel_cost("ch:rc", 1.5)
         st = reg.get_status("ch:rc")

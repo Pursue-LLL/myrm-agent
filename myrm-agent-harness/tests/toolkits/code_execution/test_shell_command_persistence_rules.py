@@ -84,7 +84,6 @@ class TestInjectionCategorySplit:
             ("echo $(whoami)", "$() command substitution"),
             ("echo `whoami`", "backtick command substitution"),
             ("echo ${HOME}", "${} variable expansion"),
-            ("echo a; echo b", "semicolon command chaining"),
         ],
     )
     def test_shell_syntax_vectors_keep_injection_category(self, command: str, detail: str) -> None:

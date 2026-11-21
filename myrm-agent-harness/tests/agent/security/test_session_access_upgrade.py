@@ -65,7 +65,7 @@ class TestGrantUpgrade:
             {"file_path": f"{docs}/out.txt"},
             policy=merge_path_policy_with_session_access(PathPolicy(forbidden_paths=frozenset(), access_roots=())),
             workspace_root=workspace,
-            writable=True,
+            permission="file_write",
         )
         assert granted == [os.path.realpath(docs)]
         assert [root.writable for root in get_session_access_roots()] == [True]
@@ -73,8 +73,8 @@ class TestGrantUpgrade:
 
 
 @pytest.mark.parametrize("held", [None, False, True], ids=["nothing-held", "held-read-only", "held-writable"])
-@pytest.mark.parametrize("writable", [False, True], ids=["read-call", "write-call"])
-def test_every_folder_the_plan_offers_is_one_the_grant_changes(tmp_path, held: bool | None, writable: bool) -> None:
+@pytest.mark.parametrize("permission", ["file_read", "file_write"], ids=["read-call", "write-call"])
+def test_every_folder_the_plan_offers_is_one_the_grant_changes(tmp_path, held: bool | None, permission: str) -> None:
     """The card never promises a folder the grant then leaves as it was, whatever the folder already held."""
     set_session_access_roots(())
     workspace = tmp_path / "ws"
@@ -88,9 +88,9 @@ def test_every_folder_the_plan_offers_is_one_the_grant_changes(tmp_path, held: b
 
     offered = [
         root.path
-        for root in plan_directory_grants(call, policy=policy, workspace_root=str(workspace), writable=writable)
+        for root in plan_directory_grants(call, permission=permission, policy=policy, workspace_root=str(workspace))
     ]
-    granted = grant_directories_for_call(call, policy=policy, workspace_root=str(workspace), writable=writable)
+    granted = grant_directories_for_call(call, permission=permission, policy=policy, workspace_root=str(workspace))
 
     assert granted == offered
     set_session_access_roots(())

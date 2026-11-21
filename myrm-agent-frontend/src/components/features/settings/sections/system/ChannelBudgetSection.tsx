@@ -3,16 +3,21 @@
 /**
  * [INPUT]
  * @/services/budget (POS: Channel budget API service)
+ * ./ChannelLimitInput (POS: Inline daily-limit box of a channel budget)
  *
  * [OUTPUT]
  * ChannelBudgetSection: Settings panel for per-channel budget quotas.
  *
  * [POS]
  * Per-channel budget configuration UI. Displays each channel's daily budget usage
- * and allows configuring per-channel limits to prevent cost explosion.
+ * and allows configuring per-channel limits to prevent cost explosion; each edit is sent
+ * as a patch of the one field it changes, so edits made close together, or from another
+ * page, do not put each other's values back, and a limit box never keeps a number that was
+ * not stored. Unfolding a channel lists each sender's spend over the audit window, with
+ * bars sized by their share of that window's total.
  */
 
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   IconShield,
@@ -25,13 +30,16 @@ import {
   IconUsers,
 } from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
+import ChannelLimitInput from './ChannelLimitInput';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   getChannelBudgets,
+  createChannelBudget,
   updateChannelBudget,
   deleteChannelBudget,
   getChannelAudit,
   type ChannelBudgetPolicy,
+  type ChannelBudgetPolicyFields,
   type ChannelBudgetStatus,
   type ChannelAuditEntry,
 } from '@/services/budget';
@@ -67,6 +75,11 @@ const ChannelBudgetSection = memo(() => {
   const [expandedAudit, setExpandedAudit] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<ChannelAuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  // The audit spans several days, so a sender's bar is its share of what the window cost, not of today's spend.
+  const auditTotalUsd = useMemo(
+    () => auditEntries.reduce((sum, entry) => sum + entry.total_cost_usd, 0),
+    [auditEntries],
+  );
 
   const toggleAudit = useCallback(
     async (channelKey: string) => {
@@ -102,14 +115,16 @@ const ChannelBudgetSection = memo(() => {
     fetchData();
   }, [fetchData]);
 
+  // Only the field the user changed is sent: the rest of the policy shown here may be older than the stored one (another
+  // page, or an edit still in flight), and sending it back would undo what changed meanwhile.
   const handleSave = useCallback(
-    async (channelKey: string, policy: Omit<ChannelBudgetPolicy, 'channel_key'>) => {
+    async (channelKey: string, patch: Partial<ChannelBudgetPolicyFields>) => {
       setSaving(channelKey);
       try {
-        await updateChannelBudget(channelKey, policy);
+        await updateChannelBudget(channelKey, patch);
         await fetchData();
       } catch {
-        /* silent */
+        // apiRequest has already shown the failure.
       } finally {
         setSaving(null);
       }
@@ -124,7 +139,7 @@ const ChannelBudgetSection = memo(() => {
         await deleteChannelBudget(channelKey);
         await fetchData();
       } catch {
-        /* silent */
+        // apiRequest has already shown the failure.
       } finally {
         setSaving(null);
       }
@@ -138,7 +153,7 @@ const ChannelBudgetSection = memo(() => {
     }
     setSaving('new');
     try {
-      await updateChannelBudget(newEntry.channel_key, {
+      await createChannelBudget(newEntry.channel_key, {
         daily_limit_usd: newEntry.daily_limit_usd,
         warning_threshold: newEntry.warning_threshold,
         enabled: newEntry.enabled,
@@ -148,7 +163,7 @@ const ChannelBudgetSection = memo(() => {
       setNewEntry({ channel_key: '', daily_limit_usd: 2.0, warning_threshold: 0.8, enabled: true, label: '' });
       await fetchData();
     } catch {
-      /* silent */
+      // apiRequest has already shown the failure.
     } finally {
       setSaving(null);
     }
@@ -278,20 +293,9 @@ const ChannelBudgetSection = memo(() => {
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">{t('dailyLimit')}:</span>
                   <span className="text-xs text-muted-foreground">$</span>
-                  <input
-                    type="number"
-                    min={0.01}
-                    max={10000}
-                    step={0.5}
-                    defaultValue={policy.daily_limit_usd}
-                    key={`${st.channel_key}-${policy.daily_limit_usd}`}
-                    onBlur={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v) && v !== policy.daily_limit_usd) {
-                        handleSave(st.channel_key, { ...policy, daily_limit_usd: v });
-                      }
-                    }}
-                    className="w-20 text-right text-xs font-mono px-1.5 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  <ChannelLimitInput
+                    value={policy.daily_limit_usd}
+                    onSave={(limit) => handleSave(st.channel_key, { daily_limit_usd: limit })}
                   />
                 </div>
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -300,7 +304,7 @@ const ChannelBudgetSection = memo(() => {
                     role="switch"
                     aria-checked={policy.enabled}
                     aria-label={t('enabled')}
-                    onClick={() => handleSave(st.channel_key, { ...policy, enabled: !policy.enabled })}
+                    onClick={() => handleSave(st.channel_key, { enabled: !policy.enabled })}
                     className={cn(
                       'relative w-8 h-5 rounded-full transition-colors',
                       policy.enabled ? 'bg-accent-warm' : 'bg-input dark:bg-muted',
@@ -339,7 +343,7 @@ const ChannelBudgetSection = memo(() => {
                   <div className="text-xs text-muted-foreground py-1">{t('auditEmpty')}</div>
                 ) : (
                   auditEntries.map((entry) => {
-                    const pct = st.today_cost_usd > 0 ? (entry.total_cost_usd / st.today_cost_usd) * 100 : 0;
+                    const pct = auditTotalUsd > 0 ? (entry.total_cost_usd / auditTotalUsd) * 100 : 0;
                     return (
                       <div key={entry.sender_id} className="flex items-center gap-2">
                         <span className="text-[11px] text-muted-foreground font-mono truncate min-w-0 flex-1">
@@ -351,7 +355,7 @@ const ChannelBudgetSection = memo(() => {
                         <div className="w-16 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden shrink-0">
                           <div
                             className="h-full rounded-full bg-primary/60 transition-all"
-                            style={{ width: `${Math.min(pct, 100)}%` }}
+                            style={{ width: `${pct}%` }}
                           />
                         </div>
                         <span className="text-[11px] font-mono tabular-nums shrink-0">

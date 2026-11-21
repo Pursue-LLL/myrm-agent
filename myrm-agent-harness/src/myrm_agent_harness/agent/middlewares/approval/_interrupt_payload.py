@@ -27,7 +27,6 @@ from langchain_core.messages import ToolCall
 from myrm_agent_harness.agent.security.approval_reason import CodedReason, is_human_only
 from myrm_agent_harness.agent.security.engine import extract_url_domains
 from myrm_agent_harness.agent.security.session_access import (
-    PATH_WRITE_PERMISSION_TYPES,
     merge_path_policy_with_session_access,
     plan_directory_grants,
 )
@@ -110,10 +109,7 @@ def build_interrupt_payload(
 
         if effective_policy is not None:
             grants = plan_directory_grants(
-                tool_input,
-                policy=effective_policy,
-                workspace_root=workspace_root,
-                writable=permission_type in PATH_WRITE_PERMISSION_TYPES,
+                tool_input, permission=permission_type, policy=effective_policy, workspace_root=workspace_root
             )
             if grants:
                 action_request["grantDirectories"] = [{"path": root.path, "writable": root.writable} for root in grants]

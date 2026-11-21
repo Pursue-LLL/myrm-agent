@@ -7,8 +7,8 @@
 - backends.skills.types::SkillMetadata (POS: MCP 技能元数据)
 - core.file_read::build_multimodal_result, append_media_text_parts, process_text_paths (POS: file_read 执行处理器；文本路径与多模态块的文本都在其内按文件类型脱敏)
 - core.file_read::assert_paths_allowed_for_read, assert_evicted_uploaded_read_scope, partition_urls (POS: 读取范围守卫：disabled skill 拦截与 Fast 轨范围)
-- file_search.path_hint::suggest_similar_paths, format_path_not_found_hint, find_existing_unicode_path (POS: 路径不存在提示与 Unicode 探测自愈)
-- core.security.path::is_blocked_device_path, is_network_or_nt_path, network_path_refusal (POS: Pre-IO 设备路径与网络共享路径安全阻断)
+- file_search.path_hint::suggest_similar_paths, format_path_not_found_hint (POS: 路径不存在提示)
+- core.security.path::is_blocked_device_path, is_network_or_nt_path, network_path_refusal, find_existing_unicode_path (POS: Pre-IO 设备路径与网络共享路径安全阻断；路径不存在时的 Unicode 探测自愈，权限引擎对读取目标同样判定该自愈名)
 - utils.vault_read::is_vault_uri, read_vault_paths_to_parts (POS: vault:// URI 读取)
 - core.security.tool_registry::PATHS_ALIAS_KEYS, coerce_path_list, strip_read_range (POS: 路径参数别名与数组参数的统一读法；路径参数去掉行号范围后的文件路径)
 - mcp_read_next_step_hint::append_mcp_docs_next_step_hint (POS: MCP 函数文档批量读取后的下一步操作提示)
@@ -40,11 +40,11 @@ from myrm_agent_harness.agent.context_management.context import (
 )
 from myrm_agent_harness.agent.meta_tools._context_recovery import ensure_executor
 from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
-    find_existing_unicode_path,
     format_path_not_found_hint,
     suggest_similar_paths,
 )
 from myrm_agent_harness.agent.security.path_security import (
+    find_existing_unicode_path,
     is_blocked_device_path,
     is_network_or_nt_path,
     network_path_refusal,
@@ -198,7 +198,7 @@ def create_file_read_tool(
                 base = strip_read_range(p)
                 range_suffix = p[len(base) :]
                 found = find_existing_unicode_path(base, base_dir=workspace_root)
-                if found and found != base:
+                if found:
                     healed_paths.append(f"{found}{range_suffix}")
                 else:
                     healed_paths.append(p)

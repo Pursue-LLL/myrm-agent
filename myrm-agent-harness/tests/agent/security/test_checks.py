@@ -214,3 +214,44 @@ def test_check_path_policy_reads_a_home_spelling_as_the_home_file(
 
     assert action == PermissionAction.ASK
     assert "outside allowed zones" in reason
+
+
+@POSIX_ONLY
+@pytest.mark.parametrize("typed", ["conf", "conf/"], ids=["link", "link-with-separator"])
+def test_check_path_policy_does_not_read_a_link_to_a_directory_as_a_credential_file(tmp_path: Path, typed: str) -> None:
+    # ``.env.d`` is a directory; the rule names credential files and has nothing to say about what lies below one.
+    root = tmp_path / "ws"
+    (root / ".env.d").mkdir(parents=True)
+    (root / "conf").symlink_to(".env.d", target_is_directory=True)
+
+    action, reason = check_path_policy(typed, PathPolicy(), workspace_root=str(root))
+
+    assert action == PermissionAction.ALLOW
+    assert reason == ""
+
+
+def test_check_path_policy_does_not_read_a_workspace_directory_named_like_a_credential_file_as_one(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / ".envs"
+    root.mkdir()
+
+    action, _ = check_path_policy(".", PathPolicy(), workspace_root=str(root))
+
+    assert action == PermissionAction.ALLOW
+
+
+@pytest.mark.parametrize("text", ["a\x00b", "a\ud800b"], ids=["nul-byte", "lone-surrogate"])
+def test_check_path_policy_denies_a_text_no_file_can_be_named_by_instead_of_raising(tmp_path: Path, text: str) -> None:
+    action, reason = check_path_policy(text, PathPolicy(), workspace_root=str(tmp_path))
+
+    assert action == PermissionAction.DENY
+    assert "cannot be resolved" in reason
+    assert reason.encode("utf-8"), "the reason travels on to a model message and a log line, so it must be encodable"
+
+
+@POSIX_ONLY
+def test_check_path_policy_reads_an_escape_encoded_byte_as_a_file_name(tmp_path: Path) -> None:
+    action, _ = check_path_policy("a\udc80b", PathPolicy(), workspace_root=str(tmp_path))
+
+    assert action == PermissionAction.ALLOW

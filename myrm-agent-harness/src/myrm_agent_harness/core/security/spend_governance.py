@@ -2,6 +2,7 @@
 
 [INPUT]
 - hashlib, hmac, json: Standard cryptographic and serialization libraries
+- core.security.shell_command_lexer::read_commands (POS: Shared lexical layer of the shell command security checks)
 
 [OUTPUT]
 - parse_spend_amount: Extract normalized amount and currency from tool arguments
@@ -27,7 +28,11 @@ import hashlib
 import hmac
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Final
+
+from myrm_agent_harness.core.security.shell_command_lexer import read_commands
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +76,23 @@ _SHELL_TOOL_NAMES = frozenset(
 )
 
 
+# Program -> the sub-command words that push or publish work to a shared place and cannot be taken back.
+_IRREVERSIBLE_SUBCOMMANDS: Final[dict[str, frozenset[str]]] = {
+    "git": frozenset({"push"}),
+    "npm": frozenset({"publish"}),
+    "pnpm": frozenset({"publish"}),
+    "yarn": frozenset({"publish"}),
+    "twine": frozenset({"upload"}),
+    "docker": frozenset({"push"}),
+    "podman": frozenset({"push"}),
+}
+# ``gh release create`` and ``gh pr merge``: an object word, then an action word.
+_GH_OBJECTS: Final = frozenset({"release", "pr"})
+_GH_ACTIONS: Final = frozenset({"create", "merge"})
+# How many words after the program a sub-command is looked for: options may sit between them (``git -C dir push``).
+_SUBCOMMAND_WINDOW: Final = 7
+
+
 def is_shell_execution_tool(tool_name: str, permission_type: str | None = None) -> bool:
     """Determine whether a tool call represents a shell or bash execution primitive."""
     if permission_type in ("shell_exec", "code_interpreter"):
@@ -84,58 +106,35 @@ def is_shell_execution_tool(tool_name: str, permission_type: str | None = None) 
     )
 
 
+def _runs_irreversible_command(command_words: Sequence[str]) -> bool:
+    """Whether one command names an irreversible program and sub-command, with options allowed in between."""
+    words = [word.lower() for word in command_words]
+    for index, word in enumerate(words):
+        following = words[index + 1 : index + 1 + _SUBCOMMAND_WINDOW]
+        if word == "gh":
+            # An object word and the word after it; the action word may sit one past the window.
+            pairs = zip(following, words[index + 2 :], strict=False)
+            if any(obj in _GH_OBJECTS and action in _GH_ACTIONS for obj, action in pairs):
+                return True
+        elif not _IRREVERSIBLE_SUBCOMMANDS.get(word, frozenset()).isdisjoint(following):
+            return True
+    return False
+
+
 def is_irreversible_social_action(tool_name: str, args: dict[str, object] | None = None) -> bool:
     """Determine if a tool call constitutes a socially irreversible external action.
 
     Socially irreversible actions (e.g. git push, public channel notification, package publishing)
-    cannot be rolled back once dispatched into external collaborative environments.
+    cannot be rolled back once dispatched into external collaborative environments. A shell line is read command
+    by command, so the verb of one command is found whatever joins it to the next (``git push; echo done``).
     """
     lower_name = tool_name.lower().strip()
     if lower_name in _IRREVERSIBLE_SOCIAL_TOOLS:
         return True
 
-    # Check for shell execution targeting git push or publish commands
     if is_shell_execution_tool(lower_name) and isinstance(args, dict):
         raw_cmd = str(args.get("command") or args.get("cmd") or args.get("code") or args.get("script") or "").strip()
-        if raw_cmd:
-            # Robust token parsing handling flags between command and subcommands (e.g. git -C /dir push)
-            tokens = raw_cmd.lower().split()
-            for idx, token in enumerate(tokens):
-                if token == "git":
-                    # Search forward within the same command clause for "push"
-                    for sub_idx in range(idx + 1, min(idx + 8, len(tokens))):
-                        if tokens[sub_idx] in (";", "&&", "||", "|", "&"):
-                            break
-                        if tokens[sub_idx] == "push":
-                            return True
-                if token in ("npm", "pnpm", "yarn"):
-                    for sub_idx in range(idx + 1, min(idx + 8, len(tokens))):
-                        if tokens[sub_idx] in (";", "&&", "||", "|", "&"):
-                            break
-                        if tokens[sub_idx] == "publish":
-                            return True
-                if token == "twine":
-                    for sub_idx in range(idx + 1, min(idx + 8, len(tokens))):
-                        if tokens[sub_idx] in (";", "&&", "||", "|", "&"):
-                            break
-                        if tokens[sub_idx] == "upload":
-                            return True
-                if token in ("docker", "podman"):
-                    for sub_idx in range(idx + 1, min(idx + 8, len(tokens))):
-                        if tokens[sub_idx] in (";", "&&", "||", "|", "&"):
-                            break
-                        if tokens[sub_idx] == "push":
-                            return True
-                if token == "gh":
-                    for sub_idx in range(idx + 1, min(idx + 8, len(tokens))):
-                        if tokens[sub_idx] in (";", "&&", "||", "|", "&"):
-                            break
-                        if (
-                            tokens[sub_idx] in ("release", "pr")
-                            and sub_idx + 1 < len(tokens)
-                            and tokens[sub_idx + 1] in ("create", "merge")
-                        ):
-                            return True
+        return any(_runs_irreversible_command(command.words) for command in read_commands(raw_cmd))
 
     return False
 
@@ -330,7 +329,7 @@ def extract_script_file_target(tool_name: str, args: dict[str, object] | None) -
     cmd_val = args.get("command") or args.get("cmd") or args.get("code")
     if isinstance(cmd_val, str) and cmd_val.strip():
         cmd_str = cmd_val.strip()
-        tokens = cmd_str.split()
+        tokens = [word for command in read_commands(cmd_str) for word in command.words]
         if len(tokens) >= 2 and tokens[0].lower() in _INTERPRETER_TOKENS:
             for token in tokens[1:]:
                 if token.startswith("-"):
