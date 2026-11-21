@@ -20,7 +20,7 @@
 | `SaveSkillApprovalPreview.tsx`      | UI   | save_skill / skill_manage save 审批 bundle 预览（#8）                                                                                                                                                                                                                      |
 | `MaskedCredentialInputCard.tsx`     | UI   | 命令审批卡内的一次性密码/密钥录入表单（受控：暂存状态由 `useStagedCredentials` 持有；倒计时、受保护变量名预检、可撤回；仅 `SingleApprovalCard` 的 bash 命令入口使用）                                                                                                      |
 | `ApprovalScopeNoteLine.tsx`         | UI   | `resolveScopeNote` 单行展示（Drawer / CLI 审批）                                                                                                                                                                                                                           |
-| `PtcHintBadges.tsx`                 | UI   | MCP PTC read-only/destructive/open-world 注解 badge                                                                                                                                                                                                                        |
+| `PtcHintBadges.tsx`                 | UI   | MCP 工具提供方声明的 destructive/open-world 徽章（标为「声明」，只提示更小心；自称只读不出徽章，卡片在决策点不拿未经验证的自述劝人放心；`__tests__/PtcHintBadges.test.tsx`）                                                                                               |
 | `__tests__/`                        | 测试 | 组件级测试                                                                                                                                                                                                                                                                 |
 
 ## 依赖

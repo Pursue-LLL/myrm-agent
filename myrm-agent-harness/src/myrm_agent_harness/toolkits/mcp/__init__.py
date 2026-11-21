@@ -10,6 +10,7 @@ Provides MCP client integration with:
 
 [INPUT]
 - agent::MCPAgent (POS: MCP agent layer)
+- annotations::recorded_annotations (POS: what an MCP server declares about its own tools, as the host recorded it)
 - client::MCPClientManager, MCPServerConfigProtocol (POS: MCP client management layer)
 - config::MCPConfig (POS: MCP user-facing configuration)
 - connection_manager::MCPConnectionManager, get_mcp_connection, get_mcp_connection_manager (POS: MCP connection pool layer)
@@ -22,6 +23,7 @@ Provides MCP client integration with:
 - get_schema_coercion_stats/reset_schema_coercion_stats: runtime counters for MCP schema coercion observability
 - MCPResponseError, MCPResponseValidator, MCPURLValidator, ResolvedURL, URLValidationError: security types
 - get_mcp_connection, get_mcp_connection_manager: connection pool accessors
+- recorded_annotations: the hints a converted tool's server declared for it, to show and never to trust
 
 [POS]
 MCP toolkit entry point. Aggregates client management, agent tool fetching, connection pooling,
@@ -29,6 +31,7 @@ configuration, and security validation for unified MCP protocol support.
 """
 
 from .agent import MCPAgent
+from .annotations import recorded_annotations
 from .client import MCPClientManager, MCPServerConfigProtocol
 from .config import MCPConfig
 from .connection_manager import (
@@ -81,6 +84,7 @@ __all__ = [
     "get_mcp_connection_manager",
     "get_schema_coercion_stats",
     "is_dangerous_env_key",
+    "recorded_annotations",
     "reset_schema_coercion_stats",
     "resolve_stdio_launch",
     "sanitize_mcp_env",

@@ -176,9 +176,7 @@ class TestIsolation:
         from myrm_agent_harness.core.security.tool_registry.registry import register_ptc_safety_metadata
         from myrm_agent_harness.core.security.tool_registry.safety_table import SafetyMetadata
 
-        register_ptc_safety_metadata(
-            "mcp_demo_skill", "create-record", SafetyMetadata(is_read_only=False), {"readOnlyHint": False}
-        )
+        register_ptc_safety_metadata("mcp_demo_skill", "create-record", SafetyMetadata(is_read_only=False), {})
         write_call = {"skill_name": "mcp_demo_skill", "tool_name": "create-record", "params": {}}
 
         async with (

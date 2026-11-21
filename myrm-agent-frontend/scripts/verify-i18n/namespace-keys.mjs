@@ -1,7 +1,7 @@
 /**
  * [INPUT] context::LANGUAGES (POS: 共享上下文与支持语言)；ctx.translations (POS: 已加载的中英 locale)
- * [OUTPUT] verifyAgentConfigPanel / verifyKanbanClosure / verifyArtifactsCenter / verifyCronBlueprint / verifyCronExecutionPolicy / verifyBuiltinToolTexts
- * [POS] verify-i18n 的业务命名空间关键键检查（验证 4/5/5b/6/7）：这些键由运行时 `useTranslations` 直接读取，任一语言缺失即 MISSING_MESSAGE。
+ * [OUTPUT] verifyAgentConfigPanel / verifyMcpToolSelector / verifyKanbanClosure / verifyArtifactsCenter / verifyCronBlueprint / verifyCronExecutionPolicy / verifyBuiltinToolTexts
+ * [POS] verify-i18n 的业务命名空间关键键检查（验证 4/5/5b/5c/6/7）：这些键由运行时 `useTranslations` 直接读取，任一语言缺失即 MISSING_MESSAGE。
  */
 
 import { LANGUAGES } from './context.mjs';
@@ -20,6 +20,23 @@ const AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS = [
   'kanbanTargetBoard',
   'kanbanSelectBoardPlaceholder',
   'kanbanActiveBoard',
+];
+
+/**
+ * `agent.configPanel.mcpTools` 下必须在所有语言中存在的字符串键。MCPToolSelector 以 `t(config.labelKey)` 动态取三档声明标签，
+ * `verify-i18n-references.mjs` 的静态扫描看不到动态键，缺键只会在运行时变成 MISSING_MESSAGE，这份清单是唯一的拦截点。
+ */
+const MCP_TOOL_SELECTOR_REQUIRED_STRING_KEYS = [
+  'toolFilter',
+  'loading',
+  'noTools',
+  'selectAll',
+  'loadFailed',
+  'retry',
+  'destructiveOff',
+  'declaredReadOnly',
+  'notDeclaredReadOnly',
+  'declaredDestructive',
 ];
 
 /** `useTranslations('kanban')` keys for Chat ↔ Board closure UI (card, filter chip, drawer). */
@@ -119,6 +136,17 @@ export function verifyAgentConfigPanel(ctx) {
     select: (data) => data.agent?.configPanel,
     requiredKeys: AGENT_CONFIG_PANEL_REQUIRED_STRING_KEYS,
     okText: 'agent.configPanel 关键 keys 完整',
+  });
+}
+
+// 验证5c: agent.configPanel.mcpTools（MCPToolSelector 动态取键，全语言）
+export function verifyMcpToolSelector(ctx) {
+  verifyRequiredStringKeys(ctx, {
+    heading: '\n📋 验证 agent.configPanel.mcpTools 关键 keys（全语言）...',
+    label: 'agent.configPanel.mcpTools',
+    select: (data) => data.agent?.configPanel?.mcpTools,
+    requiredKeys: MCP_TOOL_SELECTOR_REQUIRED_STRING_KEYS,
+    okText: 'agent.configPanel.mcpTools 关键 keys 完整',
   });
 }
 

@@ -50,7 +50,7 @@ export interface ToolApprovalRequest {
   domains?: string[];
   /** Whether Domain HITL is active for this request */
   domainApproval?: boolean;
-  /** PTC/MCP annotations (e.g. readOnlyHint, destructiveHint) */
+  /** What the tool's provider declares that calls for more care (destructiveHint, openWorldHint); never a read-only claim */
   ptcAnnotations?: Record<string, boolean>;
   /** Unified diff preview for file-mutating tool approvals */
   diff?: string;

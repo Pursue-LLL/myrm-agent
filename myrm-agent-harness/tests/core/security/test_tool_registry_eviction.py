@@ -20,7 +20,7 @@ def test_register_and_unregister_ptc_safety_metadata():
 
     meta_a = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
     meta_b = SafetyMetadata(is_destructive=True)
-    anno = MCPAnnotations(readOnlyHint=True)
+    anno = MCPAnnotations(destructiveHint=True)
 
     # Register tools
     register_ptc_safety_metadata(skill_name, tool_a, meta_a, anno)

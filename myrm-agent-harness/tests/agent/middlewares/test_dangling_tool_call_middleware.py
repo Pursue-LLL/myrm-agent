@@ -58,7 +58,7 @@ class TestBuildPatchedMessages:
         assert synthetic.tool_call_id == "tc_1"
         assert synthetic.name == "web_search_tool"
         assert synthetic.content == _INTERRUPTED_SAFE_CONTENT
-        assert synthetic.status == "success"
+        assert synthetic.status == "error"
 
     def test_single_dangling_mutation_tool_call(self):
         """Mutation tool (bash/write) gets error status and mutation content."""
@@ -85,6 +85,33 @@ class TestBuildPatchedMessages:
         assert synthetic.name == "bash_code_execute_tool"
         assert synthetic.content == _INTERRUPTED_MUTATION_CONTENT
         assert synthetic.status == "error"
+
+    @pytest.mark.parametrize(
+        ("tool_name", "told"),
+        [
+            ("file_read_tool", ("returned no result", "can be run again")),
+            ("bash_code_execute_tool", ("whether it took effect is unknown", "Check the current state")),
+            ("mcp__probe__read_a", ("whether it took effect is unknown", "Check the current state")),
+        ],
+    )
+    def test_an_interrupted_call_is_told_what_is_known_and_never_that_it_finished(self, tool_name, told):
+        """A cut-off call has no result: a replay-safe read is told so and that it can run again; any other call is
+        told its outcome is unknown. An MCP server calling its own tool read-only changes nothing, since only the
+        host's replay-safety table can say a call is safe to run again."""
+        messages = [
+            HumanMessage(content="go"),
+            AIMessage(content="", tool_calls=[{"id": "tc_cut", "name": tool_name, "args": {}}]),
+        ]
+
+        patched = _build_patched_messages(messages)
+
+        assert patched is not None
+        synthetic = patched[2]
+        assert synthetic.status == "error"
+        assert all(phrase in synthetic.content for phrase in told)
+        assert not any(
+            word in synthetic.content.lower() for word in ("completed", "cancelled", "safely", "no side effects")
+        )
 
     def test_multiple_dangling_in_same_ai_message(self):
         """AIMessage with multiple dangling tool_calls → all get synthetic ToolMessages."""

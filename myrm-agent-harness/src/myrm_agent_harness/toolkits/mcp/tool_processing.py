@@ -9,7 +9,8 @@ module-level functions.
 - config::sanitize_mcp_name_component, should_register_mcp_tool (POS: MCP configuration, name sanitization, tool name parsing, and per-server tool filter function)
 - errors::MCPToolFailure (POS: MCP-specific error types; the marked ``str`` a failed call is rendered as)
 - schema::FlattenMeta, canonicalize_schema_for_cache, flatten_deep_schema, flatten_json_schema, has_dot_keys, nest_flat_arguments, coerce_arguments_by_schema, prepare_mcp_call_arguments (POS: MCP inbound tool schema normalization)
-- core.security.tool_registry::MCPAnnotations, SafetyMetadata, register_ptc_safety_metadata (POS: Tool metadata and permission mapping)
+- annotations::judge, recorded_annotations (POS: the only place a server's self-reported hints turn into host behavior)
+- core.security.tool_registry::register_ptc_safety_metadata (POS: Tool metadata and permission mapping)
 
 [OUTPUT]
 - apply_tool_filter, enforce_description_limits, sanitize_tools, register_tool_annotations, prefix_tool_names
@@ -18,28 +19,26 @@ module-level functions.
 [POS]
 MCP tool post-processing. Applies config-time least-privilege filtering, caps
 overlong descriptions for token economy, sanitizes argument schemas
-($ref→canonicalize→flatten→coerce→nest), registers MCP native annotations into
-the PTC safety registry, prefixes names with ``mcp__{server}__`` for collision
-and permission-bypass isolation, and wraps execution with timeout, result
-normalization, content boundary defense, and oversized-output guarding. No
-agent/runtime coupling — invoked by ``MCPAgent.process_session_tools``.
+($ref→canonicalize→flatten→coerce→nest), records each tool's safety metadata in
+the PTC safety registry (judged from the server's declared hints), prefixes
+names with ``mcp__{server}__`` for collision and permission-bypass isolation,
+and wraps execution with timeout, result normalization, content boundary
+defense, and oversized-output guarding. No agent/runtime coupling — invoked by
+``MCPAgent.process_session_tools``.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any, cast
 
 from langchain_core.tools import BaseTool
 
-from myrm_agent_harness.core.security.tool_registry import (
-    MCPAnnotations,
-    SafetyMetadata,
-    register_ptc_safety_metadata,
-)
+from myrm_agent_harness.core.security.tool_registry import register_ptc_safety_metadata
 
+from .annotations import judge, recorded_annotations
 from .config import (
     parse_mcp_tool_name,
     sanitize_mcp_name_component,
@@ -172,13 +171,13 @@ def sanitize_tools(tools: list[BaseTool]) -> None:
             )
 
             async def _coercion_wrapper(
-                *args,
-                _orig=original_coroutine,
-                _schema=schema_for_coercion,
-                _meta=flatten_meta,
-                _restore=restore_map,
-                **kwargs,
-            ):
+                *args: object,
+                _orig: Callable[..., Awaitable[object]] = original_coroutine,
+                _schema: dict[str, Any] = schema_for_coercion,
+                _meta: FlattenMeta = flatten_meta,
+                _restore: dict[str, str] = restore_map,
+                **kwargs: object,
+            ) -> object:
                 coerced_kwargs = coerce_arguments_by_schema(_schema, kwargs)
                 # Restore nested structure only if schema was flattened AND model used dot-keys
                 if _meta.was_flattened and has_dot_keys(coerced_kwargs):
@@ -192,7 +191,7 @@ def sanitize_tools(tools: list[BaseTool]) -> None:
 
 
 def register_tool_annotations(tools: list[BaseTool], server_name: str, host_serial: bool = False) -> None:
-    """Extract and register MCP native annotations into PTC safety registry."""
+    """Record each tool's safety metadata in the PTC safety registry, judged from what its server declared."""
     skill_name = server_name.replace("-", "_").lower()
     if not skill_name.startswith("mcp_"):
         skill_name = f"mcp_{skill_name}"
@@ -200,27 +199,8 @@ def register_tool_annotations(tools: list[BaseTool], server_name: str, host_seri
         skill_name = f"{skill_name}_skill"
 
     for tool in tools:
-        meta = getattr(tool, "metadata", {}) or {}
-
-        annotations: MCPAnnotations = cast(
-            MCPAnnotations,
-            {
-                key: bool(meta[key])
-                for key in ("readOnlyHint", "idempotentHint", "destructiveHint", "openWorldHint")
-                if key in meta
-            },
-        )
-
-        is_read_only = annotations.get("readOnlyHint", False)
-        safety_meta = SafetyMetadata(
-            is_read_only=is_read_only,
-            is_concurrent_safe=is_read_only and not host_serial,
-            is_destructive=annotations.get("destructiveHint", False),
-            is_open_world=annotations.get("openWorldHint", False),
-            is_idempotent=annotations.get("idempotentHint", False),
-        )
-
-        register_ptc_safety_metadata(skill_name, tool.name, safety_meta, annotations)
+        safety_meta, claims = judge(recorded_annotations(tool), host_serial=host_serial)
+        register_ptc_safety_metadata(skill_name, tool.name, safety_meta, claims)
 
 
 def prefix_tool_names(tools: list[BaseTool], server_name: str) -> None:

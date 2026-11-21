@@ -12,6 +12,7 @@ from mcp.types import (
 )
 
 from myrm_agent_harness.toolkits.mcp.agent import MCPAgent
+from myrm_agent_harness.toolkits.mcp.annotations import ANNOTATIONS_METADATA_KEY
 from myrm_agent_harness.toolkits.mcp.client import MCPClientManager
 from myrm_agent_harness.toolkits.mcp.result_processing import (
     coerce_content_block,
@@ -930,15 +931,17 @@ def test_sanitize_tools_deterministic_across_restarts():
 
 
 # ---------------------------------------------------------------------------
-# _register_tool_annotations: extracts MCP annotations (covers line 178)
+# register_tool_annotations: the registry holds the judged record of what a server declared
 # ---------------------------------------------------------------------------
 def test_register_tool_annotations():
     tool = _make_tool(
         metadata={
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "idempotentHint": True,
-            "openWorldHint": False,
+            ANNOTATIONS_METADATA_KEY: {
+                "readOnlyHint": True,
+                "destructiveHint": False,
+                "idempotentHint": True,
+                "openWorldHint": True,
+            }
         }
     )
 
@@ -952,21 +955,16 @@ def test_register_tool_annotations():
     assert call_args[0][0] == "mcp_my_server_skill"
     assert call_args[0][1] == "test_tool"
     safety = call_args[0][2]
-    assert safety.is_read_only is True
+    # A clean read-only claim opens parallel scheduling and nothing else.
     assert safety.is_concurrent_safe is True
+    assert safety.is_read_only is False
+    assert safety.is_idempotent is False
     assert safety.is_destructive is False
-    assert safety.is_idempotent is True
+    assert call_args[0][3] == {"openWorldHint": True}
 
 
 def test_register_tool_annotations_host_serial_forces_non_concurrent():
-    tool = _make_tool(
-        metadata={
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "idempotentHint": True,
-            "openWorldHint": False,
-        }
-    )
+    tool = _make_tool(metadata={ANNOTATIONS_METADATA_KEY: {"readOnlyHint": True, "destructiveHint": True}})
 
     with patch(
         "myrm_agent_harness.toolkits.mcp.tool_processing.register_ptc_safety_metadata"
@@ -974,8 +972,9 @@ def test_register_tool_annotations_host_serial_forces_non_concurrent():
         register_tool_annotations([tool], "my-server", host_serial=True)
 
     safety = mock_reg.call_args[0][2]
-    assert safety.is_read_only is True
     assert safety.is_concurrent_safe is False
+    assert safety.is_read_only is False
+    assert safety.is_destructive is True
 
 
 # ---------------------------------------------------------------------------

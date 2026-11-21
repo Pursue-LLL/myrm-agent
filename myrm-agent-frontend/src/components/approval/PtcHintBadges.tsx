@@ -5,18 +5,18 @@
  * - lucide-react icons
  *
  * [OUTPUT]
- * - PtcHintBadges: MCP PTC read-only / destructive / open-world 注解 badge
+ * - PtcHintBadges: MCP 工具提供方声明的 destructive / open-world 徽章
  *
  * [POS]
- * SingleApprovalCard 与 PolymorphicApprovalCard 共用的 PTC 注解 badge 组。
+ * SingleApprovalCard 与 PolymorphicApprovalCard 共用的声明徽章组。只提示更小心，不出现「只读」：
+ * 提供方自称只读不是事实，卡片在决策点不得拿它劝人放心。
  */
 
-import { Check, Globe, Terminal } from 'lucide-react';
+import { Globe, Terminal } from 'lucide-react';
 
 import { cn } from '@/lib/utils/classnameUtils';
 
 export interface PtcAnnotations {
-  readOnlyHint?: boolean;
   destructiveHint?: boolean;
   openWorldHint?: boolean;
 }
@@ -28,9 +28,9 @@ interface PtcHintBadgesProps {
   badgeClassName?: string;
 }
 
-/** MCP/PTC tool hint badges (read-only / destructive / open-world). */
+/** Badges for what a tool's provider declares about it: destructive and open-world, each labelled as a declaration. */
 export default function PtcHintBadges({ annotations, t, className, badgeClassName }: PtcHintBadgesProps) {
-  if (!annotations.readOnlyHint && !annotations.destructiveHint && !annotations.openWorldHint) {
+  if (!annotations.destructiveHint && !annotations.openWorldHint) {
     return null;
   }
 
@@ -38,18 +38,6 @@ export default function PtcHintBadges({ annotations, t, className, badgeClassNam
 
   return (
     <div className={cn('flex items-center gap-1.5', className)}>
-      {annotations.readOnlyHint ? (
-        <span
-          className={cn(
-            baseBadge,
-            'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800',
-          )}
-          title={t('ptc.readOnlyTitle')}
-        >
-          <Check className="w-3 h-3 mr-1" />
-          {t('ptc.readOnlyLabel')}
-        </span>
-      ) : null}
       {annotations.destructiveHint ? (
         <span
           className={cn(

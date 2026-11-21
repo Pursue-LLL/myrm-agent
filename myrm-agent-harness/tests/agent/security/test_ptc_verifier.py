@@ -36,7 +36,7 @@ _read_file(path='/workspace')
 
 
 def test_extract_ptc_with_network_import_rejected():
-    """Third-party network imports like requests are rejected from Fast-Path Auto-Approve."""
+    """A third-party network import like requests keeps the script from being read as a pure PTC call."""
     command = '''python -c "
 from skills.mcp_github_skill import read_file
 import requests
@@ -253,16 +253,11 @@ class TestPTCSafetyMetadataRegistry:
         _PTC_TOOL_FLAT_INDEX.update(self._flat_backup)
 
     def test_register_and_get(self):
-        meta = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-        annotations: MCPAnnotations = {
-            "readOnlyHint": True,
-            "destructiveHint": False,
-            "idempotentHint": False,
-            "openWorldHint": False,
-        }
-        register_ptc_safety_metadata("my_skill", "read_file", meta, annotations)
+        meta = SafetyMetadata(is_destructive=True)
+        annotations: MCPAnnotations = {"destructiveHint": True, "openWorldHint": True}
+        register_ptc_safety_metadata("my_skill", "delete_file", meta, annotations)
 
-        result = get_ptc_safety_metadata("my_skill", "read_file")
+        result = get_ptc_safety_metadata("my_skill", "delete_file")
         assert result is not None
         assert result[0] == meta
         assert result[1] == annotations
@@ -272,7 +267,7 @@ class TestPTCSafetyMetadataRegistry:
             "brand_new_skill",
             "action",
             SafetyMetadata(),
-            {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False, "openWorldHint": False},
+            {},
         )
         assert "brand_new_skill" in _PTC_SAFETY_METADATA
         assert "action" in _PTC_SAFETY_METADATA["brand_new_skill"]
@@ -281,16 +276,17 @@ class TestPTCSafetyMetadataRegistry:
         assert get_ptc_safety_metadata("nonexistent_skill", "no_tool") is None
 
     def test_register_populates_flat_index(self):
-        meta = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-        register_ptc_safety_metadata("my_skill", "mcp_read_tool", meta, {"readOnlyHint": True})
-        assert _PTC_TOOL_FLAT_INDEX["mcp_read_tool"] is meta
+        meta = SafetyMetadata(is_destructive=True)
+        register_ptc_safety_metadata("my_skill", "mcp_delete_tool", meta, {"destructiveHint": True})
+        assert _PTC_TOOL_FLAT_INDEX["mcp_delete_tool"] is meta
 
     def test_resolve_safety_metadata_falls_back_to_flat_index(self):
-        meta = SafetyMetadata(is_read_only=True, is_concurrent_safe=True)
-        register_ptc_safety_metadata("my_skill", "mcp_list_items", meta, {"readOnlyHint": True})
+        # What `judge` registers for a tool its server declares read-only: parallel-safe, never read-only itself.
+        meta = SafetyMetadata(is_concurrent_safe=True)
+        register_ptc_safety_metadata("my_skill", "mcp_list_items", meta, {})
         resolved = resolve_safety_metadata("mcp_list_items")
-        assert resolved.is_read_only is True
         assert resolved.is_concurrent_safe is True
+        assert resolved.is_read_only is False
 
     def test_resolve_safety_metadata_builtin_takes_priority(self):
         """Built-in TOOL_SAFETY_METADATA entries always override MCP dynamic entries."""

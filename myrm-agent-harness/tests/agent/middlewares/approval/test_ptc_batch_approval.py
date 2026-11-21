@@ -1,3 +1,6 @@
+"""PTC approval in the batch processor: a PTC call to an MCP tool always asks, whatever record the registry holds,
+and the server's cautionary claims reach the approval card."""
+
 from unittest.mock import patch
 
 import pytest
@@ -11,14 +14,12 @@ from myrm_agent_harness.agent.security.types import PathPolicy, SecurityConfig
 @pytest.mark.asyncio
 @patch("myrm_agent_harness.agent.security.tool_registry.get_ptc_safety_metadata")
 @patch("myrm_agent_harness.agent.security.ptc_verifier.extract_ptc_intent")
-async def test_evaluate_ptc_fast_path_auto_approve(mock_extract_intent, mock_get_meta):
-    """Test that a purely read-only PTC call gets auto-approved."""
-    # Setup mocks
+async def test_evaluate_ptc_read_only_record_is_still_pending(mock_extract_intent, mock_get_meta):
+    """A record that looks read-only (no server claim can produce one) never auto-approves a PTC call."""
     mock_extract_intent.return_value = ("mcp_github_skill", "read_file", {"path": "/workspace/repo"})
 
-    # Return safety metadata (read-only, not open-world)
-    safety_meta = SafetyMetadata(is_read_only=True, is_open_world=False, is_destructive=False, is_concurrent_safe=True)
-    mock_get_meta.return_value = (safety_meta, {"readOnlyHint": True})
+    safety_meta = SafetyMetadata(is_read_only=True, is_concurrent_safe=True, is_idempotent=True)
+    mock_get_meta.return_value = (safety_meta, {})
 
     config = SecurityConfig(auto_mode_enabled=False, path_policy=PathPolicy())
     tool_call = ToolCall(
@@ -38,10 +39,9 @@ async def test_evaluate_ptc_fast_path_auto_approve(mock_extract_intent, mock_get
         args_hashes={},
     )
 
-    assert len(auto_approved) == 1
+    assert len(auto_approved) == 0
     assert len(auto_denied) == 0
-    assert len(pending) == 0
-    assert auto_approved[0][1].get("id") == "call_123"
+    assert len(pending) == 1
 
 
 @pytest.mark.asyncio
@@ -53,7 +53,7 @@ async def test_evaluate_ptc_destructive_is_pending(mock_extract_intent, mock_get
     mock_extract_intent.return_value = ("mcp_github_skill", "write_file", {"path": "/workspace/repo/file.txt"})
 
     # Return safety metadata (destructive, not read-only)
-    safety_meta = SafetyMetadata(is_read_only=False, is_open_world=False, is_destructive=True, is_concurrent_safe=False)
+    safety_meta = SafetyMetadata(is_destructive=True)
     mock_get_meta.return_value = (safety_meta, {"destructiveHint": True})
 
     config = SecurityConfig(auto_mode_enabled=False, path_policy=PathPolicy())
@@ -89,11 +89,11 @@ async def test_evaluate_ptc_destructive_is_pending(mock_extract_intent, mock_get
 @patch("myrm_agent_harness.agent.security.tool_registry.get_ptc_safety_metadata")
 @patch("myrm_agent_harness.agent.security.ptc_verifier.extract_ptc_intent")
 async def test_evaluate_ptc_contradictory_annotations_is_pending(mock_extract_intent, mock_get_meta):
-    """Contradictory annotations (readOnly + destructive) stay pending in PTC path."""
+    """A record that is both read-only and destructive stays pending in PTC path, and the card shows the caution."""
     mock_extract_intent.return_value = ("mcp_buggy_skill", "trap_tool", {"path": "/workspace"})
 
-    safety_meta = SafetyMetadata(is_read_only=True, is_open_world=False, is_destructive=True, is_concurrent_safe=True)
-    mock_get_meta.return_value = (safety_meta, {"readOnlyHint": True, "destructiveHint": True})
+    safety_meta = SafetyMetadata(is_read_only=True, is_destructive=True, is_concurrent_safe=True)
+    mock_get_meta.return_value = (safety_meta, {"destructiveHint": True})
 
     config = SecurityConfig(auto_mode_enabled=False, path_policy=PathPolicy())
     tool_call = ToolCall(
@@ -114,3 +114,4 @@ async def test_evaluate_ptc_contradictory_annotations_is_pending(mock_extract_in
     assert len(auto_approved) == 0
     assert len(auto_denied) == 0
     assert len(pending) == 1
+    assert pending[0][4]["ptc_annotations"] == {"destructiveHint": True}

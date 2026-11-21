@@ -1220,10 +1220,13 @@
         "smartPruneSuccess": "Pruned {stale} stale, archived {archived}"
       },
       "mcpTools": {
-        "dangerDisabled": "{count} dangerous tools disabled",
+        "declaredDestructive": "Declared destructive",
+        "declaredReadOnly": "Declared read-only",
+        "destructiveOff": "{count, plural, one {# tool declared destructive is off} other {# tools declared destructive are off}}",
         "loadFailed": "Failed to load tools",
         "loading": "Loading...",
         "noTools": "No tools available",
+        "notDeclaredReadOnly": "Not declared read-only",
         "retry": "Retry",
         "selectAll": "Select all",
         "toolFilter": "Filter"
@@ -1365,18 +1368,6 @@
         "extensionWarning": "Requires Browser Extension to be connected. The agent will operate in your real browser.",
         "connectInfo": "Enable remote debugging once at chrome://inspect/#remote-debugging on your main Chrome. Myrm auto-discovers the CDP port — do not launch a second isolated Chrome profile.",
         "remoteWarning": "Requires cloud browser credentials configured in Settings. The agent will use a remote browser instance."
-      },
-      "mcpTools": {
-        "toolFilter": "Tool filter",
-        "loading": "Loading tools...",
-        "noTools": "No tools available",
-        "selectAll": "Select all",
-        "readOnly": "Read-only (safe)",
-        "writable": "Writable",
-        "destructive": "Destructive (caution)",
-        "dangerDisabled": "{count} destructive tool(s) disabled by default",
-        "loadFailed": "Failed to load tools",
-        "retry": "Retry"
       },
       "saveDialog": {
         "title": "Save Agent",
@@ -9538,12 +9529,10 @@
       "completed": "Completed"
     },
     "ptc": {
-      "readOnlyLabel": "Read-Only",
-      "readOnlyTitle": "This tool only reads data and does not modify state.",
-      "destructiveLabel": "Destructive",
-      "destructiveTitle": "This tool makes destructive, irreversible changes.",
-      "openWorldLabel": "Open World",
-      "openWorldTitle": "This tool interacts with external systems or networks."
+      "destructiveLabel": "Declared destructive",
+      "destructiveTitle": "The tool's provider declares that it makes irreversible changes. Take extra care.",
+      "openWorldLabel": "Declared external access",
+      "openWorldTitle": "The tool's provider declares that it reaches external systems or the network."
     },
     "toolCallPendingBanner": "{count, plural, one {# tool call awaiting approval} other {# tool calls awaiting approval}}",
     "viewChanges": "View changes",

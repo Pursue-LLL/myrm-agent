@@ -1220,10 +1220,13 @@
         "smartPruneSuccess": "已清理 {stale} 项过期，归档 {archived} 项"
       },
       "mcpTools": {
-        "dangerDisabled": "{count} 个危险工具已禁用",
+        "declaredDestructive": "声明破坏性",
+        "declaredReadOnly": "声明只读",
+        "destructiveOff": "{count} 个声明破坏性的工具未启用",
         "loadFailed": "工具加载失败",
         "loading": "加载中…",
         "noTools": "没有可用工具",
+        "notDeclaredReadOnly": "未声明只读",
         "retry": "重试",
         "selectAll": "全选",
         "toolFilter": "筛选"
@@ -1365,18 +1368,6 @@
         "extensionWarning": "需要浏览器扩展已连接。Agent 将在你的真实浏览器中操作。",
         "connectInfo": "在主 Chrome 打开 chrome://inspect/#remote-debugging 并开启远程调试（一次性）。Myrm 自动发现 CDP 端口——请勿再启动第二个隔离 Chrome 实例。",
         "remoteWarning": "需要先在设置中配置云端浏览器凭据。Agent 将使用远程浏览器实例。"
-      },
-      "mcpTools": {
-        "toolFilter": "工具筛选",
-        "loading": "加载工具中...",
-        "noTools": "暂无工具",
-        "selectAll": "全选",
-        "readOnly": "只读（安全）",
-        "writable": "可写",
-        "destructive": "破坏性（谨慎）",
-        "dangerDisabled": "已默认禁用 {count} 个高危工具",
-        "loadFailed": "加载工具失败",
-        "retry": "重试"
       },
       "saveDialog": {
         "title": "保存智能体",
@@ -9538,12 +9529,10 @@
       "completed": "已完成"
     },
     "ptc": {
-      "readOnlyLabel": "只读",
-      "readOnlyTitle": "此工具仅读取数据，不会修改状态。",
-      "destructiveLabel": "破坏性",
-      "destructiveTitle": "此工具会进行不可撤销的破坏性更改。",
-      "openWorldLabel": "开放外部",
-      "openWorldTitle": "此工具会与外部系统或网络交互。"
+      "destructiveLabel": "声明破坏性",
+      "destructiveTitle": "提供方声明该工具会进行不可撤销的更改，请格外留意。",
+      "openWorldLabel": "声明访问外部",
+      "openWorldTitle": "提供方声明该工具会访问外部系统或网络。"
     },
     "toolCallPendingBanner": "{count, plural, other {# 个工具调用等待审批}}",
     "viewChanges": "查看变更",

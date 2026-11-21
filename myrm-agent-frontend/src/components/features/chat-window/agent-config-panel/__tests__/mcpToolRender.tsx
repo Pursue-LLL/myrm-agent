@@ -53,8 +53,13 @@ export async function expandFilter(): Promise<void> {
 
 export const toolBox = (name: string) => screen.getByRole('checkbox', { name: new RegExp(`^${name}`) });
 
-/** The names of the listed tools, without the risk each row also reads out to a screen reader. */
+/** The names of the listed tools, without the declared risk each row also reads out to a screen reader. */
 export const listedTools = () =>
   screen
     .queryAllByRole('checkbox')
-    .map((box) => (box.closest('label')?.textContent ?? '').replace(/(readOnly|writable|destructive)$/, ''));
+    .map((box) =>
+      (box.closest('label')?.textContent ?? '').replace(
+        /(declaredReadOnly|notDeclaredReadOnly|declaredDestructive)$/,
+        '',
+      ),
+    );

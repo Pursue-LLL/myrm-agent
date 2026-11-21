@@ -17,22 +17,21 @@ interface MCPToolSelectorProps {
   isServerEnabled: boolean;
 }
 
-type RiskLevel = 'safe' | 'caution' | 'danger';
+/** What a server says its tool does. Nothing here is checked, so every label names the claim, never the tool. */
+type DeclaredRisk = 'readOnly' | 'notReadOnly' | 'destructive';
 
-function getRiskLevel(tool: MCPToolDetail): RiskLevel {
+function getDeclaredRisk(tool: MCPToolDetail): DeclaredRisk {
+  // A destructive claim wins over everything: a server that also claims read-only contradicts itself.
   if (tool.destructiveHint) {
-    return 'danger';
+    return 'destructive';
   }
-  if (!tool.readOnlyHint && !tool.idempotentHint) {
-    return 'caution';
-  }
-  return 'safe';
+  return tool.readOnlyHint ? 'readOnly' : 'notReadOnly';
 }
 
-const RISK_CONFIG: Record<RiskLevel, { icon: typeof Shield; className: string; labelKey: string }> = {
-  safe: { icon: Shield, className: 'text-green-500', labelKey: 'readOnly' },
-  caution: { icon: Eye, className: 'text-yellow-500', labelKey: 'writable' },
-  danger: { icon: AlertTriangle, className: 'text-red-500', labelKey: 'destructive' },
+const RISK_CONFIG: Record<DeclaredRisk, { icon: typeof Shield; className: string; labelKey: string }> = {
+  readOnly: { icon: Shield, className: 'text-green-500', labelKey: 'declaredReadOnly' },
+  notReadOnly: { icon: Eye, className: 'text-yellow-500', labelKey: 'notDeclaredReadOnly' },
+  destructive: { icon: AlertTriangle, className: 'text-red-500', labelKey: 'declaredDestructive' },
 };
 
 type ServerToolSelectorProps = Omit<MCPToolSelectorProps, 'isServerEnabled'>;
@@ -75,7 +74,7 @@ const ServerToolSelector = ({ mcpConfig, serverName, selectedTools, onSelectionC
     setTools(fetchedTools);
     fetchedRef.current = true;
 
-    // A server with destructive tools starts with only the other tools on; the user opts in to the rest.
+    // A server that declares destructive tools starts with only the other tools on; the user opts in to the rest.
     const { selectedTools: chosen, serverName: name, onSelectionChange: choose } = latestRef.current;
     if (!chosen && fetchedTools.some((item) => item.destructiveHint)) {
       choose(
@@ -102,7 +101,7 @@ const ServerToolSelector = ({ mcpConfig, serverName, selectedTools, onSelectionC
   const enabledSet = new Set(selectedTools ?? tools.map((item) => item.name));
   // A name the server no longer offers can stay in a saved choice; it is no tool the user can see, so it is not counted.
   const enabledCount = tools.filter((item) => enabledSet.has(item.name)).length;
-  const disabledDangerousCount = tools.filter((item) => item.destructiveHint && !enabledSet.has(item.name)).length;
+  const offDestructiveCount = tools.filter((item) => item.destructiveHint && !enabledSet.has(item.name)).length;
 
   const handleToggleTool = (toolName: string) => {
     if (isAllSelected) {
@@ -168,10 +167,10 @@ const ServerToolSelector = ({ mcpConfig, serverName, selectedTools, onSelectionC
 
           {!loading && tools.length > 0 && (
             <>
-              {disabledDangerousCount > 0 && (
+              {offDestructiveCount > 0 && (
                 <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-destructive/10 text-[11px] text-destructive-text">
                   <AlertTriangle size={11} />
-                  <span>{t('dangerDisabled', { count: disabledDangerousCount })}</span>
+                  <span>{t('destructiveOff', { count: offDestructiveCount })}</span>
                 </div>
               )}
               <div className="flex items-center justify-between mb-1.5 px-1">
@@ -190,7 +189,7 @@ const ServerToolSelector = ({ mcpConfig, serverName, selectedTools, onSelectionC
               </div>
 
               {tools.map((tool) => {
-                const config = RISK_CONFIG[getRiskLevel(tool)];
+                const config = RISK_CONFIG[getDeclaredRisk(tool)];
                 const RiskIcon = config.icon;
                 const riskLabel = t(config.labelKey);
                 const checked = enabledSet.has(tool.name);
@@ -234,7 +233,7 @@ const ServerToolSelector = ({ mcpConfig, serverName, selectedTools, onSelectionC
 };
 
 /**
- * Per-server MCP tool selector with risk annotations.
+ * Per-server MCP tool selector that shows what each server declares about its tools.
  *
  * When `selectedTools` is undefined (no filter), all tools are enabled.
  * Toggling any tool off creates an explicit whitelist of the remaining tools.

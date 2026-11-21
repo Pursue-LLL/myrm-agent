@@ -802,8 +802,8 @@ class AllowlistEntry:
 1. 前置拒绝（直接 DENY）：桌面视觉按键只给了单个可打印运算符；不可信入口栅栏拒绝的工具；只读研究租约不允许的工具
 2. resolve_permission_type(tool_name, tool_input) → evaluate_tool_call(permission, tool_input, config, workspace_root=..., tool_name=...) → (action, reason)
    - tool_name 用于 mcp_invoke 的 per-tool target resolution（如 mcp__gmail__send_email）
-   - PTC 调用先过路径策略
-   - ASK 且为只读 MCP / PTC 工具（is_read_only && !is_open_world && !is_destructive）→ ALLOW
+   - PTC 调用先过路径策略，并把服务端声明的 `destructiveHint` / `openWorldHint` 交给审批卡作提示
+   - MCP 工具（直接或 PTC）没有任何「只读」放行：服务端的自报不能把 ASK 变成 ALLOW
 3. ASK → Allowlist：用户 allowlist 条目命中，或可信工作区声明的命令前缀命中（仅 bash 工具启动的单条非复合命令）→ ALLOW
    批次高风险双保险、资金类工具、社交不可逆动作、只能由人答复的写入（都按引擎写下的码判定：受保护指令文件审计 `PROTECTED_INSTRUCTION_ALLOWLIST_BLOCKED`，git 钩子与配置审计 `PROTECTED_WRITE_ALLOWLIST_BLOCKED`）不可由两类命中放行；组织策略（MAP）可让该模型忽略 allowlist（前缀命中一并忽略）
 4. ALLOW → 升级检查（命中任一项即改为 ASK）：社交不可逆动作；资金类工具（审计 `FINANCIAL_GATE_ESCALATED`）；破坏性 shell（同时创建工作区快照）；auto-mode 下拒绝阈值被突破（定时运行除外）；
@@ -1344,19 +1344,21 @@ LangChain 工具有具体名称（如 `bash_code_execute_tool`），而安全策
 `resolve_safety_metadata(tool_name)` 使用三级 fallback 策略：
 
 1. **内置工具静态表** (`TOOL_SAFETY_METADATA`)：最高优先级，所有内置工具在此声明
-2. **MCP 动态注册表** (`_PTC_TOOL_FLAT_INDEX`)：启动时从 MCP 服务端读取 hint annotations 并映射
+2. **MCP 动态注册表** (`_PTC_TOOL_FLAT_INDEX`)：连接 MCP 服务端、列出工具时，由 `toolkits/mcp/annotations.judge` 把服务端的 hint annotations 判成安全记录后写入
 3. **fail-closed 默认值**：未知工具获得保守默认（is_concurrent_safe=False）
 
-MCP annotations 映射规则：`readOnlyHint` → `is_read_only` + `is_concurrent_safe`，`idempotentHint` → `is_idempotent`，`destructiveHint` → `is_destructive`，`openWorldHint` → `is_open_world`。只有只读工具才被标记为并发安全，幂等但有副作用的工具仍串行执行。
+MCP annotations 是服务端对自己工具的声明，宿主无法核实，所以只能让宿主更谨慎，判定入口唯一（`judge`）：
 
-### MCP Read-Only Fast-Path Auto-Approve
+- 只有「声明只读、未声明破坏性、且该服务端不是 `host_serial`」的工具才被标记为并发安全（`is_concurrent_safe`，可与其他服务端的工具并行）
+- 声明破坏性 → `is_destructive`；同时声明只读与破坏性自相矛盾，按破坏性处理、不并行
+- `is_read_only` 与 `is_idempotent` 永远不由声明抬高；`idempotentHint`、`openWorldHint` 只作记录与提示，没有放行或重放效果
+- 声明槽 `MCPAnnotations` 只保留 `destructiveHint` / `openWorldHint`（让人更小心的两类），审批卡、人工提示与 LLM 审核提示因此永远看不到「只读」的宽慰
 
-`batch_processor.evaluate_tool_batch` 对 `mcp_invoke` 类型的工具调用执行 Fast-Path 检查：
+### MCP 工具不因服务端自报而跳过审批
 
-1. PTC 路径（`bash_code_execute_tool` 包装的 MCP 调用）：通过 `get_ptc_safety_metadata` 查询
-2. 直接 MCP 路径（`mcp__server__tool` 格式的直接调用）：通过 `resolve_safety_metadata` 查询
+`batch_processor.evaluate_tool_batch` 对 `mcp_invoke` 类型的调用（直接 `mcp__server__tool`，或 `bash_code_execute_tool` 包装的 PTC 调用）没有「只读快速放行」：`readOnlyHint` 等注解是服务端对自己的声明，放行与否只由权限引擎、allowlist、用户规则与升级检查决定（见上文判定顺序）。用户配置的 DENY 规则与路径策略对它们照常生效；已登记注解的工具与未登记的工具走完全相同的审批路径。声明的 `destructiveHint` / `openWorldHint` 经审批卡的上下文（`ptc_annotations`）交给前端，仅作提示。
 
-两条路径使用相同判断条件：`is_read_only=True && !is_open_world && !is_destructive` 时自动放行（ASK → ALLOW），跳过 HITL 弹窗。`!is_destructive` 防御矛盾标注（buggy MCP server 同时声明 readOnlyHint=True + destructiveHint=True）。未注册 annotations 的工具 fail-closed（is_read_only=False），行为不变。用户配置的 DENY 规则优先级高于 Fast-Path（evaluate_tool_call 先执行，DENY 不进入 Fast-Path 判断）。
+同一原则覆盖其余消费者：只读沙箱（子 Agent 与 IPC 脚本）一律拒绝 MCP 工具，保存脚本不得调用 MCP 工具，PTC 客户端从不重放调用，两条结果缓存路径对未列入 `cacheable_tools` 的调用一律清缓存。架构门禁 `tests/architecture/test_mcp_annotations_gate.py` 与不变量测试 `tests/toolkits/mcp/test_annotations_invariants.py` 固定这些行为。
 
 ### 权限分离的关键意义
 

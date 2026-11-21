@@ -19,7 +19,7 @@ CALL_B = ToolCall(type="tool_call", name="web_fetch", args={"url": "https://exam
 CARD_EXTRAS = {
     "high_risk": True,
     "blast_radius": {"files": 3, "paths": ["/tmp/x"]},
-    "ptc_annotations": {"readOnlyHint": False},
+    "ptc_annotations": {"destructiveHint": True},
 }
 
 

@@ -111,7 +111,7 @@ class BashExecutorPrepareMixin:
 
         A skill command gets its own MCP IPC server, registered on ``ipc_servers`` so it stops
         with the execution that owns the stack. The same holds for a saved script that imports skills, whose
-        server is limited to read-only MCP tools.
+        server refuses every MCP tool.
         """
         use_python_execution = False
         prepared_code = command
@@ -124,7 +124,7 @@ class BashExecutorPrepareMixin:
             is_skill, skill_name = self._skill_executor.detect_skill_in_command(command)
             if not is_skill:
                 # A saved script started as a plain `python file.py` is read by the host so that it gets the skill
-                # runtime too, but its code was never reviewed: its server is limited to read-only MCP tools.
+                # runtime too, but its code was never reviewed: its server refuses every MCP tool.
                 script = resolve_saved_script(command, self._execution_workspace_root(scope.workspace_root))
                 if script is not None:
                     is_skill, skill_name = self._skill_executor.detect_skill_in_script(script.source)
