@@ -120,7 +120,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `api/files/test_vault_api.py` | 单元 | vault 对象读取：按 `chat_id` 取该会话工作区、按指向对象的 artifact 反查所属会话、无主对象回退默认根、缺失对象 404 |
 | `api/files/test_provenance_api.py` | 单元 | 来源中心列表与详情里的产物大小，各取自该产物所属会话的工作区而非进程目录 |
 | `api/files/test_hosting_integration.py` | 集成 | 发布主链路（真实预检、vault、编排；仅外部 HTTP 被替身）：预检、发布、WebSocket 轮询、重发布、多目标发布 |
-| `api/files/test_hosting_targets_api.py` | 单元 | 托管目标与凭据 API（真实路由与数据库）：目标 CRUD 生命周期、不存在的目标 404、凭据读写与状态、连通性测试 |
+| `api/files/test_hosting_targets_api.py` | 单元 | 托管目标与凭据 API（真实路由与数据库）：凭据只写不读、删除目标连带删除凭据行、目标 CRUD 生命周期、不存在的目标 404、连通性测试 |
 | `platform_utils/test_workspace_root.py` | 单元 | `get_workspace_root`：运行之外取进程工作目录，运行之内取该次运行绑定的根 |
 | `services/instance_archive/test_incognito_files.py` | 模块 | 网页无痕会话写在磁盘上的东西不进导出：真实 `build_export` 下 `harness/workspaces/chat_<id>/`（含嵌套目录）不入包、其余会话与转写导入的工作区照常入包，目录名按整段路径分量比对（`chat_incognito` 不藏掉 `chat_incognito-2`）；子代理 checkpoint 库不论在 `data/` 下还是状态目录顶层都不入包；无法判定哪些会话是无痕时导出失败且不留文件；无痕工作区下读不到的路径不记入“备份不完整”；并把工作区位置、目录名与子代理库文件名钉到真实运行时（`WorkspaceService.workspaces_root`、`default_chat_workspace_path`、`resolve_subagent_checkpoint_db_path`） |
 | `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |

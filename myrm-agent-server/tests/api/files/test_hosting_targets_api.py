@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
+from app.services.hosting.credentials import load_credentials_row
 from app.services.hosting.targets import save_hosting_targets
 from app.services.hosting.types import HostingTarget
 from tests.support.hosting_api import public_dns, seed_webhook_target
@@ -31,6 +32,24 @@ async def test_target_credentials_are_write_only(hosting_integration_client) -> 
     assert get.status_code == 200
     assert get.json() == {"configured": True, "platform_available": False}
     assert "vc_secret" not in get.text
+
+
+@pytest.mark.asyncio
+async def test_deleting_a_target_through_the_api_removes_its_stored_credentials(hosting_integration_client) -> None:
+    client, _workspace, db_session = hosting_integration_client
+    target_id = f"cred-del-{uuid.uuid4().hex[:8]}"
+    await save_hosting_targets(
+        db_session,
+        [HostingTarget(id=target_id, name="Vercel", provider_type="vercel", config={}, is_default=True)],
+    )
+    assert (
+        client.put(f"/hosting/targets/{target_id}/credentials", json={"credentials": {"token": "vc_secret"}}).status_code == 200
+    )
+    assert await load_credentials_row(db_session, target_id) is not None
+
+    assert client.delete(f"/hosting/targets/{target_id}").status_code == 200
+
+    assert await load_credentials_row(db_session, target_id) is None
 
 
 @pytest.mark.asyncio

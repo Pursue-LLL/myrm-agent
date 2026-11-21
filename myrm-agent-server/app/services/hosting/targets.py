@@ -7,7 +7,7 @@
 - app.services.config.encryption::HOSTING_TARGET_CREDENTIALS_PREFIX (POS: key family of the per-target credentials rows)
 
 [OUTPUT]
-- list/create/update/delete hosting targets with legacy Vercel ID normalization
+- list/create/update/delete hosting targets with legacy Vercel ID normalization; deleting a target removes its credentials row
 - credential_config_key: the config row that holds one target's credentials
 """
 
@@ -17,7 +17,7 @@ import json
 import uuid
 from typing import cast
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -90,7 +90,8 @@ async def list_hosting_targets(db: AsyncSession) -> list[HostingTarget]:
     return _parse_targets(value)
 
 
-async def save_hosting_targets(db: AsyncSession, targets: list[HostingTarget]) -> None:
+async def _stage_targets(db: AsyncSession, targets: list[HostingTarget]) -> None:
+    """Write the targets row into the session without committing, so a caller can add related changes first."""
     service = get_encryption_service()
     payload = _serialize_targets(targets)
     stored_value, is_encrypted = service.encrypt_if_needed(HOSTING_TARGETS_KEY, payload)
@@ -112,6 +113,10 @@ async def save_hosting_targets(db: AsyncSession, targets: list[HostingTarget]) -
                 is_encrypted=is_encrypted,
             )
         )
+
+
+async def save_hosting_targets(db: AsyncSession, targets: list[HostingTarget]) -> None:
+    await _stage_targets(db, targets)
     await db.commit()
 
 
@@ -158,6 +163,7 @@ async def upsert_hosting_target(db: AsyncSession, target: HostingTarget) -> Host
 
 
 async def delete_hosting_target(db: AsyncSession, target_id: str) -> bool:
+    """Delete a target and its credentials row in one transaction, so no secret outlives the target it belongs to."""
     targets = await list_hosting_targets(db)
     remaining = [t for t in targets if t.id != target_id]
     if len(remaining) == len(targets):
@@ -170,7 +176,9 @@ async def delete_hosting_target(db: AsyncSession, target_id: str) -> bool:
             config=remaining[0].config,
             is_default=True,
         )
-    await save_hosting_targets(db, remaining)
+    await _stage_targets(db, remaining)
+    await db.execute(delete(UserConfig).where(UserConfig.config_key == credential_config_key(target_id)))
+    await db.commit()
     return True
 
 
