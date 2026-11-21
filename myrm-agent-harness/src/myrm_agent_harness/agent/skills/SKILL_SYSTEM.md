@@ -517,7 +517,7 @@ Scanner（编排器）
 | 顺序 | 门禁 | 错误码 |
 |------|------|--------|
 | 1 | 安装目录名必须是单个相对路径段（名称由发布方控制，防目录穿越） | `INVALID_SKILL_NAME` |
-| 2 | 生命周期脚本门禁：`package.json` 的 `preinstall` / `install` / `postinstall` 非空即拒绝（§9.4） | `LIFECYCLE_SCRIPT_BLOCKED` |
+| 2 | 生命周期脚本门禁：`package.json` 里裸 `npm install` 会执行的脚本任一非空，或清单本身无法审计，即拒绝（§9.4） | `LIFECYCLE_SCRIPT_BLOCKED` |
 | 3 | 安全评分低于 50 分 | `SECURITY_SCORE_BELOW_THRESHOLD` |
 | 4 | 版本降级保护（`allow_downgrade=True` 可放行，§9.5） | `DOWNGRADE_BLOCKED` |
 | 5 | 安装目标是符号链接 / junction，或是装着其他子技能的分类桶 | `PATH_REDIRECT_ATTACK` / `CATEGORY_BUCKET_COLLISION` |
@@ -541,7 +541,9 @@ Scanner（编排器）
 
 ### 9.4 package.json 生命周期脚本门禁
 
-技能含 `package.json` 且声明了非空的 `preinstall` / `install` / `postinstall` 脚本时，安装前由 `check_lifecycle_scripts`（`backends/skills/scanning/package_audit.py`）判为 high 并直接拒绝（§9.2 门禁 2）；其他可疑的脚本命令只产生 medium 发现，进入 §8 的扫描结果，不阻断。安装流程本身不执行任何依赖安装命令。
+技能含 `package.json` 且声明了非空的生命周期脚本时，安装前由 `check_lifecycle_scripts`（`backends/skills/scanning/package_audit.py`）判为 high 并直接拒绝（§9.2 门禁 2）。脚本名取裸 `npm install` 会在包根目录执行的 7 个：`preinstall`、`install`、`postinstall`、`prepublish`、`preprepare`、`prepare`、`postprepare`（bun、pnpm、yarn 各执行其中一部分）；`prepublishOnly`、`prepack` 之类不会被安装触发，不在其内。其他可疑的脚本命令只产生 medium 发现，进入 §8 的扫描结果，不阻断。
+
+读不懂的清单不等于没有脚本：`package.json` 无法解析（JSON 无效、同一对象内键重复、嵌套过深或整数位数超出解析器能力）时，安装器读取它的宽严程度与审计的解析器不同，所以同样产生一条 high 的 `invalid_manifest` 发现并拒绝。本地目录扫描（§8）里，符号链接形式的 `package.json`（安装器会跟随链接）和读取失败的 `package.json` 也一样处理；开头恰好一个 BOM 会被跳过，文件名按小写比较，非 UTF-8 字节按替换字符解码后照常审计。整个审计对清单内容只返回发现、不抛异常。安装流程本身不执行任何依赖安装命令。
 
 ### 9.5 版本比较与升级
 
