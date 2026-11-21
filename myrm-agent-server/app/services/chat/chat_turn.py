@@ -91,7 +91,7 @@ class _ChatTurnMixin(_ChatServiceBase):
         await sync_chat_usage(chat_id)
 
     @staticmethod
-    async def retry_last_turn(chat_id: str, user_id: str | None = None) -> RetryResult:
+    async def retry_last_turn(chat_id: str) -> RetryResult:
         async with UnitOfWork(write=True) as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
             if not chat:
@@ -152,7 +152,7 @@ class _ChatTurnMixin(_ChatServiceBase):
             return await _ChatServiceBase._cr(uow).get_sibling_info(sibling_group_id)
 
     @staticmethod
-    async def undo_last_turn(chat_id: str, user_id: str | None = None) -> UndoResult:
+    async def undo_last_turn(chat_id: str) -> UndoResult:
         async with UnitOfWork(write=True) as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
             if not chat:

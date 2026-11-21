@@ -27,13 +27,10 @@ class _ChatChannelMixin(_ChatServiceBase):
     """Channel chat lookup and creation."""
 
     @staticmethod
-    async def get_channel_chat_by_key(user_id_or_session_key: str, session_key: str | None = None) -> ChatDTO | None:
-        """Resolve channel chat; supports ``get_channel_chat_by_key(session_key)`` or
-        ``get_channel_chat_by_key(user_id, session_key)`` (user_id is ignored for lookup).
-        """
-        key = session_key if session_key is not None else user_id_or_session_key
+    async def get_channel_chat_by_key(session_key: str) -> ChatDTO | None:
+        """Resolve the channel chat stored under ``session_key``."""
         async with UnitOfWork() as uow:
-            return await _ChatServiceBase._cr(uow).get_channel_chat_by_key(key)
+            return await _ChatServiceBase._cr(uow).get_channel_chat_by_key(session_key)
 
     @staticmethod
     async def get_newest_channel_chat_under(base_key: str) -> ChatDTO | None:
@@ -59,21 +56,14 @@ class _ChatChannelMixin(_ChatServiceBase):
 
     @staticmethod
     async def get_or_create_channel_chat(
-        first: str,
-        second: str,
-        source: str | None = None,
+        session_key: str,
+        source: str,
         *,
         agent_id: str | None = None,
     ) -> ChatDTO:
-        """``get_or_create_channel_chat(session_key, source)`` or
-        ``get_or_create_channel_chat(user_id, session_key, source)``.
-        """
-        if source is None:
-            channel_session_key, src = first, second
-        else:
-            _, channel_session_key, src = first, second, source
+        """Return the chat stored under ``session_key``, creating it when absent."""
         async with UnitOfWork() as uow:
-            chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(channel_session_key)
+            chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(session_key)
             if chat:
                 if agent_id and chat.agent_id != agent_id:
                     await _ChatServiceBase._cr(uow).update_chat_fields(chat.id, {"agent_id": agent_id})
@@ -84,8 +74,8 @@ class _ChatChannelMixin(_ChatServiceBase):
             new_chat = ChatDTO(
                 id=str(uuid4()),
                 agent_id=agent_id,
-                source=src,
-                channel_session_key=channel_session_key,
+                source=source,
+                channel_session_key=session_key,
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),
             )
@@ -98,7 +88,7 @@ class _ChatChannelMixin(_ChatServiceBase):
                 sess = uow.session
                 assert sess is not None
                 await sess.rollback()
-                chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(channel_session_key)
+                chat = await _ChatServiceBase._cr(uow).get_channel_chat_by_key(session_key)
                 if chat:
                     return chat
                 raise
