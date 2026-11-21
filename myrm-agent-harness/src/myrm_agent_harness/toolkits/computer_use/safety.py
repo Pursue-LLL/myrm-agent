@@ -4,7 +4,7 @@ Covered guardrails:
 - Blocked key combos: prevents dangerous system shortcuts (macOS + Windows)
 - Operator-as-key rejection: printable operators must not be used as vision `key` names
 - Dangerous type-text patterns: prevents shell injection via typed text
-- Sensitive app guard: prevents interaction with financial, communication, and password management applications
+- Sensitive app guard: prevents interaction with financial, communication, and password management applications; a refusal names the matched application or keyword and never the window title
 - Screen lock and physical sleep gate: hard interruption on locked or asleep desktop
 
 [INPUT]
@@ -225,7 +225,7 @@ def is_self_app(
     for keyword in _SELF_WINDOW_TITLE_KEYWORDS:
         if lower_title and keyword in lower_title:
             return (
-                f"Blocked: Window '{window_title}' appears to be the agent UI. "
+                "Blocked: The foreground window appears to be the agent UI. "
                 "Use chat controls instead of desktop automation."
             )
     return None
@@ -259,15 +259,15 @@ def is_sensitive_app(
     app_name: str,
     window_title: str = "",
     app_id: str = "",
-    custom_blocked: frozenset[str] | None = None,
-    custom_allowed: frozenset[str] | None = None,
 ) -> str | None:
     """Check if the foreground app or window title matches the sensitive blocklist.
 
     Matches against both *app_name* and *window_title* to catch scenarios where
     sensitive content is opened inside a generic app (e.g. banking site in Chrome).
 
-    Returns a human-readable block reason, or ``None`` if safe to proceed.
+    Returns a human-readable block reason, or ``None`` if safe to proceed. The reason reaches the model and the log,
+    so it names the matched application or keyword and never quotes the window title (an account, a mailbox, a
+    contact).
     """
     if not app_name:
         return None
@@ -279,11 +279,7 @@ def is_sensitive_app(
     lower_name = app_name.lower()
     lower_title = window_title.lower() if window_title else ""
 
-    if custom_allowed and any(a.lower() in lower_name for a in custom_allowed):
-        return None
-
-    effective_blocked = _SENSITIVE_APPS | (custom_blocked or frozenset())
-    for keyword in effective_blocked:
+    for keyword in _SENSITIVE_APPS:
         kw = keyword.lower()
         if kw in lower_name:
             return (
@@ -292,8 +288,8 @@ def is_sensitive_app(
             )
         if lower_title and kw in lower_title:
             return (
-                f"Blocked: Window title '{window_title}' indicates sensitive content "
-                f"(matched '{keyword}'). Switch away to continue the task."
+                f"Blocked: Window title indicates sensitive content (matched '{keyword}'). "
+                "Switch away to continue the task."
             )
     return None
 

@@ -4,6 +4,8 @@ Exercises the REAL dispatch logic (no mocks of dispatch itself): scope/app_name
 are routed verbatim to the matching platform perception module, and unsupported
 backends fail with a clear RuntimeError. Only the leaf perception calls are mocked.
 run_ax_call is exercised with real threads: where a blocking call runs, and that the loop keeps ticking meanwhile.
+read_foreground_identity is exercised the same way: which platforms have a cheap identity read, and that it runs off
+the loop thread.
 """
 
 from __future__ import annotations
@@ -21,9 +23,12 @@ from myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch import (
     capture_snapshot,
     inspect_backend,
     invoke_element,
+    read_foreground_identity,
     run_ax_call,
 )
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult
+
+_DISPATCH = "myrm_agent_harness.toolkits.computer_use.perception.ax_dispatch"
 
 
 def _backend_named(name: str) -> MagicMock:
@@ -230,3 +235,47 @@ class TestRunAxCall:
         await beat
 
         assert result == "read"
+
+
+class TestReadForegroundIdentity:
+    """The foreground window's identity from one subprocess read: macOS and Linux have one, on a worker thread."""
+
+    async def test_macos_reads_the_osascript_identity_on_a_worker_thread(self) -> None:
+        threads: list[int] = []
+
+        def read() -> tuple[str, str, str]:
+            threads.append(threading.get_ident())
+            return "Google Chrome", "Chase - Sign in", "com.google.Chrome"
+
+        with patch(f"{_DISPATCH}.macos_ax.read_foreground_meta", side_effect=read):
+            identity = await read_foreground_identity(_backend_named("MacOSBackend"))
+
+        assert identity == ("Google Chrome", "Chase - Sign in", "com.google.Chrome")
+        assert threads
+        assert threads[0] != threading.get_ident()
+
+    async def test_linux_reads_the_x11_window_on_a_worker_thread(self) -> None:
+        threads: list[int] = []
+
+        def read() -> tuple[str, str]:
+            threads.append(threading.get_ident())
+            return "Alacritty", "sudo -i"
+
+        with patch(f"{_DISPATCH}.linux_x11.read_foreground_meta", side_effect=read):
+            identity = await read_foreground_identity(_backend_named("LinuxBackend"))
+
+        assert identity == ("Alacritty", "sudo -i", "")
+        assert threads
+        assert threads[0] != threading.get_ident()
+
+    @pytest.mark.parametrize("platform", ["WindowsBackend", "UnsupportedBackend"])
+    async def test_a_platform_without_a_cheap_read_answers_an_unknown_identity(self, platform: str) -> None:
+        with (
+            patch(f"{_DISPATCH}.macos_ax.read_foreground_meta") as macos_read,
+            patch(f"{_DISPATCH}.linux_x11.read_foreground_meta") as linux_read,
+        ):
+            identity = await read_foreground_identity(_backend_named(platform))
+
+        assert identity == ("", "", "")
+        macos_read.assert_not_called()
+        linux_read.assert_not_called()

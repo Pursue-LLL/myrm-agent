@@ -2,7 +2,7 @@
 
 Covers:
 - is_sensitive_app: blocklist matching (financial, communication, password managers)
-- Custom blocked/allowed list overrides
+- The refusal reason names the matched application or keyword and never quotes the window title
 - Integration with desktop_snapshot, desktop_interact, desktop_vision_action, desktop_vision_capture
 """
 
@@ -15,6 +15,7 @@ import pytest
 
 from myrm_agent_harness.toolkits.computer_use.safety import (
     _SENSITIVE_APPS,
+    is_self_app,
     is_sensitive_app,
 )
 
@@ -107,16 +108,21 @@ class TestIsSensitiveApp:
     def test_window_title_empty_safe(self) -> None:
         assert is_sensitive_app("Finder", window_title="") is None
 
-    def test_custom_blocked(self) -> None:
-        assert is_sensitive_app("Slack", custom_blocked=frozenset({"slack"})) is not None
-        assert is_sensitive_app("Slack") is None
+    def test_the_reason_for_a_window_title_never_quotes_it(self) -> None:
+        """The reply and the log of a refusal must not carry the account, mailbox or contact in the title."""
+        result = is_sensitive_app("Google Chrome", window_title="Chase - alice@example.com - Sign in")
 
-    def test_custom_allowed_override(self) -> None:
-        """Custom allowlist overrides default blocklist."""
-        assert is_sensitive_app("WeChat", custom_allowed=frozenset({"wechat"})) is None
+        assert result is not None
+        assert "Window title" in result
+        assert "matched 'chase'" in result
+        assert "alice@example.com" not in result
 
-    def test_custom_allowed_does_not_affect_others(self) -> None:
-        assert is_sensitive_app("支付宝", custom_allowed=frozenset({"wechat"})) is not None
+    def test_the_reason_for_the_agent_ui_never_quotes_the_window_title(self) -> None:
+        result = is_self_app("Some App", window_title="desktop control panel - alice@example.com")
+
+        assert result is not None
+        assert "agent UI" in result
+        assert "alice@example.com" not in result
 
     def test_returns_descriptive_message(self) -> None:
         result = is_sensitive_app("支付宝")
@@ -330,6 +336,8 @@ class TestDesktopVisionCaptureSensitiveGuard:
         assert isinstance(result, str)
         assert result.startswith("Safety: Cannot view the screen.")
         assert "Window title" in result
+        assert "(matched '" in result
+        assert "个人网银" not in result
         session.take_screenshot.assert_not_awaited()
 
     @pytest.mark.asyncio

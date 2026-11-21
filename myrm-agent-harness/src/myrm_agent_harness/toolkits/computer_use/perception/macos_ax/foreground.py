@@ -6,10 +6,12 @@
 
 [OUTPUT]
 - inspect_foreground: frontmost app metadata, interactive estimate and the recommendation text for the model
+- read_foreground_meta: the frontmost app's name, window title and bundle id from one osascript read (no tree, no window touched)
 
 [POS]
-Lightweight foreground probe of the macOS AX backend: a full capture when the tree is readable, a single
-osascript read of the app identity when it is not, plus an AppleScript routing hint for scriptable apps.
+Foreground probe of the macOS AX backend: a full capture when the tree is readable, a single osascript read of the
+app identity when it is not (the same read is offered alone for callers that must not walk the tree), plus an
+AppleScript routing hint for scriptable apps.
 """
 
 from __future__ import annotations
@@ -37,7 +39,12 @@ end tell
 """
 
 
-def _read_foreground_meta() -> tuple[str, str, str]:
+def read_foreground_meta() -> tuple[str, str, str]:
+    """(application name, window title, bundle id) of the frontmost application from one osascript read.
+
+    No accessibility tree is read and no window is touched, unlike ``capture_ax_snapshot``, which restores a minimized
+    window. A field that cannot be read is empty; a timeout or a failed script empties all three.
+    """
     try:
         result = subprocess.run(
             ["osascript", "-e", _AX_FOREGROUND_META_SCRIPT],
@@ -141,7 +148,7 @@ def inspect_foreground() -> dict[str, str | int | bool]:
             "recommendation": "Grant macOS Accessibility permission, then call desktop_snapshot_tool.",
         }
     except AXTreeEmptyError as exc:
-        app_name, window_title, app_id = _read_foreground_meta()
+        app_name, window_title, app_id = read_foreground_meta()
         base_rec = _SNAPSHOT_RECOMMENDATION_BASE
         if app_name:
             native_hint = _native_api_hint(app_name)

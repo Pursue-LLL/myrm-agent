@@ -323,29 +323,29 @@ class TestAxDispatchInspectBackend:
 
 
 class TestReadForegroundMeta:
-    """_read_foreground_meta: timeout, failure, and success parse."""
+    """read_foreground_meta: timeout, failure, and success parse."""
 
     def test_timeout_returns_empty(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import read_foreground_meta
 
         with patch(
             "subprocess.run",
             side_effect=subprocess.TimeoutExpired(cmd="osascript", timeout=5),
         ):
-            assert _read_foreground_meta() == ("", "", "")
+            assert read_foreground_meta() == ("", "", "")
 
     def test_nonzero_returncode_returns_empty(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import read_foreground_meta
 
         mock_result = subprocess.CompletedProcess(args=[], returncode=1, stdout="", stderr="error")
         with patch(
             "subprocess.run",
             return_value=mock_result,
         ):
-            assert _read_foreground_meta() == ("", "", "")
+            assert read_foreground_meta() == ("", "", "")
 
     def test_success_parses_parts(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import read_foreground_meta
 
         mock_result = subprocess.CompletedProcess(
             args=[],
@@ -357,21 +357,21 @@ class TestReadForegroundMeta:
             "subprocess.run",
             return_value=mock_result,
         ):
-            assert _read_foreground_meta() == (
+            assert read_foreground_meta() == (
                 "Safari",
                 "Home",
                 "com.apple.Safari",
             )
 
     def test_partial_output_parses_available_parts(self) -> None:
-        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import _read_foreground_meta
+        from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import read_foreground_meta
 
         mock_result = subprocess.CompletedProcess(args=[], returncode=0, stdout="Mail|||Inbox\n", stderr="")
         with patch(
             "subprocess.run",
             return_value=mock_result,
         ):
-            assert _read_foreground_meta() == ("Mail", "Inbox", "")
+            assert read_foreground_meta() == ("Mail", "Inbox", "")
 
 
 class TestParseRoleAndBboxEdges:
@@ -417,7 +417,7 @@ class TestInspectForegroundBranches:
         ):
             result = inspect_foreground()
         assert result["needs_permission"] is True
-        assert "Accessibility permission" in result["recommendation"]
+        assert "Accessibility permission" in str(result["recommendation"])
 
     def test_empty_tree_with_app_name(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
@@ -428,7 +428,7 @@ class TestInspectForegroundBranches:
                 side_effect=AXTreeEmptyError("no interactive nodes (Finder)"),
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
+                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.read_foreground_meta",
                 return_value=("Finder", "Desktop", "com.apple.finder"),
             ),
         ):
@@ -436,7 +436,7 @@ class TestInspectForegroundBranches:
         assert result["app_name"] == "Finder"
         assert result["window_title"] == "Desktop"
         assert result["app_id"] == "com.apple.finder"
-        assert "desktop_vision_tool" in result["recommendation"]
+        assert "desktop_vision_tool" in str(result["recommendation"])
 
     def test_empty_tree_without_app_name(self) -> None:
         from myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground import inspect_foreground
@@ -447,13 +447,13 @@ class TestInspectForegroundBranches:
                 side_effect=AXTreeEmptyError("no AX output"),
             ),
             patch(
-                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground._read_foreground_meta",
+                "myrm_agent_harness.toolkits.computer_use.perception.macos_ax.foreground.read_foreground_meta",
                 return_value=("", "", ""),
             ),
         ):
             result = inspect_foreground()
         assert result["app_name"] == ""
-        assert "desktop_vision_tool" in result["recommendation"]
+        assert "desktop_vision_tool" in str(result["recommendation"])
 
     def test_invoke_generic_stderr_error(self) -> None:
         """Non-permission osascript failure surfaces stderr as the error message."""
