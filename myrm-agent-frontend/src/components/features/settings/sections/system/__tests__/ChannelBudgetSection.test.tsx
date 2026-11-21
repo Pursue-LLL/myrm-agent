@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
+import { deferred } from '@/test-utils/deferred';
 import {
   createChannelBudget,
   getChannelAudit,
@@ -53,14 +55,10 @@ const policyOf = (dailyLimitUsd: number): ChannelBudgetPolicy => ({
   label: '',
 });
 
-/** A promise the test settles by hand, to hold a request in flight. */
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
+type PolicySave = ReturnType<typeof deferred<ChannelBudgetPolicy>>;
+
+/** Lets every promise already queued settle, so a test can look at the screen after a save has fully finished. */
+const nextTick = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 async function openAudit(todayCostUsd: number, entries: ChannelAuditEntry[]) {
   vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [], statuses: [channelStatus(todayCostUsd)] });
@@ -192,8 +190,8 @@ describe('ChannelBudgetSection saving', () => {
     expect(updateChannelBudget).not.toHaveBeenCalled();
   });
 
-  // The box shows the limit in force whenever the user is not typing, and a stored save only changes it once the panel has
-  // read the new policy back; leaving the typed number up until then keeps the old limit from flashing in between.
+  // A stored save only changes the box once the panel has read the new policy back; leaving the typed number up until
+  // then keeps the old limit from flashing in between.
   it('keeps the typed limit on screen until the policy read back after a stored save arrives', async () => {
     const readBack = deferred<ChannelBudgetsResponse>();
     vi.mocked(getChannelBudgets)
@@ -212,5 +210,149 @@ describe('ChannelBudgetSection saving', () => {
       readBack.resolve({ policies: [policyOf(5)], statuses: [channelStatus(0)] });
     });
     expect(limitInput.value).toBe('5');
+  });
+
+  // What is typed while a save is in flight is the next edit, not the saved one: the save clears only the text it
+  // handled, so keystrokes are not swallowed and leaving the box again sends what is on screen.
+  it.each([
+    {
+      outcome: 'stored',
+      sent: '7',
+      typedMore: '76',
+      inForce: 7,
+      settle: (save: PolicySave) => save.resolve(policyOf(7)),
+    },
+    {
+      outcome: 'rejected',
+      sent: '9',
+      typedMore: '91',
+      inForce: 2,
+      settle: (save: PolicySave) => save.reject(new Error('rejected')),
+    },
+  ])(
+    'keeps what is typed while a $outcome save is in flight and sends it when the box is left again',
+    async ({ sent, typedMore, inForce, settle }) => {
+      const save = deferred<ChannelBudgetPolicy>();
+      vi.mocked(getChannelBudgets)
+        .mockResolvedValueOnce({ policies: [policyOf(2)], statuses: [channelStatus(0)] })
+        .mockResolvedValue({ policies: [policyOf(inForce)], statuses: [channelStatus(0)] });
+      vi.mocked(updateChannelBudget)
+        .mockReturnValueOnce(save.promise)
+        .mockResolvedValue(policyOf(Number(typedMore)));
+
+      render(<ChannelBudgetSection />);
+      const limitInput = await screen.findByDisplayValue<HTMLInputElement>('2');
+      fireEvent.change(limitInput, { target: { value: sent } });
+      fireEvent.blur(limitInput);
+      fireEvent.change(limitInput, { target: { value: typedMore } });
+      await act(async () => {
+        settle(save);
+        await nextTick();
+      });
+
+      expect(limitInput.value).toBe(typedMore);
+      await act(async () => {
+        fireEvent.blur(limitInput);
+        await nextTick();
+      });
+      expect(updateChannelBudget).toHaveBeenLastCalledWith(CHANNEL_KEY, { daily_limit_usd: Number(typedMore) });
+    },
+  );
+});
+
+describe('ChannelBudgetSection add form', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [], statuses: [] });
+    vi.mocked(createChannelBudget).mockResolvedValue(policyOf(2));
+  });
+
+  /** Opens the add form with a channel key typed and returns its limit box, which starts at the default of 2. */
+  async function openAddForm(user: ReturnType<typeof userEvent.setup>) {
+    render(<ChannelBudgetSection />);
+    await user.click(await screen.findByRole('button', { name: 'add' }));
+    await user.type(screen.getByPlaceholderText('channelKeyPlaceholder'), CHANNEL_KEY);
+    return screen.getByDisplayValue<HTMLInputElement>('2');
+  }
+
+  // A number box that cannot be emptied turns every edit into an append: End, Backspace, 5 has to leave 5, not 25.
+  it('lets the limit of a new channel be cleared and typed again', async () => {
+    const user = userEvent.setup();
+    const limitInput = await openAddForm(user);
+
+    await user.click(limitInput);
+    await user.keyboard('{End}{Backspace}5');
+    await user.click(screen.getByRole('button', { name: 'save' }));
+
+    await waitFor(() => expect(createChannelBudget).toHaveBeenCalledTimes(1));
+    expect(createChannelBudget).toHaveBeenCalledWith(CHANNEL_KEY, expect.objectContaining({ daily_limit_usd: 5 }));
+  });
+
+  it('takes a decimal limit typed from scratch', async () => {
+    const user = userEvent.setup();
+    const limitInput = await openAddForm(user);
+
+    await user.tripleClick(limitInput);
+    await user.keyboard('0.5');
+    await user.click(screen.getByRole('button', { name: 'save' }));
+
+    await waitFor(() => expect(createChannelBudget).toHaveBeenCalledTimes(1));
+    expect(createChannelBudget).toHaveBeenCalledWith(CHANNEL_KEY, expect.objectContaining({ daily_limit_usd: 0.5 }));
+  });
+
+  it('keeps Save off while the limit box is empty', async () => {
+    const user = userEvent.setup();
+    const limitInput = await openAddForm(user);
+
+    await user.click(limitInput);
+    await user.keyboard('{End}{Backspace}');
+
+    expect(limitInput.value).toBe('');
+    expect(screen.getByRole('button', { name: 'save' })).toBeDisabled();
+    expect(createChannelBudget).not.toHaveBeenCalled();
+  });
+
+  it('starts the next new channel at the default limit again once one has been added', async () => {
+    const user = userEvent.setup();
+    const limitInput = await openAddForm(user);
+
+    await user.tripleClick(limitInput);
+    await user.keyboard('5');
+    await user.click(screen.getByRole('button', { name: 'save' }));
+    await waitFor(() => expect(createChannelBudget).toHaveBeenCalledTimes(1));
+    await user.click(await screen.findByRole('button', { name: 'add' }));
+
+    expect(screen.getByDisplayValue('2')).toBeInTheDocument();
+  });
+});
+
+describe('ChannelBudgetSection limit boxes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /** A limit box has to name itself and accept every amount the server accepts, not only the ones on a step grid. */
+  const expectNamedAndAnyAmountValid = (limitInput: HTMLInputElement) => {
+    for (const amount of ['0.01', '2', '7.25', '10000']) {
+      fireEvent.change(limitInput, { target: { value: amount } });
+      expect(limitInput.validity.valid).toBe(true);
+    }
+  };
+
+  it('names the limit box of a channel and takes any amount in range', async () => {
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [policyOf(2)], statuses: [channelStatus(0)] });
+
+    render(<ChannelBudgetSection />);
+
+    expectNamedAndAnyAmountValid(await screen.findByRole<HTMLInputElement>('spinbutton', { name: 'dailyLimit' }));
+  });
+
+  it('names the limit box of a new channel and takes any amount in range', async () => {
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [], statuses: [] });
+
+    render(<ChannelBudgetSection />);
+    fireEvent.click(await screen.findByRole('button', { name: 'add' }));
+
+    expectNamedAndAnyAmountValid(screen.getByRole<HTMLInputElement>('spinbutton', { name: 'dailyLimit' }));
   });
 });

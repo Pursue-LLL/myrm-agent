@@ -1,9 +1,9 @@
 """A line the analyzer cannot read in full is refused, and padding cannot push a payload out of the readings.
 
-The readings are bounded (``MAX_COMMAND_READINGS`` texts, ``MAX_READING_CHARS`` characters), so a line can be padded
-with decoys until the bounds run out. What a line hands to a shell stands in no other reading, so those scripts are
-read first and a line whose scripts do not fit is refused. The commands apart only restate text the readings above
-already hold, so a long script or heredoc is judged on what fits and is not refused for its length.
+The readings are bounded (``MAX_COMMAND_READINGS`` scripts, ``MAX_READING_CHARS`` characters), so a line can be padded
+with decoys until a bound runs out. A line that does not fit is refused, never judged on the part that does: what a
+line hands to a shell stands in no other reading, and the line as written can mask a command that the command read
+apart shows. A long script or heredoc is not refused for its length, since its commands are read apart in full.
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from myrm_agent_harness.core.security.shell_wrapper_peel import MAX_COMMAND_READINGS
+from myrm_agent_harness.toolkits.code_execution.security import shell_command_readings as readings_module
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (
     ThreatLevel,
     analyze_command,
@@ -24,6 +25,8 @@ from myrm_agent_harness.toolkits.code_execution.security.validator import valida
 
 _PAYLOAD = "sh -c 'rm -rf ~'"
 _GLUED_PAYLOAD = "sh -c 'rm -rf ~&&echo done'"
+# The apostrophe inside the double quotes opens a single-quoted span in the line as written, which masks the middle.
+_MASKED_PAYLOAD = "echo \"it's\"; rm -rf ~; echo 'x'"
 _SIZES = (0, MAX_COMMAND_READINGS // 2, MAX_COMMAND_READINGS - 1, MAX_COMMAND_READINGS, 4 * MAX_COMMAND_READINGS)
 
 
@@ -47,6 +50,12 @@ def test_a_script_holding_a_glued_payload_behind_plain_padding_is_still_read(cou
     assert "dangerous_command" in _block_categories(_padded("echo {i}", count, _GLUED_PAYLOAD, "\n"))
 
 
+@pytest.mark.parametrize("separator", ["\n", "; "], ids=["lines", "one-line"])
+@pytest.mark.parametrize("count", _SIZES)
+def test_a_command_the_line_as_written_masks_is_read_behind_any_padding(count: int, separator: str) -> None:
+    assert "dangerous_command" in _block_categories(_padded("echo {i}", count, _MASKED_PAYLOAD, separator))
+
+
 def test_scripts_that_fit_the_readings_are_all_read() -> None:
     command = _padded("sh -c 'echo {i}'", MAX_COMMAND_READINGS - 10, _PAYLOAD, "\n")
     assert _block_categories(command) == {"dangerous_command"}
@@ -63,6 +72,14 @@ def test_a_line_with_more_scripts_than_the_readings_hold_is_refused(count: int) 
 def test_a_script_longer_than_the_character_budget_is_refused() -> None:
     command = "sh -c '" + "echo x; " * (MAX_READING_CHARS // 8 + 1) + "'"
     assert "obfuscation" in _block_categories(command)
+
+
+def test_commands_that_do_not_fit_the_character_budget_are_refused(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(readings_module, "MAX_READING_CHARS", 400)
+    long_line = "\n".join(f"echo {i}" for i in range(100))
+    assert not command_readings(long_line).complete
+    assert "obfuscation" in _block_categories(long_line)
+    assert command_readings("\n".join(f"echo {i}" for i in range(20))).complete
 
 
 def test_a_long_script_within_the_character_budget_is_read() -> None:
@@ -85,7 +102,7 @@ def test_the_bash_validator_tells_the_model_what_to_do_about_a_refused_line() ->
     result = validate_command(_padded("sh -c 'echo {i}'", MAX_COMMAND_READINGS, _PAYLOAD, "\n"), check_paths=False)
     assert not result.is_safe
     assert result.reason is not None
-    assert "run them as separate commands" in result.reason
+    assert "run it as separate commands" in result.reason
 
 
 def test_the_scripts_of_a_line_are_read_before_its_commands_apart() -> None:
@@ -101,13 +118,14 @@ def test_the_scripts_of_a_line_are_read_before_its_commands_apart() -> None:
     )
 
 
-def test_the_commands_apart_fill_what_the_scripts_leave_of_the_bounds() -> None:
-    readings = command_readings("\n".join(f"echo {i}" for i in range(4 * MAX_COMMAND_READINGS)))
+def test_every_command_of_a_long_line_is_read_apart() -> None:
+    commands = [f"echo {i}" for i in range(4 * MAX_COMMAND_READINGS)]
+    readings = command_readings("\n".join(commands))
     assert readings.complete
-    assert len(readings.texts) == MAX_COMMAND_READINGS
+    assert set(commands) <= set(readings.texts)
 
 
-def test_the_scripts_of_a_line_are_read_when_its_commands_apart_run_out() -> None:
-    readings = command_readings(_padded("echo {i}", 4 * MAX_COMMAND_READINGS, "sh -c 'echo last'", "\n"))
+def test_a_command_the_line_as_written_masks_is_a_reading_of_its_own() -> None:
+    readings = command_readings(_MASKED_PAYLOAD)
     assert readings.complete
-    assert "echo last" in readings.texts
+    assert "rm -rf ~" in readings.texts
