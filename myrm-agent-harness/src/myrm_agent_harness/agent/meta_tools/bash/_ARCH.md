@@ -26,7 +26,7 @@ bash/
   _compression/                  # 输出压缩域（语义压缩/eviction/声明式过滤）
   _security/                     # 安全域（执行前预检）
   _background/                   # 后台任务域（registry/ledger/spill/progress）
-  scripts/                       # 每条 bash 命令（前台与后台作业）前置的注入头 resilience_init.sh（非交互默认值、包管理器环境注入、GitHub 凭证助手、无身份沙箱的提交身份兜底）
+  scripts/                       # 每条 bash 命令（前台与后台作业）前置的注入头 resilience_init.sh（非交互默认值、包管理器环境注入、GitHub 凭证助手（token 只随前台命令送达，后台作业没有）、无身份沙箱的提交身份兜底）
 ```
 
 ## File & Submodule Index

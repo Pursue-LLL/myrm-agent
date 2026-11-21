@@ -16,7 +16,8 @@
 
 [POS]
 Long-running shell spawn via background process registry; bypasses skill/python fast path. A bash job reads the same
-resilience header as a foreground command.
+resilience header as a foreground command, but its environment holds no per-command credentials: only the foreground
+path builds them.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 # Resilience Init Script
 # Prepended to every command BashExecutor runs, foreground or background: non-interactive defaults, smart env
-# injection for package managers, GitHub credentials for git over HTTPS, and a commit identity for sandboxes without one.
+# injection for package managers, a GitHub credential helper (HTTPS), and a commit identity for sandboxes without one.
 
 # -----------------------------------------------------------------------------
 # Global Defense Environment Variables
@@ -42,10 +42,10 @@ _inject_smart_env() {
 # -----------------------------------------------------------------------------
 # git's environment configuration reaches every git this command starts: `git -C`, a script it runs, a package manager
 # fetching a git dependency. The helper below is scoped to the URL https://github.com, so another host, plain http and
-# www.github.com never see the token. It hands out GITHUB_TOKEN (the credential pipeline sets it for the command) only
-# while no other credential helper applies to that URL: git also tells every configured helper to store what it was
-# given, and the keychain of a user must not keep a short-lived token. The lookup leaves out the helper's own entry by
-# dropping the count of the environment configuration.
+# www.github.com never see the token. It hands out GITHUB_TOKEN, which the credential pipeline sets around a foreground
+# command only (a background job has none), and only while no other credential helper applies to that URL: git also
+# tells every configured helper to store what it was given, and the keychain of a user must not keep a short-lived
+# token. The lookup leaves out the helper's own entry by dropping the count of the environment configuration.
 _register_github_credential_helper() {
     # One entry per shell, however often this script runs in it.
     [ -n "${_github_credential_helper_registered:-}" ] && return 0
