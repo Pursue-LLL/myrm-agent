@@ -6,29 +6,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ConfigSyncManager, getConfigSyncManager, resetConfigSyncManager } from '@/services/config/ConfigSyncManager';
 import type { ConfigChange, ConfigKey, ConfigRecord, SyncResult } from '@/services/config/types';
+import { OFFLINE_QUEUE_KEY } from './fakeCloudBackend';
 
 const KEY: ConfigKey = 'chatSettings';
 const SECURITY: ConfigKey = 'securityConfig';
 const OTHER: ConfigKey = 'commands';
 const DEVICE = 'dev-local';
-const OFFLINE_QUEUE_KEY = 'config-offline-queue';
-
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-  };
-})();
-Object.defineProperty(global, 'localStorage', { value: localStorageMock });
 
 type Doc = Record<string, number>;
 
@@ -50,7 +33,7 @@ const conflictOn = (conflicts: ConfigKey[], ...versions: Array<[ConfigKey, strin
 });
 
 const storedQueue = () => {
-  const raw = localStorageMock.getItem(OFFLINE_QUEUE_KEY);
+  const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
   return raw ? (JSON.parse(raw) as ConfigChange[]) : [];
 };
 const settleMicrotasks = () => vi.advanceTimersByTimeAsync(0);
@@ -82,7 +65,7 @@ describe('config outbox sending', () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    localStorageMock.clear();
+    localStorage.clear();
     resetConfigSyncManager();
     manager = getConfigSyncManager();
     requests = [];
@@ -150,7 +133,7 @@ describe('config outbox sending', () => {
 
   it('drops an older stored copy of a key once a newer value of it has been accepted', async () => {
     base([KEY, { a: 0 }, '1000_0']);
-    localStorageMock.setItem(
+    localStorage.setItem(
       OFFLINE_QUEUE_KEY,
       JSON.stringify([{ key: KEY, value: { a: 1 }, expectedVersion: '1000_0', timestamp: 1 }]),
     );
@@ -392,6 +375,20 @@ describe('config outbox sending', () => {
           expect.objectContaining({ key: SECURITY, value: { s: 4 }, expectedVersion: '1000_5' }),
         ]);
         expect(storedQueue()).toEqual([expect.objectContaining({ key: SECURITY, value: { s: 4 } })]);
+      });
+
+      it('keeps the queued edit of a clashing key the server has no row for, so the next send creates it', async () => {
+        base([SECURITY, { s: 0 }, '1000_0']);
+        get.mockResolvedValue(null);
+        manager.set(SECURITY, { s: 1 } as never);
+        await settleMicrotasks();
+        manager.set(SECURITY, { s: 2 } as never);
+        await settleMicrotasks();
+
+        await answer(0, conflictOn([SECURITY]));
+        await vi.advanceTimersByTimeAsync(1100);
+
+        expect(requests[1]?.changes).toEqual([expect.objectContaining({ key: SECURITY, value: { s: 2 } })]);
       });
     });
   });

@@ -338,12 +338,11 @@ export class ConfigOutbox {
       editedAt.set(change.key, Math.max(editedAt.get(change.key) ?? 0, change.timestamp));
     }
     try {
-      const { resend, unresolved } = await resolveConflicts(this.host.context(), keys);
+      const { resend, adopted, unresolved } = await resolveConflicts(this.host.context(), keys);
       this.retain(rejected.filter((change) => unresolved.includes(change.key)));
-      // The server's value won for every other key: the edits the user was shown are void, stored copies included.
-      const kept = new Set([...unresolved, ...resend.map((change) => change.key)]);
+      // The server's value won for the adopted keys: the edits the user was shown are void, stored copies included.
       const overruled = (change: ConfigChange) =>
-        keys.includes(change.key) && !kept.has(change.key) && change.timestamp <= (editedAt.get(change.key) ?? 0);
+        adopted.includes(change.key) && change.timestamp <= (editedAt.get(change.key) ?? 0);
       removeOfflineEntries([...rejected, ...this.queue].filter(overruled));
       this.queue = this.queue.filter((change) => !overruled(change));
       if (resend.length > 0) {
