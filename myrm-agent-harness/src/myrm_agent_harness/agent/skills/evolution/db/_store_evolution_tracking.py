@@ -150,21 +150,29 @@ class SkillEvolutionTrackingMixin:
     # --- Evolution constraints ---
 
     def _add_evolution_constraint_sync(self, skill_id: str, constraint_text: str) -> None:
-        """Synchronous constraint save."""
+        """Synchronous constraint save.
+
+        The row check and the insert are one statement: the table's foreign key makes a plain insert for a skill the
+        store holds no row for raise, and a separate lookup first would leave a gap for the row to disappear in.
+        """
         from datetime import datetime
 
         with self._mu:
             self._conn.execute(
                 """
                 INSERT INTO evolution_constraints (skill_id, constraint_text, created_at)
-                VALUES (?, ?, ?)
+                SELECT ?, ?, ?
+                WHERE EXISTS (SELECT 1 FROM skills WHERE skill_id = ?)
                 """,
-                (skill_id, constraint_text, datetime.now(UTC).isoformat()),
+                (skill_id, constraint_text, datetime.now(UTC).isoformat(), skill_id),
             )
             self._conn.commit()
 
     async def add_evolution_constraint(self, skill_id: str, constraint_text: str) -> None:
         """Remember the reason a user gave for rejecting a proposal for a skill.
+
+        A skill the store holds no row for is skipped: only a row can be evolved again, so nothing would read the
+        constraint, and the reason stays on the approval record the caller already wrote.
 
         Args:
             skill_id: Skill identifier

@@ -3,8 +3,8 @@
 Under the deferred-read transaction policy another writer committing between a unit's read and its write aborts the unit
 with SQLITE_BUSY_SNAPSHOT, which ``busy_timeout`` does not cover, and most callers here can only log that: a rolled-back
 draft stays approved with nothing behind it, an approved skill is never bound to its agent, a fork leaves the agent bound
-to the skill it was forked from, a growth record loses the time it was resolved. The tests run the real transaction policy
-on a file database.
+to the skill it was forked from, a growth record loses the time it was resolved, and an approved evolution fails to apply
+because its version cannot be activated. The tests run the real transaction policy on a file database.
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillRecord,
 )
 
+from app.adapters.skill_optimization.sqlalchemy_storage import SQLAlchemyStorage
 from app.api.skills.drafts import _bind_skill_to_agent, _rollback_draft_status
 from app.database.models import Agent, ApprovalRecord, Base
 from app.services.approvals.registry import ApprovalRegistry
@@ -156,3 +157,17 @@ async def test_fork_rebinding_keeps_its_write_when_another_writer_commits_first(
     # A fork gives the payload a new id; without one the binding assertion below holds with no write at all.
     assert payload.skill_id != "skill-1"
     assert (await _stored(policy_db, Agent, "forking-agent")).skill_ids == [payload.skill_id]
+
+
+@pytest.mark.asyncio
+async def test_version_activation_keeps_its_write_when_another_writer_commits_first(policy_db: PolicyDb) -> None:
+    storage = SQLAlchemyStorage(session_factory=policy_db.factory)
+    await storage.save_skill_version("skill-1", 1, "first", created_by="test")
+    await storage.save_skill_version("skill-1", 2, "second", created_by="test")
+    await storage.activate_version("skill-1", 1)
+
+    await run_while_another_writer_commits(policy_db, lambda: storage.activate_version("skill-1", 2))
+
+    active = await storage.get_active_version("skill-1")
+    assert active is not None
+    assert active.version == 2

@@ -7,6 +7,8 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from http.client import HTTPResponse
+from typing import cast
 
 from cdp_chat.support import _e2e_api_urlopen, get_e2e_api_url, get_e2e_ui_url
 from e2e_core.dev_ports import current_api_base, shared_api_base
@@ -188,3 +190,29 @@ def http_json(
     if status not in expected_statuses:
         raise RuntimeError(f"HTTP {method} {url} returned {status}: {raw[:500]!r}")
     return json.loads(raw) if raw else {}
+
+
+def http_json_once(
+    method: str,
+    url: str,
+    body: dict[str, object] | None = None,
+    *,
+    timeout_sec: float = 30.0,
+) -> tuple[int, object]:
+    """One effect-guarded JSON request that returns the status the server answered instead of raising on it.
+
+    ``http_json`` retries 409, 423, 500 and 503, so a request that failed under contention can come back as a success.
+    A race test has to see the first answer.
+    """
+    data = json.dumps(body).encode("utf-8") if body is not None else None
+    request = urllib.request.Request(url, data=data, method=method)  # noqa: S310 - guarded loopback
+    if data is not None:
+        request.add_header("Content-Type", "application/json")
+    try:
+        with cast("HTTPResponse", guarded_urlopen(request, timeout_sec=timeout_sec, max_attempts=1)) as response:
+            raw = response.read()
+            status = response.status
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        status = exc.code
+    return status, json.loads(raw) if raw else {}
