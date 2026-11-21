@@ -122,8 +122,8 @@ def find_existing_unicode_path(target_path: str, base_dir: str | None = None) ->
 
     The typed spelling wins whenever it exists. Otherwise the first candidate that exists where the tools open it
     (below *base_dir* for a relative name, the user's home for a bare ``~``) is returned, unless it is a device
-    or a credential file by name that the typed text does not name: the credential labelling of a read and the ask
-    of the permission engine key to the typed text, so a respelling must not turn it into a file they never saw.
+    or a credential file by name that the typed text does not name: the credential labelling of a read keys to the
+    typed text, so a respelling must not turn it into a file the label never saw.
 
     A network or NT-namespace spelling is refused on its text, the typed one and each candidate, before the first
     ``exists`` call: asking about such a path on Windows connects to the host it names.

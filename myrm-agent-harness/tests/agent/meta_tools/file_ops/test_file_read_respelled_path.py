@@ -2,7 +2,7 @@
 
 The permission engine judges the typed spelling and the opened one (``test_engine_respelled_paths.py``), so the tool
 heals without a verdict of its own. The one respelling it refuses is a credential file the typed text does not name:
-the credential labelling of a read and the engine's ask both read the typed text.
+the credential labelling of a read reads the typed text.
 """
 
 from __future__ import annotations

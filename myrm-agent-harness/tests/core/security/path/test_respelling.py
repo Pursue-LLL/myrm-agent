@@ -172,7 +172,7 @@ def test_a_named_pipe_is_never_a_respelling(workspace: Path) -> None:
     ],
 )
 def test_a_respelling_never_becomes_a_credential_file_the_typed_name_is_not(workspace: Path, typed: str) -> None:
-    # The credential labelling of a read and the engine's ask read the typed text, so the typed text must name it.
+    # The credential labelling of a read reads the typed text, so the typed text must name it.
     (workspace / ".env").write_text("CANARY=1")
     (workspace / ".aws").mkdir()
     (workspace / ".aws" / "credentials").write_text("CANARY=1")
