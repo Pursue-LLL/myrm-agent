@@ -11,7 +11,8 @@
  * [POS]
  * Picker of the add form. It offers the budget keys the server already stores chats under, so a key is picked instead
  * of typed from a provider's chat id. It says nothing until it has something to show (no answer yet, or the lookup
- * failed), and says so when no group is left to pick.
+ * failed), and says so when no group is left to pick. A chip shows its whole key, breaking it across lines when the box
+ * is narrower, so two groups never look alike.
  */
 
 import { useTranslations } from 'next-intl';
@@ -45,7 +46,7 @@ const ChannelGroupPicker = ({ keys, selected, onPick }: ChannelGroupPickerProps)
             aria-pressed={key === selected}
             onClick={() => onPick(key)}
             className={cn(
-              'max-w-full truncate px-2.5 py-1 text-xs font-mono rounded-full border transition-colors',
+              'max-w-full break-all px-2.5 py-1 text-left text-xs font-mono rounded-full border transition-colors',
               key === selected
                 ? 'border-primary/60 bg-primary/10 text-foreground'
                 : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground',

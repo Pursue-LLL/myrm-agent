@@ -21,7 +21,9 @@
  * button is off exactly while one of them is unsettled, whatever other channels do. A limit outside the stored range
  * is explained here and never sent. Deleting is only requested: the confirmation belongs to the panel. A channel no
  * chat has reached yet says so in a neutral note, since a key typed by hand may name a group that never talks to the
- * agent.
+ * agent. What tells channels and senders apart is never cut off: a channel without a label is told apart by its key
+ * alone, so its spend and delete button drop to their own line before the title gives way, a sender's figures do the
+ * same below the sender id, and an identifier wider than the card breaks across lines.
  */
 
 import { useState } from 'react';
@@ -84,17 +86,19 @@ function AuditPanel({ audit }: { audit: ChannelAuditView }) {
       {audit.entries.map((entry) => {
         const pct = audit.totalUsd > 0 ? (entry.total_cost_usd / audit.totalUsd) * 100 : 0;
         return (
-          <div key={entry.sender_id} className="flex items-center gap-2">
-            <span className="text-[11px] text-muted-foreground font-mono truncate min-w-0 flex-1">
+          <div key={entry.sender_id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className="min-w-0 flex-auto text-[11px] text-muted-foreground font-mono break-all">
               {entry.sender_id}
             </span>
-            <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
-              {entry.message_count} {t('auditMessages')}
-            </span>
-            <div className="w-16 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden shrink-0">
-              <div className="h-full rounded-full bg-primary/60 transition-all" style={{ width: `${pct}%` }} />
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {entry.message_count} {t('auditMessages')}
+              </span>
+              <div className="w-16 h-1 rounded-full bg-black/5 dark:bg-white/5 overflow-hidden shrink-0">
+                <div className="h-full rounded-full bg-primary/60 transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-[11px] font-mono tabular-nums">${entry.total_cost_usd.toFixed(4)}</span>
             </div>
-            <span className="text-[11px] font-mono tabular-nums shrink-0">${entry.total_cost_usd.toFixed(4)}</span>
           </div>
         );
       })}
@@ -136,17 +140,17 @@ const ChannelBudgetCard = ({
 
   return (
     <div className="p-3 rounded-lg border border-border/50 space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <div className="flex items-center gap-2 min-w-0">
           <IconShield className={cn('w-4 h-4 shrink-0', colors.text)} />
-          <span className="text-sm font-medium truncate">{name}</span>
+          <span className="min-w-0 text-sm font-medium break-words">{name}</span>
           {status.label && (
             <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline truncate">
               {status.channel_key}
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           <span className="text-xs font-mono tabular-nums">
             ${status.today_cost_usd.toFixed(4)} / ${status.daily_limit_usd.toFixed(2)}
           </span>
