@@ -25,7 +25,6 @@ class NotifyTarget:
 
     channel: str
     recipient_id: str
-    label: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +52,9 @@ class NotifyResult:
 
 @dataclass(slots=True)
 class NotifySessionState:
-    """Per-session state for rate limiting."""
+    """Per-session state for rate limiting.
+
+    ``send_count`` counts the sends a session has claimed: a slot is taken before delivery, so failed sends count too.
+    """
 
     send_count: int = 0

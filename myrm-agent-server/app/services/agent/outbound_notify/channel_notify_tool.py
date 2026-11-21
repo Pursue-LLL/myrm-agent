@@ -146,9 +146,10 @@ def create_channel_notify_tool(
             if resolve_errors:
                 return "Error resolving attachments: " + "; ".join(resolve_errors)
 
-        result = await sender.send(config.destinations[destination], body_truncated, media=media)
-
+        # Claim the slot before awaiting the send. Nothing awaits between the limit check above and this claim, so calls
+        # the agent loop runs concurrently cannot all pass the check while earlier sends are still in flight.
         session_state.send_count += 1
+        result = await sender.send(config.destinations[destination], body_truncated, media=media)
 
         if result.success:
             media_note = f" with {len(media)} attachment(s)" if media else ""

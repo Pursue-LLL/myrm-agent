@@ -16,7 +16,7 @@ from app.services.agent.outbound_notify import (
 )
 
 DESTINATION = "telegram:My TG"
-TARGET = NotifyTarget(channel="telegram", recipient_id="chat_123", label="My TG")
+TARGET = NotifyTarget(channel="telegram", recipient_id="chat_123")
 
 
 class FakeSender:
