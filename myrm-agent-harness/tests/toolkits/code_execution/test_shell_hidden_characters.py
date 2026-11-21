@@ -1,8 +1,4 @@
-"""Layer 1 of the shell command analyzer on its own: control and invisible characters.
-
-Kept apart from ``test_shell_command_analyzer.py``, whose module fixture skips every test when the server tree is not
-checked out next to the harness; these tests need nothing outside the harness.
-"""
+"""Layer 1 of the shell command analyzer on its own: control and invisible characters."""
 
 from __future__ import annotations
 

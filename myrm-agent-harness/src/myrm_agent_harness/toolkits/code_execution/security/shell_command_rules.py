@@ -8,10 +8,10 @@ without growing the engine module.
 Layers served:
 - Layer 1 (raw string): ``BINARY_INJECTION`` (CR/NUL) and ``INVISIBLE_UNICODE``.
 - Layer 1.5 (raw string): ``ANSI_C_QUOTE_RE`` / ``LOCALE_QUOTE_RE`` quoting evasion.
-- Layer 2 (quote-stripped, BLOCK): ``INJECTION_VECTORS_COMPILED`` (shell syntax),
-  ``FIND_EXEC_TERMINATOR_RE`` (the ``find -exec ... \\;`` exemption) and
+- Layer 2 (quote-stripped, BLOCK): ``INJECTION_VECTORS_COMPILED`` (shell syntax) and
   ``DANGEROUS_COMMANDS_COMPILED``.
 - Layer 3 (quote-stripped, ESCALATE): ``SUSPICIOUS_PATTERNS_COMPILED``.
+- Snapshot trigger (quote-stripped, not a threat verdict): ``DESTRUCTIVE_COMMANDS_COMPILED``.
 
 [INPUT]
 - None (stdlib ``re`` only; no dependency on analyzer types)
@@ -19,9 +19,10 @@ Layers served:
 [OUTPUT]
 - BINARY_INJECTION / INVISIBLE_UNICODE: (literal, description) pairs checked on the raw string.
 - ANSI_C_QUOTE_RE / LOCALE_QUOTE_RE: compiled quoting-evasion detectors.
-- INJECTION_VECTORS_COMPILED / FIND_EXEC_TERMINATOR_RE: syntax-injection vectors and the find -exec exemption.
+- INJECTION_VECTORS_COMPILED: syntax-injection vectors (``$()``, backtick, ``${}``, process substitution).
 - DANGEROUS_COMMANDS_COMPILED: BLOCK-level dangerous command patterns (case-insensitive).
 - SUSPICIOUS_PATTERNS_COMPILED: ESCALATE-level suspicious patterns (case-insensitive).
+- DESTRUCTIVE_COMMANDS_COMPILED: commands that change files or repository state enough to warrant a snapshot.
 
 [POS]
 Data tier of the shell command analyzer; consumed only by ``shell_command_analyzer``.
@@ -78,32 +79,32 @@ _INJECTION_VECTORS: tuple[tuple[str, str], ...] = (
     (r"\$\(", "$() command substitution"),
     (r"`", "backtick command substitution"),
     (r"\$\{", "${} variable expansion"),
-    (r";", "semicolon command chaining"),
     (r"<\(", "process substitution <()"),
     (r">\(", "process substitution >()"),
 )
-
-# `find -exec {} \;` and `find -execdir {} \;` use a backslash-escaped
-# semicolon as the command terminator. The `\;` must appear at the very end
-# of the normalized command to qualify — this prevents exempting chained
-# commands like `find ... \; && malicious`.
-FIND_EXEC_TERMINATOR_RE = re.compile(r"\bfind\b.*\s-(?:exec|execdir)\b.*\{\}\s*\\;\s*$")
 
 INJECTION_VECTORS_COMPILED: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern), desc) for pattern, desc in _INJECTION_VECTORS
 )
 
+# An ``rm`` operand ends at white space, at the end of the command, or at a character that ends it with no space
+# between (``rm -fr / >log``, ``rm -rf ~;ls``, the ``)`` of ``(rm -rf ~)``), so ``rm -fr / # note`` and
+# ``find . -exec rm -rf / \;`` end it as ``rm -rf /`` does.
+_OPERAND_END = r"(?=\s|$|[;&|<>)])"
+_ROOT_OPERAND = rf"/{_OPERAND_END}"
+_HOME_OPERAND = rf"~(?:/|{_OPERAND_END})"
+
 _DANGEROUS_COMMANDS: tuple[tuple[str, str], ...] = (
-    (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*/\s*$", "Deleting root directory"),
+    (rf"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*{_ROOT_OPERAND}", "Deleting root directory"),
     (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*/\*", "Deleting all files in root"),
-    (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*~(/|\s|$)", "Deleting home directory"),
+    (rf"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*{_HOME_OPERAND}", "Deleting home directory"),
     (r"\brm\s+(-[a-zA-Z]*[rf][a-zA-Z]*\s+)*\$HOME\b", "Deleting home directory"),
     (r"\brm\s+-rf\s+/(?!\w)", "Recursive force delete from root"),
     # Long-form options: --force, --recursive, --no-preserve-root
     (r"\brm\s+(\S+\s+)*--no-preserve-root\b", "Bypassing rm safety with --no-preserve-root"),
-    (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*/\s*$", "Deleting root (long-form options)"),
+    (rf"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*{_ROOT_OPERAND}", "Deleting root (long-form options)"),
     (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*/\*", "Deleting root files (long-form options)"),
-    (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*~(/|\s|$)", "Deleting home (long-form options)"),
+    (rf"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*{_HOME_OPERAND}", "Deleting home (long-form options)"),
     (r"\brm\s+(\S+\s+)*(--force|--recursive)\s+(\S+\s+)*\$HOME\b", "Deleting home (long-form options)"),
     # Options-after-operand: rm /path -rf, rm ~ -rf
     (r"\brm\s+/\s+-[a-zA-Z]*[rf][a-zA-Z]*", "Deleting root (options after path)"),
@@ -218,4 +219,24 @@ _SUSPICIOUS_PATTERNS: tuple[tuple[str, str], ...] = (
 
 SUSPICIOUS_PATTERNS_COMPILED: tuple[tuple[re.Pattern[str], str], ...] = tuple(
     (re.compile(pattern, re.IGNORECASE), desc) for pattern, desc in _SUSPICIOUS_PATTERNS
+)
+
+
+# ---------------------------------------------------------------------------
+# Snapshot trigger: commands that change files or repository state (quote-stripped)
+# ---------------------------------------------------------------------------
+
+_DESTRUCTIVE_COMMANDS: tuple[str, ...] = (
+    r"\brm\s+",
+    r"\bmv\s+",
+    r"\bsed\s+-i\b",
+    r"\bgit\b(?:\s+\S+)*?\s+(reset|clean|checkout|restore|apply)(?=\s|$)",
+    r"\bcp\s+.*-r\b",
+    r"\bfind\s+.*-delete\b",
+    r"\bfind\s+.*-exec\s+rm\b",
+    r">\s*\S+",  # redirection overwrite
+)
+
+DESTRUCTIVE_COMMANDS_COMPILED: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE) for pattern in _DESTRUCTIVE_COMMANDS
 )

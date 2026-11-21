@@ -107,7 +107,7 @@ class TestShellExecKeepsEveryCategory:
     @pytest.mark.parametrize(
         "command",
         [
-            "ls; cat x",
+            "echo $(whoami)",
             "python -c 'print(1)'",
             "sudo apt-get install -y curl",
             "kill -9 1234",

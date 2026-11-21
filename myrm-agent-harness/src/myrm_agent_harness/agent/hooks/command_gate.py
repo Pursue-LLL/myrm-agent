@@ -85,7 +85,7 @@ def set_command_hook_approver(approver: HookCommandApprover | None) -> None:
 # Static gate
 # ---------------------------------------------------------------------------
 
-# Shell-syntax vectors (``$()``, backticks, ``${}``, ``;``, process substitution)
+# Shell-syntax vectors (``$()``, backticks, ``${}``, process substitution)
 # police LLM-generated one-liners. In a hook a person wrote or reviewed they are
 # ordinary shell, and refusing them rejects most real hooks. Control-character
 # smuggling is categorised separately by the analyzer and is never waived.

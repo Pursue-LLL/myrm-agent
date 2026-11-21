@@ -51,7 +51,7 @@ contract:
 When calling `bash_code_execute_tool`, always pass **`reason`** (≥10 characters: why this command runs) and **`command`**. Put `reason` first.
 
 Important safety rules:
-- Execute each command independently (do NOT use semicolons `;` or inline subshells `$()`, which are blocked by security policy).
+- Execute each command independently (do NOT use inline subshells `$()`, which are blocked by security policy).
 - To install required Python libraries (like `reportlab`), run `pip install reportlab` as a separate single command.
 - To execute scripts, write them with `file_write_tool` first or run `python3 script.py` directly.
 

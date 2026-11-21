@@ -1,9 +1,11 @@
 """Path security domain — the single import surface for every path protection rule.
 
-Five modules, one responsibility each:
+Seven modules, one responsibility each:
 
 - ``pattern``    — glob matcher engine (`*`/`?`/`**`/character classes, case-insensitive by default)
 - ``filesystem`` — generic path safety: dangerous roots, device names, home spelling, boundary, safe join, coercion
+- ``typed_path`` — the file a typed path opens: home spelling, workspace join, links followed
+- ``respelling`` — the on-disk name of a path typed with quotes, compatibility characters or decomposed accents
 - ``rules``      — protected-path policy: which files must not be touched, and the predicates that read the rules
 - ``bounded_read`` — text reads of untrusted files that cannot exhaust memory or block on a FIFO or device
 - ``confined_write`` — new files below a trusted directory that a symlink or hard link cannot redirect
@@ -18,10 +20,13 @@ bypass the predicates that carry the security policy.
 - path.bounded_read (POS: Bounded text read of files in an untrusted folder)
 - path.confined_write (POS: Exclusive file creation below a trusted directory, decided on descriptors so no link redirects it)
 - path.filesystem (POS: Generic filesystem path safety — no product protection policy)
+- path.respelling (POS: Finds the file a model meant when its typed spelling differs from the disk)
 - path.rules (POS: Protected-path policy)
+- path.typed_path (POS: The one definition of which file a tool opens for the text it was given)
 
 [OUTPUT]
 - is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_network_or_nt_path, network_path_refusal, expand_home, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
+- opened_path, find_existing_unicode_path
 - read_text_bounded, BoundedRead, ReadRefusal
 - open_directory_beneath, ConfinedDirectory, UnsafeDirectoryError
 - is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_executable_git_metadata_file
@@ -90,6 +95,9 @@ from myrm_agent_harness.core.security.path.filesystem import (
 from myrm_agent_harness.core.security.path.filesystem import (
     safe_join_path as safe_join_path,
 )
+from myrm_agent_harness.core.security.path.respelling import (
+    find_existing_unicode_path as find_existing_unicode_path,
+)
 from myrm_agent_harness.core.security.path.rules import (
     EVIDENCE_READONLY_PATTERNS as EVIDENCE_READONLY_PATTERNS,
 )
@@ -117,6 +125,9 @@ from myrm_agent_harness.core.security.path.rules import (
 from myrm_agent_harness.core.security.path.rules import (
     is_sensitive_file as is_sensitive_file,
 )
+from myrm_agent_harness.core.security.path.typed_path import (
+    opened_path as opened_path,
+)
 
 __all__ = (
     "BLOCKED_DEVICE_NAMES",
@@ -134,6 +145,7 @@ __all__ = (
     "coerce_filesystem_path",
     "covers_dangerous_path",
     "expand_home",
+    "find_existing_unicode_path",
     "is_blocked_device_path",
     "is_content_not_path",
     "is_dangerous_path",
@@ -145,6 +157,7 @@ __all__ = (
     "is_within_boundary",
     "network_path_refusal",
     "open_directory_beneath",
+    "opened_path",
     "read_text_bounded",
     "safe_join_path",
 )
