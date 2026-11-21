@@ -5,6 +5,7 @@ credentials and ``status`` and ``diff`` are summarised. A wrapper that loses the
 error, one that reads an unset variable breaks them for every script in strict mode, and one that leaks its own
 variables or drops an argument changes what the next line of the caller's command sees, so these cases run the whole
 path: the header, the wrapper and git itself.
+The environment the shell inherits decides what git reads, so the last cases set git's configuration variables on the host.
 The remote is a bare repository inside the workspace, so no network is involved.
 """
 
@@ -161,3 +162,27 @@ async def test_git_without_arguments_in_strict_mode_prints_the_usage_of_git(real
 
     assert "usage: git" in output
     assert "unbound variable" not in output
+
+
+async def test_git_runs_when_the_host_sets_a_group_of_git_config_variables_with_a_name_missing(
+    real_stack: RealBashStack, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A count and a value without their key leave git failing on every command if the shell inherits them."""
+    monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+    monkeypatch.setenv("GIT_CONFIG_VALUE_0", "x")
+
+    output = await real_stack.run("git init -q -b main && git status --short && echo git-ok", timeout=_TIMEOUT)
+
+    assert "git-ok" in output
+    assert "missing config key" not in output
+
+
+async def test_git_config_parameters_of_the_host_cannot_make_the_shell_run_a_program(
+    real_stack: RealBashStack, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    marker = tmp_path / "ran"
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", f"'alias.probe=!touch {marker}'")
+
+    await real_stack.run("git probe", timeout=_TIMEOUT)
+
+    assert not marker.exists()

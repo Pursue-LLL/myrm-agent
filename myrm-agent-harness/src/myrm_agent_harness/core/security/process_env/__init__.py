@@ -2,7 +2,8 @@
 
 [INPUT]
 - code_injection_env::CODE_INJECTION_ENV_VARS, CODE_INJECTION_ENV_PREFIXES, is_code_injection_env_name (POS: Names that make a program run what the value names)
-- env_isolation::EnvInheritPolicy, DEFAULT_CHILD_SAFE_ENV_KEYS, FORBIDDEN_EXACT_KEYS, build_isolated_child_env, sanitize_env, is_non_inheritable_env_var (POS: What a child process inherits)
+- env_isolation::EnvInheritPolicy, build_isolated_child_env, sanitize_env, is_non_inheritable_env_var (POS: What a child process inherits)
+- env_name_tables::DEFAULT_CHILD_SAFE_ENV_KEYS, FORBIDDEN_EXACT_KEYS (POS: The names that decide what a child process may inherit)
 
 [OUTPUT]
 - CODE_INJECTION_ENV_VARS / CODE_INJECTION_ENV_PREFIXES / is_code_injection_env_name — the names no credential or child environment may carry
@@ -18,13 +19,12 @@ from .code_injection_env import (
     is_code_injection_env_name,
 )
 from .env_isolation import (
-    DEFAULT_CHILD_SAFE_ENV_KEYS,
-    FORBIDDEN_EXACT_KEYS,
     EnvInheritPolicy,
     build_isolated_child_env,
     is_non_inheritable_env_var,
     sanitize_env,
 )
+from .env_name_tables import DEFAULT_CHILD_SAFE_ENV_KEYS, FORBIDDEN_EXACT_KEYS
 
 __all__ = [
     "CODE_INJECTION_ENV_PREFIXES",

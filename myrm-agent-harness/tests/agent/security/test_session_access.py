@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from myrm_agent_harness.agent.security.checks import check_path_policy
 from myrm_agent_harness.agent.security.session_access import (
@@ -76,6 +77,22 @@ def test_resolve_grant_directory_path_names_the_directory_the_tools_open(tmp_pat
 
     assert resolve_grant_directory_path("~/notes.txt", str(workspace)) == os.path.realpath(str(home))
     assert resolve_grant_directory_path("~root/notes.txt", str(workspace)) == os.path.realpath(str(workspace / "~root"))
+
+
+def test_a_text_no_file_can_be_named_by_resolves_to_no_directory_and_plans_no_grant(tmp_path: Path) -> None:
+    set_session_access_roots(())
+    workspace = tmp_path / "ws"
+    workspace.mkdir()
+    policy = PathPolicy(forbidden_paths=frozenset(), access_roots=())
+
+    for text in ("a\x00b", "a\ud800b"):
+        assert resolve_grant_directory_path(text, str(workspace)) == ""
+        assert (
+            plan_directory_grants(
+                {"paths": [text]}, policy=policy, workspace_root=str(workspace), permission="file_read"
+            )
+            == []
+        )
 
 
 def test_grant_rejects_forbidden_path(tmp_path) -> None:
@@ -166,7 +183,7 @@ class TestGrantDirectoriesForCall:
             {"paths": [f"{downloads}/a.csv", "src/inside.py", f"{reports}/b.csv:1-20"]},
             policy=PathPolicy(forbidden_paths=frozenset(), access_roots=()),
             workspace_root=workspace,
-            writable=False,
+            permission="file_read",
         )
         assert granted == [downloads, reports]
         assert [root.path for root in get_session_access_roots()] == [downloads, reports]
@@ -180,7 +197,7 @@ class TestGrantDirectoriesForCall:
             {"paths": ["src/a.py", f"{workspace}/b.py"]},
             policy=PathPolicy(forbidden_paths=frozenset(), access_roots=()),
             workspace_root=workspace,
-            writable=False,
+            permission="file_read",
         )
         assert granted == []
         assert get_session_access_roots() == ()
@@ -192,7 +209,7 @@ class TestGrantDirectoriesForCall:
             {"files": [f"{downloads}/a.csv", f"{downloads}/b.csv"]},
             policy=PathPolicy(forbidden_paths=frozenset(), access_roots=()),
             workspace_root=workspace,
-            writable=True,
+            permission="file_write",
         )
         assert granted == [downloads]
         assert get_session_access_roots()[0].writable
@@ -205,7 +222,7 @@ class TestGrantDirectoriesForCall:
             {"paths": [f"{downloads}/id_rsa"]},
             policy=PathPolicy(forbidden_paths=frozenset({downloads})),
             workspace_root=workspace,
-            writable=False,
+            permission="file_read",
         )
         assert granted == []
         assert get_session_access_roots() == ()
@@ -217,7 +234,7 @@ class TestGrantDirectoriesForCall:
             {"paths": ["/mcp/gmail/send_email.md", "https://example.com/a"], "pattern": "*"},
             policy=PathPolicy(forbidden_paths=frozenset(), access_roots=()),
             workspace_root=workspace,
-            writable=False,
+            permission="file_read",
         )
         assert granted == []
 
@@ -239,7 +256,7 @@ class TestPlanDirectoryGrants:
             {"paths": [f"{downloads}/a.csv", "src/inside.py", f"{downloads}/b.csv:1-5"]},
             policy=self._policy(),
             workspace_root=str(workspace),
-            writable=False,
+            permission="file_read",
         )
         assert [(root.path, root.writable) for root in plan] == [(os.path.realpath(downloads), False)]
         assert get_session_access_roots() == (), "planning grants nothing"
@@ -254,9 +271,45 @@ class TestPlanDirectoryGrants:
             {"file_path": f"{reports}/out.csv"},
             policy=self._policy(),
             workspace_root=str(workspace),
-            writable=True,
+            permission="file_write",
         )
         assert [root.writable for root in plan] == [True]
+
+    def test_a_read_is_offered_the_folder_of_the_file_it_opens_in_place_of_a_quoted_path(self, tmp_path) -> None:
+        # The quoted text names nothing below the workspace, so the read opens the file the quotes wrap.
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        downloads = tmp_path / "downloads"
+        for directory in (workspace, downloads):
+            directory.mkdir()
+        (downloads / "a.csv").write_text("x", encoding="utf-8")
+        call = {"paths": [f'"{downloads}/a.csv"']}
+
+        plan = plan_directory_grants(call, policy=self._policy(), workspace_root=str(workspace), permission="file_read")
+
+        assert [(root.path, root.writable) for root in plan] == [(os.path.realpath(downloads), False)]
+        granted = grant_directories_for_call(
+            call, policy=self._policy(), workspace_root=str(workspace), permission="file_read"
+        )
+        assert granted == [os.path.realpath(downloads)]
+        set_session_access_roots(())
+
+    def test_a_write_is_offered_nothing_for_a_quoted_path_since_it_opens_exactly_that_text(self, tmp_path) -> None:
+        set_session_access_roots(())
+        workspace = tmp_path / "ws"
+        downloads = tmp_path / "downloads"
+        for directory in (workspace, downloads):
+            directory.mkdir()
+        (downloads / "a.csv").write_text("x", encoding="utf-8")
+
+        plan = plan_directory_grants(
+            {"file_path": f'"{downloads}/a.csv"'},
+            policy=self._policy(),
+            workspace_root=str(workspace),
+            permission="file_write",
+        )
+
+        assert plan == []
 
     def test_a_directory_the_policy_forbids_is_not_offered(self, tmp_path) -> None:
         set_session_access_roots(())
@@ -268,7 +321,7 @@ class TestPlanDirectoryGrants:
             {"path": f"{secret}/key.txt"},
             policy=PathPolicy(forbidden_paths=frozenset({str(secret)})),
             workspace_root=str(workspace),
-            writable=False,
+            permission="file_read",
         )
         assert plan == []
 
@@ -283,7 +336,7 @@ class TestPlanDirectoryGrants:
             {"path": f"{downloads}/a.csv"},
             policy=merge_path_policy_with_session_access(self._policy()),
             workspace_root=str(workspace),
-            writable=False,
+            permission="file_read",
         )
         assert plan == []
         set_session_access_roots(())
@@ -298,7 +351,7 @@ class TestPlanDirectoryGrants:
             directory.mkdir()
             files.append(f"{directory}/f.txt")
         plan = plan_directory_grants(
-            {"paths": files}, policy=self._policy(), workspace_root=str(workspace), writable=False
+            {"paths": files}, policy=self._policy(), workspace_root=str(workspace), permission="file_read"
         )
         assert len(plan) == 5
 
@@ -313,7 +366,7 @@ class TestPlanDirectoryGrants:
             {"file_path": f"{docs}/out.txt"},
             policy=merge_path_policy_with_session_access(self._policy()),
             workspace_root=str(workspace),
-            writable=True,
+            permission="file_write",
         )
         assert [(root.path, root.writable) for root in plan] == [(os.path.realpath(docs), True)]
         set_session_access_roots(())
@@ -334,7 +387,7 @@ class TestPlanDirectoryGrants:
             {"paths": [f"{outsider}/x.txt", f"{directories[2]}/y.txt"]},
             policy=merge_path_policy_with_session_access(self._policy()),
             workspace_root=str(workspace),
-            writable=True,
+            permission="file_write",
         )
         assert [root.path for root in plan] == [os.path.realpath(directories[2])]
         set_session_access_roots(())

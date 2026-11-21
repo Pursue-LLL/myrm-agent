@@ -503,12 +503,15 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/channel_bridge/wake_return/test_wake_return_wiring.py` | 集成 | 渠道桥装配登记承载方与忙探针（回合登记的来源与它们读取的是同一份）：聊过的会话的唤醒回复送到网关、没聊过的不送、网关说忙的聊过的会话探针报忙；`stop_channel_gateway` 之后唤醒回复不再离开应用、探针不再报忙 |
 | `core/channel_bridge/test_execute_preamble_wake_origin.py` | 模块 | 谁登记 IM 来源：所有者私聊的回合登记；群聊、访客、续跑、会话打不开的回合不登记（唤醒回合带着所有者的全部记忆，回复不能进入记忆隔离舱里的对话） |
 | `core/channel_bridge/test_execute_preamble_resume_session.py` | 模块 | 审批续跑对真实 SQLite：纪元已翻篇后仍接回提问回合的聊天、纪元内首条消息的续跑不被当成新对话（不播报 reset）、聊天已不存在时回一条标记失败的说明、工作区打不开时回失败回合；没有会话键的续跑仍按本条消息自己的会话解析 |
+| `services/test_channel_budget.py` | 单元 | 渠道预算注册表与记账：策略的默认值与自定义值；未知渠道一律放行、启用的策略建守卫、停用的移除守卫、`remove` 同时清守卫与策略；记账触发警告与超限；状态字典（启用、停用、未知渠道、按渠道键排序、`policies` 返回副本）；初始成本与占比；重配已有守卫的渠道时，新守卫从已累计的花费与查出的当日成本中较大的一个起算（两个方向各一断言）；`should_block_channel` 与 `record_channel_cost`（无守卫放行、超限拦截、零与负成本不记、正成本累计） |
 | `services/test_channel_budget_cost_recovery.py` | 模块 | 渠道预算的当日成本与审计对真实 SQLite：汇总本群全部聊天（纪元、话题、智能体），相邻群组与 `_` 通配符的支出不计入 |
 | `services/test_channel_budget_key.py` | 单元 | 渠道预算键就是群组的会话键：8 种渠道群 ID 的写法（含大写、标点、域名、`+/=`）对 `SessionKey.to_str()` 逐字一致；手输的四种写法（原样、渠道大写、首尾空格、手工小写）规范化后同一个键且再规范化不变；不成群组形态的键只修剪并转小写、写入口用的解析以英文拒绝；策略的键总是规范键、非文本键仍是校验错误；同一群的多条策略合并（启用者优先、再取低限额、平局取先者）并记一条 WARNING，不同群组各自保留且顺序不变 |
 | `services/test_channel_budget_policy_keys.py` | 模块 | 策略对真实 SQLite 与真实预算接口、真实入站消息的会话键：按群 ID 原写法手输的键能拦住本群、重启后恢复本群当日支出（8 种群 ID 写法各一），重启后停用的策略仍按停用状态列出且不建守卫，库里按任意写法存下的行读出即规范并生效，两种写法存下的同群策略在下一次写入时并成一条，审计与删除接受与存下的键写法不同的键（大小写、首尾空格），不成群组形态的键以 400 拒绝且不入库 |
+| `services/test_channel_budget_policy_patch.py` | 模块 | 渠道预算的局部更新（真实 SQLite 与真实预算接口处理函数）：只改传入的字段、其余（上限、阈值、标签）保持库里的值；过期页面发来的改动不会撤销另一处已调低的上限（库里与生效的守卫都是新上限）；改动前已被删除的渠道得到 404，既不新建也不进注册表；改动立即作用于生效的预算（调低上限后超支被拦、停用后不拦）；已花的数字不因改动回落（读完当日成本后、改动写入前又有一轮花费记入，或当日成本读不到时，改动之后仍是已累计的花费）；越界值（0、2.0、显式 null）以 400 拒绝且不入库；请求体不能带 `channel_key` 等策略没有的字段；键接受任意写法，不成群组形态的键以 400 拒绝 |
+| `services/test_channel_budget_write_contention.py` | 模块 | 渠道预算的写在另一个写者先提交时不丢（真实事务策略的文件库，夹具 `tests/support/policy_sqlite.py`）：保存、局部更新、删除三处读改写各自先等写锁再读，写者提交后写入落库（删掉锁的代码，三个用例以 `database is locked` 失败）；两次保存先后开始、后开始的先完成时，生效的守卫与库里存下的是同一条策略（成本查询放在提交与注册表更新之间时两者分叉） |
 | `support/channel_budget_fixtures.py` | 辅助 | 预算测试共用：各渠道群 ID 的真实写法（`GROUP_IDS`）与把渠道预算服务、全局预算的重启回收、预算接口和审计查询接到测试库的 `budget_database` |
 | `services/test_budget_day.py` | 单元 | 预算日把进程内守卫、`budget_day_start_utc` 与本机时钟钉在一起：两个 harness 守卫在本机日历日变化时翻日（守卫改用别的日界会变红）；预算日起点等于本地午夜换成朴素 UTC（UTC、上海、洛杉矶，含夏令时开始与结束的 23、25 小时日，往前数天按日历日而不是 24 小时块）；起点等于本机时钟真正换日的那一刻（含半小时制的 Kolkata、Lord_Howe） |
-| `services/test_budget_recovery_window.py` | 模块 | 重启后的渠道成本回收、全局成本回收与渠道审计都从预算日起点汇总（真实 SQLite，本机时区取 UTC、上海、洛杉矶各跑一遍）：起点前一秒的回复不计、后一秒的计入；审计的 `days` 取 0、1、7 时各按往前第 `days` 天的预算日起点 |
+| `services/test_budget_recovery_window.py` | 模块 | 重启后的渠道成本回收、全局成本回收与渠道审计都从预算日起点汇总（真实 SQLite，本机时区取 UTC、上海、洛杉矶各跑一遍）：起点前一秒的回复不计、后一秒的计入；审计覆盖含今天的最近 `days` 个预算日，`days` 取 1、7、90 时各从往前第 `days - 1` 天的预算日起点汇总 |
 | `support/budget_day_clock.py` | 辅助 | 预算日测试共用的本机时钟控制：`host_timezone`（切换进程时区并还原）、`budget_today`（让守卫与恢复窗口读到指定的本机日期）、`host_day_start_utc`（按分钟读本机时钟求出某天的起点，与被测函数不共用代码） |
 | `services/chat/test_chat_channel_lookup.py` | 模块 | `get_newest_channel_chat_under`：取会话键下最新的聊天，id 以该键开头的另一对端不被取到，没有聊天时为空 |
 | `lifecycle/test_instance_auto_backup_schedule.py` | 模块 | 调度器注册整实例定时备份检查：任务 id `instance_auto_backup`、每小时间隔、启动后约 5 分钟首次触发、不影响同调度器的相邻任务；数据库维护任务 `db_maintenance` 每 6 小时、首次在启动后约 3 分钟（不与首屏请求抢事件循环） |

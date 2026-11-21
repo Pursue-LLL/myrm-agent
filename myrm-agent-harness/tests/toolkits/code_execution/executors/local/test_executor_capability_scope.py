@@ -156,7 +156,7 @@ async def test_native_file_operations_are_denied_without_write(executor: LocalEx
 
 async def test_evidence_records_launched_commands_only(executor: LocalExecutor, workspace: Path) -> None:
     with track_execution() as blocked:
-        refused = await executor.execute_bash(_context(workspace, "echo a; echo b"))
+        refused = await executor.execute_bash(_context(workspace, "echo $(whoami)"))
     with track_execution() as launched:
         ran = await executor.execute_bash(_context(workspace, "echo hi"))
 

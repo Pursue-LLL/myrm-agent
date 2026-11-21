@@ -10,9 +10,7 @@ from langchain_core.runnables import RunnableConfig
 
 from myrm_agent_harness.agent.meta_tools.file_search import path_hint
 from myrm_agent_harness.agent.meta_tools.file_search.path_hint import (
-    find_existing_unicode_path,
     format_path_not_found_hint,
-    generate_unicode_path_candidates,
     levenshtein_distance_bounded,
     mcp_namespace_error,
     suggest_similar_paths,
@@ -85,30 +83,6 @@ def test_is_under_disabled_skill_root_exact_match() -> None:
     assert is_under_disabled_skill_root("/workspace/skills/off", roots)
 
 
-def test_generate_unicode_path_candidates() -> None:
-    # Test curly quotes, NBSP, fullwidth slashes
-    raw = "‘src／components／button.tsx’"
-    candidates = generate_unicode_path_candidates(raw)
-    assert len(candidates) > 0
-    assert any("src/components/button.tsx" in c for c in candidates)
-
-
-def test_find_existing_unicode_path(tmp_path: Path) -> None:
-    # Create an on-disk file with ASCII name
-    file_path = tmp_path / "app_config.json"
-    file_path.write_text("{}", encoding="utf-8")
-
-    # Probe with curly quotes and NBSP
-    probed = find_existing_unicode_path("“app_config.json”", base_dir=str(tmp_path))
-    assert probed is not None
-    assert "app_config.json" in probed
-
-
-def test_find_existing_unicode_path_blocked_devices(tmp_path: Path) -> None:
-    assert find_existing_unicode_path("/dev/zero") is None
-    assert find_existing_unicode_path("CON.txt", base_dir=str(tmp_path)) is None
-
-
 def test_levenshtein_distance_bounded() -> None:
     assert levenshtein_distance_bounded("readme.md", "readme.md", max_dist=2) == 0
     assert levenshtein_distance_bounded("redme.md", "readme.md", max_dist=2) == 1
@@ -160,15 +134,6 @@ def test_suggest_similar_paths_never_suggests_a_named_pipe(tmp_path: Path) -> No
 
 
 def test_path_hint_edge_cases(tmp_path: Path) -> None:
-    # Empty path
-    assert generate_unicode_path_candidates("") == []
-    assert find_existing_unicode_path("") is None
-
-    # Direct probe without base_dir
-    file_p = tmp_path / "direct.txt"
-    file_p.write_text("hello", encoding="utf-8")
-    assert find_existing_unicode_path(str(file_p)) == str(file_p)
-
     # Bounded distance with longer s1
     assert levenshtein_distance_bounded("longstringtest", "short", max_dist=2) == 3
     assert levenshtein_distance_bounded("abcde", "abxye", max_dist=1) == 2

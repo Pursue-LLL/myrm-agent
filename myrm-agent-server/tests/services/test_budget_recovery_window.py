@@ -1,8 +1,10 @@
-"""After a restart the recoveries and the audit count the spend since the host's budget day began, in any host time zone.
+"""The recoveries and the audit count spend from the start of a budget day on the host clock, in any host time zone.
 
-Stored messages carry naive UTC times while the guards roll over on the host's local calendar day, so a recovery that
-starts at the wrong instant seeds a guard with yesterday's spend or leaves part of today's out. The tests put a reply
-one second before and one second after that instant, read off the host clock, and only the second one may count.
+After a restart the recoveries count the spend since today's budget day began; the audit counts the last ``days`` budget
+days, today included. Stored messages carry naive UTC times while the guards roll over on the host's local calendar day,
+so a window that starts at the wrong instant seeds a guard with yesterday's spend or leaves part of today's out. The
+tests put a reply one second before and one second after that instant, read off the host clock, and only the second one
+may count.
 """
 
 from __future__ import annotations
@@ -55,9 +57,9 @@ async def test_the_global_recovery_starts_with_the_budget_day(db_session: AsyncS
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("days", [0, 1, 7])
-async def test_the_audit_starts_with_the_budget_day_the_given_days_back(db_session: AsyncSession, days: int) -> None:
-    await _spend_around_day_start(db_session, days_ago=days)
+@pytest.mark.parametrize("days", [1, 7, 90])
+async def test_the_audit_covers_the_last_days_budget_days_today_included(db_session: AsyncSession, days: int) -> None:
+    await _spend_around_day_start(db_session, days_ago=days - 1)
 
     response = await get_channel_audit(_GROUP, days=days)
 

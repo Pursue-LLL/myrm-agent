@@ -157,7 +157,9 @@
 | `AgentUsageCard.tsx`                        | Agent 用量卡片                                                                                                                                                                                                                                   |
 | `__tests__/UsageStatisticsSection.test.tsx` | 用量统计面板单测：默认 30 天窗口的全量加载、雷达 / Wiki 证据的显示条件（Wiki 加载失败只隐藏该区块）、时间范围与 Top 会话指标切换后的重新加载参数、空态、CSV 导出、会话分析对话框开合、加载失败的错误态（文字色走 `text-destructive-text`）与重试 |
 | `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
-| `ChannelBudgetSection.tsx`       | 渠道预算管理                                                                                                                           |
+| `ChannelBudgetSection.tsx`       | 渠道预算管理（各渠道每日额度与用量；每次编辑只发它改的那一个字段（PATCH），所以连着做的两次编辑、或另一个页面同时做的编辑不会把对方的值写回去；每个渠道的上限输入框由 `ChannelLimitInput` 承担；新增渠道整条创建（PUT）；展开审计看近 7 个预算日各发送者的条数与花费，占比条按审计窗口合计取份额，与渠道今天的花费无关） |
+| `ChannelLimitInput.tsx`          | 渠道每日上限的行内输入框（失焦保存；没在键入时显示当前生效的上限，所以保存被拒、清空或键入的数等于生效上限时，框都回到生效值，被拒的数不会留在框里、也不会在下一次失焦时再发出去；草稿等保存结束才清掉，保存成功后新策略读回之前框里仍是键入的数） |
+| `__tests__/ChannelBudgetSection.test.tsx` | 渠道预算面板单测：展开审计后各发送者的占比条取自窗口合计，渠道今天花费为 0、小于或大于窗口合计时都一样；窗口花费为 0 时条为空；上限的保存还在进行时点开关，两次保存各自只带自己的字段（先 `{ daily_limit_usd }`、再 `{ enabled }`）；新增渠道走整条创建、不走更新；上限框：保存被拒后回到生效上限且再次进出不重发，清空后失焦不发请求并回到生效上限，键入的数等于生效上限时不发请求，保存成功后新策略读回之前框里仍是键入的数 |
 | `AgentCommerceBudgetSection.tsx` | 消费额度闸面板（单笔/每日上限、商户域名白名单、一键冻结与账本流水；展开的账本行详情标签取自 `settings.commerceBudget`）                  |
 | `MemoryGuardianCard.tsx`         | 记忆守护者卡片（safe/force 触发、策略配置、晨间摘要夜间窗口聚合）                                                                      |
 | `RoutingAnalyticsPanel.tsx`      | 路由分析面板（模型路由/成本格式化）                                                                                                    |
