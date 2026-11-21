@@ -11,6 +11,7 @@
  * [POS]
  * API TTS engine. Streams `/tts/synthesize-stream` into a MediaSource buffer, falls back to the one-shot
  * `/tts/synthesize` blob when MediaSource cannot play MP3, and reports a failed synthesis through a toast.
+ * Only one instance speaks at a time: starting speech stops whichever instance (message row) was speaking.
  */
 
 'use client';
@@ -50,6 +51,11 @@ class TtsRequestError extends Error {
   }
 }
 
+// Audio elements do not queue behind one another and every message row mounts its own engine, so this slot is what
+// keeps two rows from speaking at once: an engine that starts speaking stops the one holding it. A stop only touches
+// the stopped engine's own audio and request, so stopping a holder that has already finished is harmless.
+let speakerStop: (() => void) | null = null;
+
 export function useApiTTS(options: UseTTSOptions): TTSEngine {
   const { provider } = options;
   const tVoice = useTranslations('voice');
@@ -87,7 +93,16 @@ export function useApiTTS(options: UseTTSOptions): TTSEngine {
     setState('idle');
   }, [cleanup]);
 
-  useEffect(() => stop, [stop]);
+  // Unmounting ends what this instance voices and gives up its place as the speaker.
+  useEffect(
+    () => () => {
+      stop();
+      if (speakerStop === stop) {
+        speakerStop = null;
+      }
+    },
+    [stop],
+  );
 
   const notifyTtsFailure = useCallback(
     (status: number) => {
@@ -255,6 +270,11 @@ export function useApiTTS(options: UseTTSOptions): TTSEngine {
       if (!cleaned) {
         return;
       }
+
+      if (speakerStop && speakerStop !== stop) {
+        speakerStop();
+      }
+      speakerStop = stop;
 
       setState('loading');
       const controller = new AbortController();
