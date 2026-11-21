@@ -5,7 +5,7 @@
 - app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share.share_registry (POS: share-link lifecycle registry)
 - app.database.models.artifact::Artifact (POS: artifact + versions metadata)
-- app.core.infra.ingress::resolve_share_url_base (POS: public-ingress share base SSOT)
+- app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
 - app.api.files.artifact_share_public::public_router (POS: unauthenticated serving)
 
 [OUTPUT]
@@ -20,10 +20,10 @@ list endpoint rebuilds each unprotected share path on the fly (deterministic
 HMAC tokens) so links are displayable/copyable without persisting raw tokens;
 password-protected rows carry a persisted ``share_path`` (their token cannot be
 rebuilt because the password is never stored). Create and list responses also
-carry an absolute ``share_url`` derived from the shared public-ingress resolver
-(``resolve_share_url_base``) so links stay reachable outside the local host in
-hosted/tunneled deployments (falls back to ``None`` so the frontend assembles
-from origin when no ingress is configured).
+carry an absolute ``share_url`` derived from the shared public link base
+(``resolve_public_link_base``: running tunnel, else public ingress) so links stay
+reachable outside the local host in hosted/tunneled deployments (falls back to
+``None`` so the frontend assembles from origin when neither exists).
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_workspace_root
-from app.core.infra.ingress import resolve_share_url_base
+from app.core.infra.ingress import resolve_public_link_base
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.services.artifacts.share.share_bundle import materialize_share_bundle
@@ -193,7 +193,7 @@ async def create_artifact_share_preview(
         raise HTTPException(status_code=500, detail="Failed to register share link") from exc
 
     share_path = _share_path(token)
-    base = await resolve_share_url_base()
+    base = await resolve_public_link_base()
     return CreateArtifactShareResponse(
         token=token,
         share_path=share_path,
@@ -226,7 +226,7 @@ async def get_artifact_share_records(
 ) -> list[ArtifactShareRecordResponse]:
     """List unrevoked, unexpired share links for the management GUI (read-only)."""
     rows = await list_active_shares(db)
-    base = await resolve_share_url_base()
+    base = await resolve_public_link_base()
     return [_record_response(row, base) for row in rows]
 
 

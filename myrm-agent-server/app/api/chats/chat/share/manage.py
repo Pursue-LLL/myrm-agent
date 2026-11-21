@@ -4,7 +4,7 @@
 - app.services.chat.share_token (POS: HMAC token create/rebuild)
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
 - app.core.security.share.share_hmac (POS: token fingerprint)
-- app.core.infra.ingress (POS: public-ingress SSOT + share base resolver)
+- app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
 
 [OUTPUT]
 - router: authenticated create/revoke/status endpoints
@@ -18,8 +18,8 @@ state (unshared / revoked / active / password-protected) so the GUI can reopen t
 and a working revoke entry; unprotected links are rebuilt deterministically from the persisted expiry,
 password-protected shares return a status only (their token cannot be rebuilt because the password is never
 stored). Expired links — password-protected or not — report as unshared so a past-due share never surfaces as
-active. Share URLs are built from the public-ingress SSOT (falling back to the request origin) so links stay
-reachable in hosted/tunneled deployments. Cloud: public URL; Local/Desktop: falls back to client-side HTML export.
+active. Share URLs are built from the public link base (running tunnel, else public ingress, else the request origin) so
+links stay reachable in hosted/tunneled deployments. Cloud: public URL; Local/Desktop: falls back to client-side HTML export.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.infra.ingress import resolve_share_url_base
+from app.core.infra.ingress import resolve_public_link_base
 from app.core.security.share.share_hmac import token_fingerprint
 from app.database.connection import get_db
 from app.database.dto import ChatDTO
@@ -108,7 +108,7 @@ async def create_chat_share(
     await db.execute(stmt)
     await db.commit()
 
-    base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))
+    base_url = await resolve_public_link_base(fallback=str(request.base_url).rstrip("/"))
     share_url = f"{base_url}/api/v1/public/chat-share/{token}"
 
     return CreateChatShareResponse(
@@ -190,7 +190,7 @@ async def get_chat_share_status(
         return ChatShareStatusResponse(shared=True, password_protected=protected)
 
     token = rebuild_chat_share_token(chat_id, expires_at_unix=expires_at)
-    base_url = await resolve_share_url_base(fallback=str(request.base_url).rstrip("/"))
+    base_url = await resolve_public_link_base(fallback=str(request.base_url).rstrip("/"))
     return ChatShareStatusResponse(
         shared=True,
         share_url=f"{base_url}/api/v1/public/chat-share/{token}",

@@ -28,18 +28,13 @@ class TestBuildArtifactDeepLinks:
 
     @pytest.mark.asyncio
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
         return_value="",
     )
     async def test_missing_ingress_logs_warning(
         self,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
@@ -64,18 +59,13 @@ class TestBuildArtifactDeepLinks:
         return_value={},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="https://ingress.example.com",
+        return_value="https://app.example.com",
     )
     async def test_empty_version_map_logs_warning(
         self,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_fetch: AsyncMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
@@ -101,13 +91,9 @@ class TestBuildArtifactDeepLinks:
         return_value={"art-partial": "ver-partial"},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="https://ingress.example.com",
+        return_value="https://app.example.com",
     )
     @patch(
         "app.services.artifacts.share.share_token.create_artifact_share_token",
@@ -116,8 +102,7 @@ class TestBuildArtifactDeepLinks:
     async def test_missing_version_id_logs_warning(
         self,
         mock_token: MagicMock,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_fetch: AsyncMock,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
@@ -146,13 +131,9 @@ class TestBuildArtifactDeepLinks:
         return_value={"art-001": "ver-001"},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="https://ingress.example.com",
+        return_value="https://app.example.com",
     )
     @patch(
         "app.services.artifacts.share.share_token.create_artifact_share_token",
@@ -166,8 +147,7 @@ class TestBuildArtifactDeepLinks:
         self,
         mock_t: MagicMock,
         mock_token: MagicMock,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
         """Artifacts absent from the version map get no button; others still do."""
@@ -195,13 +175,9 @@ class TestBuildArtifactDeepLinks:
         return_value={"art-001": "ver-001"},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="https://ingress.example.com",
+        return_value="https://app.example.com",
     )
     @patch(
         "app.services.artifacts.share.share_token.create_artifact_share_token",
@@ -215,8 +191,7 @@ class TestBuildArtifactDeepLinks:
         self,
         mock_t: MagicMock,
         mock_token: MagicMock,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
         """A single artifact uses the non-named deep-link label (else branch)."""
@@ -241,13 +216,9 @@ class TestBuildArtifactDeepLinks:
         return_value={"art-001": "ver-001"},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="https://ingress.example.com",
+        return_value="https://app.example.com",
     )
     @patch(
         "app.services.artifacts.share.share_token.create_artifact_share_token",
@@ -261,8 +232,7 @@ class TestBuildArtifactDeepLinks:
         self,
         mock_t: MagicMock,
         mock_token: MagicMock,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
         """A share-token failure drops that button but keeps others alive."""
@@ -284,18 +254,13 @@ class TestBuildArtifactDeepLinks:
         return_value={},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="",
+        return_value="https://app.example.com",
     )
     async def test_no_version_returns_empty(
         self,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
@@ -315,15 +280,7 @@ class TestBuildArtifactDeepLinks:
         new_callable=AsyncMock,
         side_effect=RuntimeError("no ingress"),
     )
-    @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="",
-    )
-    async def test_no_base_url_safe_degradation(
-        self,
-        mock_base: MagicMock,
-        mock_ingress: AsyncMock,
-    ):
+    async def test_no_base_url_safe_degradation(self, mock_ingress: AsyncMock):
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,
         )
@@ -342,13 +299,9 @@ class TestBuildArtifactDeepLinks:
         return_value={"art-001": "ver-001", "art-002": "ver-002"},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="https://ingress.example.com",
+        return_value="https://app.example.com",
     )
     @patch(
         "app.services.artifacts.share.share_token.create_artifact_share_token",
@@ -362,8 +315,7 @@ class TestBuildArtifactDeepLinks:
         self,
         mock_t: MagicMock,
         mock_token: MagicMock,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
@@ -385,13 +337,9 @@ class TestBuildArtifactDeepLinks:
         return_value={"art-001": "ver-001"},
     )
     @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="https://app.example.com",
-    )
-    @patch(
-        "app.core.infra.ingress.get_public_ingress_base_url",
+        "app.core.infra.ingress.resolve_public_link_base",
         new_callable=AsyncMock,
-        return_value="",
+        return_value="https://app.example.com",
     )
     @patch(
         "app.services.artifacts.share.share_token.create_artifact_share_token",
@@ -402,8 +350,7 @@ class TestBuildArtifactDeepLinks:
         self,
         mock_t: MagicMock,
         mock_token: MagicMock,
-        mock_ingress: AsyncMock,
-        mock_base: MagicMock,
+        mock_base: AsyncMock,
         mock_versions: AsyncMock,
     ):
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (

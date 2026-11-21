@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -132,11 +132,8 @@ class TestCollectMultipleArtifacts:
         assert acc.oversized_deliverables == [("huge.html", "6.0 MB")]
 
     @pytest.mark.asyncio
-    @patch(
-        "app.remote_access.mobile_deep_link.resolve_mobile_remote_base_url",
-        return_value="",
-    )
-    async def test_deep_link_failure_keeps_fallback_note(self, mock_base: MagicMock):  # noqa: ANN001
+    @patch("app.core.infra.ingress.resolve_public_link_base", new_callable=AsyncMock, return_value="")
+    async def test_deep_link_failure_keeps_fallback_note(self, mock_base: AsyncMock):  # noqa: ANN001
         """No public base URL → no button, but the fallback note survives."""
         from app.core.channel_bridge.agent_executor.deliverable.deep_links import (
             build_artifact_deep_links,

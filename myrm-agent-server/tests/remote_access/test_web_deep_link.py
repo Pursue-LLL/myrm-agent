@@ -42,7 +42,7 @@ class TestBuildWebChatUrl:
         assert not url.endswith("/c-12345/")
 
     def test_base_url_trailing_slash_not_stripped_by_builder(self) -> None:
-        """build_web_chat_url does not strip; upstream resolve_mobile_remote_base_url does."""
+        """build_web_chat_url does not strip; upstream resolve_public_link_base does."""
         url = build_web_chat_url(chat_id="c-1", base_url="https://host.com/")
         assert url == "https://host.com//c-1"
 
@@ -55,7 +55,7 @@ class TestResolveWebHandoffComponents:
         manager._state = TunnelState.STOPPED
         manager._public_url = ""
         monkeypatch.setattr(
-            "app.remote_access.mobile_deep_link.get_tunnel_manager",
+            "app.remote_access.tunnel_manager.get_tunnel_manager",
             lambda: manager,
         )
 
@@ -75,7 +75,7 @@ class TestResolveWebHandoffComponents:
         manager._state = TunnelState.RUNNING
         manager._public_url = "https://tunnel.example.com"
         monkeypatch.setattr(
-            "app.remote_access.mobile_deep_link.get_tunnel_manager",
+            "app.remote_access.tunnel_manager.get_tunnel_manager",
             lambda: manager,
         )
 
@@ -113,12 +113,12 @@ class TestResolveWebHandoffComponents:
         assert btn.action_id == "web:continue_chat"
 
     async def test_tunnel_trailing_slash_stripped(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Tunnel URL with trailing slash is normalized by resolve_mobile_remote_base_url."""
+        """Tunnel URL with trailing slash is normalized by resolve_public_link_base."""
         manager = TunnelManager()
         manager._state = TunnelState.RUNNING
         manager._public_url = "https://tunnel.example.com/"
         monkeypatch.setattr(
-            "app.remote_access.mobile_deep_link.get_tunnel_manager",
+            "app.remote_access.tunnel_manager.get_tunnel_manager",
             lambda: manager,
         )
 
@@ -140,7 +140,7 @@ class TestResolveWebHandoffComponents:
         manager._state = TunnelState.RUNNING
         manager._public_url = "https://tunnel.example.com"
         monkeypatch.setattr(
-            "app.remote_access.mobile_deep_link.get_tunnel_manager",
+            "app.remote_access.tunnel_manager.get_tunnel_manager",
             lambda: manager,
         )
 

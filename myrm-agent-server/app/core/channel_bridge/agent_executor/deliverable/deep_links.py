@@ -5,8 +5,7 @@
 - app.channels.types::MediaAttachment (POS: Channel message types.)
 - deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
 - app.services.artifacts.share.share_token (POS: HMAC share token for artifact deep links.)
-- app.core.infra.ingress::get_public_ingress_base_url (POS: Public ingress URL for share links.)
-- app.remote_access.mobile_deep_link::resolve_mobile_remote_base_url (POS: Public URL resolution for deep links.)
+- app.core.infra.ingress::resolve_public_link_base (POS: Public base of links opened elsewhere: running tunnel, else ingress.)
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
@@ -132,15 +131,10 @@ async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tupl
 
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
-    from app.core.infra.ingress import get_public_ingress_base_url
-    from app.remote_access.mobile_deep_link import resolve_mobile_remote_base_url
+    from app.core.infra.ingress import resolve_public_link_base
     from app.services.artifacts.share.share_token import create_artifact_share_token
 
-    try:
-        ingress = await get_public_ingress_base_url()
-    except Exception:
-        ingress = ""
-    base_url = resolve_mobile_remote_base_url(public_ingress_base_url=ingress)
+    base_url = await resolve_public_link_base()
     if not base_url:
         logger.warning(
             "Skipping artifact deep links: no public ingress base URL configured",

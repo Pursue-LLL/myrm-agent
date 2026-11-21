@@ -9,11 +9,9 @@ Serves two link families:
 
 [INPUT]
 - app.remote_access.pairing::create_pairing_token (POS: Signed short-lived mobile deep link tokens)
-- app.remote_access.tunnel_manager::get_tunnel_manager (POS: CF quick tunnel lifecycle for G1-global remote access)
-- app.core.infra.ingress::get_public_ingress_base_url (POS: Public Ingress URL resolver)
+- app.core.infra.ingress::resolve_public_link_base (POS: Public base of links opened elsewhere: running tunnel, else ingress)
 
 [OUTPUT]
-- resolve_mobile_remote_base_url: Prefer tunnel public URL, else configured ingress base
 - build_mobile_status_deep_link: Scoped `/mobile/status/{chatId}?pair=` URL
 - resolve_mobile_status_deep_link: Async helper for channel outbound buttons
 - build_web_chat_url: Plain `/{chatId}` URL for WebUI continuation
@@ -30,20 +28,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from app.remote_access.pairing import MOBILE_HUB_CONTROL_PURPOSE, create_pairing_token
-from app.remote_access.tunnel_manager import TunnelState, get_tunnel_manager
 
 if TYPE_CHECKING:
     from app.channels.types.components import ActionButton
-
-
-def resolve_mobile_remote_base_url(*, public_ingress_base_url: str = "") -> str:
-    """Prefer running CF quick tunnel URL, then configured public ingress."""
-    tunnel = get_tunnel_manager().status()
-    if tunnel.state == TunnelState.RUNNING and tunnel.public_url:
-        return tunnel.public_url.rstrip("/")
-    if public_ingress_base_url:
-        return public_ingress_base_url.rstrip("/")
-    return ""
 
 
 def build_mobile_status_deep_link(*, chat_id: str, base_url: str) -> str | None:
@@ -55,11 +42,9 @@ def build_mobile_status_deep_link(*, chat_id: str, base_url: str) -> str | None:
 
 
 async def resolve_mobile_status_deep_link(chat_id: str) -> str | None:
-    from app.core.infra.ingress import get_public_ingress_base_url
+    from app.core.infra.ingress import resolve_public_link_base
 
-    ingress = await get_public_ingress_base_url()
-    base = resolve_mobile_remote_base_url(public_ingress_base_url=ingress)
-    return build_mobile_status_deep_link(chat_id=chat_id, base_url=base)
+    return build_mobile_status_deep_link(chat_id=chat_id, base_url=await resolve_public_link_base())
 
 
 async def resolve_mobile_status_action_components(
@@ -108,11 +93,9 @@ async def resolve_web_handoff_components(
     """
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
-    from app.core.infra.ingress import get_public_ingress_base_url
+    from app.core.infra.ingress import resolve_public_link_base
 
-    ingress = await get_public_ingress_base_url()
-    base = resolve_mobile_remote_base_url(public_ingress_base_url=ingress)
-    url = build_web_chat_url(chat_id=chat_id, base_url=base)
+    url = build_web_chat_url(chat_id=chat_id, base_url=await resolve_public_link_base())
     if not url:
         return ()
     return (
@@ -130,7 +113,6 @@ async def resolve_web_handoff_components(
 __all__ = [
     "build_mobile_status_deep_link",
     "build_web_chat_url",
-    "resolve_mobile_remote_base_url",
     "resolve_mobile_status_action_components",
     "resolve_mobile_status_deep_link",
     "resolve_web_handoff_components",

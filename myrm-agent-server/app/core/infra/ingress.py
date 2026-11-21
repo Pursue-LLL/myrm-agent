@@ -6,12 +6,14 @@
 
 [OUTPUT]
 - get_public_ingress_base_url: 解析公网 Ingress 基础 URL
-- resolve_share_url_base: 分享链接公网 base（无 ingress 时降级 fallback）
+- resolve_public_link_base: 他人或其他设备要打开的链接（分享、IM 按钮、配对）的公网 base：在线隧道优先，其次 Ingress，最后 fallback
 - invalidate_public_ingress_cache: 配置变更后失效缓存
 
 [POS]
 公网 Ingress 单一解析入口。供 Middleware、Webhook、Connect API 与前端 resolver 复用。
 Users configure publicIngressBaseUrl manually (cpolar, NATAPP, frp, cloud hosting, etc.).
+Links meant to be opened elsewhere resolve through ``resolve_public_link_base`` only, so they all point to the address
+that is reachable at that moment.
 """
 
 from __future__ import annotations
@@ -77,25 +79,29 @@ async def get_public_ingress_base_url() -> str:
     return url
 
 
-async def resolve_share_url_base(fallback: str = "") -> str:
-    """Resolve the public base for share links, or ``fallback`` when none is set.
+async def resolve_public_link_base(fallback: str = "") -> str:
+    """Resolve the base of links that other people or devices open (shares, IM buttons, pairing), else ``fallback``.
 
-    Wraps ``get_public_ingress_base_url`` for the share-link use case so hosted/
-    tunneled deployments produce externally reachable links. An empty ingress or
-    a resolution failure degrades to ``fallback`` (chat passes the request
-    origin, artifact passes ``""``) instead of surfacing a 500 to callers.
+    A running quick tunnel is the address reachable right now, so it wins over the configured ingress, which may still
+    hold the address of an earlier tunnel run. ``fallback`` applies when neither exists (chat shares pass the request
+    origin); a resolution failure degrades to it instead of surfacing a 500 to callers.
     """
+    # Imported here: the remote_access package imports modules that read this one.
+    from app.remote_access.tunnel_manager import TunnelState, get_tunnel_manager
+
+    tunnel = get_tunnel_manager().status()
+    if tunnel.state == TunnelState.RUNNING and tunnel.public_url:
+        return tunnel.public_url.rstrip("/")
     try:
-        ingress = (await get_public_ingress_base_url()).strip().rstrip("/")
-        if ingress:
-            return ingress
+        ingress = await get_public_ingress_base_url()
     except Exception as exc:
-        logger.warning("Failed to resolve public ingress base for share link: %s", exc)
-    return fallback
+        logger.warning("Failed to resolve public ingress base for outbound link: %s", exc)
+        return fallback
+    return ingress or fallback
 
 
 __all__ = [
     "get_public_ingress_base_url",
     "invalidate_public_ingress_cache",
-    "resolve_share_url_base",
+    "resolve_public_link_base",
 ]
