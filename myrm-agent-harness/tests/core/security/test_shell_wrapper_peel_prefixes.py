@@ -11,6 +11,7 @@ import pytest
 from myrm_agent_harness.core.security.shell_wrapper_peel import (
     deny_readings,
     direct_command_readings,
+    shell_script,
     substitution_bodies,
 )
 
@@ -68,6 +69,37 @@ class TestPrefixForms:
     def test_a_shell_reading_a_file_is_not_read_as_one(self, command: str) -> None:
         """A ``-c`` script's text is readable; a file the shell reads is not, so nothing is vouched for."""
         assert deny_readings(command) == ()
+
+
+class TestShellScript:
+    """``shell_script`` reads the word at one index, so a caller can try every word of a command."""
+
+    @pytest.mark.parametrize(
+        ("words", "start", "script"),
+        [
+            (["sh", "-c", "rm -rf /"], 0, "rm -rf /"),
+            (["/bin/bash", "-lc", "rm -rf /"], 0, "rm -rf /"),
+            (["bash", "--noprofile", "-c", "rm -rf /"], 0, "rm -rf /"),
+            (["FOO=1", "sh", "-c", "rm -rf /"], 0, "rm -rf /"),
+            (["eval", "--", "rm", "-rf", "/"], 0, "rm -rf /"),
+            (["docker", "exec", "ctr", "sh", "-c", "rm -rf /"], 3, "rm -rf /"),
+        ],
+    )
+    def test_the_script_a_shell_or_eval_at_an_index_runs(self, words: list[str], start: int, script: str) -> None:
+        assert shell_script(words, start) == script
+
+    @pytest.mark.parametrize(
+        ("words", "start"),
+        [
+            (["docker", "exec", "ctr", "sh", "-c", "rm -rf /"], 0),
+            (["bash", "script.sh"], 0),
+            (["sh", "-s"], 0),
+            (["sh", "-c"], 0),
+            (["ls", "-la"], 0),
+        ],
+    )
+    def test_a_word_that_hands_no_script_to_a_shell_has_none(self, words: list[str], start: int) -> None:
+        assert shell_script(words, start) is None
 
 
 class TestSubstitutionScan:

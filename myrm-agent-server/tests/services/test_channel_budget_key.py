@@ -14,12 +14,12 @@ import pytest
 from pydantic import ValidationError
 
 from app.channels.types import SessionKey
-from app.services.budget.channel_budget import ChannelBudgetPoliciesConfig, ChannelBudgetPolicy
 from app.services.budget.channel_budget_key import (
     group_budget_key,
     normalize_channel_budget_key,
     parse_channel_budget_key,
 )
+from app.services.budget.channel_budget_policy import ChannelBudgetPoliciesConfig, ChannelBudgetPolicy
 from tests.support.channel_budget_fixtures import GROUP_IDS
 
 _SPELLINGS: dict[str, Callable[[str, str], str]] = {

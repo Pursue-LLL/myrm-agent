@@ -12,6 +12,8 @@ matcher cannot disagree about what a command line contains.
 - iter_syntax_chars: Characters the shell interprets (outside quotes, escapes and comments; ``$`` and the backtick also inside double quotes) with their index.
 - split_command_spans: Trimmed (start, end) spans of the commands separated by ``;`` ``|`` ``||`` ``|&`` ``&`` ``&&`` or a line break.
 - shell_words: The words of one command with quotes and escapes resolved, or None when the text is unparseable.
+- ShellCommand: One command of a line: its text as written and its words.
+- read_commands: Every command of a line with its words starting at the program that runs, whatever joins the commands (a separator glued to a word, ``then``, ``do``, a subshell's parentheses, a function definition's head, a ``case`` arm's label).
 - has_word_expansion: Whether ``$``, a backtick or brace expansion can rewrite the words before the command runs.
 - strip_comments: The command without comments and backslash-newline continuations, for tokenizers that do not know the shell's comment rule.
 
@@ -23,9 +25,10 @@ so that agent/ and toolkits/ read a command identically without importing each o
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from enum import Enum, auto
-from typing import Final
+from functools import lru_cache
+from typing import Final, NamedTuple
 
 UNTERMINATED: Final = "\0"
 
@@ -36,6 +39,10 @@ _SEPARATORS: Final = _LINE_BREAKS + _OPERATORS
 _DOUBLED_OPERATORS: Final = frozenset({"&&", "||", "|&"})
 # A comment starts only at the beginning of a word: after a blank or an operator.
 _WORD_BREAKS: Final = _BLANKS + _OPERATORS
+# Words that stand in front of the command they introduce: ``then rm x`` and ``do kill $pid`` run ``rm`` and ``kill``;
+# ``(`` opens the body of ``f() ( rm x )``.
+_COMMAND_INTRODUCERS: Final = frozenset({"if", "then", "elif", "else", "while", "until", "do", "time", "!", "{", "("})
+_SUBSHELL_EDGE: Final = "() \t"
 _ESCAPABLE_IN_DOUBLE_QUOTES: Final = '$`"\\\n'
 _EXPANDING_IN_DOUBLE_QUOTES: Final = "$`"
 _EXPANSIONS: Final = frozenset("${`" + UNTERMINATED)
@@ -185,6 +192,75 @@ def shell_words(command: str) -> list[str] | None:
     if not _QUOTING_OR_COMMENT.search(command):
         return [word for word in _BLANK_RUN.split(command) if word]
     return _scan_words(command)
+
+
+class ShellCommand(NamedTuple):
+    """One command of a line: its text as written, and its words from the program that runs."""
+
+    text: str
+    words: tuple[str, ...]
+
+
+@lru_cache(maxsize=32)
+def read_commands(command: str) -> tuple[ShellCommand, ...]:
+    """The commands of *command* that run a program, in order, each with the words it runs with.
+
+    ``words`` start at the program: the parentheses of a subshell (``(cd dir && git push)``), the reserved words
+    that introduce a command (``then``, ``do``, ``!``), the head of a function definition (``f() {``) and the label
+    of a ``case`` arm (``a)``) are not part of them. A quote left open swallows the lines after it (the apostrophe
+    in a heredoc body), yet bash may still run those lines, so text it cannot parse is read line by line at its
+    blanks instead. For readers that name a command by its words, whatever joins it to the line: ``git push;echo``,
+    ``for f in a; do rm $f; done``, ``f() { rm $1; }``. Cached, because one approval reads the same line in turn at
+    several gates and the scan is the cost.
+    """
+    found: list[ShellCommand] = []
+    for start, end in split_command_spans(command):
+        text = command[start:end]
+        inner = text.strip(_SUBSHELL_EDGE)
+        words = shell_words(inner)
+        pieces = [(text, words)] if words is not None else [(line, line.split()) for line in inner.splitlines()]
+        for piece, piece_words in pieces:
+            program = _program_index(piece_words)
+            if program is not None:
+                found.append(ShellCommand(piece, tuple(piece_words[program:])))
+    return tuple(found)
+
+
+def _program_index(words: Sequence[str]) -> int | None:
+    """Index of the word that names the program *words* run, or None when they run none (a bare ``then`` or ``esac``).
+
+    The words before it only introduce it: a reserved word, the head of a function definition (``name()``,
+    ``name ()``, ``function name {``) and the label of a ``case`` arm (``a)``, and ``case $x in a)`` for the first
+    arm). No program name ends in ``)``, so a leading word that does is a head or a label.
+    """
+    index = 0
+    while index < len(words):
+        word = words[index]
+        if word in _COMMAND_INTRODUCERS or word.endswith(")"):
+            index += 1
+        elif word == "function":
+            index += 2
+        elif word == "case":
+            index = _first_arm_label(words, index)
+        elif words[index + 1 : index + 2] == ["()"]:
+            index += 2
+        else:
+            return index
+    return None
+
+
+def _first_arm_label(words: Sequence[str], case_index: int) -> int:
+    """Index of the first arm label after ``case WORD in``, or past the end when the label is not on this command.
+
+    ``a | b)`` is cut at its ``|``, so the command that holds ``case x in a`` has no label and runs nothing.
+    """
+    try:
+        index = words.index("in", case_index + 1) + 1
+    except ValueError:
+        return len(words)
+    while index < len(words) and not words[index].endswith(")"):
+        index += 1
+    return index
 
 
 def _scan_words(command: str) -> list[str] | None:

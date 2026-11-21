@@ -4,12 +4,13 @@ Provides device-level security configuration SSOT and dual-insurance risk assess
 for batch operations across remote devices, cloud sandboxes, and multi-agent coordination.
 
 [INPUT]
-  ToolCall sequences, command strings, and device security policies.
+- ToolCall sequences, command strings, and device security policies
+- core.security.shell_command_lexer::read_commands (POS: Shared lexical layer of the shell command security checks)
 
 [OUTPUT]
-  - DeviceSecurityPolicy: frozen policy configuration model.
-  - BatchRiskAssessment: evaluation result with impact radius and dual insurance gates.
-  - evaluate_batch_risk(): pure function evaluating a sequence of tool calls.
+- DeviceSecurityPolicy: frozen policy configuration model.
+- BatchRiskAssessment: evaluation result with impact radius and dual insurance gates.
+- evaluate_batch_risk(): pure function evaluating a sequence of tool calls.
 
 [POS]
 Foundation layer in core/security. Zero internal dependencies on agent runtime.
@@ -18,9 +19,10 @@ Consumed by agent/middlewares/approval/batch_processor/ and server tool policy o
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+from myrm_agent_harness.core.security.shell_command_lexer import read_commands
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -48,29 +50,38 @@ _MUTATING_PERMISSIONS: frozenset[str] = frozenset(
     }
 )
 
-# High-risk verbs that trigger dual insurance in batch execution or compound commands
+# High-risk verbs that trigger dual insurance in batch execution or compound commands. A command is matched by its
+# lowercased verb, so each name is listed once: the POSIX, cmd and PowerShell spellings of the commands that delete
+# files, stop processes or services, restart the machine, or format a disk (``Remove-Item`` matches as ``remove-item``).
 _DEFAULT_HIGH_RISK_VERBS: frozenset[str] = frozenset(
     {
         "rm",
         "del",
         "erase",
+        "rd",
+        "rmdir",
+        "ri",
+        "remove-item",
         "shred",
         "pkill",
         "kill",
         "killall",
+        "stop-process",
         "systemctl",
         "service",
         "reboot",
         "shutdown",
+        "restart-computer",
+        "stop-computer",
         "mkfs",
         "dd",
         "format",
+        "format-volume",
+        "clear-disk",
         "truncate",
         "drop",
     }
 )
-
-_COMPOUND_SPLIT_REGEX = re.compile(r"\s*(?:&&|\|\||;)\s*")
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,26 +136,14 @@ def _extract_target_from_args(args: dict[str, Any]) -> str | None:
     return None
 
 
-def _detect_compound_command_risk(
-    command: str,
-    high_risk_verbs: frozenset[str],
-) -> tuple[bool, int, list[str]]:
-    """Detect if a single compound shell command contains multiple high-risk segments."""
-    segments = [s.strip() for s in _COMPOUND_SPLIT_REGEX.split(command) if s.strip()]
-    if len(segments) <= 1:
-        # Check single command verb
-        first_word = command.strip().split()[0].lower() if command.strip() else ""
-        if first_word in high_risk_verbs:
-            return True, 1, [command.strip()]
-        return False, len(segments), []
+def _high_risk_commands(line: str, high_risk_verbs: frozenset[str]) -> list[str]:
+    """The commands of a shell line whose program is high-risk, each as written.
 
-    high_risk_found: list[str] = []
-    for seg in segments:
-        words = seg.split()
-        if words and words[0].lower() in high_risk_verbs:
-            high_risk_found.append(seg)
-
-    return len(high_risk_found) > 0, len(segments), high_risk_found
+    Commands are told apart the way the shell does (``;`` ``&&`` ``||`` ``|`` ``&`` and line breaks outside quotes), so
+    a separator inside a quoted argument starts no command and a program behind ``then``, ``do``, a function
+    definition's head or a ``case`` arm's label still counts.
+    """
+    return [command.text for command in read_commands(line) if command.words[0].lower() in high_risk_verbs]
 
 
 def evaluate_batch_risk(
@@ -164,7 +163,7 @@ def evaluate_batch_risk(
 
     mutating_count = 0
     read_only_count = 0
-    high_risk_verbs_hit: list[str] = []
+    high_risk_commands_hit: list[str] = []
     restricted_path_hit: list[str] = []
 
     # 1. Inspect inter-tool batch
@@ -188,9 +187,7 @@ def evaluate_batch_risk(
         # Check shell command compound risk inside single tool
         if name in ("shell_exec", "code_interpreter", "bash_code_execute_tool"):
             cmd = str(args.get("command", "") or args.get("code", "") or args.get("data", ""))
-            has_hr, _seg_count, hr_segs = _detect_compound_command_risk(cmd, effective_policy.high_risk_verbs)
-            if has_hr:
-                high_risk_verbs_hit.extend(hr_segs)
+            high_risk_commands_hit.extend(_high_risk_commands(cmd, effective_policy.high_risk_verbs))
             mutating_count += 1
             continue
 
@@ -212,7 +209,7 @@ def evaluate_batch_risk(
             read_only_count += 1
 
     # 2. Threshold and Policy Evaluations
-    is_batch = batch_size > 1 or (mutating_count >= 1 and len(high_risk_verbs_hit) > 1)
+    is_batch = batch_size > 1 or (mutating_count >= 1 and len(high_risk_commands_hit) > 1)
 
     if batch_size > effective_policy.max_batch_size:
         reasons.append(f"Batch size {batch_size} exceeds maximum permitted limit {effective_policy.max_batch_size}")
@@ -220,15 +217,15 @@ def evaluate_batch_risk(
     if restricted_path_hit:
         reasons.append(f"Batch targets sensitive protected paths: {', '.join(restricted_path_hit[:3])}")
 
-    if high_risk_verbs_hit:
-        reasons.append(f"Batch contains high-risk destructive operations: {', '.join(high_risk_verbs_hit[:3])}")
+    if high_risk_commands_hit:
+        reasons.append(f"Batch contains high-risk destructive operations: {', '.join(high_risk_commands_hit[:3])}")
 
     if mutating_count >= effective_policy.destructive_batch_size_threshold:
         reasons.append(
             f"Batch contains {mutating_count} mutating operations (threshold: {effective_policy.destructive_batch_size_threshold})"
         )
 
-    is_high_risk = len(reasons) > 0 or (mutating_count > 0 and len(high_risk_verbs_hit) > 0)
+    is_high_risk = len(reasons) > 0 or (mutating_count > 0 and len(high_risk_commands_hit) > 0)
     requires_dual_insurance = bool(effective_policy.enforce_dual_insurance and is_high_risk and mutating_count > 0)
     allow_always_blocked = bool(requires_dual_insurance or is_high_risk)
 

@@ -202,11 +202,11 @@ class SSRFResult:
 
 **危险环境变量**（`DANGEROUS_ENV_VARS` + `DANGEROUS_ENV_PREFIXES` + `DANGEROUS_ENV_WILDCARDS`）：
 
-覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`）在执行前过滤这些变量；子进程环境的构造规则见 3.2.2。
+覆盖以下攻击向量：动态链接器注入（`LD_PRELOAD` 等）、运行时劫持/模块注入（`PYTHONPATH`、`PYTHONSTARTUP` 等）、代理注入（`HTTP_PROXY`/`FTP_PROXY` 等）、TLS/证书绕过（`GIT_SSL_NO_VERIFY`、`NODE_TLS_REJECT_UNAUTHORIZED` 等）、包管理器重定向（`PIP_INDEX_URL`、`UV_INDEX_URL` 等）、Git 命令劫持（`GIT_SSH_COMMAND`、`GIT_EDITOR` 等）、编译器劫持（`CC`、`CXX`）。`sanitize_env()`（`core/security/process_env/env_isolation.py`）在执行前按自己的名单（`env_name_tables.py`）过滤：敏感名与模式、动态链接器与运行时注入、`GIT_SSL_*`、git 环境配置组（`GIT_CONFIG_COUNT`、`GIT_CONFIG_KEY_<n>`、`GIT_CONFIG_VALUE_<n>`、`GIT_CONFIG_PARAMETERS`，整组丢弃：它们覆盖所有配置文件，一条 `alias.x=!cmd` 或 `core.sshCommand` 就能让 git 运行程序，半组残留则让每次 git 调用都以 128 退出）与 `OTEL_*`；`CORE` 策略只保留放行名单；子进程环境的构造规则见 3.2.2。
 
 ### 3.2.1 Shell Command Analyzer
 
-**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `protected_instruction_command.py`（受保护指令文件的写形态）
+**位置**：`toolkits/code_execution/security/shell_command_analyzer.py`（分析引擎）· `shell_command_readings.py`（读法：喂给规则的文本）· `shell_command_rules.py`（规则目录）· `shell_command_strip.py`（引号剥离）· `protected_instruction_command.py`（受保护指令文件的写形态）
 
 统一 Shell 命令安全分析模块，多层检测（带引号感知预处理）：
 
@@ -214,13 +214,13 @@ class SSRFResult:
 |------|---------|---------|
 | Layer 1: 二进制/Unicode | BLOCK | `\r`, `\0`, 12 种不可见 Unicode 字符（零宽空格、方向控制等）；与语言无关，shell 命令和 Python 源码都检（`analyze_hidden_characters`） |
 | Layer 1.5: 编码绕过 | BLOCK | ANSI-C quoting `$'...'`、locale quoting `$"..."`；只检 shell 读取的文本 |
-| Layer 2: 注入/危险命令 | BLOCK | 6 注入向量（`$()`, `` ` ``, `${}`, `;`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
+| Layer 2: 注入/危险命令 | BLOCK | 5 注入向量（`$()`, `` ` ``, `${}`, `<()`, `>()`）+ 70+ 危险命令模式；向持久 shell 导出代码注入变量（`BASH_ENV`、`LD_PRELOAD`、`GIT_EXTERNAL_DIFF` 等，读 shell 词，引号不能掩盖变量名） |
 | Layer 2.5: SQL 语句守卫 | ESCALATE | 数据库客户端命令（`psql`/`mysql`/`sqlite3`/`sqlcmd`/`mongosh`）中的破坏性 SQL；作用于引号剥离前的原始命令，以捕获单引号内的 SQL（`sql_statement_guard.py`） |
 | Layer 3: 可疑模式 | ESCALATE | `curl \| sh`, `eval`, `base64 -d`, `kill`/`pkill`/`killall` 等 |
 | Layer 3c: 受保护指令文件改写 | ESCALATE | 重定向写入，或 `sed -i`、`tee`、`cp`、`mv`、`rm`、`truncate`（及其 PowerShell / cmd 写法：`Set-Content`、`Remove-Item`、`copy`、`del` 等）点名，或解释器（`python`/`node`/`ruby`/`perl`）在同一条命令里以写方式打开 `AGENTS.md`、`CLAUDE.md`、`SOUL.md`、`.cursor/rules` 等受保护指令文件（bash 工具里按 Python 源码运行的文本不在此列，见下）；只读分类器判为 SAFE 的命令不算改写；作用于原始命令，证据是匹配到的名字（`protected_instruction_command.py`） |
-| Layer 4: 递归展开 | BLOCK / ESCALATE | 把载荷藏在单引号里的包装（`bash -c '...'`、`sh -c '...'`、`trap '...' SIGNAL`）取出后递归分析，深度有上限（`_MAX_RECURSIVE_DEPTH`）防 DoS |
+| 读法：逐条命令、逐层包装 | 同各层 | Layer 2 到 3c 对命令的每一种读法各判一遍（读法由 `shell_command_readings.command_readings` 给出）：原文；原文里的每条命令（`split_command_spans` 按 `;`、`&&`、`\|\|`、`\|`、`&`、换行切开，所以 `rm -rf ~&&echo done` 与 `ls; rm -rf ~` 都在命令处收尾，规则照样命中），每条命令还读一遍去掉末尾紧贴的分组右括号后的样子（`(cd d && echo x > uv.lock)` 里的 `uv.lock)` 照样命中以文件名收尾的规则）；不论 shell 站在命令的什么位置（`sudo` 之后、`then` 之后、`docker exec ctr` 之后、重定向之后、`case` 分支里）的 `sh -c` / `eval` 脚本与 `trap` 的处理脚本（逐词尝试 `read_commands` 的结果），以及 `$(...)` 与反引号的命令体（`substitution_bodies`）。`sudo` / `env` / `timeout` / `xargs` 之后的命令按它所在的位置带引号原样判定：规则本来就不看命令在文本里的位置，它的参数里被引号包住的文字照常被遮蔽（`env git commit -m 'never run rm -rf ~'` 不是威胁）。每条读法只展开一次，读法的条数（`MAX_COMMAND_READINGS`）与字符总量（`MAX_READING_CHARS`）都有上限防 DoS：脚本与命令体先读（藏在引号里的内容在别的读法里看不到），每条命令单读的几条只填上限剩下的空位；脚本与命令体装不下时整行拒绝（BLOCK，类别 `obfuscation`，提示拆成单独的命令），而单读的命令超出上限（长 heredoc、长脚本）只按已读到的判，不因长度被拒；同一条威胁只报一次，原文的威胁排在后面读法的之前；快照触发（`is_destructive_command`）与集成写入判定（`is_integration_mutation_command`）读的是同一组文本。删除根目录与家目录的 `rm` 规则把操作数的结尾认到空白、命令末尾或不带空格就结束它的字符（`rm -fr / >log`、`find . -exec rm -fr / \;`、`(rm -rf ~)`） |
 
-引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`find -exec {} \;` 的转义分号通过 `shell_command_rules.FIND_EXEC_TERMINATOR_RE` 精确豁免。
+引号感知：`shell_command_strip._strip_quoted_content()` 字符级状态机将单引号内容替换为占位符，防止 `echo 'rm -rf /'` 误报。双引号内容保留（允许检测 `$()` 命令替换）。`;` 与 `&&`、`||`、`\|` 一样只是连接命令的符号，不是威胁：`find -exec {} \;` 的转义分号、`for … do …; done` 不触发任何规则，连在后面的每条命令各自照规则判定。
 
 BLOCK → DENY（硬拒绝），ESCALATE → ASK（提升审批）。保留 `|`, `&&`, `||`, `>` 等合法 Shell 操作符。
 
@@ -396,6 +396,8 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
   │
   ├─ 前置：网络共享 / NT 命名空间拼写 → DENY（只按文本判断，先于归一化与 realpath）
   │
+  ├─ 前置：文本无法对应任何文件（NUL 字节、孤立代理字符）→ DENY（文件工具打不开它，不抛异常）
+  │
   ├─ Layer 1: forbidden_paths → DENY（绝对优先，不可覆盖）
   │
   ├─ Layer 2: access_roots（writable）→ ALLOW
@@ -411,13 +413,13 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 1. **Layer 3 外路径返回 ASK，不是 DENY**（`allow_directory_grants=False` 的宿主除外） — 由 Permission Engine 弹出审批，支持单文件/父目录批量授权与读写动态提权
 2. **forbidden_paths 不可被 access_roots 覆盖** — 即使授予 `~`，`~/.ssh` 仍然被拒绝
-3. **路径归一化** — 配置里的区域路径（`forbidden_paths`、`access_roots`、工作区根）经过 `expanduser` + `expandvars` + `realpath`；模型写下的路径按文件工具打开它的方式读（开头的 `~` 是用户主目录，其余不展开，`$HOME` 只是一个名字，见下文「判什么就打开什么」）再经 `realpath`，防止符号链接逃逸；敏感文件规则（`is_sensitive_file`）同时匹配写下的路径与 realpath 之后的路径，所以工作区里指向 `.env` 的 `notes.txt` 按 `.env` 问（ASK）
+3. **路径归一化** — 配置里的区域路径（`forbidden_paths`、`access_roots`、工作区根）经过 `expanduser` + `expandvars` + `realpath`；模型写下的路径按文件工具打开它的方式读（开头的 `~` 是用户主目录，其余不展开，`$HOME` 只是一个名字，见下文「判什么就打开什么」）再经 `realpath`，防止符号链接逃逸；敏感文件规则（`is_sensitive_file`）同时匹配写下的路径与 realpath 之后的路径，所以工作区里指向 `.env` 的 `notes.txt` 按 `.env` 问（ASK）；目录不是凭据文件，指向目录的链接、名字像环境文件的工作区目录（`.envs`）不触发这条 ASK（realpath 之后的形式只在它指向文件时才计入）
 4. **只对 file_read/file_write 等 file ops 生效** — shell_exec 的路径检查由 Sandbox Validator 层负责
 5. **Grant 前 forbidden 校验** — `grant_session_access_root(..., policy=...)` 对 DENY 路径拒绝授予；path-ASK 勾选默认 **false**
 6. **Revoke 对称** — `revoke_session_access_root` + server `revoke_chat_session_access_root` 持久化到 `session_access_roots`
 7. **云卷部署边界** — `/persistent` 真实挂载时，grant 仅限卷内或 chat workspace；本地桌面允许主机路径（仍受 forbidden/dangerous 约束）
 8. **Directory HITL 900s 超时** — 与 clarify 对称，`{granted:false}` auto-resume，避免挂死
-9. **网络共享与 NT 命名空间路径只按文本拒绝，先于任何文件系统调用** — 在 Windows 上打开 `\\host\share\x` 会让系统去连接那台主机并发送用户凭据（提示注入可以诱导模型去读一个攻击者主机上的共享）。`is_network_or_nt_path`（`core/security/path/filesystem.py`）判定的拼写：反斜杠写法 `\\host\share`、`\\?\`、`\\.\`、`\??\` 在所有宿主上拒绝；开头连续两个及以上的斜杠（正反斜杠混用也算，如 `//host/share`）只在 Windows 主机上拒绝，因为在 POSIX 上 `//tmp` 是普通绝对路径。路径沿途的每一道闸门都在自己的第一个文件系统调用之前做这个判断：权限引擎的 `check_path_policy`（DENY）、目录授权的 `_resolve_named_path`（返回空）、`file_read_tool` 的 Pre-IO 阻断、`PathValidator` 与 `CodeExecutor.resolve_path`；文本由 `network_path_refusal` 统一，提示改用工作区内的路径或映射盘符
+9. **网络共享与 NT 命名空间路径只按文本拒绝，先于任何文件系统调用** — 在 Windows 上打开 `\\host\share\x` 会让系统去连接那台主机并发送用户凭据（提示注入可以诱导模型去读一个攻击者主机上的共享）。`is_network_or_nt_path`（`core/security/path/filesystem.py`）判定的拼写：反斜杠写法 `\\host\share`、`\\?\`、`\\.\`、`\??\` 在所有宿主上拒绝；开头连续两个及以上的斜杠（正反斜杠混用也算，如 `//host/share`）只在 Windows 主机上拒绝，因为在 POSIX 上 `//tmp` 是普通绝对路径。路径沿途的每一道闸门都在自己的第一个文件系统调用之前做这个判断：权限引擎的 `check_path_policy`（DENY）、目录授权的 `_resolve_named_path`（返回空）、`file_read_tool` 的 Pre-IO 阻断与自愈探测（写下的拼写与每个候选都先按文本判断）、`PathValidator` 与 `CodeExecutor.resolve_path`；文本由 `network_path_refusal` 统一，提示改用工作区内的路径或映射盘符
 9. **FE SSOT 刷新** — grant/revoke 后 `refreshSessionAccessRoots` 同步 `SessionAccessRootsBar`；path-ASK 带 optimistic fallback
 10. **Runtime path coercion** — `coerce_filesystem_path` 仅接受 `str | Path | os.PathLike`，拒绝 `unittest.mock` 对象（MagicMock 实现 `__fspath__`）；用于工作区 journal sidecar 等写盘边界
 
@@ -433,11 +435,11 @@ check_path_policy(raw_path, policy, workspace_root, require_write)
 
 Permission Engine 层的 PathPolicy 是主要检查点。Code Execution Validator 层的 `FORBIDDEN_PATHS` 是最后一道防线，硬编码拦截核心危险路径（`~/.ssh`, `/etc/shadow` 等），防止框架层被绕过。
 
-**判什么就打开什么**：引擎判定的是模型写下的路径串，工具打开的必须是这个串所指的文件，不能在判定之后换成另一个。三处各有落点：
+**判什么就打开什么**：引擎判定的是工具会打开的文件，即模型写下的路径串所指的文件，加上（仅读取）写下的串不存在时工具改而打开的那个写法所指的文件；工具打开的不能是一个没有被判定过的文件。三处各有落点：
 
 - **短 ID**：运行内的 `@file_NNN` 只是事件流与界面链接用的标签（`agent/artifacts/file_id_registry.py`），工具不解析它：`file_write_tool`、`file_edit_tool`、`file_read_tool` 把它当作工作区里一个普通的文件名，bash 命令里的 `@file_001` 原样交给 shell。`tests/agent/meta_tools/file_ops/test_short_file_id_is_not_a_path.py` 与 `tests/agent/meta_tools/bash/test_bash_keeps_short_file_ids_as_typed.py` 用真实的文件工具与 ID 登记簿钉住这一点。
 - **`~` 与环境变量**：开头的 `~`（`~`、`~/…`）在引擎、目录授权（`session_access.py` 的 `_resolve_named_path`）、`CodeExecutor.resolve_path` 与 `PathValidator` 里都读作用户主目录（`core/security/path/filesystem.py` 的 `expand_home`，只展开这一种写法；`~$report.docx`、`~name/…` 是工作区里的普通名字），所以引擎问的 `~/x` 就是工具打开的 `~/x`，主目录不在工作区内时要靠目录授权才进得去，不会落到工作区里一个名为 `~` 的目录。环境变量同样不展开：没有文件工具展开 `$VAR`，`$HOME/x` 是工作区里名为 `$HOME` 的目录，引擎也按这个名字判定；先展开再解析，名为 `$HOME`、指向 `.env` 的链接就会从 realpath 里消失。`tests/agent/security/test_checks.py`、`tests/agent/security/test_session_access.py`、`tests/toolkits/code_execution/executors/local/test_executor_resolve_path.py`、`tests/agent/meta_tools/file_ops/validators/test_path_validator.py` 与 `tests/core/security/path/test_filesystem.py` 钉住这一点。
-- **符号链接与自愈**：`check_path_policy` 对敏感文件规则同时看写下的路径与 realpath 之后的路径（`tests/agent/security/test_checks.py`）。`file_read_tool` 的 Unicode 自愈（`find_existing_unicode_path`）不得把引擎放行的写法变成它要拦的文件：改写后的路径落进凭据文件、指向凭据文件的链接或禁区目录，而写下的路径没有这层守卫时，不自愈，按写下的原样读；写下的路径自身已被守卫（引擎已为它问过）则照常自愈。守卫只认默认的危险目录与内置的凭据文件名，用户自定义的规则不在其内。`tests/agent/meta_tools/file_search/test_path_hint_healing_guard.py` 钉住这一点。
+- **符号链接与自愈**：`check_path_policy` 对敏感文件规则同时看写下的路径与 realpath 之后的路径（指向目录的链接不算凭据文件）；文本无法对应任何文件（NUL 字节、孤立代理字符）直接 DENY，不抛异常（`tests/agent/security/test_checks.py`）。`file_read_tool` 在写下的路径不存在时会按 Unicode 候选自愈（引号、反引号、全角字符、分解写法的重音；`core/security/path/respelling.py` 的 `find_existing_unicode_path`），所以读取调用的判定对象是「写下的路径 + 自愈后实际打开的路径」（`agent/security/judged_paths.py`）：规则目标与区域、凭据判定都对两者取最严（DENY 为硬线，YOLO 下同样生效），因此改写成引号、反引号或全角写法既躲不开 `private/*` 这样的 DENY 规则，也进不了写下的路径够不到的禁区目录；`file_write` 等其他文件工具打开的就是写下的串，不做自愈。自愈本身只拒绝三件事：网络共享与 NT 命名空间拼写（写下的与每个候选都只按文本判断，先于第一次 `exists`）、设备路径、以及写下的文本没有而候选带上的凭据文件名（读取调用的污点标签按写下的文本取名，候选不能把读取变成标签没见过的凭据文件；名字无害、指向凭据文件的链接不在此列，由引擎判定并 ASK）；候选探测的位置就是工具打开的位置（开头的 `~` 展开，相对名在工作区下，见 `core/security/path/typed_path.py`）。目录授权取同一份判定对象（`plan_directory_grants`、`grant_paths_once` 按调用的 permission 类型取 `judged_file_paths`），所以自愈到授权区之外的读取，卡片提供的文件夹与批准后开放的文件就是工具实际打开的那个，不会出现批准了仍被执行器拒绝的情形。`tests/agent/security/test_engine_respelled_paths.py`、`tests/core/security/path/test_respelling.py`、`tests/agent/meta_tools/file_ops/test_file_read_respelled_path.py`、`tests/agent/security/test_session_access.py` 与 `tests/agent/middlewares/approval/test_once_grants.py` 钉住这一点。
 
 ---
 
@@ -615,7 +617,7 @@ Step 6:    Transcript Classifier → 当 auto_mode_enabled 时，对所有 engin
 | `net_fetch`（`web_fetch_tool`） | `urls`（`url` 同样读取；字符串、列表或 JSON 数组文本） | 提取每个网址的规范主机并逐个匹配规则，最严格的判定生效（DENY > ASK > ALLOW）；未给出网址时返回 `"*"` |
 | `code_interpreter`（`bash_code_execute_tool`） | `command` | 原始值（去首尾空白） |
 | `shell_exec`（`bash_process_tool` 的 `write_stdin` / `submit_stdin` / `close_stdin` / `kill`） | `data` | 原始值（去首尾空白）；`kill` 不带文字，目标为 `"*"` |
-| `file_read` / `file_write` | `path` | 原始值 |
+| `file_read` / `file_write` | `path`、`paths`、`file_path` 等路径参数（`FILE_ARG_KEYS`，JSON 数组文本同样按数组读；URL 与 `/mcp/`、`vault://` 不是宿主文件） | 每个写下的路径（含去掉行号范围后的写法）各是一个目标，最严格的判定生效（DENY > ASK > ALLOW）；`file_read` 另加它自愈后实际打开的写法（`judged_paths.py`）；没有路径时返回 `"*"` |
 | 其他 | — | 返回 `"*"` |
 
 **命令文本的来源**：命令承载权限类型只有 `code_interpreter` 与 `shell_exec`，各自只读执行器真正执行的那一个参数（`command_rules.COMMAND_TEXT_KEY`，契约测试对照执行器的入参模型与 `resolve_permission_type` 钉死这张映射）。入参里多带的其它键（执行器的入参模型会丢弃未声明的键）不参与任何判定，所以各层看到的文字与实际执行的文字是同一份：权限引擎的目标与安全命令自动放行、Shell Command Analyzer、命令 denylist、污点外发汇、审核模型的跳过、cron 的集成写入检查、脚本文件的内容摘要、allow-always 的守卫、技能边界记入权限日志的操作文本，都经 `command_text` 取文本；允许列表的命令模式经 `launch_command` 取启动的命令（只有 `code_interpreter` 是一条启动的命令，进程 stdin 的文字不进入命令模式）。其它权限类型没有命令文本，这些检查对它们不产生判定。

@@ -29,7 +29,6 @@ from app.database.models.config import UserConfig
 from app.services.budget import channel_budget
 from app.services.budget.channel_budget import (
     CHANNEL_BUDGET_CONFIG_KEY,
-    ChannelBudgetPolicy,
     ChannelBudgetRegistry,
     get_channel_budget_registry,
     initialize_channel_budgets,
@@ -38,6 +37,7 @@ from app.services.budget.channel_budget import (
     save_channel_budget_policy,
     should_block_channel,
 )
+from app.services.budget.channel_budget_policy import ChannelBudgetPolicy
 from tests.support.channel_budget_fixtures import GROUP_IDS, budget_database
 from tests.support.channel_chat_rows import seed_channel_chat, seed_costed_reply
 
