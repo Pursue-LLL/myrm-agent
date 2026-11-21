@@ -11,7 +11,8 @@
 - PersistResult: file_id, file_size, resolved_path from persist
 
 [POS]
-Local-mode artifact processor: reference-only persist, resolved_path SSOT for IM deliverable deep links.
+Local-mode artifact processor: reference-only persist whose file id is stable per (chat, real path),
+resolved_path SSOT for IM deliverable deep links.
 """
 
 from __future__ import annotations
@@ -361,7 +362,7 @@ class LocalArtifactProcessor(BaseArtifactProcessor):
         file = await files_svc.save_file_reference(
             chat_id=self.chat_id,
             filename=filename,
-            sandbox_path=file_path,
+            physical_path=resolved,
             file_size=file_size,
             content_type=content_type,
         )

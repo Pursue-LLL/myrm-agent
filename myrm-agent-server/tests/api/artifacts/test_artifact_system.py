@@ -165,7 +165,7 @@ class TestLocalArtifactProcessor:
         mock_save_ref.assert_called_once()
 
         call_kwargs = mock_save_ref.call_args
-        assert call_kwargs.kwargs["sandbox_path"] == "output.py"
+        assert call_kwargs.kwargs["physical_path"] == str(output)
 
     @pytest.mark.asyncio
     async def test_local_processor_large_non_shareable_skipped(self, tmp_path) -> None:  # noqa: ANN001
