@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   CRON_OVERDUE_THRESHOLD_MS,
   computeStats,
+  connectorCategoryLabelKey,
   filterJobs,
   formatRelativeTime,
   formatTimeoutSeconds,
@@ -211,6 +212,25 @@ describe('triggerSourceLabelKey', () => {
 
   it.each(['', 'made-up-source', 'constructor', 'toString', '__proto__'])('has no label for %j', (source) => {
     expect(triggerSourceLabelKey(source)).toBeUndefined();
+  });
+});
+
+describe('connectorCategoryLabelKey', () => {
+  it.each([
+    ['auth_failure', 'connectorCategoryAuth'],
+    ['http_client_error', 'connectorCategoryClient'],
+    ['http_server_error', 'connectorCategoryServer'],
+    ['timeout', 'connectorCategoryTimeout'],
+    ['network_unreachable', 'connectorCategoryNetwork'],
+    ['payload_contract', 'connectorCategoryPayload'],
+    ['process_error', 'connectorCategoryProcess'],
+    ['unknown', 'connectorCategoryUnknown'],
+  ])('labels the category %s with %s', (category, labelKey) => {
+    expect(connectorCategoryLabelKey(category)).toBe(labelKey);
+  });
+
+  it.each(['', 'made-up-category', 'constructor', 'toString', '__proto__'])('reads %j as unknown', (category) => {
+    expect(connectorCategoryLabelKey(category)).toBe('connectorCategoryUnknown');
   });
 });
 

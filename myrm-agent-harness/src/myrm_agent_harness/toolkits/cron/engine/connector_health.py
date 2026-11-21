@@ -1,16 +1,18 @@
 """Structured connector health degradation and failure classification for cron automations.
 
 Pure deterministic functions and data models — no I/O, safe to import anywhere in harness and server.
-Used to classify outbound delivery and connector failures and to redact credentials in target endpoints.
+Used to classify outbound delivery and connector failures, to name a delivery destination without exposing
+its address, and to redact credentials in target endpoints.
 
 [INPUT]
 - Exception or error message text
-- HTTP status codes, latency, and target URLs
+- Delivery channel and target address
 
 [OUTPUT]
-- ConnectorErrorCategory: 6-tier canonical failure taxonomy
+- ConnectorErrorCategory: Canonical failure taxonomy
 - ConnectorHealthStatus: HEALTHY / DEGRADED / DOWN state machine
 - classify_connector_error: Classifies raw exceptions or error strings into categories
+- delivery_target_key: Stable, address-free identity of an outbound delivery destination
 - redact_connector_url: Strips passwords, auth tokens, and sensitive query params from target URLs
 - ConnectorFailureDetail: Structured error metadata
 
@@ -20,6 +22,7 @@ Harness-level domain models and taxonomy for automation connector health diagnos
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
@@ -46,8 +49,11 @@ class ConnectorHealthStatus(StrEnum):
 
     HEALTHY = "healthy"  # 0 consecutive failures (or recovered)
     DEGRADED = "degraded"  # 1-2 consecutive failures, transient degradation
-    DOWN = "down"  # >= 3 consecutive failures or permanent auth/client rejection
+    DOWN = "down"  # >= 3 consecutive failures, or the latest failure was rejected credentials
 
+
+# Channels whose delivery stays inside the application, so there is no external destination to monitor.
+_NON_OUTBOUND_CHANNELS = frozenset({"chat", "silent", "none"})
 
 _SENSITIVE_PARAM_NAMES = frozenset(
     {
@@ -115,30 +121,34 @@ def redact_connector_url(url: str | None) -> str:
     return redacted
 
 
-def classify_connector_error(
-    error: Exception | str,
-    *,
-    status_code: int | None = None,
-) -> tuple[ConnectorErrorCategory, str]:
+def delivery_target_key(channel: str, target: str | None) -> str:
+    """Name an outbound delivery destination, or return an empty string when the delivery has none.
+
+    Every job that delivers to the same channel and address gets the same key, whatever the job. The key is a digest,
+    so run records that carry it never expose the address (a webhook URL holds its token, a bot hook its key).
+    """
+    address = (target or "").strip()
+    if channel in _NON_OUTBOUND_CHANNELS or not address:
+        return ""
+    return hashlib.sha256(f"{channel}\0{address}".encode()).hexdigest()[:32]
+
+
+def classify_connector_error(error: Exception | str | None) -> tuple[ConnectorErrorCategory, str]:
     """Classify an exception or error string into a structured category and clean message.
+
+    An exception whose text is empty (httpx timeouts, ``asyncio.TimeoutError``) is classified by its type name.
 
     Returns:
         (category, human_readable_summary)
     """
-    error_text = str(error).strip() if error else "Unknown error"
-
-    # 1. Explicit status code check
-    if status_code is not None:
-        if status_code in (401, 403):
-            return ConnectorErrorCategory.AUTH_FAILURE, f"Authentication failed (HTTP {status_code})"
-        if 400 <= status_code < 500:
-            return ConnectorErrorCategory.HTTP_CLIENT_ERROR, f"Client error (HTTP {status_code})"
-        if 500 <= status_code < 600:
-            return ConnectorErrorCategory.HTTP_SERVER_ERROR, f"Server error (HTTP {status_code})"
+    if isinstance(error, Exception):
+        error_text = str(error).strip() or type(error).__name__
+    else:
+        error_text = error.strip() if error else "Unknown error"
 
     lower = error_text.lower()
 
-    # 2. Pattern matching for HTTP status inside error text
+    # 1. Pattern matching for HTTP status inside error text
     if (
         "webhook returned 401" in lower
         or "webhook returned 403" in lower
@@ -157,11 +167,11 @@ def classify_connector_error(
     if "webhook returned 5" in lower or "internal server error" in lower:
         return ConnectorErrorCategory.HTTP_SERVER_ERROR, "Destination internal server error (5xx)"
 
-    # 3. Timeout patterns
+    # 2. Timeout patterns
     if any(k in lower for k in ("timed out", "timeout", "deadline", "readtimeout", "connecttimeout")):
         return ConnectorErrorCategory.TIMEOUT, "Connection or read timed out"
 
-    # 4. Network and DNS resolution patterns
+    # 3. Network and DNS resolution patterns
     if any(
         k in lower
         for k in (
@@ -179,15 +189,16 @@ def classify_connector_error(
             "connection reset",
             "econnreset",
             "connection aborted",
+            "all connection attempts failed",
         )
     ):
         return ConnectorErrorCategory.NETWORK_UNREACHABLE, "Destination network or DNS unreachable"
 
-    # 5. Payload / contract patterns
+    # 4. Payload / contract patterns
     if any(k in lower for k in ("content toolarge", "invalid json", "contract error", "payload too large")):
         return ConnectorErrorCategory.PAYLOAD_CONTRACT, "Response payload or contract invalid"
 
-    # 6. Process / stdio errors
+    # 5. Process / stdio errors
     if any(k in lower for k in ("broken pipe", "process exited", "subprocess terminated")):
         return ConnectorErrorCategory.PROCESS_ERROR, "Connector child process exited unexpectedly"
 
@@ -200,45 +211,16 @@ class ConnectorFailureDetail:
 
     category: ConnectorErrorCategory
     target: str
-    status_code: int | None = None
     message: str = ""
-    duration_ms: int | None = None
     timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict[str, object]:
         return {
             "category": self.category.value,
             "target": self.target,
-            "status_code": self.status_code,
             "message": self.message,
-            "duration_ms": self.duration_ms,
             "timestamp": self.timestamp,
         }
-
-
-def generate_fix_suggestion(category: ConnectorErrorCategory, status_code: int | None = None) -> str:
-    """Generate an actionable, language-neutral fix suggestion for a connector error."""
-    if category == ConnectorErrorCategory.AUTH_FAILURE:
-        return "Verify target webhook secret, authorization token, or IP whitelist settings."
-    if category == ConnectorErrorCategory.HTTP_SERVER_ERROR:
-        if status_code == 502:
-            return "Target server reverse proxy or upstream backend is down. Check destination server logs."
-        if status_code == 503:
-            return "Target server is overloaded or undergoing maintenance. Retry with exponential backoff."
-        return "Target server encountered an internal error (5xx). Check destination server health."
-    if category == ConnectorErrorCategory.HTTP_CLIENT_ERROR:
-        if status_code == 429:
-            return "Target server rate limit exceeded (429). Check API quotas or back off frequency."
-        return "Target endpoint rejected the request payload (4xx). Verify request path and schema."
-    if category == ConnectorErrorCategory.NETWORK_UNREACHABLE:
-        return "Check destination host DNS resolution, firewall rules, and SSL certificate validity."
-    if category == ConnectorErrorCategory.TIMEOUT:
-        return "Target server took too long to respond. Check network latency or increase timeout."
-    if category == ConnectorErrorCategory.PAYLOAD_CONTRACT:
-        return "Target returned an unexpected response format. Ensure response is valid JSON and within size limit."
-    if category == ConnectorErrorCategory.PROCESS_ERROR:
-        return "Local connector process terminated. Verify MCP server or runtime environment."
-    return "Check the task's destination connection settings."
 
 
 __all__ = [
@@ -246,6 +228,6 @@ __all__ = [
     "ConnectorFailureDetail",
     "ConnectorHealthStatus",
     "classify_connector_error",
-    "generate_fix_suggestion",
+    "delivery_target_key",
     "redact_connector_url",
 ]

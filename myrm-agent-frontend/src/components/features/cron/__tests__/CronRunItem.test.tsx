@@ -143,6 +143,23 @@ describe('CronRunItem', () => {
     expect(screen.getByText('web_search')).toBeInTheDocument();
   });
 
+  it('names a failed delivery by its localized category and never by the internal code', () => {
+    const failedDelivery: CronRun = {
+      ...baseRun,
+      id: 'run-del-1',
+      delivery_error: 'ReadTimeout',
+      metadata: {
+        connector_failure: { category: 'timeout', target: 'https://hooks.example.com/a', message: 'ReadTimeout' },
+      },
+    };
+
+    render(<CronRunItem run={failedDelivery} isLast={false} />);
+    fireEvent.click(screen.getByRole('button'));
+
+    expect(screen.getByText('connectorCategoryTimeout')).toBeInTheDocument();
+    expect(screen.queryByText('timeout')).toBeNull();
+  });
+
   describe('job name', () => {
     it('names the job a run belongs to when asked to', () => {
       render(<CronRunItem run={{ ...baseRun, job_name: 'Daily digest' }} isLast={false} showJobName />);

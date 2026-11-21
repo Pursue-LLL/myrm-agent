@@ -80,12 +80,10 @@ class ConnectorHealthResponse(BaseModel):
     total_deliveries: int
     failed_deliveries: int
     consecutive_failures: int
-    last_status_code: int | None = None
     last_error_category: str | None = None
     last_error_message: str | None = None
     last_delivery_at: datetime | None = None
     last_failed_at: datetime | None = None
-    fix_suggestion: str | None = None
     bound_job_ids: list[str] = Field(default_factory=list)
 
 

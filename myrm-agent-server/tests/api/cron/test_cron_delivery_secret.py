@@ -10,15 +10,17 @@ Test-delivery endpoint (POST /{job_id}/test-delivery):
 - 404 for unknown job, 400 for non-deliverable channels
 - reuses the real ChannelResultDelivery pipeline for webhook channels
 - supports not-yet-saved override configs
+- a failure that carries no text (a timeout) is reported by its type
 - leaves the job exactly as it was, with or without a request body and whether the delivery succeeds or fails
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Generator
+from typing import Generator, TypedDict
 from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -31,7 +33,7 @@ from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 
 
 class FakeDelivery:
-    async def deliver(self, job, result):  # noqa: ANN001
+    async def deliver(self, job: object, result: object) -> None:
         pass
 
 
@@ -67,7 +69,16 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
-def _create_webhook_job(client: TestClient, url: str = "https://hooks.example.com/x") -> dict[str, object]:
+class _WebhookDelivery(TypedDict):
+    secret: str
+
+
+class _CreatedJob(TypedDict):
+    id: str
+    delivery: _WebhookDelivery
+
+
+def _create_webhook_job(client: TestClient, url: str = "https://hooks.example.com/x") -> _CreatedJob:
     resp = client.post(
         "/cron",
         json={
@@ -79,7 +90,8 @@ def _create_webhook_job(client: TestClient, url: str = "https://hooks.example.co
         },
     )
     assert resp.status_code == 201
-    return resp.json()
+    job: _CreatedJob = resp.json()
+    return job
 
 
 def _put_failing_state(store: InMemoryCronStore, job_id: str, *, failures: int, error: str) -> None:
@@ -241,6 +253,23 @@ class TestTestDeliveryEndpoint:
             resp = client.post(f"/cron/{job['id']}/test-delivery", json={})
         assert resp.status_code == 502
         assert "Webhook returned 404" in resp.json()["detail"]
+
+    @pytest.mark.parametrize(
+        ("failure", "named"),
+        [(TimeoutError(), "TimeoutError"), (httpx.ReadTimeout(""), "ReadTimeout")],
+        ids=["TimeoutError", "ReadTimeout"],
+    )
+    def test_a_failure_without_text_is_reported_by_its_type(self, client: TestClient, failure: Exception, named: str) -> None:
+        job = _create_webhook_job(client)
+        mock_delivery = AsyncMock()
+        mock_delivery.deliver.side_effect = failure
+        with patch(
+            "app.core.cron.adapters.channel_delivery.ChannelResultDelivery",
+            return_value=mock_delivery,
+        ):
+            resp = client.post(f"/cron/{job['id']}/test-delivery", json={})
+        assert resp.status_code == 502
+        assert resp.json()["detail"] == f"Test delivery failed: {named}"
 
     def test_both_overrides_rejected(self, client: TestClient) -> None:
         job = _create_webhook_job(client)

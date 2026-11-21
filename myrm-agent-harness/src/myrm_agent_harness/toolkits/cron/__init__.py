@@ -64,7 +64,7 @@ from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorFailureDetail,
     ConnectorHealthStatus,
     classify_connector_error,
-    generate_fix_suggestion,
+    delivery_target_key,
     redact_connector_url,
 )
 from myrm_agent_harness.toolkits.cron.engine.scheduler import CronScheduler
@@ -194,10 +194,10 @@ __all__ = [
     "WebhookDelivery",
     "WebhookTrigger",
     "classify_connector_error",
+    "delivery_target_key",
     "dict_to_trigger_config",
     "disable_heartbeat",
     "enable_heartbeat",
-    "generate_fix_suggestion",
     "generate_webhook_path",
     "generate_webhook_secret",
     "get_heartbeat_status",
