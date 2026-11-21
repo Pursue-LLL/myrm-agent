@@ -341,7 +341,7 @@ class TestFinalize:
         ) as mock_notify:
             await service.maybe_finalize(project_id)
             mock_notify.assert_awaited_once()
-            kwargs = mock_notify.await_args.kwargs
+            kwargs = mock_notify.await_args_list[0].kwargs
             assert kwargs["meta_data"]["status"] == "completed"
             assert kwargs["meta_data"]["completed"] == 2
             assert kwargs["meta_data"]["action_url"] == f"/batch-directories/{project_id}"
@@ -379,13 +379,14 @@ class TestFinalize:
         ) as mock_notify:
             await service.maybe_finalize(project_id)
             mock_notify.assert_awaited_once()
-            assert mock_notify.await_args.kwargs["meta_data"]["status"] == "failed"
-            assert mock_notify.await_args.kwargs["meta_data"]["failed"] == 2
-            assert mock_notify.await_args.kwargs["meta_data"]["failed_directories"] == [
+            kwargs = mock_notify.await_args_list[0].kwargs
+            assert kwargs["meta_data"]["status"] == "failed"
+            assert kwargs["meta_data"]["failed"] == 2
+            assert kwargs["meta_data"]["failed_directories"] == [
                 str(dir_a),
                 str(dir_b),
             ]
-            message = mock_notify.await_args.kwargs["message"]
+            message = kwargs["message"]
             assert "Failed directories:" in message
             assert str(dir_a) in message
             assert str(dir_b) in message
@@ -543,6 +544,7 @@ class TestCancelRunningExecution:
             result="",
             metadata={"cancelled_by": "batch_project"},
         )
+        assert result is not None
         assert result["status"] == "cancelled"
 
 
@@ -752,6 +754,7 @@ class TestCancelInReview:
             result="",
             metadata={"cancelled_by": "batch_project"},
         )
+        assert result is not None
         assert result["status"] == "cancelled"
         assert task_id in result["cancelled_task_ids"]
 
@@ -1108,7 +1111,7 @@ class TestRetryThenComplete:
         ) as mock_notify:
             await service.maybe_finalize(project_id)
             mock_notify.assert_awaited_once()
-            assert mock_notify.await_args.kwargs["meta_data"]["status"] == "completed"
+            assert mock_notify.await_args_list[0].kwargs["meta_data"]["status"] == "completed"
 
         detail = client.get(f"/api/v1/batch-directories/{project_id}").json()
         assert detail["status"] == "completed"
@@ -1402,6 +1405,7 @@ class TestPauseResume:
         async def get_task_fresh(task_id: str):
             task = await real_get(task_id)
             if task_id == task_ids[0]:
+                assert task is not None
                 # 模拟 pause 快照后 alpha 立即完成：复查时已是终态
                 task.status = TaskStatus.COMPLETED
                 task.result = "done"
@@ -2006,7 +2010,7 @@ class TestEdgeCaseCoverage:
                 await asyncio.sleep(0.05)
 
         assert mock_notify.await_count == 1
-        assert mock_notify.await_args.kwargs["meta_data"]["status"] == "completed"
+        assert mock_notify.await_args_list[0].kwargs["meta_data"]["status"] == "completed"
 
         fresh = client.get(f"/api/v1/batch-directories/{project_id}").json()
         assert fresh["status"] == "completed"
