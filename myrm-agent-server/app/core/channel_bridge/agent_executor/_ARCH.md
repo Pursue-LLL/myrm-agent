@@ -22,7 +22,9 @@
 
 ## 测试
 
-- `tests/core/channel_bridge/test_deliverable_deep_links.py` — artifact 收集、超限深链/压缩/提示三态、深链失败提示兜底与深链构建
+- `tests/core/channel_bridge/test_deliverable_collect.py` — artifact 收集（可分享追踪、超限深链/压缩/提示三态、多交付物、空文件跳过）
+- `tests/core/channel_bridge/test_deliverable_deep_links.py` — 深链按钮构建与失败兜底
+- `tests/core/channel_bridge/test_deliverable_artifact_versions.py` — 最新版本号批量查询
 - `tests/core/channel_bridge/test_execute_finalize.py` — finalize 深链成功抑制提示 / 失败保留提示 / 压缩提示恒保留 / 空内容交付文案回退 / 截图临时文件交接与被取代附件释放
 - `tests/core/channel_bridge/test_execute_finalize_errors.py` — 失败回合按错误类型回复成员安全文案加参考编号、不泄露提供方原文与账单状态、随成员语言、原文按同一参考编号进日志、已流出的文字保留并附失败文案与标记（复用 `test_execute_finalize._finalize`）；失败回复带失败回合标记、账户指引只在传入时替换文案
 - `tests/core/channel_bridge/test_executor_error_replies.py` — 通用异常只回成员安全文案加参考编号并带失败标记、原始异常按同一参考编号进日志；可信所有者私聊得到账户指引，访客、配对成员与群聊只得通用文案（含 BYOK 与托管计费措辞的区别）；`MyrmLLMError` 诊断只到所有者私聊

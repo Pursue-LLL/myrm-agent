@@ -15,6 +15,8 @@
 
 ## 测试
 
-- `tests/core/channel_bridge/test_deliverable_deep_links.py` — artifact 收集、超限深链/压缩/提示三态、深链失败提示兜底与深链构建
+- `tests/core/channel_bridge/test_deliverable_collect.py` — artifact 收集（可分享追踪、超限深链/压缩/提示三态、多交付物、空文件跳过）
+- `tests/core/channel_bridge/test_deliverable_deep_links.py` — 深链按钮构建与失败兜底
+- `tests/core/channel_bridge/test_deliverable_artifact_versions.py` — 最新版本号批量查询
 - `tests/core/channel_bridge/test_deliverable_scanner.py` — 路径扫描、超限压缩/提示与文本剥离
 - `tests/core/channel_bridge/test_deliverable_media.py` — 附件大小上限格式化与渐进压缩（透明保留、失败回退）

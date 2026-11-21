@@ -20,7 +20,7 @@ ChannelAgentExecutor 执行前后辅助能力。上级文档：[../_ARCH.md](../
 - `tests/core/channel_bridge/test_step_to_label.py`
 - `tests/core/channel_bridge/test_stream_events.py`
 - `tests/core/channel_bridge/test_executor_token_usage.py`
-- `tests/core/channel_bridge/test_deliverable_deep_links.py`
+- `tests/core/channel_bridge/test_deliverable_collect.py`
 - `tests/core/channel_bridge/test_channel_image_accumulator.py`
 - `tests/core/channel_bridge/test_executor_helpers_history.py` — history 持久化 helper；超大入站文本外溢进智能体工作区（含与 harness 自行推导的工作区一致性的真库往返）
 - `tests/core/channel_bridge/test_executor_helpers_agent_workspace.py` — 智能体工作区路径与 harness 实际创建的目录一致；不安全 id 返回 None
