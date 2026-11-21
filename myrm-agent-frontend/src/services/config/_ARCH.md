@@ -9,7 +9,8 @@
 
 | 文件                           | 地位 | 职责                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | I/O/P |
 | ------------------------------ | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `ConfigSyncManager.ts`         | 核心 | 配置的唯一写入网关：乐观更新缓存、防抖 / fast-path 同步、`commitIfDirty`、`ensureKeyLoaded`（渐进加载下读取前确保目标 key 已同步，返回状态是否已知，永不抛出）、`reloadKeys`（后端在页面存活期间改了配置行时换上后端当前值，见 `serverReload.ts`）、迟到记录（后台预加载、`ensureKeyLoaded` 单个 key 的读取）经 `initialLoad.ts` 的 `landLateRecords` 落进缓存空缺并通知订阅者；离线队列、冲突消解、首屏与迟到记录加载、本机写入的记录簿记、订阅分发、启动归一化各自落在下面的独立模块里，管理器只持有缓存与队列状态并调度它们。**密钥丢失的行不回写**：服务端把「已加密存储但封存它的密钥已丢失」的行标成 `unreadable`（值为空），`commitIfDirty` / 启动归一化对这样的键不回写默认值，只有用户显式保存才覆盖；`getUnreadableKeys()` 列出这些键供横幅提示 | ✅    |
+| `ConfigSyncManager.ts`         | 核心 | 配置的唯一写入网关：乐观更新缓存、防抖 / fast-path 同步、`commitIfDirty`、`ensureKeyLoaded`（渐进加载下读取前确保目标 key 已同步，返回状态是否已知，永不抛出）、`reloadKeys`（后端在页面存活期间改了配置行时换上后端当前值，见 `serverReload.ts`）、迟到记录（后台预加载、`ensureKeyLoaded` 单个 key 的读取）经 `initialLoad.ts` 的 `landLateRecords` 落进缓存空缺并通知订阅者；待写队列及其定时器与联网监听（`outbox.ts`）、冲突消解、首屏与迟到记录加载、本机写入的记录簿记、订阅分发、启动归一化各自落在下面的独立模块里，管理器只持有缓存并调度它们；单例被重置时 `dispose()` 释放写入出口的定时器与监听。**密钥丢失的行不回写**：服务端把「已加密存储但封存它的密钥已丢失」的行标成 `unreadable`（值为空），`commitIfDirty` / 启动归一化对这样的键不回写默认值，只有用户显式保存才覆盖；`getUnreadableKeys()` 列出这些键供横幅提示 | ✅    |
+| `outbox.ts`                    | 核心 | 写入出口（`ConfigOutbox`）：持有待写队列与非白名单键的内存队列，承担防抖 / fast-path 发送、可恢复失败后的离线保留、联网重试与启动重放；管理器的缓存与适配器经 `OutboxHost` 在调用时读取（`initialize()` 会整体替换缓存表）；`dispose()` 释放防抖定时器与 `online` 监听 | ✅    |
 | `offlineQueue.ts`              | 核心 | 离线队列的浏览器存储：**落盘只收白名单键**，含密钥的键只在内存队列里重试，不写 `localStorage`；队列合并保留最早的基准版本；`takeUnpersistableOfflineEntries()` 在管理器启动时（先于后端可达性检查）把存储里已有的非白名单条目移出存储、交给内存等待重放；`isNetworkError` / `isRecoverableSyncError` 区分可稍后重试的失败                                                                                                                                                                                 | ✅    |
 | `offlineReplay.ts`             | 核心 | 离线重放决策（纯函数）：**过期闸门**——队列里的变更记录了它当初与服务端分叉的基准版本，重放前与服务端当前版本比对，服务端已前进则判为过期（默认保留服务端值，注册了冲突解决器时交由用户决定），避免陈旧快照覆盖服务端新配置；没有服务端记录的 key 一律判为过期（无版本可比），调用方须先把队列涉及的 key 全部载入；`mergeLatestChanges` 每个 key 取最新值                                                                                                                                                                                                                                        | ✅    |
 | `localWrites.ts`               | 核心 | 本机写入的记录簿记（纯函数，缓存经参数传入）：`buildLocalRecord` 造出记录（不带 `unreadable`，用户显式保存即解除「读不出」标记）；`applyReplayedChanges` 在离线重放前把队列里每个 key 的最新值乐观写进缓存（与 `set()` 同语义）；`recordSyncedChanges` 在同步成功后把已发送的变更落成缓存与独立的合并基线拷贝 | ✅    |
@@ -39,8 +40,8 @@
 
 `personalSettings` 内 `activeThemeProfileId` / `themeProfiles` / `themeFontOverride` 变更时：
 
-1. `saveOfflineQueue(changeQueue)` — 关 tab 前落盘待同步队列
-2. 跳过 1s debounce，立即 `flushSync()`
+1. `ConfigOutbox.enqueue(change, true)` 先 `saveOfflineQueue` — 关 tab 前落盘待同步队列
+2. 跳过 1s debounce，立即发送
 
 `securityConfig` 同样走 fast-path：安全关键变更（如 YOLO 关闭）立即持久化，避免
 1s debounce 内关 tab/刷新丢失，造成「UI 显示已关闭但后端仍开启」的安全假象。
@@ -68,7 +69,7 @@ Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/p
 重放判定前，对队列涉及的每个 key 先 `ensureKeyLoaded`：渐进加载下缓存只含核心 key，缓存里没有的 key 无从比对服务端版本，会被判成「服务端已前进」，向用户弹出没有对比数据的冲突框，选「采用服务端」还会丢掉本地编辑。联网事件触发的重放先 `initialize()`：启动失败过则重新启动（它自己载入并重放队列），仍不可达就保留队列等下一次联网，不拿空缓存去比对。
 
 - `initialize()` 重放 offline queue **前**：`localWrites.ts` 的 `applyReplayedChanges` 乐观写入 cache（与 `set()` 同语义）
-- `flushSync()` 成功 **后**：`recordSyncedChanges` 把 `mergedChanges[].value` 同步到 `cache` + `baseCache`
+- 发送成功 **后**：`recordSyncedChanges` 把已发送变更的 `value` 同步到 `cache` + `baseCache`
 
 保证 `initConfig` 读到的 `personalSettings` 与最后一次本地写入一致，reload 不闪回旧肤。
 
