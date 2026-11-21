@@ -156,10 +156,9 @@ class EvalRunner:
             sid = session_id or await self._executor.create_session()
             response = await self._executor.execute(case.message, session_id=sid)
         except Exception as exc:
-            import traceback
-
-            traceback.print_exc()
-            logger.warning("Eval case failed: %s — %s", case.message[:60], exc)
+            # The stack rides on the record, not a raw stderr print: only the record reaches the host's log handler (the
+            # server's masks credentials, in the stack too).
+            logger.warning("Eval case failed: %s — %s", case.message[:60], exc, exc_info=True)
             result = EvalTurnResult(
                 case=case,
                 response=AgentResponse(answer=""),

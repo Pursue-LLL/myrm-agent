@@ -18,7 +18,8 @@ Python subprocess execution. Handles environment preparation, sandbox wrapping, 
 graceful timeout (SIGTERM → SIGKILL of the whole process group, including what the script left running), cancel-aware
 stop (a cancelled request ends the script like a timeout, but reports "cancelled"), and output parsing for Python code
 execution. Each pipe is read up to a cap (stdout has the headroom for the wrapper's encoded result, stderr is raw
-text), so a script that never stops writing cannot grow the host's memory.
+text), so a script that never stops writing cannot grow the host's memory. A failure of the executor itself (not of the
+script) returns an error result and is logged with its stack through ``logger``, never printed to stderr.
 """
 
 from __future__ import annotations
@@ -28,7 +29,6 @@ import contextlib
 import logging
 import os
 import signal
-import traceback
 from pathlib import Path
 
 from myrm_agent_harness.core.security.bounded_communicate import communicate_bounded
@@ -245,7 +245,9 @@ async def run_python_subprocess(
         )
 
     except Exception as e:
-        traceback.print_exc()
+        # Logged rather than printed: the record reaches the host's log handler (the server's masks credentials, in the
+        # stack too), while a raw stderr print would bypass it.
+        logger.exception("Python subprocess execution failed")
         return ExecutionResult(
             success=False,
             error=f"{type(e).__name__}: {e!s}",

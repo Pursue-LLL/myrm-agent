@@ -1,7 +1,7 @@
 """全局日志配置模块
 
 提供应用程序的日志配置功能，包括：
-- 控制台日志输出（自动脱敏 API key / token / 凭证）
+- 控制台日志输出（自动脱敏 API key / token / 凭证；含 uvicorn 自身日志）
 - 第三方库日志级别控制
 - 自定义日志格式（文本 / JSON，环境变量切换）
 - 请求 trace_id / session_id 自动注入（通过 TracingLogFilter）
@@ -56,6 +56,8 @@ def configure_logging() -> None:
     _suppress_library_logs("httpx", logging.WARNING)
     _suppress_library_logs("transformers", logging.ERROR)
 
+    # uvicorn 以 log_config=None 启动（app/startup/uvicorn_runner.py、app/main.py），它的 dictConfig 不会重置这里设的级别，
+    # 其日志器也走上面的根处理器。
     if is_debug_mode():
         _suppress_library_logs("uvicorn.access", logging.DEBUG)
     else:

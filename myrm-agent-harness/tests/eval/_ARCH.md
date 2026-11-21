@@ -14,7 +14,7 @@ Unit tests for `myrm_agent_harness.eval` — assertion engines (sandbox/file/com
 | `test_matrix.py` | cross-profile matrix evaluation (MatrixRunner/MatrixResult) |
 | `test_builder.py` | trajectory extraction & skill eval case generation |
 | `test_trajectory_disclosure.py` | trajectory-disclosure limits / blocked counts / tool details through protocol, matrix cells and reporters |
-| `test_runner.py` | EvalRunner single/multi-turn and concurrency |
+| `test_runner.py` | EvalRunner single/multi-turn and concurrency; a failed case is logged with its stack, not printed |
 | `test_loader.py` | JSON case loading |
 | `test_reporters.py` | JSONL and Markdown reporters |
 | `test_protocol.py` | EvalCase / AgentExecutor protocol types |

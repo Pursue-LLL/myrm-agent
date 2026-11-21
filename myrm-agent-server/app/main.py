@@ -17,6 +17,8 @@ OpenAPI schema（含 bearerAuth security scheme 和 API 认证说明）
 通过 _custom_openapi() 注入 bearerAuth security scheme，使 Swagger UI Authorize 按钮可用。
 `/health` 先于全部 include_router 注册：FastAPI 按注册顺序匹配，并在首次匹配时构建途经的每个 router 的路由状态，
 `/health` 排在最后会让第一次健康探测就构建整张路由表（见 app/api/router.py 的首屏路由段）。
+脚本入口（桌面 sidecar 的 PyInstaller 入口）以 `log_config=None` 启动 uvicorn，与 app/startup/uvicorn_runner.py 一致：
+uvicorn 的日志器沿用 configure_logging() 装的根处理器，请求行与异常回溯同样脱敏。
 """
 
 from __future__ import annotations
@@ -120,4 +122,5 @@ if __name__ == "__main__":
     from app.startup.listen_address import publish_listen_address
 
     host, port = publish_listen_address()
-    uvicorn.run(app, host=host, port=port)
+    # log_config=None：uvicorn 的日志器沿用 configure_logging() 装的根处理器（脱敏、级别），不另装私有处理器。
+    uvicorn.run(app, host=host, port=port, log_config=None)

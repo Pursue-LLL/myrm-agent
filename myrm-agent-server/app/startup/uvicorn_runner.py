@@ -1,6 +1,6 @@
 """
 @input: 依赖 gc_policy 的「启动期暂停循环 GC」、health_check 的「启动健康检查」、config.env 的调试开关、config.deploy_mode 的运行方式判断、core.infra.frontend_launcher 的 WebUI 前端启动（FrontendLauncher）、services.webui 的二维码与一次性设置令牌、app.main 的 ASGI 应用、harness 的本机局域网地址（get_local_ip），依赖 uvicorn 外部库
-@output: 对外提供 uvicorn 单进程启动（含 WebUI 模式、QR 码、浏览器自动打开）
+@output: 对外提供 uvicorn 单进程启动（含 WebUI 模式、QR 码、浏览器自动打开）；uvicorn 自身日志并入应用的根日志处理器（脱敏与级别由 configure_logging 决定）
 @pos: uvicorn 服务器启动器 —— 默认启动模式
 
 🔄 更新规则：修改此文件后，请更新头注释 + 所属文件夹 _ARCH.md
@@ -133,6 +133,9 @@ def start_with_uvicorn(
             access_log=is_debug_mode(),
             loop=loop_impl,
             timeout_graceful_shutdown=120,
+            # uvicorn 默认的 dictConfig 给自己的日志器装私有处理器并关闭传播，未处理异常的回溯与带查询串的请求行
+            # 因此绕过根处理器的脱敏与级别；None 让这些日志器沿用 configure_logging() 装的根处理器。
+            log_config=None,
         )
         # uvicorn 正常返回 = 已停止接新请求且完成 drain。此处必须 os._exit：
         # 解释器 finalize 阶段会 join 残留的非 daemon 线程（连接池/线程池 worker），

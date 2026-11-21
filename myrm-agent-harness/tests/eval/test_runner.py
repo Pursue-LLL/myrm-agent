@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 import pytest
@@ -121,6 +122,19 @@ class TestEvalRunnerSingleTurn:
         assert result.error_count == 1
         assert result.turn_results[0].error is not None
         assert result.turn_results[1].error is None
+
+    @pytest.mark.asyncio
+    async def test_a_failed_case_is_logged_with_its_stack_and_not_printed(
+        self, caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        runner_logger = "myrm_agent_harness.eval.runner"
+        runner = EvalRunner(MockExecutor(fail_on={"bad message"}))
+
+        with caplog.at_level(logging.WARNING, logger=runner_logger):
+            await runner.run([EvalCase(message="bad message")])
+
+        assert [r.exc_info[0] for r in caplog.records if r.name == runner_logger and r.exc_info] == [RuntimeError]
+        assert capsys.readouterr().err == ""
 
     @pytest.mark.asyncio
     async def test_concurrent_execution(self) -> None:

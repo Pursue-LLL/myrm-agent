@@ -1,8 +1,9 @@
 """Credential redaction of a shell command that is stored or shown.
 
 A command is kept by the audit log and by the background-job registry, read back by the agent, and quoted by log
-lines. Its credentials sit in three shapes: after a command name that takes one (``curl -u``, ``sshpass -p``), after a
-credential-named parameter (``--token x``, ``API_KEY=x``), and inside a value shape (``sk-...``, ``user:pw@host``). The
+lines. Its credentials sit in three recognisable shapes: after a command name that takes one (``curl -u``,
+``sshpass -p``), after a credential-named parameter (``--token x``, ``API_KEY=x``), and inside a value shape
+(``sk-...``, ``user:pw@host``); a secret given as a bare argument (``deploy.sh s3cr3t``) has none of them and stays. The
 shared redactor knows the first and the third, and the parameters whose name says a credential (``--db-password``). This
 module adds the ones whose name only hints at it (``--key``, ``--auth``, ``--bearer``): the shared redactor keeps
 ``sort --key=2`` readable in a file or a tool result, while a text known to be a command masks it.

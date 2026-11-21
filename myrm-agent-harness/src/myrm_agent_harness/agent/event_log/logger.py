@@ -1,7 +1,7 @@
 """EventLogger — integration façade for the event log subsystem.
 
 Receives raw agent events, classifies them (persist or skip),
-sanitizes PII/secrets, buffers writes, and manages session lifecycle
+masks credentials, buffers writes, and manages session lifecycle
 events (SESSION_START / SESSION_END with summary).
 
 Every event is automatically enriched with context dimensions

@@ -42,7 +42,12 @@ _IDENTIFIER_KEY = re.compile(r"(?i:(?:^|[_-])ids?$)|[a-z]Ids?$")
 
 
 def sanitize_event_data(data: dict[str, object]) -> dict[str, object]:
-    """Return ``data`` with secrets and PII removed from every string it holds.
+    """Return ``data`` with the credentials in every string it holds masked.
+
+    A credential is found by its shape (a key prefix, a connection string, a
+    header value) or by the name of its field. Text with neither, such as an
+    email address, a phone or ID number, a card number, or a password written
+    into a sentence, is kept.
 
     A string under a command key is masked as a command line first: the leak
     detector takes the value after ``--key`` for an ordinary word. The value of
