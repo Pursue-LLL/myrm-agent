@@ -212,7 +212,7 @@ Token 明细（tiktoken o200k_base）：
 
 | # | 工具名 | Token (tiktoken) | 来源文件 | 说明 | 加载条件 |
 |---|--------|------------------:|----------|------|----------|
-| 88 | channel_notify_tool | 82 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 点名投递 IM 出站（必填 `destination` 封闭枚举+频控+附件）；参数模式随目的地数浮动（标签较短时 1/3/6 个目的地约 195/210/233），系统提示不追加段落 | Agent 配置 `notify_targets` 且有可用的行时 [Turn1] |
+| 88 | channel_notify_tool | 82 | `server/services/agent/outbound_notify/channel_notify_tool.py` | Agent 点名投递 IM 出站（必填 `destination` 封闭枚举+频控+附件）；参数模式随目的地数浮动（`Me`、`Work`、`ops`、`dev`、`team`、`boss` 这类短标签，前 1/3/6 个目的地的 JSON schema 为 193/204/222 token，另加 65 的包装），系统提示不追加段落 | Agent 配置 `notify_targets` 且有可用的行时 [Turn1] |
 | 89 | image_tool | 120 | `server/ai_agents/media_tools/image_agent_tool.py` | 图像生成与编辑工具；描述不含模型名，所有内置档案均为 120；没有默认模型 | enabled_builtin_tools: image_generation，且已选图像模型、凭证或网关就绪 |
 | 90 | video_tool | 106 | `server/ai_agents/media_tools/video_agent_tool.py` | 视频生成工具；描述不含供应商与模型名，所有内置供应商均为 106（参数 schema 按供应商能力裁剪，不计入描述）；没有默认供应商 | enabled_builtin_tools: video_generation，且已选供应商与模型、凭证或网关就绪 |
 | 91 | tts_generate | 53 | `server/ai_agents/media_tools/tts_agent_tool.py` | 语音合成工具；没有默认供应商与音色 | enabled_builtin_tools: tts，且已选供应商与音色、凭证或网关就绪 |
