@@ -231,12 +231,6 @@ class CronUpdateMixin(CronValidationMixin):
             job.acceptance_criteria = ()
         elif patch.acceptance_criteria is not None:
             job.acceptance_criteria = patch.acceptance_criteria
-        if patch.consecutive_failures is not None:
-            job.consecutive_failures = patch.consecutive_failures
-        if patch.clear_last_error:
-            job.last_error = None
-        elif patch.last_error is not None:
-            job.last_error = patch.last_error
         # After every field is applied: the slot depends on the schedule, the cooldown and the active window together.
         if activating:
             self._activate(job, now)

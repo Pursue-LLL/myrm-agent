@@ -1,4 +1,7 @@
-"""A job's configuration reaches the stored job through create, update and duplicate; duplicate starts the run state fresh."""
+"""A job's configuration reaches the stored job through create, update and duplicate.
+
+A duplicate starts the run state fresh, and no patch carries run state.
+"""
 
 from __future__ import annotations
 
@@ -195,3 +198,13 @@ def test_update_job_reads_every_patch_field() -> None:
 
     unread = {f.name for f in fields(CronJobPatch)} - read
     assert not unread, sorted(unread)
+
+
+def test_a_patch_carries_no_run_state() -> None:
+    """The engine writes run state as runs start and close, so a ``CronJobPatch`` must not be able to set any of it.
+
+    A ``clear_<field>`` flag counts as the field it clears.
+    """
+    settable = {f.name.removeprefix("clear_") for f in fields(CronJobPatch)} & set(_RUN_STATE)
+
+    assert not settable, sorted(settable)

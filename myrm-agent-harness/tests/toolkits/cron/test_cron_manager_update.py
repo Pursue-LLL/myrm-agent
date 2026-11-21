@@ -112,14 +112,6 @@ class TestUpdateJobPatch:
         result = await self._do_update(mgr, job, CronJobPatch(clear_active_hours=True))
         assert result.active_hours is None
 
-    # --- clear_last_error ---
-
-    @pytest.mark.asyncio
-    async def test_clear_last_error(self, mgr: CronManager) -> None:
-        job = make_job(last_error="HTTP 500: upstream unavailable")
-        result = await self._do_update(mgr, job, CronJobPatch(clear_last_error=True))
-        assert result.last_error is None
-
     # --- cooldown_seconds ---
 
     @pytest.mark.asyncio
@@ -222,9 +214,9 @@ class TestUpdateJobMonitorReset:
         from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState
 
         mgr = make_manager()
-        mc = MonitorConfig(enabled=True, monitor_type="text_diff")
+        mc = MonitorConfig(enabled=True, monitor_type="hash")
         job = make_job(prompt="old prompt", monitor_config=mc)
-        state = MonitorState(job_id="job-1", monitor_type="text_diff", data={"old": True})
+        state = MonitorState(job_id="job-1", monitor_type="hash", data={"old": True})
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=state)
         result = await mgr.update_job("job-1", CronJobPatch(prompt="new prompt"))
@@ -237,9 +229,9 @@ class TestUpdateJobMonitorReset:
         from myrm_agent_harness.infra.incremental.types import MonitorConfig, MonitorState
 
         mgr = make_manager()
-        mc = MonitorConfig(enabled=True, monitor_type="text_diff")
+        mc = MonitorConfig(enabled=True, monitor_type="hash")
         job = make_job(job_type=JobType.SHELL, command="echo old", monitor_config=mc, prompt=None)
-        state = MonitorState(job_id="job-1", monitor_type="text_diff", data={"old": True})
+        state = MonitorState(job_id="job-1", monitor_type="hash", data={"old": True})
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=state)
         result = await mgr.update_job("job-1", CronJobPatch(command="echo new"))
@@ -261,7 +253,7 @@ class TestUpdateJobMonitorReset:
         from myrm_agent_harness.infra.incremental.types import MonitorConfig
 
         mgr = make_manager()
-        mc = MonitorConfig(enabled=True, monitor_type="text_diff")
+        mc = MonitorConfig(enabled=True, monitor_type="hash")
         job = make_job(monitor_config=mc)
         mgr._store.get_job = AsyncMock(return_value=job)
         result = await mgr.update_job("job-1", CronJobPatch(clear_monitor_config=True))
@@ -281,7 +273,7 @@ class TestResetMonitorBaseline:
 
         mgr = make_manager()
         job = make_job()
-        state = MonitorState(job_id="job-1", monitor_type="text_diff", data={"some": "data"})
+        state = MonitorState(job_id="job-1", monitor_type="hash", data={"some": "data"})
         mgr._store.get_job = AsyncMock(return_value=job)
         mgr._store.get_monitor_state = AsyncMock(return_value=state)
         assert await mgr.reset_monitor_baseline("job-1") is True
