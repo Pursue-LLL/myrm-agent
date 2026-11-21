@@ -118,6 +118,6 @@ class CommandRewriter:
             new_command = new_command.replace(f"\x00wbws{index}\x00", real)
 
         if rewritten:
-            logger.warning(" [CommandRewriter] Rewrote /workspace paths (%d)", rewritten)
+            logger.info(" [CommandRewriter] Rewrote /workspace paths (%d)", rewritten)
 
         return new_command

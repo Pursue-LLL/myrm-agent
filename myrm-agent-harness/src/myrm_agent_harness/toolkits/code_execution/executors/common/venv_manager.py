@@ -186,5 +186,5 @@ class VenvManager:
         else:
             new_command = command.replace("pip install", f"{pip} install", 1)
 
-        logger.warning(f" [VenvManager] Rewrote pip command: {command_preview(new_command, 100)}")
+        logger.info(f" [VenvManager] Rewrote pip command: {command_preview(new_command, 100)}")
         return new_command

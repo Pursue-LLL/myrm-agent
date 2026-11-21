@@ -3,7 +3,8 @@
 The audit log and the background-job registry keep a command through ``redact_command_line``. The log lines that quote
 one (a blocked path, the start and the failure of a run, a shell fallback) go through ``command_preview`` and quote the
 command the agent issued, not the shell text built from it; the line that reports a rewritten path counts the paths and
-quotes no command. ``--key X`` is the shape that only the entry knows: the shared log formatter leaves it as written, so
+quotes no command. The two rewrite lines report an expected step, not a fault, so they sit at INFO and the default
+level drops them. ``--key X`` is the shape that only the entry knows: the shared log formatter leaves it as written, so
 a line that shows the command unmasked shows the value. Each test names the line it drives, so a test cannot pass
 because that line never ran.
 """
@@ -49,6 +50,10 @@ def _assert_line_masked(caplog: pytest.LogCaptureFixture, line: str) -> None:
 
 def _logged_line(caplog: pytest.LogCaptureFixture, fragment: str) -> str:
     return next(record.getMessage() for record in caplog.records if fragment in record.getMessage())
+
+
+def _logged_level(caplog: pytest.LogCaptureFixture, fragment: str) -> int:
+    return next(record.levelno for record in caplog.records if fragment in record.getMessage())
 
 
 async def _run_behind_a_prefix(tmp_path: Path, typed: str) -> None:
@@ -134,15 +139,16 @@ class TestPreflight:
 
 class TestRewriters:
     def test_a_rewritten_workspace_path_is_counted_not_quoted(self, caplog: pytest.LogCaptureFixture) -> None:
-        caplog.set_level(logging.WARNING)
+        caplog.set_level(logging.INFO)
         CommandRewriter().rewrite_workspace_paths(
             f"cd /workspace && tool {_KEY} /workspace/out", Path("/tmp/ws"), posix_shell=True
         )
         _assert_line_masked(caplog, "Rewrote /workspace paths (2)")
+        assert _logged_level(caplog, "Rewrote /workspace paths") == logging.INFO
         assert "cd /tmp/ws" not in caplog.text
 
     def test_a_command_without_a_workspace_root_logs_no_rewrite(self, caplog: pytest.LogCaptureFixture) -> None:
-        caplog.set_level(logging.WARNING)
+        caplog.set_level(logging.INFO)
         rewriter = CommandRewriter()
         rewriter.rewrite_workspace_paths("ls ~/workspace /workspace2", Path("/tmp/ws"), posix_shell=True)
         rewriter.rewrite_workspace_paths("cd /workspace && ls", Path("/workspace"), posix_shell=True)
@@ -152,7 +158,7 @@ class TestRewriters:
     async def test_a_rewritten_pip_command(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        caplog.set_level(logging.WARNING)
+        caplog.set_level(logging.INFO)
         # A relative venv path keeps the rewritten command short: the line is cut at 100 characters.
         monkeypatch.chdir(tmp_path)
         (tmp_path / "v" / "bin").mkdir(parents=True)
@@ -164,6 +170,7 @@ class TestRewriters:
         ):
             await manager.rewrite_pip_command(f"pip install requests {_KEY}")
         _assert_line_masked(caplog, "Rewrote pip command")
+        assert _logged_level(caplog, "Rewrote pip command") == logging.INFO
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="drives a real bash shell")
