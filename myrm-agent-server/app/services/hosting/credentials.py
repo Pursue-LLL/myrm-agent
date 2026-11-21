@@ -1,22 +1,25 @@
 """Per-target hosting credentials stored in UserConfig.
 
-[POS] Encrypt and persist deploy-target API tokens in UserConfig.
+[POS] Encrypt and persist deploy-target API tokens in UserConfig. The operator's platform token is resolved from the
+environment at use time and is never copied into a tenant's database.
 
 [INPUT]
 - sqlalchemy (POS: async DB session for UserConfig)
-- app.services.config.encryption (POS: AES-GCM field encryption; the per-target rows are sealed by key prefix)
-- app.services.hosting.targets::credential_config_key (POS: the config key of a target's credentials)
+- app.services.config.encryption::get_encryption_service/HOSTING_TARGET_CREDENTIALS_PREFIX (POS: business-layer sealing policy; the per-target rows are sealed by key prefix)
+- app.services.hosting.targets::credential_config_key/list_hosting_targets/save_hosting_targets (POS: target rows and the config key of a target's credentials)
 
 [OUTPUT]
-- save/load/delete hosting target credentials with legacy Vercel migration
+- save/load/resolve hosting target credentials, legacy Vercel migration, removal of stored platform-token copies
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import uuid
 
+from myrm_agent_harness.utils.crypto import DecryptionError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -24,7 +27,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from app.config.deploy_mode import is_sandbox
 from app.database.connection import get_session
 from app.database.models.config import UserConfig
-from app.services.config.encryption import get_encryption_service
+from app.services.config.encryption import HOSTING_TARGET_CREDENTIALS_PREFIX, get_encryption_service
 from app.services.hosting.targets import (
     LEGACY_VERCEL_TARGET_ID,
     credential_config_key,
@@ -32,7 +35,9 @@ from app.services.hosting.targets import (
     list_hosting_targets,
     save_hosting_targets,
 )
-from app.services.hosting.types import TargetCredentialStatus
+from app.services.hosting.types import HostingTarget, TargetCredentialStatus
+
+logger = logging.getLogger(__name__)
 
 VERCEL_CREDENTIALS_KEY = "vercelDeployCredentials"
 PLATFORM_TOKEN_ENV = "VERCEL_PLATFORM_TOKEN"
@@ -167,16 +172,49 @@ async def get_target_credential_status(db: AsyncSession, target_id: str) -> Targ
     return TargetCredentialStatus(configured=False, platform_available=platform_available)
 
 
-async def migrate_legacy_vercel_credentials(db: AsyncSession) -> None:
-    legacy_token = await load_legacy_vercel_token(db)
-    token = legacy_token or get_platform_vercel_token()
-    if not token:
-        return
-    targets = await list_hosting_targets(db)
-    if targets:
-        return
-    from app.services.hosting.types import HostingTarget
+def _stored_token(row: UserConfig) -> str | None:
+    try:
+        return token_from_credentials(decrypt_credentials(row.config_value, row.is_encrypted))
+    except DecryptionError:
+        logger.warning("Hosting credentials %s cannot be opened with the current key; left untouched", row.config_key)
+        return None
 
+
+async def _purge_platform_token_copies(db: AsyncSession, platform_token: str) -> None:
+    """Delete stored credentials that duplicate the platform token.
+
+    The platform token is an operator secret; a copy in the tenant's database would travel with its backups and
+    archives. A target without its own credentials already falls back to the live token, so a copy is never needed.
+    Once the copies are gone nothing matches, which makes the sweep idempotent.
+    """
+    rows = (
+        (await db.execute(select(UserConfig).where(UserConfig.config_key.startswith(HOSTING_TARGET_CREDENTIALS_PREFIX))))
+        .scalars()
+        .all()
+    )
+    copies = [row for row in rows if _stored_token(row) == platform_token]
+    if not copies:
+        return
+    for row in copies:
+        await db.delete(row)
+    await db.commit()
+    logger.warning("Removed %d stored copies of the platform Vercel token from hosting credentials", len(copies))
+
+
+async def migrate_legacy_vercel_credentials(db: AsyncSession) -> None:
+    """Give a tenant that has Vercel access its default target, and keep the platform token out of its database.
+
+    The user's own legacy token moves into the target's credentials row. The platform token never does: the target
+    stays without credentials and publishing resolves the token from the environment.
+    """
+    platform_token = get_platform_vercel_token()
+    if platform_token:
+        await _purge_platform_token_copies(db, platform_token)
+    legacy_token = await load_legacy_vercel_token(db)
+    if not (legacy_token or platform_token):
+        return
+    if await list_hosting_targets(db):
+        return
     target = HostingTarget(
         id=LEGACY_VERCEL_TARGET_ID,
         name="Vercel",
@@ -185,7 +223,8 @@ async def migrate_legacy_vercel_credentials(db: AsyncSession) -> None:
         is_default=True,
     )
     await save_hosting_targets(db, [target])
-    await save_target_credentials(db, target.id, {"token": token})
+    if legacy_token:
+        await save_target_credentials(db, target.id, {"token": legacy_token})
 
 
 async def has_any_hosting_credentials() -> bool:
