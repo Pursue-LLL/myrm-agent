@@ -1,7 +1,8 @@
 /**
  * What the manager does with a key the backend rejected on version: merge silently when the edits do not overlap,
- * keep the local value on the same device, ask the user across devices, and never lose the local value when the
- * re-send fails.
+ * keep the local value when the same device wrote the clashing version, ask the user when another device did or when
+ * the key was never loaded (no baseline: the local value has never seen what the server holds), and never lose the
+ * local value when the re-send fails.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
