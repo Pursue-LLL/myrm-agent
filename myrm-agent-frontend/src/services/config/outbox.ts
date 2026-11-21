@@ -4,7 +4,7 @@
  * - `./e2eSearchSyncGate` withoutBlockedSearchChanges (POS: E2E switch that keeps the search config local)
  * - `./localWrites` applyReplayedChanges / recordSyncedChanges (POS: cache bookkeeping of writes made on this device)
  * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / removeOfflineEntries / takeUnpersistableOfflineEntries (POS: browser-storage half of the offline queue)
- * - `./offlineReplay` mergeLatestChanges / partitionOfflineChanges (POS: one change per key, replay staleness gate)
+ * - `./offlineReplay` mergeLatestChanges / decideReplay (POS: one change per key on the confirmed version, per-change replay decisions)
  * - `./outboxAnswer` mergeAnswers / partitionByAnswer (POS: how a backend answer maps onto the batch it answers)
  * - `./types` ConfigChange / SyncResult / SyncStatus (POS: queued write, backend answer, manager state)
  *
@@ -28,6 +28,11 @@
  * result. A batch the backend refuses outright is sent again key by key, so only the keys it refuses lose their write
  * and `forceSync()` still rejects with the refusal; a send nobody awaits is logged by the send itself, never an
  * unhandled rejection.
+ *
+ * Replay judges what a previous session left behind one change at a time: a change the server already holds, or whose
+ * clash the user settled with the server value, leaves the store; a change whose key could not be read stays stored for
+ * the next replay; every other change is written to the cache and queued in front of newer edits, so it goes out like
+ * any write and its stored copy stays until the backend has taken it.
  */
 import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext } from './conflictResolution';
@@ -40,7 +45,7 @@ import {
   saveOfflineQueue,
   takeUnpersistableOfflineEntries,
 } from './offlineQueue';
-import { mergeLatestChanges, partitionOfflineChanges } from './offlineReplay';
+import { decideReplay, mergeLatestChanges } from './offlineReplay';
 import { mergeAnswers, partitionByAnswer } from './outboxAnswer';
 import type { ConfigChange, ConfigKey, ConfigVersion, SyncResult, SyncStatus } from './types';
 
@@ -56,11 +61,6 @@ export interface OutboxHost {
   initialize(): Promise<unknown>;
   isInitialized(): boolean;
   setStatus(status: SyncStatus): void;
-}
-
-interface SendOptions {
-  /** Replay keeps the version each entry was based on instead of the latest confirmed one. */
-  preserveExpectedVersion?: boolean;
 }
 
 /**
@@ -117,29 +117,45 @@ export class ConfigOutbox {
     this.memoryOnlyOfflineChanges.push(...takeUnpersistableOfflineEntries());
   }
 
-  /** 待重放的离线变更：内存里的非白名单条目 + 浏览器存储里的白名单条目。 */
+  /** 待重放的离线变更：内存里的非白名单条目 + 浏览器存储里的白名单条目；队列已持有同键不更旧写入的，由队列自己发送。 */
   collectOfflineChanges(): ConfigChange[] {
-    return [...this.memoryOnlyOfflineChanges, ...loadOfflineQueue()];
+    const queued = (entry: ConfigChange) =>
+      this.queue.some((change) => change.key === entry.key && change.timestamp >= entry.timestamp);
+    return [...this.memoryOnlyOfflineChanges, ...loadOfflineQueue()].filter((entry) => !queued(entry));
   }
 
-  /** 服务端已前进的过期条目被丢弃（服务端值胜出）；其余乐观写入缓存后带着原基准版本同步。 */
+  /**
+   * Judges each leftover change on its own against what the server holds (`decideReplay`): the ones that still have
+   * to reach the server join the queue, in front of newer edits, and go out like any write; the ones the server has
+   * settled leave the store; the ones whose key could not be read stay where they are for the next replay.
+   */
   async replayOfflineChanges(pending: ConfigChange[]): Promise<void> {
     if (pending.length === 0) {
       return;
     }
     console.warn(`[ConfigSync] Found ${pending.length} offline changes, syncing...`);
-    // 渐进加载下缓存只含核心键：队列里的非核心键没补载入就比对，会把「没取到」当成「服务端已前进」。
-    await Promise.all(pending.map((change) => this.host.ensureKeyLoaded(change.key)));
-    const { cache, resolver } = this.host.context();
-    const replayable = await partitionOfflineChanges(pending, cache, resolver);
-    this.memoryOnlyOfflineChanges = [];
-    removeOfflineEntries(pending.filter((change) => !replayable.includes(change)));
-    if (replayable.length > 0) {
+    const unread = await this.unreadKeys(pending);
+    const { baseCache, resolver } = this.host.context();
+    const { send, settled, undecided } = await decideReplay(pending, baseCache, unread, resolver);
+    // 内存里只留未决的条目：已决定的完成了使命，队列已持有同键不更旧写入的由那次写入取代。
+    this.memoryOnlyOfflineChanges = this.memoryOnlyOfflineChanges.filter((change) => undecided.includes(change));
+    removeOfflineEntries(settled);
+    if (send.length > 0) {
       const sink = this.host.context();
-      applyReplayedChanges(sink, sink.deviceId, replayable);
-      this.queue = replayable;
-      await this.flush({ preserveExpectedVersion: true });
+      applyReplayedChanges(sink, sink.deviceId, send);
+      this.queue.unshift(...send);
+      await this.flush();
     }
+    if (undecided.length > 0) {
+      this.host.setStatus('offline');
+    }
+  }
+
+  /** 渐进加载下缓存只含核心键：队列里的非核心键没补载入就比对，会把「没取到」当成「服务端已前进」。 */
+  private async unreadKeys(changes: ConfigChange[]): Promise<Set<ConfigKey>> {
+    const keys = [...new Set(changes.map((change) => change.key))];
+    const known = await Promise.all(keys.map((key) => this.host.ensureKeyLoaded(key)));
+    return new Set(keys.filter((_key, index) => !known[index]));
   }
 
   registerOnlineHandler(): void {
@@ -202,8 +218,8 @@ export class ConfigOutbox {
   }
 
   /** Sends what is queued; returns once the answer is applied and every clash it raised is settled. */
-  private async flush(options?: SendOptions): Promise<SyncResult> {
-    const delivery = await this.exclusive(() => this.sendQueued(options));
+  private async flush(): Promise<SyncResult> {
+    const delivery = await this.exclusive(() => this.sendQueued());
     await delivery.settled;
     if ('refusal' in delivery) {
       throw delivery.refusal;
@@ -219,14 +235,14 @@ export class ConfigOutbox {
   }
 
   /** One batch of the queued changes whose key is not being settled: the latest value per key. */
-  private sendQueued(options?: SendOptions): Promise<Delivery> {
+  private sendQueued(): Promise<Delivery> {
     this.queue = withoutBlockedSearchChanges(this.queue);
     const ready = this.queue.filter((change) => !this.clashing.has(change.key));
     if (ready.length === 0) {
       return Promise.resolve(nothingSent());
     }
     this.queue = this.queue.filter((change) => this.clashing.has(change.key));
-    const batch = mergeLatestChanges(ready, this.host.context().baseCache, options?.preserveExpectedVersion === true);
+    const batch = mergeLatestChanges(ready, this.host.context().baseCache);
     return this.deliver(batch);
   }
 

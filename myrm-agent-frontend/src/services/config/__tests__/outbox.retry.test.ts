@@ -25,7 +25,7 @@ type Backend = 'up' | 'unavailable' | 'refusing';
 
 /** A backend that takes writes while `state.backend` is up, is not available, or refuses them. */
 const serve = (state: { backend: Backend }) =>
-  serveCloudBackend(() => ({ up: 'accept' as const, unavailable: 503, refusing: 422 })[state.backend]);
+  serveCloudBackend({ answer: () => ({ up: 'accept' as const, unavailable: 503, refusing: 422 })[state.backend] });
 
 describe('config outbox retention (cloud mode)', () => {
   const state = { backend: 'up' as Backend };

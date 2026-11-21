@@ -7,7 +7,7 @@
  *
  * [OUTPUT]
  * buildLocalRecord: the cached record for a value this device wrote.
- * applyReplayedChanges: optimistic cache write for queued changes about to be replayed (same semantics as `ConfigSyncManager.set()`).
+ * applyReplayedChanges: optimistic cache write, and the subscribers' news, for queued changes about to be replayed (same semantics as `ConfigSyncManager.set()`).
  * recordSyncedChanges: after the backend accepted a write, what was sent becomes the merge base, and the cached copy unless a newer edit replaced it.
  *
  * [POS]
@@ -41,15 +41,17 @@ export function buildLocalRecord<K extends ConfigKey>(
   };
 }
 
-/** Apply queued change values to cache (mirrors set() optimistic write for offline replay). */
+/** Applies queued change values to the cache and tells the subscribers (mirrors the optimistic write of `set()`). */
 export function applyReplayedChanges(
-  { cache, baseCache }: LocalCaches,
+  { cache, baseCache, notify }: RecordSink,
   deviceId: string,
   changes: ConfigChange[],
 ): void {
   for (const change of mergeLatestChanges(changes, baseCache)) {
     const currentVersion = cache.get(change.key)?.meta.version ?? createInitialVersion();
-    cache.set(change.key, buildLocalRecord(change.key, change.value, incrementVersion(currentVersion), deviceId));
+    const record = buildLocalRecord(change.key, change.value, incrementVersion(currentVersion), deviceId);
+    cache.set(change.key, record);
+    notify(change.key, change.value, record.meta);
   }
 }
 

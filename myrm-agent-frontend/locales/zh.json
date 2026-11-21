@@ -9931,7 +9931,6 @@
     "serverVersion": "服务端版本",
     "localVersion": "本地版本",
     "device": "设备",
-    "unknown": "未知",
     "keepLocal": "保留本地修改",
     "useServer": "采用服务端数据",
     "keepLocalDesc": "用本地修改覆盖服务端数据",

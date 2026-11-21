@@ -1,7 +1,8 @@
 /**
  * What a write made on this device leaves in the cached copies: a plain record authored by this device, one version
- * past the cached record while queued changes are replayed, and the confirmed version as an independent merge base
- * once a sync succeeded (and as the copy too, unless a newer edit of the key replaced it meanwhile).
+ * past the cached record (and the subscribers told) while queued changes are replayed, and the confirmed version as an
+ * independent merge base once a sync succeeded (and as the copy too, unless a newer edit of the key replaced it
+ * meanwhile).
  */
 
 import { cloneDeep } from 'lodash-es';
@@ -65,7 +66,7 @@ describe('local writes', () => {
   it('replays the latest queued value of each key one version past the cached record, leaving the merge base alone', () => {
     const caches = cachesHolding([record('chatSettings', { n: 0 }, '1000_0', { unreadable: true })]);
 
-    applyReplayedChanges(caches, DEVICE, [
+    applyReplayedChanges({ ...caches, notify: vi.fn() }, DEVICE, [
       change('chatSettings', { n: 1 }),
       change('chatSettings', { n: 2 }),
       change('securityConfig', { s: 1 }),
@@ -78,6 +79,25 @@ describe('local writes', () => {
     expect(caches.cache.get('securityConfig')?.value).toEqual({ s: 1 });
     expect(caches.baseCache.get('chatSettings')?.value).toEqual({ n: 0 });
     expect(caches.baseCache.has('securityConfig')).toBe(false);
+  });
+
+  it('tells the subscribers about each replayed value, after the cache holds it', () => {
+    const caches = cachesHolding([record('chatSettings', { n: 0 }, '1000_0')]);
+    const cachedWhenTold = new Map<ConfigKey, unknown>();
+    const notify = vi.fn((key: ConfigKey) => {
+      cachedWhenTold.set(key, caches.cache.get(key)?.value);
+    });
+
+    applyReplayedChanges({ ...caches, notify }, DEVICE, [
+      change('chatSettings', { n: 1 }),
+      change('chatSettings', { n: 2 }),
+      change('securityConfig', { s: 1 }),
+    ]);
+
+    expect(notify).toHaveBeenCalledTimes(2);
+    expect(notify).toHaveBeenCalledWith('chatSettings', { n: 2 }, caches.cache.get('chatSettings')?.meta);
+    expect(notify).toHaveBeenCalledWith('securityConfig', { s: 1 }, caches.cache.get('securityConfig')?.meta);
+    expect(Object.fromEntries(cachedWhenTold)).toEqual({ chatSettings: { n: 2 }, securityConfig: { s: 1 } });
   });
 
   it('records a synced change on the version the server answered, as the copy and as an independent merge base', () => {

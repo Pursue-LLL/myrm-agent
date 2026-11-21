@@ -9931,7 +9931,6 @@
     "serverVersion": "Server Version",
     "localVersion": "Local Version",
     "device": "Device",
-    "unknown": "Unknown",
     "keepLocal": "Keep Local Changes",
     "useServer": "Use Server Version",
     "keepLocalDesc": "Overwrite server with your local changes",

@@ -57,9 +57,9 @@ describe('config outbox refused writes (cloud mode)', () => {
   it.each([422, 500])(
     'takes the keys of a batch refused with %i one by one, dropping only the refused one',
     async (status) => {
-      const writes = serveCloudBackend((changes) =>
-        changes.some((change) => change.key === POISON) ? status : 'accept',
-      );
+      const writes = serveCloudBackend({
+        answer: (changes) => (changes.some((change) => change.key === POISON) ? status : 'accept'),
+      });
       const manager = await editThreeKeys();
 
       await expect(manager.forceSync()).rejects.toThrow('Failed to sync configs');
@@ -79,7 +79,9 @@ describe('config outbox refused writes (cloud mode)', () => {
   );
 
   it('does not retry the refused key, and does not hold the other keys back', async () => {
-    const writes = serveCloudBackend((changes) => (changes.some((change) => change.key === POISON) ? 422 : 'accept'));
+    const writes = serveCloudBackend({
+      answer: (changes) => (changes.some((change) => change.key === POISON) ? 422 : 'accept'),
+    });
     const manager = await editThreeKeys();
     await expect(manager.forceSync()).rejects.toThrow();
 
@@ -93,7 +95,7 @@ describe('config outbox refused writes (cloud mode)', () => {
   });
 
   it('reports a batch that was refused as a whole but taken key by key as taken', async () => {
-    serveCloudBackend((changes) => (changes.length > 1 ? 500 : 'accept'));
+    serveCloudBackend({ answer: (changes) => (changes.length > 1 ? 500 : 'accept') });
     const manager = await editThreeKeys();
 
     await expect(manager.forceSync()).resolves.toMatchObject({ success: true, conflicts: [] });
@@ -105,7 +107,7 @@ describe('config outbox refused writes (cloud mode)', () => {
   });
 
   it('does not send a refused single change a second time', async () => {
-    const writes = serveCloudBackend(() => 422);
+    const writes = serveCloudBackend({ answer: () => 422 });
     const manager = getConfigSyncManager();
     await manager.initialize();
     manager.set(POISON, { p: 1 } as never);
