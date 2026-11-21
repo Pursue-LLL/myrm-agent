@@ -15,6 +15,9 @@ const enHumanize: Record<string, string> = {
   'approval.file_write': 'Write {filename}',
   'approval.save_skill': 'Add skill: {name}',
   'approval.browser_url': 'Open webpage — {url}',
+  'approval.send_message': 'Send message to {destination}',
+  'approval.send_message_generic': 'Send a message',
+  'progress.send_message_generic': 'Sent a message',
   'ask.file_write_ask': 'Wanted to write {filename}',
   'ask.tool_generic': 'Wanted to use {tool}',
   'progress.web_search': 'Search the web — "{query}"',
@@ -52,6 +55,17 @@ describe('humanizeToolLine', () => {
     expect(
       humanizeApprovalTitle('skill_manage_tool', { action: 'save', name: 'incident-summary', content: '# body' }, t),
     ).toBe('Add skill: incident-summary');
+  });
+
+  it('titles a notification approval with the destination as the model gave it', () => {
+    expect(humanizeApprovalTitle('channel_notify_tool', { destination: 'telegram:Team group', body: 'hi' }, t)).toBe(
+      'Send message to telegram:Team group',
+    );
+  });
+
+  it('titles a notification generically when the call names no destination', () => {
+    expect(humanizeApprovalTitle('channel_notify_tool', { body: 'hi' }, t)).toBe('Send a message');
+    expect(humanizeToolLine('channel_notify_tool', {}, t, 'progress')).toBe('Sent a message');
   });
 
   it('names an unmapped tool in past tense, or in ask tense when it never ran', () => {
@@ -96,10 +110,24 @@ describe('resolveScopeNote', () => {
     expect(resolveScopeNote('file_write_tool', {}, t).text).toBe('Changes stay on this device');
   });
 
-  it('flags external targets', () => {
+  it('flags a notification as external and names the destination as given', () => {
+    const note = resolveScopeNote('channel_notify_tool', { destination: 'telegram:Team group', body: 'hi' }, t);
+    expect(note).toEqual({ text: 'Sends data to telegram:Team group', external: true });
+  });
+
+  it('does not invent a destination for a notification that names none', () => {
+    const note = resolveScopeNote('channel_notify_tool', { body: 'hi' }, t);
+    expect(note).toEqual({ text: 'Sends data to an external service', external: true });
+  });
+
+  it('flags publishing an artifact as external without naming a destination', () => {
+    const note = resolveScopeNote('artifact_publish', { hosting_target_id: 'host-1', destination: 'x' }, t);
+    expect(note).toEqual({ text: 'Sends data to an external service', external: true });
+  });
+
+  it('flags only the external tools that exist, not any name that sounds like sending', () => {
     const note = resolveScopeNote('send_message_tool', { target: 'slack:general' }, t);
-    expect(note.external).toBe(true);
-    expect(note.text).toContain('Slack');
+    expect(note.external).toBe(false);
   });
 
   it('does not treat browser target colons as external channel scope', () => {

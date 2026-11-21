@@ -33,7 +33,3 @@ class NotificationSender(Protocol):
     ) -> NotifyResult:
         """Deliver a notification to the specified target."""
         ...
-
-    async def list_available_targets(self) -> list[NotifyTarget]:
-        """Return configured notification targets."""
-        ...

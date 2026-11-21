@@ -36,7 +36,7 @@ Design notes:
 | `backends/` | ✅ 核心 | Agent Profile/Secret/MCP OAuth 持久化后端 | [_ARCH.md](backends/_ARCH.md) |
 | `evolution/` | ✅ 核心 | 技能进化调度（stream 完成触发 + 后台 monitor + 技能免疫） | [_ARCH.md](evolution/_ARCH.md) |
 | `execution_cache/` | ✅ 核心 | Chat 级 `BuiltExecutionUnit` 池（POOLED / EPHEMERAL） | [_ARCH.md](execution_cache/_ARCH.md) |
-| `outbound_notify/` | ✅ 辅助 | Agent 主动出站 Channel 通知 | [_ARCH.md](outbound_notify/_ARCH.md) |
+| `outbound_notify/` | ✅ 辅助 | Agent 点名投递的出站 Channel 通知 | [_ARCH.md](outbound_notify/_ARCH.md) |
 | `memory_brief_telemetry/` | ✅ 核心 | Memory Brief CP 遥测（契约、dropped 落盘、metrics、flush、dispatcher） | [_ARCH.md](memory_brief_telemetry/_ARCH.md) |
 | `memory_guardian_guard_telemetry/` | ✅ 核心 | Memory Guardian 守卫不可用 CP 遥测（dispatcher + pending 落盘） | [_ARCH.md](memory_guardian_guard_telemetry/_ARCH.md) |
 | `builtin_specs/` | ✅ 核心 | 预置智能体规格与 builtin 工具 SSOT（types + core/search/extended/vertical 分段；`builtin_initializer` 自动初始化 / `builtin_tool_ids` 工具 ID 清单 / `builtin_tool_validation` DTO validators） | [_ARCH.md](builtin_specs/_ARCH.md) |

@@ -28,10 +28,10 @@ describe('PolymorphicApprovalCard', () => {
       payload: {
         tool_calls: [
           {
-            name: 'send_message_tool',
+            name: 'channel_notify_tool',
             args: {
-              target: 'slack:general',
-              message: 'Weekly update',
+              destination: 'slack:general',
+              body: 'Weekly update',
             },
           },
         ],

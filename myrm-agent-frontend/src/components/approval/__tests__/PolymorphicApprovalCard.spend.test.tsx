@@ -154,7 +154,7 @@ describe('PolymorphicApprovalCard Financial Spend Protection', () => {
       status: 'pending',
       severity: 'high',
       payload: {
-        tool_calls: [{ name: 'channel_notify', args: { message: 'hello' } }],
+        tool_calls: [{ name: 'channel_notify_tool', args: { destination: 'telegram:Team group', body: 'hello' } }],
         reviewConfigs: [
           {
             autoModeSuspended: 'consecutive',

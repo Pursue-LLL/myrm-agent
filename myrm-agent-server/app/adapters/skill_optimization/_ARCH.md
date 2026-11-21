@@ -14,7 +14,7 @@
 
 | 文件 | 地位 | 职责 | I/O/P |
 |------|------|------|-------|
-| `snapshot_repo.py` | 核心 | skill_versions 表 CRUD（由 `skill_version_sync` 双写接入） | ✅ |
+| `snapshot_repo.py` | 核心 | skill_versions 表 CRUD（由 `skill_version_sync` 双写接入）；激活版本是读后写，先取 SQLite 写锁，并发写者在读写之间提交也不会使激活以 `database is locked` 失败 | ✅ |
 | `sqlalchemy_storage.py` | 核心 | 框架适配器，实现 `SkillOptimizationStorage` Protocol；每次操作使用独立 session | ✅ |
 
 ---
@@ -22,4 +22,5 @@
 ## 依赖关系
 
 - `app/database/models/`：SQLAlchemy ORM 模型
+- `app/database/factory.py`：`acquire_write_lock`，读后写的工作单元在事务起始处取写锁
 - `myrm_agent_harness`：`SkillOptimizationStorage` Protocol 定义

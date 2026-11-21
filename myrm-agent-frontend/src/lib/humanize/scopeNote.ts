@@ -1,6 +1,11 @@
+import { extractContextFromToolInput } from './extractContext';
 import type { ScopeNote, TranslateFn } from './types';
 
-const EXTERNAL_TOOLS = new Set(['send_message', 'send_message_tool', 'send_file', 'channel_send']);
+/**
+ * Tools that put data in front of someone else: the tools of the backend's socially irreversible set that exist
+ * (`_IRREVERSIBLE_SOCIAL_TOOLS` in the harness `core/security/spend_governance.py`). Keep the two lists in step.
+ */
+const EXTERNAL_TOOLS = new Set(['channel_notify_tool', 'artifact_publish']);
 
 export function platformLabelFromTarget(target: string): string {
   const platform = target.split(':')[0]?.toLowerCase() ?? '';
@@ -24,11 +29,12 @@ export function resolveScopeNote(toolName: string, toolInput: Record<string, unk
     }
   }
 
-  const target = typeof toolInput.target === 'string' ? toolInput.target : '';
   if (EXTERNAL_TOOLS.has(toolName)) {
-    const platform = platformLabelFromTarget(target);
+    // Only a notification names where it goes; an artifact's hosting target is an id the user cannot read.
+    const destination =
+      toolName === 'channel_notify_tool' ? extractContextFromToolInput(toolInput).destination : undefined;
     return {
-      text: t('scope.external', { destination: platform || t('scope.external_unknown') }),
+      text: t('scope.external', { destination: destination ?? t('scope.external_unknown') }),
       external: true,
     };
   }
