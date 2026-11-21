@@ -12,12 +12,14 @@ reading, the line as written first:
 A command behind ``sudo``, ``env`` or ``timeout`` is judged where it stands: the rules match a command wherever it
 stands in the text, and the quoted text of its arguments stays masked.
 
-The work is bounded. Each reading is expanded once, and the readings beside the line itself add up to at most
-``MAX_COMMAND_READINGS`` texts and ``MAX_READING_CHARS`` characters. The scripts and substitutions come first, since
-what a line hides inside quotes stands in no other reading: when they do not fit, ``CommandReadings.complete`` is
-False and the caller refuses the line, because a payload may sit in what was not read. The commands apart only restate
-text the readings above already hold, so they fill what is left of the bounds, those of a script before those of the
-line itself; a line that runs past them (a long script written through a heredoc) is judged on what was found.
+The work is bounded, and a line that does not fit is refused, never judged on the part that does: when a bound runs
+out ``CommandReadings.complete`` is False and the caller refuses the line, because a payload may sit in what was not
+read. Each reading is expanded once. The scripts and substitutions nest, so reading them costs readings x length
+(``eval eval eval ...``): they are limited to ``MAX_COMMAND_READINGS`` texts, and all the readings beside the line
+itself to ``MAX_READING_CHARS`` characters. The commands apart are read in full, however many a line holds, because
+the line as written can be thrown off by an apostrophe inside double quotes (``echo "it's"; rm -rf ~; echo 'x'``
+masks the middle of it) and the command alone is then the only reading that shows what it does; they partition the
+line, so they cost no more than its length.
 
 [INPUT]
 - core.security.shell_command_lexer::read_commands, split_command_spans (POS: Shared lexical layer of the shell command security checks)
@@ -25,8 +27,8 @@ line itself; a line that runs past them (a long script written through a heredoc
 
 [OUTPUT]
 - MAX_READING_CHARS: The most characters the readings beside the line itself may add up to.
-- UNREAD_SCRIPTS_EVIDENCE: The bounds a line that nests too many scripts ran into, as the threat evidence words them.
-- CommandReadings: The texts to judge for a command line, and whether every script it hands to a shell is among them.
+- UNREAD_EVIDENCE: The bounds a line that does not fit ran into, as the threat evidence words them.
+- CommandReadings: The texts to judge for a command line, and whether every text it needs is among them.
 - command_readings: The readings of a command line, the line as written first.
 
 [POS]
@@ -51,13 +53,11 @@ from myrm_agent_harness.core.security.shell_wrapper_peel import (
 # what a real line nests.
 MAX_READING_CHARS: Final = 256 * 1024
 
-UNREAD_SCRIPTS_EVIDENCE: Final = (
-    f"more than {MAX_COMMAND_READINGS} readings or {MAX_READING_CHARS // 1024} KB of scripts"
-)
+UNREAD_EVIDENCE: Final = f"more than {MAX_COMMAND_READINGS} readings or {MAX_READING_CHARS // 1024} KB of text"
 
 
 class CommandReadings(NamedTuple):
-    """The texts to judge for a command line, and whether every script it hands to a shell is among them."""
+    """The texts to judge for a command line, and whether every text it needs is among them."""
 
     texts: tuple[str, ...]
     complete: bool
@@ -131,9 +131,9 @@ def _handed_to_a_shell(statement: str) -> list[str]:
 def command_readings(command: str) -> CommandReadings:
     """The texts to judge for *command*, the line as written first, then what it hands to a shell, then each command.
 
-    The scripts are found first, in every command of the line and, one nesting level at a time, of each script. A
-    script that no longer fits the bounds leaves ``complete`` False. The commands of the line and of its scripts
-    apart come last and fill what the scripts left of the bounds; past them only the texts found so far are judged.
+    The scripts are found first, in every command of the line and, one nesting level at a time, of each script; the
+    commands of the line and of its scripts come last, each apart. A text that no longer fits the bounds leaves
+    ``complete`` False: the texts found so far are all there is to judge, and the caller refuses the line.
     """
     root = command.strip()
     readings: dict[str, None] = {root: None}
@@ -158,7 +158,7 @@ def command_readings(command: str) -> CommandReadings:
                 if not text or text in readings:
                     continue
                 room -= len(text)
-                if len(readings) >= MAX_COMMAND_READINGS or room < 0:
-                    return CommandReadings(tuple(readings), complete=True)
+                if room < 0:
+                    return CommandReadings(tuple(readings), complete=False)
                 readings[text] = None
     return CommandReadings(tuple(readings), complete=True)
