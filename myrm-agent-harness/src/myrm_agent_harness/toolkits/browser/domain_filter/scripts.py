@@ -36,7 +36,6 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
   var policy = __POLICY__;
   var xhtml = 'http://www.w3.org/1999/xhtml';
   var construct = Reflect.construct;
-  var carriers = new WeakSet();
 
   function carries(doc) {
     var held = doc.head ? doc.head.querySelectorAll('meta[http-equiv="Content-Security-Policy" i]') : [];
@@ -57,7 +56,6 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
 
   function ensurePolicy() {
     var doc = document;
-    if (carriers.has(doc)) return;
     var head = headOf(doc);
     if (!head) return;
     if (!carries(doc)) {
@@ -66,7 +64,6 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
       meta.content = policy;
       head.insertBefore(meta, head.firstChild);
     }
-    carriers.add(doc);
   }
 
   if (document.head) {
@@ -105,8 +102,12 @@ _CSP_SCRIPT_TEMPLATE = """(function() {
 def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     """Generate the script that gives every document the allowlist's CSP ``<meta>`` and keeps it there.
 
-    The policy is enforced by the browser for the connections the document itself makes, and cannot be bypassed
-    by page scripts. Directives:
+    The browser enforces the policy for the connections the document itself makes, and keeps enforcing it after a page
+    script removes the ``<meta>``, removes the head or rewrites the document (measured on Chromium; the Firefox family
+    is untested). It is a page-level defence, not a security boundary: a channel the policy does not cover, and a page
+    written to defeat the script that installs it (in a document with no head, or on an engine that runs the agent's
+    JavaScript in the page's own world), are outside what it guarantees, so against a hostile page the boundary is the
+    outbound network layer. Directives:
     - connect-src: Restricts network connections (fetch/XHR/WebSocket/EventSource/sendBeacon)
     - script-src: Restricts script loading (allows inline/eval for compatibility); also decides which Workers may start,
       so a Worker whose script comes from a blob or data URL is refused
@@ -119,7 +120,7 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     ``MutationObserver`` on the document inserts the policy as the head's first child, ahead of the page's own scripts,
     and is dropped once it has done so or the document is fully parsed (one that is already parsed when the script
     runs gets no observer at all). A document that has a root element but never gets a head, such as an SVG or an
-    XML document, is given one when the policy is first needed, because a policy ``<meta>`` is enforced only inside
+    XML document, is given one when the policy is needed, because a policy ``<meta>`` is enforced only inside
     the head; the observer never makes one, it waits for the head the parser builds. The head and the ``<meta>`` are
     created in the XHTML namespace, since ``createElement`` in an XML document makes an element without a namespace,
     which is not a ``meta`` element. A head the engine does not read as the document's head is removed again, so a
@@ -133,11 +134,11 @@ def build_csp_meta_script(allowlist: DomainAllowlist) -> str:
     constructor in two ways: the ``toString`` text lacks the function name, and a ``TypeError`` the native constructor
     throws gains a stack frame.
 
-    The page's world and the agent's world (``domain_filter.agent_world`` runs this script there too) each keep a record
-    of the documents they have dealt with and cannot see the other's, so the DOM decides: a document gets the policy
-    only when none of its head's ``<meta>`` elements already carries it. The script evaluates to a function that does
-    the same for the current document and returns whether the document then carries the policy; a document with no
-    root element to hold a head never does.
+    The page's world and the agent's world (``domain_filter.agent_world`` runs this script there too) cannot see each
+    other's variables, so the DOM decides, every time: a document gets the policy only when none of its head's
+    ``<meta>`` elements already carries it, which also puts it back on a page that has rewritten its head. The script
+    evaluates to a function that does the same for the current document and returns whether the document then carries
+    the policy; a document with no root element to hold a head never does.
 
     Raises:
         ValueError: ``allowlist`` is empty. An empty allowlist installs no filter, so there is no policy to build.

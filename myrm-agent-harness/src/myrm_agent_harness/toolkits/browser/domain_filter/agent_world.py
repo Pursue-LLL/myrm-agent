@@ -14,8 +14,8 @@
 ``BrowserSession.evaluate`` is the one place the agent's own JavaScript enters a page. Under patchright ``page.evaluate``
 runs it in an isolated world: constructors and a window of its own over the page's DOM. The init scripts of Layers 0 and 2
 run in the page's main world, so neither their ``WebSocket`` / ``Worker`` wrappers nor their hardening are there, and a
-document that carries no policy ``<meta>`` (a same-origin popup's reused window, a page that removed its head) lets the
-expression open a WebSocket or a Worker to any host. The arm runs the same two scripts in the isolated world before the
+document that carries no policy ``<meta>`` (a same-origin popup's reused window) lets the expression open a WebSocket
+or a Worker to any host. The arm runs the same two scripts in the isolated world before the
 expression: the document gets its policy (an SVG or XML document is given a head to hold it), the window's own
 ``RTCPeerConnection``, ``WebTransport`` and ``serviceWorker.register`` are hardened, and a document that still cannot
 carry the policy (it has no root element) refuses the expression instead of running it unguarded. An engine whose driver

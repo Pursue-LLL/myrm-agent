@@ -1,10 +1,12 @@
-"""Real-Chromium proof that the allowlist's policy reaches every kind of document a page can be.
+"""Real-Chromium proof that the allowlist's policy holds in documents with no head and in a page that rewrites its head.
 
-The policy is a ``<meta>`` in the head of the document, and some documents have none: an SVG or an XML document is a
-tree with no head, a page can remove its own, and an XHTML document may run a script before its parser has built the
+The policy is a ``<meta>`` in the head of the document, and some documents have none when their script first runs: an
+SVG or an XML document is a tree with no head, and an XHTML document may run a script before its parser has built the
 head. The script of Layer 0 gives such a document a head just before a page script or the agent's own JavaScript opens a
-channel no request filter sees. A second loopback server records every request it receives, so a WebSocket that
-reaches outside shows up there. Run with:
+WebSocket, a channel no request filter sees. A page can also rewrite its own head (remove the policy ``<meta>``, remove
+the head, empty it, or rewrite the whole document): the browser keeps enforcing the policy it applied, the agent's next
+script still runs, and the document holds exactly one policy ``<meta>``. A second loopback server records every request
+it receives, so a WebSocket that reaches outside shows up there. Run with:
 `pytest -m integration tests/toolkits/browser/test_policy_document_kinds_integration.py`.
 """
 
@@ -30,6 +32,12 @@ pytestmark = [
 _SETTLE_S = 0.6  # a WebSocket handshake to a loopback server needs far less to be seen there
 _XHTML = "http://www.w3.org/1999/xhtml"
 _POLICY_COUNT = "document.querySelectorAll('meta[http-equiv]').length"
+_REWRITES = {
+    "removes the policy meta": "document.querySelectorAll('meta[http-equiv]').forEach(m => m.remove())",
+    "removes the head": "document.head.remove()",
+    "empties the head": "document.head.innerHTML = ''",
+    "rewrites the document": "document.open(); document.write('<p>x</p>'); document.close();",
+}
 
 
 def _xhtml(inner: str) -> Reply:
@@ -62,17 +70,19 @@ def _documents(leak: str) -> dict[str, Reply]:
 _SCRIPTED = ("/xml", "/text-xml", "/rss", "/svg", "/xhtml-no-head", "/xhtml-script-before-head")
 
 
+def _leak_url(outside: Site) -> str:
+    """A WebSocket URL on the outside server; ``localhost`` is not on the allowlist, which holds ``127.0.0.1``."""
+    return outside.base_url.replace("127.0.0.1", "localhost").replace("http", "ws") + "/leak"
+
+
 @pytest.fixture
 def sites() -> Iterator[tuple[Site, Site]]:
     """The allowlisted site, whose documents try to reach the second server, which the allowlist keeps out."""
-    with serve({"/": page("outside")}) as outside:
-        # ``localhost`` is not on the allowlist, which holds ``127.0.0.1``: the outside server is a different host.
-        leak = outside.base_url.replace("127.0.0.1", "localhost").replace("http", "ws") + "/leak"
-        with serve(_documents(leak)) as inside:
-            yield inside, outside
+    with serve({"/": page("outside")}) as outside, serve(_documents(_leak_url(outside))) as inside:
+        yield inside, outside
 
 
-async def test_a_page_script_cannot_reach_outside_the_allowlist_from_any_kind_of_document(
+async def test_a_page_script_cannot_reach_outside_the_allowlist_from_a_document_with_no_head_when_it_runs(
     sites: tuple[Site, Site],
 ) -> None:
     inside, outside = sites
@@ -88,7 +98,7 @@ async def test_a_page_script_cannot_reach_outside_the_allowlist_from_any_kind_of
     assert leaked == {}
 
 
-async def test_the_agents_script_is_judged_in_every_kind_of_document_as_it_is_in_a_page(
+async def test_the_agents_script_is_judged_in_a_document_with_no_head_as_it_is_in_a_page(
     sites: tuple[Site, Site],
 ) -> None:
     inside, outside = sites
@@ -136,13 +146,24 @@ async def test_a_head_the_parser_builds_after_the_policy_head_costs_the_document
         assert await session.evaluate("document.head.querySelectorAll('meta[http-equiv]').length") == "1"
 
 
-async def test_a_page_that_removed_its_own_head_is_given_a_new_one(sites: tuple[Site, Site]) -> None:
-    inside, _ = sites
-    counts = "[document.querySelectorAll('head').length, document.querySelectorAll('meta[http-equiv]').length].join()"
+async def test_a_page_that_rewrites_its_head_keeps_one_policy_and_the_agents_script_keeps_running(
+    sites: tuple[Site, Site],
+) -> None:
+    """Each rewrite, made before and after the agent's first script: that script still runs and no WebSocket leaks."""
+    inside, outside = sites
+    reach_outside = f"new WebSocket('{_leak_url(outside)}'); 1 + 1"
+    counts = f"[document.querySelectorAll('head').length, {_POLICY_COUNT}].join()"
     async with allowlisted_session(inside) as session:
         tab = session.get_active_page()
-        await session.navigate(inside.url("/"))
-        await tab.evaluate("document.head.remove()")
-        for _ in range(2):
-            assert await session.evaluate("1 + 1") == "2"
-            assert await session.evaluate(counts) == "1,1"
+        for agent_ran_first in (False, True):
+            for rewrite, script in _REWRITES.items():
+                where = f"page {rewrite}, agent's script ran first: {agent_ran_first}"
+                await session.navigate(inside.url("/"))
+                if agent_ran_first:
+                    assert await session.evaluate("1 + 1") == "2", where
+                await tab.evaluate(script)
+                hits = len(outside.hits)
+                assert await session.evaluate(reach_outside) == "2", where
+                await asyncio.sleep(_SETTLE_S)
+                assert await session.evaluate(counts) == "1,1", where
+                assert len(outside.hits) == hits, where
