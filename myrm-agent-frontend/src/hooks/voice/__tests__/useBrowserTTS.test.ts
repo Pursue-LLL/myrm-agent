@@ -86,7 +86,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-const renderRow = () => renderHook(() => useBrowserTTS({}));
+const renderRow = () => renderHook(() => useBrowserTTS());
 
 const advance = (ms: number) =>
   act(() => {

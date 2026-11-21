@@ -20,7 +20,7 @@ import { useTranslations } from 'next-intl';
 import { getApiUrl } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { stripMarkdown } from '@/lib/utils/messageUtils';
-import type { TTSState, UseTTSOptions, UseTTSReturn } from './types';
+import type { TTSEngine, TTSState, UseTTSOptions } from './types';
 
 function getAuthHeaders(): Record<string, string> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
@@ -50,7 +50,7 @@ class TtsRequestError extends Error {
   }
 }
 
-export function useApiTTS(options: UseTTSOptions): UseTTSReturn {
+export function useApiTTS(options: UseTTSOptions): TTSEngine {
   const { provider } = options;
   const tVoice = useTranslations('voice');
   const [state, setState] = useState<TTSState>('idle');
@@ -297,18 +297,5 @@ export function useApiTTS(options: UseTTSOptions): UseTTSReturn {
     setState('playing');
   }, [state]);
 
-  const toggle = useCallback(
-    (text: string) => {
-      if (state === 'playing') {
-        pause();
-      } else if (state === 'paused') {
-        resume();
-      } else {
-        speak(text);
-      }
-    },
-    [state, pause, resume, speak],
-  );
-
-  return { state, speak, pause, resume, stop, toggle, supported: true };
+  return { state, speak, pause, resume, stop, supported: true };
 }

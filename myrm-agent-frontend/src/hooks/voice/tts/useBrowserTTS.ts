@@ -18,10 +18,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { stripMarkdown } from '@/lib/utils/messageUtils';
-import type { TTSState, UseTTSOptions, UseTTSReturn } from './types';
+import type { TTSEngine, TTSState } from './types';
 
-export function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
-  const { rate = 1.0, lang } = options;
+export function useBrowserTTS(): TTSEngine {
   const [state, setState] = useState<TTSState>('idle');
   // The utterance this instance owns until it ends or is replaced. The speech queue is page-wide (every message row
   // has an instance), so ownership decides whether a `cancel()` or an utterance event concerns this instance at all.
@@ -51,11 +50,6 @@ export function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
       }
 
       const utterance = new SpeechSynthesisUtterance(cleaned);
-      utterance.rate = rate;
-      if (lang) {
-        utterance.lang = lang;
-      }
-
       const finish = () => {
         if (utteranceRef.current === utterance) {
           utteranceRef.current = null;
@@ -76,7 +70,7 @@ export function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utterance);
     },
-    [supported, rate, lang],
+    [supported],
   );
 
   const pause = useCallback(() => {
@@ -95,18 +89,5 @@ export function useBrowserTTS(options: UseTTSOptions): UseTTSReturn {
     setState('playing');
   }, [supported, state]);
 
-  const toggle = useCallback(
-    (text: string) => {
-      if (state === 'playing') {
-        pause();
-      } else if (state === 'paused') {
-        resume();
-      } else {
-        speak(text);
-      }
-    },
-    [state, pause, resume, speak],
-  );
-
-  return { state, speak, pause, resume, stop, toggle, supported };
+  return { state, speak, pause, resume, stop, supported };
 }
