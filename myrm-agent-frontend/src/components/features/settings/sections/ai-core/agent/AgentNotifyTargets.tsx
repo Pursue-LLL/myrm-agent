@@ -197,13 +197,13 @@ export const AgentNotifyTargets = memo(function AgentNotifyTargets({
         </div>
         <p className="text-xs text-muted-foreground mt-0.5">
           {t('notifyTargetsDesc', {
-            fallback: 'Allow this agent to send notifications to your connected channels.',
+            fallback: 'Choose where this agent can send a message when you ask it to.',
           })}
         </p>
         <p className="text-xs text-muted-foreground/80 mt-1">
           {t('notifyTargetsScopeHint', {
             fallback:
-              'Agent push only: the agent may notify these targets during a task. System alerts (OAuth, budget, pairing) use Settings → Notification Deliveries.',
+              'In chat, every send needs your approval. A scheduled task with its External Tools permission on sends without asking. System alerts (OAuth, budget, pairing) use Settings → Notification Deliveries.',
           })}
         </p>
       </div>
