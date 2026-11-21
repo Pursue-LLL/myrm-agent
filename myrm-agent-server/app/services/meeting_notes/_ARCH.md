@@ -22,7 +22,7 @@
 - **单条实时链路**：`live_notes.py` 在会中逐行消费 final 转录并滚动蒸馏；会议结束时由 finalize 路由调用 `LiveNotesSession.finalize`，经调用方提供的发布回调（`publish_meeting_notes`）写入知识库。本层不读音频文件，也不做转写。
 - **知识库范围由调用方定**：`publish_meeting_notes` 写入调用方传入的 `WikiStructure`；按智能体选择知识库由路由依赖 `get_scoped_wiki_archiver`（`agent_id` 查询参数）完成，本层不接收智能体标识。
 - **结束只发布一次**：同一会话的并发 `finalize`（双击停止、重试赶上慢的首次请求）共享同一次蒸馏与发布，调用方各自取消不会中断这次运行；成功结果被记住（赶在注册表释放前的调用拿到同一结果而不是再发布一份），失败则清除，下一次调用在完好的会话上重试。
-- **发布契约规范**：`publish_meeting_notes` 仅返回真实写入（`written=True`）的库相对路径（Vault-relative path，如 `meeting-notes/*.md`），绝不泄露宿主机绝对路径，对安全拦截或跳过的结果返回空列表。
+- **发布契约规范**：`publish_meeting_notes` 仅返回真实写入（`written=True`）的库相对路径（Vault-relative path，如 `meeting-notes/*.md`），绝不泄露宿主机绝对路径，对安全拦截或跳过的结果返回空列表，并记一条 warning：只含安全拦截、冲突跳过、跳过三个标志位，不含路径与标题（二者来自会议内容）。
 - **同名不丢会议**：目标文件已存在时按 `-2`/`-3`… 自动改用空闲文件名（`_free_meeting_note_path`），避免 LLM 同名标题被 raw gate 跳过而导致整场会议静默丢失。
 - **转录幂等**：`LiveNotesSession.ingest` 接受 `line_id`，重复 id 视为重投直接忽略（去重窗口 `_DEDUPE_WINDOW` 有界），保证 at-least-once 投递下逐字稿不重复。
 - **时间戳防污染**：`ingest` 在唯一写入点用 `math.isfinite` 钳制非有限值——`inf // 60` 会得到 NaN 并在 `render_transcript` 抛错，进而让 finalize 500、整场会议纪要丢失。

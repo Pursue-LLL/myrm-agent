@@ -23,7 +23,7 @@ Extension clip、wikiignore 与 ima 导入 REST 子路由，与 Brain Console �
 | `imports/` | 子包 | **/import/folder** · **/import/zip**（folder_zip.py）· **/import/obsidian** · **/import/obsidian-zip**（obsidian.py）；详见 [imports/_ARCH.md](imports/_ARCH.md) | ✅ |
 | `url_import.py` | 路由 | **POST /import/urls** | ✅ |
 | `video_import.py` | 路由 | **POST /import/video** | ✅ |
-| `meeting.py` | 路由 | **/meeting-notes/live/{session_id}/ingest 与 /finalize**：会中逐行上报 final 转录并按需滚动蒸馏，结束时一次性发布到知识库（并发的结束请求共享同一次运行，失败可重试）；知识库范围由 `agent_id`（路由依赖）决定 | ✅ |
+| `meeting.py` | 路由 | **/meeting-notes/live/{session_id}/ingest 与 /finalize**：会中逐行上报 final 转录并按需滚动蒸馏，结束时一次性发布到知识库（并发的结束请求共享同一次运行，失败以 500 返回并记含堆栈的日志，可重试）；知识库范围由 `agent_id`（路由依赖）决定 | ✅ |
 | `vault.py` | 路由 | **POST /vault/reveal** · **POST /vault/open-obsidian** | ✅ |
 | `portability.py` | 路由 | **GET /portability/export** | ✅ |
 | `governance.py` | 路由 | **/governance/** 知识治理：overview / extend / archive / undo / revive | ✅ |

@@ -5,47 +5,32 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-import sys
-from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from app.services.meeting_notes.live_notes import (  # noqa: E402
+from app.services.meeting_notes.live_notes import (
     LiveNotesRegistry,
     LiveNotesSession,
     get_live_notes_registry,
 )
-from app.services.meeting_notes.models import StructuredMeetingNotes  # noqa: E402
+from app.services.meeting_notes.models import StructuredMeetingNotes
+from tests.support.scripted_chat_model import ScriptedChatModel
+
+_MINUTES = json.dumps(
+    {
+        "title": "Live Sync",
+        "summary": "Discussed rollout.",
+        "decisions": ["Ship plan A"],
+        "debate_points": ["Timeline"],
+        "risks": ["Vendor lock-in"],
+        "action_items": [{"description": "Draft spec", "owner": "Alice", "due_hint": "Fri"}],
+    }
+)
 
 
-class _FakeResponse:
-    def __init__(self, content: str) -> None:
-        self.content = content
-
-
-class _FakeLLM:
-    """Minimal async LLM stub returning a strict-JSON minutes payload."""
-
-    def __init__(self) -> None:
-        self.calls = 0
-
-    async def ainvoke(self, _prompt: str) -> _FakeResponse:
-        self.calls += 1
-        await asyncio.sleep(0)
-        return _FakeResponse(
-            json.dumps(
-                {
-                    "title": "Live Sync",
-                    "summary": "Discussed rollout.",
-                    "decisions": ["Ship plan A"],
-                    "debate_points": ["Timeline"],
-                    "risks": ["Vendor lock-in"],
-                    "action_items": [{"description": "Draft spec", "owner": "Alice", "due_hint": "Fri"}],
-                }
-            )
-        )
+def _llm() -> ScriptedChatModel:
+    """A model that distils the same strict-JSON minutes every time."""
+    return ScriptedChatModel(reply=_MINUTES)
 
 
 class _Clock:
@@ -151,7 +136,7 @@ def test_should_refresh_requires_min_chars_and_interval() -> None:
 async def test_maybe_refresh_and_snapshot() -> None:
     clock = _Clock()
     session = LiveNotesSession("s1", refresh_seconds=120, min_new_chars=5, clock=clock)
-    llm = _FakeLLM()
+    llm = _llm()
     session.ingest("line one")
     refreshed = await session.maybe_refresh(llm)
     assert refreshed is not None
@@ -184,7 +169,7 @@ async def test_registry_get_or_create_get_drop() -> None:
 async def test_concurrent_maybe_refresh_is_single_flight() -> None:
     clock = _Clock()
     session = LiveNotesSession("s1", refresh_seconds=120, min_new_chars=1, clock=clock)
-    llm = _FakeLLM()
+    llm = _llm()
     session.ingest("line one")
     results = await asyncio.gather(session.maybe_refresh(llm), session.maybe_refresh(llm))
     assert llm.calls == 1
@@ -204,7 +189,7 @@ async def test_registry_evicts_oldest_when_bounded() -> None:
 async def test_refresh_bypasses_throttle_and_registry_is_singleton() -> None:
     session = LiveNotesSession("s1", refresh_seconds=3600, min_new_chars=10_000, clock=_Clock())
     session.ingest("only a few chars")
-    llm = _FakeLLM()
+    llm = _llm()
     snapshot = await session.refresh(llm)
     assert snapshot.notes is not None
     assert get_live_notes_registry() is get_live_notes_registry()
@@ -238,7 +223,7 @@ def _session_with_one_line() -> LiveNotesSession:
 
 async def test_concurrent_finalize_runs_once_and_shares_the_result() -> None:
     session = _session_with_one_line()
-    llm, publisher = _FakeLLM(), _Publisher(park=True)
+    llm, publisher = _llm(), _Publisher(park=True)
     first = asyncio.create_task(session.finalize(llm, publisher))
     second = asyncio.create_task(session.finalize(llm, publisher))
     await publisher.started.wait()
@@ -251,7 +236,7 @@ async def test_concurrent_finalize_runs_once_and_shares_the_result() -> None:
 
 async def test_failed_finalize_is_forgotten_so_the_next_call_retries() -> None:
     session = _session_with_one_line()
-    llm, publisher = _FakeLLM(), _Publisher(failures=1)
+    llm, publisher = _llm(), _Publisher(failures=1)
     with pytest.raises(RuntimeError, match="vault offline"):
         await session.finalize(llm, publisher)
     assert session.line_count == 1
@@ -262,7 +247,7 @@ async def test_failed_finalize_is_forgotten_so_the_next_call_retries() -> None:
 
 async def test_finished_finalize_is_remembered() -> None:
     session = _session_with_one_line()
-    llm, publisher = _FakeLLM(), _Publisher()
+    llm, publisher = _llm(), _Publisher()
     first = await session.finalize(llm, publisher)
     assert await session.finalize(llm, publisher) is first
     assert (llm.calls, publisher.calls) == (1, 1)
@@ -270,7 +255,7 @@ async def test_finished_finalize_is_remembered() -> None:
 
 async def test_a_caller_going_away_does_not_cancel_the_shared_run() -> None:
     session = _session_with_one_line()
-    llm, publisher = _FakeLLM(), _Publisher(park=True)
+    llm, publisher = _llm(), _Publisher(park=True)
     departing = asyncio.create_task(session.finalize(llm, publisher))
     await publisher.started.wait()
     departing.cancel()
@@ -286,7 +271,7 @@ async def test_a_caller_going_away_does_not_cancel_the_shared_run() -> None:
 async def test_finalize_of_an_empty_session_publishes_nothing() -> None:
     session = LiveNotesSession("s1", clock=_Clock())
     publisher = _Publisher()
-    finalized = await session.finalize(_FakeLLM(), publisher)
+    finalized = await session.finalize(_llm(), publisher)
     assert finalized.snapshot.notes is None
     assert finalized.published_paths == ()
     assert publisher.calls == 0
