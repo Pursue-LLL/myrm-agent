@@ -136,9 +136,10 @@ async def prepare_channel_execution(
             msg.channel,
             msg.chat_id,
         )
-    if topic_context and topic_context.agent_id and not topic_context.identity_revoked:
-        resolved_agent_id = topic_context.agent_id
-        resolved_profile = await get_agent_profile_resolver().resolve(topic_context.agent_id)
+    effective_agent_id = topic_context.effective_agent_id if topic_context else None
+    if effective_agent_id:
+        resolved_agent_id = effective_agent_id
+        resolved_profile = await get_agent_profile_resolver().resolve(effective_agent_id)
         if resolved_profile:
             if resolved_profile.system_prompt:
                 user_instructions = (

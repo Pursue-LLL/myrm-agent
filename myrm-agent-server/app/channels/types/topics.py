@@ -4,7 +4,8 @@
 - (none)
 
 [OUTPUT]
-- TopicContext: per-topic routing configuration carried with inbound messages
+- TopicContext: per-topic routing configuration carried with inbound messages; ``holds_reply_for_review`` and
+  ``effective_agent_id`` are its single-source decisions (whether a reply waits for review, which agent serves the topic)
 - METADATA_ROUTE_AGENT_KEY: message metadata naming the agent an alias command routes the turn to
 - ReplyMode, DraftTimeoutAction: draft-review delivery policy
 - IdentityScopeMode: team-shared identity scope of a topic binding
@@ -100,3 +101,13 @@ class TopicContext:
         delivery), so a held reply cannot leak through a stage that forgot to ask.
         """
         return self.reply_mode == ReplyMode.DRAFT_REVIEW
+
+    @property
+    def effective_agent_id(self) -> str | None:
+        """The agent whose profile serves this topic's turns; ``None`` means the default agent.
+
+        A frozen identity keeps its stored ``agent_id`` but routes to the default agent. Single source for every stage
+        that picks the agent, the conversation or the memory scope of a turn, so none of them reads ``agent_id`` raw and
+        forgets the freeze.
+        """
+        return None if self.identity_revoked else (self.agent_id or None)
