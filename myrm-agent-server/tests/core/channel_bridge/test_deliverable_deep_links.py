@@ -165,7 +165,7 @@ class TestBuildArtifactDeepLinks:
         buttons = await build_artifact_deep_links(acc, "en")
         assert len(buttons) == 1
         btn = buttons[0]
-        assert btn.url == "https://app.example.com/public/artifact-share/tok-abc123"
+        assert btn.url == "https://app.example.com/api/v1/public/artifact-share/tok-abc123"
         assert btn.label == "View interactive page"
 
     @pytest.mark.asyncio

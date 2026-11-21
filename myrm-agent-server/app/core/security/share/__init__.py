@@ -3,6 +3,7 @@
 [OUTPUT]
 - Aggregate facade re-exporting every public name from the ``share`` subpackage:
   - share_hmac: create/sign/parse/verify stateless share tokens, token_fingerprint, decode_unverified_payload
+  - share_links: ShareKind + the one definition of the public share link path/URL for each token kind
   - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
   - share_locale: visitor language negotiation (Accept-Language) for the share pages, plus the per-language
@@ -34,6 +35,7 @@ from app.core.security.share.share_hmac import (
     sign_share_token,
     token_fingerprint,
 )
+from app.core.security.share.share_links import ShareKind, share_link_path, share_link_url
 from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang, resolve_share_lang
 from app.core.security.share.share_password_page import (
     password_gate_response,
@@ -57,6 +59,7 @@ __all__ = [
     "HTML_LANG",
     "SHARE_BRAND",
     "SHARE_PRIVACY_HEADERS",
+    "ShareKind",
     "ShareLang",
     "ShareLinkState",
     "attach_unlock_cookie",
@@ -76,6 +79,8 @@ __all__ = [
     "render_share_status_html",
     "resolve_gate_password",
     "resolve_share_lang",
+    "share_link_path",
+    "share_link_url",
     "share_not_found",
     "sign_share_token",
     "token_fingerprint",

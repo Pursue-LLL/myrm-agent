@@ -6,6 +6,7 @@
 - deliverable.media::MAX_CHANNEL_ATTACHMENT_BYTES, compress_oversized_image, format_human_size, is_compressible_image (POS: Channel deliverable attachment cap + oversized-image fallback)
 - app.services.artifacts.share.share_token (POS: HMAC share token for artifact deep links.)
 - app.core.infra.ingress::resolve_public_link_base (POS: Public base of links opened elsewhere: running tunnel, else ingress.)
+- app.core.security.share.share_links (POS: where each share token kind is served.)
 
 [OUTPUT]
 - collect_channel_artifacts: extract file artifacts from harness stream events (logs WARNING when file_path missing on disk)
@@ -132,6 +133,7 @@ async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tupl
     from app.channels.i18n import channel_t
     from app.channels.types.components import ActionButton, ButtonStyle
     from app.core.infra.ingress import resolve_public_link_base
+    from app.core.security.share.share_links import ShareKind, share_link_url
     from app.services.artifacts.share.share_token import create_artifact_share_token
 
     base_url = await resolve_public_link_base()
@@ -172,7 +174,7 @@ async def build_artifact_deep_links(acc: StreamAccumulator, locale: str) -> tupl
             logger.warning("Failed to create share token for artifact %s", artifact_id)
             continue
 
-        share_url = f"{base_url}/public/artifact-share/{token}"
+        share_url = share_link_url(ShareKind.ARTIFACT, token, base_url)
         if multi:
             label = channel_t(locale, "artifact_deep_link_named", filename=filename)
         else:

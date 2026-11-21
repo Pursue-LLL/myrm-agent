@@ -6,6 +6,7 @@
 - app.services.artifacts.share.share_registry (POS: share-link lifecycle registry)
 - app.database.models.artifact::Artifact (POS: artifact + versions metadata)
 - app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
+- app.core.security.share.share_links (POS: where each share token kind is served)
 - app.api.files.artifact_share_public::public_router (POS: unauthenticated serving)
 
 [OUTPUT]
@@ -39,6 +40,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.dependencies import get_workspace_root
 from app.core.infra.ingress import resolve_public_link_base
+from app.core.security.share.share_links import ShareKind, share_link_path
 from app.database.connection import get_db
 from app.database.models.artifact import Artifact
 from app.services.artifacts.share.share_bundle import materialize_share_bundle
@@ -96,10 +98,6 @@ class ArtifactShareRecordResponse(BaseModel):
     share_url: str | None = None
 
 
-def _share_path(token: str) -> str:
-    return f"/api/v1/public/artifact-share/{token}"
-
-
 def _absolute_share_url(base: str, share_path: str | None) -> str | None:
     """Prepend the public base to a relative share path when both exist."""
     if not base or not share_path:
@@ -125,7 +123,7 @@ def _record_share_path(row: ActiveShareRow) -> str | None:
         expires_at_unix=timegm(row.expires_at.timetuple()),
         artifact_type=row.artifact_type,
     )
-    return _share_path(token)
+    return share_link_path(ShareKind.ARTIFACT, token)
 
 
 @router.post("/{artifact_id}/share-preview", response_model=CreateArtifactShareResponse)
@@ -186,13 +184,13 @@ async def create_artifact_share_preview(
             artifact_type=share_type,
             password_protected=body.password is not None,
             expires_at_unix=expires_at,
-            share_path=_share_path(token) if body.password is not None else None,
+            share_path=share_link_path(ShareKind.ARTIFACT, token) if body.password is not None else None,
         )
     except Exception as exc:
         logger.error("Failed to register share link: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to register share link") from exc
 
-    share_path = _share_path(token)
+    share_path = share_link_path(ShareKind.ARTIFACT, token)
     base = await resolve_public_link_base()
     return CreateArtifactShareResponse(
         token=token,

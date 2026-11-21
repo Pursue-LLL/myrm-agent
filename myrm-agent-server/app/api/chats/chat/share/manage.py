@@ -4,6 +4,7 @@
 - app.services.chat.share_token (POS: HMAC token create/rebuild)
 - app.services.chat.chat_service::ChatService (POS: chat metadata)
 - app.core.security.share.share_hmac (POS: token fingerprint)
+- app.core.security.share.share_links (POS: where each share token kind is served)
 - app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
 
 [OUTPUT]
@@ -33,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.infra.ingress import resolve_public_link_base
 from app.core.security.share.share_hmac import token_fingerprint
+from app.core.security.share.share_links import ShareKind, share_link_url
 from app.database.connection import get_db
 from app.database.dto import ChatDTO
 from app.database.models.chat import Chat
@@ -109,7 +111,7 @@ async def create_chat_share(
     await db.commit()
 
     base_url = await resolve_public_link_base(fallback=str(request.base_url).rstrip("/"))
-    share_url = f"{base_url}/api/v1/public/chat-share/{token}"
+    share_url = share_link_url(ShareKind.CHAT, token, base_url)
 
     return CreateChatShareResponse(
         token=token,
@@ -193,6 +195,6 @@ async def get_chat_share_status(
     base_url = await resolve_public_link_base(fallback=str(request.base_url).rstrip("/"))
     return ChatShareStatusResponse(
         shared=True,
-        share_url=f"{base_url}/api/v1/public/chat-share/{token}",
+        share_url=share_link_url(ShareKind.CHAT, token, base_url),
         expires_at=expires_at,
     )
