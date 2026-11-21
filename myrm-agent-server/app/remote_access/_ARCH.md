@@ -23,7 +23,7 @@
 | `mobile_gate.py` | 核心 | scoped pair token 校验；`resolve_request_pair_token`（E2EE/query/header）；统一远程门禁 `require_remote_access_gate`（trust zone 强制 + 全域 pair 有效性）；HTTP（含 `/agents/chat/<id>/attach` 与 `/agents/chat/<id>/turn-state`）+ `/ws/stt/*` mobile 控制面路径 | ✅ |
 | `mobile_hub_payload.py` | 核心 | Hub sessions 响应组装：agent 显示名解析与注入、recentSessions（≤10，repo 排除回收站与隐身）| ✅ |
 | `mobile_deep_link.py` | 核心 | Channel → 前端 deep link 构建：`/mobile/status` (HITL) + `/{chatId}` (WebUI 续聊)；base 取 `core.infra.ingress::resolve_public_link_base`（在线隧道优先，其次公网 Ingress） | ✅ |
-| `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay | ✅ |
+| `tool_policy.py` | 核心 | 远程暴露时 harness `SecurityConfig.remote_exposed()` deny overlay，经 `layer_permissions` 叠在已保存的权限之上：同名权限取 overlay 的值，已保存的拒绝不会被它放宽 | ✅ |
 | `pairing.py` | 核心 | HMAC 签名 token；`mobile_hub_list`（Hub 列表）、`mobile_hub`（scoped 控制）、`browser_takeover`（takeover 最小权限）；改密时 `rotate_pairing_key` | ✅ |
 | `e2ee/` | 子包 | Mobile remote E2EE：crypto / keystore / session / response / sse（见 `e2ee/_ARCH.md`） | ✅ |
 | `tunnel_manager.py` | 核心 | cloudflared quick tunnel 子进程 + 5s watchdog + shutdown hook | ✅ |

@@ -74,6 +74,15 @@ async def test_get_public_ingress_base_url_empty(mock_settings, mock_load_person
 
 
 @pytest.mark.asyncio
+async def test_get_public_ingress_base_url_ignores_a_saved_value_that_is_not_text(mock_settings, mock_load_personal_settings):
+    """A hand-edited setting that is not a string means no ingress, not a crash."""
+    mock_settings.cp_public_ingress_url = ""
+    mock_load_personal_settings.return_value = {"publicIngressBaseUrl": 8080}
+
+    assert await get_public_ingress_base_url() == ""
+
+
+@pytest.mark.asyncio
 async def test_get_public_ingress_base_url_uses_short_lived_cache(mock_settings, mock_load_personal_settings):
     invalidate_public_ingress_cache()
     mock_settings.cp_public_ingress_url = ""

@@ -94,8 +94,8 @@ describe('SettingsSyncInitializer: start-up', () => {
 
     expect(calls).toEqual([
       'hydrate',
-      'database-ready',
       'resolver',
+      'database-ready',
       'initialize',
       'normalize',
       'mutex:hitl',
@@ -108,13 +108,15 @@ describe('SettingsSyncInitializer: start-up', () => {
     expect(calls.slice(8).sort()).toEqual(['initCommands', 'initProviders', 'initRetrieval']);
   });
 
-  it('applies the saved preferences without waiting for the database, and starts only once', async () => {
+  it('applies the saved preferences and installs the conflict resolver without waiting for the database, and starts only once', async () => {
     stubIdleCallbacks();
     const ready = deferred<boolean>();
     whenDatabaseReady.mockImplementation(() => ready.promise);
 
     const view = render(<SettingsSyncInitializer />);
     expect(hydrateChatPreferencesFromStorage).toHaveBeenCalledOnce();
+    // Another entry point may start the sync before the database is ready; its replay of offline edits needs the resolver.
+    expect(manager.setConflictResolver).toHaveBeenCalledOnce();
     expect(manager.initialize).not.toHaveBeenCalled();
 
     await act(async () => ready.resolve(true));
@@ -127,15 +129,15 @@ describe('SettingsSyncInitializer: start-up', () => {
     expect(storeInits.initConfig).toHaveBeenCalledOnce();
   });
 
-  it('leaves the sync and every store alone while the database is not ready, and says so', async () => {
+  it('does not start the sync or any store while the database is not ready, and says so', async () => {
     whenDatabaseReady.mockImplementation(async () => false);
 
     render(<SettingsSyncInitializer />);
     await waitFor(() => expect(whenDatabaseReady).toHaveBeenCalled());
     await act(async () => undefined);
 
-    expect(calls).toEqual(['hydrate']);
-    expect(manager.setConflictResolver).not.toHaveBeenCalled();
+    expect(calls).toEqual(['hydrate', 'resolver']);
+    expect(manager.initialize).not.toHaveBeenCalled();
     expect(warnings()).toHaveBeenCalledWith(expect.stringContaining('Backend not available'));
   });
 

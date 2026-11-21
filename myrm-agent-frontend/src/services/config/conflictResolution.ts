@@ -5,7 +5,9 @@
  *
  * [OUTPUT]
  * ConfigConflictResolution / ConfigConflictResolver: the context and hook through which the user settles a version conflict.
- * resolveConflicts: reconciles locally cached configs with the server after the backend rejected a write on version.
+ * resolveConflicts: reconciles locally cached configs with the server after the backend rejected a write on version,
+ * and returns what is left to send, which keys gave way to the server's value and which could not be settled
+ * (ConflictOutcome).
  * RecordSink / adoptServerRecord: make a record the server holds the cached copy, the merge base and the subscribers' news.
  *
  * [POS]
@@ -14,7 +16,8 @@
  * server itself) asks the resolver. A key that was never loaded has no baseline: what only the server holds is kept,
  * and a clash, even with this device's own write, goes to the resolver. The local cache is the user's latest intent,
  * so a version mismatch alone never discards it. Callers hand in the live caches through `ConflictContext`; nothing
- * here holds state.
+ * here holds state or sends: the caller re-sends the kept values, drops what the server's value overruled and queues the
+ * keys that could not be settled.
  */
 import { cloneDeep } from 'lodash-es';
 import { threeWayMerge } from './mergeUtils';
@@ -48,66 +51,46 @@ export interface ConflictContext extends RecordSink {
   adapter: ConfigAdapter;
   deviceId: string;
   resolver: ConfigConflictResolver | null;
-  /** Queue changes whose retry failed so the next sync (and, for allowlisted keys, a reload) picks them up. */
-  requeue: (changes: ConfigChange[]) => void;
+}
+
+export interface ConflictOutcome {
+  /** The local values to keep, each on the version the server holds now. */
+  resend: ConfigChange[];
+  /** Keys whose local value gave way to the server's: nothing of theirs is left to send. */
+  adopted: ConfigKey[];
+  /** Keys that could not be settled because the server could not be read: their local value must stay queued. */
+  unresolved: ConfigKey[];
 }
 
 /**
- * 解决冲突：以本地缓存为准，用服务端版本号重新同步。
+ * 解决冲突：以本地缓存为准，给出带服务端版本号的待重发变更。
  * 本地缓存始终是用户最新操作的结果，冲突仅因版本号不匹配，不应丢弃本地数据。
  */
-export async function resolveConflicts(ctx: ConflictContext, conflictKeys: ConfigKey[]): Promise<void> {
-  const retryChanges: ConfigChange[] = [];
+export async function resolveConflicts(ctx: ConflictContext, conflictKeys: ConfigKey[]): Promise<ConflictOutcome> {
+  const outcome: ConflictOutcome = { resend: [], adopted: [], unresolved: [] };
 
   for (const key of conflictKeys) {
     try {
-      const retry = await reconcileKey(ctx, key);
-      if (retry) {
-        retryChanges.push(retry);
-      }
+      await reconcileKey(ctx, key, outcome);
     } catch (error) {
       console.warn(`[ConfigSync] Failed to resolve conflict for '${key}':`, error);
+      outcome.unresolved.push(key);
     }
   }
-
-  if (retryChanges.length === 0) {
-    return;
-  }
-  // 用正确的版本号重新同步本地数据
-  try {
-    const result = await ctx.adapter.sync(retryChanges);
-    if (result.success) {
-      for (const [key, version] of result.newVersions) {
-        const record = ctx.cache.get(key);
-        if (record) {
-          record.meta.version = version;
-          const baseRecord = ctx.baseCache.get(key);
-          if (baseRecord) {
-            baseRecord.meta.version = version;
-          }
-        }
-      }
-    } else {
-      // 重试失败，放回队列，保护本地数据不被服务端覆盖
-      console.warn('[ConfigSync] Conflict retry failed, saving to offline queue');
-      ctx.requeue(retryChanges);
-    }
-  } catch (error) {
-    console.warn('[ConfigSync] Conflict retry error, saving to offline queue:', error);
-    ctx.requeue(retryChanges);
-  }
+  return outcome;
 }
 
-/** Settles one key; returns the change to re-send with the server's version, or null when nothing is left to send. */
-async function reconcileKey(ctx: ConflictContext, key: ConfigKey): Promise<ConfigChange | null> {
+/** Settles one key into `outcome`; a key whose row the server no longer has has nothing to clash with and is left out. */
+async function reconcileKey(ctx: ConflictContext, key: ConfigKey, outcome: ConflictOutcome): Promise<void> {
   const serverRecord = await ctx.adapter.get(key);
   if (!serverRecord) {
-    return null;
+    return;
   }
   const localRecord = ctx.cache.get(key);
   if (!localRecord) {
     adoptServerRecord(ctx, key, serverRecord);
-    return null;
+    outcome.adopted.push(key);
+    return;
   }
 
   const baseValue = ctx.baseCache.get(key)?.value as Record<string, unknown> | null | undefined;
@@ -121,7 +104,8 @@ async function reconcileKey(ctx: ConflictContext, key: ConfigKey): Promise<Confi
     localRecord.value = mergeResult.merged as ConfigValueMap[typeof key];
     const retry = rebaseLocalRecord(ctx, key, localRecord, serverRecord);
     ctx.notify(key, localRecord.value, localRecord.meta);
-    return retry;
+    outcome.resend.push(retry);
+    return;
   }
 
   // 同浏览器 profile 冲突：静默保留本地，不打扰用户。前提是有基线（本地值由服务端值改来）；
@@ -146,10 +130,11 @@ async function reconcileKey(ctx: ConflictContext, key: ConfigKey): Promise<Confi
   }
 
   if (keepLocal !== false) {
-    return rebaseLocalRecord(ctx, key, localRecord, serverRecord);
+    outcome.resend.push(rebaseLocalRecord(ctx, key, localRecord, serverRecord));
+    return;
   }
   adoptServerRecord(ctx, key, serverRecord);
-  return null;
+  outcome.adopted.push(key);
 }
 
 /** Keeps the local value but moves its version onto the server's, so the re-sent change passes the version check. */

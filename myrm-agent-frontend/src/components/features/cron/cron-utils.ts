@@ -112,6 +112,33 @@ export function triggerSourceLabelKey(source: string): TriggerSourceLabelKey | u
   return TRIGGER_SOURCE_LABEL_KEYS.get(source);
 }
 
+export type ConnectorCategoryLabelKey =
+  | 'connectorCategoryAuth'
+  | 'connectorCategoryClient'
+  | 'connectorCategoryServer'
+  | 'connectorCategoryTimeout'
+  | 'connectorCategoryNetwork'
+  | 'connectorCategoryPayload'
+  | 'connectorCategoryProcess'
+  | 'connectorCategoryUnknown';
+
+/** What the server classifies a failed delivery as, each with the label that names it (a `Map` for the reason above). */
+const CONNECTOR_CATEGORY_LABEL_KEYS = new Map<string, ConnectorCategoryLabelKey>([
+  ['auth_failure', 'connectorCategoryAuth'],
+  ['http_client_error', 'connectorCategoryClient'],
+  ['http_server_error', 'connectorCategoryServer'],
+  ['timeout', 'connectorCategoryTimeout'],
+  ['network_unreachable', 'connectorCategoryNetwork'],
+  ['payload_contract', 'connectorCategoryPayload'],
+  ['process_error', 'connectorCategoryProcess'],
+  ['unknown', 'connectorCategoryUnknown'],
+]);
+
+/** The label key for a failed delivery's category; a category the server is not known to record reads as unknown. */
+export function connectorCategoryLabelKey(category: string): ConnectorCategoryLabelKey {
+  return CONNECTOR_CATEGORY_LABEL_KEYS.get(category) ?? 'connectorCategoryUnknown';
+}
+
 /** What the server accepts for a job's run time limit, in whole seconds. */
 export const CRON_TIMEOUT_MIN_SECONDS = 10;
 export const CRON_TIMEOUT_MAX_SECONDS = 3600;

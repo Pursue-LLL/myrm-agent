@@ -6,7 +6,8 @@
  * - ./channelLimit (POS: Range of a channel's daily limit)
  *
  * [OUTPUT]
- * - ChannelLimitInput: Inline daily-limit box of a channel budget; saves on blur, then shows the limit in force again.
+ * - ChannelLimitInput: Inline daily-limit box of a channel budget; saves on blur (Enter leaves the box, which blurs it),
+ *   then shows the limit in force again. Escape drops what was typed instead.
  *
  * [POS]
  * Leaf input of the channel budget panel. Apart from text no blur has handled yet, the box shows the limit in force: a
@@ -50,6 +51,14 @@ const ChannelLimitInput = ({ value, label, onSave }: ChannelLimitInputProps) => 
       value={draft ?? String(value)}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          // Leaving the box is the one way a typed limit is saved.
+          e.currentTarget.blur();
+        } else if (e.key === 'Escape') {
+          setDraft(null);
+        }
+      }}
       className="w-20 text-right text-xs font-mono px-1.5 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
     />
   );

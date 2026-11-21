@@ -84,7 +84,6 @@ def load_channel_notify_tool(agent_wrapper: "GeneralAgent", tools: list[object])
             agent_wrapper.notify_targets,
             tools,
             allowed_roots=agent_wrapper.declared_allowed_roots,
-            is_readonly=getattr(agent_wrapper, "is_readonly", False),
         )
         if destination_count:
             logger.info(

@@ -16,7 +16,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
-import { CHANNEL_KEY, channelStatus, nextTick, policyOf, stableT } from './channelBudgetTestKit';
+import { CHANNEL_KEY, channelStatus, nextTick, policyOf, stableT, trashName } from './channelBudgetTestKit';
 import { toast } from '@/lib/utils/toast';
 import {
   createChannelBudget,
@@ -36,6 +36,7 @@ vi.mock('@/services/budget', () => ({
   updateChannelBudget: vi.fn(),
   deleteChannelBudget: vi.fn(),
   getChannelAudit: vi.fn(),
+  getKnownChannelGroups: vi.fn().mockResolvedValue({ channel_keys: [] }),
 }));
 
 vi.mock('@/lib/utils/toast', () => ({
@@ -118,7 +119,7 @@ describe('ChannelBudgetSection deleting a channel', () => {
 
   async function pressTrash() {
     render(<ChannelBudgetSection />);
-    fireEvent.click(await screen.findByRole('button', { name: 'delete' }));
+    fireEvent.click(await screen.findByRole('button', { name: trashName('Team chat') }));
     await screen.findByText('deleteConfirmTitle');
   }
 

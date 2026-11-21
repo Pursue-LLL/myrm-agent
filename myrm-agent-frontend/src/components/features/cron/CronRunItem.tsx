@@ -8,7 +8,14 @@ import { cn } from '@/lib/utils/classnameUtils';
 import type { CronRun } from '@/services/cron';
 import CronRunBlockedActions from './CronRunBlockedActions';
 import CronRunSteps from './CronRunSteps';
-import { formatDuration, formatTime, runStatusLabelKey, skipReasonLabelKey, triggerSourceLabelKey } from './cron-utils';
+import {
+  connectorCategoryLabelKey,
+  formatDuration,
+  formatTime,
+  runStatusLabelKey,
+  skipReasonLabelKey,
+  triggerSourceLabelKey,
+} from './cron-utils';
 import { useJobDisplayName } from './useJobDisplayName';
 
 interface CronRunItemProps {
@@ -279,8 +286,8 @@ const CronRunItem = memo<CronRunItemProps>(({ run, isLast, showJobName }) => {
                     <div className="space-y-0.5 text-[11px]">
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-destructive-text">{t('connectorDegradedBadge')}</span>
-                        <span className="font-mono text-[10px] text-muted-foreground bg-background/50 px-1 py-0.5 rounded">
-                          {run.metadata.connector_failure.category}
+                        <span className="text-[10px] text-muted-foreground bg-background/50 px-1 py-0.5 rounded">
+                          {t(connectorCategoryLabelKey(run.metadata.connector_failure.category))}
                         </span>
                       </div>
                       {run.metadata.connector_failure.target && (

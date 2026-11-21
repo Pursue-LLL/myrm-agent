@@ -1,6 +1,7 @@
 /**
  * [INPUT]
  * - ../ChannelBudgetSection (POS: panel under test)
+ * - ../useChannelAudit::AUDIT_DAYS (POS: Audit window an unfolded channel asks for)
  * - ./channelBudgetTestKit (POS: shared fixtures)
  *
  * [OUTPUT]
@@ -14,8 +15,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
+import { AUDIT_DAYS } from '../useChannelAudit';
 import { deferred } from '@/test-utils/deferred';
 import {
+  AUDIT_TOGGLE,
   CHANNEL_KEY,
   OTHER_CHANNEL_KEY,
   auditEntry,
@@ -23,6 +26,7 @@ import {
   nextTick,
   policyOf,
   stableT,
+  trashName,
 } from './channelBudgetTestKit';
 import {
   createChannelBudget,
@@ -45,6 +49,7 @@ vi.mock('@/services/budget', () => ({
   updateChannelBudget: vi.fn(),
   deleteChannelBudget: vi.fn(),
   getChannelAudit: vi.fn(),
+  getKnownChannelGroups: vi.fn().mockResolvedValue({ channel_keys: [] }),
 }));
 
 const oneChannel = (limitUsd: number): ChannelBudgetsResponse => ({
@@ -243,13 +248,25 @@ describe('ChannelBudgetSection audit panel', () => {
     vi.mocked(getChannelBudgets).mockResolvedValue(twoChannels);
   });
 
+  // The toggle names the window with the same number, so the two cannot drift apart.
+  it('asks for the window that the toggle names', async () => {
+    vi.mocked(getChannelAudit).mockResolvedValue(auditOf(CHANNEL_KEY, [auditEntry('alice', 3)]));
+
+    render(<ChannelBudgetSection />);
+    const [toggle] = await screen.findAllByText(AUDIT_TOGGLE);
+    fireEvent.click(toggle);
+    await screen.findByText('alice');
+
+    expect(getChannelAudit).toHaveBeenCalledWith(CHANNEL_KEY, AUDIT_DAYS);
+  });
+
   it('says the spending data could not be loaded, not that there is none, and loads again when unfolded again', async () => {
     vi.mocked(getChannelAudit)
       .mockRejectedValueOnce(new Error('offline'))
       .mockResolvedValue(auditOf(CHANNEL_KEY, [auditEntry('alice', 3)]));
 
     render(<ChannelBudgetSection />);
-    const [toggle] = await screen.findAllByText('auditDetails');
+    const [toggle] = await screen.findAllByText(AUDIT_TOGGLE);
     fireEvent.click(toggle);
 
     expect(await screen.findByText('auditFailed')).toBeInTheDocument();
@@ -268,7 +285,7 @@ describe('ChannelBudgetSection audit panel', () => {
     vi.mocked(getChannelAudit).mockReturnValueOnce(firstAudit.promise).mockReturnValueOnce(secondAudit.promise);
 
     render(<ChannelBudgetSection />);
-    const [firstToggle, secondToggle] = await screen.findAllByText('auditDetails');
+    const [firstToggle, secondToggle] = await screen.findAllByText(AUDIT_TOGGLE);
     fireEvent.click(firstToggle);
     fireEvent.click(secondToggle);
 
@@ -299,7 +316,8 @@ describe('ChannelBudgetSection saves in flight together', () => {
 
     render(<ChannelBudgetSection />);
     const [firstBox, secondBox] = await screen.findAllByRole('spinbutton', { name: 'dailyLimit' });
-    const [firstTrash, secondTrash] = screen.getAllByRole('button', { name: 'delete' });
+    const firstTrash = screen.getByRole('button', { name: trashName(CHANNEL_KEY) });
+    const secondTrash = screen.getByRole('button', { name: trashName(OTHER_CHANNEL_KEY) });
     saveLimit(firstBox, '3');
     saveLimit(secondBox, '4');
     expect(firstTrash).toBeDisabled();
@@ -328,7 +346,7 @@ describe('ChannelBudgetSection saves in flight together', () => {
 
     render(<ChannelBudgetSection />);
     const limitBox = await screen.findByRole('spinbutton', { name: 'dailyLimit' });
-    const trash = screen.getByRole('button', { name: 'delete' });
+    const trash = screen.getByRole('button', { name: trashName(CHANNEL_KEY) });
     saveLimit(limitBox, '3');
     fireEvent.click(screen.getByRole('switch', { name: 'enabled' }));
     expect(trash).toBeDisabled();

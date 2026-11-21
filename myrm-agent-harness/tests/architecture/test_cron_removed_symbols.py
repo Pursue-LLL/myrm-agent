@@ -39,6 +39,7 @@ _REMOVED = (
     "_active_jobs",  # set of dispatched job ids on the scheduler; the in-flight counter replaces it
     "_execute_and_persist",  # scheduler entry that ran a claimed job; _dispatch is the guarded run
     "execute_fn",  # StartupRecovery's run callback; admit_fn books and launches
+    "generate_fix_suggestion",  # per-category troubleshooting text; a failed delivery is reported by category and message
 )
 
 

@@ -20,7 +20,7 @@ defense layer complementing ``sanitize_env`` (source removal).
 - escape_invisible_unicode(text) -> str — escape invisible chars to \\u{XXXX}
 - redact_field_text(key, text, *, scan) -> str — redact the value of one named field: a credential-named field is masked whatever its shape, any other text goes through ``scan`` (the full redactor by default)
 - redact_for_display(args) -> dict — redaction of every string in tool arguments for the approval UI, by field name, bounded in depth and safe on loops
-- RedactingFormatter — logging.Formatter subclass for production logs
+- RedactingFormatter — logging.Formatter subclass for production logs; masks secret-shaped strings in every formatted line
 
 Pattern definitions live in ``patterns.py`` and its sibling rule modules; this module owns the redaction
 engine (control-split guard, pipeline) and public APIs.
@@ -266,7 +266,7 @@ def redact_sensitive_text(text: str, *, source_code: bool = False) -> str:
 
 
 class RedactingFormatter(logging.Formatter):
-    """Log formatter that redacts secrets from all messages."""
+    """Log formatter that masks secret-shaped strings (known token shapes, credential names) in every message."""
 
     def format(self, record: logging.LogRecord) -> str:
         return redact_sensitive_text(super().format(record))

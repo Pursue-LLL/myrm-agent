@@ -23,7 +23,7 @@
 ## 测试
 
 - `tests/core/channel_bridge/test_deliverable_collect.py` — artifact 收集（可分享追踪、超限深链/压缩/提示三态、多交付物、空文件跳过）
-- `tests/core/channel_bridge/test_deliverable_deep_links.py` — 深链按钮构建与失败兜底
+- `tests/core/channel_bridge/test_deliverable_deep_links.py` — 深链按钮构建与失败兜底（含：返回的行能通过出站管线的组件降级）
 - `tests/core/channel_bridge/test_deliverable_artifact_versions.py` — 最新版本号批量查询
 - `tests/core/channel_bridge/test_execute_finalize.py` — finalize 有深链按钮时附件与超限提示照常保留 / 无按钮同样保留 / 压缩提示恒保留 / 空内容交付文案回退 / 截图与按钮旁的临时附件文件留给消息总线删除
 - `tests/core/channel_bridge/test_execute_finalize_errors.py` — 失败回合按错误类型回复成员安全文案加参考编号、不泄露提供方原文与账单状态、随成员语言、原文按同一参考编号进日志、已流出的文字保留并附失败文案与标记（复用 `test_execute_finalize._finalize`）；失败回复带失败回合标记、账户指引只在传入时替换文案

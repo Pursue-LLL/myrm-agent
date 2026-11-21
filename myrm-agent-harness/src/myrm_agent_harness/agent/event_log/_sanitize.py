@@ -1,7 +1,7 @@
 """Write-side redaction of event payloads.
 
 [INPUT]
-- core.security.redact::redact_command_line (POS: Entry of the commands the audit log, the background-job registry and the event log keep: masks every credential in a command string)
+- core.security.redact::redact_command_line (POS: Entry of the commands the audit log, the background-job registry and the event log keep: masks the credentials a command string gives away by name, command rule or value shape)
 - core.security.redact::redact_field_text (POS: Redactor of one named field: a credential-named field is masked whatever its shape, any other text goes through the scan given)
 - core.security.redact::redact_nested (POS: Shared walker of the redaction domain: bounded in depth, cuts a container that holds itself)
 - core.security.redact::redact_sensitive_text (POS: Full redactor: assignments, header lines, connection strings, token shapes)

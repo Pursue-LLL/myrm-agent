@@ -25,6 +25,19 @@ def test_remote_exposed_denies_destructive_tools() -> None:
     assert merged["yoloModeEnabled"] is False
 
 
+def test_remote_overlay_does_not_soften_a_saved_denial_of_a_permission_it_names() -> None:
+    """The overlay asks about ``mcp_invoke``; a user who denied it keeps the denial."""
+    merged = merge_remote_security_overlay(
+        {"permissions": {"mcp_invoke": "deny"}},
+        trust_zone="remote_exposed",
+        admission_path="public_ingress",
+    )
+    assert merged is not None
+    permissions = merged["permissions"]
+    assert isinstance(permissions, dict)
+    assert permissions["mcp_invoke"] == "deny"
+
+
 def test_remote_overlay_after_session_preset_preserves_deny() -> None:
     """Regression: session preset applied BEFORE remote overlay must NOT bypass deny."""
     base = {"permissions": {"*": "ask"}}

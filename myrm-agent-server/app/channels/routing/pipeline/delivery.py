@@ -222,7 +222,7 @@ class RouterDeliveryMixin:
             "draft_timeout_action": topic_ctx.draft_timeout_action.value,
         }
 
-        agent_id = topic_ctx.agent_id or "default"
+        agent_id = topic_ctx.effective_agent_id or "default"
 
         await ApprovalRegistry.create_approval(
             agent_id=agent_id,

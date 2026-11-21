@@ -67,7 +67,8 @@ async def get_public_ingress_base_url() -> str:
     url = cp_env
     if not url:
         personal = await load_user_config_entry("personalSettings")
-        url = personal.get("publicIngressBaseUrl", "") if personal else ""
+        configured = personal.get("publicIngressBaseUrl") if personal else None
+        url = configured if isinstance(configured, str) else ""
 
     url = url.strip()
     if url.endswith("/"):

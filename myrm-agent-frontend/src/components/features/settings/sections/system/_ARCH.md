@@ -162,7 +162,7 @@
 | `AgentUsageCard.tsx`                        | Agent 用量卡片                                                                                                                                                                                                                                   |
 | `__tests__/UsageStatisticsSection.test.tsx` | 用量统计面板单测：默认 30 天窗口的全量加载、雷达 / Wiki 证据的显示条件（Wiki 加载失败只隐藏该区块）、时间范围与 Top 会话指标切换后的重新加载参数、空态、CSV 导出、会话分析对话框开合、加载失败的错误态（文字色走 `text-destructive-text`）与重试 |
 | `BudgetPolicySection.tsx`        | 预算策略与四级渐进式柔性限额风控面板（四级阶梯风控：可视化预警、柔性自确认卡、无损模型自动降级、冻结暂停审批；Fleet Quota 跨维度看板） |
-| `channel-budget/` | 渠道预算面板子目录：各渠道每日额度与用量，每次编辑只发它改的那一个字段（PATCH）、新增渠道整条创建（PUT）；列表在服务器回答前不说「没有渠道」（骨架 / 带重试的失败提示 / 空态），区间外的上限不发出，删除渠道要先确认；详见 [channel-budget/_ARCH.md](channel-budget/_ARCH.md) |
+| `channel-budget/` | 渠道预算面板子目录：各渠道每日额度与用量，每次编辑只发它改的那一个字段（PATCH）、新增渠道整条创建（PUT），每次写入之后（成功与否）读回列表；新增渠道时从已有对话的群聊里点选渠道键，也可手输；列表在服务器回答前不说「没有渠道」（骨架 / 带重试的失败提示 / 空态），区间外的上限不发出，删除渠道要先确认；详见 [channel-budget/_ARCH.md](channel-budget/_ARCH.md) |
 | `AgentCommerceBudgetSection.tsx` | 消费额度闸面板（单笔/每日上限、商户域名白名单、一键冻结与账本流水；展开的账本行详情标签取自 `settings.commerceBudget`）                  |
 | `RoutingAnalyticsPanel.tsx`      | 路由分析面板（模型路由/成本格式化）                                                                                                    |
 

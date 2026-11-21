@@ -74,9 +74,9 @@ def resolve_sandbox_file_path(
     try:
         from myrm_agent_harness.toolkits.code_execution.executors.base import get_executor
 
-        executor = get_executor()
-        if executor and hasattr(executor, "_current_workspace") and executor._current_workspace:
-            possible_paths.append(os.path.join(str(executor._current_workspace), file_path))
+        current_workspace = getattr(get_executor(), "_current_workspace", None)
+        if current_workspace:
+            possible_paths.append(os.path.join(str(current_workspace), file_path))
     except Exception:
         pass
 

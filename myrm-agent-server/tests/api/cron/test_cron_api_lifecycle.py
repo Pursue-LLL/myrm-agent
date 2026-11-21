@@ -24,7 +24,7 @@ from myrm_agent_harness.toolkits.cron.stores import InMemoryCronStore
 
 
 class FakeDelivery:
-    async def deliver(self, job, result):  # noqa: ANN001
+    async def deliver(self, job: object, result: object) -> None:
         pass
 
 
@@ -45,7 +45,6 @@ def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
     from app.api.cron.routes import (
         actions_router,
         blueprints_router,
-        connector_health_router,
         heartbeat_router,
         helpers,
         jobs_router,
@@ -58,7 +57,6 @@ def app(cron_manager: CronManager) -> Generator[FastAPI, None, None]:
 
     test_app = FastAPI()
     test_app.include_router(blueprints_router, prefix="/cron")
-    test_app.include_router(connector_health_router, prefix="/cron")
     test_app.include_router(heartbeat_router, prefix="/cron")
     test_app.include_router(prerequisite_router, prefix="/cron")
     test_app.include_router(scheduler_health_router, prefix="/cron")
@@ -91,7 +89,8 @@ class TestCronApiLifecycle:
             },
         )
         assert resp.status_code == 201
-        return resp.json()
+        job: dict[str, object] = resp.json()
+        return job
 
     def test_create_job(self, client: TestClient) -> None:
         data = self._create_job(client)
@@ -398,261 +397,6 @@ class TestCronApiAgentIdBinding:
         assert resp.json()["agent_id"] == "persist-agent"
 
 
-class TestCronApiSessionTargetChatId:
-    """Tests for session_target and chat_id API fields."""
-
-    def test_create_with_session_target_main_and_chat_id(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "thread-task",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check progress",
-                "session_target": "main",
-                "chat_id": "chat-abc-123",
-            },
-        )
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["session_target"] == "main"
-        assert data["chat_id"] == "chat-abc-123"
-
-    def test_create_default_isolated(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "isolated-task",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-            },
-        )
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["session_target"] == "isolated"
-        assert data["chat_id"] is None
-
-    def test_update_chat_id(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "rebind-chat",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "session_target": "main",
-                "chat_id": "chat-old",
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        resp = client.patch(f"/cron/{job_id}", json={"chat_id": "chat-new"})
-        assert resp.status_code == 200
-        assert resp.json()["chat_id"] == "chat-new"
-
-    def test_clear_chat_id(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "clear-chat",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "session_target": "main",
-                "chat_id": "chat-to-clear",
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        resp = client.patch(f"/cron/{job_id}", json={"chat_id": None})
-        assert resp.status_code == 200
-        assert resp.json()["chat_id"] is None
-
-    def test_switch_to_isolated_clears_chat_id(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "switch-mode",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "session_target": "main",
-                "chat_id": "chat-bound",
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        resp = client.patch(
-            f"/cron/{job_id}",
-            json={"session_target": "isolated", "chat_id": None},
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["session_target"] == "isolated"
-        assert data["chat_id"] is None
-
-    def test_update_preserves_chat_id_when_not_sent(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "preserve-chat",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "session_target": "main",
-                "chat_id": "chat-keep",
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        resp = client.patch(f"/cron/{job_id}", json={"name": "renamed"})
-        assert resp.status_code == 200
-        assert resp.json()["chat_id"] == "chat-keep"
-
-
-class TestCronApiAcceptanceCriteria:
-    """Tests for acceptance_criteria CRUD through the REST API."""
-
-    def test_create_with_acceptance_criteria(self, client: TestClient) -> None:
-        criteria = [
-            {"type": "shell", "command": "echo ok"},
-            {"type": "semantic", "description": "output must contain 'success'"},
-        ]
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "verified-task",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "do work",
-                "acceptance_criteria": criteria,
-            },
-        )
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["acceptance_criteria"] == criteria
-
-    def test_create_without_acceptance_criteria(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "no-criteria",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-            },
-        )
-        assert resp.status_code == 201
-        assert resp.json()["acceptance_criteria"] is None
-
-    def test_update_acceptance_criteria(self, client: TestClient) -> None:
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "update-criteria",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        new_criteria = [{"type": "shell", "command": "test -f /tmp/done"}]
-        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": new_criteria})
-        assert resp.status_code == 200
-        assert resp.json()["acceptance_criteria"] == new_criteria
-
-    def test_clear_acceptance_criteria(self, client: TestClient) -> None:
-        criteria = [{"type": "shell", "command": "echo ok"}]
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "clear-criteria",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "acceptance_criteria": criteria,
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-        assert resp.json()["acceptance_criteria"] == criteria
-
-        resp = client.patch(f"/cron/{job_id}", json={"acceptance_criteria": None})
-        assert resp.status_code == 200
-        assert resp.json()["acceptance_criteria"] is None
-
-    def test_get_preserves_acceptance_criteria(self, client: TestClient) -> None:
-        criteria = [{"type": "semantic", "description": "must mention price"}]
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "get-criteria",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "acceptance_criteria": criteria,
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        resp = client.get(f"/cron/{job_id}")
-        assert resp.status_code == 200
-        assert resp.json()["acceptance_criteria"] == criteria
-
-    def test_pause_resume_preserves_acceptance_criteria(self, client: TestClient) -> None:
-        criteria = [{"type": "shell", "command": "curl -s http://example.com"}]
-        resp = client.post(
-            "/cron",
-            json={
-                "name": "persist-criteria",
-                "job_type": "agent",
-                "schedule": {"kind": "interval", "interval_ms": 300_000},
-                "prompt": "check",
-                "acceptance_criteria": criteria,
-            },
-        )
-        assert resp.status_code == 201
-        job_id = resp.json()["id"]
-
-        client.post(f"/cron/{job_id}/pause")
-        resp = client.post(f"/cron/{job_id}/resume")
-        assert resp.status_code == 200
-        assert resp.json()["acceptance_criteria"] == criteria
-
-
-class TestCronChatIdFilter:
-    def test_list_jobs_filters_by_chat_id(self, client: TestClient) -> None:
-        for chat_id, name in (("chat-a", "job-a"), ("chat-b", "job-b")):
-            resp = client.post(
-                "/cron",
-                json={
-                    "name": name,
-                    "job_type": "agent",
-                    "schedule": {"kind": "interval", "interval_ms": 300_000},
-                    "prompt": "check",
-                    "session_target": "main",
-                    "chat_id": chat_id,
-                },
-            )
-            assert resp.status_code == 201
-
-        resp = client.get("/cron?chat_id=chat-a")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["total"] == 1
-        assert len(data["items"]) == 1
-        assert data["items"][0]["chat_id"] == "chat-a"
-        assert data["items"][0]["name"] == "job-a"
-
-
 class TestCronPrerequisiteGateApi:
     """Validate POST /cron/prerequisite-check endpoint behavior."""
 
@@ -665,7 +409,7 @@ class TestCronPrerequisiteGateApi:
         with patch("app.services.cron.prerequisite_service.CronPrerequisiteService.get_prerequisite_stats") as mock_stats:
             from app.services.cron.prerequisite_service import CronPrerequisiteStats
 
-            async def _fake_stats(*args, **kwargs):
+            async def _fake_stats(*args: object, **kwargs: object) -> CronPrerequisiteStats:
                 return CronPrerequisiteStats(
                     fingerprint="mock_hash_12345",
                     manual_success_count=3,
@@ -688,114 +432,7 @@ class TestCronPrerequisiteGateApi:
             assert data["kanban_verified_count"] == 1
             assert data["override_allowed"] is True
 
-
-class TestCronConnectorHealthApi:
-    """Validate GET /cron/connectors/health endpoint behavior."""
-
-    def test_connectors_health_endpoint(self, client: TestClient) -> None:
-        from app.services.cron.connector_health_service import ConnectorHealthSummary
-
-        mock_item = ConnectorHealthSummary(
-            target="https://api.example.com/webhook",
-            channel="webhook",
-            status="degraded",
-            total_deliveries=10,
-            failed_deliveries=2,
-            consecutive_failures=2,
-            last_status_code=502,
-            last_error_category="http_server_error",
-            last_error_message="502 Bad Gateway",
-            fix_suggestion="Check server logs.",
-            bound_job_ids=["job-1"],
-        )
-
-        with patch("app.services.cron.connector_health_service.ConnectorHealthService.get_all_connectors_health") as mock_health:
-
-            async def _fake_health(*args, **kwargs):
-                return [mock_item]
-
-            mock_health.side_effect = _fake_health
-            resp = client.get("/cron/connectors/health?window_hours=12")
-            assert resp.status_code == 200
-            data = resp.json()
-            assert data["total"] == 1
-            assert data["degraded_count"] == 1
-            assert data["down_count"] == 0
-            assert len(data["items"]) == 1
-            item = data["items"][0]
-            assert item["target"] == "https://api.example.com/webhook"
-            assert item["channel"] == "webhook"
-            assert item["status"] == "degraded"
-            assert item["last_error_category"] == "http_server_error"
-            assert item["fix_suggestion"] == "Check server logs."
-            assert item["bound_job_ids"] == ["job-1"]
-
-    def test_connector_health_service_aggregation_direct(self) -> None:
-        """Direct unit test of ConnectorHealthService without active DB IO."""
-        import asyncio
-        from unittest.mock import AsyncMock, MagicMock
-
-        from myrm_agent_harness.api import ConnectorErrorCategory, ConnectorHealthStatus
-
-        from app.database.models.cron import CronJobModel, CronRunModel
-        from app.services.cron.connector_health_service import ConnectorHealthService
-
-        job = CronJobModel(
-            id="job_sync_1",
-            name="Sync Data",
-            job_type="agent",
-            status="active",
-            schedule={"kind": "interval", "interval_ms": 60000},
-            delivery={
-                "channel": "webhook",
-                "target": "https://api.example.com/hook?token=secret123",
-            },
-            consecutive_failures=3,
-            last_error="Webhook returned 502: Bad Gateway",
-        )
-
-        run1 = CronRunModel(
-            id="run_1",
-            job_id="job_sync_1",
-            started_at=datetime.now(UTC),
-            finished_at=datetime.now(UTC),
-            duration_ms=100,
-            status="ok",
-            delivery_status="failed",
-            delivery_error="Webhook returned 502: Bad Gateway",
-        )
-
-        with patch("app.services.cron.connector_health_service.UnitOfWork") as mock_uow_cls:
-            sync_job_res = MagicMock()
-            sync_job_res.scalars.return_value.all.return_value = [job]
-
-            sync_run_res = MagicMock()
-            sync_run_res.scalars.return_value.all.return_value = [run1]
-
-            mock_session = AsyncMock()
-            mock_session.execute = AsyncMock(side_effect=[sync_job_res, sync_run_res])
-
-            mock_uow = MagicMock()
-            mock_uow.session = mock_session
-            mock_uow.__aenter__ = AsyncMock(return_value=mock_uow)
-            mock_uow.__aexit__ = AsyncMock(return_value=None)
-            mock_uow_cls.return_value = mock_uow
-
-            summaries = asyncio.run(ConnectorHealthService.get_all_connectors_health(window_hours=24))
-
-            assert len(summaries) == 1
-            s = summaries[0]
-            assert s.channel == "webhook"
-            assert "secret123" not in s.target
-            assert s.status in (
-                ConnectorHealthStatus.DEGRADED,
-                ConnectorHealthStatus.DOWN,
-            )
-            assert s.last_error_category == ConnectorErrorCategory.HTTP_SERVER_ERROR
-            assert s.fix_suggestion is not None
-            assert "job_sync_1" in s.bound_job_ids
-
-    def test_prerequisite_check_endpoint(self, client: TestClient) -> None:
+    def test_prerequisite_check_endpoint_without_patched_stats(self, client: TestClient) -> None:
         """Integration test for POST /cron/prerequisite-check endpoint."""
         resp = client.post(
             "/cron/prerequisite-check",

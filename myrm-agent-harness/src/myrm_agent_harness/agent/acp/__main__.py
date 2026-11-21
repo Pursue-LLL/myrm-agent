@@ -14,10 +14,10 @@ Usage:
 - agent.acp.default_factory::DefaultAgentFactory (POS: Minimal BaseAgent factory) [lazy]
 - agent.acp.skill_factory::SkillAgentFactory (POS: Full-featured SkillAgent factory) [lazy]
 - toolkits.acp.server.server::run_server (POS: ACP server runner over streams) [lazy]
-- core.security.redact::RedactingFormatter (POS: Log formatter that masks secrets in every line)
+- core.security.redact::RedactingFormatter (POS: Log formatter that masks secret-shaped strings in every line)
 
 [OUTPUT]
-- main: CLI entry point supporting stdio and UDS transports; every log line goes to stderr with secrets masked
+- main: CLI entry point supporting stdio and UDS transports; every log line goes to stderr with secret-shaped strings masked
 
 [POS]
 CLI entry point for standalone ACP server daemon.
@@ -45,7 +45,7 @@ _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 
 def _stderr_handler() -> logging.Handler:
-    """The daemon's only log sink: stderr (stdout carries the protocol), each line masked for secrets.
+    """The daemon's only log sink: stderr (stdout carries the protocol), each line masked for secret-shaped strings.
 
     The executor logs the output of a failed command as it came, so masking happens here, at the sink, the way
     the server masks its own logs.

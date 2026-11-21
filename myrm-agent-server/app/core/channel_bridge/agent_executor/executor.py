@@ -115,9 +115,10 @@ class ChannelAgentExecutor:
 
             set_untrusted_ingress(True)
 
-        if not is_resume and topic_context and topic_context.agent_id and msg.content:
+        faq_agent_id = topic_context.effective_agent_id if topic_context else None
+        if not is_resume and faq_agent_id and msg.content:
             faq_reply = await self._try_faq_intercept(
-                agent_id=topic_context.agent_id,
+                agent_id=faq_agent_id,
                 user_query=msg.content,
                 channel=msg.channel,
             )

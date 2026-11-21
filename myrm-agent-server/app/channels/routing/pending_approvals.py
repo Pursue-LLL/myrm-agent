@@ -66,9 +66,7 @@ def session_agent_id(topic_context: TopicContext | None) -> str | None:
 
     The agent is a dimension of the session key, so a turn of another agent runs in another session.
     """
-    if topic_context is None or topic_context.identity_revoked:
-        return None
-    return topic_context.agent_id
+    return topic_context.effective_agent_id if topic_context else None
 
 
 def resume_topic_context(topic_context: TopicContext | None, resume: InboundMessage) -> TopicContext | None:

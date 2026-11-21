@@ -1,11 +1,14 @@
 """Request-scoped security overlays layered over the persisted securityConfig.
 
 [INPUT]
+- myrm_agent_harness.agent.security.config::layer_permissions, read_only_permissions
+  (POS: security config parsing; pure functions)
 - app.remote_access.tool_policy::merge_remote_security_overlay (POS: remote-exposed tool deny overlay)
 - app.core.channel_bridge.learn_handler::elevate_skill_manage_permission (POS: /learn turn skill_manage ASK elevation)
 
 [OUTPUT]
-- PRESET_OVERLAYS / apply_session_preset: chat-session security preset overlays (accept_edits, explore)
+- PRESET_OVERLAYS / apply_session_preset: chat-session security preset overlays (accept_edits; explore is the
+  read-only permission keys)
 - YoloGrant: a session YOLO grant (the moment it was turned on, how long it lasts)
 - SecurityOverlaySpec: the overlay inputs of one request; ``apply`` layers them over a persisted securityConfig
 
@@ -14,10 +17,13 @@ The persisted securityConfig is reloaded before every stream turn so a Settings 
 The overlays that belong to the request (session preset, session YOLO grant and approval window, remote-exposed
 admission, /learn authoring) are kept as data on the agent and re-applied on top of every reload, so a saved config
 can never loosen or drop them. A value written into the config dict itself would not survive the reload.
+Permission keys are laid over the saved ones with ``layer_permissions``: a key an overlay names takes its value,
+and a saved denial stays final, reopened neither by the overlay's wildcard allow nor by a softer value it names.
 """
 
 from __future__ import annotations
 
+from myrm_agent_harness.agent.security.config import layer_permissions, read_only_permissions
 from pydantic import BaseModel, ConfigDict, Field
 
 PRESET_OVERLAYS: dict[str, dict[str, object]] = {
@@ -38,25 +44,7 @@ PRESET_OVERLAYS: dict[str, dict[str, object]] = {
         },
         "autoModeEnabled": True,
     },
-    "explore": {
-        "permissions": {
-            "*": "allow",
-            "file_write": "deny",
-            "file_edit": "deny",
-            "file_delete": "deny",
-            "shell_exec": "deny",
-            "code_interpreter": "deny",
-            "browser_evaluate": "deny",
-            "browser_fill": "deny",
-            "browser_upload": "deny",
-            "browser_download": "deny",
-            "skill_manage": "deny",
-            "cron_manage": "deny",
-            "mcp_invoke": "ask",
-            "spawn_subagent": "allow",
-            "invoke_external_agent": "deny",
-        },
-    },
+    "explore": {"permissions": read_only_permissions()},
 }
 
 
@@ -69,9 +57,9 @@ def apply_session_preset(
     When *preset* is ``None`` or ``"hitl"``, the base config is returned
     unchanged (HITL is the default — every tool call requires approval).
 
-    The ``permissions`` key is merged at the individual permission level
-    (not replaced wholesale) so that base deny rules are preserved unless
-    the preset explicitly overrides them.
+    The ``permissions`` key is layered at the individual permission level (not replaced
+    wholesale): a permission the preset names takes the preset's action, and a saved
+    denial always stays final.
     """
     if not preset or preset == "hitl":
         return base
@@ -84,9 +72,7 @@ def apply_session_preset(
     for key, value in overlay.items():
         if key == "permissions" and isinstance(value, dict):
             base_perms = merged.get("permissions")
-            merged_perms = dict(base_perms) if isinstance(base_perms, dict) else {}
-            merged_perms.update(value)
-            merged["permissions"] = merged_perms
+            merged["permissions"] = layer_permissions(base_perms if isinstance(base_perms, dict) else {}, value)
         else:
             merged[key] = value
     return merged

@@ -15,6 +15,7 @@ from pydantic import ValidationError
 
 from app.channels.types import SessionKey
 from app.services.budget.channel_budget_key import (
+    budget_key_of_session_key,
     group_budget_key,
     normalize_channel_budget_key,
     parse_channel_budget_key,
@@ -46,6 +47,40 @@ class TestKeyOfAGroup:
         once = normalize_channel_budget_key(f"{channel}:group:{peer}")
 
         assert normalize_channel_budget_key(once) == once
+
+
+@pytest.mark.parametrize(("channel", "peer"), GROUP_IDS)
+class TestKeyOfTheGroupOfAStoredChat:
+    @pytest.mark.parametrize("suffix", ["", ":e=2026-11-16", ":thread:t9", ":thread:t9:agent:a1:e=2026-11-16"])
+    def test_every_chat_of_a_group_leads_back_to_its_key(self, channel: str, peer: str, suffix: str) -> None:
+        stored = group_budget_key(channel, peer) + suffix
+
+        assert budget_key_of_session_key(stored) == group_budget_key(channel, peer)
+
+    def test_the_key_is_one_a_policy_can_be_stored_under(self, channel: str, peer: str) -> None:
+        key = budget_key_of_session_key(group_budget_key(channel, peer))
+
+        assert key is not None
+        assert parse_channel_budget_key(key) == key
+
+
+class TestKeyOfAStoredChatThatIsNoGroup:
+    @pytest.mark.parametrize(
+        "stored",
+        [
+            None,
+            "",
+            "ch",
+            "ch:group",
+            "slack:dm:u1",
+            "slack:dm:u1:thread:group:agent:a1",
+            "slack:channel:c1",
+            "slack:group:",
+            ":group:c1",
+        ],
+    )
+    def test_there_is_no_budget_key(self, stored: str | None) -> None:
+        assert budget_key_of_session_key(stored) is None
 
 
 class TestKeyThatNamesNoGroup:

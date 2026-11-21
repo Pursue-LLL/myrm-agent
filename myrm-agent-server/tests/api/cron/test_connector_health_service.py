@@ -1,17 +1,21 @@
-"""Connector health over real cron rows: which runs count as delivery attempts and what they say about a target.
+"""Connector health over real cron rows: which runs count as delivery attempts and what they say about a destination.
 
 [INPUT]
 - app.services.cron.connector_health_service::ConnectorHealthService, ConnectorHealthSummary (POS: the aggregation under test)
 - app.core.cron.adapters.sqlalchemy_store::SqlAlchemyCronStore (POS: the SQL store the jobs and runs are written through)
+- myrm_agent_harness.toolkits.cron.engine.executor::JobExecutor (POS: the writer of the run records the report reads)
 - tests.support.policy_sqlite::policy_database (POS: a file SQLite database that runs the production transaction policy)
 
 [OUTPUT]
 - A run counts only if its delivery was attempted: skipped or absent deliveries add nothing and cannot crowd failed
   deliveries out of the rows the service reads
-- A task's own failure does not make its connector unhealthy; only a failed delivery's error describes the target
-- Status follows the delivery streak: one failure degrades, three or an auth failure take the target down, a delivery
-  ends the streak
-- Jobs group by channel and redacted address whatever their status; in-app and addressless jobs have no connector
+- A task's own failure does not make its connector unhealthy; only a failed delivery's error describes the destination
+- Status follows the delivery streak: one failure degrades, three or an auth failure take the destination down, a
+  delivery ends the streak
+- Jobs group by destination (channel and exact address) whatever their status; in-app and addressless jobs have no
+  connector, and two bots whose redacted addresses read alike stay apart
+- A run counts for the destination it was delivered to, not for the one its job points at now
+- The records the executor writes are the ones the report reads, for a failure that carries no text as well
 
 [POS]
 The service decides which rows it selects (statuses, window, how many) and which of their fields it believes. A mocked
@@ -23,20 +27,24 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import AsyncMock
 
+import httpx
 import pytest
-from myrm_agent_harness.api import ConnectorErrorCategory, ConnectorHealthStatus
+from myrm_agent_harness.api import ConnectorErrorCategory, ConnectorHealthStatus, delivery_target_key
 from myrm_agent_harness.toolkits.cron import (
     CronJob,
     CronRunRecord,
     DeliveryConfig,
     DeliveryStatus,
+    JobResult,
     JobStatus,
     JobType,
     RunStatus,
     Schedule,
     ScheduleKind,
 )
+from myrm_agent_harness.toolkits.cron.engine.executor import JobExecutor
 
 from app.core.cron.adapters.sqlalchemy_store import SqlAlchemyCronStore
 from app.services.cron.connector_health_service import ConnectorHealthService, ConnectorHealthSummary
@@ -90,8 +98,16 @@ async def _run(
     error: str | None = None,
     *,
     task: RunStatus = RunStatus.OK,
+    stamped: bool = True,
 ) -> datetime:
-    """Store a run that started ``minutes_ago`` minutes ago and return when it finished."""
+    """Store a run that started ``minutes_ago`` minutes ago and return when it finished.
+
+    The run carries the key of the destination its job points at right now (unless ``stamped`` is off). Every run
+    gets one, skipped ones too, so that only the delivery status keeps those out of the count.
+    """
+    job = await store.get_job(job_id)
+    assert job is not None
+    key = delivery_target_key(job.delivery.channel, job.delivery.target)
     started_at = datetime.now(UTC) - timedelta(minutes=minutes_ago)
     finished_at = started_at + timedelta(seconds=5)
     await store.save_run(
@@ -104,6 +120,7 @@ async def _run(
             status=task,
             delivery_status=delivery,
             delivery_error=error,
+            metadata={"delivery_key": key} if key and stamped else None,
         )
     )
     return finished_at
@@ -129,7 +146,6 @@ async def test_a_failing_task_does_not_make_its_connector_unhealthy(store: SqlAl
     assert (summary.total_deliveries, summary.failed_deliveries, summary.consecutive_failures) == (2, 0, 0)
     assert summary.last_error_message is None
     assert summary.last_error_category is None
-    assert summary.fix_suggestion is None
 
 
 async def test_runs_without_a_delivery_attempt_are_not_counted(store: SqlAlchemyCronStore) -> None:
@@ -196,8 +212,8 @@ async def test_status_follows_the_delivery_streak(
     assert (summary.status, summary.consecutive_failures) == (status, streak)
 
 
-async def test_jobs_group_by_channel_and_redacted_address(store: SqlAlchemyCronStore) -> None:
-    """Every job with an outbound address belongs to its target, paused or not; the address shows no secret."""
+async def test_jobs_group_by_destination(store: SqlAlchemyCronStore) -> None:
+    """Every job with an outbound address belongs to its destination, paused or not; the address shows no secret."""
     await store.save_job(_job("active", _WEBHOOK))
     await store.save_job(_job("paused", _WEBHOOK, status=JobStatus.PAUSED))  # its past attempts still describe the target
     await store.save_job(_job("feishu", _WEBHOOK, channel="feishu"))  # same address on another channel: its own connector
@@ -219,3 +235,84 @@ async def test_jobs_group_by_channel_and_redacted_address(store: SqlAlchemyCronS
     assert webhook.status == ConnectorHealthStatus.DEGRADED
     assert by_channel["feishu"].bound_job_ids == ("feishu",)
     assert by_channel["feishu"].status == ConnectorHealthStatus.HEALTHY
+
+
+async def test_bots_whose_redacted_addresses_read_alike_stay_apart(store: SqlAlchemyCronStore) -> None:
+    """Redaction masks the key that tells two bots of one platform apart; a failing bot must not condemn the other."""
+    bot_a = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=aaaa-1111"
+    bot_b = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=bbbb-2222"
+    await store.save_job(_job("bot-a", bot_a, channel="wecom"))
+    await store.save_job(_job("bot-b", bot_b, channel="wecom"))
+    for minutes_ago in (1, 2, 3):
+        await _run(store, "bot-a", minutes_ago, *_BAD_GATEWAY)
+    await _run(store, "bot-b", 1, *_OK)
+
+    summaries = {summary.bound_job_ids: summary for summary in await ConnectorHealthService.get_all_connectors_health()}
+
+    assert set(summaries) == {("bot-a",), ("bot-b",)}
+    failing, healthy = summaries[("bot-a",)], summaries[("bot-b",)]
+    assert failing.target == healthy.target  # the address shown cannot tell them apart
+    assert failing.status == ConnectorHealthStatus.DOWN
+    assert healthy.status == ConnectorHealthStatus.HEALTHY
+    assert (healthy.total_deliveries, healthy.failed_deliveries) == (1, 0)
+
+
+async def test_a_run_counts_for_the_destination_it_was_delivered_to(store: SqlAlchemyCronStore) -> None:
+    """A job pointed somewhere else keeps its attempts at the earlier address out of the new address's health."""
+    old, new = "https://hooks.example.com/old", "https://hooks.example.com/new"
+    await store.save_job(_job("moved", old))
+    for minutes_ago in (10, 11, 12):
+        await _run(store, "moved", minutes_ago, *_BAD_GATEWAY)
+    await store.save_job(_job("moved", new))
+    await _run(store, "moved", 1, *_OK)
+
+    summary = await _only_summary()
+
+    assert summary.target == new
+    assert summary.status == ConnectorHealthStatus.HEALTHY
+    assert (summary.total_deliveries, summary.failed_deliveries) == (1, 0)
+
+
+async def test_an_attempt_that_names_no_destination_is_not_counted(store: SqlAlchemyCronStore) -> None:
+    """A run without a destination key cannot be told apart from another job's, so it is left out, not guessed at."""
+    await store.save_job(_job("unkeyed", _WEBHOOK))
+    await _run(store, "unkeyed", 1, *_BAD_GATEWAY, stamped=False)
+    await _run(store, "unkeyed", 2, *_OK)
+
+    summary = await _only_summary()
+
+    assert summary.status == ConnectorHealthStatus.HEALTHY
+    assert (summary.total_deliveries, summary.failed_deliveries) == (1, 0)
+
+
+class _FailingDelivery:
+    """A delivery that raises ``error`` for every address that contains ``bad`` and succeeds for the rest."""
+
+    def __init__(self, error: Exception) -> None:
+        self._error = error
+
+    async def deliver(self, job: CronJob, result: JobResult) -> None:
+        if "bad" in (job.delivery.target or ""):
+            raise self._error
+
+
+async def test_what_the_executor_records_is_what_the_report_reads(store: SqlAlchemyCronStore) -> None:
+    """A delivery that times out carries no text: its run must still say why, and the report must classify it."""
+    await store.save_job(_job("to-good", "https://hooks.example.com/good?token=g"))
+    await store.save_job(_job("to-bad", "https://hooks.example.com/bad?token=b"))
+    executor = JobExecutor(store=store, delivery=_FailingDelivery(httpx.ReadTimeout("")))
+    runner = AsyncMock()
+    runner.run = AsyncMock(return_value=JobResult(success=True, output="report"))
+
+    for job_id in ("to-good", "to-bad", "to-bad", "to-bad"):
+        job = await store.get_job(job_id)
+        assert job is not None
+        await executor.run_and_record(job, runner)
+
+    summaries = {summary.bound_job_ids: summary for summary in await ConnectorHealthService.get_all_connectors_health()}
+
+    bad = summaries[("to-bad",)]
+    assert (bad.status, bad.consecutive_failures) == (ConnectorHealthStatus.DOWN, 3)
+    assert bad.last_error_category == ConnectorErrorCategory.TIMEOUT
+    assert bad.last_error_message == "ReadTimeout"
+    assert summaries[("to-good",)].status == ConnectorHealthStatus.HEALTHY
