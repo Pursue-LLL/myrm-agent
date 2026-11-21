@@ -1,7 +1,7 @@
-"""The shared venv with real subprocesses: ``python -m venv --without-pip``, ``ensurepip`` and bash, all offline.
+"""The shared venv with real subprocesses: ``python -m venv`` (which runs ``ensurepip``) and bash, all offline.
 
-The fakes of test_venv_pip_bootstrap.py cannot show what a real child does when its parent exits first, or what a real shell
-runs for ``pip``; these tests can.
+The fakes of test_venv_pip_bootstrap.py cannot show what a real venv command does when its parent exits first, or what a real
+shell runs for ``pip``; these tests can.
 """
 
 from __future__ import annotations
@@ -34,20 +34,23 @@ PIP_WAIT_SECONDS = 120
 EXITS_WHILE_PIP_INSTALLS = textwrap.dedent(
     """
     import asyncio
+    import os
     import sys
 
     from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
     from myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager import VenvManager
 
 
-    async def main(venv: str) -> None:
+    async def main(venv: str, exit_at_once: bool) -> None:
         config = ExecutionConfig()
         config.local.shared_venv_path = venv
         await VenvManager(config).get_python_executable()
-        await asyncio.sleep(0.3)  # the pip bootstrap is still running when the loop shuts down
+        if exit_at_once:
+            os._exit(0)  # no loop shutdown, no cleanup: what a killed process leaves behind
+        await asyncio.sleep(0.3)  # the build is still installing pip when the loop shuts down
 
 
-    asyncio.run(main(sys.argv[1]))
+    asyncio.run(main(sys.argv[1], sys.argv[2] == "at_once"))
     """
 )
 
@@ -76,12 +79,13 @@ def _imports(python: str, module: str) -> bool:
     return subprocess.run([python, "-c", f"import {module}"], capture_output=True, check=False).returncode == 0
 
 
-def test_pip_arrives_even_when_the_process_that_started_the_bootstrap_exits_first(tmp_path: Path) -> None:
+@pytest.mark.parametrize("exit_mode", ["at_once", "after_a_moment"])
+def test_pip_arrives_even_when_the_process_that_started_the_build_exits_first(tmp_path: Path, exit_mode: str) -> None:
     venv = tmp_path / "venvs"
     source = Path(myrm_agent_harness.__file__).parents[1]
 
     subprocess.run(
-        [sys.executable, "-c", EXITS_WHILE_PIP_INSTALLS, str(venv)],
+        [sys.executable, "-c", EXITS_WHILE_PIP_INSTALLS, str(venv), exit_mode],
         env={**os.environ, "PYTHONPATH": str(source)},
         check=True,
         timeout=PIP_WAIT_SECONDS,
