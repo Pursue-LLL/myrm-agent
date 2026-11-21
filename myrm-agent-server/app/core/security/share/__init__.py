@@ -6,7 +6,9 @@
   - share_links: ShareKind + the one definition of the public share link path/URL for each token kind
   - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
-  - share_csp: the CDN origins and Content-Security-Policy of a served artifact share page
+  - share_csp: the CDN origins and Content-Security-Policy of a served artifact share page, and the script-free policy
+    of a rendered Markdown page
+  - share_markdown: the one Markdown renderer of every share page (raw HTML off, wide tables scroll)
   - share_locale: visitor language negotiation (Accept-Language) for the share pages, plus the per-language
     ``<html lang>`` and footer brand line every share page uses
   - share_status_page: browser-friendly share 404 page (state catalog in English/Chinese) + Accept-based JSON fallback
@@ -25,7 +27,7 @@ from app.core.security.share.share_attempt_guard import (
     record_password_failure,
     record_password_success,
 )
-from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, SHARE_CDN_SOURCES
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, MARKDOWN_SHARE_CSP, SHARE_CDN_SOURCES
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import (
     b64url_decode,
@@ -40,6 +42,7 @@ from app.core.security.share.share_hmac import (
 )
 from app.core.security.share.share_links import ShareKind, share_link_path, share_link_url
 from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang, resolve_share_lang
+from app.core.security.share.share_markdown import build_share_markdown
 from app.core.security.share.share_password_page import (
     password_gate_response,
     render_password_gate_html,
@@ -61,6 +64,7 @@ from app.core.security.share.share_unlock import (
 __all__ = [
     "ARTIFACT_SHARE_CSP",
     "HTML_LANG",
+    "MARKDOWN_SHARE_CSP",
     "SHARE_BRAND",
     "SHARE_CDN_SOURCES",
     "SHARE_PRIVACY_HEADERS",
@@ -70,6 +74,7 @@ __all__ = [
     "attach_unlock_cookie",
     "b64url_decode",
     "b64url_encode",
+    "build_share_markdown",
     "build_unlock_credential",
     "create_share_token",
     "decode_unverified_payload",

@@ -1,9 +1,11 @@
-"""A log line that quotes a command shows no credential typed into it.
+"""A log line that quotes a command quotes what the model typed and shows no credential typed into it.
 
 The audit log and the background-job registry keep a command through ``redact_command_line``. The log lines that quote
-one (a blocked path, a rewritten path, a failed run, a shell fallback) go through ``command_preview``. ``--key X`` is
-the shape that only the entry knows: the shared log formatter leaves it as written, so a line that shows the command
-unmasked shows the value. Each test names the line it drives, so a test cannot pass because that line never ran.
+one (a blocked path, a failed run, a shell fallback) go through ``command_preview``; the line that reports a rewritten
+path counts the paths and quotes no command. ``--key X`` is the shape that only the entry knows: the shared log
+formatter leaves it as written, so a line that shows the command unmasked shows the value. A bash run writes two lines
+about its command, when it starts and when it fails: both quote the command as the model typed it, not the text the
+tool puts before it. Each test names the line it drives, so a test cannot pass because that line never ran.
 """
 
 from __future__ import annotations
@@ -37,11 +39,34 @@ from myrm_agent_harness.utils.errors import ToolError
 _SECRET = "abc123xyz"
 _KEY = f"--key {_SECRET}"
 _PREFLIGHT = "myrm_agent_harness.agent.meta_tools.bash._security.preflight_checks"
+_TOOL_PREFIX = "prefix the tool adds"
 
 
 def _assert_line_masked(caplog: pytest.LogCaptureFixture, line: str) -> None:
     assert line in caplog.text, f"the line under test was not logged: {line!r}"
     assert _SECRET not in caplog.text
+
+
+def _logged_line(caplog: pytest.LogCaptureFixture, fragment: str) -> str:
+    return next(record.getMessage() for record in caplog.records if fragment in record.getMessage())
+
+
+async def _run_behind_a_prefix(tmp_path: Path, typed: str) -> None:
+    """Run ``typed`` as the bash tool hands it over: the executor gets it behind text the model never typed."""
+    executor = LocalExecutor(ExecutionConfig(), workspace_path=str(tmp_path))
+    try:
+        await executor.execute_bash(
+            ExecutionContext(
+                code=f"# {_TOOL_PREFIX}\n{typed}",
+                original_code=typed,
+                session_id="log-sites",
+                work_dir=str(tmp_path),
+                workspace_root=str(tmp_path),
+                timeout=30,
+            )
+        )
+    finally:
+        await executor.close()
 
 
 class TestSafeExec:
@@ -108,10 +133,20 @@ class TestPreflight:
 
 
 class TestRewriters:
-    def test_a_rewritten_workspace_path(self, caplog: pytest.LogCaptureFixture) -> None:
+    def test_a_rewritten_workspace_path_is_counted_not_quoted(self, caplog: pytest.LogCaptureFixture) -> None:
         caplog.set_level(logging.WARNING)
-        CommandRewriter().rewrite_workspace_paths(f"cd /workspace && tool {_KEY}", Path("/tmp/ws"), posix_shell=True)
-        _assert_line_masked(caplog, "Rewrote /workspace paths")
+        CommandRewriter().rewrite_workspace_paths(
+            f"cd /workspace && tool {_KEY} /workspace/out", Path("/tmp/ws"), posix_shell=True
+        )
+        _assert_line_masked(caplog, "Rewrote /workspace paths (2)")
+        assert "cd /tmp/ws" not in caplog.text
+
+    def test_a_command_without_a_workspace_root_logs_no_rewrite(self, caplog: pytest.LogCaptureFixture) -> None:
+        caplog.set_level(logging.WARNING)
+        rewriter = CommandRewriter()
+        rewriter.rewrite_workspace_paths("ls ~/workspace /workspace2", Path("/tmp/ws"), posix_shell=True)
+        rewriter.rewrite_workspace_paths("cd /workspace && ls", Path("/workspace"), posix_shell=True)
+        assert "Rewrote" not in caplog.text
 
     @pytest.mark.asyncio
     async def test_a_rewritten_pip_command(
@@ -134,22 +169,25 @@ class TestRewriters:
 @pytest.mark.skipif(sys.platform == "win32", reason="drives a real bash shell")
 class TestLocalExecutor:
     @pytest.mark.asyncio
-    async def test_a_failed_run_shows_a_masked_command(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_a_failed_run_shows_the_masked_command_the_model_typed(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
         caplog.set_level(logging.WARNING)
-        executor = LocalExecutor(ExecutionConfig(), workspace_path=str(tmp_path))
-        try:
-            await executor.execute_bash(
-                ExecutionContext(
-                    code=f"false {_KEY}",
-                    session_id="log-sites",
-                    work_dir=str(tmp_path),
-                    workspace_root=str(tmp_path),
-                    timeout=30,
-                )
-            )
-        finally:
-            await executor.close()
+        await _run_behind_a_prefix(tmp_path, f"false typed-by-the-model {_KEY}")
         _assert_line_masked(caplog, "Bash exit code")
+        line = _logged_line(caplog, "Bash exit code")
+        assert "false typed-by-the-model" in line
+        assert _TOOL_PREFIX not in line
+
+    @pytest.mark.asyncio
+    async def test_the_start_line_shows_the_command_the_model_typed(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.INFO)
+        await _run_behind_a_prefix(tmp_path, "echo typed-by-the-model")
+        line = _logged_line(caplog, "Executing Bash")
+        assert "echo typed-by-the-model" in line
+        assert _TOOL_PREFIX not in line
 
 
 class TestSkillDynamicContext:

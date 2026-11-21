@@ -1,5 +1,5 @@
 /**
- * The question shown when another device changed the same setting.
+ * The question shown when a setting's server version clashes with the local one and cannot be merged.
  *
  * Real scenario: the user sees which setting, which device and both versions, and must pick a side; the sync is
  * waiting for that answer, so nothing but the two buttons may close the dialog.

@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-Settings 中 Hosting Targets 配置面板：Vercel / Cloudflare Pages / Netlify / HTTP Webhook 四类 target 的 CRUD、凭证保存、连接测试与默认 target 设置。
+Settings 中 Hosting Targets 配置面板：Vercel / HTTP Webhook 两类 target 的 CRUD、凭证保存、连接测试与默认 target 设置。
 
 ---
 

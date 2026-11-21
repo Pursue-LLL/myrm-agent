@@ -3,7 +3,8 @@
 [INPUT]
 - app.core.security.share.share_hmac (POS: HMAC signing + password-protection detection)
 - app.core.security.share.share_attempt_guard (POS: wrong-password lockout for the gate)
-- app.core.security.share.share_csp (POS: CSP of a served share page, CDN list shared with the preview)
+- app.core.security.share.share_csp (POS: CSP of a served share page, CDN list shared with the preview; script-free policy of Markdown pages)
+- app.core.security.share.share_locale (POS: visitor language negotiation)
 - app.core.security.share.share_headers (POS: shared share privacy headers)
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
@@ -11,6 +12,7 @@
 - app.services.audit.lockout_events (POS: lockout log/audit report)
 - app.services.audit.share_events (POS: share events in the server log)
 - app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
+- app.services.artifacts.share.markdown_page (POS: Markdown artifact entry rendered as a styled script-free page)
 - app.services.artifacts.share.share_registry (POS: revocation gate check)
 - app.services.artifacts.share.share_token::ArtifactShareClaims (POS: HMAC claims)
 
@@ -40,7 +42,9 @@ cookie instead of a password parameter. Wrong passwords are counted per share an
 client; after five the gate answers 429 with ``Retry-After`` and refuses further
 guesses (even a correct one) until the window passes, while visitors holding an
 unlock cookie keep their access. The guess that engages the lock is reported once through
-``lockout_events``. Every entry served and every refusal is one ``share_events`` line.
+``lockout_events``. Every entry served and every refusal is one ``share_events`` line. A Markdown entry is served as a
+rendered page under the script-free policy (``markdown_page``); its assets, and a file too large to render, are
+served as they are.
 """
 
 from __future__ import annotations
@@ -48,7 +52,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_workspace_root
@@ -57,10 +61,11 @@ from app.core.security.share.share_attempt_guard import (
     record_password_failure,
     record_password_success,
 )
-from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, MARKDOWN_SHARE_CSP
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import is_password_protected
 from app.core.security.share.share_links import ShareKind
+from app.core.security.share.share_locale import resolve_share_lang
 from app.core.security.share.share_password_page import (
     password_gate_response,
     resolve_gate_password,
@@ -72,6 +77,7 @@ from app.core.security.share.share_unlock import (
     unlock_cookie_name,
 )
 from app.database.connection import get_db
+from app.services.artifacts.share.markdown_page import is_markdown_media_type, render_markdown_share_page
 from app.services.artifacts.share.share_bundle import (
     bundle_asset_count,
     materialize_share_bundle,
@@ -103,6 +109,12 @@ _SHARE_SECURITY_HEADERS: dict[str, str] = {
 _SHARE_RESPONSE_HEADERS: dict[str, str] = {
     **_SHARE_SECURITY_HEADERS,
     **SHARE_PRIVACY_HEADERS,
+}
+
+# A rendered Markdown page runs no script, so it carries the stricter policy.
+_MARKDOWN_RESPONSE_HEADERS: dict[str, str] = {
+    **_SHARE_RESPONSE_HEADERS,
+    "Content-Security-Policy": MARKDOWN_SHARE_CSP,
 }
 
 # Privacy headers (noindex/nofollow + no-store + no-referrer) apply to every
@@ -208,6 +220,10 @@ async def _serve_share_bundle(
     if relative_path is None:
         report_share_access(ShareKind.ARTIFACT, token)
     file_path, media_type, filename = resolved
+    if relative_path is None and is_markdown_media_type(media_type):
+        page = await render_markdown_share_page(file_path, filename, resolve_share_lang(request))
+        if page is not None:
+            return HTMLResponse(page, headers=_MARKDOWN_RESPONSE_HEADERS)
     return _file_response(str(file_path), media_type, filename)
 
 

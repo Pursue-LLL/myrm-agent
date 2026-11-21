@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models.config import UserConfig
 from app.services.hosting.credentials import load_credentials_row, load_target_credentials, save_target_credentials
 from app.services.hosting.targets import (
+    HOSTING_TARGETS_KEY,
     delete_hosting_target,
     get_default_hosting_target,
     get_default_hosting_target_from_list,
@@ -23,7 +26,13 @@ from app.services.hosting.types import HostingTarget
 async def test_save_and_list_hosting_targets(db_session: AsyncSession) -> None:
     targets = [
         HostingTarget(id="t1", name="Vercel", provider_type="vercel", config={}, is_default=True),
-        HostingTarget(id="t2", name="Netlify", provider_type="netlify", config={"site_id": "s1"}, is_default=False),
+        HostingTarget(
+            id="t2",
+            name="Webhook",
+            provider_type="http_webhook",
+            config={"webhook_url": "https://example.com/hook"},
+            is_default=False,
+        ),
     ]
     await save_hosting_targets(db_session, targets)
     loaded = await list_hosting_targets(db_session)
@@ -39,7 +48,7 @@ async def test_upsert_hosting_target_clears_other_defaults(db_session: AsyncSess
     )
     await upsert_hosting_target(
         db_session,
-        HostingTarget(id="b", name="B", provider_type="netlify", config={}, is_default=True),
+        HostingTarget(id="b", name="B", provider_type="http_webhook", config={}, is_default=True),
     )
     loaded = await list_hosting_targets(db_session)
     defaults = [t for t in loaded if t.is_default]
@@ -116,8 +125,6 @@ def test_get_default_hosting_target_from_list() -> None:
 
 @pytest.mark.asyncio
 async def test_list_hosting_targets_invalid_json(db_session: AsyncSession) -> None:
-    from app.database.models.config import UserConfig
-
     db_session.add(
         UserConfig(
             id="cfg-bad",
@@ -141,3 +148,55 @@ async def test_get_default_hosting_target_falls_back_to_first(db_session: AsyncS
     default = await get_default_hosting_target(db_session)
     assert default is not None
     assert default.id == "only"
+
+
+async def _store_raw_targets(db_session: AsyncSession, stored: list[dict[str, object]]) -> None:
+    """Write the targets row as storage holds it, so providers the code no longer knows can be part of it."""
+    db_session.add(
+        UserConfig(
+            id="cfg-raw-targets",
+            config_key=HOSTING_TARGETS_KEY,
+            config_value=stored,
+            version="1.0.0",
+            last_device_id="webui",
+            is_encrypted=False,
+        )
+    )
+    await db_session.commit()
+
+
+def _stored(target_id: str, provider_type: str, *, is_default: bool = False) -> dict[str, object]:
+    return {"id": target_id, "name": target_id, "provider_type": provider_type, "config": {}, "is_default": is_default}
+
+
+@pytest.mark.asyncio
+async def test_targets_of_a_provider_that_is_not_supported_are_skipped_on_read(db_session: AsyncSession) -> None:
+    await _store_raw_targets(
+        db_session, [_stored("n", "netlify", is_default=True), _stored("c", "cloudflare_pages"), _stored("v", "vercel")]
+    )
+
+    assert [target.id for target in await list_hosting_targets(db_session)] == ["v"]
+    assert await get_hosting_target(db_session, "n") is None
+
+
+@pytest.mark.asyncio
+async def test_the_default_moves_to_a_supported_target_when_the_default_is_skipped(db_session: AsyncSession) -> None:
+    await _store_raw_targets(db_session, [_stored("n", "netlify", is_default=True), _stored("v", "vercel")])
+
+    default = await get_default_hosting_target(db_session)
+
+    assert default is not None
+    assert default.id == "v"
+
+
+@pytest.mark.asyncio
+async def test_a_skipped_target_leaves_storage_with_the_next_write(db_session: AsyncSession) -> None:
+    await _store_raw_targets(db_session, [_stored("n", "netlify", is_default=True), _stored("v", "vercel")])
+
+    await upsert_hosting_target(
+        db_session, HostingTarget(id="w", name="W", provider_type="http_webhook", config={}, is_default=False)
+    )
+
+    row = (await db_session.execute(select(UserConfig).where(UserConfig.config_key == HOSTING_TARGETS_KEY))).scalars().one()
+    assert isinstance(row.config_value, list)
+    assert sorted(str(item["provider_type"]) for item in row.config_value) == ["http_webhook", "vercel"]

@@ -109,7 +109,7 @@ class LocalBashMixin:
         command = context.code
         issued_command = context.original_code or command
 
-        self._helper.log_execution_start("LocalExecutor", "Bash (Persistent)", command)
+        self._helper.log_execution_start("LocalExecutor", "Bash (Persistent)", issued_command)
 
         # Resolve working directory
         workspace = Path(context.workspace_root) if context.workspace_root else self._current_workspace
@@ -196,7 +196,7 @@ class LocalBashMixin:
                 " [LocalExecutor] Bash exit code: %d (%s) | cmd: %s",
                 session_result.exit_code,
                 self._helper.format_execution_time(execution_time),
-                command_preview(command, 200),
+                command_preview(issued_command, 200),
             )
             if session_result.stderr:
                 logger.warning(f" [LocalExecutor] Bash stderr: {session_result.stderr}")

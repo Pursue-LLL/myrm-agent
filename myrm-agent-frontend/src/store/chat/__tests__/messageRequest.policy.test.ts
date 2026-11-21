@@ -10,28 +10,9 @@ import { createMessageRequest, type ChatActionsState } from '@/store/chat/messag
 import useConfigStore from '@/store/useConfigStore';
 import useChatStore from '@/store/useChatStore';
 
-const showI18nToastMock = vi.hoisted(() => vi.fn());
-const resolveKanbanSendBlockReasonMock = vi.hoisted(() => vi.fn());
-
-vi.mock('@/services/i18nToastService', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/services/i18nToastService')>();
-  return {
-    ...actual,
-    showI18nToast: (...args: unknown[]) => showI18nToastMock(...args),
-  };
-});
-
 vi.mock('@/services/chat', () => ({
   createAISearchStream: vi.fn(async () => new Response('', { status: 200 })),
 }));
-
-vi.mock('@/lib/kanban/kanbanChatBoard', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/kanban/kanbanChatBoard')>();
-  return {
-    ...actual,
-    resolveKanbanSendBlockReason: (...args: unknown[]) => resolveKanbanSendBlockReasonMock(...args),
-  };
-});
 
 describe('messageRequest - security preset contract', () => {
   const makeState = (overrides: Record<string, unknown> = {}) =>

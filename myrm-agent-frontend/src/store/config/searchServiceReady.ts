@@ -36,11 +36,11 @@ async function syncSearchServices(): Promise<boolean> {
 
 /**
  * The store's list is empty until the configuration has arrived: cloud start-up returns the first screen's keys and
- * loads the rest in the background, once and without a retry, so the list stays empty for good once that load failed;
- * a local start-up has it only once the backend is up. An empty list the server has not confirmed is not "no search
- * service": the gate waits for the key and the store to catch up, decides on the list once they have (a refusal shows
- * the setup notice), and lets the turn through when that fails or takes longer than the wait limit, because the server
- * refuses a turn without a search service anyway.
+ * loads the rest in the background with at most three attempts, so the list is empty while that load is in flight and
+ * stays empty when every attempt failed; a local start-up has it only once the backend is up. An empty list the server
+ * has not confirmed is not "no search service": the gate waits for the key and the store to catch up, decides on the
+ * list once they have (a refusal shows the setup notice), and lets the turn through when that fails or takes longer
+ * than the wait limit, because the server refuses a turn without a search service anyway.
  *
  * Resolves whether the turn may go on; false means it was refused here and the notice has been shown.
  */

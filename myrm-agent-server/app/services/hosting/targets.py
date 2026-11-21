@@ -1,13 +1,14 @@
 """Hosting targets CRUD stored in UserConfig.
 
-[POS] User-managed deploy targets (Vercel, Cloudflare Pages, Netlify, webhook).
+[POS] User-managed deploy targets (Vercel, webhook).
 
 [INPUT]
 - sqlalchemy (POS: async DB session for UserConfig JSON blobs)
 - app.services.config.encryption::HOSTING_TARGET_CREDENTIALS_PREFIX (POS: key family of the per-target credentials rows)
 
 [OUTPUT]
-- list/create/update/delete hosting targets with legacy Vercel ID normalization; deleting a target removes its credentials row
+- list/create/update/delete hosting targets with legacy Vercel ID normalization; deleting a target removes its credentials row;
+  a stored target whose provider is not supported is skipped on read and leaves storage with the next write
 - credential_config_key: the config row that holds one target's credentials
 """
 
@@ -15,7 +16,6 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import cast
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +23,7 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models.config import UserConfig
 from app.services.config.encryption import HOSTING_TARGET_CREDENTIALS_PREFIX, get_encryption_service
-from app.services.hosting.types import HostingTarget, ProviderType
+from app.services.hosting.types import HostingTarget, is_provider_type
 
 HOSTING_TARGETS_KEY = "hostingTargets"
 LEGACY_VERCEL_TARGET_ID = "legacy-vercel-default"
@@ -46,13 +46,15 @@ def _parse_targets(raw: object) -> list[HostingTarget]:
         provider_type = item.get("provider_type")
         if not isinstance(target_id, str) or not isinstance(name, str) or not isinstance(provider_type, str):
             continue
+        if not is_provider_type(provider_type):
+            continue
         config_raw = item.get("config")
         config = {str(k): str(v) for k, v in config_raw.items()} if isinstance(config_raw, dict) else {}
         targets.append(
             HostingTarget(
                 id=target_id,
                 name=name,
-                provider_type=cast(ProviderType, provider_type),
+                provider_type=provider_type,
                 config=config,
                 is_default=bool(item.get("is_default")),
             )

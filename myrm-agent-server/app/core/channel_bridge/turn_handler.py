@@ -120,10 +120,10 @@ class ChannelRetryHandler:
         session_key, _ = await _resolve_session_with_agent(msg)
 
         async with get_session() as _db:
-            chat = await ChatService.get_channel_chat_by_key("sandbox", session_key)
+            chat = await ChatService.get_channel_chat_by_key(session_key)
             if not chat:
                 return RetryResult(success=False)
-            svc_result = await ChatService.retry_last_turn(chat.id, "sandbox")
+            svc_result = await ChatService.retry_last_turn(chat.id)
 
         revert_outcome = RevertMessagesOutcome(reverted_count=0, not_revertible_count=0)
         if svc_result.success and svc_result.deleted_message_ids:
@@ -151,10 +151,10 @@ class ChannelUndoHandler:
         session_key, _ = await _resolve_session_with_agent(msg)
 
         async with get_session() as _db:
-            chat = await ChatService.get_channel_chat_by_key("sandbox", session_key)
+            chat = await ChatService.get_channel_chat_by_key(session_key)
             if not chat:
                 return UndoResult(success=False)
-            svc_result = await ChatService.undo_last_turn(chat.id, "sandbox")
+            svc_result = await ChatService.undo_last_turn(chat.id)
 
         revert_outcome = RevertMessagesOutcome(reverted_count=0, not_revertible_count=0)
         if svc_result.success and svc_result.deleted_message_ids:

@@ -3,8 +3,8 @@
  *
  * Real scenario: the app opens, saved chat preferences are applied at once, and once the database is ready the sync
  * manager starts, the critical config loads and the remaining stores follow when the browser is idle. When a step
- * fails the stores still start from their defaults. When another device changed the same setting, the user decides
- * which side wins, one question at a time, and the sync waits for that decision.
+ * fails the stores still start from their defaults. When a setting's server version clashes with the local one, the
+ * user decides which side wins, one question at a time, and the sync waits for that decision.
  */
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

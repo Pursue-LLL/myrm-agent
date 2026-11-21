@@ -10,7 +10,7 @@
 
 [POS]
 Conditional business tool that lets the Agent publish HTML artifacts to
-user-configured hosting targets (Vercel / Cloudflare Pages / Netlify / Webhook).
+user-configured hosting targets (Vercel / Webhook).
 Registered by tool_setup._setup_artifact_publish_tool when at least one hosting
 target is configured. Uses the same orchestrator as the GUI Globe publish flow.
 """
@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 _ARTIFACT_PUBLISH_DESCRIPTION = (
     "Publish a generated artifact (HTML application, PDF document, Excel spreadsheet, Markdown report, etc.) to the user's configured hosting target "
-    "(Vercel, Cloudflare Pages, Netlify, or HTTP Webhook) and return the live URL. "
+    "(Vercel or HTTP Webhook) and return the live URL. "
     "Requires artifact_id from a previously generated artifact in this conversation. "
     "Only use when the user explicitly asks to publish, deploy, or get a live link."
 )

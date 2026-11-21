@@ -390,7 +390,8 @@ async def test_document_share_without_suffix_real_vault(share_client, db_session
 
     entry = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert entry.status_code == 200
-    assert "季度报告" in entry.text
-    # Extension-less document entries resolve their media type from the share
-    # token's artifact_type instead of the text/html fallback.
-    assert entry.headers["content-type"].startswith("text/markdown")
+    # An extension-less document entry takes its media type from the share token's artifact_type instead of the
+    # text/html fallback, so it opens as a rendered Markdown page rather than as source text.
+    assert entry.headers["content-type"].startswith("text/html")
+    assert "<h1>季度报告</h1>" in entry.text
+    assert "已完成全部交付物" in entry.text

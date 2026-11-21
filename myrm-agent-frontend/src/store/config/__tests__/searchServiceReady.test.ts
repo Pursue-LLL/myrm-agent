@@ -2,11 +2,11 @@
  * What the search-service gate does with an account's search services, through the real config manager, adapters and
  * config store (only the network and the local backend's readiness are replaced).
  *
- * Cloud start-up returns the first screen's keys and loads the rest in the background, once and without a retry, so
- * the list is empty while that load is in flight and for good once it failed; a local start-up fetches every key with
- * the first request, but only once the backend is up. The gate asks for the key first and waits at most MAX_WAIT_MS
- * for the answer: it decides on the list once the server has answered, and lets the turn through (the server judges
- * it) while the list stays unknown.
+ * Cloud start-up returns the first screen's keys and loads the rest in the background with at most three attempts, so
+ * the list is empty while that load is in flight and when every attempt failed; a local start-up fetches every key
+ * with the first request, but only once the backend is up. The gate asks for the key first and waits at most
+ * MAX_WAIT_MS for the answer: it decides on the list once the server has answered, and lets the turn through (the
+ * server judges it) while the list stays unknown.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -50,7 +50,7 @@ const SEARCH_ROW = { searchServiceConfigs: [SEARCH_SERVICE] };
 interface NetworkScript {
   /** Whether the config service answers at all. */
   configService?: 'answers' | 'silent';
-  /** Whether the one request that loads the non-first-screen keys comes back or fails. */
+  /** Whether the background request for the non-first-screen keys comes back, or fails on every attempt. */
   backgroundLoad: 'lands' | 'fails';
   account: 'has-search-service' | 'has-none';
   /** The request for the `searchServices` key alone: answered (after `singleKeyDelayMs`), failed, or never answered. */

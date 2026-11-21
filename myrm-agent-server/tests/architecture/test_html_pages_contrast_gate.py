@@ -34,6 +34,7 @@ _CHECKED_BY: dict[str, str] = {
     "app/api/webui/welcome_page.py": "tests/api/webui/test_welcome_page.py",
     "app/core/security/share/share_password_page.py": "tests/core/security/test_share_page_contrast.py",
     "app/core/security/share/share_status_page.py": "tests/core/security/test_share_page_contrast.py",
+    "app/services/artifacts/share/markdown_page.py": "tests/services/artifacts/test_markdown_page.py",
     "app/services/chat/share_renderer.py": "tests/services/chat/test_chat_share_renderer_presentation.py",
     "app/services/hosting/decryptor_shell.py": "tests/services/hosting/test_decryptor_shell_contrast.py",
     "app/services/hosting/viewer_scaffold.py": "tests/services/hosting/test_viewer_scaffold_contrast.py",

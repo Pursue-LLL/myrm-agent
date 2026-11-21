@@ -36,6 +36,7 @@ dependencies = [
   # --- 安全与展示 ---
   "keyring>=25.7.0",    # OS 原生密钥链 (macOS Keychain / Linux secret-service / Windows Credential Manager)
   "qrcode>=8.2",        # 二维码生成 (WebUI 模式)
+  "markdown-it-py>=4.3.0", # Markdown to HTML for shared conversations and documents (core/security/share/share_markdown.py)
   # --- 定时任务与加密 ---
   "apscheduler>=4.0.0a6,<4.1.0",        # 后台任务调度器 (lifecycle/schedulers.py)
   "defusedxml>=0.7.1",                  # 安全 XML 解析，防止 XXE/billion-laughs (wecom/wechat channels)

@@ -77,11 +77,7 @@ class ChannelCompactHandler:
         session_key = await resolve_session_key(msg, session_policy, agent_id=agent_id)
 
         async with get_session() as db:
-            chat = await ChatService.get_or_create_channel_chat(
-                "sandbox",
-                session_key,
-                msg.channel,
-            )
+            chat = await ChatService.get_or_create_channel_chat(session_key, msg.channel)
             result = await compact_chat(db, chat.id, focus_topic=focus_topic, explicit_request=True)
         return _to_channel_result(result)
 

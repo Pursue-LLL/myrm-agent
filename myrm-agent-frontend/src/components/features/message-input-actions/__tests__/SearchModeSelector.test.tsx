@@ -7,6 +7,7 @@ import { act } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { deferred } from '@/test-utils/deferred';
 import SearchModeSelector from '../SearchModeSelector';
 
 const gate = vi.hoisted(() => ({ checkSearchServiceReady: vi.fn<() => Promise<boolean>>() }));
@@ -27,14 +28,6 @@ vi.mock('@/components/primitives/tooltip', () => ({
 vi.mock('@/store/config/searchServiceReady', () => ({
   checkSearchServiceReady: gate.checkSearchServiceReady,
 }));
-
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((settle) => {
-    resolve = settle;
-  });
-  return { promise, resolve };
-}
 
 describe('SearchModeSelector', () => {
   const setActionMode = vi.fn();

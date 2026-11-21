@@ -4,7 +4,7 @@
 
 ## 架构概述
 
-Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify / HTTP Webhook 托管 API，负责静态文件打包、SPA 路由注入、发布状态轮询与 SSRF 防护。GUI Globe 发布 + Agent `artifact_publish` tool 双入口共用 `orchestrator.publish_artifact_to_target`。
+Artifact 多目标发布业务层。封装 Vercel / HTTP Webhook 托管 API，负责静态文件打包、SPA 路由注入、发布状态轮询与 SSRF 防护。GUI Globe 发布 + Agent `artifact_publish` tool 双入口共用 `orchestrator.publish_artifact_to_target`。
 
 ---
 
@@ -25,7 +25,7 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 | `preflight.py` | ✅ 核心 | 发布前门禁 |
 | `ssrf_guard.py` | ✅ 核心 | Webhook URL SSRF 校验 |
 | `agent_publish_tool.py` | ✅ 核心 | Agent LangChain tool factory；conditional mount（hosting 已配置时加载）；复用 `orchestrator.publish_artifact_to_target` |
-| `providers/*.py` | ✅ 核心 | 四平台 HostingProvider 实现（`vercel_client.py` 为 Vercel provider 私有客户端、`_archive.py` 为共享 ZIP 归档工具，均同域内） |
+| `providers/*.py` | ✅ 核心 | Vercel 与 HTTP Webhook 两个 HostingProvider 实现（`vercel_client.py` 为 Vercel provider 私有客户端、`_archive.py` 为共享 ZIP 归档工具，均同域内） |
 
 ---
 

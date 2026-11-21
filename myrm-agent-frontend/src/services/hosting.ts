@@ -1,6 +1,6 @@
 import { getApiUrl } from '@/lib/api';
 
-export type HostingProviderType = 'vercel' | 'cloudflare_pages' | 'netlify' | 'http_webhook';
+export type HostingProviderType = 'vercel' | 'http_webhook';
 
 export interface HostingTarget {
   id: string;
@@ -161,7 +161,5 @@ export function buildPublishStatusWsUrl(artifactId: string, providerPublicationR
 
 export const PROVIDER_LABELS: Record<HostingProviderType, string> = {
   vercel: 'Vercel',
-  cloudflare_pages: 'Cloudflare Pages',
-  netlify: 'Netlify',
   http_webhook: 'HTTP Webhook',
 };
