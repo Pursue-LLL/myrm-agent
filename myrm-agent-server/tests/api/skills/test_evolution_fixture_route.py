@@ -1,8 +1,14 @@
 """
 [INPUT]
 - app.api.skills.test_fixtures_evolution::(seed_evolution_proposal, SeedEvolutionProposalRequest) (POS: Dev-only fixture for the evolution proposal review Chrome E2E; gated by is_local_mode())
-- app.services.skills.evolution_reviews::(get_evolution_review_record, list_evolution_review_records) (POS: 以 ApprovalRecord 为唯一事实源的 evolution 审核生命周期服务)
+- app.services.skills.evolution_reviews::(get_evolution_review_record, list_evolution_review_records, EvolutionApplyStatus, EvolutionGrowthStatus) (POS: 以 ApprovalRecord 为唯一事实源的 evolution 审核生命周期服务)
 - app.services.skills.evolution_review.disk_content::apply_content_update (POS: Evolution 全量内容落盘与回滚)
+- app.services.skills.evolution_review.persistence::load_approval_record (POS: Evolution 审核 ApprovalRecord 持久化读写（list/count 在 SQL 层应用 action_type、pending growth_status 与 LIMIT）)
+- app.services.skills.evolution_review.types::approval_payload (POS: Evolution 审核域类型与 ApprovalRecord ↔ review record 转换（无 I/O）)
+- app.core.skills.providers.local::compute_local_skill_id (POS: 本地技能扫描服务)
+- app.database.models::(ApprovalRecord, Base, ExperienceLedgerEvent) (POS: ORM 模型包入口)
+- app.database.connection::get_session (POS: 数据库连接管理)
+- app.platform_utils::get_database_engine (POS: 平台适配层)
 [OUTPUT]
 - Tests that the route answers 404 outside local mode and for a skill that is not on disk without recording anything,
   that the proposal it records is a pending one for the skill as it is on disk, which applies to that file, that the

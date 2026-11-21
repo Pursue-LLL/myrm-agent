@@ -2,11 +2,11 @@
 
 [INPUT]
 - app.api.skills.test_fixtures_evolution (POS: Dev-only fixture for the evolution proposal review Chrome E2E; gated by is_local_mode())
-- app.api.skills.test_fixtures (POS: Dev-only skills fixture router for Chrome E2E; seeds the skill the proposal evolves)
+- app.api.skills.test_fixtures (POS: Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth drafts); gated by is_local_mode())
 - tests.e2e.test_evolution_proposal_outcomes_chrome_e2e::(_Proposal, _decide_at_once) (POS: Real Chrome MCP E2E: the outcomes of an evolution proposal other than a plain approval)
 - tests.e2e.test_evolution_proposal_approve_chrome_e2e::(_case, _object, _MARKER_ADDED, _MARKER_BEFORE, _SKILLS) (POS: Real Chrome MCP E2E: approving an evolution proposal in the Skill Growth dashboard applies it to the skill file)
 - tests.e2e.test_skill_draft_binding_chrome_e2e::_agent_skill_ids (POS: Real Chrome MCP E2E: an approved skill draft ends up bound to its agent, also when many are approved at once)
-- tests.e2e.test_skill_draft_approve_name_chrome_e2e::_owned_agent (POS: Chrome E2E: approving a skill draft in the Instinct Inbox acts on the skill the draft's name points at)
+- tests.e2e.test_skill_draft_approve_name_chrome_e2e::_owned_agent (POS: Real Chrome MCP E2E: approving a skill draft in the Instinct Inbox acts on the skill the draft's name points at)
 - tests.e2e.test_skill_manage_undo_rollback_chrome_e2e::_fetch_skill_md (POS: Chrome E2E: Task Steps rollback restores SKILL.md from a real skill_mutation batch)
 - tests.support.chrome_mcp_e2e::(http_json, http_json_once, get_e2e_api_url) (POS: Shared real-Chrome MCP helpers for formal UI E2E tests)
 

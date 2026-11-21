@@ -3,7 +3,7 @@
 [INPUT]
 - app.api.skills.test_fixtures (POS: Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth drafts); gated by is_local_mode())
 - tests.support.chrome_mcp_e2e::(open_settings_subroute, wait_for_state, http_json, get_e2e_api_url) (POS: Shared real-Chrome MCP helpers for formal UI E2E tests)
-- tests.e2e.test_skill_draft_approve_name_chrome_e2e::(_owned_agent, _enabled_local_ids, _script, _object, card scripts) (POS: Chrome E2E: approving a skill draft in the Instinct Inbox acts on the skill the draft's name points at)
+- tests.e2e.test_skill_draft_approve_name_chrome_e2e::(_owned_agent, _enabled_local_ids, _script, _object, card scripts) (POS: Real Chrome MCP E2E: approving a skill draft in the Instinct Inbox acts on the skill the draft's name points at)
 - tests.e2e.test_skill_manage_undo_rollback_chrome_e2e::_fetch_skill_md (POS: Chrome E2E: Task Steps rollback restores SKILL.md from a real skill_mutation batch)
 
 [OUTPUT]

@@ -7,6 +7,7 @@
 - sqlalchemy (POS: Python ORM框架)
 - AsyncSession (POS: SQLAlchemy异步会话)
 - SkillVersionModel (POS: Skill版本ORM模型)
+- myrm_agent_harness.agent.skills.optimization.types::SkillVersion (POS: Skill version history and security validation type definitions.)
 - app.database.factory::acquire_write_lock (POS: 事务起始处获取 SQLite 写锁，供读后写的工作单元使用)
 
 [OUTPUT]

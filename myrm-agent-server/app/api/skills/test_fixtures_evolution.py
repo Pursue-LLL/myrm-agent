@@ -3,9 +3,13 @@
 [INPUT]
 - app.services.skills.evolution_reviews::create_evolution_review_record (POS: 以 ApprovalRecord 为唯一事实源的 evolution 审核生命周期服务)
 - app.services.skills.evolution_review.disk::get_skill_store (POS: Evolution 审核的 apply / rollback 所读写的进化 SkillStore)
-- app.api.skills.test_fixtures::GrowthDirName (POS: Dev-only skills fixture router for Chrome E2E)
+- app.api.skills.test_fixtures::GrowthDirName (POS: Dev-only skills fixture router for Chrome E2E (prebuilt catalog, skill-manage and upstream-update seeds, growth drafts); gated by is_local_mode())
 - app.core.skills.models::LOCAL_SKILLS_DIR (POS: Skill system data models)
 - app.core.skills.providers.local::compute_local_skill_id (POS: 本地技能扫描服务)
+- app.config.deploy_mode::is_local_mode (POS: 部署模式与运行方式)
+- myrm_agent_harness.agent.skills.evolution::EvolutionType (POS: Skill Evolution System - Framework Layer.)
+- myrm_agent_harness.agent.skills.evolution.core.types::(EnvironmentFingerprint, SkillLineage, SkillRecord) (POS: Data types for skill evolution system.)
+- myrm_agent_harness.agent.skills.market.sanitizer::SKILL_MD_FILE (POS: 技能文件过滤与校验)
 
 [OUTPUT]
 - seed_evolution_proposal: local/test route that records a pending evolution proposal for a skill directory the test
