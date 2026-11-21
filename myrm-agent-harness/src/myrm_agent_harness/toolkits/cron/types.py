@@ -15,6 +15,9 @@ Consumed by scheduler, manager, tools, and application adapters.
 - RunNowOutcome: what a manual-run request came to — started, or why it did not
 - TransientErrorKind: Classifies transient errors for smart retry decisions.
 - SYSTEM_JOB_NAME_PREFIX, is_system_job_name: which job names are reserved for jobs the application creates itself
+- SessionTarget, ActiveHours, DeliveryConfig, FailureAlertConfig, CronConfig, Schedule: the parts a job is configured with — whether a run starts blank or shares session history, the hours it may run in, where its result goes, when repeated failures raise an alert, the scheduler-wide settings and when it fires
+- CronJob, CronJobPatch: a job with its run state, and the partial update that changes it (only non-None fields apply; clear flags unset a field)
+- DeliveryStatus, CronRunRecord, JobResult: what a run produces — how its delivery ended, the stored record of the run and the result a job runner returns
 - CronNoticeKind: what a notice reports — a run's outcome, a run a crash cut short or an automatic pause
 - CronNotice: one user-facing fact about a job, handed to the application layer's notice callback
 

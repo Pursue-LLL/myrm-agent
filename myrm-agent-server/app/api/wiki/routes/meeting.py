@@ -122,7 +122,7 @@ async def ingest_live_meeting_transcript(
             logger.warning("Live meeting refresh failed; returning last snapshot", exc_info=True)
         return _live_notes_response(session.snapshot(), refreshed=refreshed is not None)
     except Exception as e:
-        logger.error("Live meeting ingest failed: %s", e)
+        logger.exception("Live meeting ingest failed")
         raise HTTPException(status_code=500, detail="Live meeting ingest failed") from e
 
 
@@ -150,7 +150,7 @@ async def finalize_live_meeting(
     try:
         finalized = await session.finalize(archiver._llm, publish)
     except Exception as e:
-        logger.error("Live meeting finalize failed: %s", e)
+        logger.exception("Live meeting finalize failed")
         raise HTTPException(status_code=500, detail="Live meeting finalize failed") from e
     await registry.drop(session_id)
     return _live_notes_response(finalized.snapshot, refreshed=True, published=list(finalized.published_paths))

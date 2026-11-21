@@ -6,6 +6,7 @@ there, the error that names the stuck tool could never reach it, and the call wo
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock
 
 import pytest
@@ -58,3 +59,15 @@ def test_a_request_above_the_floor_is_left_alone(executor: BashExecutor) -> None
 def test_a_skill_without_mcp_servers_is_left_alone(executor: BashExecutor) -> None:
     assert executor._maybe_extend_timeout_for_mcp(None, 30) == 30
     assert executor._maybe_extend_timeout_for_mcp([], None) is None
+
+
+def test_raising_the_floor_is_routine_so_it_is_logged_below_warning(
+    executor: BashExecutor, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Every MCP skill call without a timeout of its own lands here, and the model did nothing wrong."""
+    caplog.set_level(logging.INFO)
+
+    executor._maybe_extend_timeout_for_mcp(_servers(300.0), None)
+
+    assert [record.levelno for record in caplog.records] == [logging.INFO]
+    assert f"raised to {300 + MCP_HOST_MARGIN_SECONDS}s (requested: None)" in caplog.text

@@ -12,7 +12,7 @@ bash 工具横切能力域：LLM 描述提示词、输出格式化/截断、退�
 | `formatting.py` | Core | 输出压缩编排、截断、脱敏、wrapping；消费压缩域 `BASH_OUTPUT_MAX_CHARS` 做硬截断。`read_exit_code()` 是 `format_result` 的读回端：只认工具自己追加在输出块末尾的 `[exit_code: N]`（其后至多跟一行 `[Auto-Hint]`），输出里同形的文字不算；没有该行的完成输出为 0，后台未结束、报错文本与非 bash 结果为 None。 | ✅ |
 | `exit_semantics.py` | Core | Exit-code 语义解释（grep=1、git diff、信号）。 | ✅ |
 | `terminal_hints.py` | Core | 输出模式故障自愈诊断与伪成功（Masked Success）防护。 | ✅ |
-| `helpers.py` | Core | BashInput schema（reason 必填）、OS hint、上下文恢复/访问追踪。 | ✅ |
+| `helpers.py` | Core | BashInput schema（`reason` 必填、不少于 10 个字符；`command` 不得为空或纯空白，在入口拒绝并说明原因，免得空命令带着 shell 注入头走到执行器、被安全扫描按头里的文字拦下；两处校验只在报错时起作用，不改变交给模型的工具定义）、OS hint、上下文恢复/访问追踪。 | ✅ |
 | `multimodal.py` | Core | Vision ContentBlock 内联返回（生成图片）。 | ✅ |
 | `background_listeners.py` | Core | 后台 spawn ptc_notify 监听与退出分类。 | ✅ |
 | `evicted_emit.py` | Core | 把一次 bash 调用里被整份存下的输出流告知 UI（引用、字符数、行数），好让 UI 提供「查看完整输出」：成功路径带给模型看的预览（只对 stdout），失败路径不带预览（步骤的 stdout 留着执行中累积的部分输出）；失败路径上某条告知出错只记警告，不盖住原错误。 | ✅ |

@@ -9,11 +9,12 @@
  * RecordSink / adoptServerRecord: make a record the server holds the cached copy, the merge base and the subscribers' news.
  *
  * [POS]
- * Conflict tiers of the config sync layer (see `_ARCH.md`): a clean three-way merge is applied silently, a conflict on
- * the same device keeps the local value, a conflict across devices asks the resolver. A key that was never loaded has
- * no baseline: what only the server holds is kept, and a clash, even with this device's own write, goes to the
- * resolver. The local cache is the user's latest intent, so a version mismatch alone never discards it. Callers hand
- * in the live caches through `ConflictContext`; nothing here holds state.
+ * Conflict tiers of the config sync layer (see `_ARCH.md`): a clean three-way merge is applied silently, a clash on a
+ * version this device wrote keeps the local value, a clash on a version any other writer wrote (another device, or the
+ * server itself) asks the resolver. A key that was never loaded has no baseline: what only the server holds is kept,
+ * and a clash, even with this device's own write, goes to the resolver. The local cache is the user's latest intent,
+ * so a version mismatch alone never discards it. Callers hand in the live caches through `ConflictContext`; nothing
+ * here holds state.
  */
 import { cloneDeep } from 'lodash-es';
 import { threeWayMerge } from './mergeUtils';

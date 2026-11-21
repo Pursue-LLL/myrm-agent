@@ -12,9 +12,9 @@
  * sessionStorage when a stable key is given), drains finalized transcript lines to the
  * server (single-flight queue), and exposes the rolling structured-notes snapshot for the
  * in-meeting Live board. The minutes are published into the agent's vault when the voice
- * session stops being active, however it ends (stop, transport drop, unmount, page exit),
- * and the user is told how that went. Line upload is best-effort: a dropped line never
- * breaks the voice session.
+ * session stops being active (stop, transport drop, unmount) and the user is told how that
+ * went; on page exit a keepalive request publishes what the server holds, unanswered. Line
+ * upload is best-effort: a dropped line never breaks the voice session.
  */
 
 'use client';
@@ -174,13 +174,18 @@ export function useLiveMeetingNotes(sessionKey?: string, agentId?: string, activ
         toast.error(t('saveFailed'));
       }
     } catch (error) {
+      // Nothing else on screen reports a failed save and the request can run for up to two minutes, so these two
+      // notices outlive Sonner's 4 s default: long enough to read the 404 copy and to reach the retry action.
       if (error instanceof ApiError && error.code === 404) {
-        // The server no longer holds this meeting, so a retry could not publish anything.
+        // The server no longer holds this meeting: a retry cannot publish it, and whether it was saved is unknown.
         settleMeeting();
-        toast.error(t('saveFailed'));
+        toast.warning(t('sessionGone'), { duration: 8000 });
         return;
       }
-      toast.error(t('saveFailed'), { action: { label: t('retry'), onClick: () => void endRef.current() } });
+      toast.error(t('saveFailed'), {
+        duration: 15_000,
+        action: { label: t('retry'), onClick: () => void endRef.current() },
+      });
     }
   }, [sessionId, agentId, settleMeeting, t]);
 

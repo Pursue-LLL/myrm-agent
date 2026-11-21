@@ -4,6 +4,7 @@
 
 [INPUT]
 - socket (POS: DNS resolution for pinned IP validation)
+- myrm_agent_harness.utils.url_utils::is_blocked_ip (POS: the framework's single IP blocklist; lets the 198.18.0.0/15 range fake-IP proxies hand out for public names through)
 
 [OUTPUT]
 - validate_webhook_url: validates that a webhook URL is safe for server-side egress, raising SSRFValidationError on disallowed host/IP targets
@@ -12,9 +13,10 @@
 
 from __future__ import annotations
 
-import ipaddress
 import socket
 from urllib.parse import urlparse
+
+from myrm_agent_harness.utils.url_utils import is_blocked_ip
 
 
 class SSRFValidationError(ValueError):
@@ -39,8 +41,7 @@ def validate_webhook_url(url: str, *, allow_http: bool = False) -> str:
     except socket.gaierror as exc:
         raise SSRFValidationError(f"Cannot resolve webhook host: {host}") from exc
     for info in addr_infos:
-        ip_str = info[4][0]
-        ip = ipaddress.ip_address(ip_str)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+        ip_str = str(info[4][0])
+        if is_blocked_ip(ip_str):
             raise SSRFValidationError(f"Webhook URL resolves to blocked address: {ip_str}")
     return url.strip()

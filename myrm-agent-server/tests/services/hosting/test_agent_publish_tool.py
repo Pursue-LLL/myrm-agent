@@ -1,134 +1,26 @@
-"""Tests for artifact_publish agent tool factory."""
+"""What the model is told about ``artifact_publish``: a workspace path in, no artifact id."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
-
-import pytest
-
 from app.services.hosting.agent_publish_tool import create_artifact_publish_tool
-from app.services.hosting.types import HostingTarget, PublicationResult
+
+# The wording is the one measured against real models; change it only together with new evidence.
+DESCRIPTION = (
+    "Publish a file from the workspace (HTML application, PDF document, Excel spreadsheet, Markdown report, etc.) "
+    "to the user's configured hosting target (Vercel or HTTP Webhook) and return the live URL. "
+    "The stylesheets, scripts and images a page links to in its folder are published with it. "
+    "Pass the workspace path of the file, for example the path you wrote. "
+    "Only use when the user explicitly asks to publish, deploy, or get a live link."
+)
 
 
-@pytest.mark.asyncio
-async def test_artifact_publish_returns_error_without_hosting_target() -> None:
-    tool = create_artifact_publish_tool()
-
-    mock_db = AsyncMock()
-    mock_ctx = AsyncMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_db)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    with (
-        patch("app.database.connection.get_session", return_value=mock_ctx),
-        patch(
-            "app.services.hosting.targets.get_default_hosting_target",
-            new_callable=AsyncMock,
-            return_value=None,
-        ),
-    ):
-        result = await tool.ainvoke({"artifact_id": "art-123"})
-
-    assert result["metadata"]["error"] is True
-    assert "No hosting target configured" in result["content"]
+def test_the_description_asks_for_the_workspace_path_of_a_file() -> None:
+    assert create_artifact_publish_tool("chat-1").description == DESCRIPTION
 
 
-@pytest.mark.asyncio
-async def test_artifact_publish_succeeds_with_default_target() -> None:
-    tool = create_artifact_publish_tool()
-    default_target = HostingTarget(
-        id="tgt-001",
-        name="My Vercel",
-        provider_type="vercel",
-        is_default=True,
-    )
-    pub_result = PublicationResult(
-        success=True,
-        url="https://my-app.vercel.app",
-        publication_id="pub-001",
-        project_ref="proj-001",
-        status="DEPLOYED",
-    )
+def test_the_model_passes_a_path_and_never_an_artifact_id() -> None:
+    schema = create_artifact_publish_tool("chat-1").get_input_jsonschema()
 
-    mock_db = AsyncMock()
-    mock_ctx = AsyncMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_db)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    with (
-        patch("app.database.connection.get_session", return_value=mock_ctx),
-        patch(
-            "app.services.hosting.targets.get_default_hosting_target",
-            new_callable=AsyncMock,
-            return_value=default_target,
-        ),
-        patch(
-            "app.services.hosting.orchestrator.publish_artifact_to_target",
-            new_callable=AsyncMock,
-            return_value=pub_result,
-        ),
-        patch(
-            "app.platform_utils.workspace_root.get_workspace_root",
-            return_value="/test/workspace",
-        ),
-    ):
-        result = await tool.ainvoke({"artifact_id": "art-456"})
-
-    assert result["metadata"].get("error") is not True
-    assert "https://my-app.vercel.app" in result["content"]
-    assert result["metadata"]["hosting_target_id"] == "tgt-001"
-
-
-@pytest.mark.asyncio
-async def test_artifact_publish_passes_password_to_orchestrator() -> None:
-    tool = create_artifact_publish_tool()
-    default_target = HostingTarget(
-        id="tgt-002",
-        name="Encrypted Target",
-        provider_type="http_webhook",
-        is_default=True,
-    )
-    pub_result = PublicationResult(
-        success=True,
-        url="https://secure.example.com",
-        publication_id="pub-002",
-        project_ref="proj-002",
-        status="DEPLOYED",
-    )
-
-    mock_db = AsyncMock()
-    mock_ctx = AsyncMock()
-    mock_ctx.__aenter__ = AsyncMock(return_value=mock_db)
-    mock_ctx.__aexit__ = AsyncMock(return_value=False)
-
-    mock_publish = AsyncMock(return_value=pub_result)
-
-    with (
-        patch("app.database.connection.get_session", return_value=mock_ctx),
-        patch(
-            "app.services.hosting.targets.get_default_hosting_target",
-            new_callable=AsyncMock,
-            return_value=default_target,
-        ),
-        patch(
-            "app.services.hosting.orchestrator.publish_artifact_to_target",
-            new=mock_publish,
-        ),
-        patch(
-            "app.platform_utils.workspace_root.get_workspace_root",
-            return_value="/test/workspace",
-        ),
-    ):
-        result = await tool.ainvoke(
-            {
-                "artifact_id": "art-789",
-                "password": "SuperSecretPass2026",
-            }
-        )
-
-    assert result["metadata"].get("error") is not True
-    assert "https://secure.example.com" in result["content"]
-    # Verify orchestrator was invoked with the exact password
-    assert mock_publish.call_count == 1
-    call_kwargs = mock_publish.call_args.kwargs
-    assert call_kwargs.get("password") == "SuperSecretPass2026"
+    assert set(schema["properties"]) == {"path", "hosting_target_id", "password"}
+    assert schema["required"] == ["path"]
+    assert schema["properties"]["path"]["description"] == "Workspace path of the file to publish (for example site/index.html)."

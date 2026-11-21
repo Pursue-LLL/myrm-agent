@@ -8,9 +8,11 @@ unknown/expired sessions, double finalize, the real frontend default
 from __future__ import annotations
 
 import json
+import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Annotated, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Annotated
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 from fastapi import Query
@@ -18,10 +20,11 @@ from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
 from app.core.security.auth.identity import LOCAL_USER_ID
-from app.services.meeting_notes.live_notes import get_live_notes_registry
-from app.services.meeting_notes.models import StructuredMeetingNotes
+from app.services.meeting_notes.live_notes import LiveNotesSession, get_live_notes_registry
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
 from tests.support.minimal_app import build_minimal_app
+
+_ROUTE_LOGGER = "app.api.wiki.routes.meeting"
 
 _MEETING_LINES = (
     "Alice: Let us confirm the release plan. The beta goes live on Friday so marketing "
@@ -34,7 +37,7 @@ _MEETING_LINES = (
 
 
 @pytest.fixture(autouse=True)
-def _bypass_auth() -> Any:
+def _bypass_auth() -> Iterator[None]:
     from dataclasses import dataclass
 
     @dataclass(frozen=True, slots=True)
@@ -47,6 +50,16 @@ def _bypass_auth() -> Any:
 
     with patch("app.middleware.auth.resolve_identity", return_value=_FakeIdentity()):
         yield
+
+
+def _double(value: object) -> Mock:
+    """The test double `_make_archiver` put where production code types a real class."""
+    assert isinstance(value, Mock), value
+    return value
+
+
+def _route_logs(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    return [record for record in caplog.records if record.name == _ROUTE_LOGGER]
 
 
 def _fake_llm() -> AsyncMock:
@@ -88,8 +101,8 @@ def _build_client(tmp_path: Path) -> tuple[TestClient, MemoryToWikiArchiver, Wik
     return TestClient(app), archiver, archiver._structure
 
 
-def _ingest_all(client: TestClient, session_id: str) -> dict[str, Any]:
-    payload: dict[str, Any] = {}
+def _ingest_all(client: TestClient, session_id: str) -> dict[str, object]:
+    payload: dict[str, object] = {}
     for index, line in enumerate(_MEETING_LINES):
         response = client.post(
             f"/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
@@ -121,7 +134,7 @@ def test_ingest_requires_line_id(client: TestClient, tmp_path: Path) -> None:
     ],
 )
 def test_ingest_rejects_malformed_payloads(
-    client: TestClient, tmp_path: Path, payload: dict[str, Any]
+    client: TestClient, tmp_path: Path, payload: dict[str, object]
 ) -> None:
     client, _archiver, _structure = _build_client(tmp_path)
     response = client.post("/api/v1/wiki/meeting-notes/live/s1/ingest", json=payload)
@@ -166,7 +179,7 @@ def test_finalize_honours_auto_compile_default_from_the_frontend(
 ) -> None:
     """The voice board finalizes without the query flag, i.e. auto_compile defaults on."""
     client, archiver, _structure = _build_client(tmp_path)
-    enqueue = archiver._compiler._queue
+    enqueue = _double(archiver._compiler._queue)
     _ingest_all(client, "compile-default")
     assert client.post("/api/v1/wiki/meeting-notes/live/compile-default/finalize").status_code == 200
     enqueue.enqueue_file.assert_called_once()
@@ -264,12 +277,50 @@ def test_failed_finalize_can_be_retried_once_the_llm_is_back(
     assert len(list((structure.raw_dir / "meeting-notes").glob("*.md"))) == 1
 
 
+def test_finalize_failure_is_logged_with_its_traceback_even_without_an_error_message(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A timeout carries no message, so only the traceback says what went wrong."""
+    client, archiver, _structure = _build_client(tmp_path)
+    _ingest_all(client, "silent-timeout")
+    _double(archiver._llm).ainvoke.side_effect = TimeoutError()
+
+    with caplog.at_level(logging.ERROR, logger=_ROUTE_LOGGER):
+        response = client.post("/api/v1/wiki/meeting-notes/live/silent-timeout/finalize?auto_compile=false")
+
+    assert response.status_code == 500
+    [record] = _route_logs(caplog)
+    assert record.levelno == logging.ERROR
+    assert record.exc_info is not None
+    assert record.exc_info[0] is TimeoutError
+
+
+def test_ingest_failure_is_logged_with_its_traceback_even_without_an_error_message(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, _archiver, _structure = _build_client(tmp_path)
+
+    def _times_out(*_args: object, **_kwargs: object) -> bool:
+        raise TimeoutError
+
+    monkeypatch.setattr(LiveNotesSession, "ingest", _times_out)
+
+    with caplog.at_level(logging.ERROR, logger=_ROUTE_LOGGER):
+        response = client.post("/api/v1/wiki/meeting-notes/live/silent-timeout/ingest", json={"text": "hello", "line_id": "l1"})
+
+    assert response.status_code == 500
+    [record] = _route_logs(caplog)
+    assert record.levelno == logging.ERROR
+    assert record.exc_info is not None
+    assert record.exc_info[0] is TimeoutError
+
+
 def test_malformed_llm_payload_still_yields_publishable_minutes(
     client: TestClient, tmp_path: Path
 ) -> None:
     """A chatty model (string where a list belongs) must not corrupt the minutes."""
     client, archiver, structure = _build_client(tmp_path)
-    archiver._llm.ainvoke.return_value = MagicMock(
+    _double(archiver._llm).ainvoke.return_value = MagicMock(
         content=json.dumps(
             {
                 "title": None,
@@ -298,9 +349,10 @@ async def test_concurrent_finalize_publishes_the_meeting_once(tmp_path: Path) ->
     import httpx
 
     client, archiver, structure = _build_client(tmp_path)
+    llm = _double(archiver._llm)
     started = asyncio.Event()
     gate = asyncio.Event()
-    distilled = archiver._llm.ainvoke.return_value
+    distilled: MagicMock = llm.ainvoke.return_value
 
     async def slow_ainvoke(_prompt: str) -> MagicMock:
         started.set()
@@ -315,8 +367,8 @@ async def test_concurrent_finalize_publishes_the_meeting_once(tmp_path: Path) ->
                 json={"text": line, "timestamp": index * 10.0, "line_id": f"double-stop-{index}"},
             )
             assert ingested.status_code == 200, ingested.text
-        archiver._llm.ainvoke.side_effect = slow_ainvoke
-        archiver._llm.ainvoke.reset_mock()
+        llm.ainvoke.side_effect = slow_ainvoke
+        llm.ainvoke.reset_mock()
 
         first = asyncio.create_task(http.post(url))
         await started.wait()
@@ -327,7 +379,7 @@ async def test_concurrent_finalize_publishes_the_meeting_once(tmp_path: Path) ->
 
     assert [r.status_code for r in responses] == [200, 200], [r.text for r in responses]
     assert responses[0].json() == responses[1].json()
-    assert archiver._llm.ainvoke.call_count == 1
+    assert llm.ainvoke.call_count == 1
     assert len(list((structure.raw_dir / "meeting-notes").glob("*.md"))) == 1
 
 
@@ -363,4 +415,3 @@ def test_publish_is_skipped_when_no_notes_were_distilled(
     )
     assert response.status_code == 404
     assert not (structure.raw_dir / "meeting-notes").exists()
-    assert StructuredMeetingNotes is not None

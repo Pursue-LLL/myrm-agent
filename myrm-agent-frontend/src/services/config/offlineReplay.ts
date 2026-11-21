@@ -11,7 +11,8 @@
  * [POS]
  * Replay decisions of the config sync layer, free of manager state: callers hand in the server records and the
  * resolver they hold. A queued change records the server version it was based on; when the server has moved on, the
- * snapshot is stale and replaying it would overwrite newer configuration.
+ * snapshot is stale and replaying it would overwrite newer configuration. A key with no server record has no version
+ * to compare and always counts as stale, so callers load every queued key before asking.
  */
 import { valuesEqual } from './configFingerprint';
 import type { ConfigConflictResolver } from './conflictResolution';

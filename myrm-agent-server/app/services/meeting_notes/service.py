@@ -210,6 +210,15 @@ async def publish_meeting_notes(
         auto_compile=auto_compile,
         compiler_enqueue=compiler_enqueue,
     )
+    if not published.written:
+        # The caller only gets an empty list, so this is the one trace of why. Flags only: the
+        # title and path come from the meeting's content.
+        logger.warning(
+            "Meeting minutes were not written (security_blocked=%s, conflict_skipped=%s, skipped=%s)",
+            published.security_blocked,
+            published.conflict_skipped,
+            published.skipped,
+        )
     # Report the vault-relative path only, and only for a real write: stringifying the
     # result object would leak the absolute local path and claim success for a skip.
     return [published.relative_path] if published.written else []

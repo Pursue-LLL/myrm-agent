@@ -266,5 +266,5 @@ class BashExecutorPrepareMixin:
         floor = max(MCP_MIN_TIMEOUT, math.ceil(longest_call_limit + MCP_HOST_MARGIN_SECONDS))
         if timeout is not None and timeout >= floor:
             return timeout
-        logger.warning("Auto-increased timeout %ss -> %ss for MCP skill execution", timeout, floor)
+        logger.info("MCP skill execution timeout raised to %ss (requested: %s)", floor, timeout)
         return floor

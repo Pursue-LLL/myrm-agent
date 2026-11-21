@@ -51,7 +51,9 @@ class TestToolMounts:
         handed = await harness.build(wrapper)
 
         assert allowed_tools(handed) == BASE_TOOLS
-        assert len(handed["tools"]) == len(BASE_TOOLS) + 2
+        tools = handed["tools"]
+        assert isinstance(tools, list)
+        assert len(tools) == len(BASE_TOOLS) + 2
 
     @pytest.mark.parametrize(("deployment_allows", "mounted"), [(True, True), (False, False)])
     async def test_eager_cron_tools_follow_the_deployment_entitlement(
@@ -103,6 +105,16 @@ class TestToolMounts:
         assert args[1:] == (CHAT_ID,)
         assert kwargs == {"vision_llm": harness.llm, "memory_manager": None}
 
+    async def test_the_publish_tool_is_bound_to_the_chat_the_artifact_processor_files_under(
+        self, harness: BuilderHarness
+    ) -> None:
+        # A file registered by the tool and by the run's artifact event must be one artifact, so both use this chat id.
+        await harness.build(harness.wrapper())
+
+        ((args, kwargs),) = harness.calls["artifact_publish"]
+        assert args[1:] == (CHAT_ID,)
+        assert kwargs == {}
+
     async def test_a_kanban_agent_gets_the_kanban_tools(self, harness: BuilderHarness) -> None:
         kanban = AsyncMock()
         harness.patch(f"{BUILDER}._setup_kanban_tools", kanban)
@@ -111,7 +123,9 @@ class TestToolMounts:
         await harness.build(kanban_wrapper)
 
         kanban.assert_awaited_once()
-        assert kanban.await_args.args[0] is kanban_wrapper
+        awaited = kanban.await_args
+        assert awaited is not None
+        assert awaited.args[0] is kanban_wrapper
 
     async def test_any_other_agent_gets_no_kanban_tools(self, harness: BuilderHarness) -> None:
         kanban = AsyncMock()
@@ -161,7 +175,9 @@ class TestMemory:
 
         create_memory.assert_awaited_once()
         assert handed["memory_manager"] is manager
-        assert harness.build_sandbox.await_args.kwargs["memory_manager"] is manager
+        sandbox_call = harness.build_sandbox.await_args
+        assert sandbox_call is not None
+        assert sandbox_call.kwargs["memory_manager"] is manager
 
     @pytest.mark.parametrize("params", [{"enable_memory": False}, {"enable_memory": True, "incognito_mode": True}])
     async def test_an_agent_that_must_not_remember_gets_no_memory_manager(

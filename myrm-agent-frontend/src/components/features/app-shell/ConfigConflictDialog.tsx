@@ -36,8 +36,8 @@ interface ConfigConflictDialogProps {
 /**
  * 配置冲突解决对话框
  *
- * 服务端有一份与本地修改冲突、又无法自动合并的版本时（它由另一台设备写入，或本地从未载入过该配置而没有基线），
- * 由用户在「保留本地」与「采用服务端」之间二选一。
+ * 同步流程遇到只能由用户在本地值与服务端值之间取舍的冲突时弹出（哪些冲突算这种，见 `services/config/_ARCH.md` 的
+ * 「冲突消解分级」），用户在「保留本地」与「采用服务端」之间二选一。
  * 同步流程在等这个决定，所以对话框只能由两个按钮关闭：Esc 与点击遮罩都不会关闭它。
  */
 export const ConfigConflictDialog = ({ open, conflict, onKeepLocal, onUseServer, t }: ConfigConflictDialogProps) => {

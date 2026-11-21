@@ -20,10 +20,6 @@ vi.mock('@/services/i18nToastService', async (importOriginal) => {
   };
 });
 
-vi.mock('@/services/chat', () => ({
-  createAISearchStream: vi.fn(async () => new Response('', { status: 200 })),
-}));
-
 vi.mock('@/lib/kanban/kanbanChatBoard', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/kanban/kanbanChatBoard')>();
   return {

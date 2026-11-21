@@ -8,6 +8,8 @@
 - myrm_agent_harness.toolkits.cron::CronManagerPort (POS: typing seam between the cron agent tools and the object that manages jobs)
 - myrm_agent_harness.toolkits.cron.delivery::WebhookDelivery (POS: built-in webhook ResultDelivery for cron job results)
 - core.cron.adapters.channel_delivery::ChannelResultDelivery (POS: ResultDelivery implementation via the Channel Gateway)
+- core.infra.ingress_requirement::invalidate_ingress_requirement_cache (POS: single source of truth for the Ingress requirement)
+- platform_utils.sandbox.entitlements.entitlement_guard::EntitlementGuardError (POS: resolves SaaS sandbox entitlements)
 
 [OUTPUT]
 - POST /{job_id}/duplicate — duplicate job with config, paused
@@ -18,8 +20,8 @@
 - POST /{job_id}/reset-baseline — reset monitor baseline
 
 [POS]
-Cron job operation endpoints. Job state changes are delegated to CronManager; the test-delivery endpoint sends its
-one-off payload through the same delivery pipeline real runs use.
+Cron job operation endpoints. Job state changes are delegated to CronManager; the test-delivery endpoint sends a
+fixed one-line payload through the delivery classes real runs use.
 """
 
 from __future__ import annotations
@@ -99,9 +101,11 @@ async def _run_test_delivery(
     """Send a one-off test payload through the job's delivery channel.
 
     Omit the body to test the job's saved delivery; otherwise the provided
-    (not-yet-saved) configuration is tested. Webhook tests reuse the real
-    delivery pipeline (signing, SSRF guard, Feishu/WeCom bot formatting), so a
-    passing test guarantees real runs will deliver.
+    (not-yet-saved) configuration is tested. The test reuses the real delivery
+    classes (signing, SSRF guard, Feishu/WeCom bot formatting) but sends a fixed
+    one-line text, and a webhook gets no retries and shorter timeouts. A pass
+    shows the target accepts a request now; it does not promise that real runs
+    deliver, because they send the task's output and the remote side changes.
     """
     from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
 
