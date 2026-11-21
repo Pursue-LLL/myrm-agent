@@ -96,8 +96,9 @@ async def test_spawn_background_strips_trailing_ampersand() -> None:
 
     assert info.pid == 4242
     assert executor.spawn_background_process.await_args is not None
-    spawned_command = executor.spawn_background_process.await_args.args[0].args[1]
-    assert spawned_command == "python server.py"
+    spawned = executor.spawn_background_process.await_args.args[0]
+    assert spawned.original_code == "python server.py"
+    assert spawned.args[1].endswith("python server.py")
     mock_registry.return_value.register.assert_awaited_once()
 
 
@@ -109,10 +110,10 @@ async def test_spawn_background_clears_skill_cache_on_workspace_invalidation() -
     executor.spawn_background_process = AsyncMock(return_value=proc)
 
     bash_exec = BashExecutor(executor, enable_skill_execution=False)
-    bash_exec._skill_manager.clear_workspace_cache = MagicMock()
     fake_info = MagicMock(pid=5151, command="sleep 1", status="running")
 
     with (
+        patch.object(bash_exec._skill_manager, "clear_workspace_cache") as clear_cache,
         patch.object(
             bash_exec._workspace_manager,
             "get_or_create",
@@ -127,7 +128,7 @@ async def test_spawn_background_clears_skill_cache_on_workspace_invalidation() -
         mock_registry.return_value.register = AsyncMock(return_value=fake_info)
         await bash_exec.spawn_background("sleep 1", session_id="sess-2")
 
-    bash_exec._skill_manager.clear_workspace_cache.assert_called_once_with("stale-ws-id")
+    clear_cache.assert_called_once_with("stale-ws-id")
 
 
 @pytest.mark.asyncio
@@ -216,8 +217,9 @@ async def test_spawn_background_strips_after_fence_unwrap() -> None:
 
     assert info.pid == 4343
     assert executor.spawn_background_process.await_args is not None
-    spawned_command = executor.spawn_background_process.await_args.args[0].args[1]
-    assert spawned_command == "python server.py"
+    spawned = executor.spawn_background_process.await_args.args[0]
+    assert spawned.original_code == "python server.py"
+    assert spawned.args[1].endswith("python server.py")
     mock_registry.return_value.register.assert_awaited_once()
 
 

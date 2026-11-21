@@ -187,7 +187,9 @@ async def spawn_background_process(
 
             preexec_fn = _apply_memory_limit
 
-    logger.info(f" [LocalExecutor] Spawning background: {command_preview(' '.join(full_cmd_array), 500)}")
+    # The issued command, not the shell text built from it: that text starts with a header of its own.
+    issued_command = context.original_code or " ".join(full_cmd_array)
+    logger.info(f" [LocalExecutor] Spawning background: {command_preview(issued_command, 500)}")
 
     from myrm_agent_harness.utils import os_compat
 

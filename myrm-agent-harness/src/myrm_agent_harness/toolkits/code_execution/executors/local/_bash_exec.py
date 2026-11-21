@@ -15,8 +15,8 @@ command preparation and the sanitized environment a shell starts with.
 
 [POS]
 The bash path of the local executor. It is the only place that turns the command an agent issued
-(``ExecutionContext.original_code``) into a run: validation, shell-bleed audit and credential delivery use the issued
-text, the shell receives the prepared script.
+(``ExecutionContext.original_code``) into a run: validation, shell-bleed audit, credential delivery and the log lines
+use the issued text, the shell receives the prepared script.
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ class LocalBashMixin:
         command = context.code
         issued_command = context.original_code or command
 
-        self._helper.log_execution_start("LocalExecutor", "Bash (Persistent)", command)
+        logger.info(" [LocalExecutor] Executing Bash (Persistent): %s", command_preview(issued_command, 500))
 
         # Resolve working directory
         workspace = Path(context.workspace_root) if context.workspace_root else self._current_workspace
@@ -194,7 +194,7 @@ class LocalBashMixin:
                 " [LocalExecutor] Bash exit code: %d (%s) | cmd: %s",
                 session_result.exit_code,
                 self._helper.format_execution_time(execution_time),
-                command_preview(command, 200),
+                command_preview(issued_command, 200),
             )
             if session_result.stderr:
                 logger.warning(f" [LocalExecutor] Bash stderr: {session_result.stderr}")
