@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, SHARE_CDN_SOURCES
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, MARKDOWN_SHARE_CSP, SHARE_CDN_SOURCES
 
 
 def _directives(policy: str) -> dict[str, list[str]]:
@@ -35,3 +35,16 @@ def test_every_cdn_is_one_https_origin() -> None:
     for source in SHARE_CDN_SOURCES:
         assert re.fullmatch(r"https://[a-z0-9.-]+", source), source
     assert len(set(SHARE_CDN_SOURCES)) == len(SHARE_CDN_SOURCES)
+
+
+def test_a_rendered_markdown_page_runs_no_script_and_opens_no_connection() -> None:
+    """Without ``script-src`` / ``connect-src`` both fall back to ``default-src 'none'``, inline script included."""
+    directives = _directives(MARKDOWN_SHARE_CSP)
+
+    assert directives["default-src"] == ["'none'"]
+    assert "script-src" not in directives
+    assert "connect-src" not in directives
+    assert directives["style-src"] == ["'unsafe-inline'"]
+    assert directives["img-src"] == ["'self'", "data:"]
+    assert directives["frame-src"] == ["'none'"]
+    assert directives["object-src"] == ["'none'"]

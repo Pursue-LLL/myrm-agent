@@ -12,6 +12,7 @@
   - share_bundle: ShareBundleManifest + bundle_dir_for_claims /
     materialize_share_bundle / resolve_share_bundle_file / purge_expired_share_bundles
   - share_create: create_artifact_share (sign + snapshot + register) + CreatedArtifactShare / ShareRegistrationError
+  - markdown_page: is_markdown_media_type + render_markdown_share_page (a Markdown entry as a styled script-free page)
   - share_registry: ActiveShareRow + register/list/revoke/expire ledger operations
 
 [POS]
@@ -20,6 +21,7 @@ surface, public share endpoints and deliverable deep links; token/bundle/registr
 and the creation service that ties them together stay co-located under one facade.
 """
 
+from app.services.artifacts.share.markdown_page import is_markdown_media_type, render_markdown_share_page
 from app.services.artifacts.share.share_bundle import (
     ShareBundleManifest,
     bundle_asset_count,
@@ -62,6 +64,7 @@ __all__ = [
     "bundle_dir_for_claims",
     "create_artifact_share",
     "create_artifact_share_token",
+    "is_markdown_media_type",
     "is_shareable_artifact",
     "is_shareable_artifact_name",
     "is_token_revoked",
@@ -72,6 +75,7 @@ __all__ = [
     "purge_expired_shares",
     "rebuild_artifact_share_token",
     "register_share",
+    "render_markdown_share_page",
     "resolve_share_bundle_file",
     "revoke_share",
 ]

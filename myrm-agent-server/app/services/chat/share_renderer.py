@@ -6,14 +6,15 @@
 - app.database.dto::ChatDTO, MessageDTO (POS: data transfer object definitions)
 - app.services.chat.chat_helpers (POS: what a message reads as outside the app, and which rows are the system's notes)
 - app.core.security.share.share_locale (POS: page language and the language tables every share page shares)
+- app.core.security.share.share_markdown (POS: the Markdown renderer every share page uses, raw HTML off)
 - myrm_agent_harness.api::redact_sensitive_text (POS: the credential masker the chat export already applies)
 
 [OUTPUT]
 - render_share_html: generate self-contained HTML for a shared conversation in the visitor's language
 
 [POS]
-Generates responsive, script-free HTML pages for public conversation share links: markdown-it-py Markdown messages (code blocks
-and tables that scroll inside their bubble), an Agent identity card, OG metadata, dark mode and XSS protection.
+Generates responsive, script-free HTML pages for public conversation share links: Markdown messages through the shared share
+pipeline (code blocks and tables that scroll inside their bubble), an Agent identity card, OG metadata, dark mode and XSS protection.
 The page chrome is written in the visitor's language while the conversation is shown as written, except that credentials in the
 messages, the title and the link preview are masked (best effort: the page is public). A very long conversation shows its latest
 messages with the total count, and message times are printed in UTC because the page cannot know the visitor's zone.
@@ -23,40 +24,22 @@ from __future__ import annotations
 
 import asyncio
 import html
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from markdown_it import MarkdownIt
-from markdown_it.renderer import RendererHTML
-from markdown_it.token import Token
-from markdown_it.utils import EnvType, OptionsDict
 from myrm_agent_harness.api import redact_sensitive_text
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.share.share_locale import HTML_LANG, SHARE_BRAND, ShareLang
+from app.core.security.share.share_markdown import build_share_markdown
 from app.database.dto import ChatDTO, MessageDTO
 from app.database.models.agent import Agent
 from app.services.chat.chat_helpers import exported_user_text, is_wakeup_notice
 from app.services.chat.chat_service import ChatService
 
-_TABLE_OPEN = '<div class="table-wrap">'
-_TABLE_CLOSE = "</div>"
-
-
-def _open_table(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
-    return _TABLE_OPEN + renderer.renderToken(tokens, idx, options, env)
-
-
-def _close_table(renderer: RendererHTML, tokens: Sequence[Token], idx: int, options: OptionsDict, env: EnvType) -> str:
-    return renderer.renderToken(tokens, idx, options, env) + _TABLE_CLOSE
-
-
-_md = MarkdownIt("commonmark", {"breaks": True, "html": False}).enable("table")
-# A wide table scrolls inside its message bubble; left alone the browser squeezes every column down to a few characters.
-_md.add_render_rule("table_open", _open_table)
-_md.add_render_rule("table_close", _close_table)
+# A message keeps its line breaks, and a wide table scrolls inside its message bubble.
+_md = build_share_markdown(breaks=True)
 
 _OG_DESC_MAX = 200
 
