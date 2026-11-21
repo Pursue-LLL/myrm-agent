@@ -13,33 +13,24 @@ from tests.support.hosting_api import public_dns, seed_webhook_target
 
 
 @pytest.mark.asyncio
-async def test_target_credentials_roundtrip(hosting_integration_client) -> None:
+async def test_target_credentials_are_write_only(hosting_integration_client) -> None:
     client, _workspace, db_session = hosting_integration_client
     target_id = f"cred-int-{uuid.uuid4().hex[:8]}"
     await save_hosting_targets(
         db_session,
-        [
-            HostingTarget(
-                id=target_id,
-                name="Netlify",
-                provider_type="netlify",
-                config={"site_id": "site_abc"},
-                is_default=True,
-            )
-        ],
+        [HostingTarget(id=target_id, name="Vercel", provider_type="vercel", config={}, is_default=True)],
     )
 
     put = client.put(
         f"/hosting/targets/{target_id}/credentials",
-        json={"credentials": {"access_token": "nl_secret"}},
+        json={"credentials": {"token": "vc_secret"}},
     )
     assert put.status_code == 200
 
     get = client.get(f"/hosting/targets/{target_id}/credentials")
     assert get.status_code == 200
-    body = get.json()
-    assert body["configured"] is True
-    assert body["credentials"]["access_token"] == "nl_secret"
+    assert get.json() == {"configured": True, "platform_available": False}
+    assert "vc_secret" not in get.text
 
 
 @pytest.mark.asyncio
@@ -112,9 +103,7 @@ async def test_webhook_credentials_status_without_secrets(hosting_integration_cl
     await seed_webhook_target(db_session, target_id)
     response = client.get(f"/hosting/targets/{target_id}/credentials")
     assert response.status_code == 200
-    body = response.json()
-    assert body["configured"] is True
-    assert body["credentials"] == {}
+    assert response.json() == {"configured": True, "platform_available": False}
 
 
 @pytest.mark.asyncio

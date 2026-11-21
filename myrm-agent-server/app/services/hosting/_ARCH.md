@@ -46,6 +46,7 @@ Artifact 多目标发布业务层。封装 Vercel / Cloudflare Pages / Netlify /
 ## API
 
 - `GET/POST/PUT/DELETE /artifacts/hosting/targets` — target CRUD
+- `GET/PUT /artifacts/hosting/targets/{id}/credentials` — 凭据只写不读：`GET` 只返回 `configured` 与 `platform_available`，任何密钥值都不会回传
 - `POST /artifacts/hosting/targets/{id}/make-default` — 事务性默认 target
 - `POST /artifacts/{id}/publish` — 多目标发布
 - `GET /artifacts/{id}/publications` — 各 target 发布状态

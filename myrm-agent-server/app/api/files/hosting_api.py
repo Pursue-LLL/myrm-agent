@@ -1,6 +1,7 @@
 """Artifact hosting and publication API.
 
-[POS] REST endpoints for multi-target artifact publish, preflight, and credentials.
+[POS] REST endpoints for multi-target artifact publish, preflight, and credentials. Credential values are write-only:
+reads report whether a target is configured, never the secret.
 
 [INPUT]
 - app.services.hosting.orchestrator (POS: publication workflow)
@@ -15,7 +16,6 @@ import asyncio
 import json
 import logging
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
@@ -75,7 +75,6 @@ class PublishPreflightResponse(BaseModel):
 class TargetCredentialsResponse(BaseModel):
     configured: bool
     platform_available: bool = False
-    credentials: dict[str, str] = Field(default_factory=dict)
 
 
 def _target_dict(target: HostingTarget) -> dict[str, object]:
@@ -165,20 +164,7 @@ async def test_hosting_target(target_id: str, db: AsyncSession = Depends(get_db)
 @router.get("/hosting/targets/{target_id}/credentials", response_model=TargetCredentialsResponse)
 async def get_target_credentials(target_id: str, db: AsyncSession = Depends(get_db)) -> TargetCredentialsResponse:
     status = await get_target_credential_status(db, target_id)
-    safe_creds: dict[str, str] = {}
-    if status.configured:
-        try:
-            creds_raw = await resolve_target_credentials(db, target_id)
-            for key, value in creds_raw.items():
-                if isinstance(value, str):
-                    safe_creds[key] = value
-        except RuntimeError:
-            pass
-    return TargetCredentialsResponse(
-        configured=status.configured,
-        platform_available=status.platform_available,
-        credentials=safe_creds,
-    )
+    return TargetCredentialsResponse(configured=status.configured, platform_available=status.platform_available)
 
 
 @router.put("/hosting/targets/{target_id}/credentials")
@@ -229,7 +215,7 @@ async def publish_artifact(
     artifact_id: str,
     body: PublishRequest,
     db: AsyncSession = Depends(get_db),
-) -> dict[str, Any]:
+) -> dict[str, object]:
     workspace_root = str(get_workspace_root())
     await migrate_legacy_vercel_credentials(db)
     result = await publish_artifact_to_target(
