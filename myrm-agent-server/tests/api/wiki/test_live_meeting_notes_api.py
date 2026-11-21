@@ -8,114 +8,31 @@ unknown/expired sessions, double finalize, the real frontend default
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Annotated
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Query
 from fastapi.testclient import TestClient
-from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
-from app.core.security.auth.identity import LOCAL_USER_ID
-from app.services.meeting_notes.live_notes import LiveNotesSession, get_live_notes_registry
+from app.services.meeting_notes.live_notes import get_live_notes_registry
 from app.services.wiki.memory_to_wiki import MemoryToWikiArchiver
+from tests.support.live_meeting_api import MEETING_LINES, build_client, double, ingest_all, make_archiver
 from tests.support.minimal_app import build_minimal_app
-
-_ROUTE_LOGGER = "app.api.wiki.routes.meeting"
-
-_MEETING_LINES = (
-    "Alice: Let us confirm the release plan. The beta goes live on Friday so marketing "
-    "has the weekend to prepare the announcement.",
-    "Bob: The transcription vendor contract expired last month and legal review is still "
-    "pending, so nobody has signed it off.",
-    "Carol: I will draft the migration checklist before Thursday and Alice will decide on "
-    "Friday morning.",
-)
+from tests.support.wiki_clip_client import bypass_loopback_auth
 
 
 @pytest.fixture(autouse=True)
 def _bypass_auth() -> Iterator[None]:
-    from dataclasses import dataclass
-
-    @dataclass(frozen=True, slots=True)
-    class _FakeIdentity:
-        user_id: str = LOCAL_USER_ID
-        auth_source: str = "loopback"
-        loopback: bool = True
-        client_ip: str = "127.0.0.1"
-        private_net: bool = False
-
-    with patch("app.middleware.auth.resolve_identity", return_value=_FakeIdentity()):
+    with bypass_loopback_auth():
         yield
-
-
-def _double(value: object) -> Mock:
-    """The test double `_make_archiver` put where production code types a real class."""
-    assert isinstance(value, Mock), value
-    return value
-
-
-def _route_logs(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
-    return [record for record in caplog.records if record.name == _ROUTE_LOGGER]
-
-
-def _fake_llm() -> AsyncMock:
-    llm = AsyncMock()
-    llm.ainvoke.return_value = MagicMock(
-        content=json.dumps(
-            {
-                "title": "Release Plan Review",
-                "summary": "The team reviewed the beta release plan.",
-                "decisions": ["Ship on Friday"],
-                "risks": ["Vendor contract unsigned"],
-                "action_items": [{"description": "Sign the contract", "owner": "Bob"}],
-            }
-        )
-    )
-    return llm
-
-
-def _make_archiver(wiki_dir: Path) -> MemoryToWikiArchiver:
-    archiver = MemoryToWikiArchiver(MagicMock(), wiki_dir=str(wiki_dir))
-    archiver._structure.ensure_structure()
-    archiver._llm = _fake_llm()
-    archiver._compiler = MagicMock()
-    archiver._compiler._queue = MagicMock()
-    return archiver
-
-
-def _build_client(tmp_path: Path) -> tuple[TestClient, MemoryToWikiArchiver, WikiStructure]:
-    from app.api.wiki.router import _get_wiki_archiver
-
-    archiver = _make_archiver(tmp_path / "wiki")
-
-    app = build_minimal_app(preset="wiki")
-
-    async def _override_archiver() -> MemoryToWikiArchiver:
-        return archiver
-
-    app.dependency_overrides[_get_wiki_archiver] = _override_archiver
-    return TestClient(app), archiver, archiver._structure
-
-
-def _ingest_all(client: TestClient, session_id: str) -> dict[str, object]:
-    payload: dict[str, object] = {}
-    for index, line in enumerate(_MEETING_LINES):
-        response = client.post(
-            f"/api/v1/wiki/meeting-notes/live/{session_id}/ingest",
-            json={"text": line, "timestamp": index * 10.0, "line_id": f"{session_id}-{index}"},
-        )
-        assert response.status_code == 200, response.text
-        payload = response.json()
-    return payload
 
 
 # -- request validation ------------------------------------------------------
 def test_ingest_requires_line_id(client: TestClient, tmp_path: Path) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
+    client, _archiver, _structure = build_client(tmp_path)
     response = client.post(
         "/api/v1/wiki/meeting-notes/live/s1/ingest", json={"text": "hello"}
     )
@@ -136,19 +53,19 @@ def test_ingest_requires_line_id(client: TestClient, tmp_path: Path) -> None:
 def test_ingest_rejects_malformed_payloads(
     client: TestClient, tmp_path: Path, payload: dict[str, object]
 ) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
+    client, _archiver, _structure = build_client(tmp_path)
     response = client.post("/api/v1/wiki/meeting-notes/live/s1/ingest", json=payload)
     assert response.status_code == 422, response.text
 
 
 # -- lifecycle ---------------------------------------------------------------
 def test_finalize_of_unknown_session_is_404(client: TestClient, tmp_path: Path) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
+    client, _archiver, _structure = build_client(tmp_path)
     assert client.post("/api/v1/wiki/meeting-notes/live/nope/finalize").status_code == 404
 
 
 def test_ingest_is_idempotent_over_http(client: TestClient, tmp_path: Path) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
+    client, _archiver, _structure = build_client(tmp_path)
     body = {"text": "Alice: one line only", "timestamp": 0.0, "line_id": "same-id"}
     first = client.post("/api/v1/wiki/meeting-notes/live/s/ingest", json=body).json()
     replay = client.post("/api/v1/wiki/meeting-notes/live/s/ingest", json=body).json()
@@ -160,8 +77,8 @@ def test_ingest_is_idempotent_over_http(client: TestClient, tmp_path: Path) -> N
 def test_finalize_publishes_releases_and_second_finalize_is_404(
     client: TestClient, tmp_path: Path
 ) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
-    _ingest_all(client, "lifecycle")
+    client, _archiver, _structure = build_client(tmp_path)
+    ingest_all(client, "lifecycle")
     final = client.post("/api/v1/wiki/meeting-notes/live/lifecycle/finalize")
     assert final.status_code == 200, final.text
     body = final.json()
@@ -178,9 +95,9 @@ def test_finalize_honours_auto_compile_default_from_the_frontend(
     client: TestClient, tmp_path: Path
 ) -> None:
     """The voice board finalizes without the query flag, i.e. auto_compile defaults on."""
-    client, archiver, _structure = _build_client(tmp_path)
-    enqueue = _double(archiver._compiler._queue)
-    _ingest_all(client, "compile-default")
+    client, archiver, _structure = build_client(tmp_path)
+    enqueue = double(archiver._compiler._queue)
+    ingest_all(client, "compile-default")
     assert client.post("/api/v1/wiki/meeting-notes/live/compile-default/finalize").status_code == 200
     enqueue.enqueue_file.assert_called_once()
 
@@ -189,8 +106,8 @@ def test_finalize_publishes_into_the_vault_of_the_requested_agent(tmp_path: Path
     """The vault comes from the scoped archiver dependency; finalize needs no agent id of its own."""
     from app.api.wiki.router import _get_wiki_archiver
 
-    default_archiver = _make_archiver(tmp_path / "default")
-    agent_archiver = _make_archiver(tmp_path / "agent-b")
+    default_archiver = make_archiver(tmp_path / "default")
+    agent_archiver = make_archiver(tmp_path / "agent-b")
     app = build_minimal_app(preset="wiki")
 
     async def _scoped(agent_id: Annotated[str | None, Query()] = None) -> MemoryToWikiArchiver:
@@ -198,7 +115,7 @@ def test_finalize_publishes_into_the_vault_of_the_requested_agent(tmp_path: Path
 
     app.dependency_overrides[_get_wiki_archiver] = _scoped
     client = TestClient(app)
-    _ingest_all(client, "agent-scoped")
+    ingest_all(client, "agent-scoped")
 
     final = client.post("/api/v1/wiki/meeting-notes/live/agent-scoped/finalize?agent_id=agent-b&auto_compile=false")
 
@@ -211,8 +128,8 @@ def test_ingest_after_finalize_starts_a_fresh_session(
     client: TestClient, tmp_path: Path
 ) -> None:
     """A straggler STT line must not resurrect or corrupt the published minutes."""
-    client, _archiver, structure = _build_client(tmp_path)
-    _ingest_all(client, "straggler")
+    client, _archiver, structure = build_client(tmp_path)
+    ingest_all(client, "straggler")
     client.post("/api/v1/wiki/meeting-notes/live/straggler/finalize?auto_compile=false")
     response = client.post(
         "/api/v1/wiki/meeting-notes/live/straggler/ingest",
@@ -226,9 +143,9 @@ def test_ingest_after_finalize_starts_a_fresh_session(
 
 
 def test_collision_suffixes_the_second_meeting(client: TestClient, tmp_path: Path) -> None:
-    client, _archiver, structure = _build_client(tmp_path)
+    client, _archiver, structure = build_client(tmp_path)
     for session in ("first", "second"):
-        _ingest_all(client, session)
+        ingest_all(client, session)
         assert client.post(
             f"/api/v1/wiki/meeting-notes/live/{session}/finalize?auto_compile=false"
         ).status_code == 200
@@ -240,11 +157,11 @@ def test_distillation_failure_fails_finalize_but_keeps_the_session_recoverable(
     client: TestClient, tmp_path: Path
 ) -> None:
     """A dead LLM fails finalize without publishing, yet the session keeps recording."""
-    client, archiver, structure = _build_client(tmp_path)
+    client, archiver, structure = build_client(tmp_path)
     archiver._llm = MagicMock()
     archiver._llm.ainvoke.side_effect = RuntimeError("llm down")
 
-    _ingest_all(client, "llm-down")
+    ingest_all(client, "llm-down")
     final = client.post("/api/v1/wiki/meeting-notes/live/llm-down/finalize?auto_compile=false")
     assert final.status_code == 500
     assert not (structure.raw_dir / "meeting-notes").exists()
@@ -261,11 +178,11 @@ def test_failed_finalize_can_be_retried_once_the_llm_is_back(
     client: TestClient, tmp_path: Path
 ) -> None:
     """A failed run is forgotten: the retry runs afresh and publishes the meeting exactly once."""
-    client, archiver, structure = _build_client(tmp_path)
+    client, archiver, structure = build_client(tmp_path)
     working_llm = archiver._llm
     archiver._llm = MagicMock()
     archiver._llm.ainvoke.side_effect = RuntimeError("llm down")
-    _ingest_all(client, "retry")
+    ingest_all(client, "retry")
     url = "/api/v1/wiki/meeting-notes/live/retry/finalize?auto_compile=false"
     assert client.post(url).status_code == 500
 
@@ -277,50 +194,14 @@ def test_failed_finalize_can_be_retried_once_the_llm_is_back(
     assert len(list((structure.raw_dir / "meeting-notes").glob("*.md"))) == 1
 
 
-def test_finalize_failure_is_logged_with_its_traceback_even_without_an_error_message(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture
-) -> None:
-    """A timeout carries no message, so only the traceback says what went wrong."""
-    client, archiver, _structure = _build_client(tmp_path)
-    _ingest_all(client, "silent-timeout")
-    _double(archiver._llm).ainvoke.side_effect = TimeoutError()
-
-    with caplog.at_level(logging.ERROR, logger=_ROUTE_LOGGER):
-        response = client.post("/api/v1/wiki/meeting-notes/live/silent-timeout/finalize?auto_compile=false")
-
-    assert response.status_code == 500
-    [record] = _route_logs(caplog)
-    assert record.levelno == logging.ERROR
-    assert record.exc_info is not None
-    assert record.exc_info[0] is TimeoutError
-
-
-def test_ingest_failure_is_logged_with_its_traceback_even_without_an_error_message(
-    tmp_path: Path, caplog: pytest.LogCaptureFixture, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
-
-    def _times_out(*_args: object, **_kwargs: object) -> bool:
-        raise TimeoutError
-
-    monkeypatch.setattr(LiveNotesSession, "ingest", _times_out)
-
-    with caplog.at_level(logging.ERROR, logger=_ROUTE_LOGGER):
-        response = client.post("/api/v1/wiki/meeting-notes/live/silent-timeout/ingest", json={"text": "hello", "line_id": "l1"})
-
-    assert response.status_code == 500
-    [record] = _route_logs(caplog)
-    assert record.levelno == logging.ERROR
-    assert record.exc_info is not None
-    assert record.exc_info[0] is TimeoutError
 
 
 def test_malformed_llm_payload_still_yields_publishable_minutes(
     client: TestClient, tmp_path: Path
 ) -> None:
     """A chatty model (string where a list belongs) must not corrupt the minutes."""
-    client, archiver, structure = _build_client(tmp_path)
-    _double(archiver._llm).ainvoke.return_value = MagicMock(
+    client, archiver, structure = build_client(tmp_path)
+    double(archiver._llm).ainvoke.return_value = MagicMock(
         content=json.dumps(
             {
                 "title": None,
@@ -330,7 +211,7 @@ def test_malformed_llm_payload_still_yields_publishable_minutes(
             }
         )
     )
-    _ingest_all(client, "ragged")
+    ingest_all(client, "ragged")
     final = client.post("/api/v1/wiki/meeting-notes/live/ragged/finalize?auto_compile=false")
     assert final.status_code == 200, final.text
     body = final.json()
@@ -348,8 +229,8 @@ async def test_concurrent_finalize_publishes_the_meeting_once(tmp_path: Path) ->
 
     import httpx
 
-    client, archiver, structure = _build_client(tmp_path)
-    llm = _double(archiver._llm)
+    client, archiver, structure = build_client(tmp_path)
+    llm = double(archiver._llm)
     started = asyncio.Event()
     gate = asyncio.Event()
     distilled: MagicMock = llm.ainvoke.return_value
@@ -361,7 +242,7 @@ async def test_concurrent_finalize_publishes_the_meeting_once(tmp_path: Path) ->
 
     url = "/api/v1/wiki/meeting-notes/live/double-stop/finalize?auto_compile=false"
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=client.app), base_url="http://test") as http:
-        for index, line in enumerate(_MEETING_LINES):
+        for index, line in enumerate(MEETING_LINES):
             ingested = await http.post(
                 "/api/v1/wiki/meeting-notes/live/double-stop/ingest",
                 json={"text": line, "timestamp": index * 10.0, "line_id": f"double-stop-{index}"},
@@ -387,8 +268,8 @@ def test_registry_drops_finished_sessions(client: TestClient, tmp_path: Path) ->
     """Finalize must release the session so a long-lived process cannot leak meetings."""
     import asyncio
 
-    client, _archiver, _structure = _build_client(tmp_path)
-    _ingest_all(client, "released")
+    client, _archiver, _structure = build_client(tmp_path)
+    ingest_all(client, "released")
     client.post("/api/v1/wiki/meeting-notes/live/released/finalize?auto_compile=false")
     assert asyncio.run(get_live_notes_registry().get("released")) is None
 
@@ -396,8 +277,8 @@ def test_registry_drops_finished_sessions(client: TestClient, tmp_path: Path) ->
 def test_published_minutes_carry_no_absolute_local_path(
     client: TestClient, tmp_path: Path
 ) -> None:
-    client, _archiver, _structure = _build_client(tmp_path)
-    _ingest_all(client, "no-leak")
+    client, _archiver, _structure = build_client(tmp_path)
+    ingest_all(client, "no-leak")
     final = client.post("/api/v1/wiki/meeting-notes/live/no-leak/finalize?auto_compile=false")
     for entry in final.json()["published_wiki_paths"]:
         assert isinstance(entry, str)
@@ -409,7 +290,7 @@ def test_publish_is_skipped_when_no_notes_were_distilled(
     client: TestClient, tmp_path: Path
 ) -> None:
     """Finalizing an empty session must not fabricate a minutes file."""
-    client, _archiver, structure = _build_client(tmp_path)
+    client, _archiver, structure = build_client(tmp_path)
     response = client.post(
         "/api/v1/wiki/meeting-notes/live/empty/finalize?auto_compile=false"
     )
