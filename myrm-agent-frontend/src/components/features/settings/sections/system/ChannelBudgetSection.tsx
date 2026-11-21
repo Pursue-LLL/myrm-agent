@@ -12,9 +12,11 @@
  * Per-channel budget configuration UI. Displays each channel's daily budget usage
  * and allows configuring per-channel limits to prevent cost explosion; each edit is sent
  * as a patch of the one field it changes, so edits made close together, or from another
- * page, do not put each other's values back, and a limit box never keeps a number that was
- * not stored. Unfolding a channel lists each sender's spend over the audit window, with
- * bars sized by their share of that window's total.
+ * page, do not put each other's values back, and a limit box shows the limit in force
+ * again once its blur has been handled, stored or not. The limit of a new channel is held
+ * as the text of its box and read on Save, so the box can be emptied and retyped.
+ * Unfolding a channel lists each sender's spend over the audit window, with bars sized by
+ * their share of that window's total.
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -51,9 +53,11 @@ const STATUS_COLORS: Record<string, { bar: string; text: string }> = {
   disabled: { bar: 'bg-muted', text: 'text-muted-foreground' },
 };
 
+/** The limit a new channel starts with, as the text of its box. */
+const DEFAULT_LIMIT_USD = '2';
+
 interface EditingPolicy {
   channel_key: string;
-  daily_limit_usd: number;
   warning_threshold: number;
   enabled: boolean;
   label: string;
@@ -66,15 +70,18 @@ const ChannelBudgetSection = memo(() => {
   const [adding, setAdding] = useState(false);
   const [newEntry, setNewEntry] = useState<EditingPolicy>({
     channel_key: '',
-    daily_limit_usd: 2.0,
     warning_threshold: 0.8,
     enabled: true,
     label: '',
   });
+  // Text, not a number: a number box that ignores what is not a number cannot be emptied to type a new amount.
+  const [limitText, setLimitText] = useState(DEFAULT_LIMIT_USD);
   const [saving, setSaving] = useState<string | null>(null);
   const [expandedAudit, setExpandedAudit] = useState<string | null>(null);
   const [auditEntries, setAuditEntries] = useState<ChannelAuditEntry[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
+  // NaN while the box is empty, which keeps Save off until an amount is typed.
+  const newLimitUsd = parseFloat(limitText);
   // The audit spans several days, so a sender's bar is its share of what the window cost, not of today's spend.
   const auditTotalUsd = useMemo(
     () => auditEntries.reduce((sum, entry) => sum + entry.total_cost_usd, 0),
@@ -154,20 +161,21 @@ const ChannelBudgetSection = memo(() => {
     setSaving('new');
     try {
       await createChannelBudget(newEntry.channel_key, {
-        daily_limit_usd: newEntry.daily_limit_usd,
+        daily_limit_usd: newLimitUsd,
         warning_threshold: newEntry.warning_threshold,
         enabled: newEntry.enabled,
         label: newEntry.label,
       });
       setAdding(false);
-      setNewEntry({ channel_key: '', daily_limit_usd: 2.0, warning_threshold: 0.8, enabled: true, label: '' });
+      setNewEntry({ channel_key: '', warning_threshold: 0.8, enabled: true, label: '' });
+      setLimitText(DEFAULT_LIMIT_USD);
       await fetchData();
     } catch {
       // apiRequest has already shown the failure.
     } finally {
       setSaving(null);
     }
-  }, [newEntry, fetchData]);
+  }, [newEntry, newLimitUsd, fetchData]);
 
   return (
     <SettingsSection
@@ -209,16 +217,12 @@ const ChannelBudgetSection = memo(() => {
               <span className="text-xs text-muted-foreground">$</span>
               <input
                 type="number"
+                aria-label={t('dailyLimit')}
                 min={0.01}
                 max={10000}
-                step={0.5}
-                value={newEntry.daily_limit_usd}
-                onChange={(e) => {
-                  const v = parseFloat(e.target.value);
-                  if (!isNaN(v)) {
-                    setNewEntry((prev) => ({ ...prev, daily_limit_usd: v }));
-                  }
-                }}
+                step="any"
+                value={limitText}
+                onChange={(e) => setLimitText(e.target.value)}
                 className="w-20 text-right text-sm font-mono px-2 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
@@ -231,7 +235,7 @@ const ChannelBudgetSection = memo(() => {
             </button>
             <button
               onClick={handleAdd}
-              disabled={saving === 'new' || !newEntry.channel_key.trim()}
+              disabled={saving === 'new' || !newEntry.channel_key.trim() || isNaN(newLimitUsd)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {saving === 'new' ? (
@@ -295,6 +299,7 @@ const ChannelBudgetSection = memo(() => {
                   <span className="text-xs text-muted-foreground">$</span>
                   <ChannelLimitInput
                     value={policy.daily_limit_usd}
+                    label={t('dailyLimit')}
                     onSave={(limit) => handleSave(st.channel_key, { daily_limit_usd: limit })}
                   />
                 </div>

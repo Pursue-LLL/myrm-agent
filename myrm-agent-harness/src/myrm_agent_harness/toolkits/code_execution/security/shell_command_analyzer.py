@@ -42,9 +42,9 @@ Readings (``shell_command_readings.command_readings``):
   handler, the body of a ``$(...)`` or backtick substitution) and each command of it apart. A rule written for
   ``rm -rf ~`` therefore fires on ``rm -rf ~&&echo``, ``eval "rm -rf ~"`` and ``trap 'rm -rf ~' EXIT`` as on the bare
   command. A command behind ``sudo``, ``env`` or ``timeout`` is judged where it stands, with its quotes: the rules
-  match a command wherever it stands in the text, and the quoted text of its arguments stays masked. A line that
-  hands a shell more scripts than the readings can hold is refused (BLOCK, category ``obfuscation``), because a
-  payload may sit in the part left unread.
+  match a command wherever it stands in the text, and the quoted text of its arguments stays masked. A line the
+  readings cannot hold (too many scripts and substitutions, too much text) is refused (BLOCK, category
+  ``obfuscation``), because a payload may sit in the part left unread.
 
 Consumers:
 - execution/security/validator.validate_command() — defense-in-depth check
@@ -52,7 +52,7 @@ Consumers:
 - toolkits/cron/runners.ShellJobRunner — pre-execution check
 
 [INPUT]
-- security.shell_command_readings::command_readings, UNREAD_SCRIPTS_EVIDENCE (POS: The texts the rule tables are matched against, bounded; says when a line hands a shell more scripts than they hold)
+- security.shell_command_readings::command_readings, UNREAD_EVIDENCE (POS: The texts the rule tables are matched against, bounded; says when a line does not fit them)
 - security.protected_instruction_command::protected_instruction_mutation_target (POS: The shell-side reading of the protected instruction files, shared with the permission engine and the allow-always guard)
 - security.shell_command_rules (POS: Pattern catalogue for layers 1-3 and the snapshot trigger; this module holds the engine)
 - security.shell_command_strip::_strip_quoted_content (POS: Quote-stripping helper for shell command preprocessing)
@@ -80,7 +80,7 @@ from enum import StrEnum
 from typing import Final
 
 from .protected_instruction_command import protected_instruction_mutation_target
-from .shell_command_readings import UNREAD_SCRIPTS_EVIDENCE, command_readings
+from .shell_command_readings import UNREAD_EVIDENCE, command_readings
 from .shell_command_rules import (
     ANSI_C_QUOTE_RE,
     BINARY_INJECTION,
@@ -206,15 +206,12 @@ def _quoting_evasion_threats(command: str) -> list[CommandThreat]:
     return threats
 
 
-# A line that hands a shell more scripts than the readings can hold hides what runs in the part left unread.
-_UNREAD_SCRIPTS_THREAT: Final = CommandThreat(
+# A line the readings cannot hold hides what runs in the part left unread.
+_UNREAD_THREAT: Final = CommandThreat(
     level=ThreatLevel.BLOCK,
     category="obfuscation",
-    detail=(
-        "Shell scripts and substitutions nested in the command are too many or too long to read in full; "
-        "run them as separate commands"
-    ),
-    evidence=UNREAD_SCRIPTS_EVIDENCE,
+    detail="The command holds more scripts, substitutions or text than can be read in full; run it as separate commands",
+    evidence=UNREAD_EVIDENCE,
 )
 
 
@@ -269,8 +266,7 @@ def analyze_command(command: str) -> tuple[CommandThreat, ...]:
     the command: the line as written, each command of it apart, and each command a wrapper (``bash -c '...'``,
     ``eval``, ``sudo``, ``$(...)``, ``trap '...'``) hands control to. The line as written is read first, so the
     threat it carries is reported before the one a wrapper hides, and a threat several readings share is reported once.
-    A line that hands a shell more scripts than the readings can hold is refused, because a payload may sit in the
-    part left unread.
+    A line the readings cannot hold is refused, because a payload may sit in the part left unread.
     """
     if not command or not command.strip():
         return ()
@@ -280,7 +276,7 @@ def analyze_command(command: str) -> tuple[CommandThreat, ...]:
     for reading in readings.texts:
         threats.extend(_reading_threats(reading))
     if not readings.complete:
-        threats.append(_UNREAD_SCRIPTS_THREAT)
+        threats.append(_UNREAD_THREAT)
     return tuple(sorted(dict.fromkeys(threats), key=lambda threat: threat.level is not ThreatLevel.BLOCK))
 
 
