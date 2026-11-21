@@ -1,7 +1,7 @@
 """Meeting notes orchestration service.
 
 [INPUT]
-- app.services.wiki.source_sync.publish_helpers::publish_source_markdown, build_frontmatter (POS: wiki raw publish)
+- app.services.wiki.source_sync.publish_helpers::publish_source_markdown, build_frontmatter, sanitize_path_segment (POS: wiki raw publish)
 
 [OUTPUT]
 - distill_meeting_notes(): LLM minutes distillation behind the live session's rolling and final notes
@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from typing import TYPE_CHECKING
 
 from myrm_agent_harness.toolkits.wiki import WikiStructure
 
@@ -24,6 +25,14 @@ from app.services.meeting_notes.models import (
     MeetingActionItem,
     StructuredMeetingNotes,
 )
+from app.services.wiki.source_sync.publish_helpers import (
+    build_frontmatter,
+    publish_source_markdown,
+    sanitize_path_segment,
+)
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +56,7 @@ Return strict JSON with keys: title, summary, decisions, debate_points, risks,
 action_items (array of {{description, owner, due_hint}}). No markdown fences."""
 
 
-async def distill_meeting_notes(transcript: str, llm: object) -> StructuredMeetingNotes:
+async def distill_meeting_notes(transcript: str, llm: BaseChatModel | None) -> StructuredMeetingNotes:
     """LLM-distill decisions/debates/action items from transcript.
 
     Backs the rolling and final notes of the live pipeline (`live_notes.LiveNotesSession`).
@@ -55,7 +64,7 @@ async def distill_meeting_notes(transcript: str, llm: object) -> StructuredMeeti
     if llm is None:
         return StructuredMeetingNotes(title="Meeting Notes", summary=transcript[:4000])
     prompt = _SUMMARY_PROMPT_TEMPLATE.format(transcript=transcript[:120000])
-    response = await llm.ainvoke(prompt)  # type: ignore[attr-defined]
+    response = await llm.ainvoke(prompt)
     content = getattr(response, "content", str(response))
     try:
         payload = json.loads(
@@ -181,12 +190,6 @@ async def publish_meeting_notes(
     Called when a live meeting session is finalized. The vault is chosen by the caller's
     ``structure``, so no agent id is needed here.
     """
-    from app.services.wiki.source_sync.publish_helpers import (
-        build_frontmatter,
-        publish_source_markdown,
-        sanitize_path_segment,
-    )
-
     title = notes.title or "Meeting Notes"
     slug = sanitize_path_segment(f"meeting-{title}")
     relative_path = _free_meeting_note_path(structure, slug)

@@ -8,6 +8,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.services.meeting_notes.live_notes import (  # noqa: E402
@@ -15,6 +17,7 @@ from app.services.meeting_notes.live_notes import (  # noqa: E402
     LiveNotesSession,
     get_live_notes_registry,
 )
+from app.services.meeting_notes.models import StructuredMeetingNotes  # noqa: E402
 
 
 class _FakeResponse:
@@ -205,3 +208,85 @@ async def test_refresh_bypasses_throttle_and_registry_is_singleton() -> None:
     snapshot = await session.refresh(llm)
     assert snapshot.notes is not None
     assert get_live_notes_registry() is get_live_notes_registry()
+
+
+class _Publisher:
+    """Records publish calls; optionally fails the first attempts or parks until released."""
+
+    def __init__(self, *, failures: int = 0, park: bool = False) -> None:
+        self.calls = 0
+        self.started = asyncio.Event()
+        self.release = asyncio.Event()
+        self._failures = failures
+        self._park = park
+
+    async def __call__(self, notes: StructuredMeetingNotes, transcript: str) -> list[str]:
+        self.calls += 1
+        self.started.set()
+        if self.calls <= self._failures:
+            raise RuntimeError("vault offline")
+        if self._park:
+            await self.release.wait()
+        return [f"meeting-notes/{notes.title}.md"]
+
+
+def _session_with_one_line() -> LiveNotesSession:
+    session = LiveNotesSession("s1", clock=_Clock())
+    session.ingest("line one")
+    return session
+
+
+async def test_concurrent_finalize_runs_once_and_shares_the_result() -> None:
+    session = _session_with_one_line()
+    llm, publisher = _FakeLLM(), _Publisher(park=True)
+    first = asyncio.create_task(session.finalize(llm, publisher))
+    second = asyncio.create_task(session.finalize(llm, publisher))
+    await publisher.started.wait()
+    publisher.release.set()
+    finalized = await asyncio.gather(first, second)
+    assert finalized[0] is finalized[1]
+    assert finalized[0].published_paths == ("meeting-notes/Live Sync.md",)
+    assert (llm.calls, publisher.calls) == (1, 1)
+
+
+async def test_failed_finalize_is_forgotten_so_the_next_call_retries() -> None:
+    session = _session_with_one_line()
+    llm, publisher = _FakeLLM(), _Publisher(failures=1)
+    with pytest.raises(RuntimeError, match="vault offline"):
+        await session.finalize(llm, publisher)
+    assert session.line_count == 1
+    finalized = await session.finalize(llm, publisher)
+    assert finalized.published_paths == ("meeting-notes/Live Sync.md",)
+    assert publisher.calls == 2
+
+
+async def test_finished_finalize_is_remembered() -> None:
+    session = _session_with_one_line()
+    llm, publisher = _FakeLLM(), _Publisher()
+    first = await session.finalize(llm, publisher)
+    assert await session.finalize(llm, publisher) is first
+    assert (llm.calls, publisher.calls) == (1, 1)
+
+
+async def test_a_caller_going_away_does_not_cancel_the_shared_run() -> None:
+    session = _session_with_one_line()
+    llm, publisher = _FakeLLM(), _Publisher(park=True)
+    departing = asyncio.create_task(session.finalize(llm, publisher))
+    await publisher.started.wait()
+    departing.cancel()
+    remaining = asyncio.create_task(session.finalize(llm, publisher))
+    publisher.release.set()
+    finalized = await remaining
+    assert finalized.published_paths == ("meeting-notes/Live Sync.md",)
+    assert publisher.calls == 1
+    with pytest.raises(asyncio.CancelledError):
+        await departing
+
+
+async def test_finalize_of_an_empty_session_publishes_nothing() -> None:
+    session = LiveNotesSession("s1", clock=_Clock())
+    publisher = _Publisher()
+    finalized = await session.finalize(_FakeLLM(), publisher)
+    assert finalized.snapshot.notes is None
+    assert finalized.published_paths == ()
+    assert publisher.calls == 0

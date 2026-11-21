@@ -2,14 +2,13 @@
 - app.api.wiki.archiver_dependency::get_scoped_wiki_archiver (POS: Single provider of the archiver for routes that compile, query or mutate a vault. Routes that only read or write vault files use ``app.services.wiki.vault.get_wiki_structure`` instead, so no compile worker is ever built without a model.)
 - app.services.meeting_notes.service::publish_meeting_notes (POS: Business orchestration facade for the meeting-notes pipeline. Delegates distillation to the chat agent LLM and publication to the wiki raw pipeline.)
 - app.services.wiki::MemoryToWikiArchiver (POS: Top-level wiki facade. Domain subpackages (vault / maintain / governance / obsidian / source_sync / clip / knowledge_pack) live under this package and expose their own facades.)
-- app.services.meeting_notes.live_notes::LiveNotesSession / get_live_notes_registry (POS: Business orchestration layer for live meeting notes. Consumes *finalized* transcript lines from the existing streaming STT path, keeps the running transcript, and periodically produces rolling structured notes (summary / decisions / action items) through the shared minutes distillation.)
+- app.services.meeting_notes.live_notes::LiveNotesSnapshot / get_live_notes_registry (POS: Business orchestration layer for live meeting notes. Consumes *finalized* transcript lines from the existing streaming STT path, keeps the running transcript, and periodically produces rolling structured notes (summary / decisions / action items) through the shared minutes distillation.)
 
 [OUTPUT]
 - LiveNotesIngestRequest: LiveNotesIngestRequest
 - LiveNotesSnapshotResponse: LiveNotesSnapshotResponse
 - _live_notes_response: _live_notes_response
 - ingest_live_meeting_transcript: Ingest one finalized transcript chunk; refresh rolling notes when due.
-- get_live_meeting_snapshot: Return the current rolling notes snapshot for a live meeting.
 - finalize_live_meeting: Force a final distillation, publish minutes to the wiki, and release the session.
 
 [POS]
@@ -17,6 +16,7 @@ Wiki API 的子路由模块；由 app/api/wiki/router.py 组装到 /wiki 前缀�
 """
 
 import logging
+from functools import partial
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -24,7 +24,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.api.wiki.archiver_dependency import get_scoped_wiki_archiver as _get_wiki_archiver
 from app.services.meeting_notes.live_notes import (
-    LiveNotesSession,
+    LiveNotesSnapshot,
     get_live_notes_registry,
 )
 from app.services.meeting_notes.service import publish_meeting_notes
@@ -77,12 +77,11 @@ class LiveNotesSnapshotResponse(BaseModel):
 
 
 def _live_notes_response(
-    session: LiveNotesSession,
+    snap: LiveNotesSnapshot,
     *,
     refreshed: bool,
     published: list[str] | None = None,
 ) -> LiveNotesSnapshotResponse:
-    snap = session.snapshot()
     notes = snap.notes
     return LiveNotesSnapshotResponse(
         session_id=snap.session_id,
@@ -113,7 +112,7 @@ async def ingest_live_meeting_transcript(
     try:
         session = await get_live_notes_registry().get_or_create(session_id)
         if not session.ingest(payload.text, payload.timestamp, line_id=payload.line_id):
-            return _live_notes_response(session, refreshed=False)
+            return _live_notes_response(session.snapshot(), refreshed=False)
         refreshed = None
         try:
             refreshed = await session.maybe_refresh(archiver._llm)
@@ -121,19 +120,10 @@ async def ingest_live_meeting_transcript(
             # A transient distillation failure must not fail the ingest itself: the
             # line is already recorded and the last good snapshot is returned.
             logger.warning("Live meeting refresh failed; returning last snapshot", exc_info=True)
-        return _live_notes_response(session, refreshed=refreshed is not None)
+        return _live_notes_response(session.snapshot(), refreshed=refreshed is not None)
     except Exception as e:
         logger.error("Live meeting ingest failed: %s", e)
         raise HTTPException(status_code=500, detail="Live meeting ingest failed") from e
-
-
-@router.get("/meeting-notes/live/{session_id}", response_model=LiveNotesSnapshotResponse)
-async def get_live_meeting_snapshot(session_id: str) -> LiveNotesSnapshotResponse:
-    """Return the current rolling notes snapshot for a live meeting."""
-    session = await get_live_notes_registry().get(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Live meeting session not found")
-    return _live_notes_response(session, refreshed=False)
 
 
 @router.post("/meeting-notes/live/{session_id}/finalize", response_model=LiveNotesSnapshotResponse)
@@ -142,28 +132,25 @@ async def finalize_live_meeting(
     session_id: str,
     auto_compile: bool = Query(True),
 ) -> LiveNotesSnapshotResponse:
-    """Force a final distillation, publish minutes to the wiki, and release the session."""
+    """Force a final distillation, publish minutes to the wiki, and release the session.
+
+    Concurrent calls for one session share a single run, so the meeting is published once;
+    a failed run leaves the session intact so the call can be retried.
+    """
     registry = get_live_notes_registry()
     session = await registry.get(session_id)
     if session is None:
         raise HTTPException(status_code=404, detail="Live meeting session not found")
+    publish = partial(
+        publish_meeting_notes,
+        archiver._structure,
+        auto_compile=auto_compile,
+        compiler_enqueue=archiver._compiler._queue,
+    )
     try:
-        await session.refresh(archiver._llm)
-        snapshot = session.snapshot()
-        published: list[str] = []
-        if snapshot.notes is not None:
-            published = await publish_meeting_notes(
-                archiver._structure,
-                snapshot.notes,
-                session.render_transcript(),
-                auto_compile,
-                archiver._compiler._queue,
-            )
-        response = _live_notes_response(session, refreshed=True, published=published)
-        await registry.drop(session_id)
-        return response
-    except HTTPException:
-        raise
+        finalized = await session.finalize(archiver._llm, publish)
     except Exception as e:
         logger.error("Live meeting finalize failed: %s", e)
         raise HTTPException(status_code=500, detail="Live meeting finalize failed") from e
+    await registry.drop(session_id)
+    return _live_notes_response(finalized.snapshot, refreshed=True, published=list(finalized.published_paths))

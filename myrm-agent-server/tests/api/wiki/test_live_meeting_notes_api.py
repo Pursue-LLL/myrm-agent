@@ -129,11 +129,8 @@ def test_ingest_rejects_malformed_payloads(
 
 
 # -- lifecycle ---------------------------------------------------------------
-def test_snapshot_and_finalize_of_unknown_session_are_404(
-    client: TestClient, tmp_path: Path
-) -> None:
+def test_finalize_of_unknown_session_is_404(client: TestClient, tmp_path: Path) -> None:
     client, _archiver, _structure = _build_client(tmp_path)
-    assert client.get("/api/v1/wiki/meeting-notes/live/nope").status_code == 404
     assert client.post("/api/v1/wiki/meeting-notes/live/nope/finalize").status_code == 404
 
 
@@ -161,7 +158,6 @@ def test_finalize_publishes_releases_and_second_finalize_is_404(
     assert body["published_wiki_paths"] == [
         "meeting-notes/meeting-Release_Plan_Review.md"
     ]
-    assert client.get("/api/v1/wiki/meeting-notes/live/lifecycle").status_code == 404
     assert client.post("/api/v1/wiki/meeting-notes/live/lifecycle/finalize").status_code == 404
 
 
@@ -227,10 +223,10 @@ def test_collision_suffixes_the_second_meeting(client: TestClient, tmp_path: Pat
     assert names == ["meeting-Release_Plan_Review-2.md", "meeting-Release_Plan_Review.md"]
 
 
-def test_distillation_failure_does_not_break_ingest_or_finalize(
+def test_distillation_failure_fails_finalize_but_keeps_the_session_recoverable(
     client: TestClient, tmp_path: Path
 ) -> None:
-    """A dead LLM must still record the transcript and still publish raw minutes."""
+    """A dead LLM fails finalize without publishing, yet the session keeps recording."""
     client, archiver, structure = _build_client(tmp_path)
     archiver._llm = MagicMock()
     archiver._llm.ainvoke.side_effect = RuntimeError("llm down")
@@ -238,6 +234,7 @@ def test_distillation_failure_does_not_break_ingest_or_finalize(
     _ingest_all(client, "llm-down")
     final = client.post("/api/v1/wiki/meeting-notes/live/llm-down/finalize?auto_compile=false")
     assert final.status_code == 500
+    assert not (structure.raw_dir / "meeting-notes").exists()
 
     # With the LLM still dead the session must be recoverable, not wedged.
     recovered = client.post("/api/v1/wiki/meeting-notes/live/llm-down/ingest", json={
@@ -245,7 +242,26 @@ def test_distillation_failure_does_not_break_ingest_or_finalize(
     })
     assert recovered.status_code == 200
     assert recovered.json()["line_count"] == 4
-    assert structure.raw_dir.exists()
+
+
+def test_failed_finalize_can_be_retried_once_the_llm_is_back(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """A failed run is forgotten: the retry runs afresh and publishes the meeting exactly once."""
+    client, archiver, structure = _build_client(tmp_path)
+    working_llm = archiver._llm
+    archiver._llm = MagicMock()
+    archiver._llm.ainvoke.side_effect = RuntimeError("llm down")
+    _ingest_all(client, "retry")
+    url = "/api/v1/wiki/meeting-notes/live/retry/finalize?auto_compile=false"
+    assert client.post(url).status_code == 500
+
+    archiver._llm = working_llm
+    retried = client.post(url)
+
+    assert retried.status_code == 200, retried.text
+    assert retried.json()["published_wiki_paths"] == ["meeting-notes/meeting-Release_Plan_Review.md"]
+    assert len(list((structure.raw_dir / "meeting-notes").glob("*.md"))) == 1
 
 
 def test_malformed_llm_payload_still_yields_publishable_minutes(
@@ -273,6 +289,46 @@ def test_malformed_llm_payload_still_yields_publishable_minutes(
     markdown = next((structure.raw_dir / "meeting-notes").glob("*.md")).read_text(encoding="utf-8")
     assert "- vendor contract expired" in markdown
     assert "None" not in markdown.split("## Transcript")[0]
+
+
+async def test_concurrent_finalize_publishes_the_meeting_once(tmp_path: Path) -> None:
+    """A double stop (two requests racing) must share one run, not publish the meeting twice."""
+    import asyncio
+
+    import httpx
+
+    client, archiver, structure = _build_client(tmp_path)
+    started = asyncio.Event()
+    gate = asyncio.Event()
+    distilled = archiver._llm.ainvoke.return_value
+
+    async def slow_ainvoke(_prompt: str) -> MagicMock:
+        started.set()
+        await gate.wait()
+        return distilled
+
+    url = "/api/v1/wiki/meeting-notes/live/double-stop/finalize?auto_compile=false"
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=client.app), base_url="http://test") as http:
+        for index, line in enumerate(_MEETING_LINES):
+            ingested = await http.post(
+                "/api/v1/wiki/meeting-notes/live/double-stop/ingest",
+                json={"text": line, "timestamp": index * 10.0, "line_id": f"double-stop-{index}"},
+            )
+            assert ingested.status_code == 200, ingested.text
+        archiver._llm.ainvoke.side_effect = slow_ainvoke
+        archiver._llm.ainvoke.reset_mock()
+
+        first = asyncio.create_task(http.post(url))
+        await started.wait()
+        second = asyncio.create_task(http.post(url))
+        await asyncio.sleep(0.05)
+        gate.set()
+        responses = await asyncio.gather(first, second)
+
+    assert [r.status_code for r in responses] == [200, 200], [r.text for r in responses]
+    assert responses[0].json() == responses[1].json()
+    assert archiver._llm.ainvoke.call_count == 1
+    assert len(list((structure.raw_dir / "meeting-notes").glob("*.md"))) == 1
 
 
 def test_registry_drops_finished_sessions(client: TestClient, tmp_path: Path) -> None:

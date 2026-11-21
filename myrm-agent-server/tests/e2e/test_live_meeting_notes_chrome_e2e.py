@@ -163,12 +163,13 @@ _RUN_MEETING_JS = """(async () => {
   }
 })()"""
 
-# Verifies the session was released after finalize and the published note is gone.
+# Verifies the session was released after finalize: a second finalize finds no session (404). A session that leaked
+# would answer 200 with the remembered result instead of publishing again, so the check leaves no residue either way.
 _VERIFY_CLEANUP_JS = """(async () => {
   try {
     const response = await fetch(
-      '/api/v1/wiki/meeting-notes/live/' + encodeURIComponent(__SESSION__),
-      { headers: { accept: 'application/json' } },
+      '/api/v1/wiki/meeting-notes/live/' + encodeURIComponent(__SESSION__) + '/finalize?auto_compile=false',
+      { method: 'POST', headers: { accept: 'application/json' } },
     );
     return { ready: response.status === 404, status: response.status };
   } catch (error) {

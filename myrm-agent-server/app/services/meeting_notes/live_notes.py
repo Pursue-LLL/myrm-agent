@@ -5,8 +5,10 @@
 - app.services.meeting_notes.service::distill_meeting_notes (POS: LLM minutes distillation)
 
 [OUTPUT]
-- LiveNotesSession: in-memory live meeting session (transcript ingestion + rolling structured notes)
+- LiveNotesSession: in-memory live meeting session (transcript ingestion + rolling structured notes + run-once finalize)
 - LiveNotesSnapshot: serializable snapshot returned to the client
+- FinalizedMeeting: final snapshot plus the vault paths the minutes were published to
+- MinutesPublisher: callback that publishes final minutes and returns the written vault paths
 - LiveNotesRegistry: process-local session registry
 
 [POS]
@@ -22,11 +24,15 @@ from __future__ import annotations
 import asyncio
 import math
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from app.services.meeting_notes.models import StructuredMeetingNotes
 from app.services.meeting_notes.service import distill_meeting_notes
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
 
 # Default cadence: refresh the rolling notes at most once per interval, and only when
 # enough new speech accumulated. Time-based (not per-line) to bound LLM cost during
@@ -49,6 +55,19 @@ class LiveNotesSnapshot:
     started_at: float
     last_refreshed_at: float | None
     notes: StructuredMeetingNotes | None
+
+
+@dataclass(frozen=True)
+class FinalizedMeeting:
+    """Final snapshot of a finished meeting and the vault paths its minutes were written to."""
+
+    snapshot: LiveNotesSnapshot
+    published_paths: tuple[str, ...]
+
+
+# Publishes the final minutes (notes, rendered transcript) and returns the vault-relative
+# paths that were actually written. Supplied by the caller, which owns the target vault.
+MinutesPublisher = Callable[[StructuredMeetingNotes, str], Awaitable[list[str]]]
 
 
 @dataclass
@@ -83,6 +102,7 @@ class LiveNotesSession:
         self._notes: StructuredMeetingNotes | None = None
         self._seen_line_ids: dict[str, None] = {}
         self._lock = asyncio.Lock()
+        self._finalizing: asyncio.Task[FinalizedMeeting] | None = None
 
     # -- ingestion ---------------------------------------------------------
     def ingest(self, text: str, timestamp: float | None = None, *, line_id: str | None = None) -> bool:
@@ -156,12 +176,12 @@ class LiveNotesSession:
         )
 
     # -- distillation ------------------------------------------------------
-    async def refresh(self, llm: object) -> LiveNotesSnapshot:
+    async def refresh(self, llm: BaseChatModel | None) -> LiveNotesSnapshot:
         """Force a rolling distillation over the transcript and return the snapshot."""
         async with self._lock:
             return await self._refresh_locked(llm)
 
-    async def maybe_refresh(self, llm: object) -> LiveNotesSnapshot | None:
+    async def maybe_refresh(self, llm: BaseChatModel | None) -> LiveNotesSnapshot | None:
         """Refresh only when due; returns a snapshot on refresh, otherwise None.
 
         The due-ness re-check happens under the lock so concurrent ingests for the
@@ -172,13 +192,41 @@ class LiveNotesSession:
                 return None
             return await self._refresh_locked(llm)
 
-    async def _refresh_locked(self, llm: object) -> LiveNotesSnapshot:
+    async def _refresh_locked(self, llm: BaseChatModel | None) -> LiveNotesSnapshot:
         transcript = self.render_transcript()
         if transcript.strip():
             self._notes = await distill_meeting_notes(transcript, llm)
         self._last_refreshed_at = float(self._clock())
         self._chars_since_refresh = 0
         return self.snapshot()
+
+    # -- finalization ------------------------------------------------------
+    async def finalize(self, llm: BaseChatModel | None, publish: MinutesPublisher) -> FinalizedMeeting:
+        """Distill the final notes and publish them, once per session.
+
+        Concurrent callers (a double stop, a retry racing a slow first attempt) share one
+        run, so the meeting is published once. A failed run is forgotten so the next call
+        retries on the intact session; a finished run is remembered so a caller that raced
+        the registry release gets the same result instead of publishing again.
+        """
+        if self._finalizing is None:
+            self._finalizing = asyncio.create_task(self._distill_and_publish(llm, publish))
+            self._finalizing.add_done_callback(self._forget_failed_finalize)
+        # shield: a caller that goes away must not cancel the run the other callers share.
+        return await asyncio.shield(self._finalizing)
+
+    async def _distill_and_publish(self, llm: BaseChatModel | None, publish: MinutesPublisher) -> FinalizedMeeting:
+        await self.refresh(llm)
+        snapshot = self.snapshot()
+        published: list[str] = []
+        if snapshot.notes is not None:
+            published = await publish(snapshot.notes, self.render_transcript())
+        return FinalizedMeeting(snapshot=snapshot, published_paths=tuple(published))
+
+    def _forget_failed_finalize(self, task: asyncio.Task[FinalizedMeeting]) -> None:
+        # Reading the exception also marks it retrieved, so a run nobody awaits any more stays quiet.
+        if task.cancelled() or task.exception() is not None:
+            self._finalizing = None
 
 
 class LiveNotesRegistry:
