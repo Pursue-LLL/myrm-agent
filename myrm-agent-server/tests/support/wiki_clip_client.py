@@ -10,7 +10,8 @@
 
 [POS]
 Shared client, auth bypass and job polling for the wiki clip API tests
-(`tests/api/wiki/test_wiki_clip_api.py`, `tests/api/wiki/test_wiki_clip_form_parsing.py`).
+(`tests/api/wiki/test_wiki_clip_api.py`, `tests/api/wiki/test_wiki_clip_form_parsing.py`);
+the auth bypass also serves the live meeting API tests (`tests/api/wiki/test_live_meeting_notes_api*.py`).
 """
 
 from __future__ import annotations
@@ -20,8 +21,10 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock, patch
 
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from myrm_agent_harness.toolkits.wiki.core.structure import WikiStructure
 
@@ -71,7 +74,7 @@ def build_wiki_client(
 
 
 def cleanup_wiki_client(client: TestClient) -> None:
-    client.app.dependency_overrides.clear()
+    cast(FastAPI, client.app).dependency_overrides.clear()
     patcher = getattr(client, "_wiki_archiver_patcher", None)
     if patcher is not None:
         patcher.stop()
