@@ -9,11 +9,15 @@ strings), bare-scalar → single-element array wrapping for ``array`` schemas,
 numeric 1/0 ↔ boolean bidirectional coercion, a 64KB length guard on
 container-literal parsing (degenerate-output CPU/memory defense), strict-host
 nullable completion (missing required+nullable fields → explicit ``None``),
-and stripping of null optional fields that strict MCP servers reject.
+and stripping of null optional fields that strict MCP servers reject. A container
+literal that defeats the JSON or the literal parser (nested deeper than the
+interpreter allows, an unhashable dict key) stays a string for schema validation
+to report, instead of crashing the call.
 
 [INPUT]
 - args_schema dict (from ``StructuredTool.args_schema``)
 - kwargs emitted by the LLM
+- utils.python_parse::PYTHON_LITERAL_ERRORS (POS: What ``ast.literal_eval`` raises for text that is not a usable literal)
 
 [OUTPUT]
 - coerce_arguments_by_schema: Corrects parsed arguments, handles mixed-union container literals, and completes required nullable omissions.
@@ -34,6 +38,8 @@ import re
 import sys
 from decimal import Decimal, InvalidOperation
 from typing import Any
+
+from myrm_agent_harness.utils.python_parse import PYTHON_LITERAL_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -257,7 +263,8 @@ def coerce_value(schema: dict[str, Any], value: Any) -> Any:
                         expects_array,
                         type(coerced_value).__name__,
                     )
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, RecursionError):
+                # RecursionError: nesting deeper than the JSON scanner follows, well inside the length cap.
                 try:
                     coerced_value = ast.literal_eval(clean_value)
                     if expects_array and isinstance(coerced_value, list):
@@ -276,7 +283,7 @@ def coerce_value(schema: dict[str, Any], value: Any) -> Any:
                             expects_array,
                             type(coerced_value).__name__,
                         )
-                except (ValueError, SyntaxError):
+                except PYTHON_LITERAL_ERRORS:
                     pass
         elif expected_type == "boolean":
             lower_val = clean_value.lower()

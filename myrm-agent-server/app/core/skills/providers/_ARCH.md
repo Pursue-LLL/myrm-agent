@@ -15,4 +15,4 @@ Skill 提供者模块。实现不同来源的 Skill 加载和管理。
 |------|------|------|-------|
 | `__init__.py` | 入口 | 模块门面：统一导出 `LocalSkillsProvider` 与 `preview_skill_path` | ✅ |
 | `local.py` | ✅ 核心 | 本地 Skill 提供者（文件系统单/多目录自适应加载、热更新、.stats.json lifecycle 注入） |
-| `local_preview.py` | ✅ 核心 | 本地 Skill 路径 dry-run 探测、安全路径穿越防御 (CWE-22)、全量静态代码穿透安全扫描与评分诊断工具库 |
+| `local_preview.py` | ✅ 核心 | 本地 Skill 路径 dry-run 探测、安全路径穿越防御 (CWE-22)、全量静态代码穿透安全扫描与评分诊断工具库；扫描本身失败的技能一律标为不安全（`is_safe=False`，分数 40，低于采纳门槛 50），不会当作干净技能预览或采纳；`preview_skill_path` 的 `compute_id_fn` 是必填的关键字参数 |

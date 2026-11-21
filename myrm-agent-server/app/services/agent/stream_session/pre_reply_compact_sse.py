@@ -5,7 +5,7 @@
 - app.services.chat.compact_service::CompactReason, CompactResult (POS: closed decline reasons and compaction outcome)
 
 [OUTPUT]
-- run_pre_reply_compact_with_sse: active → compact → one closing phase (completed / ineffective / skipped / timeout / circuit_open / failed) as context_compaction progress-step SSE
+- run_pre_reply_compact_with_sse: active → compact → one closing phase (completed / ineffective / skipped / failed) as context_compaction progress-step SSE
 
 [POS]
 Web-only SSE wiring for idle pre-reply compaction. Reuses frontend context_compaction progress steps, which word each phase under ``progressSteps.context_compaction_<phase>`` in the frontend locales.
@@ -21,7 +21,9 @@ from app.services.chat.compact_service import CompactReason, CompactResult
 
 logger = logging.getLogger(__name__)
 
-CompactionPhase = Literal["active", "completed", "ineffective", "skipped", "timeout", "circuit_open", "failed"]
+# The closing phases state only what became of the stored context. `timeout` and `circuit_open` are not among them: their
+# titles say a fast fallback took over, which compaction inside a turn does and this gate never does.
+CompactionPhase = Literal["active", "completed", "ineffective", "skipped", "failed"]
 
 # Only a compaction that broke is a warning; one that left the context as it was is calm.
 _STATUS_BY_PHASE: Mapping[CompactionPhase, str] = {
@@ -29,19 +31,17 @@ _STATUS_BY_PHASE: Mapping[CompactionPhase, str] = {
     "completed": "success",
     "ineffective": "success",
     "skipped": "success",
-    "timeout": "warning",
-    "circuit_open": "warning",
     "failed": "warning",
 }
 
 # Only reasons known to be no failure are worded as such; every other reason, and any added later, reads as a failure.
+# A paused summarizer declines before any work, so like the others here it leaves the context as it was.
 _PHASE_BY_REASON: Mapping[str, CompactionPhase] = {
     CompactReason.CONCURRENT_COMPACTION: "skipped",
     CompactReason.NO_COMPACTABLE_MESSAGES: "skipped",
     CompactReason.TOO_FEW_MESSAGES: "skipped",
     CompactReason.ANTI_THRASH_ACTIVE: "skipped",
-    CompactReason.SUMMARIZE_CIRCUIT_OPEN: "circuit_open",
-    CompactReason.TIMEOUT: "timeout",
+    CompactReason.SUMMARIZE_CIRCUIT_OPEN: "skipped",
 }
 
 

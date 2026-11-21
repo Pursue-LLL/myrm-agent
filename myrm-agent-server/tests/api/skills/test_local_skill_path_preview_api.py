@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import NoReturn
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -73,6 +74,89 @@ Run safely.
         assert item["required_tools"] == ["python3"]
         assert item["is_conflicted"] is False
         assert item["is_safe"] is True
+
+
+def _security_score(item: dict[str, object]) -> int:
+    score = item["security_score"]
+    assert isinstance(score, int)
+    return score
+
+
+def test_provider_preview_flags_a_skill_whose_python_the_scan_cannot_take() -> None:
+    """A script the scanner cannot read is a high finding, so the skill previews as unsafe."""
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        (tmp_path / "SKILL.md").write_text(
+            "---\nname: blind-skill\ndescription: Skill with a script the scanner cannot read\n---\n# Instructions\n",
+            encoding="utf-8",
+        )
+        scripts = tmp_path / "scripts"
+        scripts.mkdir()
+        (scripts / "deep.py").write_text("x = " + " + ".join(["1"] * 30_000) + "\n", encoding="utf-8")
+
+        _, exists, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
+
+        assert exists
+        assert items[0]["is_safe"] is False
+        assert _security_score(items[0]) < 50
+
+
+def _write_blind_manifest_skill(skill_dir: Path) -> None:
+    """A skill whose package.json nests deeper than the JSON parser takes, so the audit cannot read it."""
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: blind-manifest-skill\ndescription: Skill with a manifest the audit cannot read\n---\n# Instructions\n",
+        encoding="utf-8",
+    )
+    (skill_dir / "package.json").write_text('{"a": ' + "[" * 20_000 + "]" * 20_000 + "}", encoding="utf-8")
+
+
+def test_provider_preview_blocks_a_skill_whose_package_json_the_audit_cannot_take() -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        _write_blind_manifest_skill(tmp_path)
+
+        _, _, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
+
+        assert items[0]["is_safe"] is False
+        assert _security_score(items[0]) < 50
+
+
+def test_provider_preview_blocks_a_skill_when_the_scan_itself_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A scan that cannot finish says nothing about the skill, so it must not default to safe."""
+
+    def crash(skill_name: str, skill_dir: Path) -> NoReturn:
+        raise RuntimeError("scanner crashed")
+
+    monkeypatch.setattr("myrm_agent_harness.backends.skills.scanning.scan_skill_directory", crash)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        (tmp_path / "SKILL.md").write_text(
+            "---\nname: unscanned-skill\ndescription: Skill the scanner crashes on\n---\n# Instructions\n",
+            encoding="utf-8",
+        )
+
+        _, _, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
+
+        assert items[0]["is_safe"] is False
+        assert _security_score(items[0]) < 50
+        assert items[0]["threat_summary"] == "The security scan could not be completed"
+        assert items[0]["security"] is None
+
+
+def test_adopt_blocks_a_skill_whose_package_json_the_audit_cannot_take(client: TestClient) -> None:
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        _write_blind_manifest_skill(tmp_path)
+        _, _, _, items, _ = LocalSkillsProvider().preview_path(str(tmp_path))
+
+        with patch("app.api.skills.local.require_local_skills_capability"):
+            resp = client.post(
+                "/api/v1/skills/local/paths/adopt",
+                json={"path": str(tmp_path), "selected_skill_ids": [str(items[0]["skill_id"])]},
+            )
+
+        assert resp.status_code == 400
+        assert "Security gate blocked" in resp.json()["detail"]
 
 
 def test_provider_preview_parent_dir_with_sub_skills_and_conflict() -> None:
@@ -233,9 +317,10 @@ version: 2.1.0
 
 def test_preview_skill_path_traversal_defense() -> None:
     """Verify that preview_skill_path strictly blocks path traversal attempts."""
+    from app.core.skills.providers.local import compute_local_skill_id
     from app.core.skills.providers.local_preview import preview_skill_path
 
-    _, exists, is_dir, items, warning = preview_skill_path("/home/user/../../etc")
+    _, exists, is_dir, items, warning = preview_skill_path("/home/user/../../etc", compute_id_fn=compute_local_skill_id)
     assert exists is False
     assert is_dir is False
     assert len(items) == 0

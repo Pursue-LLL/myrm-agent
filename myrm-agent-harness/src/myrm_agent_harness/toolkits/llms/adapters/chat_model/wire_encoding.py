@@ -11,12 +11,15 @@ step and are not touched.
 - (none — stdlib only: re)
 
 [OUTPUT]
+- encodable_text: one string made encodable (itself when it already is, else a copy with each lone surrogate as ``U+FFFD``)
 - replace_lone_surrogates: rewrite every unencodable string value of the wire messages of one request (nested in dicts and lists) to ``U+FFFD``, in place
 
 [POS]
 Last pure step of the message funnel of ``TransportChatModel``, run before the outbound guard so a policy sees the text that is
 actually sent. A string that is already encodable is left as the same object, so the request bytes (and with them the
-provider prompt cache) do not change for any ordinary history.
+provider prompt cache) do not change for any ordinary history. ``encodable_text`` is the same replacement for a single string:
+the tool-result guard applies it where a result enters the conversation, so everything downstream of that point (hashing,
+persisting, logging) handles the text the funnel will later send.
 """
 
 from __future__ import annotations
@@ -27,7 +30,7 @@ _LONE_SURROGATE = re.compile("[\ud800-\udfff]")
 _REPLACEMENT = "\ufffd"
 
 
-def _encodable(text: str) -> str:
+def encodable_text(text: str) -> str:
     """*text* itself when UTF-8 can encode it, else a copy with each lone surrogate replaced."""
     if text.isascii():
         return text
@@ -44,7 +47,7 @@ type _Container = dict[str, object] | list[object]
 def _clean(item: object, pending: list[_Container]) -> object:
     """The encodable form of a string; any other value is returned as it is, a container after queueing it for its own pass."""
     if isinstance(item, str):
-        return _encodable(item)
+        return encodable_text(item)
     if isinstance(item, dict | list):
         pending.append(item)
     return item

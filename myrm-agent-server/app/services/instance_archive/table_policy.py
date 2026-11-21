@@ -2,7 +2,7 @@
 
 [INPUT]
 - sqlite3: operates on a detached copy, never on the live database
-- app.services.config.encryption::is_sensitive_config (POS: which user_configs rows are encrypted)
+- app.services.config.encryption::is_sensitive_config/is_credentials_row (POS: which user_configs rows are encrypted, which hold credentials)
 - app.services.config.service::extract_cipher (POS: the ciphertext inside a stored row, bare or in its envelope)
 - app.services.chat.chat_bound_rows::CHAT_BOUND_TABLES (POS: plain tables whose rows belong to one chat)
 
@@ -36,7 +36,7 @@ from pathlib import Path
 from myrm_agent_harness.utils.crypto import ConfigCrypto, DecryptionError
 
 from app.services.chat.chat_bound_rows import CHAT_BOUND_TABLES
-from app.services.config.encryption import is_sensitive_config
+from app.services.config.encryption import is_credentials_row, is_sensitive_config
 from app.services.config.service import extract_cipher
 
 # Rows describing the security posture / integrations of the host: the target keeps its own.
@@ -113,7 +113,7 @@ def config_row_policy(key: str) -> ConfigRowPolicy:
 
 def config_needs_reentry(key: str) -> bool:
     """Credential rows the user has to enter again when they do not travel."""
-    return key in CARRIED_SENSITIVE_CONFIG_KEYS or key.endswith("Credentials")
+    return key in CARRIED_SENSITIVE_CONFIG_KEYS or is_credentials_row(key)
 
 
 def open_sealed_config(raw_value: str, key: bytes) -> dict[str, object] | None:

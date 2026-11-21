@@ -40,7 +40,14 @@ logger = logging.getLogger(__name__)
 
 
 class _ChatTurnMixin(_ChatServiceBase):
-    """Retry, undo, truncate, sibling, and title generation operations."""
+    """Retry, undo, truncate, sibling, and title generation operations.
+
+    Retry, undo and the delete step of a rewind read and then delete, and take the write lock on entry: another writer's
+    commit between their read and their delete would abort the delete with SQLITE_BUSY_SNAPSHOT, and their callers (IM
+    commands, the compression-exhausted path, a rewind that has already reverted files) have no way to retry. Truncate,
+    regenerate and sibling switching are only called from HTTP routes and change nothing before their write, so a lost
+    write fails that request and the user repeats it.
+    """
 
     @staticmethod
     async def _refresh_last_message(uow: UnitOfWork, chat_id: str) -> None:
@@ -85,7 +92,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
     @staticmethod
     async def retry_last_turn(chat_id: str, user_id: str | None = None) -> RetryResult:
-        async with UnitOfWork() as uow:
+        async with UnitOfWork(write=True) as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
             if not chat:
                 return RetryResult(success=False, query="", deleted_count=0)
@@ -146,7 +153,7 @@ class _ChatTurnMixin(_ChatServiceBase):
 
     @staticmethod
     async def undo_last_turn(chat_id: str, user_id: str | None = None) -> UndoResult:
-        async with UnitOfWork() as uow:
+        async with UnitOfWork(write=True) as uow:
             chat = await _ChatServiceBase._cr(uow).get_chat_by_id(chat_id, load_messages=False)
             if not chat:
                 return UndoResult(success=False, deleted_count=0)
@@ -261,9 +268,9 @@ class _ChatTurnMixin(_ChatServiceBase):
                     error="REWIND_USER_ONLY",
                 )
 
-            # Read before the active rows: the files are reverted for the active rows in this set and the deletion removes
-            # exactly this set, so a row another writer adds meanwhile (an IM reply, the note of a settled background
-            # task) is neither reverted nor deleted.
+            # The id set is read first: every later step touches only the rows in it, so a row another writer adds after
+            # this step (an IM reply, the note of a settled background task) is neither reverted nor deleted. Reading the
+            # active rows after the set and intersecting below keeps that true even if the two reads see different snapshots.
             rewound_ids = await _ChatServiceBase._cr(uow).message_ids_from(chat_id, msg)
             all_messages = await _ChatServiceBase._cr(uow).get_all_messages(chat_id)
             message_index = next((idx for idx, item in enumerate(all_messages) if item.id == message_id), -1)
@@ -299,8 +306,9 @@ class _ChatTurnMixin(_ChatServiceBase):
                     await restore_pre_rewind_snapshot(chat_id, pre_snap_id)
                 raise exc
 
-        # Phase 2: Atomic database mutation and checkpoint sync
-        async with UnitOfWork() as uow:
+        # Phase 2: delete the rows the first step found and refresh the chat preview in one write transaction. It takes the
+        # write lock on entry: Phase 1 may already have reverted files, so another writer's commit must not abort it now.
+        async with UnitOfWork(write=True) as uow:
             deleted_ids = await _ChatServiceBase._cr(uow).delete_messages_after(
                 chat_id,
                 msg,

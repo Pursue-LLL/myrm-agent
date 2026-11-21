@@ -1,17 +1,17 @@
 """harness 会话与帷幕编排的接线单测 — 真实 Guardian 经 attach_desktop_session 回调真实的按需解锁，
-帷幕窗口 title 经真实后端链送达截图后端。
+帷幕窗口 title 送达桌面会话所持的截图后端。
 
 [INPUT]
 - app.services.locked_use.unattended（POS: attach_desktop_session / unlock_screen_on_demand）
 - app.services.locked_use.curtain_bridge.EXCLUDED_CAPTURE_TITLES（POS: 与 Tauri 帷幕窗口 title 的契约）
-- myrm_agent_harness.toolkits.computer_use.ComputerSession / DesktopSession（POS: 持有锁屏 Guardian 的 CU 会话）
-- myrm_agent_harness.toolkits.computer_use.backends（POS: 生产桌面后端链 CuaDriverBackend → MacOSBackend）
+- myrm_agent_harness.toolkits.computer_use.ComputerSession / create_desktop_session（POS: 持有锁屏 Guardian 的 CU 会话及其工厂）
+- myrm_agent_harness.toolkits.computer_use.backends（POS: 桌面会话持有的平台原生后端 MacOSBackend）
 - tests.support.curtain_watcher（POS: 状态快照与桩）
 
 [OUTPUT]
 - 接线后锁屏态下的物理输入先触发按需解锁，屏幕解开后该输入照常落地
 - 门禁拒绝解锁时 Guardian 照常拒答，输入不落地
-- 帷幕窗口 title 穿过 CuaDriver 包装链落到原生截图后端；排除通道缺失时仅在 macOS 记 WARNING
+- 帷幕窗口 title 落到桌面会话所持的原生截图后端（已装 cua-driver 时亦然）；排除通道缺失时仅在 macOS 记 WARNING
 
 [POS]
 tool_setup 的装配测试只证明「回调被注册」；本文件让真实会话走完整条链路，证明注册的回调
@@ -25,10 +25,9 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend import CuaDriverBackend
 from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
-from myrm_agent_harness.toolkits.computer_use.desktop_session import DesktopSession
+from myrm_agent_harness.toolkits.computer_use.desktop_session import create_desktop_session
 from myrm_agent_harness.toolkits.computer_use.safety import ScreenLockedInterruptionError
 from myrm_agent_harness.toolkits.computer_use.session import ComputerSession
 from myrm_agent_harness.toolkits.computer_use.types import ActionResult, ComputerUseConfig
@@ -88,13 +87,21 @@ class TestAttachedSessionOnDemandUnlock:
 
 
 class TestAttachedSessionCaptureExclusion:
-    def test_the_curtain_title_reaches_the_backend_behind_cua_driver(self) -> None:
-        """生产桌面后端链：cua-driver 自己不截屏，帷幕 title 必须落到它包着的原生后端。"""
-        native = MacOSBackend()
-        session = DesktopSession(backend=CuaDriverBackend(fallback=native))
+    def test_the_curtain_title_reaches_the_backend_of_the_desktop_session(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """已装 cua-driver 时桌面会话仍持有原生后端（它自己截屏），帷幕 title 直接落到该后端。"""
+        macos = MagicMock()
+        macos.os_type = "macos"
+        monkeypatch.setattr("myrm_agent_harness.toolkits.code_execution.platform.detect_platform", lambda: macos)
+        monkeypatch.setattr(
+            "myrm_agent_harness.toolkits.computer_use.backends.cua_driver.backend.is_cua_driver_available",
+            lambda: True,
+        )
+        session = create_desktop_session()
 
         assert unattended.attach_desktop_session(session) is True
-        assert native._excluded_capture_titles == frozenset(EXCLUDED_CAPTURE_TITLES)
+        backend = session._backend
+        assert isinstance(backend, MacOSBackend)
+        assert backend._excluded_capture_titles == frozenset(EXCLUDED_CAPTURE_TITLES)
 
     @pytest.mark.parametrize(
         ("system", "warns"),

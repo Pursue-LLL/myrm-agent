@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -21,9 +22,9 @@ def _desktop_session_with_export(return_value: object | Exception) -> DesktopSes
     backend.screen_info.return_value = ScreenInfo(width=800, height=600, dpi_scale=1.0)
     session = DesktopSession(backend=backend, config=ComputerUseConfig())
     if isinstance(return_value, Exception):
-        session.export_inspector_snapshot = AsyncMock(side_effect=return_value)  # type: ignore[method-assign]
+        session.export_inspector_snapshot = AsyncMock(side_effect=return_value)
     else:
-        session.export_inspector_snapshot = AsyncMock(return_value=return_value)  # type: ignore[method-assign]
+        session.export_inspector_snapshot = AsyncMock(return_value=return_value)
     return session
 
 
@@ -136,7 +137,7 @@ class TestGetDesktopSnapshot:
             "registry_generation": 2,
         }
         mock_session = _desktop_session_with_export({})
-        mock_session.export_registry_view = AsyncMock(return_value=payload)  # type: ignore[method-assign]
+        mock_session.export_registry_view = AsyncMock(return_value=payload)
 
         mock_gateway = MagicMock()
         mock_gateway.get_active_desktop_session.return_value = mock_session
@@ -148,12 +149,12 @@ class TestGetDesktopSnapshot:
         data = response.json()
         assert data["app_name"] == "TextEdit"
         assert "d1" in data["refs"]
-        mock_session.export_inspector_snapshot.assert_not_called()
+        cast(AsyncMock, mock_session.export_inspector_snapshot).assert_not_called()
 
     @pytest.mark.asyncio
     async def test_registry_source_empty_returns_404(self, client: httpx.AsyncClient) -> None:
         mock_session = _desktop_session_with_export({})
-        mock_session.export_registry_view = AsyncMock(return_value=None)  # type: ignore[method-assign]
+        mock_session.export_registry_view = AsyncMock(return_value=None)
 
         mock_gateway = MagicMock()
         mock_gateway.get_active_desktop_session.return_value = mock_session
@@ -182,7 +183,7 @@ class TestGetDesktopSnapshot:
     @pytest.mark.parametrize("source", ["registry", "live"])
     async def test_chat_id_scopes_the_session_lookup(self, client: httpx.AsyncClient, source: str) -> None:
         mock_session = _desktop_session_with_export({"refs": {}})
-        mock_session.export_registry_view = AsyncMock(return_value={"refs": {}})  # type: ignore[method-assign]
+        mock_session.export_registry_view = AsyncMock(return_value={"refs": {}})
 
         mock_gateway = MagicMock()
         mock_gateway.get_active_desktop_session.return_value = mock_session

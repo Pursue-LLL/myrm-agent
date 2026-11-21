@@ -65,6 +65,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_process_state_isolation.py` | 单元 | 登记簿里留着一个事件循环已关闭、永远跑不完的任务时：丢掉它之后排空登记簿会等到还活着的任务做完（不丢的话 `gather` 抛 “The future belongs to a different loop”、排空提前返回，活任务还没完成） |
 | `support/oversized_paste.py` | 辅助 | `paste_over_the_limit`（刚过人写文本停车线 `USER_TEXT_LIMITS` 的重复文本）、`paste_between_the_limits`（过了 harness 默认线、没过人写文本线：渠道文档会被停车、人写的文本原样进提示）：测试按限额常量定样本大小，不写死字符数 |
 | `support/chat_workspace.py` | 辅助 | `chats_bound_to_workspaces`：把会话 id 映射到各自的临时工作区（`default=` 给所有未列出的会话），让读取会话文件的接口测试不依赖进程目录 |
+| `support/hosting_api.py` | 辅助 | 托管 API 集成测试共用：`seed_webhook_target`、`seed_html_artifact` 造数，`public_dns` 把 SSRF 校验的解析桩成公网地址，`CHAT_ID` 是夹具绑定工作区的会话；`api/files/conftest.py` 的 `hosting_integration_client` 夹具与下面两个托管 API 测试文件共用 |
 | `support/bounded_wait.py` | 辅助 | `assert_bounded_wait(timeout, *, limit=60)`：断言传给连接的等待上限是正数且不超过上限（`None` 表示永不放弃，`0` 与布尔值也不是等待上限，都不通过）；渠道连接测试与邮件技能脚本测试共用 |
 | `support/live_chat_model.py` | 辅助 | `live_chat_model(*, model, api_key, base_url, temperature, max_tokens, timeout)`：异步上下文管理器，产出一个 HTTP 客户端随进入它的那个测试的事件循环打开、随测试关闭的 `ChatOpenAI`。langchain-openai 在进程内共用一个缓存的异步客户端，其连接池里的连接绑在第一个测试的事件循环上，之后的测试会报 `Event loop is closed`；所有调真实模型的测试都经它构造模型，不直接 `ChatOpenAI(...)`。请求超时只认 `ChatOpenAI` 的 `timeout`（注入客户端自己的超时不生效），所以只有 `timeout` 参数是真上限 |
 | `support/test_live_chat_model.py` | 单元 | 本机 HTTP/1.1 长连接假服务上，三次各占一个事件循环的调用全部得到回答（裸 `ChatOpenAI` 第二次就抛 `Event loop is closed`；去掉客户端注入该用例即失败） |
@@ -121,6 +122,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `channels/storage/test_credentials_store.py` | 单元 | 渠道凭据默认落在 `state_dir` 下而非进程目录，换个目录重新启动后登录仍在，显式目录优先 |
 | `api/files/test_vault_api.py` | 单元 | vault 对象读取：按 `chat_id` 取该会话工作区、按指向对象的 artifact 反查所属会话、无主对象回退默认根、缺失对象 404 |
 | `api/files/test_provenance_api.py` | 单元 | 来源中心列表与详情里的产物大小，各取自该产物所属会话的工作区而非进程目录 |
+| `api/files/test_hosting_integration.py` | 集成 | 发布主链路（真实预检、vault、编排；仅外部 HTTP 被替身）：预检、发布、WebSocket 轮询、重发布、多目标发布 |
+| `api/files/test_hosting_targets_api.py` | 单元 | 托管目标与凭据 API（真实路由与数据库）：凭据只写不读、删除目标连带删除凭据行、目标 CRUD 生命周期、不存在的目标 404、连通性测试 |
 | `platform_utils/test_workspace_root.py` | 单元 | `get_workspace_root`：运行之外取进程工作目录，运行之内取该次运行绑定的根 |
 | `services/instance_archive/test_incognito_files.py` | 模块 | 网页无痕会话写在磁盘上的东西不进导出：真实 `build_export` 下 `harness/workspaces/chat_<id>/`（含嵌套目录）不入包、其余会话与转写导入的工作区照常入包，目录名按整段路径分量比对（`chat_incognito` 不藏掉 `chat_incognito-2`）；子代理 checkpoint 库不论在 `data/` 下还是状态目录顶层都不入包；无法判定哪些会话是无痕时导出失败且不留文件；无痕工作区下读不到的路径不记入“备份不完整”；并把工作区位置、目录名与子代理库文件名钉到真实运行时（`WorkspaceService.workspaces_root`、`default_chat_workspace_path`、`resolve_subagent_checkpoint_db_path`） |
 | `services/instance_archive/test_policy.py` | 模块 | 路径分类：默认包含、显式排除、敌意条目拦截；扫描把无法列出的目录与无法读取的文件记为读不到，与已消失的文件区分 |
@@ -443,9 +446,10 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/test_goal_wait_orphan_recovery.py` | 模块 | 重启后孤儿作业释放等待中的目标：作业台账里的 `chat_<id>` 会话键按聊天 id 匹配目标（等同一个作业号但作业属于别的聊天的目标不被释放），匹配的 WAIT 目标转为待复核并发通知 |
 | `api/goals/test_goal_queue_callbacks.py` | 模块 | 目标终态回调之后的队列接续与 loop 重启（真实队列；回调在回合最后裁决处被排期，其时回合的 provider 可能已归还，这里取没有 provider 登记的形态）：下一个排队目标照常启动、空队列不启动、接续深度到限就停且队列原样不动、出队失败止于该处、事件总线失败不挡路、启动失败顺延到后一个排队目标；loop 重启重新触发目标 |
 | `services/chat/test_rewind_pauses_goal.py` | 模块 | rewind 后暂停会话的活动目标（真实管理器，会话空闲、没有 provider 登记）：ACTIVE 目标被暂停并记下 rewind 原因，非 ACTIVE 的目标与没有目标的聊天原样不动 |
-| `services/chat/conftest.py` | 辅助 | `rewind_collaborators`：rewind 测试里把检查点清除、回退前快照、孤儿快照清理与目标暂停换成替身（它们不是被测对象）；`test_rewind_holds_session.py` 与 `test_rewind_exact_delete.py` 用 `usefixtures` 打开 |
+| `services/chat/conftest.py` | 辅助 | `rewind_collaborators`：rewind 测试里把检查点清除、回退前快照、孤儿快照清理与目标暂停换成替身（它们不是被测对象）；`test_rewind_holds_session.py`、`test_rewind_exact_delete.py` 与 `test_chat_turn_write_contention.py` 用 `usefixtures` 打开（后者的撤销、重试用例只用到其中的检查点清除） |
 | `services/chat/test_rewind_holds_session.py` | 模块 | rewind 从头到尾占住聊天（私有网关实例 + 真 DB）：文件回退期间新一轮的预留被拒；回退完成或失败后释放；运行中的轮次占着或网关排空时得 `SESSION_BUSY` 且不放掉别人的占用；网关看不见的 IM 回合在跑（探针答忙）时回退在动文件之前就被拒、不占会话、不改历史；第二个 rewind 在第一个进行时被拒；占着期间调用方自己抛出的网关错误原样传出、不被当成聊天在忙；被流接管的预留不被释放 |
-| `services/chat/test_rewind_exact_delete.py` | 模块 | rewind 只删它第一步查到的行（真 DB）：文件回退期间别处写入的行（IM 回复）既不被还原也不被删；第一步先读 id 集合、再读活跃行，两次读取之间写入的行同样既不被还原也不被删；锚点之后不活跃的兄弟行随回退一并删掉、不留孤儿行，文件只对其中的活跃行还原 |
+| `services/chat/test_rewind_exact_delete.py` | 模块 | rewind 只删它第一步查到的行（真 DB）：文件回退期间别处写入的行（IM 回复）既不被还原也不被删；只有第二次读取看得到的行同样既不被还原也不被删（生产里两次读取同在一个事务、读到同一个快照；先读 id 集合的读序约束保证它们被拆进不同事务后仍然安全）；锚点之后不活跃的兄弟行随回退一并删掉、不留孤儿行，文件只对其中的活跃行还原 |
+| `services/chat/test_chat_turn_write_contention.py` | 模块 | 回退的删除、撤销与重试在另一个写入方想提交时保住自己的写（真实事务策略的文件库，夹具 `tests/support/policy_sqlite.py`）：删除之前别的写入方被挡到工作单元提交之后，三个用例各自删对行、留对行；延迟快照下同一用例以 `database is locked` 失败 |
 | `services/kanban/test_unblock_resumes_goal.py` | 模块 | 看板任务从 BLOCKED 解除阻塞时恢复其停放的目标（真实管理器，`kanban:<task_id>` 键）：暂停/等待/待复核/预算受限各自回到 ACTIVE，且不登记 provider |
 | `core/channel_bridge/test_goal_commands_between_turns.py` | 模块 | IM `/goal <目标>`（目标写入存储、不登记 provider）与 `/goal status`/`pause`/`resume`/`clear`/`wait`/`unwait`/`budget`/`constraint`、恢复 kickoff 在回合之间（没有注册 provider）作用于存储里的目标；聊天里没有目标时各命令回自己的「无目标」文案，且都不注册 provider |
 | `core/channel_bridge/test_goal_subgoal_command.py` | 模块 | IM `/subgoal add` 在回合之间落在存储里的目标上，且不注册 provider |

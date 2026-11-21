@@ -2,7 +2,7 @@
 
 What the browser then does with it, in a real Chromium, is proven in ``test_agent_world_policy_integration.py``; these
 tests pin when an expression is armed, what the arm carries, and that the agent's own text reaches the inner
-``eval`` unchanged apart from the driver's own function-form rule.
+``eval`` exactly as written.
 """
 
 from __future__ import annotations
@@ -12,11 +12,9 @@ from collections.abc import Iterator
 
 import pytest
 
-from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist, agent_world
+from myrm_agent_harness.toolkits.browser.domain_filter import DomainAllowlist, agent_world, scripts
 from myrm_agent_harness.toolkits.browser.domain_filter.agent_world import agent_world_expression
 from myrm_agent_harness.toolkits.browser.domain_filter.context_lists import DomainListPolicy, bind_domain_lists
-
-_INNER_EVAL = "globalThis.eval("
 
 
 class _Context:
@@ -35,15 +33,17 @@ def _armed(context: _Context, expression: str) -> str:
 
 
 def _arm_of(armed: str) -> str:
-    """Everything before the agent's expression."""
-    return armed.rpartition(_INNER_EVAL)[0]
+    """Everything before the inner ``eval`` of the agent's expression."""
+    return armed.partition(agent_world._RUN_HEAD)[0]
 
 
 def _inner_expression(armed: str) -> str:
     """The text the arm hands to the inner ``eval``, read back from its JSON literal."""
-    literal = armed.rpartition(_INNER_EVAL)[2]
-    assert literal.endswith(");"), literal[-40:]
-    return json.loads(literal.removesuffix(");"))
+    run = armed.removeprefix(_arm_of(armed))
+    assert run.startswith(agent_world._RUN_HEAD), run[:40]
+    assert run.endswith(agent_world._RUN_TAIL), run[-40:]
+    text: str = json.loads(run.removeprefix(agent_world._RUN_HEAD).removesuffix(agent_world._RUN_TAIL))
+    return text
 
 
 @pytest.fixture(autouse=True)
@@ -70,8 +70,8 @@ class TestTheArm:
         assert "RTCPeerConnection blocked by domain policy" in armed
         assert "JS evaluation refused" in armed
 
-    def test_it_hardens_a_window_once_and_does_not_let_the_agent_unset_its_check(self) -> None:
-        """The hardening throws when it runs twice in one window; a plain global could be deleted or overwritten."""
+    def test_it_sets_a_window_up_once_and_does_not_let_the_agent_unset_its_check(self) -> None:
+        """The policy script wraps the constructors, so a window is set up once; a plain global could be deleted."""
         arm = _arm_of(_armed(_context(allow=("example.com",)), "1"))
 
         assert arm.startswith("if (!globalThis.__myrmDomainPolicy) {")
@@ -80,7 +80,7 @@ class TestTheArm:
 
     def test_it_is_built_once_per_allowlist_whatever_the_context(self, monkeypatch: pytest.MonkeyPatch) -> None:
         builds: list[DomainAllowlist] = []
-        real = agent_world.build_csp_meta_script
+        real = scripts.build_csp_meta_script
 
         def counting(allowlist: DomainAllowlist) -> str:
             builds.append(allowlist)
@@ -114,34 +114,27 @@ class TestTheAgentsExpression:
             "(async () => { await 0; return 1; })()",
             "() => 41 + 1",
             "async () => 'arrow'",
+            "function named() { return 1; }",
+            "async  function () { return 1; }",
+            "\n\t document.title \n",
+            "\ufefffunction () { return 'bom'; }",
+            "1)); throw new Error('escaped'); ((1",
         ],
     )
     def test_it_reaches_the_inner_eval_as_one_literal_that_cannot_end_early(self, expression: str) -> None:
+        """Nothing is trimmed, wrapped or escaped on this side: the text the agent wrote is what the literal holds."""
         armed = _armed(_context(allow=("example.com",)), expression)
 
         assert _inner_expression(armed) == expression
-        assert armed.rpartition(_INNER_EVAL)[2].isascii()
+        assert armed.removeprefix(_arm_of(armed)).isascii()
 
-    @pytest.mark.parametrize(
-        ("expression", "driver_form"),
-        [
-            ("function () { return 1; }", "(function () { return 1; })"),
-            ("function named() { return 1; }", "(function named() { return 1; })"),
-            ("async function () { return 1; }", "(async function () { return 1; })"),
-            ("async  function f() {}", "(async  function f() {})"),
-            ("  function spaced() {}  ", "(function spaced() {})"),
-            ("\n function (a) { return a; }\n", "(function (a) { return a; })"),
-        ],
-    )
-    def test_a_function_expression_is_wrapped_as_the_driver_wraps_it(self, expression: str, driver_form: str) -> None:
-        """``page.evaluate`` reads such text as a function to call; inside ``eval`` it would be a declaration."""
-        assert _inner_expression(_armed(_context(allow=("example.com",)), expression)) == driver_form
+    def test_the_page_decides_what_is_whitespace_and_what_reads_as_a_function(self) -> None:
+        """The driver trims the text and parenthesizes a function expression; ``eval`` would take it for a declaration.
 
-    @pytest.mark.parametrize("expression", ["functionality()", "functions.length", "asyncs(function () {})"])
-    def test_text_that_only_starts_like_a_function_is_left_alone(self, expression: str) -> None:
-        assert _inner_expression(_armed(_context(allow=("example.com",)), expression)) == expression
-
-    def test_surrounding_whitespace_is_trimmed_as_the_driver_trims_it(self) -> None:
-        armed = _armed(_context(allow=("example.com",)), "\n\t document.title \n")
-
-        assert _inner_expression(armed) == "document.title"
+        Both steps run in the page's own JavaScript engine, which is the engine the driver's rule runs in, so the two
+        never disagree about which characters are whitespace (a unit test cannot run them; the integration test
+        compares both outcomes for texts the two readings of whitespace part on).
+        """
+        assert "text.trim()" in agent_world._RUN_HEAD
+        assert r"/^(async)?\s*function(\s|\()/" in agent_world._RUN_HEAD
+        assert "'(' + text + ')'" in agent_world._RUN_HEAD

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from myrm_agent_harness.agent.meta_tools.bash._security.shell_parse import extract_shell_c_payload
 from myrm_agent_harness.core.security.redact import command_preview
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ def _python_ast_references_myrm_tools(code: str) -> bool:
     """Return True when parsed Python references the ``myrm_tools`` namespace."""
     try:
         tree = ast.parse(code)
-    except SyntaxError:
+    except PYTHON_PARSE_ERRORS:
         return False
 
     for node in ast.walk(tree):

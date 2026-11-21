@@ -3,7 +3,7 @@
 Detects trivial assertions, dummy prints, and vacuous verification scripts to prevent fake passes in skill evolution.
 
 [INPUT]
-- (none)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - HollowTestResult: Detection result structure.
@@ -20,6 +20,8 @@ import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
+
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +62,15 @@ class HollowTestDetector:
 
         try:
             tree = ast.parse(code)
-        except SyntaxError as e:
+        except PYTHON_PARSE_ERRORS as e:
+            reason = (
+                f"SyntaxError in test code: {e.msg}"
+                if isinstance(e, SyntaxError)
+                else f"Test code cannot be parsed ({type(e).__name__})"
+            )
             return HollowTestResult(
                 is_hollow=True,
-                reasons=[f"SyntaxError in test code: {e.msg}"],
+                reasons=[reason],
                 has_assert=False,
                 non_trivial_assert_count=0,
             )

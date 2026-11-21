@@ -6,6 +6,7 @@ Detects whether user input is Python or Bash and extracts embedded Python from
 [INPUT]
 - python_extractor::extract_python_from_bash (POS: quote-aware Python extraction)
 - utils.text_utils::unwrap_markdown_fence (POS: text utilities; unwraps one Markdown fence around a command)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - CodeType: Python vs Bash enum
@@ -32,6 +33,7 @@ from enum import StrEnum
 from myrm_agent_harness.toolkits.code_execution.python_extractor import (
     extract_python_from_bash,
 )
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 from myrm_agent_harness.utils.text_utils import unwrap_markdown_fence
 
 # Parsing is synchronous and runs on the event loop, so past this size the text is judged by its opening line alone.
@@ -100,7 +102,7 @@ def _parse(text: str) -> ast.Module | None:
         return None
     try:
         return ast.parse(text, filename=_ROUTER_FILENAME)
-    except (SyntaxError, ValueError, RecursionError, MemoryError):
+    except PYTHON_PARSE_ERRORS:
         return None
 
 

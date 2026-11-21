@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.hosting.credentials import load_credentials_row, load_target_credentials, save_target_credentials
 from app.services.hosting.targets import (
     delete_hosting_target,
     get_default_hosting_target,
@@ -59,6 +60,24 @@ async def test_delete_hosting_target_promotes_default(db_session: AsyncSession) 
     remaining = await list_hosting_targets(db_session)
     assert len(remaining) == 1
     assert remaining[0].is_default is True
+
+
+@pytest.mark.asyncio
+async def test_delete_hosting_target_removes_its_credentials_row(db_session: AsyncSession) -> None:
+    await save_hosting_targets(
+        db_session,
+        [
+            HostingTarget(id="keep", name="Keep", provider_type="vercel", config={}, is_default=True),
+            HostingTarget(id="drop", name="Drop", provider_type="vercel", config={}, is_default=False),
+        ],
+    )
+    await save_target_credentials(db_session, "keep", {"token": "keep-secret"})
+    await save_target_credentials(db_session, "drop", {"token": "drop-secret"})
+
+    assert await delete_hosting_target(db_session, "drop") is True
+
+    assert await load_credentials_row(db_session, "drop") is None
+    assert await load_target_credentials(db_session, "keep") == {"token": "keep-secret"}
 
 
 @pytest.mark.asyncio

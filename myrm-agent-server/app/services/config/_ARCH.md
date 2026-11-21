@@ -56,6 +56,8 @@ providers, retrieval, searchServices, mcpServers, backupSync, voice, privacyRout
 feishuCredentials, dingtalkCredentials, slackCredentials, ...
 ```
 
+名单之外还按键族判定：所有以 `Credentials` 结尾的键（渠道实例）与 `hostingTargetCredentials:<目标 id>`（托管目标凭据，一目标一行）都按敏感处理，由 `is_credentials_row` 统一判定；归档策略（`table_policy.config_row_policy`）与「需要重新录入」提示（`config_needs_reentry`）共用这个判定，三处不会各认各的。
+
 名单是手写的：`tests/services/config/test_config_key_classification.py` 要求每个 `ConfigKey` 要么在名单里、要么在该测试的「不含密钥」清单里，新增配置键而不表态会让测试失败。用户自己的本地模型端点的密钥单独存放在 `privacyRoutingSecret` 行（`{localApiKey}`，封存，口令归档下携带），不放进 `personalSettings`：偏好行因此不含任何密钥，是普通数据，它的审计历史与不带口令的归档都不会带出密钥。
 
 ### 3. 配置迁移 (`migration.py`)

@@ -37,7 +37,7 @@ def _failed_acc(kind: ErrorKind = ErrorKind.BILLING) -> StreamAccumulator:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", list(ErrorKind))
 async def test_every_error_kind_replies_with_catalog_wording_and_a_reference(kind: ErrorKind) -> None:
-    persist_mock, reply = await _finalize(_failed_acc(kind), ((), frozenset()))
+    persist_mock, reply = await _finalize(_failed_acc(kind))
 
     assert _REF.search(reply.content) is not None
     assert reply.content == reply.content.strip()
@@ -50,7 +50,7 @@ async def test_every_error_kind_replies_with_catalog_wording_and_a_reference(kin
 async def test_reply_hides_the_provider_text_and_the_billing_state() -> None:
     # The reference id is random hex, so it can spell the status code by chance; the check reads the wording without it.
     with patch("app.channels.routing.friendly_errors._error_ref_id", return_value="f1b4a403"):
-        _persist_mock, reply = await _finalize(_failed_acc(), ((), frozenset()))
+        _persist_mock, reply = await _finalize(_failed_acc())
 
     wording = _REF.sub("", reply.content)
     for leaked in ("403", "_XaiEntitlementError", "monthly spending limit", "credits", "balance"):
@@ -67,7 +67,7 @@ async def test_reply_follows_the_member_locale() -> None:
         sent_timezone="UTC",
         metadata={"platform_locale": "zh-CN"},
     )
-    _persist_mock, reply = await _finalize(_failed_acc(ErrorKind.TIMEOUT), ((), frozenset()), message=zh_message)
+    _persist_mock, reply = await _finalize(_failed_acc(ErrorKind.TIMEOUT), message=zh_message)
 
     assert "超时" in reply.content
     assert "timed out" not in reply.content
@@ -76,7 +76,7 @@ async def test_reply_follows_the_member_locale() -> None:
 @pytest.mark.asyncio
 async def test_raw_error_is_logged_under_the_reference_the_reply_carries(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.WARNING):
-        _persist_mock, reply = await _finalize(_failed_acc(), ((), frozenset()))
+        _persist_mock, reply = await _finalize(_failed_acc())
 
     ref = _REF.search(reply.content)
     assert ref is not None
@@ -89,7 +89,7 @@ async def test_raw_error_is_logged_under_the_reference_the_reply_carries(caplog:
 async def test_a_cut_off_answer_keeps_its_text_and_says_it_is_incomplete() -> None:
     acc = _failed_acc(ErrorKind.TIMEOUT)
     acc.draft.feed({"type": "message", "data": "The capital of France is Pa"})
-    persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    persist_mock, reply = await _finalize(acc)
 
     assert reply.content.startswith("The capital of France is Pa\n\n")
     assert "timed out" in reply.content
@@ -106,7 +106,7 @@ async def test_a_cut_off_answer_logs_the_raw_error_under_the_reply_reference(cap
     acc = _failed_acc()
     acc.draft.feed({"type": "message", "data": "Partial answer."})
     with caplog.at_level(logging.WARNING):
-        _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+        _persist_mock, reply = await _finalize(acc)
 
     ref = _REF.search(reply.content)
     assert ref is not None
@@ -118,7 +118,7 @@ async def test_a_cut_off_answer_logs_the_raw_error_under_the_reply_reference(cap
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind", list(ErrorKind))
 async def test_failed_turn_reply_is_flagged_with_its_error_kind(kind: ErrorKind) -> None:
-    _persist_mock, reply = await _finalize(_failed_acc(kind), ((), frozenset()))
+    _persist_mock, reply = await _finalize(_failed_acc(kind))
 
     assert is_error_reply(reply)
     assert reply.metadata is not None
@@ -129,16 +129,16 @@ async def test_failed_turn_reply_is_flagged_with_its_error_kind(kind: ErrorKind)
 async def test_an_answer_is_not_flagged_as_a_failed_turn() -> None:
     acc = StreamAccumulator()
     acc.draft.feed({"type": "message", "data": "Here is your answer."})
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()))
+    _persist_mock, reply = await _finalize(acc)
 
     assert not is_error_reply(reply)
 
 
 @pytest.mark.asyncio
 async def test_account_guidance_swaps_in_the_owner_wording() -> None:
-    _persist_mock, generic = await _finalize(_failed_acc(), ((), frozenset()))
+    _persist_mock, generic = await _finalize(_failed_acc())
     with patch(_CAPABILITIES, return_value=SimpleNamespace(uses_platform_budget=False)):
-        persist_mock, owner = await _finalize(_failed_acc(), ((), frozenset()), account_guidance=True)
+        persist_mock, owner = await _finalize(_failed_acc(), account_guidance=True)
 
     assert "administrator" in generic.content
     assert "balance or quota" in owner.content
@@ -152,7 +152,7 @@ async def test_a_failed_turn_keeps_its_flag_next_to_the_other_reply_metadata() -
     acc = _failed_acc()
     acc.cost_usd = 0.05
     acc.model_name = "m"
-    _persist_mock, reply = await _finalize(acc, ((), frozenset()), memory_settings={"enableCostEstimation": True})
+    _persist_mock, reply = await _finalize(acc, memory_settings={"enableCostEstimation": True})
 
     assert reply.metadata is not None
     assert reply.metadata[ERROR_TYPE_METADATA_KEY] == ErrorKind.BILLING.value

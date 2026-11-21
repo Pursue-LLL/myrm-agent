@@ -7,6 +7,8 @@ harmful is calm, only one that broke is a warning, and nothing is shown when the
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
+from typing import NotRequired, TypedDict, cast
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,14 +19,16 @@ from app.services.chat.compact_service import CompactReason, CompactResult
 _GATE = "app.services.chat.stale_compact_gate.run_pre_reply_stale_compact_gate"
 
 # What each way a compaction can decline reads as: (phase, status). Spelled out here, not derived from the module under
-# test, so that a reason added without a decision about how it reads fails below.
+# test, so that a reason added without a decision about how it reads fails below. Neither a timeout nor a paused
+# summarizer reads as "switched to the fast fallback" (the titles of `timeout` and `circuit_open`): the gate has no
+# fallback, it leaves the stored context as it was.
 _READS_AS: dict[CompactReason, tuple[str, str]] = {
     CompactReason.CONCURRENT_COMPACTION: ("skipped", "success"),
     CompactReason.NO_COMPACTABLE_MESSAGES: ("skipped", "success"),
     CompactReason.TOO_FEW_MESSAGES: ("skipped", "success"),
     CompactReason.ANTI_THRASH_ACTIVE: ("skipped", "success"),
-    CompactReason.SUMMARIZE_CIRCUIT_OPEN: ("circuit_open", "warning"),
-    CompactReason.TIMEOUT: ("timeout", "warning"),
+    CompactReason.SUMMARIZE_CIRCUIT_OPEN: ("skipped", "success"),
+    CompactReason.TIMEOUT: ("failed", "warning"),
     CompactReason.CHAT_NOT_FOUND: ("failed", "warning"),
     CompactReason.PERSIST_FAILED: ("failed", "warning"),
 }
@@ -34,10 +38,11 @@ async def _run(gate_result: CompactResult, *, announces_active: bool = True) -> 
     """Run the SSE lifecycle against a gate that returns ``gate_result``; returns the buffer it wrote to."""
     buffer = AsyncMock()
 
-    async def _gate(*_args: object, **kwargs: object) -> CompactResult:
-        on_active = kwargs.get("on_before_compact")
-        if announces_active and on_active is not None:
-            await on_active()
+    async def _gate(
+        *_args: object, on_before_compact: Callable[[], Awaitable[None]] | None = None, **_kwargs: object
+    ) -> CompactResult:
+        if announces_active and on_before_compact is not None:
+            await on_before_compact()
         return gate_result
 
     with patch(_GATE, AsyncMock(side_effect=_gate)):
@@ -51,8 +56,22 @@ async def _run(gate_result: CompactResult, *, announces_active: bool = True) -> 
     return buffer
 
 
-def _events(buffer: AsyncMock) -> list[dict[str, object]]:
-    return [json.loads(call.args[0].removeprefix("data: ")) for call in buffer.append.await_args_list]
+class _Data(TypedDict):
+    phase: str
+
+
+class _Event(TypedDict):
+    type: str
+    messageId: str
+    step_key: str
+    status: str
+    data: _Data
+    tokens_saved: NotRequired[int]
+    snapshot_path: NotRequired[str | None]
+
+
+def _events(buffer: AsyncMock) -> list[_Event]:
+    return [cast("_Event", json.loads(call.args[0].removeprefix("data: "))) for call in buffer.append.await_args_list]
 
 
 def _phases(buffer: AsyncMock) -> list[tuple[str, str]]:
@@ -78,8 +97,8 @@ async def test_a_compaction_that_saved_tokens_completes_the_step_with_the_saving
 
     assert _phases(buffer) == [("active", "active"), ("completed", "success")]
     completed = _events(buffer)[1]
-    assert completed["tokens_saved"] == 900
-    assert completed["snapshot_path"] == "/tmp/backup.jsonl"
+    assert completed.get("tokens_saved") == 900
+    assert completed.get("snapshot_path") == "/tmp/backup.jsonl"
 
 
 @pytest.mark.asyncio

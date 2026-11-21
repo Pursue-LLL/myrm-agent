@@ -1,12 +1,12 @@
 /**
- * What the search-service gate does with an account's search services, through the real config manager, sandbox
- * adapter and config store (only the network is replaced).
+ * What the search-service gate does with an account's search services, through the real config manager, adapters and
+ * config store (only the network and the local backend's readiness are replaced).
  *
  * Cloud start-up returns the first screen's keys and loads the rest in the background, once and without a retry, so
- * the list is empty while that load is in flight and for good once it failed. The gate asks for the key first and
- * waits at most MAX_WAIT_MS for the answer: it decides on the list once the server has answered, and lets the turn
- * through (the server judges it) while the list stays unknown. Local mode fetches every key with the first request,
- * so there is nothing to wait for there.
+ * the list is empty while that load is in flight and for good once it failed; a local start-up fetches every key with
+ * the first request, but only once the backend is up. The gate asks for the key first and waits at most MAX_WAIT_MS
+ * for the answer: it decides on the list once the server has answered, and lets the turn through (the server judges
+ * it) while the list stays unknown.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -15,6 +15,17 @@ const deployMode = vi.hoisted(() => ({ local: false }));
 vi.mock('@/lib/deploy-mode', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/deploy-mode')>();
   return { ...actual, isLocalMode: () => deployMode.local, getApiBaseUrl: () => 'http://config.test' };
+});
+const platform = vi.hoisted(() => ({ database: Promise.resolve(true) }));
+
+vi.mock('@/lib/platform-readiness', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/platform-readiness')>();
+  return {
+    ...actual,
+    whenDatabaseReady: () => platform.database,
+    ensurePlatformReadiness: () =>
+      platform.database.then((database) => ({ state: database ? 'ready' : 'unreachable', database })),
+  };
 });
 vi.mock('@/lib/guest', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/guest')>();
@@ -85,6 +96,14 @@ function stubNetwork({
       await pause(BACKGROUND_LOAD_MS);
       return respond(200, { configs: configured ? { searchServices: row } : {} });
     }
+    if (path.endsWith('/config')) {
+      return respond(200, {
+        configs: {
+          ...Object.fromEntries(FIRST_SCREEN_KEYS.map((key) => [key, { key, value: {}, ...META }])),
+          ...(configured ? { searchServices: row } : {}),
+        },
+      });
+    }
     if (path.endsWith('/config/searchServices')) {
       if (singleKey === 'silent') {
         return silence(init);
@@ -128,6 +147,13 @@ async function startedSession(script: Omit<NetworkScript, 'backgroundLoad'>): Pr
   return session;
 }
 
+/** A local-mode session: the first request returns every key, once the backend is up. */
+async function startLocalSession(account: NetworkScript['account']) {
+  deployMode.local = true;
+  const fetchMock = stubNetwork({ backgroundLoad: 'lands', account });
+  return { ...(await startSession()), fetchMock };
+}
+
 /** Starts the gate on the virtual clock and records what it answered. */
 function askGate(session: Session) {
   vi.useFakeTimers();
@@ -139,6 +165,7 @@ function askGate(session: Session) {
 describe('checkSearchServiceReady', () => {
   beforeEach(() => {
     deployMode.local = false;
+    platform.database = Promise.resolve(true);
     localStorage.clear();
   });
 
@@ -242,19 +269,60 @@ describe('checkSearchServiceReady', () => {
     expect(session.notice).not.toHaveBeenCalled();
   });
 
-  it('decides on the store at once in local mode, which loads every key with the first request', async () => {
-    const fetchMock = stubNetwork({ backgroundLoad: 'lands', account: 'has-search-service' });
-    deployMode.local = true;
-    const session = await startSession();
-    session.setSearchServices([]);
+  it('decides on the list of an account in local mode, whose first request returns every key', async () => {
+    const session = await startLocalSession('has-search-service');
+    await session.initConfig();
 
-    await expect(session.checkSearchServiceReady()).resolves.toBe(false);
-    expect(session.notice).toHaveBeenCalledTimes(1);
-
-    session.setSearchServices([SEARCH_SERVICE]);
     await expect(session.checkSearchServiceReady()).resolves.toBe(true);
 
+    expect(session.notice).not.toHaveBeenCalled();
+    const requested = session.fetchMock.mock.calls.map(([url]) => String(url));
+    expect(requested.some((url) => url.endsWith('/config/searchServices'))).toBe(false);
+  });
+
+  it('refuses an account that has no search service in local mode, with one setup notice', async () => {
+    const session = await startLocalSession('has-none');
+    await session.initConfig();
+
+    await expect(session.checkSearchServiceReady()).resolves.toBe(false);
+
     expect(session.notice).toHaveBeenCalledTimes(1);
-    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('brings a config store that no page has loaded yet up to date before it decides', async () => {
+    const session = await startLocalSession('has-search-service');
+    expect(session.listedServices()).toBe(0);
+
+    await expect(session.checkSearchServiceReady()).resolves.toBe(true);
+
+    expect(session.listedServices()).toBe(1);
+    expect(session.notice).not.toHaveBeenCalled();
+  });
+
+  it('stops waiting at the limit while the local backend is still starting, and lets the turn through', async () => {
+    platform.database = new Promise<boolean>(() => {});
+    const session = await startLocalSession('has-search-service');
+    const answer = askGate(session);
+
+    await vi.advanceTimersByTimeAsync(MAX_WAIT_MS - 1);
+    expect(answer).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(answer).toHaveBeenCalledWith(true);
+    expect(session.notice).not.toHaveBeenCalled();
+  });
+
+  it('lets the turn through at once while the local backend cannot be reached, and leaves the store to the real load', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    platform.database = Promise.resolve(false);
+    const session = await startLocalSession('has-search-service');
+
+    await expect(session.checkSearchServiceReady()).resolves.toBe(true);
+    expect(session.notice).not.toHaveBeenCalled();
+
+    platform.database = Promise.resolve(true);
+    await session.initConfig();
+
+    expect(session.listedServices()).toBe(1);
   });
 });

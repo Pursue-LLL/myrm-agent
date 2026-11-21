@@ -5,12 +5,14 @@
 - agent.security.guards.loop_guard (POS: 会话级循环检测)
 - semantic_failure_sniffer (POS: 语义失败嗅探)
 - agent.security.audit::record_decision (POS: 安全审计)
+- toolkits.llms.adapters.chat_model.wire_encoding::encodable_text (POS: 把字符串里的孤立代理项换成 U+FFFD，使其可被 UTF-8 编码)
 
 [OUTPUT]
-- run_post_call_guards: 预算截断、投毒检测、污点、hook 校验与循环记录
+- run_post_call_guards: 编码规整、预算截断、投毒检测、污点、hook 校验与循环记录
 
 [POS]
-`_tool_guards/` 的调用后阶段；只改工具结果，不阻止调用。
+`_tool_guards/` 的调用后阶段；只改工具结果，不阻止调用。结果进入对话的第一步先让文本可被 UTF-8 编码，
+其后的哈希、落盘、日志都只处理模型调用之后同样会发出的文本。
 """
 
 from __future__ import annotations
@@ -38,11 +40,38 @@ from myrm_agent_harness.agent.security.guards.context_budget import (
     get_context_budget_guard,
 )
 from myrm_agent_harness.agent.security.guards.loop_guard import CallRecord, LoopAction, LoopGuard
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.wire_encoding import encodable_text
 from myrm_agent_harness.utils.logger_utils import get_agent_logger
 
 from .shared import _emit_loop_guard_event
 
 logger = get_agent_logger(__name__)
+
+
+def _with_encodable_content(result: ToolMessage) -> ToolMessage:
+    """*result* itself when all its text can be encoded as UTF-8, else a copy whose lone surrogates became ``U+FFFD``.
+
+    A tool can hand back text with lone surrogates (a file name that was not valid UTF-8). The loop guard's result
+    hash and the file an over-budget result is persisted to both encode strictly as UTF-8 and would raise on it; the
+    model call replaces the surrogates the same way later, so the conversation holds what is sent either way.
+    """
+    content = result.content
+    if isinstance(content, str):
+        cleaned = encodable_text(content)
+        return result if cleaned is content else result.model_copy(update={"content": cleaned})
+
+    blocks: list[str | dict[str, object]] = []
+    changed = False
+    for block in content:
+        if isinstance(block, dict) and block.get("type") == "text":
+            text = block.get("text")
+            scrubbed = encodable_text(text) if isinstance(text, str) else text
+            if scrubbed is not text:
+                block = {**block, "text": scrubbed}
+                changed = True
+        blocks.append(block)
+    return result.model_copy(update={"content": blocks}) if changed else result
+
 
 async def run_post_call_guards(
     result: ToolMessage | Any,
@@ -70,6 +99,7 @@ async def run_post_call_guards(
     if not isinstance(result, ToolMessage):
         return result
 
+    result = _with_encodable_content(result)
     result_text = extract_text_content(result.content)
     untruncated_text = result_text
 

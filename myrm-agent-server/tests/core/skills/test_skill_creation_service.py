@@ -53,6 +53,24 @@ async def test_write_resource_python_ast_validation_failure(service: SkillCreati
 
 
 @pytest.mark.asyncio
+async def test_write_resource_refuses_python_the_parser_cannot_take(service: SkillCreationService, tmp_path: Path) -> None:
+    skill_dir = tmp_path / "blind-skill"
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    (skill_dir / "SKILL.md").write_text("---\nname: blind-skill\ndescription: demo\n---\n", encoding="utf-8")
+
+    # A lone surrogate is valid in a JSON tool argument but not in source the parser can encode.
+    res = await service.write_resource(
+        skill_name="blind-skill",
+        resource_path="scripts/blind.py",
+        content="x = '\ud800'\n",
+    )
+
+    assert res.success is False
+    assert "cannot be parsed" in (res.error or "")
+    assert not (skill_dir / "scripts" / "blind.py").exists()
+
+
+@pytest.mark.asyncio
 async def test_write_resource_non_python_unaffected(service: SkillCreationService, tmp_path: Path) -> None:
     # Create skill dir
     skill_dir = tmp_path / "text-skill"

@@ -3,6 +3,7 @@
 [INPUT]
 - backends.protocols::ComputerBackend (POS: platform I/O protocol)
 - perception.{macos_ax,windows_ax,linux_ax} (POS: platform AX capture/invoke)
+- perception.linux_x11 (POS: active X11 window identity without AT-SPI)
 - dref.types::ElementRef, SnapshotMeta, SnapshotScope (POS: @dref types)
 - ax_result::{AxFailure, AxInvokeResult} (POS: typed outcome of a native action)
 
@@ -11,9 +12,10 @@
 - inspect_backend: frontmost app metadata inspection
 - invoke_element: platform-routed AX element invocation; a failure carries what it proves about delivery
 - run_ax_call: awaits a blocking AX or osascript call without stalling the event loop where that is verified safe
+- read_foreground_identity: name, window title and app id of the foreground window from the platform's light read, blank where there is none
 
 [POS]
-Platform routing dispatch for AX snapshot/invoke. Routes to macOS/Windows/Linux backend.
+Platform routing dispatch for AX snapshot/invoke and the light foreground identity read. Routes to macOS/Windows/Linux backend.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from myrm_agent_harness.toolkits.computer_use.dref.types import (
 )
 from myrm_agent_harness.toolkits.computer_use.perception import (
     linux_ax,
+    linux_x11,
     macos_ax,
     windows_ax,
 )
@@ -105,3 +108,19 @@ async def run_ax_call[**P, R](
     if type(backend).__name__ == "MacOSBackend":
         return await asyncio.to_thread(call, *args, **kwargs)
     return call(*args, **kwargs)
+
+
+async def read_foreground_identity(backend: ComputerBackend) -> tuple[str, str, str]:
+    """(application name, window title, app id) of the foreground window, without walking the accessibility tree.
+
+    macOS and Linux answer from a few bounded subprocess reads that touch no in-process state, so a worker thread
+    runs them off the loop. Windows has no read short of the full UIA capture, which stays inline and is not taken
+    here, and an unknown platform has none: both answer blank, which a caller must treat as "not verified".
+    """
+    platform = type(backend).__name__
+    if platform == "MacOSBackend":
+        return await asyncio.to_thread(macos_ax.read_foreground_meta)
+    if platform == "LinuxBackend":
+        app_name, window_title = await asyncio.to_thread(linux_x11.read_foreground_meta)
+        return app_name, window_title, ""
+    return "", "", ""

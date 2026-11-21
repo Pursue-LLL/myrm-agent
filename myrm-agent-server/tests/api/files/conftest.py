@@ -1,5 +1,8 @@
 """Fixtures for files API tests."""
 
+from collections.abc import Iterator
+from pathlib import Path
+
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
@@ -8,9 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.api.files.artifact_api import router as artifact_router
+from app.api.files.hosting_api import router as hosting_router
 from app.api.files.provenance_api import router as provenance_router
 from app.database.connection import get_db
 from app.database.models import Base
+from tests.support.chat_workspace import chats_bound_to_workspaces
+from tests.support.hosting_api import CHAT_ID
 
 
 @pytest_asyncio.fixture
@@ -38,3 +44,25 @@ def client(db_session: AsyncSession) -> TestClient:
     test_app.dependency_overrides[get_db] = override_get_db
     with TestClient(test_app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def hosting_integration_client(
+    db_session: AsyncSession, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[tuple[TestClient, Path, AsyncSession]]:
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    test_app = FastAPI()
+    test_app.include_router(hosting_router)
+
+    async def override_get_db():
+        yield db_session
+
+    test_app.dependency_overrides[get_db] = override_get_db
+    monkeypatch.setattr(
+        "app.api.files.hosting_api.get_workspace_root",
+        lambda: workspace,
+    )
+
+    with chats_bound_to_workspaces({CHAT_ID: workspace}), TestClient(test_app) as test_client:
+        yield test_client, workspace, db_session

@@ -11,8 +11,9 @@ Two real shapes of that mistake have shipped here:
 - import a module from the dev shell directly, with no path manipulation at all.
 
 Both are caught by one rule: at module level, the full dotted path of an import must
-either exist inside the repository tree, come from the standard library, or belong to
-a dependency this project declares. Anything else can only resolve from outside.
+either exist inside the repository tree, name a module in the importing file's own
+directory (a bare ``import helper`` next to it), come from the standard library, or
+belong to a dependency this project declares. Anything else can only resolve from outside.
 
 Only module-level imports are inspected: an import inside a function body defers its
 resolution until the call, so it cannot break collecting the module.
@@ -23,6 +24,7 @@ from __future__ import annotations
 import ast
 import re
 import sys
+from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
 
@@ -37,6 +39,7 @@ _IMPORT_ALIASES = frozenset(
     {
         "acp",  # agent-client-protocol
         "bs4",  # beautifulsoup4
+        "docx",  # python-docx
         "dotenv",  # python-dotenv
         "opentelemetry",  # opentelemetry-api / -sdk / -semantic-conventions
         "pil",  # pillow
@@ -77,9 +80,16 @@ def _declared_dependency_roots() -> frozenset[str]:
 
 
 @lru_cache(maxsize=1)
-def _module_stems() -> frozenset[str]:
-    """Stems of tracked Python files, so flat in-repo modules resolve by name."""
-    return frozenset(path.stem for path in _tracked_python_files())
+def _flat_modules() -> Mapping[Path, frozenset[str]]:
+    """The module names each tracked directory holds, which is what a bare ``import name`` in a file there can mean.
+
+    A file next to the one that imports it resolves by its bare name. The same name elsewhere in the repository does
+    not: a module called ``scripts`` in one package must not make the import of a foreign ``scripts`` package pass.
+    """
+    names: dict[Path, set[str]] = {}
+    for path in _tracked_python_files():
+        names.setdefault(path.parent, set()).add(path.stem)
+    return {directory: frozenset(stems) for directory, stems in names.items()}
 
 
 def _resolves_in_repo(dotted: str) -> bool:
@@ -102,15 +112,13 @@ def _import_roots_of(source: str) -> list[tuple[int, str]]:
 def _violation(path: Path, source: str) -> str | None:
     """Return the violation report for ``source``, or ``None`` when it is compliant."""
     declared = _declared_dependency_roots()
-    stems = _module_stems()
+    neighbours = _flat_modules().get(path.parent, frozenset())
 
     for line_no, dotted in _import_roots_of(source):
         root = dotted.split(".", 1)[0]
         if root in sys.stdlib_module_names or root == _OWN_PACKAGE:
             continue
-        # A flat module is imported by its bare name. A dotted path cannot resolve through a module file that
-        # only shares its first segment (``scripts.py`` inside a package is not the dev shell's ``scripts`` package).
-        if _resolves_in_repo(dotted) or dotted in stems:
+        if _resolves_in_repo(dotted) or root in neighbours:
             continue
         if root.lower() in declared:
             continue
@@ -156,6 +164,9 @@ from tests.architecture import distribution_wheel_helpers
 """
 
 _PROBE_PATH = _REPO_ROOT / "tests" / "architecture" / "test_probe_sample.py"
+_ELSEWHERE_PATH = _REPO_ROOT / "scripts" / "probe_sample.py"
+# The bare name of a module that sits next to ``_PROBE_PATH`` and nowhere near ``_ELSEWHERE_PATH``.
+_FLAT_SAMPLE = "import test_no_out_of_repo_imports\n"
 
 
 @pytest.mark.architecture
@@ -164,6 +175,13 @@ def test_gate_detects_both_real_shapes_and_allows_a_compliant_file() -> None:
     assert _violation(_PROBE_PATH, _CLIMBING_SAMPLE) is not None
     assert _violation(_PROBE_PATH, _DIRECT_SAMPLE) is not None
     assert _violation(_PROBE_PATH, _COMPLIANT_SAMPLE) is None
+
+
+@pytest.mark.architecture
+def test_a_bare_import_resolves_only_next_to_the_module_it_names() -> None:
+    """A module of that name in another directory does not make the import of a foreign package pass."""
+    assert _violation(_PROBE_PATH, _FLAT_SAMPLE) is None
+    assert _violation(_ELSEWHERE_PATH, _FLAT_SAMPLE) is not None
 
 
 @pytest.mark.architecture

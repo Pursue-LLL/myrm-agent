@@ -16,7 +16,7 @@ Detailed design: [DESKTOP_SYSTEM.md](DESKTOP_SYSTEM.md).
 | capture_title_contracts.py | Core | `SNAPSHOT_ONLY_EXCLUDED_CAPTURE_TITLES`: click-through OS overlays excluded from full-screen captures only (aligned with desktop window titles) | ✅ |
 | app_identity.py | Core | Stable trust keys: `resolve_trust_key`, `trust_key_matches` (bundle_id / win exe / linux app id) | ✅ |
 | iphone_mirror.py | Core | iPhone Mirroring (`com.apple.ScreenContinuity`) probe (`probe_iphone_mirror_state`), viewport bounds & state gate | ✅ |
-| safety.py | Core | Blocked key combos (`+`/`-` tokenized like cua-driver), operator-as-key rejection (lone `*`/`/`/`+`/`-`/`%`/`=`), dangerous type-text guardrails, sensitive app guard (incl. terminal/shell + SelfAppGuard via bundle_id / host names), iPhone Mirroring connect popup guard, lock-screen & physical sleep hard interruption (owns the model-facing refusal wording for an unusable screen — `SCREEN_LOCKED_REFUSAL` / `DISPLAY_SLEEPING_REFUSAL` for input, `SNAPSHOT_*_REFUSAL` for snapshots — reused by `ScreenGuard`), foreground permission classification | ✅ |
+| safety.py | Core | Blocked key combos (`+`/`-` tokenized, because the optional background-input driver also accepts hyphenated combos), operator-as-key rejection (lone `*`/`/`/`+`/`-`/`%`/`=`), dangerous type-text guardrails, sensitive app guard (incl. terminal/shell + SelfAppGuard via bundle_id / host names; a refusal names the matched application or keyword and never the window title, and the keyword list takes no user configuration), iPhone Mirroring connect popup guard, lock-screen & physical sleep hard interruption (owns the model-facing refusal wording for an unusable screen — `SCREEN_LOCKED_REFUSAL` / `DISPLAY_SLEEPING_REFUSAL` for input, `SNAPSHOT_*_REFUSAL` for snapshots — reused by `ScreenGuard`), foreground permission classification | ✅ |
 | semantic_gate.py | Core | Control-level semantic risk gate (SSOT lexicon: `core/security/detection/semantic_risk.py`): AX interact gate (`enforce_desktop_interact_guard`: every action but text entry is gated, so a verb nobody classified is too) + vision coordinate gate with bbox reverse-lookup (`enforce_desktop_vision_guard`, `resolve_coordinate_target`), both fail-closed HITL interrupts with screenshot evidence + red-circle highlight payload | ✅ |
 | screen_detector.py | Core | Microsecond native desktop lock-screen & sleep detection (Quartz C-API / OpenInputDesktop / loginctl) with 200ms throttling cache; `hid_idle_seconds()` human-presence primitive (seconds since the last hardware input event, macOS only, uncached, `None` = unknown) | ✅ |
 | screen_guard.py | Core | `ScreenGuard`: the single lock / sleep gate of `ComputerSession` and `DesktopSession`; a locked probe first gives the host-registered `ScreenUnlockCallback` one chance, then the re-probe alone decides | ✅ |
@@ -31,8 +31,8 @@ Detailed design: [DESKTOP_SYSTEM.md](DESKTOP_SYSTEM.md).
 
 | Submodule | Description |
 |-----------|-------------|
-| backends/ | Platform I/O: one subpackage per platform (macos/, linux/, windows/) plus cua_driver/ — see [backends/_ARCH.md](backends/_ARCH.md) |
-| desktop_session/ | DesktopSession: AX snapshot, @dref registry with one write entry (`_adopt_capture`), action lock serialization, self-healing remedy hints, shared approval revalidation, iPhone Mirroring connect-prompt gate (interact hard-deny / vision probe gate / snapshot gate banner), DESKTOP_VIEW_UPDATE, inspector exports that only observe (`export_registry_view` over a current screenshot, `export_inspector_snapshot` as the manual refresh under the action lock), one structured log line per `desktop_interact` call and per refused vision screenshot (`action_log.py`); one mixin per tool entry point — see [desktop_session/_ARCH.md](desktop_session/_ARCH.md) |
+| backends/ | Platform I/O: one subpackage per platform (macos/, linux/, windows/), `factory.py` (the native backend of the host OS, the one a desktop session holds) and cua_driver/ (background-input proxy of plain computer sessions) — see [backends/_ARCH.md](backends/_ARCH.md) |
+| desktop_session/ | DesktopSession: AX snapshot, @dref registry with one write entry (`_adopt_capture`), action lock serialization, self-healing remedy hints, shared approval revalidation, iPhone Mirroring connect-prompt gate (interact hard-deny / vision probe gate / snapshot gate banner), DESKTOP_VIEW_UPDATE, inspector exports that only observe (`export_registry_view` over a current screenshot, `export_inspector_snapshot` as the manual refresh under the action lock), one structured log line per `desktop_interact` call and per refused or withheld vision screenshot (`action_log.py`); one mixin per tool entry point — see [desktop_session/_ARCH.md](desktop_session/_ARCH.md) |
 | perception/ | AX tree capture, incremental diff, overlay role SSOT, renderer, ax_dispatch — see [perception/_ARCH.md](perception/_ARCH.md) |
 | execution/ | BBox click healer fallback — see [execution/_ARCH.md](execution/_ARCH.md) |
 | dref/ | @dref types, registry, errors (internal submodule) |
@@ -47,9 +47,12 @@ Agent → desktop_agent_tools (3 tools)
               → perception/ (AX snapshot + invoke)
               → execution/healer (bbox fallback)
               → ComputerSession (screenshot + coordinate I/O)
-                  → CuaDriverBackend (background input proxy, optional)
-                      → cua-driver MCP (SkyLight SPIs / Touch Injection)
-                  → ComputerBackend (Protocol: macOS / Windows / Linux)
+                  → ComputerBackend (Protocol: macOS / Windows / Linux, from backends/factory.py)
+
+Plain ComputerSession (create_computer_session: permission probes)
+          → CuaDriverBackend (background input proxy, only when cua-driver is installed)
+              → cua-driver MCP (SkyLight SPIs / Touch Injection)
+              → ComputerBackend (native fallback)
 ```
 
 ## Tool Surface
@@ -65,13 +68,13 @@ Agent → desktop_agent_tools (3 tools)
 1. **Semantic-first**: AX/UIA/AT-SPI tree → @dref interact; vision only when AX is empty
 2. **View updates**: `desktop_snapshot` emits `DESKTOP_VIEW_UPDATE` via ToolProgressSink for frontend Desktop Inspector
 3. **Safety in session**: Blocked key combos (macOS + Windows); operator-as-key rejection for lone printable operators (`* / + - % =`) on vision `key` **before** FG/screenshot revalidation; approval batch processor auto-denies the same args **before HITL** (`operator_as_key_deny_message`); dangerous type-text patterns (also pre-FG); sensitive application guard (`is_sensitive_app`, including terminal/shell apps). Enforced in `desktop_snapshot`, `desktop_interact`, `desktop_vision_action`, `desktop_vision_capture` (the same screen and sensitive-app checks as the snapshot, refused as "cannot view"), and approval middleware
-4. **Multimodal responses**: Vision capture/actions return text + JPEG image blocks
+4. **Multimodal responses**: Vision capture/actions return text + JPEG image blocks; the frame is checked once more against the application in front of it (the action may have brought a sensitive one to the front), and then the result is the text alone
 5. **Platform auto-detection**: reuses `detect_platform()` from code_execution
 6. **Security & Re-validation**: shared `_revalidate_if_stale_after_approval()` after approval delay — interact re-reads the application of the approved @dref and verifies the element; vision refreshes screenshot/scaler
 7. **Credential Vault integration**: `fill_credential` resolves secrets without exposing them in LLM context: the control that holds the filled value is registered as redacted in every later capture, and backend errors in the reply never quote it
 8. **Permission probing**: `check_permissions(probe_capture=False|True)` — default grant-only; `probe_capture=True` sets `screen_recording_capturable`. Doctor always probes capture; Inline first paint is grant-only, Recheck uses `?probe_capture=true` (also on verified tone to re-probe stale grants). `all_granted` = OS grants only; `capture_ready` is True **only** when `capturable is True` (None = not probed ≠ ready). Missing Pillow ⇒ capturable False (cannot verify). Inline four-state UX: verified / unverified (`capturable is None`) / capture_failed (`grants OK` + `capturable is False`, title must not say “missing permissions”) / missing (OS grants incomplete). While `loading`, shell uses muted/neutral tokens (not missing amber). Windows deeplinks point at OS/docs URLs only.
 9. **Native API routing hints**: `inspect_foreground()` appends AppleScript/COM/D-Bus hints in snapshot recommendation text
-10. **Background input (cua-driver)**: optional focus-free input proxy
+10. **Background input (cua-driver)**: optional focus-free input proxy; `create_computer_session` wraps the native backend with it when `cua-driver` is installed, `create_desktop_session` never does. The AX capture, the foreground identity and the sensitive-application guards route on the backend's own class, so a desktop session holds the native backend of `backends/factory.py` and a wrapped one would read as an unsupported platform
 11. **Desktop control gate**: `check_app_approval` on interact and vision mutating actions; uses snapshot meta or `inspect_backend()` fallback; `check_foregroundPermission` for coordinate/healer paths with operation-scoped waiver after app approval. Server `DesktopControlGate` via `ForegroundPermissionCallback` (empty app fail-closed). LOCAL `background_strict`; sandbox auto-grants. SSE `desktop_control_approval_request` opens Desktop Inspector; resolve `POST /webui/desktop/approval/resolve`. Persist `{workspace}/.agent/desktop_control/approved_apps.json` keyed by stable `app_id` when available; list/revoke via `GET/DELETE /webui/desktop/trust/apps`
 12. **Session lifecycle**: `ComputerSession.close()` on agent session end
 13. **Action Serialization & Self-Healing**: `DesktopSession` enforces session-level concurrency control via `asyncio.Lock()`, serializing mutating desktop actions (`desktop_interact`, `desktop_vision_action`) while keeping AX snapshots non-blocking. Stale references (`DRefStaleError`) and invocation/fallback failures return structured `[REMEDY_HINT: ...]` to guide LLM self-healing without hallucinated retries.
@@ -89,4 +92,4 @@ Agent → desktop_agent_tools (3 tools)
 - `core/security/credential_vault` (fill_credential vault resolution)
 - `code_execution` (platform detection)
 - `PIL`, `pyautogui`, platform AX libraries (see backends/)
-- `cua-driver` (optional, background input on macOS/Windows/Linux)
+- `cua-driver` (optional, background input of plain computer sessions on macOS/Windows/Linux)

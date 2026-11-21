@@ -14,17 +14,15 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import AsyncIterator, Iterator
-from contextlib import asynccontextmanager
+from collections.abc import Iterator
 
 import pytest
 from patchright.async_api import Error as BrowserError
 from patchright.async_api import Page
 
-from myrm_agent_harness.toolkits.browser import BrowserSession, DomainAllowlist
+from myrm_agent_harness.toolkits.browser import BrowserSession
 from myrm_agent_harness.toolkits.browser.domain_filter.agent_world import agent_world_expression
-from myrm_agent_harness.toolkits.browser.pool import BrowserPoolConfig, ContextType, GlobalBrowserPool
-from myrm_agent_harness.toolkits.browser.utils.private_origins import private_origin_grants
+from tests.toolkits.browser._allowlisted_session import allowlisted_session
 from tests.toolkits.browser._browser_available import chromium_available
 from tests.toolkits.browser._channel_probe import CHANNEL_ROUTES, probe_expression
 from tests.toolkits.browser._redirect_servers import Reply, Site, page, serve
@@ -50,10 +48,9 @@ def _html(text: str, *headers: tuple[str, str]) -> Reply:
     )
 
 
-# Documents the agent may find itself in. XML and SVG cannot hold a policy ``<meta>`` (SVG has no head, and an element an
-# XML document creates is not a ``meta`` element); the rest can, or are given a head by the browser (a text, JSON or image
-# document is built as HTML around its content).
-_CARRYING = {
+# Documents the agent may find itself in. A text, JSON or image document is built as HTML around its content; an XML or
+# SVG document has no head until the policy script gives it one.
+_DOCUMENTS = {
     "/": page("home"),
     "/plain": Reply(body=b"plain text", content_type="text/plain; charset=utf-8"),
     "/json": Reply(body=b'{"a": 1}', content_type="application/json"),
@@ -65,8 +62,6 @@ _CARRYING = {
     "/png": Reply(body=_PNG, content_type="image/png"),
     "/strict": _html("strict", ("Content-Security-Policy", "script-src 'self'")),
     "/trusted": _html("trusted", ("Content-Security-Policy", "require-trusted-types-for 'script'")),
-}
-_NOT_CARRYING = {
     "/xml": Reply(body=b'<?xml version="1.0"?><root><item>x</item></root>', content_type="application/xml"),
     "/svg": Reply(
         body=b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>',
@@ -78,36 +73,9 @@ _NOT_CARRYING = {
 @pytest.fixture
 def sites() -> Iterator[tuple[Site, Site]]:
     """The allowlisted site and a second server for the allowlist to keep out."""
-    routes = {
-        **_CARRYING,
-        **_NOT_CARRYING,
-        "/sw.js": Reply(body=b"self.onfetch = () => {};", content_type="text/javascript"),
-    }
+    routes = {**_DOCUMENTS, "/sw.js": Reply(body=b"self.onfetch = () => {};", content_type="text/javascript")}
     with serve(routes) as inside, serve({"/": page("outside")}) as outside:
         yield inside, outside
-
-
-@asynccontextmanager
-async def _session(site: Site) -> AsyncIterator[BrowserSession]:
-    """A session in a pooled context whose domain allowlist holds only the loopback host, as production builds it."""
-    pool = GlobalBrowserPool(max_browsers=1, config=BrowserPoolConfig.minimal())
-    session = BrowserSession(
-        pool,
-        ContextType.AGENT,
-        domain_allowlist=DomainAllowlist.from_strings(("127.0.0.1",)),
-        allow_private_networks=True,
-    )
-    try:
-        await session.new_tab()
-        context = session.get_active_page().context
-        private_origin_grants(context).grant(site.base_url)
-        # Chromium's Local Network Access would stop one loopback server from reaching another whatever the allowlist
-        # says, which would hide a connection the policy failed to refuse.
-        await context.grant_permissions(["local-network-access"])
-        yield session
-    finally:
-        await session.close()
-        await pool.shutdown()
 
 
 async def _open_popup(session: BrowserSession, site: Site) -> Page:
@@ -136,7 +104,7 @@ async def test_each_route_in_a_same_origin_popup_ends_as_it_does_in_a_navigated_
     targets = (outside.base_url.replace("127.0.0.1", "localhost"), inside.base_url)
     tab_verdicts: dict[str, str] = {}
     popup_verdicts: dict[str, str] = {}
-    async with _session(inside) as session:
+    async with allowlisted_session(inside) as session:
         tab = session.get_active_page()
         for route in CHANNEL_ROUTES:
             await session.navigate(inside.url("/"))
@@ -191,7 +159,7 @@ async def test_the_channels_the_policy_hardens_stay_closed_in_a_tab_and_in_a_pop
     try:
         rtc = _RTC.replace("__PORT__", str(transport.get_extra_info("sockname")[1]))
         verdicts: dict[str, list[str]] = {}
-        async with _session(inside) as session:
+        async with allowlisted_session(inside) as session:
             await session.navigate(inside.url("/"))
             for where in ("tab", "popup"):
                 if where == "popup":
@@ -211,7 +179,7 @@ async def test_the_channels_the_policy_hardens_stay_closed_in_a_tab_and_in_a_pop
 
 async def test_the_arm_adds_no_second_policy_to_a_document_that_has_one(sites: tuple[Site, Site]) -> None:
     inside, _ = sites
-    async with _session(inside) as session:
+    async with allowlisted_session(inside) as session:
         await session.navigate(inside.url("/"))
         assert await session.evaluate(_POLICY_COUNT) == "1"  # the page's world put it there; the arm only checks
         assert await session.evaluate(_POLICY_COUNT) == "1"  # a window armed once is not armed again
@@ -228,7 +196,7 @@ async def test_the_arm_adds_no_second_policy_to_a_document_that_has_one(sites: t
 
 async def test_the_agent_cannot_take_the_arm_down_for_the_calls_that_follow(sites: tuple[Site, Site]) -> None:
     inside, _ = sites
-    async with _session(inside) as session:
+    async with allowlisted_session(inside) as session:
         await session.navigate(inside.url("/"))
         assert await session.evaluate("delete globalThis.__myrmDomainPolicy") == "False"
         overwrite = "(() => { const arm = globalThis.__myrmDomainPolicy; globalThis.__myrmDomainPolicy = () => true; return arm === globalThis.__myrmDomainPolicy; })()"
@@ -236,31 +204,42 @@ async def test_the_agent_cannot_take_the_arm_down_for_the_calls_that_follow(site
         assert await session.evaluate(_WEB_TRANSPORT) == "SecurityError"
 
 
+async def test_the_first_call_succeeds_in_a_window_the_init_scripts_already_hardened(sites: tuple[Site, Site]) -> None:
+    """An engine whose ``evaluate`` runs in the page's own world has the hardening in place when the arm first runs."""
+    inside, _ = sites
+    async with allowlisted_session(inside) as session:
+        tab = session.get_active_page()
+        await session.navigate(inside.url("/"))
+        armed = agent_world_expression(tab.context, _WEB_TRANSPORT)
+        assert [await tab.evaluate(armed, **_MAIN_WORLD) for _ in range(2)] == ["SecurityError"] * 2
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # What kind of document the script may run in
 # ---------------------------------------------------------------------------------------------------------------------
 
 
-async def test_a_document_that_can_carry_the_policy_runs_the_script(sites: tuple[Site, Site]) -> None:
+async def test_the_script_runs_in_every_kind_of_document(sites: tuple[Site, Site]) -> None:
     inside, _ = sites
-    async with _session(inside) as session:
-        for path in _CARRYING:
+    async with allowlisted_session(inside) as session:
+        for path in _DOCUMENTS:
             await session.navigate(inside.url(path))
             assert await session.evaluate("1 + 1") == "2", path
 
 
-async def test_a_document_that_cannot_carry_the_policy_refuses_the_script(sites: tuple[Site, Site]) -> None:
-    """An XML or SVG document cannot hold the policy element: the script is refused rather than run with no policy on it."""
+async def test_a_document_with_no_root_element_refuses_the_script(sites: tuple[Site, Site]) -> None:
+    """With no root element there is nowhere to put the policy: the script is refused rather than run with none on it."""
     inside, _ = sites
-    async with _session(inside) as session:
-        for path in _NOT_CARRYING:
-            await session.navigate(inside.url(path))
-            with pytest.raises(BrowserError, match="JS evaluation refused"):
-                await session.evaluate("1 + 1")
+    async with allowlisted_session(inside) as session:
+        tab = session.get_active_page()
+        await session.navigate(inside.url("/"))
+        await tab.evaluate("document.documentElement.remove()")
+        with pytest.raises(BrowserError, match="JS evaluation refused"):
+            await session.evaluate("1 + 1")
 
 
-async def test_a_parsed_document_with_no_head_is_not_left_watched(sites: tuple[Site, Site]) -> None:
-    """The script waits for a head only while the parser may still create one; later it would watch for nothing."""
+async def test_a_parsed_document_with_no_head_is_given_one_and_not_left_watched(sites: tuple[Site, Site]) -> None:
+    """The script waits for a head only while the parser may still create one; a parsed document gets its head at once."""
     inside, _ = sites
     spy = """() => {
         const observe = MutationObserver.prototype.observe;
@@ -270,27 +249,28 @@ async def test_a_parsed_document_with_no_head_is_not_left_watched(sites: tuple[S
             return observe.apply(this, args);
         };
     }"""
-    async with _session(inside) as session:
+    async with allowlisted_session(inside) as session:
         tab = session.get_active_page()
         await session.navigate(inside.url("/svg"))
         await tab.evaluate(spy)  # in the isolated world the agent's script runs in, before the arm is there
-        with pytest.raises(BrowserError, match="JS evaluation refused"):
-            await session.evaluate("1 + 1")
+        assert await session.evaluate("1 + 1") == "2"
         assert await tab.evaluate("globalThis.__observed") == 0
 
 
-async def test_a_refused_document_is_not_changed_again_by_every_call(sites: tuple[Site, Site]) -> None:
-    """An XML document's head takes an inert element the first time and no more: the page is not built up on."""
+async def test_a_document_with_no_head_gets_one_head_and_one_policy_however_often_the_script_runs(
+    sites: tuple[Site, Site],
+) -> None:
     inside, _ = sites
-    async with _session(inside) as session:
-        tab = session.get_active_page()
-        await session.navigate(inside.url("/xml"))
-        head_children = "document.head.children.length"
-        before = await tab.evaluate(head_children)
-        for _ in range(3):
-            with pytest.raises(BrowserError, match="JS evaluation refused"):
-                await session.evaluate("1 + 1")
-        assert await tab.evaluate(head_children) <= before + 1
+    counts = (
+        "[document.documentElement.getElementsByTagNameNS('http://www.w3.org/1999/xhtml', 'head').length,"
+        " document.querySelectorAll('meta[http-equiv]').length].join()"
+    )
+    async with allowlisted_session(inside) as session:
+        for path in ("/xml", "/svg"):
+            await session.navigate(inside.url(path))
+            for _ in range(3):
+                assert await session.evaluate("1 + 1") == "2", path
+            assert await session.evaluate(counts) == "1,1", path
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -329,6 +309,18 @@ _FORMS = (
     "typeof WebSocket",
     "typeof RTCPeerConnection",
     "1 + 1 // a trailing comment",
+    # What counts as whitespace is the JavaScript engine's to say: some of these are whitespace to it and not to
+    # Python's ``str.strip``, and some the other way round.
+    "\ufefffunction () { return 'bom'; }",
+    "\ufeffasync function () { return 'bom async'; }",
+    "async\ufefffunction () { return 'between'; }",
+    "function\ufeff() { return 'after keyword'; }",
+    "\u0085function () { return 'nel'; }",
+    "\u001cfunction () { return 'fs'; }",
+    "1 + 1\u0085",
+    "\u001c1 + 1\u001f",
+    "\u00a0function () { return 'nbsp'; }",
+    "\u2028function () { return 'line separator'; }",
 )
 
 
@@ -343,7 +335,7 @@ async def _outcome(tab: Page, expression: str) -> str:
 async def test_the_script_answers_as_it_would_without_the_arm(sites: tuple[Site, Site], path: str) -> None:
     """On a plain page and on pages whose own policy forbids ``eval`` or string-to-script conversion."""
     inside, _ = sites
-    async with _session(inside) as session:
+    async with allowlisted_session(inside) as session:
         tab = session.get_active_page()
         differing: dict[str, tuple[str, str]] = {}
         for form in _FORMS:

@@ -2,12 +2,14 @@
 
 The identity is written after ``params`` is built; writing it earlier would raise ``UnboundLocalError`` on every
 persisted turn (``orchestrator_turn_body.py``). This test drives the real body with the surrounding pipeline
-stubbed so the assignment point is what is exercised.
+stubbed so the assignment point is what is exercised. It also pins what the body hands the pre-reply compaction: the
+turn's own stream buffer, chat, message, agent and engine params.
 """
 
 from __future__ import annotations
 
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 from unittest.mock import AsyncMock
 
 import pytest
@@ -17,6 +19,12 @@ from app.services.agent.stream_session import (
     orchestrator_turn_body,
     pre_reply_compact_sse,
 )
+
+if TYPE_CHECKING:
+    from fastapi import Request
+    from myrm_agent_harness.agent.streaming.stream_buffer import GlobalStreamRegistry, ResilientStreamBuffer
+
+    from app.services.agent.params import AgentRequest
 
 
 @pytest.mark.asyncio
@@ -56,11 +64,8 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     async def fake_goal_provider(*_args: object, **_kwargs: object) -> None:
         return None
 
-    async def fake_extra_context(*_args: object, base: object = None, **_kwargs: object) -> dict[str, object]:
+    async def fake_extra_context(*_args: object, base: dict[str, object] | None = None, **_kwargs: object) -> dict[str, object]:
         return dict(base or {})
-
-    async def fake_compact(*_args: object, **_kwargs: object) -> None:
-        return None
 
     async def fake_marker(_request: object, marker_params: object, *, user_message_id: object = None) -> None:
         captured["params"] = marker_params
@@ -82,32 +87,40 @@ async def test_turn_identity_is_stamped_on_the_built_params(monkeypatch: pytest.
     monkeypatch.setattr(orchestrator_turn_body, "AgentStreamSession", lambda **_kwargs: SimpleNamespace())
     unfinished_turn_net = AsyncMock()
     monkeypatch.setattr(orchestrator_turn_body, "release_unfinished_turn", unfinished_turn_net)
-    monkeypatch.setattr(pre_reply_compact_sse, "run_pre_reply_compact_with_sse", fake_compact)
+    pre_reply_compact = AsyncMock()
+    monkeypatch.setattr(pre_reply_compact_sse, "run_pre_reply_compact_with_sse", pre_reply_compact)
 
-    request = SimpleNamespace(
-        message_id="msg-1",
-        chat_id="chat-1",
-        agent_id="agent-1",
-        resume_value=None,
-        engine_params=None,
-        sibling_group_id=None,
-        action_mode="agent",
-        workspace_dir=None,
+    request = cast(
+        "AgentRequest",
+        SimpleNamespace(
+            message_id="msg-1",
+            chat_id="chat-1",
+            agent_id="agent-1",
+            resume_value=None,
+            engine_params=None,
+            sibling_group_id=None,
+            action_mode="agent",
+            workspace_dir=None,
+        ),
     )
 
     async def record_failure(_reason: object) -> None:
         return None
 
+    buffer = cast("ResilientStreamBuffer", SimpleNamespace())
     await orchestrator_turn_body.execute_agent_turn_after_reserve(
         request=request,
-        http_request=SimpleNamespace(),
+        http_request=cast("Request", SimpleNamespace()),
         text_content="hello",
         stream_started_at_monotonic=0.0,
-        registry=SimpleNamespace(),
-        buffer=SimpleNamespace(),
+        registry=cast("GlobalStreamRegistry", SimpleNamespace()),
+        buffer=buffer,
         record_terminal_failure=record_failure,
     )
 
+    pre_reply_compact.assert_awaited_once_with(
+        buffer, chat_id="chat-1", message_id="msg-1", agent_id="agent-1", request_engine_params=None
+    )
     assert captured["params"] is params
     assert params.turn_identity == "msg-persisted"
     assert captured["user_message_id"] == persisted

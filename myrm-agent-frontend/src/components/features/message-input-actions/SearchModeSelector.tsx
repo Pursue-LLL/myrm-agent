@@ -1,5 +1,6 @@
 /**
  * [INPUT]
+ * @/components/primitives/toggle-group::ToggleGroup, ToggleGroupItem (POS: Single-choice radio group with roving focus)
  * @/store/config/searchServiceReady::checkSearchServiceReady (POS: The one gate in front of every entry into the Quick Search mode)
  * @/store/chat/types::ActionMode (POS: Chat action mode type definitions)
  *
@@ -15,6 +16,7 @@ import { useRef } from 'react';
 import { AiNetworkIcon } from 'hugeicons-react';
 import { cn } from '@/lib/utils/classnameUtils';
 import { useTranslations } from 'next-intl';
+import { ToggleGroup, ToggleGroupItem } from '@/components/primitives/toggle-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/primitives/tooltip';
 import { checkSearchServiceReady } from '@/store/config/searchServiceReady';
 import type { ActionMode } from '@/store/chat/types';
@@ -63,6 +65,12 @@ const MODES: ModeEntry[] = [
 
 const SEARCH_REQUIRED_MODES: ReadonlySet<ActionMode> = new Set(['fast']);
 
+// The toggle item brings its own box (height, padding, hover fill); the segment is drawn by the markup inside it, so
+// those are reset here. Phones: segments are 44px wide and the invisible `after:` box adds the missing height, so both
+// reach 44px.
+const SEGMENT_CLASS =
+  'group/segmented-control relative h-auto rounded-lg px-0 hover:bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5';
+
 const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorProps) => {
   const t = useTranslations('mode');
   // The gate can take longer than the next click: only the latest click may set the (global, persisted) mode.
@@ -79,9 +87,19 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
     setActionMode(mode);
   };
 
+  // Pressing the selected segment again makes the group report an empty value: that is a click on the current mode.
+  const handleValueChange = (value: string) => {
+    void handleModeChange(MODES.find((mode) => mode.key === value)?.key ?? actionMode);
+  };
+
   return (
     <TooltipProvider delayDuration={200}>
-      <div role="radiogroup" className="group relative isolate flex h-fit">
+      <ToggleGroup
+        type="single"
+        value={actionMode}
+        onValueChange={handleValueChange}
+        className="relative isolate h-fit justify-start gap-0"
+      >
         <div className="absolute inset-0 bg-black/[0.04] dark:bg-white/[0.06] rounded-[10px] transition-colors duration-300" />
 
         <div className="p-0.5 flex shrink-0 items-center">
@@ -91,15 +109,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
             return (
               <Tooltip key={mode.key}>
                 <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={isActive}
-                    aria-label={t(`${mode.key}Title`)}
-                    onClick={() => handleModeChange(mode.key)}
-                    // Phones: segments are 44px wide and the invisible `after:` box adds the missing height, so both reach 44px.
-                    className="group/segmented-control relative rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background max-sm:after:absolute max-sm:after:inset-x-0 max-sm:after:-inset-y-1.5"
-                  >
+                  <ToggleGroupItem value={mode.key} aria-label={t(`${mode.key}Title`)} className={SEGMENT_CLASS}>
                     {isActive && (
                       <div className="pointer-events-none absolute inset-0 z-0 block bg-white dark:bg-black dark:bg-gradient-to-b dark:from-primary/20 dark:to-primary/20 border border-primary dark:border-primary/30 rounded-lg shadow-[0_1px_3px_0] shadow-primary/30 dark:shadow-primary/5 transition-all duration-300" />
                     )}
@@ -112,7 +122,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
                         )}
                       />
                     </div>
-                  </button>
+                  </ToggleGroupItem>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-64 p-3">
                   <div className="flex items-center gap-2 mb-1.5">
@@ -135,7 +145,7 @@ const SearchModeSelector = ({ actionMode, setActionMode }: SearchModeSelectorPro
             );
           })}
         </div>
-      </div>
+      </ToggleGroup>
     </TooltipProvider>
   );
 };

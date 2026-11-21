@@ -9,19 +9,24 @@ Platform-specific implementations of the ComputerBackend protocol. Provides macO
 |------|------|-------------|-------|
 | __init__.py | Package | Computer use backends — re-exports ComputerBackend protocol. | — |
 | protocols.py | Core | ComputerBackend protocol — abstract interface for platform backends. | ✅ |
+| factory.py | Core | `create_native_backend`: the ComputerBackend of the host OS (macOS / Windows / Linux), never wrapped; the backend a desktop session holds. | ✅ |
 | macos/ | Package | macOS backend — Quartz CGEvent input, `screencapture` capture, clipboard-paste typing, TCC permission probes — see [macos/_ARCH.md](macos/_ARCH.md) | — |
 | linux/ | Package | Linux X11 backend — xdotool + scrot, shell-free runner, ASCII-typing / clipboard-paste text input, environment probes — see [linux/_ARCH.md](linux/_ARCH.md) | — |
 | windows/ | Package | Windows backend — mss + pyautogui + SendInput Unicode typing + uiautomation text — see [windows/_ARCH.md](windows/_ARCH.md) | — |
-| cua_driver/ | Package | cua-driver MCP background-input backend wrapping a native backend — see [cua_driver/_ARCH.md](cua_driver/_ARCH.md) | — |
+| cua_driver/ | Package | cua-driver MCP background-input backend wrapping the native backend of a plain computer session — see [cua_driver/_ARCH.md](cua_driver/_ARCH.md) | — |
 
 Desktop backends cover macOS / Windows / Linux only.
 
-## Backend Selection (session.py → create_computer_session)
+## Backend Selection (factory.py, session.py)
+
+`factory.py::create_native_backend` maps the host OS to its native backend. A semantic desktop session (`create_desktop_session`) holds it as is; a plain computer session (`create_computer_session`, `session.py`) wraps it when cua-driver is installed.
 
 ```
-All platforms (macOS / Windows / Linux):
+Desktop session:  create_native_backend() ──→ NativeBackend (macOS: Quartz CGEvent / Windows: pyautogui / Linux: xdotool)
+
+Plain computer session (macOS / Windows / Linux):
   cua-driver installed? ─── YES ──→ CuaDriverBackend(fallback=NativeBackend)
-                        └── NO  ──→ NativeBackend (macOS: Quartz CGEvent / Windows: pyautogui / Linux: xdotool)
+                        └── NO  ──→ NativeBackend
 ```
 
 ## cua-driver Integration
@@ -29,6 +34,8 @@ All platforms (macOS / Windows / Linux):
 `CuaDriverBackend` uses the **proxy pattern**: input operations (click, type, key, scroll, drag, mouse_move) are routed to `cua-driver` via MCP stdio for background (focus-free) execution. Non-input operations (screenshot, screen_info, window_text, etc.) are delegated to the platform-native fallback backend.
 
 If cua-driver fails for any individual action, it transparently falls back to the native backend for that operation. If cua-driver is not installed, it is never loaded.
+
+A desktop session never holds the proxy: the accessibility capture, the foreground identity and the sensitive-application guards route on the backend's own class (`type(backend).__name__`), so a proxy in front of the native backend would read as an unsupported platform.
 
 **Install cua-driver**: `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/trycua/cua/main/libs/cua-driver/scripts/install.sh)"`
 

@@ -1,9 +1,11 @@
 """Package manifest security audit for skill directories.
 
 Audits package.json files for supply chain attack vectors:
-- Dangerous install scripts (preinstall, install, postinstall)
-- Suspicious dependency patterns
-- Script injection via package name/description
+- Install-time lifecycle scripts (the ones a bare ``npm install`` runs)
+- Suspicious commands inside any script
+- Entry points and build artifacts that are missing, empty or escape the package
+- A manifest the audit cannot take (bad JSON, a repeated key, too deep, a symbolic link) is a high ``invalid_manifest``
+  finding: the installer reads it all the same, so it is never clean
 
 [INPUT]
 - (none)
@@ -11,24 +13,35 @@ Audits package.json files for supply chain attack vectors:
 [OUTPUT]
 - PackageAuditFinding: single finding from package audit
 - audit_package_json(): audit a package.json string for security issues
+- audit_package_manifest_dict(): audit a parsed manifest for lifecycle scripts and suspicious commands
+- check_lifecycle_scripts(): audit every package.json of an in-memory file map
 - audit_skill_directory(): scan a skill directory for package.json issues
 - audit_package_entry_artifacts(): audit entry files and build artifacts for existence and integrity
 
 [POS]
 Supply chain security audit for skill package manifests.
-Catches install script attacks that can execute arbitrary code on npm install.
+Catches install script attacks that can execute arbitrary code on npm install. Whatever a manifest holds, the audit
+answers with findings instead of raising.
 """
 
 from __future__ import annotations
 
 import json
-import logging
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
-_DANGEROUS_SCRIPTS = frozenset({"preinstall", "install", "postinstall"})
+# The scripts a bare ``npm install`` runs for the package root; bun, pnpm and yarn each run a subset of them.
+_LIFECYCLE_SCRIPTS = (
+    "preinstall",
+    "install",
+    "postinstall",
+    "prepublish",
+    "preprepare",
+    "prepare",
+    "postprepare",
+)
+_MANIFEST_NAME = "package.json"
 _SKIPPED_DIRS = frozenset({"node_modules", ".git", "__pycache__", ".venv", "venv"})
 _MAX_DIR_DEPTH = 3
 _MAX_FILES = 100
@@ -39,54 +52,100 @@ class PackageAuditFinding:
     """A single finding from package.json audit."""
 
     threat_type: str
-    severity: str  # "critical", "high", "medium", "warning"
+    severity: str  # "high" or "medium"
     description: str
     file_path: str = ""
     detail: str = ""
 
 
+class _DuplicateKeyError(ValueError):
+    """A JSON object repeats a key."""
+
+
+def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """``object_pairs_hook`` refusing a repeated key: bun keeps the first value, npm, pnpm and yarn the last."""
+    manifest: dict[str, object] = {}
+    for key, value in pairs:
+        if key in manifest:
+            raise _DuplicateKeyError
+        manifest[key] = value
+    return manifest
+
+
+def _parse_manifest(text: str) -> tuple[dict[str, object] | None, str | None]:
+    """Parse package.json text the way the package managers read it.
+
+    Returns ``(manifest, None)`` for a JSON object and ``(None, None)`` for any other JSON value (it declares no
+    scripts). ``(None, reason)`` means the text cannot be audited although an installer may still read it, so the
+    caller must report it instead of treating it as clean.
+    """
+    if text.startswith("\ufeff"):  # a BOM: npm, bun and pnpm run a manifest that opens with one (yarn 1 rejects it)
+        text = text[1:]
+    try:
+        loaded = json.loads(text, object_pairs_hook=_reject_duplicate_keys)
+    except _DuplicateKeyError:
+        return None, "it repeats a key"
+    except json.JSONDecodeError as exc:
+        return None, f"it is not valid JSON ({exc.msg})"
+    except RecursionError:
+        return None, "it is nested too deeply"
+    except ValueError:  # an integer with more digits than int() converts
+        return None, "it holds a number the parser cannot take"
+    except MemoryError:
+        return None, "it is too large to parse"
+    return (loaded, None) if isinstance(loaded, dict) else (None, None)
+
+
+def _unauditable_finding(reason: str, file_path: str) -> PackageAuditFinding:
+    return PackageAuditFinding(
+        threat_type="invalid_manifest",
+        severity="high",
+        description=f"package.json cannot be audited: {reason}",
+        file_path=file_path,
+    )
+
+
+def _is_manifest_name(name: str) -> bool:
+    """Case-insensitive: a case-insensitive file system resolves ``Package.json`` to the manifest."""
+    return name.lower() == _MANIFEST_NAME
+
+
+def _script_finding(severity: str, description: str, name: str, command: str, file_path: str) -> PackageAuditFinding:
+    """A supply-chain finding about one script, quoting the first 200 characters of its command."""
+    return PackageAuditFinding(
+        threat_type="supply_chain",
+        severity=severity,
+        description=description,
+        file_path=file_path,
+        detail=f"{name}: {command[:200]}",
+    )
+
+
 def audit_package_manifest_dict(pkg: dict[str, object], file_path: str = "") -> list[PackageAuditFinding]:
     """Audit a parsed package.json dictionary for supply chain security issues."""
-    findings: list[PackageAuditFinding] = []
     scripts = pkg.get("scripts")
-    if isinstance(scripts, dict):
-        for script_name in _DANGEROUS_SCRIPTS:
-            script_value = scripts.get(script_name)
-            if script_value and isinstance(script_value, str) and script_value.strip():
-                findings.append(
-                    PackageAuditFinding(
-                        threat_type="supply_chain",
-                        severity="high",
-                        description=f"Dangerous install script: {script_name}",
-                        file_path=file_path,
-                        detail=f"{script_name}: {script_value[:200]}",
-                    )
-                )
+    if not isinstance(scripts, dict):
+        return []
 
-        for key, value in scripts.items():
-            if isinstance(value, str) and _contains_suspicious_command(value):
-                findings.append(
-                    PackageAuditFinding(
-                        threat_type="supply_chain",
-                        severity="medium",
-                        description=f"Script contains suspicious command: {key}",
-                        file_path=file_path,
-                        detail=f"{key}: {value[:200]}",
-                    )
-                )
+    findings: list[PackageAuditFinding] = []
+    for name in _LIFECYCLE_SCRIPTS:
+        command = scripts.get(name)
+        if isinstance(command, str) and command.strip():
+            findings.append(_script_finding("high", f"Dangerous install script: {name}", name, command, file_path))
+
+    for name, command in scripts.items():
+        if isinstance(command, str) and _contains_suspicious_command(command):
+            description = f"Script contains suspicious command: {name}"
+            findings.append(_script_finding("medium", description, name, command, file_path))
     return findings
 
 
 def check_lifecycle_scripts(files: dict[str, bytes]) -> list[PackageAuditFinding]:
-    """Perform pre-extraction and in-memory lifecycle script gate check across files dictionary."""
+    """Audit every package.json of an in-memory file map (an archive before extraction)."""
     findings: list[PackageAuditFinding] = []
     for filename, content in files.items():
-        if Path(filename).name.lower() == "package.json":
-            try:
-                text = content.decode("utf-8", errors="replace")
-                findings.extend(audit_package_json(text, filename))
-            except Exception as exc:
-                logger.debug("Failed to inspect %s for lifecycle scripts: %s", filename, exc)
+        if _is_manifest_name(Path(filename).name):
+            findings.extend(audit_package_json(content.decode("utf-8", errors="replace"), filename))
     return findings
 
 
@@ -100,55 +159,7 @@ def audit_package_json(content: str, file_path: str = "") -> list[PackageAuditFi
     Returns:
         List of findings (empty if clean)
     """
-    findings: list[PackageAuditFinding] = []
-
-    try:
-        pkg = json.loads(content)
-    except json.JSONDecodeError as exc:
-        findings.append(
-            PackageAuditFinding(
-                threat_type="invalid_manifest",
-                severity="warning",
-                description=f"Invalid JSON in package.json: {exc.msg}",
-                file_path=file_path,
-            )
-        )
-        return findings
-
-    if not isinstance(pkg, dict):
-        return findings
-
-    # Check for dangerous install scripts
-    scripts = pkg.get("scripts")
-    if isinstance(scripts, dict):
-        for script_name in _DANGEROUS_SCRIPTS:
-            script_value = scripts.get(script_name)
-            if script_value and isinstance(script_value, str) and script_value.strip():
-                findings.append(
-                    PackageAuditFinding(
-                        threat_type="supply_chain",
-                        severity="high",
-                        description=f"Dangerous install script: {script_name}",
-                        file_path=file_path,
-                        detail=f"{script_name}: {script_value[:200]}",
-                    )
-                )
-
-    # Check for suspicious pre/post scripts on any command
-    if isinstance(scripts, dict):
-        for key, value in scripts.items():
-            if isinstance(value, str) and _contains_suspicious_command(value):
-                findings.append(
-                    PackageAuditFinding(
-                        threat_type="supply_chain",
-                        severity="medium",
-                        description=f"Script contains suspicious command: {key}",
-                        file_path=file_path,
-                        detail=f"{key}: {value[:200]}",
-                    )
-                )
-
-    return findings
+    return _audit_manifest_text(content, file_path)
 
 
 def audit_skill_directory(skill_dir: str | Path) -> list[PackageAuditFinding]:
@@ -170,36 +181,42 @@ def audit_skill_directory(skill_dir: str | Path) -> list[PackageAuditFinding]:
     all_findings: list[PackageAuditFinding] = []
     files_checked = 0
 
-    for depth, file_path in _walk_files(root):
-        if depth > _MAX_DIR_DEPTH:
-            continue
+    for file_path in _walk_files(root):
         if files_checked >= _MAX_FILES:
             break
 
-        if file_path.name != "package.json":
+        if not _is_manifest_name(file_path.name):
             continue
 
         files_checked += 1
-        relative = str(file_path.relative_to(root))
-
-        try:
-            content = file_path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError) as exc:
-            logger.debug("Cannot read %s: %s", relative, exc)
-            continue
-
-        findings = audit_package_json(content, relative)
-        all_findings.extend(findings)
-
-        try:
-            pkg_dict = json.loads(content)
-            if isinstance(pkg_dict, dict):
-                artifact_findings = audit_package_entry_artifacts(pkg_dict, file_path.parent, relative)
-                all_findings.extend(artifact_findings)
-        except Exception as exc:
-            logger.debug("Failed parsing %s for artifact checks: %s", relative, exc)
+        all_findings.extend(_audit_manifest_file(file_path, str(file_path.relative_to(root))))
 
     return all_findings
+
+
+def _audit_manifest_text(text: str, file_path: str, artifact_dir: Path | None = None) -> list[PackageAuditFinding]:
+    """Audit package.json text; with *artifact_dir*, the entry points it declares are verified there as well."""
+    manifest, problem = _parse_manifest(text)
+    if problem is not None:
+        return [_unauditable_finding(problem, file_path)]
+    if manifest is None:
+        return []
+    findings = audit_package_manifest_dict(manifest, file_path)
+    if artifact_dir is not None:
+        findings.extend(audit_package_entry_artifacts(manifest, artifact_dir, file_path))
+    return findings
+
+
+def _audit_manifest_file(manifest_path: Path, relative: str) -> list[PackageAuditFinding]:
+    """Audit one package.json on disk: its scripts and the artifacts it declares."""
+    if manifest_path.is_symlink():
+        # An installer follows the link, so what it would read is not what this audit can vouch for.
+        return [_unauditable_finding("it is a symbolic link", relative)]
+    try:
+        raw = manifest_path.read_bytes()
+    except OSError:
+        return [_unauditable_finding("it cannot be read", relative)]
+    return _audit_manifest_text(raw.decode("utf-8", errors="replace"), relative, manifest_path.parent)
 
 
 def audit_package_entry_artifacts(
@@ -236,34 +253,47 @@ def audit_package_entry_artifacts(
 
 
 def _collect_export_targets(val: object) -> list[str]:
-    """Recursively collect relative file paths from nested conditional exports."""
+    """Collect the relative file paths of a (conditional, nested) ``exports`` value, in document order.
+
+    Iterative: the manifest decides how deeply the value nests, and recursion stops at the interpreter's limit.
+    """
     targets: list[str] = []
-    if isinstance(val, str) and val.strip():
-        targets.append(val.strip())
-    elif isinstance(val, dict):
-        for sub_val in val.values():
-            targets.extend(_collect_export_targets(sub_val))
-    elif isinstance(val, list):
-        for sub_val in val:
-            targets.extend(_collect_export_targets(sub_val))
+    pending: list[object] = [val]
+    while pending:
+        node = pending.pop()
+        if isinstance(node, str):
+            if node.strip():
+                targets.append(node.strip())
+        elif isinstance(node, dict):
+            pending.extend(reversed(node.values()))
+        elif isinstance(node, list):
+            pending.extend(reversed(node))
     return targets
+
+
+def _is_file(path: Path) -> bool:
+    """``Path.is_file`` that also answers False for a name the file system rejects (too long)."""
+    try:
+        return path.is_file()
+    except OSError:
+        return False
 
 
 def _resolve_artifact_file(base_dir: Path, clean_entry: str) -> Path | None:
     """Resolve physical file respecting Node.js extension and directory index conventions."""
     direct = base_dir / clean_entry
-    if direct.is_file():
+    if _is_file(direct):
         return direct
 
     extensions = (".js", ".cjs", ".mjs", ".json")
     for ext in extensions:
         candidate = base_dir / f"{clean_entry}{ext}"
-        if candidate.is_file():
+        if _is_file(candidate):
             return candidate
 
     for ext in extensions:
         candidate = base_dir / clean_entry / f"index{ext}"
-        if candidate.is_file():
+        if _is_file(candidate):
             return candidate
 
     return None
@@ -324,8 +354,11 @@ def _verify_entry_artifact(
     return findings
 
 
-def _walk_files(root: Path):
-    """Walk files yielding (depth, path) tuples, skipping ignored directories."""
+def _walk_files(root: Path) -> Iterator[Path]:
+    """Yield the files under *root* level by level (down to ``_MAX_DIR_DEPTH``), skipping ignored directories.
+
+    A symbolic link is yielded only when it is named like a manifest: an installer follows it, so it must be reported.
+    """
     queue: list[tuple[int, Path]] = [(0, root)]
 
     while queue:
@@ -341,9 +374,11 @@ def _walk_files(root: Path):
             if entry.name in _SKIPPED_DIRS:
                 continue
             if entry.is_symlink():
+                if _is_manifest_name(entry.name):
+                    yield entry
                 continue
             if entry.is_file():
-                yield depth, entry
+                yield entry
             elif entry.is_dir() and depth < _MAX_DIR_DEPTH:
                 queue.append((depth + 1, entry))
 

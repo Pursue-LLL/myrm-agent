@@ -44,7 +44,7 @@ async def _run_turn(*events: dict[str, object], locale: str = "en") -> tuple[str
     acc = StreamAccumulator()
     async for _ in iter_channel_stream_progress(_events(*events), acc, locale=locale, session_key=""):
         pass
-    persist_mock, reply = await _finalize(acc, ((), frozenset()), message=_message(locale))
+    persist_mock, reply = await _finalize(acc, message=_message(locale))
     return str(persist_mock.call_args.args[1]), reply
 
 

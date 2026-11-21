@@ -32,10 +32,18 @@ def test_titles_reach_a_native_backend() -> None:
     assert backend._excluded_capture_titles == frozenset({_CURTAIN})
 
 
+def test_titles_reach_the_native_backend_of_a_desktop_session() -> None:
+    backend = macos_mod.MacOSBackend()
+    session = DesktopSession(backend=backend)
+
+    assert exclude_capture_windows(session, [_CURTAIN]) is True
+    assert backend._excluded_capture_titles == frozenset({_CURTAIN})
+
+
 def test_titles_reach_the_native_backend_behind_cua_driver() -> None:
-    """The production desktop chain: cua-driver has no capture of its own, its fallback does."""
+    """A plain session on the cua-driver proxy: the proxy has no capture of its own, its fallback does."""
     native = macos_mod.MacOSBackend()
-    session = DesktopSession(backend=CuaDriverBackend(fallback=native))
+    session = ComputerSession(backend=CuaDriverBackend(fallback=native))
 
     assert exclude_capture_windows(session, [_CURTAIN]) is True
     assert native._excluded_capture_titles == frozenset({_CURTAIN})

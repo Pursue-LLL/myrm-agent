@@ -13,7 +13,7 @@ Detects dangerous patterns that regex cannot reliably catch:
 Operates on a "detect-only" principle — reports findings but does not modify code.
 
 [INPUT]
-- (none)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - AstScanFinding: single AST-level finding
@@ -23,6 +23,10 @@ Operates on a "detect-only" principle — reports findings but does not modify c
 [POS]
 AST-level security analysis for Python skill code. Complements regex patterns
 with structural analysis that cannot be bypassed by string obfuscation.
+Source with a syntax error yields an ``info`` finding (it cannot run). Source the parser or the
+tree walk cannot take at all (nested or chained too deeply, or unencodable text) yields a ``high``
+``ast_parse_error`` finding next to whatever was found before the failure: the analysis is blind
+to such a file, so it must not read as clean, and the scan never raises on it.
 """
 
 from __future__ import annotations
@@ -31,6 +35,8 @@ import ast
 import logging
 from dataclasses import dataclass
 from pathlib import Path
+
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +77,9 @@ def analyze_python_ast(
     if not source or not source.strip():
         return []
 
+    visitor = _SecurityVisitor(line_offset=line_offset)
     try:
-        tree = ast.parse(source)
+        visitor.visit(ast.parse(source))
     except SyntaxError as exc:
         err_lineno = (exc.lineno + line_offset) if exc.lineno is not None else None
         return [
@@ -83,9 +90,18 @@ def analyze_python_ast(
                 line_number=err_lineno,
             )
         ]
-
-    visitor = _SecurityVisitor(line_offset=line_offset)
-    visitor.visit(tree)
+    except PYTHON_PARSE_ERRORS as exc:
+        return [
+            *visitor.findings,
+            AstScanFinding(
+                threat_type="ast_parse_error",
+                severity="high",
+                description=(
+                    f"Static analysis of {file_label or 'source'} did not complete ({type(exc).__name__}): "
+                    "it is nested or chained too deeply, or holds text the parser cannot read"
+                ),
+            ),
+        ]
     return visitor.findings
 
 

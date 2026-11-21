@@ -130,7 +130,12 @@ async def test_the_files_are_reverted_for_the_active_rows_only(db_session: Async
 
 
 @pytest.mark.asyncio
-async def test_a_row_written_between_the_two_reads_is_neither_reverted_nor_deleted(db_session: AsyncSession) -> None:
+async def test_a_row_only_the_second_read_sees_is_neither_reverted_nor_deleted(db_session: AsyncSession) -> None:
+    """The two reads share one snapshot in production; reading the id set first keeps a split across transactions safe.
+
+    The row is written through the unit's own session just before the second read, so that read sees a row the id set
+    lacks, as it would if the two reads ran in different transactions.
+    """
     await _seed(
         db_session,
         _message("u1", "user", "Q1", 0),

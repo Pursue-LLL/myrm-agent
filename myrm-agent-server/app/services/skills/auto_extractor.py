@@ -5,6 +5,7 @@ event. Orchestration and policy decisions live in ``growth/lifecycle.py``.
 
 [INPUT]
 - myrm_agent_harness.agent.skills.evolution.core.types::EnvironmentFingerprint, EvolutionType, SkillLineage, SkillRecord (POS: Harness 技能演化核心类型)
+- myrm_agent_harness.utils.python_parse::PYTHON_PARSE_ERRORS (POS: Python 解析器对不可用文本抛出的异常集合)
 - app.core.skills.creation.service::skill_creation_service (POS: Skill creation service)
 - app.core.skills.utils::resolve_skill_description, yaml_scalar (POS: 技能描述回退与 frontmatter 标量转义)
 - app.core.skills.store.evolution_store::get_evolution_skill_store (POS: core/skills/store 进化 SQLite 入口)
@@ -13,7 +14,7 @@ event. Orchestration and policy decisions live in ``growth/lifecycle.py``.
 [OUTPUT]
 - auto_extract_skill: 执行代码 AST 语法门禁，将已通过策略判断的新技能草稿落盘为真实技能
 - render_skill_draft_markdown: 渲染新技能落盘的 SKILL.md 文本（安全预检与物化共用同一份）
-- validate_python_code_blocks: 校验 Markdown 中 Python 代码块语法合法性
+- validate_python_code_blocks: 校验 Markdown 中 Python 代码块语法合法性（语法错误与解析器无法处理的文本都视为不合法，不抛异常）
 - SkillMaterializationResult: 物化结果 DTO
 
 [POS]
@@ -31,6 +32,7 @@ from myrm_agent_harness.agent.skills.evolution.core.types import (
     SkillLineage,
     SkillRecord,
 )
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 from app.core.skills.creation.service import skill_creation_service
 from app.core.skills.utils import resolve_skill_description, yaml_scalar
@@ -55,6 +57,8 @@ def validate_python_code_blocks(text: str) -> str | None:
             ast.parse(code)
         except SyntaxError as exc:
             return f"Python code block #{i} has syntax error: {exc}"
+        except PYTHON_PARSE_ERRORS as exc:
+            return f"Python code block #{i} cannot be parsed: {type(exc).__name__}"
     return None
 
 

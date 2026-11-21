@@ -181,10 +181,11 @@ class TestSavingsMeasurement:
     async def test_an_incremental_compaction_is_measured_against_the_summary_it_replaces(self, chat_id: str) -> None:
         chat = Chat(id=chat_id, compacted_summary=_stored_summary(2_500))
 
-        with _compaction_env(chat, messages=4, message_tokens=3_000, summary_tokens=3_000):
+        with _compaction_env(chat, messages=4, message_tokens=3_000, summary_tokens=3_000) as env:
             result = await compact_chat(AsyncMock(), chat_id)
 
         assert (result.original_tokens, result.summary_tokens, result.tokens_saved) == (5_500, 3_000, 2_500)
+        assert env.persist.await_args_list[0].kwargs["tokens_saved"] == 2_500
         assert get_compression_streak_store().get_streak(chat_id) == 0
 
     async def test_a_compaction_that_grows_the_context_reports_no_savings(self, chat_id: str) -> None:

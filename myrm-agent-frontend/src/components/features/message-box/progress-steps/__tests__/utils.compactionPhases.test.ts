@@ -1,7 +1,9 @@
 /**
- * A pre-reply compaction's step opens as "compressing" and closes on the phase the server reports. Every closing phase
- * is worded from the catalog in each language, never shown as a raw key, and only a compaction that broke is drawn as a
- * warning.
+ * A compaction's step opens as "compressing" and closes on the phase the stream reports. Every closing phase below is
+ * worded from the catalog in each language, never shown as a raw key, and only a compaction that broke is drawn as a
+ * warning. The pre-reply gate closes on `completed`, `ineffective`, `skipped` or `failed` and stamps every event with a
+ * status; `timeout` and `circuit_open` come from compaction inside a turn, which sends the phase alone, so the phase is
+ * what makes them a warning.
  */
 import { describe, expect, it, vi } from 'vitest';
 
@@ -15,14 +17,17 @@ import type { ProgressItem } from '@/store/chat/types';
 
 const CATALOGS = { en, zh } as const;
 
-/** The phases the server closes the step on, the status it reports with each, and whether the step is a warning. */
+/**
+ * The phases a compaction step closes on, the status the stream stamps on the event (none for compaction inside a
+ * turn), and whether the step is drawn as a warning.
+ */
 const CLOSING_PHASES = [
   { phase: 'completed', serverStatus: 'success', warning: false },
   { phase: 'ineffective', serverStatus: 'success', warning: false },
   { phase: 'skipped', serverStatus: 'success', warning: false },
-  { phase: 'timeout', serverStatus: 'warning', warning: true },
-  { phase: 'circuit_open', serverStatus: 'warning', warning: true },
   { phase: 'failed', serverStatus: 'warning', warning: true },
+  { phase: 'timeout', serverStatus: undefined, warning: true },
+  { phase: 'circuit_open', serverStatus: undefined, warning: true },
 ] as const;
 
 function messageState() {
@@ -42,8 +47,8 @@ function messageState() {
 
 type MessageState = ReturnType<typeof messageState>;
 
-/** Feed the handler one `context_compaction` status event, as the server sends it. */
-async function receive(state: MessageState, phase: string, status: string): Promise<void> {
+/** Feed the handler one `context_compaction` status event; compaction inside a turn carries no `status`. */
+async function receive(state: MessageState, phase: string, status?: string): Promise<void> {
   const ctx: StreamCtx = {
     data: { type: 'status', messageId: 'msg-1', step_key: 'context_compaction', status, data: { phase } } as never,
     input: '',
@@ -60,7 +65,7 @@ async function receive(state: MessageState, phase: string, status: string): Prom
   await applyStatusProgressStep(ctx, 'context_compaction');
 }
 
-describe('pre-reply compaction progress step', () => {
+describe('compaction progress step', () => {
   it('opens as one in-flight step', async () => {
     const state = messageState();
 
@@ -72,7 +77,7 @@ describe('pre-reply compaction progress step', () => {
   describe.each(CLOSING_PHASES)('closing on $phase', ({ phase, serverStatus, warning }) => {
     async function closedStep(): Promise<{ step: ProgressItem; count: number }> {
       const state = messageState();
-      await receive(state, 'active', 'active');
+      await receive(state, 'active', serverStatus === undefined ? undefined : 'active');
       await receive(state, phase, serverStatus);
       return { step: state.messages[0].progressSteps[0], count: state.messages[0].progressSteps.length };
     }

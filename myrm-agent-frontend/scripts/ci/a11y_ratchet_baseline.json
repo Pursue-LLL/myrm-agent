@@ -1,6 +1,6 @@
 {
   "rules": {
-    "prefer-tag-over-role": 43
+    "prefer-tag-over-role": 42
   },
   "waivers": 76
 }

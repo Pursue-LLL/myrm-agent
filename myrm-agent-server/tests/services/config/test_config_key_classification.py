@@ -62,3 +62,13 @@ def test_the_key_of_the_users_own_model_endpoint_has_a_sealed_row_that_travels_i
     assert is_sensitive_config("privacyRoutingSecret")
     assert config_row_policy("privacyRoutingSecret") is ConfigRowPolicy.PORTABLE_SECRET
     assert config_needs_reentry("privacyRoutingSecret")
+
+
+def test_hosting_targets_row_holds_no_secret_while_both_credential_families_are_sealed_and_stay_with_their_host() -> None:
+    assert not is_sensitive_config("hostingTargets")
+    assert config_row_policy("hostingTargets") is ConfigRowPolicy.DATA
+
+    for key in ("vercelDeployCredentials", "hostingTargetCredentials:3f2a9c1e-target"):
+        assert is_sensitive_config(key), key
+        assert config_row_policy(key) is ConfigRowPolicy.HOST_BOUND, key
+        assert config_needs_reentry(key), key

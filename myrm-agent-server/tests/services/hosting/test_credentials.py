@@ -1,22 +1,53 @@
-"""Tests for hosting target credential helpers."""
+"""Tests for hosting target credential helpers, under the real sealing policy."""
 
 from __future__ import annotations
 
+import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.database.models.config import UserConfig
+from app.services.config.encryption import ConfigEncryptionService
+from app.services.config.migration import migrate_configs_to_encrypted
 from app.services.hosting.credentials import (
     VERCEL_CREDENTIALS_KEY,
     decrypt_credentials,
     get_platform_vercel_token,
+    get_target_credential_status,
     has_any_hosting_credentials,
+    load_credentials_row,
     load_legacy_vercel_token,
     load_target_credentials,
+    migrate_legacy_vercel_credentials,
     resolve_target_credentials,
     save_target_credentials,
     token_from_credentials,
 )
+from app.services.hosting.targets import (
+    LEGACY_VERCEL_TARGET_ID,
+    credential_config_key,
+    list_hosting_targets,
+    save_hosting_targets,
+)
+from app.services.hosting.types import HostingTarget
+
+_PLATFORM_TOKEN = "platform-operator-token"
+
+
+def _platform_token_present():
+    return patch("app.services.hosting.credentials.get_platform_vercel_token", return_value=_PLATFORM_TOKEN)
+
+
+def _vercel(target_id: str, *, is_default: bool = False) -> HostingTarget:
+    return HostingTarget(id=target_id, name=target_id, provider_type="vercel", config={}, is_default=is_default)
+
+
+def _plain_row(row_id: str, key: str, value: dict[str, object]) -> UserConfig:
+    return UserConfig(id=row_id, config_key=key, config_value=value, version="1.0.0", last_device_id="webui", is_encrypted=False)
 
 
 def test_token_from_credentials_returns_stripped_token() -> None:
@@ -33,12 +64,12 @@ def test_decrypt_credentials_plain_dict() -> None:
     assert result == {"token": "x"}
 
 
-def test_decrypt_credentials_encrypted_string() -> None:
-    mock_service = MagicMock()
-    mock_service.decrypt.return_value = '{"token": "enc-tok"}'
-    with patch("app.services.hosting.credentials.get_encryption_service", return_value=mock_service):
-        result = decrypt_credentials("cipher-text", is_encrypted=True)
-    assert result == {"token": "enc-tok"}
+def test_decrypt_credentials_opens_a_sealed_value_and_its_envelope(real_encryption: ConfigEncryptionService) -> None:
+    sealed, is_encrypted = real_encryption.encrypt_if_needed(credential_config_key("t"), {"token": "enc-tok"})
+    assert is_encrypted
+
+    assert decrypt_credentials(sealed, is_encrypted=True) == {"token": "enc-tok"}
+    assert decrypt_credentials({"_cipher": sealed}, is_encrypted=True) == {"token": "enc-tok"}
 
 
 def test_get_platform_vercel_token_non_sandbox() -> None:
@@ -90,86 +121,120 @@ async def test_has_any_hosting_credentials_platform_token() -> None:
 
 
 @pytest.mark.asyncio
-async def test_save_target_credentials_inserts_new_row() -> None:
-    mock_scalars = MagicMock()
-    mock_scalars.first.return_value = None
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    mock_db = AsyncMock()
-    mock_db.execute = AsyncMock(return_value=mock_result)
-    mock_db.add = MagicMock()
-    mock_db.commit = AsyncMock()
+async def test_saved_credentials_are_sealed_at_rest(db_session: AsyncSession) -> None:
+    await save_target_credentials(db_session, "t1", {"token": "saved-token"})
 
-    with patch("app.services.hosting.credentials.get_encryption_service") as mock_service_factory:
-        mock_service = mock_service_factory.return_value
-        mock_service.encrypt_if_needed.return_value = ({"token": "saved-token"}, False)
-
-        result = await save_target_credentials(mock_db, "target-abc", {"token": "saved-token"})
-
-    assert result["status"] == "success"
-    mock_db.add.assert_called_once()
-    added = mock_db.add.call_args.args[0]
-    assert added.config_key == "hostingTargetCredentials:target-abc"
-    mock_db.commit.assert_awaited_once()
+    row = await load_credentials_row(db_session, "t1")
+    assert row is not None
+    assert row.config_key == "hostingTargetCredentials:t1"
+    assert row.is_encrypted is True
+    assert "saved-token" not in json.dumps(row.config_value)
+    assert await load_target_credentials(db_session, "t1") == {"token": "saved-token"}
 
 
 @pytest.mark.asyncio
-async def test_load_target_credentials_empty_when_missing() -> None:
-    mock_scalars = MagicMock()
-    mock_scalars.first.return_value = None
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    mock_db = AsyncMock()
-    mock_db.execute = AsyncMock(return_value=mock_result)
-    assert await load_target_credentials(mock_db, "target-x") == {}
+async def test_saving_again_replaces_the_row_instead_of_adding_one(db_session: AsyncSession) -> None:
+    await save_target_credentials(db_session, "t1", {"token": "first"})
+    await save_target_credentials(db_session, "t1", {"token": "second"})
+
+    count = await db_session.scalar(
+        select(func.count()).select_from(UserConfig).where(UserConfig.config_key == credential_config_key("t1"))
+    )
+    assert count == 1
+    assert await load_target_credentials(db_session, "t1") == {"token": "second"}
 
 
 @pytest.mark.asyncio
-async def test_migrate_legacy_uses_vercel_key() -> None:
-    from app.services.hosting.credentials import migrate_legacy_vercel_credentials
+async def test_startup_sweep_seals_credentials_rows_saved_in_plaintext(db_session: AsyncSession) -> None:
+    db_session.add(_plain_row("saved-before-sealing", credential_config_key("t1"), {"token": "plain-token"}))
+    await db_session.commit()
 
-    mock_row = MagicMock()
-    mock_row.config_value = {"token": "legacy"}
-    mock_row.is_encrypted = False
-    mock_scalars = MagicMock()
-    mock_scalars.first.return_value = mock_row
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    mock_db = AsyncMock()
-    mock_db.execute = AsyncMock(return_value=mock_result)
+    stats = await migrate_configs_to_encrypted(db_session)
 
-    with (
-        patch("app.services.hosting.credentials.list_hosting_targets", AsyncMock(return_value=[])),
-        patch("app.services.hosting.credentials.save_hosting_targets", AsyncMock()),
-        patch("app.services.hosting.credentials.save_target_credentials", AsyncMock()) as mock_save,
-    ):
-        await migrate_legacy_vercel_credentials(mock_db)
-    mock_save.assert_awaited_once()
-    assert mock_save.call_args.args[2] == {"token": "legacy"}
+    row = await load_credentials_row(db_session, "t1")
+    assert stats["migrated"] == 1
+    assert row is not None
+    assert row.is_encrypted is True
+    assert "plain-token" not in json.dumps(row.config_value)
+    assert await load_target_credentials(db_session, "t1") == {"token": "plain-token"}
+
+
+@pytest.mark.asyncio
+async def test_load_target_credentials_empty_when_missing(db_session: AsyncSession) -> None:
+    assert await load_target_credentials(db_session, "target-x") == {}
+
+
+@pytest.mark.asyncio
+async def test_legacy_token_moves_into_the_default_target_and_the_platform_token_does_not(db_session: AsyncSession) -> None:
+    db_session.add(_plain_row("legacy-vercel", VERCEL_CREDENTIALS_KEY, {"token": "legacy"}))
+    await db_session.commit()
+
+    with _platform_token_present():
+        await migrate_legacy_vercel_credentials(db_session)
+
+    assert await load_target_credentials(db_session, LEGACY_VERCEL_TARGET_ID) == {"token": "legacy"}
+
+
+@pytest.mark.asyncio
+async def test_platform_token_tenant_gets_a_default_target_without_a_credentials_row(db_session: AsyncSession) -> None:
+    with _platform_token_present():
+        await migrate_legacy_vercel_credentials(db_session)
+
+        targets = await list_hosting_targets(db_session)
+        resolved = await resolve_target_credentials(db_session, LEGACY_VERCEL_TARGET_ID)
+        status = await get_target_credential_status(db_session, LEGACY_VERCEL_TARGET_ID)
+
+    assert [(t.id, t.provider_type, t.is_default) for t in targets] == [(LEGACY_VERCEL_TARGET_ID, "vercel", True)]
+    assert await load_credentials_row(db_session, LEGACY_VERCEL_TARGET_ID) is None
+    assert resolved == {"token": _PLATFORM_TOKEN}
+    assert (status.configured, status.platform_available) == (False, True)
+
+
+@pytest.mark.asyncio
+async def test_stored_copies_of_the_platform_token_are_removed_and_other_tokens_kept(db_session: AsyncSession) -> None:
+    await save_hosting_targets(db_session, [_vercel("copy", is_default=True), _vercel("own")])
+    await save_target_credentials(db_session, "copy", {"token": _PLATFORM_TOKEN})
+    await save_target_credentials(db_session, "own", {"token": "tenant-own-token"})
+
+    with _platform_token_present():
+        await migrate_legacy_vercel_credentials(db_session)
+        await migrate_legacy_vercel_credentials(db_session)
+        fallback = await resolve_target_credentials(db_session, "copy")
+
+    assert await load_credentials_row(db_session, "copy") is None
+    assert await load_target_credentials(db_session, "own") == {"token": "tenant-own-token"}
+    assert fallback == {"token": _PLATFORM_TOKEN}
+
+
+@pytest.mark.asyncio
+async def test_purge_leaves_a_row_that_the_current_key_cannot_open(db_session: AsyncSession) -> None:
+    foreign_key = ConfigEncryptionService(encryption_key=os.urandom(32), is_sandbox=False, is_local=True)
+    sealed, _ = foreign_key.encrypt_if_needed(credential_config_key("other"), {"token": "x"})
+    db_session.add(
+        UserConfig(
+            id="foreign-row",
+            config_key=credential_config_key("other"),
+            config_value={"_cipher": sealed},
+            version="1.0.0",
+            last_device_id="webui",
+            is_encrypted=True,
+        )
+    )
+    await db_session.commit()
+
+    with _platform_token_present():
+        await migrate_legacy_vercel_credentials(db_session)
+
+    assert await load_credentials_row(db_session, "other") is not None
 
 
 def test_vercel_legacy_key_constant() -> None:
     assert VERCEL_CREDENTIALS_KEY == "vercelDeployCredentials"
 
 
-def test_decrypt_credentials_cipher_dict() -> None:
-    mock_service = MagicMock()
-    mock_service.decrypt.return_value = '{"token": "from-cipher"}'
-    with patch("app.services.hosting.credentials.get_encryption_service", return_value=mock_service):
-        result = decrypt_credentials({"_cipher": "blob"}, is_encrypted=True)
-    assert result == {"token": "from-cipher"}
-
-
 @pytest.mark.asyncio
-async def test_get_target_credential_status_configured(db_session) -> None:
-    from app.services.hosting.credentials import get_target_credential_status
-    from app.services.hosting.targets import save_hosting_targets
-    from app.services.hosting.types import HostingTarget
-
-    await save_hosting_targets(
-        db_session,
-        [HostingTarget(id="t1", name="Vercel", provider_type="vercel", config={}, is_default=True)],
-    )
+async def test_get_target_credential_status_configured(db_session: AsyncSession) -> None:
+    await save_hosting_targets(db_session, [_vercel("t1", is_default=True)])
     await save_target_credentials(db_session, "t1", {"token": "saved"})
     status = await get_target_credential_status(db_session, "t1")
     assert status.configured is True
@@ -177,8 +242,6 @@ async def test_get_target_credential_status_configured(db_session) -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_target_credentials_webhook_empty_ok() -> None:
-    from app.services.hosting.types import HostingTarget
-
     mock_db = AsyncMock()
     webhook_target = HostingTarget(
         id="wh-1",
@@ -197,8 +260,6 @@ async def test_resolve_target_credentials_webhook_empty_ok() -> None:
 
 @pytest.mark.asyncio
 async def test_migrate_legacy_skips_when_targets_exist() -> None:
-    from app.services.hosting.credentials import migrate_legacy_vercel_credentials
-
     mock_db = AsyncMock()
     with (
         patch("app.services.hosting.credentials.load_legacy_vercel_token", AsyncMock(return_value="legacy")),
@@ -211,8 +272,6 @@ async def test_migrate_legacy_skips_when_targets_exist() -> None:
 
 @pytest.mark.asyncio
 async def test_resolve_target_credentials_legacy_vercel() -> None:
-    from app.services.hosting.types import HostingTarget
-
     mock_db = AsyncMock()
     legacy_target = HostingTarget(id="legacy", name="V", provider_type="vercel", config={}, is_default=True)
     with (
@@ -222,24 +281,3 @@ async def test_resolve_target_credentials_legacy_vercel() -> None:
     ):
         creds = await resolve_target_credentials(mock_db, "legacy", request_token="")
     assert creds == {"token": "legacy-tok"}
-
-
-@pytest.mark.asyncio
-async def test_save_target_credentials_updates_existing_row() -> None:
-    mock_row = MagicMock()
-    mock_scalars = MagicMock()
-    mock_scalars.first.return_value = mock_row
-    mock_result = MagicMock()
-    mock_result.scalars.return_value = mock_scalars
-    mock_db = AsyncMock()
-    mock_db.execute = AsyncMock(return_value=mock_result)
-    mock_db.commit = AsyncMock()
-
-    with patch("app.services.hosting.credentials.get_encryption_service") as mock_service_factory:
-        mock_service = mock_service_factory.return_value
-        mock_service.encrypt_if_needed.return_value = ({"token": "updated"}, False)
-        result = await save_target_credentials(mock_db, "target-abc", {"token": "updated"})
-
-    assert result["status"] == "success"
-    mock_db.add.assert_not_called()
-    mock_db.commit.assert_awaited_once()

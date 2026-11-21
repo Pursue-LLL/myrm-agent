@@ -281,6 +281,11 @@ module = ["Quartz", "AppKit", "Foundation", "pyatspi"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+# uiautomation / mss / pyautogui 只在 Windows 上安装（computer-use extra 里的 sys_platform == 'win32'），其他平台的类型检查环境里没有它们；仅在 computer_use 的 Windows 模块（perception/windows_ax.py、backends/windows/）中惰性导入。
+module = ["uiautomation", "mss", "mss.tools", "pyautogui"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 # jieba 无类型 stubs（上游停更，未带 py.typed）；仅在 bm25/tokenizer.py 惰性导入。
 module = "jieba"
 ignore_missing_imports = true

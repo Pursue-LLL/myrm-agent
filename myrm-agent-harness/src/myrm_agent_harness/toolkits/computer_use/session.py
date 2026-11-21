@@ -5,6 +5,7 @@ single cohesive API surface. Agent tools interact exclusively with this class.
 
 [INPUT]
 - backends.protocols::ComputerBackend (POS: platform-specific I/O)
+- backends.factory::create_native_backend (POS: host OS to its native ComputerBackend)
 - screenshot_processor::ScreenshotProcessor (POS: image preprocessing)
 - coordinate_scaler::CoordinateScaler (POS: coordinate transformation)
 - screen_guard::ScreenGuard (POS: lock / sleep gate with host-provided on-demand unlock)
@@ -14,7 +15,7 @@ single cohesive API surface. Agent tools interact exclusively with this class.
 
 [OUTPUT]
 - ComputerSession: high-level session manager
-- create_computer_session: factory function with platform auto-detection
+- create_computer_session: factory: the native backend, wrapped for background input when cua-driver is installed
 
 [POS]
 Session lifecycle manager. One instance per agent-with-computer-use-enabled.
@@ -25,6 +26,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
+from myrm_agent_harness.toolkits.computer_use.backends.factory import create_native_backend
 from myrm_agent_harness.toolkits.computer_use.backends.protocols import ComputerBackend
 from myrm_agent_harness.toolkits.computer_use.coordinate_scaler import CoordinateScaler
 from myrm_agent_harness.toolkits.computer_use.screen_guard import ScreenGuard
@@ -378,32 +380,13 @@ class ComputerSession(ComputerPermissionMixin):
 def create_computer_session(
     config: ComputerUseConfig | None = None,
 ) -> ComputerSession:
-    """Factory: auto-detect platform and create appropriate ComputerSession.
+    """Factory: a ComputerSession on the platform's native backend.
 
-    On all platforms, if ``cua-driver`` is installed, wraps the native backend
-    with CuaDriverBackend for background (focus-free) input simulation.
-    Otherwise falls back to platform-native backends transparently.
+    If ``cua-driver`` is installed, the backend is wrapped with CuaDriverBackend for background (focus-free) input.
+    A wrapped backend hides the platform from the accessibility and guard dispatch, so a session that needs those
+    (DesktopSession, via ``create_desktop_session``) is built on ``create_native_backend`` instead.
     """
-    from myrm_agent_harness.toolkits.code_execution.platform import detect_platform
-
-    platform_info = detect_platform()
-
-    if platform_info.os_type == "macos":
-        from myrm_agent_harness.toolkits.computer_use.backends.macos.backend import MacOSBackend
-
-        native_backend: ComputerBackend = MacOSBackend()
-    elif platform_info.os_type == "windows":
-        from myrm_agent_harness.toolkits.computer_use.backends.windows.backend import (
-            WindowsBackend,
-        )
-
-        native_backend = WindowsBackend()
-    else:
-        from myrm_agent_harness.toolkits.computer_use.backends.linux.backend import LinuxBackend
-
-        native_backend = LinuxBackend()
-
-    backend = _try_wrap_with_cua_driver(native_backend)
+    backend = _try_wrap_with_cua_driver(create_native_backend())
     return ComputerSession(backend=backend, config=config)
 
 

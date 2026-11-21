@@ -4,6 +4,7 @@ import pytest
 
 from myrm_agent_harness.backends.skills.scanning.ast_analyzer import (
     AstScanFinding,
+    analyze_markdown_python_ast,
     analyze_python_ast,
     is_python_file,
 )
@@ -194,6 +195,40 @@ result = eval(user_input)
         findings = analyze_python_ast(source)
         eval_findings = [f for f in findings if f.threat_type == "code_injection"]
         assert eval_findings[0].line_number == 4
+
+
+class TestSourceTheAnalysisCannotTake:
+    """Source the parser or the tree walk cannot take is a file the analysis is blind to, never a clean one."""
+
+    @pytest.mark.parametrize(
+        "source",
+        [
+            "x = '\ud800'",
+            "x = " + "-" * 20_000 + "1",
+            "x = " + " + ".join(["1"] * 30_000),
+            # Parses, but a recursive walk over its tree passes the interpreter's recursion limit.
+            "x = " + " + ".join(["1"] * 3_000),
+        ],
+        ids=["lone-surrogate", "parser-stack-overflow", "recursion-limit", "walk-overflow"],
+    )
+    def test_it_is_one_high_finding_naming_the_file(self, source: str) -> None:
+        findings = analyze_python_ast(source, "blind.py")
+
+        assert [(f.threat_type, f.severity) for f in findings] == [("ast_parse_error", "high")]
+        assert "blind.py" in findings[0].description
+
+    def test_findings_made_before_the_failure_are_kept(self) -> None:
+        findings = analyze_python_ast('os.system("id")\nx = ' + " + ".join(["1"] * 3_000))
+
+        assert [(f.threat_type, f.severity) for f in findings] == [
+            ("command_injection", "critical"),
+            ("ast_parse_error", "high"),
+        ]
+
+    def test_a_python_block_of_a_markdown_document_is_judged_alike(self) -> None:
+        findings = analyze_markdown_python_ast("# Skill\n\n```python\nx = '\ud800'\n```\n", "SKILL.md")
+
+        assert [(f.threat_type, f.severity) for f in findings] == [("ast_parse_error", "high")]
 
 
 class TestAstScanFinding:

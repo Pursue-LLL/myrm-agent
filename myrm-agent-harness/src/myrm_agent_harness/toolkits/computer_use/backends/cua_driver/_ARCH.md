@@ -3,7 +3,7 @@
 ## Overview
 Background-input backend that proxies input actions to cua-driver over MCP stdio and delegates everything else to the native backend.
 
-Optional enhancement. Wraps the platform-native backend; never imported when cua-driver is not installed.
+Optional enhancement. Wraps the platform-native backend; never imported when cua-driver is not installed. Only a plain `ComputerSession` (`create_computer_session`) holds it: a `DesktopSession` holds the native backend (`computer_use/backends/factory.py`), because its accessibility capture, foreground identity and sensitive-application guards route on the backend's own class.
 
 ## File Index
 

@@ -7,80 +7,19 @@ from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.files.hosting_api import router as hosting_router
 from app.core.artifacts.listener import upsert_processor_artifact
-from app.database.connection import get_db
 from app.database.models.artifact_publication import ArtifactPublication
 from app.services.hosting.targets import save_hosting_targets
 from app.services.hosting.types import HostingTarget
-from tests.support.chat_workspace import chats_bound_to_workspaces
-
-_CHAT_ID = "chat-hosting-int"
-
-
-def _public_dns(*_args: object, **_kwargs: object) -> list[tuple[int, int, int, str, tuple[str, int]]]:
-    return [(2, 1, 6, "", ("8.8.8.8", 0))]
-
-
-@pytest.fixture
-def hosting_integration_client(db_session: AsyncSession, tmp_path, monkeypatch) -> TestClient:
-    workspace = tmp_path / "workspace"
-    workspace.mkdir()
-    test_app = FastAPI()
-    test_app.include_router(hosting_router)
-
-    async def override_get_db():
-        yield db_session
-
-    test_app.dependency_overrides[get_db] = override_get_db
-    monkeypatch.setattr(
-        "app.api.files.hosting_api.get_workspace_root",
-        lambda: workspace,
-    )
-
-    with chats_bound_to_workspaces({_CHAT_ID: workspace}), TestClient(test_app) as test_client:
-        yield test_client, workspace, db_session
-
-
-async def _seed_webhook_target(db_session: AsyncSession, target_id: str) -> None:
-    await save_hosting_targets(
-        db_session,
-        [
-            HostingTarget(
-                id=target_id,
-                name="CI Webhook",
-                provider_type="http_webhook",
-                config={"webhook_url": "https://hooks.example.com/publish"},
-                is_default=True,
-            )
-        ],
-    )
-
-
-async def _seed_html_artifact(db_session: AsyncSession, workspace, *, file_id: str | None = None) -> str:
-    html_path = workspace / "index.html"
-    html_path.write_text("<html><body><h1>Integration</h1></body></html>", encoding="utf-8")
-    artifact_id = file_id or f"hosting-int-{uuid.uuid4().hex[:8]}"
-    await upsert_processor_artifact(
-        db_session,
-        file_id=artifact_id,
-        filename="index.html",
-        sandbox_path=str(html_path),
-        workspace_root=str(workspace),
-        chat_id=_CHAT_ID,
-    )
-    return artifact_id
+from tests.support.hosting_api import public_dns, seed_html_artifact, seed_webhook_target
 
 
 @pytest.mark.asyncio
 async def test_preflight_real_vault_html_deployable(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     response = client.get(f"/{artifact_id}/publish/preflight")
     assert response.status_code == 200
@@ -114,8 +53,8 @@ async def test_preflight_rejects_tsx_only_artifact(hosting_integration_client) -
 async def test_publish_full_chain_http_webhook(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-int-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    await seed_webhook_target(db_session, target_id)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -125,7 +64,7 @@ async def test_publish_full_chain_http_webhook(hosting_integration_client) -> No
         )
 
     transport = httpx.MockTransport(handler)
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=public_dns):
         with patch(
             "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
             return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -160,7 +99,7 @@ async def test_publish_full_chain_http_webhook(hosting_integration_client) -> No
 @pytest.mark.asyncio
 async def test_publish_missing_target_returns_500(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     response = client.post(
         f"/{artifact_id}/publish",
@@ -171,54 +110,11 @@ async def test_publish_missing_target_returns_500(hosting_integration_client) ->
 
 
 @pytest.mark.asyncio
-async def test_target_credentials_roundtrip(hosting_integration_client) -> None:
-    client, _workspace, db_session = hosting_integration_client
-    target_id = f"cred-int-{uuid.uuid4().hex[:8]}"
-    await save_hosting_targets(
-        db_session,
-        [
-            HostingTarget(
-                id=target_id,
-                name="Netlify",
-                provider_type="netlify",
-                config={"site_id": "site_abc"},
-                is_default=True,
-            )
-        ],
-    )
-
-    put = client.put(
-        f"/hosting/targets/{target_id}/credentials",
-        json={"credentials": {"access_token": "nl_secret"}},
-    )
-    assert put.status_code == 200
-
-    get = client.get(f"/hosting/targets/{target_id}/credentials")
-    assert get.status_code == 200
-    body = get.json()
-    assert body["configured"] is True
-    assert body["credentials"]["access_token"] == "nl_secret"
-
-
-@pytest.mark.asyncio
-async def test_test_connection_webhook_validates_url(hosting_integration_client) -> None:
-    client, _workspace, db_session = hosting_integration_client
-    target_id = f"wh-test-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
-        response = client.post(f"/hosting/targets/{target_id}/test")
-
-    assert response.status_code == 200
-    assert response.json()["ok"] is True
-
-
-@pytest.mark.asyncio
 async def test_publications_list_after_publish(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-pub-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    await seed_webhook_target(db_session, target_id)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -228,7 +124,7 @@ async def test_publications_list_after_publish(hosting_integration_client) -> No
         )
 
     transport = httpx.MockTransport(handler)
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=public_dns):
         with patch(
             "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
             return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -248,8 +144,8 @@ async def test_publications_list_after_publish(hosting_integration_client) -> No
 async def test_publish_websocket_polls_ready(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-ws-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    await seed_webhook_target(db_session, target_id)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
@@ -267,7 +163,7 @@ async def test_publish_websocket_polls_ready(hosting_integration_client) -> None
         async def __aexit__(self, *_args: object) -> None:
             return None
 
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=public_dns):
         with patch(
             "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
             return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -300,13 +196,13 @@ async def test_webhook_publish_without_saved_credentials(hosting_integration_cli
             )
         ],
     )
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"url": "https://nocreds.example.com"}, request=request)
 
     transport = httpx.MockTransport(handler)
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=public_dns):
         with patch(
             "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
             return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -318,46 +214,9 @@ async def test_webhook_publish_without_saved_credentials(hosting_integration_cli
 
 
 @pytest.mark.asyncio
-async def test_target_crud_lifecycle_matches_frontend(hosting_integration_client) -> None:
-    client, _workspace, db_session = hosting_integration_client
-    create = client.post(
-        "/hosting/targets",
-        json={
-            "name": "Lifecycle Webhook",
-            "provider_type": "http_webhook",
-            "config": {"webhook_url": "https://hooks.example.com/lifecycle", "allow_http": "false"},
-            "is_default": True,
-        },
-    )
-    assert create.status_code == 200
-    target_id = create.json()["id"]
-
-    update = client.put(
-        f"/hosting/targets/{target_id}",
-        json={
-            "name": "Lifecycle Updated",
-            "provider_type": "http_webhook",
-            "config": {"webhook_url": "https://hooks.example.com/lifecycle-v2", "allow_http": "false"},
-            "is_default": True,
-        },
-    )
-    assert update.status_code == 200
-    assert update.json()["name"] == "Lifecycle Updated"
-
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
-        test_resp = client.post(f"/hosting/targets/{target_id}/test")
-    assert test_resp.status_code == 200
-    assert test_resp.json()["ok"] is True
-
-    delete = client.delete(f"/hosting/targets/{target_id}")
-    assert delete.status_code == 200
-    assert client.get("/hosting/targets").json()["targets"] == []
-
-
-@pytest.mark.asyncio
 async def test_preflight_unknown_target_id_404(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
     response = client.get(f"/{artifact_id}/publish/preflight?target_id=missing-target")
     assert response.status_code == 404
 
@@ -366,7 +225,7 @@ async def test_preflight_unknown_target_id_404(hosting_integration_client) -> No
 async def test_publish_artifact_not_found_400(hosting_integration_client) -> None:
     client, _workspace, db_session = hosting_integration_client
     target_id = f"wh-404-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
+    await seed_webhook_target(db_session, target_id)
     response = client.post(
         f"/missing-artifact-{uuid.uuid4()}/publish",
         json={"target_id": target_id, "token": ""},
@@ -379,7 +238,7 @@ async def test_publish_artifact_not_found_400(hosting_integration_client) -> Non
 async def test_publish_tsx_preflight_failed_400(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-tsx-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
+    await seed_webhook_target(db_session, target_id)
     tsx_path = workspace / "Only.tsx"
     tsx_path.write_text("export default 1", encoding="utf-8")
     artifact_id = f"tsx-fail-{uuid.uuid4().hex[:8]}"
@@ -410,7 +269,7 @@ async def test_publish_ssrf_blocks_webhook_url(hosting_integration_client) -> No
             )
         ],
     )
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
     response = client.post(f"/{artifact_id}/publish", json={"target_id": target_id, "token": ""})
     assert response.status_code == 500
     detail = response.json()["detail"].lower()
@@ -421,15 +280,15 @@ async def test_publish_ssrf_blocks_webhook_url(hosting_integration_client) -> No
 async def test_redeploy_updates_existing_publication(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-re-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    await seed_webhook_target(db_session, target_id)
+    artifact_id = await seed_html_artifact(db_session, workspace)
     urls = ["https://v1.example.com", "https://v2.example.com"]
 
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json={"url": urls.pop(0), "publication_id": "pub_re"}, request=request)
 
     transport = httpx.MockTransport(handler)
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=public_dns):
         with patch(
             "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
             return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -450,36 +309,11 @@ async def test_redeploy_updates_existing_publication(hosting_integration_client)
 
 
 @pytest.mark.asyncio
-async def test_update_and_delete_target_not_found(hosting_integration_client) -> None:
-    client, _, _db = hosting_integration_client
-    missing = "missing-target-id"
-    update = client.put(
-        f"/hosting/targets/{missing}",
-        json={"name": "X", "provider_type": "vercel", "config": {}, "is_default": False},
-    )
-    assert update.status_code == 404
-    delete = client.delete(f"/hosting/targets/{missing}")
-    assert delete.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_webhook_credentials_status_without_secrets(hosting_integration_client) -> None:
-    client, _workspace, db_session = hosting_integration_client
-    target_id = f"wh-cred-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    response = client.get(f"/hosting/targets/{target_id}/credentials")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["configured"] is True
-    assert body["credentials"] == {}
-
-
-@pytest.mark.asyncio
 async def test_ws_rejects_invalid_auth(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-badws-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    await seed_webhook_target(db_session, target_id)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     class _SessionCtx:
         async def __aenter__(self):
@@ -515,7 +349,7 @@ async def test_vercel_publish_without_credentials_returns_500(hosting_integratio
             )
         ],
     )
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
 
     with patch("app.services.hosting.credentials.get_platform_vercel_token", return_value=None):
         with patch("app.services.hosting.credentials.load_legacy_vercel_token", AsyncMock(return_value=None)):
@@ -526,47 +360,6 @@ async def test_vercel_publish_without_credentials_returns_500(hosting_integratio
 
     assert response.status_code == 500
     assert "credential" in response.json()["detail"].lower()
-
-
-@pytest.mark.asyncio
-async def test_make_default_missing_target_404(hosting_integration_client) -> None:
-    client, _, _db = hosting_integration_client
-    response = client.post("/hosting/targets/does-not-exist/make-default")
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_put_credentials_missing_target_404(hosting_integration_client) -> None:
-    client, _, _db = hosting_integration_client
-    response = client.put(
-        "/hosting/targets/missing-target/credentials",
-        json={"credentials": {"token": "x"}},
-    )
-    assert response.status_code == 404
-
-
-@pytest.mark.asyncio
-async def test_test_connection_vercel_without_credentials(hosting_integration_client) -> None:
-    client, _workspace, db_session = hosting_integration_client
-    target_id = f"vercel-test-{uuid.uuid4().hex[:8]}"
-    await save_hosting_targets(
-        db_session,
-        [
-            HostingTarget(
-                id=target_id,
-                name="Vercel",
-                provider_type="vercel",
-                config={},
-                is_default=True,
-            )
-        ],
-    )
-    with patch("app.services.hosting.credentials.get_platform_vercel_token", return_value=None):
-        response = client.post(f"/hosting/targets/{target_id}/test")
-    assert response.status_code == 200
-    body = response.json()
-    assert body["ok"] is False
-    assert "credentials" in body["message"].lower() or "token" in body["message"].lower()
 
 
 @pytest.mark.asyncio
@@ -594,7 +387,7 @@ async def test_multi_target_publications_same_artifact(hosting_integration_clien
             ),
         ],
     )
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    artifact_id = await seed_html_artifact(db_session, workspace)
     urls = {"https://a.example.com", "https://b.example.com"}
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -606,7 +399,7 @@ async def test_multi_target_publications_same_artifact(hosting_integration_clien
         )
 
     transport = httpx.MockTransport(handler)
-    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=_public_dns):
+    with patch("app.services.hosting.ssrf_guard.socket.getaddrinfo", side_effect=public_dns):
         with patch(
             "app.services.hosting.providers.http_webhook.httpx.AsyncClient",
             return_value=httpx.AsyncClient(transport=transport, follow_redirects=False),
@@ -630,8 +423,8 @@ async def test_multi_target_publications_same_artifact(hosting_integration_clien
 async def test_preflight_with_valid_target_id_succeeds(hosting_integration_client) -> None:
     client, workspace, db_session = hosting_integration_client
     target_id = f"wh-pf-{uuid.uuid4().hex[:8]}"
-    await _seed_webhook_target(db_session, target_id)
-    artifact_id = await _seed_html_artifact(db_session, workspace)
+    await seed_webhook_target(db_session, target_id)
+    artifact_id = await seed_html_artifact(db_session, workspace)
     response = client.get(f"/{artifact_id}/publish/preflight?target_id={target_id}")
     assert response.status_code == 200
     assert response.json()["deployable"] is True

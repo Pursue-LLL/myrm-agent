@@ -1,7 +1,7 @@
 """Validation helpers for persisted Dynamic Workflow orchestration scripts.
 
 [INPUT]
-- None (pure validation utilities)
+- utils.python_parse::PYTHON_PARSE_ERRORS (POS: What the Python parser raises for text that is not a usable program)
 
 [OUTPUT]
 - validate_orchestration_script, apply_template_args, extract_template_placeholders, validate_template_args, can_skip_plan_confirm
@@ -15,6 +15,8 @@ from __future__ import annotations
 import ast
 import hashlib
 import re
+
+from myrm_agent_harness.utils.python_parse import PYTHON_PARSE_ERRORS
 
 _MAX_SCRIPT_BYTES = 256_000
 _FORBIDDEN_SNIPPETS = (
@@ -142,7 +144,7 @@ def _spawn_call_has_readonly_true(node: ast.Call) -> bool:
 def _collect_spawn_subagent_calls(script_code: str) -> list[ast.Call] | None:
     try:
         tree = ast.parse(script_code)
-    except SyntaxError:
+    except PYTHON_PARSE_ERRORS:
         return None
     calls: list[ast.Call] = []
     for node in ast.walk(tree):
