@@ -52,7 +52,7 @@
 Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/personalSettings），
 其余 key（含 `securityConfig`）后台异步预加载（失败重试 3 次）。预加载写入缓存时**同步通知订阅者**——
 否则「配置就绪后兜底」类逻辑（如 securityConfig ⇄ YOLO 互斥重放）永远收不到触发。缓存里已有的 key 不被迟到的答复覆盖（用户在读取进行中保存的值、先到的同 key 答复都保留），迟到的答复只补空缺。
-读取即决策的路径（安全预设、本地模型密钥、发送前的搜索服务检查）应使用 `ensureKeyLoaded(key)` 显式等待目标 key 同步；它返回状态是否已知（缓存命中，或服务端已答复，含「没有这一行」为 true；请求失败为 false，永不抛出），状态未知时的去向由调用方决定，需要等待上限时配合 `@/lib/utils/withTimeout`。
+读取即决策的路径（安全预设、本地模型密钥、发送前的搜索服务检查、离线队列重放前的比对）应使用 `ensureKeyLoaded(key)` 显式等待目标 key 同步；它返回状态是否已知（缓存命中，或服务端已答复，含「没有这一行」为 true；请求失败为 false，永不抛出），状态未知时的去向由调用方决定，需要等待上限时配合 `@/lib/utils/withTimeout`。
 
 ## 后端写入后的重载
 
@@ -64,6 +64,8 @@ Sandbox 模式下 `initialize()` 只 await 核心 key（providers/chatSettings/p
 本地尚未同步的改动不被覆盖，仍由常规同步对账（见 `serverReload.ts`）。
 
 ## 写入一致性（offline replay）
+
+重放判定前，对队列涉及的每个 key 先 `ensureKeyLoaded`：渐进加载下缓存只含核心 key，缓存里没有的 key 无从比对服务端版本，会被判成「服务端已前进」，向用户弹出没有对比数据的冲突框，选「采用服务端」还会丢掉本地编辑。联网事件触发的重放先 `initialize()`：启动失败过则重新启动（它自己载入并重放队列），仍不可达就保留队列等下一次联网，不拿空缓存去比对。
 
 - `initialize()` 重放 offline queue **前**：`localWrites.ts` 的 `applyReplayedChanges` 乐观写入 cache（与 `set()` 同语义）
 - `flushSync()` 成功 **后**：`recordSyncedChanges` 把 `mergedChanges[].value` 同步到 `cache` + `baseCache`

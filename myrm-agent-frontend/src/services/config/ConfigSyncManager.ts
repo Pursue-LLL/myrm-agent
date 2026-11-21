@@ -425,6 +425,11 @@ class ConfigSyncManager {
   }
 
   private async retryOfflineQueue(): Promise<void> {
+    // 启动失败时服务端状态从未载入：先重新初始化（它自己会载入并重放队列），仍不可达就留在队列里等下一次联网。
+    await this.initialize();
+    if (!this._isInitialized) {
+      return;
+    }
     await this.replayOfflineChanges(this.collectOfflineChanges());
     if (this.changeQueue.length > 0) {
       await this.flushSync();
@@ -442,6 +447,8 @@ class ConfigSyncManager {
       return;
     }
     console.warn(`[ConfigSync] Found ${pending.length} offline changes, syncing...`);
+    // 渐进加载下缓存只含核心键：队列里的非核心键没补载入就比对，会把「没取到」当成「服务端已前进」。
+    await Promise.all(pending.map((change) => this.ensureKeyLoaded(change.key)));
     const replayable = await partitionOfflineChanges(pending, this.cache, this.conflictResolver);
     this.memoryOnlyOfflineChanges = [];
     clearOfflineQueue();
