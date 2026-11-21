@@ -31,7 +31,7 @@ class TestCreateNotificationSender:
         assert config.rate_limit_per_session == 10
         assert config.max_body_length == 4000
         assert config.destinations == {
-            "telegram:My TG": NotifyTarget(channel="telegram", recipient_id="123", label="My TG"),
+            "telegram:My TG": NotifyTarget(channel="telegram", recipient_id="123"),
             "slack#2": NotifyTarget(channel="slack", recipient_id="C456"),
         }
 
@@ -131,7 +131,7 @@ class TestTargetNormalization:
     def test_recipient_and_channel_are_stripped(self) -> None:
         result = create_notification_sender(({"channel": " telegram ", "recipient_id": " 42 ", "label": "me"},))
         assert result is not None
-        assert result[1].destinations["telegram:me"] == NotifyTarget(channel="telegram", recipient_id="42", label="me")
+        assert result[1].destinations["telegram:me"] == NotifyTarget(channel="telegram", recipient_id="42")
 
 
 def _bridge_with_send_now(**send_now_kwargs: object) -> MagicMock:

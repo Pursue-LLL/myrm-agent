@@ -25,7 +25,6 @@ class NotifyTarget:
 
     channel: str
     recipient_id: str
-    label: str = ""
 
 
 @dataclass(frozen=True, slots=True)
