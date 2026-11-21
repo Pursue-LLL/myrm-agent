@@ -151,7 +151,7 @@ describe('DailyReviewCard agent scope', () => {
 
 describe('DailyReviewCard failure', () => {
   it.each([
-    ['the server refuses the review', new ApiError('Review blocked by the security policy', 422)],
+    ['the server rejects the request shape', new ApiError('Validation failed: text too long', 422)],
     ['the server fails while storing it', new ApiError('Failed to store the review: disk I/O error', 500)],
     ['the request never reaches the server', new TypeError('Failed to fetch')],
   ])('shows only the localized message and keeps the text when %s', async (_case, failure) => {
@@ -163,6 +163,20 @@ describe('DailyReviewCard failure', () => {
     const error = await screen.findByTestId('daily-review-error');
     expect(error).toHaveTextContent('dailyReview.error');
     expect(error).not.toHaveTextContent(failure.message);
+    expect(screen.getByTestId('daily-review-text-input')).toHaveValue('Shipped the fix');
+    expect(screen.queryByTestId('daily-review-result')).not.toBeInTheDocument();
+  });
+
+  it('names the cause when the security check blocks the review, and keeps the text for editing', async () => {
+    const blocked = new ApiError('Review blocked by the security policy', 422, [], undefined, 'security_blocked');
+    apiRequestMock.mockRejectedValue(blocked);
+    render(<Card />);
+
+    await submitReview();
+
+    const error = await screen.findByTestId('daily-review-error');
+    expect(error).toHaveTextContent('dailyReview.securityBlocked');
+    expect(error).not.toHaveTextContent(blocked.message);
     expect(screen.getByTestId('daily-review-text-input')).toHaveValue('Shipped the fix');
     expect(screen.queryByTestId('daily-review-result')).not.toBeInTheDocument();
   });
