@@ -48,14 +48,13 @@ from myrm_agent_harness.utils.json_args_repair import quarantine_invalid_tool_ca
 
 logger = logging.getLogger(__name__)
 
+# An interrupted call has no result, so neither text claims one: a replay-safe call simply produced nothing, and any
+# other call may have taken effect in part or in full. The second states what the first cannot.
 _INTERRUPTED_MUTATION_CONTENT = (
-    "[Tool call was interrupted before completion. "
-    "Action has external side-effects; cancelled by safety policy to prevent duplicate side effects. "
-    "Please adapt your plan to user instructions.]"
+    "[Tool call was cut off before it finished, so whether it took effect is unknown: it may have run in part or "
+    "in full. Check the current state before repeating it.]"
 )
-_INTERRUPTED_SAFE_CONTENT = (
-    "[Tool execution was interrupted during recovery. Read-only action safely completed without side effects.]"
-)
+_INTERRUPTED_SAFE_CONTENT = "[Tool call was cut off before it finished and returned no result. It can be run again.]"
 _INVALID_ARGS_CONTENT = "[Tool call could not be executed because its arguments were invalid.]"
 _MAX_ERROR_DETAIL_LEN = 500
 
@@ -63,21 +62,20 @@ _MAX_ERROR_DETAIL_LEN = 500
 def _synthetic_content(
     tool_name: str = "unknown",
     error: str | None = None,
-) -> tuple[str, str]:
-    """Generate appropriate synthetic ToolMessage content and status.
+) -> str:
+    """The text of the ToolMessage that stands in for a call that has no result (its status is always ``error``).
 
     An ``error`` diagnosis means the call was quarantined as unrepairable —
     surface it with invalid-args semantics; otherwise the call was valid or
-    repaired, and replay safety decides interrupted semantics.
+    repaired, and replay safety decides what the model is told about the interruption.
     """
     if error:
         truncated = error[:_MAX_ERROR_DETAIL_LEN]
-        return f"{_INVALID_ARGS_CONTENT[:-1]}: {truncated}]", "error"
+        return f"{_INVALID_ARGS_CONTENT[:-1]}: {truncated}]"
 
-    safety = get_tool_replay_safety(tool_name)
-    if safety == ReplaySafety.SAFE:
-        return _INTERRUPTED_SAFE_CONTENT, "success"
-    return _INTERRUPTED_MUTATION_CONTENT, "error"
+    if get_tool_replay_safety(tool_name) == ReplaySafety.SAFE:
+        return _INTERRUPTED_SAFE_CONTENT
+    return _INTERRUPTED_MUTATION_CONTENT
 
 
 def _sanitize_tool_name(name: object) -> str:
@@ -374,13 +372,12 @@ def _build_patched_messages(messages: list[BaseMessage]) -> list[BaseMessage] | 
                 # the synthetic ToolMessage explains the failure instead of
                 # replaying the malformed text.
                 error = invalid_errors.get(tc_id)
-                content, status = _synthetic_content(tool_name=tool_name, error=error)
                 patched.append(
                     ToolMessage(
-                        content=content,
+                        content=_synthetic_content(tool_name=tool_name, error=error),
                         tool_call_id=tc_id,
                         name=tool_name,
-                        status=status,
+                        status="error",
                     )
                 )
                 patched_names.append(tool_name)
