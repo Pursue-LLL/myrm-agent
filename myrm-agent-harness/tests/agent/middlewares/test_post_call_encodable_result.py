@@ -10,8 +10,9 @@
   or when the scrub drops the status, the call id or the extra fields of the result.
 
 [POS]
-A tool result can carry a file name that was not valid UTF-8 (a lone surrogate in Python). The guards after the scrub
-hash, persist and log the text with strict encodings, so the scrub is what keeps such a result from failing the call.
+A tool result can carry a file name that was not valid UTF-8 (a lone surrogate in Python). The loop guard's result hash
+and the file an over-budget result is persisted to encode strictly as UTF-8, so the scrub is what keeps such a result
+from failing the call.
 """
 
 from __future__ import annotations

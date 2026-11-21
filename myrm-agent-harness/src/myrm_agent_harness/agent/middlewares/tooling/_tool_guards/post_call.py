@@ -51,9 +51,9 @@ logger = get_agent_logger(__name__)
 def _with_encodable_content(result: ToolMessage) -> ToolMessage:
     """*result* itself when all its text can be encoded as UTF-8, else a copy whose lone surrogates became ``U+FFFD``.
 
-    A tool can hand back text with lone surrogates (a file name that was not valid UTF-8). The guards after this
-    point hash, persist and log the text with strict encodings and would fail on it; the model call replaces the
-    surrogates the same way later, so the conversation holds what is sent either way.
+    A tool can hand back text with lone surrogates (a file name that was not valid UTF-8). The loop guard's result
+    hash and the file an over-budget result is persisted to both encode strictly as UTF-8 and would raise on it; the
+    model call replaces the surrogates the same way later, so the conversation holds what is sent either way.
     """
     content = result.content
     if isinstance(content, str):
