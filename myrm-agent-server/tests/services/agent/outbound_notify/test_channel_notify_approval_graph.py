@@ -221,8 +221,9 @@ async def test_call_outside_the_configured_destinations_delivers_nothing(
 ) -> None:
     agent = _agent(_ONE_TARGET, args)
     state = await _start(agent)
-    if "__interrupt__" in state:
-        state = await _decide(agent, "approve")
+    # The card comes first: approval is asked for the call as the model made it, and only then are its arguments validated.
+    assert "__interrupt__" in state
+    state = await _decide(agent, "approve")
 
     assert complaint in _tool_reply(state)
     assert bus.delivered == []
