@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getConfigSyncManager, resetConfigSyncManager } from '@/services/config/ConfigSyncManager';
-import type { ConfigChange } from '@/services/config/types';
+import { serveCloudBackend, storedKeys } from './fakeCloudBackend';
 
 vi.mock('@/lib/deploy-mode', () => ({
   isLocalMode: () => false,
@@ -21,47 +21,11 @@ vi.mock('@/lib/guest', () => ({
   getAuthToken: () => 'test-token',
 }));
 
-const CORE_KEYS = ['providers', 'chatSettings', 'personalSettings'];
-const OFFLINE_QUEUE_KEY = 'config-offline-queue';
-
 type Backend = 'up' | 'unavailable' | 'refusing';
 
-const response = (status: number, body: unknown = {}) =>
-  ({ ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) }) as Response;
-const wireRecord = (key: string) => ({
-  key,
-  value: {},
-  version: '1000_0',
-  updatedAt: '2026-01-01T00:00:00.000Z',
-  deviceId: 'dev',
-  encrypted: false,
-});
-
-/** A backend that serves the core keys and takes writes while `state.backend` is up; every write is recorded. */
-function serve(state: { backend: Backend }) {
-  const posts: Array<{ at: number; changes: ConfigChange[] }> = [];
-  global.fetch = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
-    if (init?.method !== 'POST') {
-      return Promise.resolve(
-        response(200, { configs: Object.fromEntries(CORE_KEYS.map((key) => [key, wireRecord(key)])) }),
-      );
-    }
-    const { changes } = JSON.parse(String(init.body)) as { changes: ConfigChange[] };
-    posts.push({ at: Date.now(), changes });
-    if (state.backend === 'unavailable') {
-      return Promise.resolve(response(503));
-    }
-    if (state.backend === 'refusing') {
-      return Promise.resolve(response(422, { detail: 'invalid' }));
-    }
-    const newVersions = Object.fromEntries(changes.map((change) => [change.key, '2000_0']));
-    return Promise.resolve(response(200, { success: true, conflicts: [], newVersions }));
-  }) as unknown as typeof fetch;
-  return posts;
-}
-
-const storedKeys = () =>
-  (JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) ?? '[]') as ConfigChange[]).map((c) => c.key);
+/** A backend that takes writes while `state.backend` is up, is not available, or refuses them. */
+const serve = (state: { backend: Backend }) =>
+  serveCloudBackend(() => ({ up: 'accept' as const, unavailable: 503, refusing: 422 })[state.backend]);
 
 describe('config outbox retention (cloud mode)', () => {
   const state = { backend: 'up' as Backend };

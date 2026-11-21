@@ -5,6 +5,7 @@
  * - `./localWrites` applyReplayedChanges / recordSyncedChanges (POS: cache bookkeeping of writes made on this device)
  * - `./offlineQueue` loadOfflineQueue / saveOfflineQueue / removeOfflineEntries / takeUnpersistableOfflineEntries (POS: browser-storage half of the offline queue)
  * - `./offlineReplay` mergeLatestChanges / partitionOfflineChanges (POS: one change per key, replay staleness gate)
+ * - `./outboxAnswer` mergeAnswers / partitionByAnswer (POS: how a backend answer maps onto the batch it answers)
  * - `./types` ConfigChange / SyncResult / SyncStatus (POS: queued write, backend answer, manager state)
  *
  * [OUTPUT]
@@ -24,7 +25,9 @@
  *
  * A change the backend did not take stays queued (and stored, for allowlisted keys) and is retried after a pause that
  * doubles from 1 s up to a minute and starts over once the backend answers; `forceSync()` reports it as a failed
- * result. A send nobody awaits that the backend refuses is logged by the send itself, never an unhandled rejection.
+ * result. A batch the backend refuses outright is sent again key by key, so only the keys it refuses lose their write
+ * and `forceSync()` still rejects with the refusal; a send nobody awaits is logged by the send itself, never an
+ * unhandled rejection.
  */
 import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext } from './conflictResolution';
@@ -38,6 +41,7 @@ import {
   takeUnpersistableOfflineEntries,
 } from './offlineQueue';
 import { mergeLatestChanges, partitionOfflineChanges } from './offlineReplay';
+import { mergeAnswers, partitionByAnswer } from './outboxAnswer';
 import type { ConfigChange, ConfigKey, ConfigVersion, SyncResult, SyncStatus } from './types';
 
 // 防抖延迟（毫秒）
@@ -59,16 +63,13 @@ interface SendOptions {
   preserveExpectedVersion?: boolean;
 }
 
-/** One send: the backend's answer, and the settlement of the clashes it raised (which may wait for the user). */
-interface Delivery {
-  result: SyncResult;
-  settled: Promise<void>;
-}
+/**
+ * One send: the backend's answer, or its outright refusal of a change, and the settlement of the clashes the send
+ * raised (which may wait for the user).
+ */
+type Delivery = { result: SyncResult; settled: Promise<void> } | { refusal: unknown; settled: Promise<void> };
 
-const nothingSent = (): Delivery => ({
-  result: { success: true, conflicts: [], newVersions: new Map() },
-  settled: Promise.resolve(),
-});
+const nothingSent = (): Delivery => ({ result: mergeAnswers([]), settled: Promise.resolve() });
 
 export class ConfigOutbox {
   private queue: ConfigChange[] = [];
@@ -202,9 +203,12 @@ export class ConfigOutbox {
 
   /** Sends what is queued; returns once the answer is applied and every clash it raised is settled. */
   private async flush(options?: SendOptions): Promise<SyncResult> {
-    const { result, settled } = await this.exclusive(() => this.sendQueued(options));
-    await settled;
-    return result;
+    const delivery = await this.exclusive(() => this.sendQueued(options));
+    await delivery.settled;
+    if ('refusal' in delivery) {
+      throw delivery.refusal;
+    }
+    return delivery.result;
   }
 
   /** Runs `task` after every earlier send has ended; a failed send does not stop the chain. */
@@ -234,10 +238,40 @@ export class ConfigOutbox {
     } catch (error) {
       // 适配器把传输失败折算成失败结果（见 `adapters/_ARCH.md`），走到这里的是后端明确拒绝的写入。
       console.warn('[ConfigSync] Sync failed:', error);
-      this.host.setStatus('error');
-      throw error;
+      return this.isolate(batch, error);
     }
     return { result, settled: this.settle(batch, result, true) };
+  }
+
+  /**
+   * The backend validates a whole batch before it stores any change, so its refusal does not say which change it
+   * dislikes: each key is sent alone. The keys it takes are settled like any answer, only the keys it refuses lose
+   * their write, and the refusal of the batch is what the caller of `forceSync()` sees.
+   */
+  private async isolate(batch: ConfigChange[], refusal: unknown): Promise<Delivery> {
+    if (batch.length === 1) {
+      this.host.setStatus('error');
+      return { refusal, settled: Promise.resolve() };
+    }
+    const answers: SyncResult[] = [];
+    const settlements: Array<Promise<void>> = [];
+    let refused = false;
+    for (const change of batch) {
+      try {
+        const answer = await this.host.context().adapter.sync([change]);
+        answers.push(answer);
+        settlements.push(this.settle([change], answer, true));
+      } catch (error) {
+        console.warn(`[ConfigSync] The backend refused the change of '${change.key}':`, error);
+        refused = true;
+      }
+    }
+    const settled = Promise.all(settlements).then(() => undefined);
+    if (refused) {
+      this.host.setStatus('error');
+      return { refusal, settled };
+    }
+    return { result: mergeAnswers(answers), settled };
   }
 
   /**
@@ -248,22 +282,10 @@ export class ConfigOutbox {
     if (!result.error) {
       this.retryDelay = RETRY_MIN_MS;
     }
-    const clashed = new Set(result.conflicts);
-    const accepted: ConfigChange[] = [];
-    const rejected: ConfigChange[] = [];
-    const unnamed: ConfigChange[] = [];
-    for (const change of batch) {
-      if (clashed.has(change.key)) {
-        rejected.push(change);
-      } else if (result.success || result.newVersions.has(change.key)) {
-        accepted.push(change);
-      } else {
-        unnamed.push(change);
-      }
-    }
+    const { accepted, rejected, unnamed } = partitionByAnswer(batch, result);
     this.acknowledge(accepted, result.newVersions);
 
-    if (clashed.size > 0 && resolveClashes) {
+    if (result.conflicts.length > 0 && resolveClashes) {
       this.retain(unnamed);
       await this.reconcile(rejected, result.conflicts);
       return;
