@@ -60,6 +60,8 @@ def test_health_operator_routes_and_probes_are_not_public_for_mutating_methods(p
     ("path", "method"),
     [
         ("/api/v1/public/artifact-share/token-1", "POST"),
+        ("/api/v1/public/chat-share/token-1", "GET"),
+        ("/api/v1/public/chat-share/token-1", "POST"),
         ("/webui/auth/login", "POST"),
         ("/health", "GET"),
     ],
