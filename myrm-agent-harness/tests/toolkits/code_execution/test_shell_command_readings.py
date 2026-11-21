@@ -255,12 +255,13 @@ def test_a_line_built_to_nest_deeply_or_branch_widely_is_read_within_bounds(comm
     ids=["assignment-run", "eval-chain", "eval-chain-quoted-payload", "many-interpreters"],
 )
 def test_a_line_built_to_make_the_reading_quadratic_is_read_in_time(command: str) -> None:
-    """Each of these is read in well under a second. Trying every word with the assignment-skipping reader costs
-    tens of seconds on the assignment run, and re-expanding every nested script costs as long on the ``eval`` chain,
-    so the bound separates the two without being close to either on an idle machine."""
-    started = time.monotonic()
+    """Each of these is read in well under a second of CPU time. Trying every word with the assignment-skipping
+    reader costs tens of seconds on the assignment run, and re-expanding every nested script costs as long on the
+    ``eval`` chain, so the bound separates the two. CPU time, not wall time: a machine busy with other work stretches
+    the wall time of the same reading many times over."""
+    started = time.process_time()
     analyze_command(command)
-    assert time.monotonic() - started < 10.0
+    assert time.process_time() - started < 10.0
 
 
 def test_a_script_behind_a_long_assignment_run_is_still_read() -> None:
