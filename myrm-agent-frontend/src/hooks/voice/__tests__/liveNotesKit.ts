@@ -5,7 +5,7 @@
  * - @/hooks/voice/useLiveMeetingNotes (POS: In-meeting live notes session: transcript upload, rolling structured notes, minutes published when the session ends)
  *
  * [OUTPUT]
- * - ingestLiveTranscript / finalizeLiveMeeting / finalizeLiveMeetingOnPageExit / toastSuccess / toastError: the doubles
+ * - ingestLiveTranscript / finalizeLiveMeeting / finalizeLiveMeetingOnPageExit / toastSuccess / toastWarning / toastError: the doubles
  * - EMPTY_SNAPSHOT / ROLLING_SNAPSHOT / PUBLISHED_SNAPSHOT: what the server answers before, during and after publishing
  * - deferred: a promise a test settles by hand
  * - renderLive: mounts the hook the way the voice session does
@@ -27,6 +27,7 @@ export const ingestLiveTranscript = vi.fn();
 export const finalizeLiveMeeting = vi.fn();
 export const finalizeLiveMeetingOnPageExit = vi.fn();
 export const toastSuccess = vi.fn();
+export const toastWarning = vi.fn();
 export const toastError = vi.fn();
 
 vi.mock('@/services/liveMeeting', () => ({
@@ -38,6 +39,7 @@ vi.mock('@/services/liveMeeting', () => ({
 vi.mock('@/lib/utils/toast', () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccess(...args),
+    warning: (...args: unknown[]) => toastWarning(...args),
     error: (...args: unknown[]) => toastError(...args),
   },
 }));
@@ -99,5 +101,6 @@ export function resetLiveNotesKit(): void {
   finalizeLiveMeeting.mockResolvedValue(PUBLISHED_SNAPSHOT);
   finalizeLiveMeetingOnPageExit.mockReset();
   toastSuccess.mockReset();
+  toastWarning.mockReset();
   toastError.mockReset();
 }

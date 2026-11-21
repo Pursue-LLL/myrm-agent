@@ -5,6 +5,7 @@ import {
   ingestLiveTranscript,
   finalizeLiveMeeting,
   toastSuccess,
+  toastWarning,
   toastError,
   EMPTY_SNAPSHOT,
   ROLLING_SNAPSHOT,
@@ -68,7 +69,7 @@ describe('useLiveMeetingNotes boundaries', () => {
       expect(finalizeLiveMeeting).toHaveBeenCalledTimes(2);
     });
 
-    it('does not offer a retry for a meeting the server no longer holds', async () => {
+    it('cannot confirm the save, and offers no retry, for a meeting the server no longer holds', async () => {
       finalizeLiveMeeting.mockRejectedValueOnce(new ApiError('Live meeting session not found', 404));
       const { result, rerender } = renderLive({ active: true });
       act(() => {
@@ -76,12 +77,14 @@ describe('useLiveMeetingNotes boundaries', () => {
       });
 
       rerender({ active: false });
-      await waitFor(() => expect(toastError).toHaveBeenCalledOnce());
+      await waitFor(() => expect(toastWarning).toHaveBeenCalledOnce());
       rerender({ active: true });
       rerender({ active: false });
       await settle();
 
-      expect(toastError).toHaveBeenCalledWith('saveFailed');
+      expect(toastWarning).toHaveBeenCalledExactlyOnceWith('sessionGone');
+      expect(toastError).not.toHaveBeenCalled();
+      expect(toastSuccess).not.toHaveBeenCalled();
       expect(finalizeLiveMeeting).toHaveBeenCalledOnce();
     });
 

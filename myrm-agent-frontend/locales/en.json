@@ -9343,6 +9343,7 @@
       "risks": "Risks",
       "saved": "Meeting notes saved to your knowledge base",
       "saveFailed": "Couldn't save the meeting notes",
+      "sessionGone": "Couldn't find a record of this meeting. If the notes were generated, you can find them in your knowledge base; if not, this meeting wasn't saved.",
       "retry": "Retry"
     }
   },

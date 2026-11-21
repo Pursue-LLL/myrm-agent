@@ -12,9 +12,9 @@
  * sessionStorage when a stable key is given), drains finalized transcript lines to the
  * server (single-flight queue), and exposes the rolling structured-notes snapshot for the
  * in-meeting Live board. The minutes are published into the agent's vault when the voice
- * session stops being active, however it ends (stop, transport drop, unmount, page exit),
- * and the user is told how that went. Line upload is best-effort: a dropped line never
- * breaks the voice session.
+ * session stops being active (stop, transport drop, unmount) and the user is told how that
+ * went; on page exit a keepalive request publishes what the server holds, unanswered. Line
+ * upload is best-effort: a dropped line never breaks the voice session.
  */
 
 'use client';
@@ -175,9 +175,9 @@ export function useLiveMeetingNotes(sessionKey?: string, agentId?: string, activ
       }
     } catch (error) {
       if (error instanceof ApiError && error.code === 404) {
-        // The server no longer holds this meeting, so a retry could not publish anything.
+        // The server no longer holds this meeting: a retry cannot publish it, and whether it was saved is unknown.
         settleMeeting();
-        toast.error(t('saveFailed'));
+        toast.warning(t('sessionGone'));
         return;
       }
       toast.error(t('saveFailed'), { action: { label: t('retry'), onClick: () => void endRef.current() } });
