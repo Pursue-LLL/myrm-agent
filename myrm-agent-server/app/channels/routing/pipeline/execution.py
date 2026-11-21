@@ -8,6 +8,7 @@
 - channels.routing.pending_approvals::resume_topic_context (POS: the topic context a resumed approval run is given)
 - channels.routing.router_models::_ActiveTask, _AgentTurnScratch, _RouterExecutionContext (POS: internal data classes)
 - channels.routing.session_gate::gate_key (POS: the session key of a message in the SessionGate, recorded on the running task for the watchdog's release)
+- channels.routing.topic_binding::resolve_bound_topic (POS: the one cascade that picks the binding serving a message: thread, chat, then channel)
 
 [OUTPUT]
 - RouterExecutionMixin: ``_resolve_topic``, ``_prepare_execution_context`` and ``_execute_prepared_context``,
@@ -47,6 +48,7 @@ from app.channels.routing.router_models import (
     _RouterExecutionContext,
 )
 from app.channels.routing.session_gate import gate_key
+from app.channels.routing.topic_binding import resolve_bound_topic
 from app.channels.types import (
     InboundMessage,
     MediaAttachment,
@@ -85,23 +87,7 @@ class RouterExecutionMixin(RouterDeliveryMixin):
             except Exception as e:
                 logger.warning("Failed to sync topic metadata: %s", e)
 
-        # 1. Thread-level binding
-        if msg.thread_id:
-            ctx = await self._topic_resolver.resolve_topic(msg.channel, chat_id, msg.thread_id)
-            if ctx is not None:
-                return dataclasses.replace(ctx, matched_by="thread_binding")
-
-        # 2. Chat-level binding (Group/DM)
-        ctx = await self._topic_resolver.resolve_topic(msg.channel, chat_id, None)
-        if ctx is not None:
-            return dataclasses.replace(ctx, matched_by="chat_binding")
-
-        # 3. Channel-level global binding
-        ctx = await self._topic_resolver.resolve_topic(msg.channel, "__global__", None)
-        if ctx is not None:
-            return dataclasses.replace(ctx, matched_by="channel_binding")
-
-        return None
+        return await resolve_bound_topic(self._topic_resolver, msg)
 
     async def deliver_followup(
         self: RouterExecutionHost, origin: InboundMessage, content: str, media: tuple[MediaAttachment, ...] = ()

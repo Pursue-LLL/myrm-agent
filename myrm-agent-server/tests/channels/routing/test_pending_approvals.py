@@ -251,6 +251,7 @@ class TestTheAgentTheRequestBelongsTo:
         [
             (None, None),
             (TopicContext(topic_id="t1", enabled=True), None),
+            (TopicContext(topic_id="t1", agent_id="", enabled=True), None),
             (TopicContext(topic_id="t1", agent_id="agent-x", enabled=True), "agent-x"),
             (TopicContext(topic_id="t1", agent_id="agent-x", enabled=True, identity_revoked=True), None),
         ],

@@ -8,7 +8,7 @@ import pytest
 
 from app.channels.protocols.turn_management import RetryResult, UndoResult
 from app.channels.types import InboundMessage
-from app.core.channel_bridge.turn_handler import RevertMessagesOutcome
+from app.core.channel_bridge.turn_handler import ChannelRetryHandler, ChannelUndoHandler, RevertMessagesOutcome
 
 
 def _make_msg(
@@ -67,15 +67,15 @@ class TestChannelRetryHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("session-key", None),
-            ),
+                return_value="session-key",
+            ) as mock_resolve,
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
                 new_callable=AsyncMock,
                 return_value=mock_chat,
-            ),
+            ) as mock_lookup,
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.retry_last_turn",
                 new_callable=AsyncMock,
@@ -94,6 +94,8 @@ class TestChannelRetryHandler:
         assert result.query == "hello"
         assert result.deleted_count == 2
         assert result.reverted_count == 3
+        mock_resolve.assert_awaited_once_with(msg)
+        mock_lookup.assert_awaited_once_with("session-key")
         mock_revert.assert_awaited_once_with("chat-123", ["msg-a", "msg-b"])
 
     @pytest.mark.asyncio
@@ -105,9 +107,9 @@ class TestChannelRetryHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("key", None),
+                return_value="key",
             ),
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
@@ -138,9 +140,9 @@ class TestChannelRetryHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("key", None),
+                return_value="key",
             ),
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
@@ -187,20 +189,20 @@ class TestChannelUndoHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("key", None),
-            ),
+                return_value="key",
+            ) as mock_resolve,
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
                 new_callable=AsyncMock,
                 return_value=mock_chat,
-            ),
+            ) as mock_lookup,
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.undo_last_turn",
                 new_callable=AsyncMock,
                 return_value=svc_result,
-            ),
+            ) as mock_undo,
             patch(
                 "app.core.channel_bridge.turn_handler._revert_messages",
                 new_callable=AsyncMock,
@@ -213,6 +215,9 @@ class TestChannelUndoHandler:
         assert result.success is True
         assert result.deleted_count == 3
         assert result.reverted_count == 5
+        mock_resolve.assert_awaited_once_with(msg)
+        mock_lookup.assert_awaited_once_with("key")
+        mock_undo.assert_awaited_once_with("chat-456")
         mock_revert.assert_awaited_once_with("chat-456", ["m1", "m2", "m3"])
 
     @pytest.mark.asyncio
@@ -224,9 +229,9 @@ class TestChannelUndoHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("key", None),
+                return_value="key",
             ),
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
@@ -257,9 +262,9 @@ class TestChannelUndoHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("key", None),
+                return_value="key",
             ),
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
@@ -300,9 +305,9 @@ class TestChannelUndoHandler:
 
         with (
             patch(
-                "app.core.channel_bridge.turn_handler._resolve_session_with_agent",
+                "app.core.channel_bridge.turn_handler.resolve_command_session_key",
                 new_callable=AsyncMock,
-                return_value=("key", None),
+                return_value="key",
             ),
             patch(
                 "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
@@ -325,6 +330,40 @@ class TestChannelUndoHandler:
         assert result.success is True
         assert result.deleted_count == 2
         assert result.reverted_count == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("handler", "service_method"),
+    [
+        pytest.param(ChannelRetryHandler(), "retry_last_turn", id="retry"),
+        pytest.param(ChannelUndoHandler(), "undo_last_turn", id="undo"),
+    ],
+)
+async def test_files_that_could_not_be_reverted_are_reported_to_the_sender(
+    handler: ChannelRetryHandler | ChannelUndoHandler, service_method: str
+) -> None:
+    svc_result = _FakeSvcResult(deleted_message_ids=["m1"])
+
+    with (
+        patch("app.core.channel_bridge.turn_handler.resolve_command_session_key", new_callable=AsyncMock, return_value="key"),
+        patch(
+            "app.core.channel_bridge.turn_handler.ChatService.get_channel_chat_by_key",
+            new_callable=AsyncMock,
+            return_value=MagicMock(id="chat-1"),
+        ),
+        patch(
+            f"app.core.channel_bridge.turn_handler.ChatService.{service_method}", new_callable=AsyncMock, return_value=svc_result
+        ),
+        patch(
+            "app.core.channel_bridge.turn_handler._revert_messages",
+            new_callable=AsyncMock,
+            return_value=RevertMessagesOutcome(reverted_count=1, not_revertible_count=2),
+        ),
+    ):
+        result = await handler(_make_msg(), "user-1")
+
+    assert (result.reverted_count, result.files_not_revertible) == (1, 2)
 
 
 # ---------------------------------------------------------------------------

@@ -95,7 +95,9 @@ def router() -> Iterator[tuple[_DeliveryHost, AsyncMock, AsyncMock]]:
         yield _DeliveryHost(fx, bus), fx, bus
 
 
-async def _deliver(mixin: _DeliveryHost, result: OutboundMessage, *, placeholder_id: str | None = None) -> bool:
+async def _deliver(
+    mixin: _DeliveryHost, result: OutboundMessage, *, placeholder_id: str | None = None, topic_ctx: TopicContext = _TOPIC
+) -> bool:
     deferred = AsyncMock()
     deferred.resolve_for_delivery = AsyncMock(return_value=placeholder_id)
     return await mixin._deliver_agent_result(
@@ -105,7 +107,7 @@ async def _deliver(mixin: _DeliveryHost, result: OutboundMessage, *, placeholder
         chat_id="chat1",
         last_progress_at=0.0,
         inbound_had_voice=False,
-        topic_ctx=_TOPIC,
+        topic_ctx=topic_ctx,
     )
 
 
@@ -132,6 +134,27 @@ async def test_draft_holds_the_whole_reply_and_sends_nothing(
     assert held.components == ((_HANDOFF_BUTTON,),)
     assert (held.thread_id, held.reply_to_id, held.user_id) == ("th-7", "m1", "owner-1")
     Path(shot.path).unlink(missing_ok=True)
+
+
+@pytest.mark.parametrize(
+    ("topic", "writer"),
+    [
+        pytest.param(_TOPIC, "agent-1", id="bound-agent"),
+        pytest.param(dataclasses.replace(_TOPIC, agent_id=None), "default", id="no-agent"),
+        pytest.param(dataclasses.replace(_TOPIC, identity_revoked=True), "default", id="frozen-identity"),
+    ],
+)
+async def test_the_held_reply_is_attributed_to_the_agent_that_wrote_it(
+    router: tuple[_DeliveryHost, AsyncMock, AsyncMock], tmp_path: Path, topic: TopicContext, writer: str
+) -> None:
+    """A frozen identity runs on the default agent, so the draft its reviewer sees is the default agent's."""
+    mixin, _fx, _bus = router
+
+    with patch.object(ApprovalRegistry, "create_approval", new=AsyncMock()) as create:
+        await _deliver(mixin, _reply(tmp_path), topic_ctx=topic)
+
+    assert create.await_args is not None
+    assert create.await_args.kwargs["agent_id"] == writer
 
 
 @pytest.mark.parametrize("placeholder_id", ["ph_9", None])
