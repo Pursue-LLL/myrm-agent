@@ -154,7 +154,7 @@ async def build_general_agent(
         logger.info("Goal tools loaded: complete_goal_tool")
 
     # 4.5 Channel notification tool (Turn1 when notify_targets configured)
-    channel_notify_tool_loaded = load_channel_notify_tool(agent_wrapper, tools)
+    load_channel_notify_tool(agent_wrapper, tools)
 
     # 5. Create sandbox executor
     runtime = await build_sandbox_runtime(
@@ -188,7 +188,6 @@ async def build_general_agent(
     system_prompt = build_system_prompt(
         agent_wrapper,
         mount_plan=mount_plan,
-        channel_notify_tool_loaded=channel_notify_tool_loaded,
         prompt_locale=agent_wrapper.locale,
     )
 

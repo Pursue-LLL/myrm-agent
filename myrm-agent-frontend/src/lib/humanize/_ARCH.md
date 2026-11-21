@@ -38,5 +38,8 @@ A tool with no dedicated line reads `fallback.used_tool` ("Used …"); in `ask` 
 ## Boundaries
 
 - FE-only; no harness/server/prompt changes.
-- External scope matches channel tools in `EXTERNAL_TOOLS` only (not `target.includes(':')`).
+- External scope is exactly the tools in `EXTERNAL_TOOLS` (`channel_notify_tool`, `artifact_publish`): the tools of the backend's
+  socially irreversible set (`_IRREVERSIBLE_SOCIAL_TOOLS`, harness `core/security/spend_governance.py`) that exist. Keep the two lists in step.
+  `channel_notify_tool` names its `destination` parameter as given in the scope note and the approval title; `artifact_publish`
+  reads `scope.external_unknown` because its hosting target is an id nobody can read. A colon in a `target` never makes a call external.
 - `#8 save_skill` preview UI：`SaveSkillApprovalPreview` + `saveSkillApproval.ts`；humanize 仅负责 headline/scope。

@@ -5,7 +5,7 @@
 - .channel_notify_tool::create_channel_notify_tool (POS: LangChain adapter factory)
 
 [OUTPUT]
-- append_channel_notify_tool(): Append tool to Turn1 tools when targets exist; returns allowed target count (0 = not loaded).
+- append_channel_notify_tool(): Append tool to Turn1 tools when usable targets exist; returns the destination count (0 = not loaded).
 
 [POS]
 Single SSOT for `general_agent/factory/` and integration tests — avoids duplicated wiring logic.
@@ -23,7 +23,7 @@ def append_channel_notify_tool(
 ) -> int:
     """Append channel_notify_tool when notify_targets are configured.
 
-    Returns the number of allowed targets when the tool was appended, else 0.
+    Returns the number of destinations the tool offers when it was appended, else 0.
     In read-only mode (is_readonly=True), outbound notifications are blocked
     to prevent egress data leaks.
     """
@@ -39,4 +39,4 @@ def append_channel_notify_tool(
 
     sender, notify_config = sender_result
     tools.append(create_channel_notify_tool(sender, notify_config, allowed_roots=allowed_roots))
-    return len(notify_config.allowed_targets)
+    return len(notify_config.destinations)

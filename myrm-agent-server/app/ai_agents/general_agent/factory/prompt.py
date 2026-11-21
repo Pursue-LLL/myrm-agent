@@ -6,7 +6,6 @@
 - myrm_agent_harness.utils.locale::is_chinese (POS: Shared locale utilities consumed by channel i18n, error diagnostics, and component text fallbacks.)
 - myrm_agent_harness.toolkits.kanban::get_worker_lifecycle_guidance (POS: Kanban toolkit entry point. Aggregates dispatcher, protocols, built-in implementations, and data models for the protocol-first kanban framework.)
 - app.ai_agents.prompts.shared_rules::DESKTOP_CONTROL_RULES (POS: 跨 Agent 共享规则常量。供多个 Agent 提示词复用的通用规则片段，除桌面控制外均支持中英双语，提供任务完整性、桌面控制等核心护栏；用户指令的优先级只由 user_instructions 消息头声明。桌面控制规则是底层工具调用协议，只有英文版，由 factory 注入。)
-- app.services.agent.outbound_notify.types::CHANNEL_NOTIFY_SYSTEM_APPENDIX (POS: Data types for agent-initiated outbound channel notifications.)
 
 [OUTPUT]
 - build_system_prompt: build_system_prompt
@@ -28,7 +27,6 @@ def build_system_prompt(
     agent_wrapper: "GeneralAgent",
     *,
     mount_plan: "ResolvedMountPlan",
-    channel_notify_tool_loaded: bool,
     prompt_locale: str | None,
 ) -> str:
     from app.ai_agents.prompts.general_agent_prompt import coerce_prompt_mode, get_core_system_prompt
@@ -76,13 +74,6 @@ def build_system_prompt(
         from app.ai_agents.prompts.shared_rules import DESKTOP_CONTROL_RULES
 
         system_prompt += DESKTOP_CONTROL_RULES
-
-    if channel_notify_tool_loaded:
-        from app.services.agent.outbound_notify.types import (
-            CHANNEL_NOTIFY_SYSTEM_APPENDIX,
-        )
-
-        system_prompt += CHANNEL_NOTIFY_SYSTEM_APPENDIX
 
     session_roots_raw = getattr(agent_wrapper, "session_access_roots", None)
     if session_roots_raw and isinstance(session_roots_raw, (list, tuple)):
