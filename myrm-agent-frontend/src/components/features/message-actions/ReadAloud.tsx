@@ -1,12 +1,29 @@
 'use client';
 
+/**
+ * [INPUT]
+ * @/hooks/voice/useTTS::useTTS (POS: Text-to-speech output with browser and API backends)
+ * @/store/useConfigStore (POS: User settings mirror; supplies the TTS provider)
+ * @/store/useFeatureGateStore (POS: Feature gates; hides API read-aloud while voice interaction is off)
+ * @/store/useSpeakingRowStore::useSpeakingRowStore (POS: The message row being read aloud, which the virtual list keeps mounted)
+ *
+ * [OUTPUT]
+ * ReadAloud: Read-aloud controls (speak, pause, resume, stop) of one assistant message.
+ *
+ * [POS]
+ * Read-aloud control of the message action bar. While it speaks it names its row in useSpeakingRowStore so the
+ * virtual list keeps the row mounted, and it ends the speech once the row shows other text.
+ */
+
+import { useEffect } from 'react';
 import { Volume2, Pause, Square, Loader2 } from 'lucide-react';
 import { useTTS, type TTSMode } from '@/hooks/voice/useTTS';
 import { useTranslations } from 'next-intl';
 import useConfigStore from '@/store/useConfigStore';
 import { useFeatureGateStore } from '@/store/useFeatureGateStore';
+import { useSpeakingRowStore } from '@/store/useSpeakingRowStore';
 
-const ReadAloud = ({ content }: { content: string }) => {
+const ReadAloud = ({ content, messageIndex }: { content: string; messageIndex: number }) => {
   const webTtsProvider = useConfigStore((s) => s.webTtsProvider);
   const isVoiceInteractionEnabled = useFeatureGateStore((s) => s.isEnabled('voice_interaction'));
   const mode: TTSMode = webTtsProvider === 'browser' ? 'browser' : 'api';
@@ -14,6 +31,21 @@ const ReadAloud = ({ content }: { content: string }) => {
 
   const { state, toggle, stop, supported } = useTTS({ mode, provider });
   const t = useTranslations('chat');
+  const isActive = state !== 'idle';
+
+  // The virtual list unmounts rows that scroll out of view and unmounting ends the speech, so a speaking row asks the
+  // list to keep it mounted. Rows are reused by index: once the list shifts (older messages load in) this instance can
+  // show another message, and speech that belongs to text no longer here has to end rather than sit under a wrong row.
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+    useSpeakingRowStore.getState().claim(messageIndex);
+    return () => {
+      useSpeakingRowStore.getState().release(messageIndex);
+      stop();
+    };
+  }, [isActive, content, messageIndex, stop]);
 
   if (!supported) {
     return null;
@@ -21,8 +53,6 @@ const ReadAloud = ({ content }: { content: string }) => {
   if (mode === 'api' && !isVoiceInteractionEnabled) {
     return null;
   }
-
-  const isActive = state !== 'idle';
 
   return (
     <span className="inline-flex items-center">
