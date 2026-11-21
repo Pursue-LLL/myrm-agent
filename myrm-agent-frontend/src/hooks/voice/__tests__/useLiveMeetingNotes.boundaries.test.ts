@@ -37,9 +37,10 @@ describe('useLiveMeetingNotes boundaries', () => {
       expect(toastSuccess).not.toHaveBeenCalled();
       const [message, options] = toastError.mock.calls[0] as [
         string,
-        { action: { label: string; onClick: () => void } },
+        { duration: number; action: { label: string; onClick: () => void } },
       ];
       expect(message).toBe('saveFailed');
+      expect(options.duration).toBe(15_000);
       expect(options.action.label).toBe('retry');
 
       act(() => options.action.onClick());
@@ -82,7 +83,7 @@ describe('useLiveMeetingNotes boundaries', () => {
       rerender({ active: false });
       await settle();
 
-      expect(toastWarning).toHaveBeenCalledExactlyOnceWith('sessionGone');
+      expect(toastWarning).toHaveBeenCalledExactlyOnceWith('sessionGone', { duration: 8000 });
       expect(toastError).not.toHaveBeenCalled();
       expect(toastSuccess).not.toHaveBeenCalled();
       expect(finalizeLiveMeeting).toHaveBeenCalledOnce();

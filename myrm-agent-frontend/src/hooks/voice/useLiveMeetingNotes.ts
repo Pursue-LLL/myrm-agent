@@ -174,13 +174,18 @@ export function useLiveMeetingNotes(sessionKey?: string, agentId?: string, activ
         toast.error(t('saveFailed'));
       }
     } catch (error) {
+      // Nothing else on screen reports a failed save and the request can run for up to two minutes, so these two
+      // notices outlive Sonner's 4 s default: long enough to read the 404 copy and to reach the retry action.
       if (error instanceof ApiError && error.code === 404) {
         // The server no longer holds this meeting: a retry cannot publish it, and whether it was saved is unknown.
         settleMeeting();
-        toast.warning(t('sessionGone'));
+        toast.warning(t('sessionGone'), { duration: 8000 });
         return;
       }
-      toast.error(t('saveFailed'), { action: { label: t('retry'), onClick: () => void endRef.current() } });
+      toast.error(t('saveFailed'), {
+        duration: 15_000,
+        action: { label: t('retry'), onClick: () => void endRef.current() },
+      });
     }
   }, [sessionId, agentId, settleMeeting, t]);
 
