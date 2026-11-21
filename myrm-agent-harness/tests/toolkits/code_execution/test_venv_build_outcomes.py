@@ -1,5 +1,5 @@
 """VenvManager when ``python -m venv`` does not simply succeed: it fails before or after linking the interpreter, cannot start, hangs, or
-the venv is discarded or already there."""
+the venv is discarded or already there. A failed build never removes the directory: another process may be building in it."""
 
 from __future__ import annotations
 
@@ -7,18 +7,16 @@ import asyncio
 import logging
 import sys
 import tempfile
-import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.executors.common import venv_manager
-from myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager import VenvManager
 from tests.toolkits.code_execution._venv_spawn import VENV_SPAWN, FakeVenvSpawn, let_the_loop_run, make_manager
 
 
-async def test_a_build_that_fails_after_the_link_falls_back_to_system_python_and_removes_the_venv(
+async def test_a_build_that_fails_after_the_link_falls_back_to_system_python_and_leaves_the_venv_alone(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     spawn = FakeVenvSpawn(build_exit=1, hold_build=True)
@@ -31,7 +29,7 @@ async def test_a_build_that_fails_after_the_link_falls_back_to_system_python_and
         assert await manager.get_python_executable() == sys.executable
         assert await manager.rewrite_pip_command("pip install requests") == "pip install requests"
 
-    assert not (tmp_path / "venvs").exists()
+    assert (tmp_path / "venvs" / "bin" / "python").is_symlink()
     assert "ensurepip failed" in caplog.text
     assert len(spawn.creations) == 1
 
@@ -46,35 +44,28 @@ async def test_a_build_that_has_failed_by_the_time_it_is_looked_at_gives_system_
         interpreter = await manager.get_python_executable()
 
     assert interpreter == sys.executable
-    assert not (tmp_path / "venvs").exists()
+    assert (tmp_path / "venvs").exists()
     assert "ensurepip failed" in caplog.text
 
 
-async def test_a_failed_build_is_not_handed_out_while_its_venv_is_still_being_removed(tmp_path: Path) -> None:
-    """The links of a failed build exist until the directory is gone, so seeing them is no sign that the interpreter is good."""
-    spawn = FakeVenvSpawn(build_exit=1)
+async def test_a_failed_build_leaves_what_another_process_has_written_in_the_directory(tmp_path: Path) -> None:
+    """Processes that start together run ``python -m venv`` on the same path; each can fail where another succeeds, so none may clean up."""
+    spawn = FakeVenvSpawn(build_exit=1, hold_build=True)
     manager = make_manager(tmp_path)
-    removing, finish_removing = threading.Event(), threading.Event()
-    remove_for_real = VenvManager._delete
+    venv = tmp_path / "venvs"
 
-    def slow_delete(venv_path: Path) -> bool:
-        removing.set()
-        finish_removing.wait(timeout=5)
-        return remove_for_real(venv_path)
+    with patch(VENV_SPAWN, side_effect=spawn):
+        await manager.get_python_executable()
+        (venv / "lib" / "site-packages").mkdir(parents=True)
+        (venv / "lib" / "site-packages" / "written_by_another_process.py").touch()
+        spawn.release_build.set()
+        await manager.ensure_pip_ready_for("pip install requests")
 
-    with patch(VENV_SPAWN, side_effect=spawn), patch.object(VenvManager, "_delete", staticmethod(slow_delete)):
-        creation = asyncio.create_task(manager.get_python_executable())
-        await asyncio.to_thread(removing.wait, 5)
-        await let_the_loop_run()
-        assert (tmp_path / "venvs" / "bin" / "python").is_symlink()
-        assert not creation.done()
-        finish_removing.set()
-        interpreter = await asyncio.wait_for(creation, timeout=1)
-
-    assert interpreter == sys.executable
+    assert (venv / "lib" / "site-packages" / "written_by_another_process.py").exists()
+    assert (venv / "bin" / "python").is_symlink()
 
 
-async def test_a_build_that_dies_before_it_links_anything_falls_back_and_clears_what_it_left(
+async def test_a_build_that_dies_before_it_links_anything_falls_back_and_leaves_what_it_left(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     (tmp_path / "venvs" / "lib").mkdir(parents=True)
@@ -86,7 +77,7 @@ async def test_a_build_that_dies_before_it_links_anything_falls_back_and_clears_
         await asyncio.wait_for(manager.ensure_pip_ready_for("pip install requests"), timeout=1)
 
     assert interpreter == sys.executable
-    assert not (tmp_path / "venvs").exists()
+    assert (tmp_path / "venvs" / "lib").exists()
     assert "venv failed" in caplog.text
 
 
@@ -169,7 +160,7 @@ async def test_a_build_that_never_links_is_stopped_at_the_deadline(
     assert "timed out" in caplog.text
 
 
-async def test_a_build_that_links_but_never_ends_is_stopped_at_the_deadline_and_the_venv_is_dropped(
+async def test_a_build_that_links_but_never_ends_is_stopped_at_the_deadline_and_the_system_python_takes_over(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(venv_manager, "_BUILD_TIMEOUT_SECONDS", 0.05)
@@ -183,7 +174,6 @@ async def test_a_build_that_links_but_never_ends_is_stopped_at_the_deadline_and_
 
     assert interpreter == sys.executable
     assert spawn.terminated == 1
-    assert not (tmp_path / "venvs").exists()
 
 
 async def test_discard_cancels_the_pending_build_and_the_next_use_builds_again(tmp_path: Path) -> None:

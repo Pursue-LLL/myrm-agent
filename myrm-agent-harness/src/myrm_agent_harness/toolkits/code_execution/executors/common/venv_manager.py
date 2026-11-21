@@ -225,9 +225,11 @@ class VenvManager:
     async def _finish_build(
         self, process: asyncio.subprocess.Process, log: BinaryIO, venv_path: Path, started: float
     ) -> bool:
-        """Wait for ``python -m venv`` to end; when it fails, drop the venv and fall back to system Python.
+        """Wait for ``python -m venv`` to end; when it fails, fall back to system Python.
 
         The deadline counts from the start of the command, so a hang is bounded once however early the interpreter was linked.
+        A failed build leaves the directory as it is: processes that start together run the same command on the same path and
+        each can fail where another succeeds, so removing it would take away what another process is still building.
         """
         with log:
             try:
@@ -247,10 +249,6 @@ class VenvManager:
             return True
         logger.error(f" [VenvManager] Failed to create venv: {reason}")
         self._fall_back_to_system_python()
-        try:
-            await asyncio.to_thread(self._delete, venv_path)
-        except OSError as exc:
-            logger.warning(f" [VenvManager] Could not remove the failed venv {venv_path}: {exc}")
         return False
 
     def _use_venv(self, venv_path: Path) -> str:
