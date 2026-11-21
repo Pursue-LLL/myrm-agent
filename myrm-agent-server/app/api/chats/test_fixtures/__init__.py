@@ -23,6 +23,7 @@ from ._kanban import router as kanban_fixture_router
 from .allowed_tools_recovery import (
     router as allowed_tools_recovery_fixture_router,
 )
+from .artifact_share import router as artifact_share_fixture_router
 from .chat_share import router as chat_share_fixture_router
 from .clarify_refresh import router as clarify_refresh_fixture_router
 from .context_retention import (
@@ -61,6 +62,7 @@ router.include_router(deliverable_fixture_router)
 router.include_router(copilot_fixture_router)
 router.include_router(clarify_refresh_fixture_router)
 router.include_router(chat_share_fixture_router)
+router.include_router(artifact_share_fixture_router)
 router.include_router(file_edit_batch_fixture_router)
 router.include_router(file_mutation_fixture_router)
 router.include_router(evicted_fixture_router)
