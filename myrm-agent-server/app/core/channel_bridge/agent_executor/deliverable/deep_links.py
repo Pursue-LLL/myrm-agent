@@ -147,6 +147,7 @@ async def build_artifact_deep_links(
     from app.database.connection import get_session
     from app.platform_utils.workspace_root import get_workspace_root
     from app.services.artifacts.share.share_create import create_artifact_share
+    from app.services.audit.share_events import ShareSource
 
     base_url = await resolve_public_link_base()
     if not base_url:
@@ -186,6 +187,7 @@ async def build_artifact_deep_links(
                         artifact_id=artifact_id,
                         version_id=version_id,
                         artifact_type=artifact_type or None,
+                        source=ShareSource.IM,
                     )
                 except Exception:
                     logger.warning("Failed to create share link for artifact %s", artifact_id, exc_info=True)

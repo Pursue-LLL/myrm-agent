@@ -5,11 +5,12 @@
 - app.services.artifacts.share.share_token (POS: HMAC token signing + claims)
 - app.services.artifacts.share.share_bundle::materialize_share_bundle (POS: pinned-version bundle snapshot)
 - app.services.artifacts.share.share_registry::register_share (POS: share-link lifecycle registry)
+- app.services.audit.share_events::ShareSource, report_share_created (POS: share events in the server log)
 
 [OUTPUT]
 - CreatedArtifactShare: token and expiry of a registered link
 - ShareRegistrationError: the registry row could not be saved
-- create_artifact_share: sign, snapshot the bundle, register
+- create_artifact_share: sign, snapshot the bundle, register, log the creation with its source
 
 [POS]
 Server business layer. Every artifact link that leaves the machine is created here, so it is listed in the share manager
@@ -25,6 +26,7 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security.share.share_links import ShareKind, share_link_path
+from app.services.audit.share_events import ShareSource, report_share_created
 
 from .share_bundle import materialize_share_bundle
 from .share_registry import register_share
@@ -50,6 +52,7 @@ async def create_artifact_share(
     artifact_id: str,
     version_id: str,
     artifact_type: str | None,
+    source: ShareSource,
     ttl_seconds: int = DEFAULT_TTL_SECONDS,
     password: str | None = None,
 ) -> CreatedArtifactShare:
@@ -81,4 +84,5 @@ async def create_artifact_share(
     except Exception as exc:
         logger.error("Failed to register share link: %s", exc)
         raise ShareRegistrationError("Failed to register share link") from exc
+    report_share_created(ShareKind.ARTIFACT, source, token)
     return CreatedArtifactShare(token=token, expires_at=expires_at)

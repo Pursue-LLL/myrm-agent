@@ -14,6 +14,7 @@ from app.core.channel_bridge.executor_helpers import (
     StreamAccumulator,
 )
 from app.services.artifacts.share.share_create import CreatedArtifactShare
+from app.services.audit.share_events import ShareSource
 
 _WORKSPACE = "/tmp/chat-workspace"
 
@@ -307,6 +308,7 @@ class TestBuildArtifactDeepLinks:
             artifact_id="art-001",
             version_id="ver-001",
             artifact_type="html",
+            source=ShareSource.IM,
         )
 
     @pytest.mark.asyncio

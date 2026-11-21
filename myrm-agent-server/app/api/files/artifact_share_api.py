@@ -7,6 +7,7 @@
 - app.database.models.artifact::Artifact (POS: artifact + versions metadata)
 - app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
 - app.core.security.share.share_links (POS: where each share token kind is served)
+- app.services.audit.share_events::ShareSource (POS: share events in the server log)
 - app.api.files.artifact_share_public::public_router (POS: unauthenticated serving)
 
 [OUTPUT]
@@ -49,6 +50,7 @@ from app.services.artifacts.share.share_registry import (
     revoke_share,
 )
 from app.services.artifacts.share.share_token import is_shareable_artifact, rebuild_artifact_share_token
+from app.services.audit.share_events import ShareSource
 
 from .artifact_share_public import public_router as public_router
 
@@ -150,6 +152,7 @@ async def create_artifact_share_preview(
             artifact_id=artifact.id,
             version_id=latest.id,
             artifact_type=share_type,
+            source=ShareSource.DIALOG,
             ttl_seconds=body.ttl_days * 24 * 3600,
             password=body.password,
         )

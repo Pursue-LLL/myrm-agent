@@ -17,6 +17,7 @@ from app.database.models.artifact import Artifact
 from app.services.artifacts.share.share_create import ShareRegistrationError, create_artifact_share
 from app.services.artifacts.share.share_registry import is_token_revoked, list_active_shares
 from app.services.artifacts.share.share_token import ArtifactShareClaims, parse_artifact_share_token
+from app.services.audit.share_events import ShareSource
 
 _MATERIALIZE = "app.services.artifacts.share.share_create.materialize_share_bundle"
 
@@ -43,7 +44,7 @@ async def artifact_id(db_session: AsyncSession) -> str:
 async def test_created_share_is_snapshotted_registered_and_listed(db_session: AsyncSession, artifact_id: str) -> None:
     with patch(_MATERIALIZE, new_callable=AsyncMock) as materialize:
         created = await create_artifact_share(
-            db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type="html"
+            db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type="html", source=ShareSource.DIALOG
         )
 
     claims = parse_artifact_share_token(created.token)
@@ -65,7 +66,13 @@ async def test_created_share_is_snapshotted_registered_and_listed(db_session: As
 async def test_password_share_stores_the_path_its_token_cannot_rebuild(db_session: AsyncSession, artifact_id: str) -> None:
     with patch(_MATERIALIZE, new_callable=AsyncMock):
         created = await create_artifact_share(
-            db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type="html", password="pw"
+            db_session,
+            "/ws",
+            artifact_id=artifact_id,
+            version_id="ver-1",
+            artifact_type="html",
+            source=ShareSource.DIALOG,
+            password="pw",
         )
 
     (row,) = await list_active_shares(db_session)
@@ -78,7 +85,9 @@ async def test_password_share_stores_the_path_its_token_cannot_rebuild(db_sessio
 async def test_snapshot_failure_registers_nothing(db_session: AsyncSession, artifact_id: str, error: Exception) -> None:
     """A token that never got its snapshot must not exist as a listed, revocable link."""
     with patch(_MATERIALIZE, new_callable=AsyncMock, side_effect=error), pytest.raises(type(error)):
-        await create_artifact_share(db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type="html")
+        await create_artifact_share(
+            db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type="html", source=ShareSource.DIALOG
+        )
 
     assert await list_active_shares(db_session) == []
 
@@ -91,6 +100,8 @@ async def test_registration_failure_is_reported_as_a_share_error(db_session: Asy
         patch("app.services.artifacts.share.share_create.register_share", new_callable=AsyncMock, side_effect=cause),
         pytest.raises(ShareRegistrationError, match="Failed to register share link") as caught,
     ):
-        await create_artifact_share(db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type=None)
+        await create_artifact_share(
+            db_session, "/ws", artifact_id=artifact_id, version_id="ver-1", artifact_type=None, source=ShareSource.DIALOG
+        )
 
     assert caught.value.__cause__ is cause

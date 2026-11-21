@@ -1,4 +1,4 @@
-"""What revoking a conversation share actually withdraws, across several create / revoke rounds.
+"""What revoking a conversation share actually withdraws, across several create / revoke rounds, and what the share log records.
 
 The real create, revoke and public routes run against one in-memory chat row, so what is asserted is what a visitor holding an
 old link gets after the owner's last action, not what a single route happens to write.
@@ -6,6 +6,7 @@ old link gets after the owner's last action, not what a single route happens to 
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator, Iterator
 from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -18,11 +19,14 @@ from sqlalchemy.sql.elements import BindParameter
 
 from app.api.chats.chat.share import public_router
 from app.api.chats.chat.share import router as share_router
+from app.core.security.share.share_hmac import token_log_id
+from app.core.security.share.share_unlock import unlock_cookie_name
 from app.database.connection import get_db
 from app.database.dto import ChatDTO
 from app.services.chat.share_token import parse_chat_share_token
 
 _CHAT_ID = "chat-1"
+_EVENTS_LOGGER = "app.services.audit.share_events"
 _TTL_SECONDS_PER_DAY = 24 * 3600
 _SHARE_COLUMNS = (
     "share_revoked_at",
@@ -171,3 +175,57 @@ def test_revoke_withdraws_the_current_link(lifecycle: tuple[TestClient, _ChatRow
     assert client.delete(f"/chats/{_CHAT_ID}/share").status_code == 204
 
     assert _visit(client, token) == 404
+
+
+def _share_lines(caplog: pytest.LogCaptureFixture) -> list[str]:
+    return [record.getMessage() for record in caplog.records if record.name == _EVENTS_LOGGER]
+
+
+def test_the_share_log_records_each_step_of_a_links_life(
+    lifecycle: tuple[TestClient, _ChatRow], caplog: pytest.LogCaptureFixture
+) -> None:
+    client, _ = lifecycle
+    with caplog.at_level(logging.INFO, logger=_EVENTS_LOGGER):
+        token = _create(client, ttl_days=7)
+        _visit(client, token)
+        client.delete(f"/chats/{_CHAT_ID}/share")
+        _visit(client, token)
+
+    link = token_log_id(token)
+    assert _share_lines(caplog) == [
+        f"share_created kind=chat-share source=dialog token={link}",
+        f"share_access kind=chat-share result=granted token={link}",
+        f"share_access kind=chat-share result=denied reason=revoked token={link}",
+    ]
+
+
+def test_each_wrong_password_is_logged_as_denied_and_the_unlocked_page_once_as_granted(
+    lifecycle: tuple[TestClient, _ChatRow], caplog: pytest.LogCaptureFixture
+) -> None:
+    client, _ = lifecycle
+    token = _create(client, ttl_days=7, password="s3cret")
+    cookie_name = unlock_cookie_name("chat_share_unlock", token)
+    with caplog.at_level(logging.INFO, logger=_EVENTS_LOGGER):
+        for guess in ("wrong", "also-wrong"):
+            client.post(f"/public/chat-share/{token}", data={"p": guess})
+        unlocked = client.post(f"/public/chat-share/{token}", data={"p": "s3cret"}, follow_redirects=False)
+        assert unlocked.status_code == 303
+        # The cookie path is the production /api/v1/... prefix while the test router mounts under /public/chat-share.
+        client.get(f"/public/chat-share/{token}", headers={"Cookie": f"{cookie_name}={client.cookies.get(cookie_name)}"})
+
+    link = token_log_id(token)
+    assert _share_lines(caplog) == [
+        f"share_access kind=chat-share result=denied reason=wrong_password token={link}",
+        f"share_access kind=chat-share result=denied reason=wrong_password token={link}",
+        f"share_access kind=chat-share result=granted token={link}",
+    ]
+
+
+def test_a_link_that_is_not_one_of_ours_leaves_no_share_line(
+    lifecycle: tuple[TestClient, _ChatRow], caplog: pytest.LogCaptureFixture
+) -> None:
+    client, _ = lifecycle
+    with caplog.at_level(logging.INFO, logger=_EVENTS_LOGGER):
+        assert _visit(client, "not-a-share-token") == 404
+
+    assert _share_lines(caplog) == []

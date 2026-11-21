@@ -8,6 +8,7 @@
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
 - app.core.security.share.share_unlock (POS: shared unlock-cookie credential mechanics)
 - app.services.audit.lockout_events (POS: lockout log/audit report)
+- app.services.audit.share_events (POS: share events in the server log)
 - app.services.artifacts.share.share_bundle (POS: multi-file static bundle materialization)
 - app.services.artifacts.share.share_registry (POS: revocation gate check)
 - app.services.artifacts.share.share_token::ArtifactShareClaims (POS: HMAC claims)
@@ -37,7 +38,7 @@ cookie instead of a password parameter. Wrong passwords are counted per share an
 client; after five the gate answers 429 with ``Retry-After`` and refuses further
 guesses (even a correct one) until the window passes, while visitors holding an
 unlock cookie keep their access. The guess that engages the lock is reported once through
-``lockout_events``.
+``lockout_events``. Every entry served and every refusal is one ``share_events`` line.
 """
 
 from __future__ import annotations
@@ -56,6 +57,7 @@ from app.core.security.share.share_attempt_guard import (
 )
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import is_password_protected
+from app.core.security.share.share_links import ShareKind
 from app.core.security.share.share_password_page import (
     password_gate_response,
     resolve_gate_password,
@@ -79,6 +81,7 @@ from app.services.artifacts.share.share_token import (
     parse_artifact_share_token,
 )
 from app.services.audit.lockout_events import report_share_lockout
+from app.services.audit.share_events import report_share_access
 
 logger = logging.getLogger(__name__)
 
@@ -178,8 +181,15 @@ def _attach_unlock_cookie(
     )
 
 
+def _refuse(request: Request, token: str, state: ShareLinkState, detail: str) -> Response:
+    """Answer a link that cannot be opened with the status page, and log the refusal."""
+    report_share_access(ShareKind.ARTIFACT, token, denied=state)
+    return share_not_found(request, detail=detail, state=state, headers=_SHARE_RESPONSE_HEADERS)
+
+
 async def _serve_share_bundle(
     claims: ArtifactShareClaims,
+    token: str,
     db: AsyncSession,
     workspace_root: str,
     relative_path: str | None,
@@ -191,32 +201,19 @@ async def _serve_share_bundle(
         try:
             await materialize_share_bundle(db, workspace_root, claims)
         except (ValueError, LookupError) as exc:
-            return share_not_found(
-                request,
-                detail=str(exc),
-                state=ShareLinkState.CONTENT_UNAVAILABLE,
-                headers=_SHARE_RESPONSE_HEADERS,
-            )
+            return _refuse(request, token, ShareLinkState.CONTENT_UNAVAILABLE, str(exc))
         except FileNotFoundError:
-            return share_not_found(
-                request,
-                detail="Artifact content not found",
-                state=ShareLinkState.CONTENT_UNAVAILABLE,
-                headers=_SHARE_RESPONSE_HEADERS,
-            )
+            return _refuse(request, token, ShareLinkState.CONTENT_UNAVAILABLE, "Artifact content not found")
         except Exception as exc:
             logger.error("Share bundle materialize failed: %s", exc)
             raise HTTPException(status_code=500, detail="Failed to load shared artifact") from exc
         resolved = resolve_share_bundle_file(claims, relative_path)
 
     if resolved is None:
-        return share_not_found(
-            request,
-            detail="Shared file not found",
-            state=ShareLinkState.FILE_UNAVAILABLE,
-            headers=_SHARE_RESPONSE_HEADERS,
-        )
+        return _refuse(request, token, ShareLinkState.FILE_UNAVAILABLE, "Shared file not found")
 
+    if relative_path is None:
+        report_share_access(ShareKind.ARTIFACT, token)
     file_path, media_type, filename = resolved
     return _file_response(str(file_path), media_type, filename)
 
@@ -252,13 +249,9 @@ def _auth_or_gate(
         if guessing:
             if record_password_failure(request, token):
                 report_share_lockout(request, token)
+            report_share_access(ShareKind.ARTIFACT, token, denied="wrong_password")
             return password_gate_response(request, wrong_password=True)
-        return share_not_found(
-            request,
-            detail="Share link is invalid or expired",
-            state=ShareLinkState.EXPIRED,
-            headers=_SHARE_RESPONSE_HEADERS,
-        )
+        return _refuse(request, token, ShareLinkState.EXPIRED, "Share link is invalid or expired")
     if guessing:
         record_password_success(request, token)
     return claims
@@ -282,12 +275,7 @@ async def _ensure_not_revoked(
         logger.warning("Share revocation check failed: %s", exc)
         revoked = False
     if revoked:
-        return share_not_found(
-            request,
-            detail="Share link has been revoked",
-            state=ShareLinkState.REVOKED,
-            headers=_SHARE_RESPONSE_HEADERS,
-        )
+        return _refuse(request, token, ShareLinkState.REVOKED, "Share link has been revoked")
     return None
 
 
@@ -325,13 +313,13 @@ async def get_public_artifact_share(
         redirect = RedirectResponse(url=redirect_path, status_code=303)
         if _attach_unlock_cookie(redirect, result, token, password, secure=secure):
             return redirect
-        return await _serve_share_bundle(result, db, workspace_root, None, request)
+        return await _serve_share_bundle(result, token, db, workspace_root, None, request)
     if bundle_asset_count(result) > 1 and not str(request.url.path).endswith("/"):
         redirect_url = str(request.url.replace(path=str(request.url.path) + "/"))
         redirect = RedirectResponse(url=redirect_url, status_code=307)
         _attach_unlock_cookie(redirect, result, token, password, secure=secure)
         return redirect
-    response = await _serve_share_bundle(result, db, workspace_root, None, request)
+    response = await _serve_share_bundle(result, token, db, workspace_root, None, request)
     _attach_unlock_cookie(response, result, token, password, secure=secure)
     return response
 
@@ -356,8 +344,8 @@ async def get_public_artifact_share_index(
         redirect = RedirectResponse(url=str(request.url.path), status_code=303)
         if _attach_unlock_cookie(redirect, result, token, password, secure=request.url.scheme == "https"):
             return redirect
-        return await _serve_share_bundle(result, db, workspace_root, None, request)
-    response = await _serve_share_bundle(result, db, workspace_root, None, request)
+        return await _serve_share_bundle(result, token, db, workspace_root, None, request)
+    response = await _serve_share_bundle(result, token, db, workspace_root, None, request)
     _attach_unlock_cookie(response, result, token, password, secure=request.url.scheme == "https")
     return response
 
@@ -383,5 +371,5 @@ async def get_public_artifact_share_asset(
         redirect = RedirectResponse(url=str(request.url.path), status_code=303)
         if _attach_unlock_cookie(redirect, result, token, password, secure=request.url.scheme == "https"):
             return redirect
-        return await _serve_share_bundle(result, db, workspace_root, asset_path, request)
-    return await _serve_share_bundle(result, db, workspace_root, asset_path, request)
+        return await _serve_share_bundle(result, token, db, workspace_root, asset_path, request)
+    return await _serve_share_bundle(result, token, db, workspace_root, asset_path, request)

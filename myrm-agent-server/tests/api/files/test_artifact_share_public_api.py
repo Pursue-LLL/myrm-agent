@@ -161,7 +161,7 @@ async def test_serve_bundle_materialize_error_mapping(share_client, exc: Excepti
         ),
     ):
         with pytest.raises(HTTPException) as exc_info:
-            await _serve_share_bundle(claims, None, "/tmp", None, _api_client_request())
+            await _serve_share_bundle(claims, "token", None, "/tmp", None, _api_client_request())
     assert exc_info.value.status_code == status
 
 
@@ -180,5 +180,5 @@ async def test_serve_bundle_missing_after_materialize(share_client) -> None:
         ),
     ):
         with pytest.raises(HTTPException) as exc_info:
-            await _serve_share_bundle(claims, None, "/tmp", None, _api_client_request())
+            await _serve_share_bundle(claims, "token", None, "/tmp", None, _api_client_request())
     assert exc_info.value.status_code == 404

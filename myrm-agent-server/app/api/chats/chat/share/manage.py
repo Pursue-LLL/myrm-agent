@@ -6,6 +6,7 @@
 - app.core.security.share.share_hmac (POS: token fingerprint)
 - app.core.security.share.share_links (POS: where each share token kind is served)
 - app.core.infra.ingress::resolve_public_link_base (POS: public base of links opened elsewhere: running tunnel, else ingress)
+- app.services.audit.share_events (POS: share events in the server log)
 
 [OUTPUT]
 - router: authenticated create/revoke/status endpoints
@@ -38,6 +39,7 @@ from app.core.security.share.share_links import ShareKind, share_link_url
 from app.database.connection import get_db
 from app.database.dto import ChatDTO
 from app.database.models.chat import Chat
+from app.services.audit.share_events import ShareSource, report_share_created
 from app.services.chat.chat_service import ChatService
 from app.services.chat.share_token import create_chat_share_token, rebuild_chat_share_token
 
@@ -109,6 +111,7 @@ async def create_chat_share(
     stmt = update(Chat).where(Chat.id == chat_id).values(**values)
     await db.execute(stmt)
     await db.commit()
+    report_share_created(ShareKind.CHAT, ShareSource.DIALOG, token)
 
     base_url = await resolve_public_link_base(fallback=str(request.base_url).rstrip("/"))
     share_url = share_link_url(ShareKind.CHAT, token, base_url)
