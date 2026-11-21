@@ -6,12 +6,12 @@
 
 ## 文件清单
 
-| 文件              | 职责                                                                                                                         |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `core.ts`         | `/skills/*` CRUD、生命周期、用户配置、扫描、本机路径；`approveSkillDraft` / `rejectSkillDraft`；导出预览摘要 `review_digest` 与带错误码的 `SkillExportError`                               |
-| `growth.ts`       | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit；`/evolution/*` 审批、修订与回滚（`rollbackSkillEvolution`）       |
+| 文件              | 职责                                                                                                                                                                                                                                                                      |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core.ts`         | `/skills/*` CRUD、生命周期、用户配置、扫描、本机路径；`approveSkillDraft` / `rejectSkillDraft`；导出预览摘要 `review_digest` 与带错误码的 `SkillExportError`                                                                                                              |
+| `growth.ts`       | `/skill-growth/*`：cases（含 `total`）、detail、stats、audit；`/evolution/*` 审批、修订与回滚（`rollbackSkillEvolution`）；草稿类条目的批准按响应的 `materialized` 折算 `apply_status`（写不下记 `FAILED` 并带服务端原因），`__tests__/growth.approveCase.test.ts` 覆盖   |
 | `optimization.ts` | `/skill-optimization/*` 版本列表/对比/回滚、skill_manage 批次撤销（`/mutations/{id}/rollback`，静默请求：失败提示由调用方给出，不再叠加全局错误 toast；`__tests__/optimization.rollbackBatch.test.ts` 覆盖路由、`ApiError.data.code` 错误码契约与单次失败只出一个 toast） |
-| `migration.ts`    | External assistant skill migration staging 与 review client                                                                  |
+| `migration.ts`    | External assistant skill migration staging 与 review client                                                                                                                                                                                                               |
 
 ## 依赖
 
