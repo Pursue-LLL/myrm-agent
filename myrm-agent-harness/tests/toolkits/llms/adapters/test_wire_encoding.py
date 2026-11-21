@@ -1,7 +1,7 @@
 """Tests for the wire-encodability scrub: a request body must never carry a code point UTF-8 cannot encode.
 
 [INPUT]
-- adapters.chat_model.wire_encoding::replace_lone_surrogates (POS: the scrub under test)
+- adapters.chat_model.wire_encoding::replace_lone_surrogates, encodable_text (POS: the scrub under test, for a whole request and for one string)
 - adapters.chat_model::TransportChatModel (POS: owner of the single funnel every model request is built through)
 - adapters.chat_model.outbound_guard::set_outbound_message_guard (POS: policy hook that runs after the scrub)
 - httpx (POS: the transport whose ``json=`` encoding is where an unencodable string fails)
@@ -27,7 +27,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from myrm_agent_harness.toolkits.llms.adapters.chat_model import TransportChatModel
 from myrm_agent_harness.toolkits.llms.adapters.chat_model.outbound_guard import set_outbound_message_guard
-from myrm_agent_harness.toolkits.llms.adapters.chat_model.wire_encoding import replace_lone_surrogates
+from myrm_agent_harness.toolkits.llms.adapters.chat_model.wire_encoding import encodable_text, replace_lone_surrogates
 
 LONE = "\udc80"  # what os.fsdecode gives the byte 0x80 of a name that is not valid UTF-8
 REPLACED = "\ufffd"
@@ -166,6 +166,25 @@ class TestReplaceLoneSurrogates:
         replace_lone_surrogates(messages)
 
         assert shared == [f"x{REPLACED}"]
+
+
+class TestEncodableText:
+    @pytest.mark.parametrize("text", ["", "plain ascii", "naïve café", "\u4e2d\u6587", "emoji \U0001f600", "\ufffd"])
+    def test_an_encodable_text_is_the_same_object(self, text: str) -> None:
+        content = "".join([text, ""])  # a fresh object, so identity below is not interning luck
+
+        assert encodable_text(content) is content
+
+    def test_each_lone_surrogate_becomes_a_replacement_character(self) -> None:
+        assert encodable_text(f"a{LONE}b\ud83d\ude00") == f"a{REPLACED}b{REPLACED * 2}"
+
+    @pytest.mark.parametrize("text", [f"a{LONE}", "x\ud800y", "\udfff", f"ok \u4e2d {LONE} ok"])
+    def test_it_replaces_exactly_what_the_scrub_of_a_whole_request_replaces(self, text: str) -> None:
+        messages: list[dict[str, object]] = [{"role": "user", "content": text}]
+
+        replace_lone_surrogates(messages)
+
+        assert encodable_text(text) == messages[0]["content"]
 
 
 class TestThroughTheFunnel:
