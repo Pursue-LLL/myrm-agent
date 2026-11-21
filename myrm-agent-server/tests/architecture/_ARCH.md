@@ -87,6 +87,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 | `test_memory_router_mounts.py` | `app/api/memory/router.py` 里无条件挂载（对所有用户可见）的子路由必须登记在 `data/memory_default_mounts.txt`：新增路由要么收进 `settings.memory_labs_enabled` 开关，要么写明默认可见调用方 file:line；路由消费者门禁会把「只有隐藏面板的 service 引用」算作调用方，拦不住进程内演示引擎，所以单独把关。解析源码而非导入；写明的调用方（路径相对仓库根）必须是真实存在的非测试文件里的有效行号；自带检测器正反例自检 |
 | `data/memory_default_mounts.txt` | 无条件挂载的记忆子路由台账：裸行是门禁引入前的存量，只许删除；`挂载名 \| 调用方 file:line` 是引入后经论证放行的新增 |
 | `test_public_mutating_routes.py` | 变更类路由（POST/PUT/PATCH/DELETE）跳过认证中间件只有一种合法理由：handler 自己认证调用方；此类路由必须登记在测试内的表里并写明认证方式，未登记（例如公开前缀把运维动作一并放行）或登记后不再公开都会失败 |
+| `test_public_share_admission.py` | 分享链接发出什么路径就必须放行什么路径：`ShareKind` × 令牌得到的每种链接都有一条 GET 路由服务它，链接路径对匿名访客放行（收链接的人在本机没有账号），该种类路径下的每个操作（含密码表单回传的 POST）都被认证中间件放行；新增分享种类或改链接路径而没改放行清单，收链接的人会被要求登录；对着装配后的整张路由表检查，单个路由器的测试看不到这一类缺口 |
 | `test_openapi_operation_ids.py` | 全量公开 API 的 OpenAPI operationId 必须唯一：同一 (method, path) 重复注册（后者被静默遮蔽）或单个 `api_route` 挂多个 method 都会失败，一个路径只允许一个 handler |
 | `test_public_routes_reachable.py` | 全量公开 API 的每个路由都由自己的 handler 服务：FastAPI 用第一个匹配的路由接请求，带路径参数的路由（`/artifacts/{artifact_id}`、`/config/{config_key}`、`/{media_id}/tags`、`/{memory_type}/{memory_id}`）注册在字面兄弟路径之前时，会接走兄弟的请求、兄弟的 handler 永远不运行；按每个路由自己的路径造请求，被前面路由接走的会失败，修法是把字面路径排在前面 |
 | `test_openapi_schema_refs.py` | 公开 API 快照（`tests/support/public_api_app.py`，不含 `app/main.py` 直接挂载的内部/管理/兼容路由）的 OpenAPI 里每个 `#/components/schemas/…` 引用都必须在组件表里：请求或响应模型含任意类、生成不出 JSON schema 时，FastAPI 会放弃该组件却留下引用，`/openapi.json` 与 Swagger UI 就解析不了那个操作的请求体；只有服务端独自注入、客户端从不发送的字段才可以用 `SkipJsonSchema` 藏起来 |
