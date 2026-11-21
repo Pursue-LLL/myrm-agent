@@ -79,6 +79,13 @@ describe('TauriConfigAdapter backend unavailable', () => {
     expect(markLocalBackendUnreachable).not.toHaveBeenCalled();
   });
 
+  it('sync lets an exception that is not a failed request through', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('programming error'));
+
+    await expect(adapter.sync(CHANGES)).rejects.toThrow('programming error');
+    expect(markLocalBackendUnreachable).not.toHaveBeenCalled();
+  });
+
   it('getAll throws on HTTP 502 to enable ConfigSyncManager retry', async () => {
     vi.mocked(fetch).mockResolvedValueOnce({
       ok: false,

@@ -116,6 +116,12 @@ describe('SandboxConfigAdapter', () => {
       await expect(adapter.sync(CHANGES)).rejects.toBeInstanceOf(TypeError);
     });
 
+    it('lets an exception that is not a failed request through', async () => {
+      vi.mocked(fetch).mockRejectedValueOnce(new Error('programming error'));
+
+      await expect(adapter.sync(CHANGES)).rejects.toThrow('programming error');
+    });
+
     it('passes the answer of a delivered write through, conflicts included', async () => {
       vi.mocked(fetch).mockResolvedValueOnce(
         reply(200, { success: false, conflicts: ['personalSettings'], newVersions: { chatSettings: '2000_1' } }),

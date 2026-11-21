@@ -21,9 +21,9 @@ const SEARCH_SERVICES_WAIT_MS = 3000;
 
 /**
  * Brings the account's search services into the store; false while their state cannot be known: the request for the key
- * failed, or the manager has not reached the backend. A manager in that state holds nothing, and the local adapter
- * reports an unreachable backend like a missing row, so the store must not be loaded from it: it would keep the
- * defaults instead of the real configuration that arrives later.
+ * failed (an unreachable backend and an expired session included), or the manager has not reached the backend. A manager
+ * in that state holds nothing, so the store must not be loaded from it: it would keep the defaults instead of the real
+ * configuration that arrives later.
  */
 async function syncSearchServices(): Promise<boolean> {
   const manager = getConfigSyncManager();

@@ -117,6 +117,34 @@ describe('config outbox refused writes (cloud mode)', () => {
     expect(sentKeys(writes)).toEqual([[POISON]]);
     expect(manager.status).toBe('error');
   });
+
+  it('forgets the stored copy of a refused change, so the next start does not send it again', async () => {
+    serveCloudBackend({ answer: () => 422 });
+    const manager = getConfigSyncManager();
+    await manager.initialize();
+
+    manager.set('securityConfig', { yoloModeEnabled: false } as never);
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(manager.status).toBe('error');
+    expect(storedKeys()).toEqual([]);
+  });
+
+  it('forgets the stored copy of the key a split batch refused, as it does for the keys it took', async () => {
+    serveCloudBackend({
+      answer: (changes) => (changes.some((change) => change.key === 'securityConfig') ? 422 : 'accept'),
+    });
+    const manager = getConfigSyncManager();
+    await manager.initialize();
+
+    manager.set('commands', { c: 1 } as never);
+    manager.set('securityConfig', { yoloModeEnabled: false } as never);
+    expect(storedKeys().sort()).toEqual(['commands', 'securityConfig']);
+    await vi.advanceTimersByTimeAsync(10);
+
+    expect(manager.status).toBe('error');
+    expect(storedKeys()).toEqual([]);
+  });
 });
 
 describe('config outbox refusal next to a clash', () => {
