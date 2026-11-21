@@ -149,7 +149,7 @@ describe('CronRunItem', () => {
       id: 'run-del-1',
       delivery_error: 'ReadTimeout',
       metadata: {
-        connector_failure: { category: 'timeout', target: 'https://hooks.example.com/a', message: 'ReadTimeout' },
+        connector_failure: { category: 'timeout', target: 'https://hooks.example.com/a' },
       },
     };
 
@@ -157,7 +157,10 @@ describe('CronRunItem', () => {
     fireEvent.click(screen.getByRole('button'));
 
     expect(screen.getByText('connectorCategoryTimeout')).toBeInTheDocument();
+    expect(screen.getByText('https://hooks.example.com/a')).toBeInTheDocument();
     expect(screen.queryByText('timeout')).toBeNull();
+    // The run row says what went wrong; what to do about it is for the badge's popover.
+    expect(screen.queryByText('connectorCategoryTimeoutHint')).toBeNull();
   });
 
   describe('job name', () => {

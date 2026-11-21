@@ -1,14 +1,14 @@
 """The cron server code does not name a symbol it no longer defines.
 
 ``_REMOVED`` lists names the cron server code does not define. One that appears in a module is dead state, and one that
-a doc row still lists describes code that does not exist, so the scan covers the cron modules, the cron routes and their
-``_ARCH.md`` files. A name that gets a real definition again leaves the list in the same change.
+a doc row still lists describes code that does not exist, so the scan covers the cron modules, routes and services and
+their ``_ARCH.md`` files. A name that gets a real definition again leaves the list in the same change.
 
 [INPUT]
-- app/core/cron/**/*.py and **/*.md, app/api/cron/**/*.py and **/*.md: the files that must not name a removed symbol
+- app/core/cron, app/api/cron and app/services/cron (every *.py and *.md): the files that must not name a removed symbol
 
 [OUTPUT]
-- that no cron module, route or module doc names a removed symbol, and that the scan sees one when it is there
+- that no cron module, route, service or module doc names a removed symbol, and that the scan sees one when it is there
 
 [POS]
 Zero-residue gate for the symbols removed from the cron server code. The scan is whole-word, so a longer name that
@@ -21,13 +21,25 @@ import re
 from pathlib import Path
 
 _SERVER = Path(__file__).resolve().parents[2]
-_ROOTS = (_SERVER / "app" / "core" / "cron", _SERVER / "app" / "api" / "cron")
+_ROOTS = (
+    _SERVER / "app" / "core" / "cron",
+    _SERVER / "app" / "api" / "cron",
+    _SERVER / "app" / "services" / "cron",
+)
 
 _REMOVED = (
     "active_streams",  # StreamListenerManager status accessor
     "active_polls",  # PollListenerManager status accessor
     "claim_due",  # store write that cleared a job's next run time when its run was claimed; advance_next_run books instead
     "list_orphaned_active",  # store query for enabled jobs without a next run time; none can arise
+    "ConnectorHealthService",  # report over every destination; DeliveryHealthService answers for one destination
+    "ConnectorHealthSummary",  # one row of that report
+    "get_all_connectors_health",  # the call that built that report
+    "connector_health_service",  # the module of that service
+    "ConnectorHealthResponse",  # one row of the list response
+    "ConnectorsHealthListResponse",  # the list response
+    "connector_health_router",  # the list route; GET /{job_id}/delivery-health took its place
+    "connectors/health",  # the path of that list route
 )
 
 

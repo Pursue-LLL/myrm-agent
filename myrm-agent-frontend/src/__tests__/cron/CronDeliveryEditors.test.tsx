@@ -14,11 +14,11 @@ import {
 } from '@/components/features/cron/CronDeliveryEditors';
 import { listChannelStatuses } from '@/services/channels';
 import type { ChannelStatus } from '@/services/channels';
-import { getConnectorsHealth, updateCronJob } from '@/services/cron';
-import type { ConnectorHealthItem, CronJob } from '@/services/cron';
+import { getJobDeliveryHealth, updateCronJob } from '@/services/cron';
+import type { CronJob, DeliveryHealth } from '@/services/cron';
 
 vi.mock('@/services/cron', () => ({
-  getConnectorsHealth: vi.fn(),
+  getJobDeliveryHealth: vi.fn(),
   updateCronJob: vi.fn(),
   testCronDelivery: vi.fn(),
 }));
@@ -47,7 +47,7 @@ function connect(...names: string[]): void {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(updateCronJob).mockResolvedValue(chatJob);
-  vi.mocked(getConnectorsHealth).mockResolvedValue({ items: [], total: 0, degraded_count: 0, down_count: 0 });
+  vi.mocked(getJobDeliveryHealth).mockResolvedValue(null);
 });
 
 describe('needsDeliveryTarget 收件人判定', () => {
@@ -126,14 +126,9 @@ describe('DeliveryEditor', () => {
 
 describe('DeliveryEditor 目的地健康度', () => {
   // webhookJob 自己连续失败 5 次（如模型报错），这与投递目的地是否可达无关，徽标只认目的地的投递记录。
-  const destination = (status: ConnectorHealthItem['status']): ConnectorHealthItem => ({
-    target: HOOK_A,
-    channel: 'webhook',
+  const verdict = (status: DeliveryHealth['status']): DeliveryHealth => ({
     status,
-    total_deliveries: 4,
-    failed_deliveries: status === 'healthy' ? 0 : 3,
-    consecutive_failures: status === 'healthy' ? 0 : 3,
-    bound_job_ids: ['job-1'],
+    failure_streak: status === 'healthy' ? 0 : 3,
   });
 
   it.each([
@@ -141,15 +136,11 @@ describe('DeliveryEditor 目的地健康度', () => {
     ['down', 'connectorStatusDown'],
   ] as const)('目的地 %s 时徽标显示目的地的状态，而不是任务自己的失败次数', async (status, label) => {
     connect();
-    vi.mocked(getConnectorsHealth).mockResolvedValue({
-      items: [destination(status)],
-      total: 1,
-      degraded_count: 0,
-      down_count: status === 'down' ? 1 : 0,
-    });
+    vi.mocked(getJobDeliveryHealth).mockResolvedValue(verdict(status));
     render(<DeliveryEditor job={webhookJob} onUpdated={vi.fn()} />);
 
     expect(await screen.findByTestId('connector-health-badge')).toHaveTextContent(label);
+    expect(getJobDeliveryHealth).toHaveBeenCalledWith('job-1');
   });
 
   it('不出站的投递没有目的地，也就不查询健康度', async () => {
@@ -157,7 +148,7 @@ describe('DeliveryEditor 目的地健康度', () => {
     render(<DeliveryEditor job={chatJob} onUpdated={vi.fn()} />);
     await screen.findByRole('radio', { name: 'deliveryNone' });
 
-    expect(getConnectorsHealth).not.toHaveBeenCalled();
+    expect(getJobDeliveryHealth).not.toHaveBeenCalled();
     expect(screen.queryByTestId('connector-health-badge')).not.toBeInTheDocument();
   });
 });

@@ -2,8 +2,8 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ConnectorHealthBadge from '../ConnectorHealthBadge';
-import { getConnectorsHealth } from '@/services/cron';
-import type { ConnectorHealthItem, ConnectorsHealthListResponse, CronJob } from '@/services/cron';
+import { getJobDeliveryHealth } from '@/services/cron';
+import type { CronJob, DeliveryHealth } from '@/services/cron';
 
 vi.mock('@/components/primitives/popover', () => ({
   Popover: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
@@ -20,7 +20,7 @@ vi.mock('next-intl', () => ({
 }));
 
 vi.mock('@/services/cron', () => ({
-  getConnectorsHealth: vi.fn(),
+  getJobDeliveryHealth: vi.fn(),
 }));
 
 type BadgeJob = Pick<CronJob, 'id' | 'delivery' | 'last_run_at'>;
@@ -30,22 +30,21 @@ const JOB: BadgeJob = {
   delivery: { channel: 'webhook', target: 'https://hooks.example.com/a' },
   last_run_at: '2026-06-17T08:30:00Z',
 };
+const JOB_ELSEWHERE: BadgeJob = {
+  ...JOB,
+  delivery: { channel: 'webhook', target: 'https://hooks.example.com/b' },
+};
 
-function item(overrides: Partial<ConnectorHealthItem> = {}): ConnectorHealthItem {
+const HEALTHY: DeliveryHealth = { status: 'healthy', failure_streak: 0 };
+
+function failing(overrides: Partial<DeliveryHealth> = {}): DeliveryHealth {
   return {
-    target: 'https://hooks.example.com/a',
-    channel: 'webhook',
-    status: 'healthy',
-    total_deliveries: 4,
-    failed_deliveries: 0,
-    consecutive_failures: 0,
-    bound_job_ids: ['job-1'],
+    status: 'degraded',
+    failure_streak: 3,
+    last_error_category: 'timeout',
+    last_failed_at: '2026-06-17T08:30:00Z',
     ...overrides,
   };
-}
-
-function response(...items: ConnectorHealthItem[]): ConnectorsHealthListResponse {
-  return { items, total: items.length, degraded_count: 0, down_count: 0 };
 }
 
 function deferred<T>() {
@@ -57,7 +56,7 @@ function deferred<T>() {
 }
 
 describe('ConnectorHealthBadge', () => {
-  const healthMock = vi.mocked(getConnectorsHealth);
+  const healthMock = vi.mocked(getJobDeliveryHealth);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,22 +70,18 @@ describe('ConnectorHealthBadge', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it.each([
-    ['another job delivers there', response(item({ bound_job_ids: ['job-2'] }))],
-    ['nothing has been delivered yet', response(item({ total_deliveries: 0 }))],
-    ['the destination is not an outbound one', response()],
-  ])('shows nothing when %s', async (_case, answer) => {
-    healthMock.mockResolvedValue(answer);
+  it('asks about the job it belongs to and shows nothing when there is nothing to judge', async () => {
+    healthMock.mockResolvedValue(null);
 
     const { container } = render(<ConnectorHealthBadge job={JOB} />);
     await act(async () => undefined);
 
-    expect(healthMock).toHaveBeenCalledTimes(1);
+    expect(healthMock).toHaveBeenCalledExactlyOnceWith('job-1');
     expect(container).toBeEmptyDOMElement();
   });
 
   it('shows a healthy destination as a plain pill with nothing to explain', async () => {
-    healthMock.mockResolvedValue(response(item()));
+    healthMock.mockResolvedValue(HEALTHY);
 
     render(<ConnectorHealthBadge job={JOB} />);
 
@@ -98,39 +93,48 @@ describe('ConnectorHealthBadge', () => {
   it.each([
     ['degraded', 'connectorStatusDegraded'],
     ['down', 'connectorStatusDown'],
-  ] as const)('explains a %s destination: the streak, why and when', async (status, label) => {
-    healthMock.mockResolvedValue(
-      response(
-        item({
-          status,
-          consecutive_failures: 3,
-          failed_deliveries: 3,
-          last_error_category: 'timeout',
-          last_error_message: 'ReadTimeout',
-          last_failed_at: '2026-06-17T08:30:00Z',
-        }),
-      ),
-    );
+  ] as const)('explains a %s destination: why, what to do, the streak and when', async (status, label) => {
+    healthMock.mockResolvedValue(failing({ status }));
 
     render(<ConnectorHealthBadge job={JOB} />);
 
     // The name is the hidden prefix plus the verdict; spacing between the two depends on layout, which jsdom lacks.
     const pill = await screen.findByRole('button', { name: new RegExp(`^connectorHealthStatus:\\s*${label}$`) });
     expect(pill).toHaveTextContent(label);
-    expect(screen.getByText('connectorFailureStreak:3')).toBeInTheDocument();
     expect(screen.getByText('connectorCategoryTimeout')).toBeInTheDocument();
-    expect(screen.getByText('ReadTimeout')).toBeInTheDocument();
+    expect(screen.getByText('connectorCategoryTimeoutHint')).toBeInTheDocument();
+    expect(screen.getByText('connectorFailureStreak:3')).toBeInTheDocument();
     expect(screen.getByText(/^connectorLastFailedAt:.*2026/)).toBeInTheDocument();
   });
 
-  it('words a category the server is not known to record as unknown', async () => {
-    healthMock.mockResolvedValue(
-      response(item({ status: 'degraded', consecutive_failures: 1, last_error_category: 'brand_new_category' })),
-    );
+  it('words an address the application refused as such', async () => {
+    healthMock.mockResolvedValue(failing({ status: 'down', failure_streak: 1, last_error_category: 'address_rejected' }));
+
+    render(<ConnectorHealthBadge job={JOB} />);
+
+    expect(await screen.findByText('connectorCategoryAddress')).toBeInTheDocument();
+    expect(screen.getByText('connectorCategoryAddressHint')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['a category the server is not known to record', 'brand_new_category'],
+    ['no category at all', null],
+  ])('words %s as unknown', async (_case, category) => {
+    healthMock.mockResolvedValue(failing({ last_error_category: category }));
 
     render(<ConnectorHealthBadge job={JOB} />);
 
     expect(await screen.findByText('connectorCategoryUnknown')).toBeInTheDocument();
+    expect(screen.getByText('connectorCategoryUnknownHint')).toBeInTheDocument();
+  });
+
+  it('leaves the failure time out when the server gave none', async () => {
+    healthMock.mockResolvedValue(failing({ last_failed_at: null }));
+
+    render(<ConnectorHealthBadge job={JOB} />);
+    await screen.findByText('connectorFailureStreak:3');
+
+    expect(screen.queryByText(/connectorLastFailedAt/)).not.toBeInTheDocument();
   });
 
   it('shows nothing when the verdict cannot be loaded', async () => {
@@ -144,7 +148,7 @@ describe('ConnectorHealthBadge', () => {
   });
 
   it('reloads after the job has run again', async () => {
-    healthMock.mockResolvedValue(response(item()));
+    healthMock.mockResolvedValue(HEALTHY);
 
     const { rerender } = render(<ConnectorHealthBadge job={JOB} />);
     await screen.findByTestId('connector-health-badge');
@@ -153,23 +157,67 @@ describe('ConnectorHealthBadge', () => {
     await waitFor(() => expect(healthMock).toHaveBeenCalledTimes(2));
   });
 
-  it('judges the new destination when the job is pointed elsewhere and drops the answer for the old one', async () => {
-    const earlier = deferred<ConnectorsHealthListResponse>();
-    healthMock
-      .mockReturnValueOnce(earlier.promise)
-      .mockResolvedValueOnce(response(item({ status: 'down', consecutive_failures: 3 })));
+  describe('the destination of the job changes', () => {
+    it('keeps showing the current verdict while it reloads for the same destination, then replaces it', async () => {
+      const reload = deferred<DeliveryHealth | null>();
+      healthMock.mockResolvedValueOnce(failing()).mockReturnValueOnce(reload.promise);
 
-    const { rerender } = render(<ConnectorHealthBadge job={JOB} />);
-    rerender(
-      <ConnectorHealthBadge job={{ ...JOB, delivery: { channel: 'webhook', target: 'https://hooks.example.com/b' } }} />,
-    );
-    expect(await screen.findByRole('button')).toHaveTextContent('connectorStatusDown');
+      const { rerender } = render(<ConnectorHealthBadge job={JOB} />);
+      await screen.findByRole('button');
+      rerender(<ConnectorHealthBadge job={{ ...JOB, last_run_at: '2026-06-17T09:30:00Z' }} />);
 
-    await act(async () => {
-      earlier.resolve(response(item({ status: 'healthy' })));
+      expect(screen.getByRole('button')).toHaveTextContent('connectorStatusDegraded');
+
+      await act(async () => {
+        reload.resolve(HEALTHY);
+      });
+
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.getByTestId('connector-health-badge')).toHaveTextContent('connectorStatusHealthy');
     });
 
-    expect(screen.getByRole('button')).toHaveTextContent('connectorStatusDown');
-    expect(healthMock).toHaveBeenCalledTimes(2);
+    it('keeps the verdict when a reload for the same destination fails', async () => {
+      healthMock.mockResolvedValueOnce(failing()).mockRejectedValueOnce(new Error('offline'));
+
+      const { rerender } = render(<ConnectorHealthBadge job={JOB} />);
+      await screen.findByRole('button');
+      rerender(<ConnectorHealthBadge job={{ ...JOB, last_run_at: '2026-06-17T09:30:00Z' }} />);
+      await waitFor(() => expect(healthMock).toHaveBeenCalledTimes(2));
+
+      expect(screen.getByRole('button')).toHaveTextContent('connectorStatusDegraded');
+    });
+
+    it('does not show the verdict of the destination the job used to deliver to', async () => {
+      const elsewhere = deferred<DeliveryHealth | null>();
+      healthMock.mockResolvedValueOnce(failing({ status: 'down' })).mockReturnValueOnce(elsewhere.promise);
+
+      const { container, rerender } = render(<ConnectorHealthBadge job={JOB} />);
+      await screen.findByRole('button');
+      rerender(<ConnectorHealthBadge job={JOB_ELSEWHERE} />);
+
+      expect(container).toBeEmptyDOMElement();
+
+      await act(async () => {
+        elsewhere.resolve(HEALTHY);
+      });
+
+      expect(screen.getByTestId('connector-health-badge')).toHaveTextContent('connectorStatusHealthy');
+    });
+
+    it('judges the new destination and drops a late answer for the old one', async () => {
+      const earlier = deferred<DeliveryHealth | null>();
+      healthMock.mockReturnValueOnce(earlier.promise).mockResolvedValueOnce(failing({ status: 'down' }));
+
+      const { rerender } = render(<ConnectorHealthBadge job={JOB} />);
+      rerender(<ConnectorHealthBadge job={JOB_ELSEWHERE} />);
+      expect(await screen.findByRole('button')).toHaveTextContent('connectorStatusDown');
+
+      await act(async () => {
+        earlier.resolve(HEALTHY);
+      });
+
+      expect(screen.getByRole('button')).toHaveTextContent('connectorStatusDown');
+      expect(healthMock).toHaveBeenCalledTimes(2);
+    });
   });
 });

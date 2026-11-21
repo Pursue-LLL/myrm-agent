@@ -24,8 +24,7 @@ from .jobs import (
     CronRunsListResponse,
 )
 from .operations import (
-    ConnectorHealthResponse,
-    ConnectorsHealthListResponse,
+    DeliveryHealthResponse,
     HeartbeatEnableRequest,
     HeartbeatStatusResponse,
     PrerequisiteCheckRequest,
@@ -97,6 +96,5 @@ __all__ = [
     "HeartbeatStatusResponse",
     "PrerequisiteCheckRequest",
     "PrerequisiteCheckResponse",
-    "ConnectorHealthResponse",
-    "ConnectorsHealthListResponse",
+    "DeliveryHealthResponse",
 ]

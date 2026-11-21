@@ -147,11 +147,10 @@ export interface CronProgressStep {
 export type MonitorContractErrorCode = 'invalid_json_like_output';
 export type MonitorFailureCountSource = 'persistent_state' | 'memory_fallback';
 
+/** Why a run's delivery failed and where it was headed; `target` has its credentials masked. */
 export interface ConnectorFailureDetail {
   category: string;
   target: string;
-  message?: string;
-  timestamp?: string;
 }
 
 /** Actions the safety rules stopped during a run, grouped by tool and reason. */
@@ -416,23 +415,11 @@ export interface PrerequisiteCheckResponse {
   override_allowed: boolean;
 }
 
-export interface ConnectorHealthItem {
-  target: string;
-  channel: string;
+/** What the destination a job delivers to has done in the last day; the failure fields are empty while it is healthy. */
+export interface DeliveryHealth {
   status: 'healthy' | 'degraded' | 'down';
-  total_deliveries: number;
-  failed_deliveries: number;
-  consecutive_failures: number;
+  failure_streak: number;
   last_error_category?: string | null;
-  last_error_message?: string | null;
-  last_delivery_at?: string | null;
+  /** When the run behind the newest failure finished, as a UTC moment. */
   last_failed_at?: string | null;
-  bound_job_ids: string[];
-}
-
-export interface ConnectorsHealthListResponse {
-  items: ConnectorHealthItem[];
-  total: number;
-  degraded_count: number;
-  down_count: number;
 }

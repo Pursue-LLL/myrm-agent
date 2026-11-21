@@ -22,6 +22,7 @@ from app.channels import OutboundMessage
 from app.services.agent.runtime_context import SINGLE_TENANT_USER_ID
 
 from .channel_deliverables import collect_cron_deliverables
+from .delivery_resolver import NON_OUTBOUND_CHANNELS
 from .feishu_bot_webhook import deliver_feishu_bot_webhook, is_feishu_bot_hook_url
 from .wecom_bot_webhook import deliver_wecom_bot_webhook, is_wecom_bot_hook_url
 
@@ -43,7 +44,7 @@ class ChannelResultDelivery:
         self._webhook_delivery = webhook_delivery or _webhook_delivery
 
     async def deliver(self, job: CronJob, result: JobResult) -> None:
-        if job.delivery.channel in ("silent", "chat"):
+        if job.delivery.channel in NON_OUTBOUND_CHANNELS:
             return
 
         target = (job.delivery.target or "").strip()

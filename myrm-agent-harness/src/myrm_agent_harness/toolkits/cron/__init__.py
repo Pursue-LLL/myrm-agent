@@ -62,7 +62,6 @@ from myrm_agent_harness.toolkits.cron.delivery import WebhookDelivery
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorErrorCategory,
     ConnectorFailureDetail,
-    ConnectorHealthStatus,
     classify_connector_error,
     delivery_target_key,
     redact_connector_url,
@@ -147,7 +146,6 @@ __all__ = [
     "ConcurrencyLock",
     "ConnectorErrorCategory",
     "ConnectorFailureDetail",
-    "ConnectorHealthStatus",
     "CronConfig",
     "CronJob",
     "CronJobPatch",

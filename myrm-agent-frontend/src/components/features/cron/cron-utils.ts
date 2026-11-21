@@ -119,24 +119,51 @@ export type ConnectorCategoryLabelKey =
   | 'connectorCategoryTimeout'
   | 'connectorCategoryNetwork'
   | 'connectorCategoryPayload'
-  | 'connectorCategoryProcess'
+  | 'connectorCategoryAddress'
   | 'connectorCategoryUnknown';
 
-/** What the server classifies a failed delivery as, each with the label that names it (a `Map` for the reason above). */
-const CONNECTOR_CATEGORY_LABEL_KEYS = new Map<string, ConnectorCategoryLabelKey>([
-  ['auth_failure', 'connectorCategoryAuth'],
-  ['http_client_error', 'connectorCategoryClient'],
-  ['http_server_error', 'connectorCategoryServer'],
-  ['timeout', 'connectorCategoryTimeout'],
-  ['network_unreachable', 'connectorCategoryNetwork'],
-  ['payload_contract', 'connectorCategoryPayload'],
-  ['process_error', 'connectorCategoryProcess'],
-  ['unknown', 'connectorCategoryUnknown'],
+export type ConnectorCategoryHintKey =
+  | 'connectorCategoryAuthHint'
+  | 'connectorCategoryClientHint'
+  | 'connectorCategoryServerHint'
+  | 'connectorCategoryTimeoutHint'
+  | 'connectorCategoryNetworkHint'
+  | 'connectorCategoryPayloadHint'
+  | 'connectorCategoryAddressHint'
+  | 'connectorCategoryUnknownHint';
+
+interface ConnectorCategoryWords {
+  /** Names what went wrong in plain words. */
+  label: ConnectorCategoryLabelKey;
+  /** Says what the user can do about it. */
+  hint: ConnectorCategoryHintKey;
+}
+
+const UNKNOWN_CONNECTOR_CATEGORY: ConnectorCategoryWords = {
+  label: 'connectorCategoryUnknown',
+  hint: 'connectorCategoryUnknownHint',
+};
+
+/** What the server classifies a failed delivery as, each with the words for it (a `Map` for the reason above). */
+const CONNECTOR_CATEGORY_WORDS = new Map<string, ConnectorCategoryWords>([
+  ['auth_failure', { label: 'connectorCategoryAuth', hint: 'connectorCategoryAuthHint' }],
+  ['http_client_error', { label: 'connectorCategoryClient', hint: 'connectorCategoryClientHint' }],
+  ['http_server_error', { label: 'connectorCategoryServer', hint: 'connectorCategoryServerHint' }],
+  ['timeout', { label: 'connectorCategoryTimeout', hint: 'connectorCategoryTimeoutHint' }],
+  ['network_unreachable', { label: 'connectorCategoryNetwork', hint: 'connectorCategoryNetworkHint' }],
+  ['payload_contract', { label: 'connectorCategoryPayload', hint: 'connectorCategoryPayloadHint' }],
+  ['address_rejected', { label: 'connectorCategoryAddress', hint: 'connectorCategoryAddressHint' }],
+  ['unknown', UNKNOWN_CONNECTOR_CATEGORY],
 ]);
 
 /** The label key for a failed delivery's category; a category the server is not known to record reads as unknown. */
 export function connectorCategoryLabelKey(category: string): ConnectorCategoryLabelKey {
-  return CONNECTOR_CATEGORY_LABEL_KEYS.get(category) ?? 'connectorCategoryUnknown';
+  return (CONNECTOR_CATEGORY_WORDS.get(category) ?? UNKNOWN_CONNECTOR_CATEGORY).label;
+}
+
+/** The key of what to do about a failed delivery's category; an unknown category points at the run's details. */
+export function connectorCategoryHintKey(category: string): ConnectorCategoryHintKey {
+  return (CONNECTOR_CATEGORY_WORDS.get(category) ?? UNKNOWN_CONNECTOR_CATEGORY).hint;
 }
 
 /** What the server accepts for a job's run time limit, in whole seconds. */

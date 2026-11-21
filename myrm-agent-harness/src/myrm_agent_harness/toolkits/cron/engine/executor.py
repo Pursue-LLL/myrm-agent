@@ -210,20 +210,15 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
         model, usage_in, usage_out, usage_total = _extract_telemetry(result)
         delivery_status, delivery_error = await self._try_deliver(job, result)
 
-        # Merge any connector failure detail attached during delivery into metadata
+        # A failed delivery keeps its category and masked address beside the record; a runner's own entry wins.
         run_metadata = dict(result.metadata) if isinstance(result.metadata, dict) else (result.metadata or None)
         if delivery_status == DeliveryStatus.FAILED and delivery_error:
             category, _ = classify_connector_error(delivery_error)
-            target = redact_connector_url(job.delivery.target) if job.delivery else ""
-            fail_detail = ConnectorFailureDetail(
-                category=category,
-                target=target,
-                message=delivery_error[:500],
-            )
+            fail_detail = ConnectorFailureDetail(category=category, target=redact_connector_url(job.delivery.target))
             run_metadata = run_metadata or {}
             run_metadata.setdefault("connector_failure", fail_detail.to_dict())
 
-        # The destination's key lets the connector health report line this run up with every other run to it.
+        # The destination's key lets the application line this run up with every other run to the same destination.
         destination = delivery_target_key(job.delivery.channel, job.delivery.target)
         if destination and delivery_status in (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED):
             run_metadata = run_metadata or {}

@@ -36,8 +36,8 @@ class TestConnectorUrlRedaction:
         assert "api_key=" in redacted
         assert "channel=alerts" in redacted
 
-    def test_safe_url_unchanged(self) -> None:
-        url = "https://hooks.slack.com/services/T00/B00/safe"
+    def test_host_port_and_path_stay_as_written(self) -> None:
+        url = "https://hooks.slack.com:443/services/T00/B00/looks-like-a-secret?channel=alerts"
         assert redact_connector_url(url) == url
 
     def test_malformed_urls_do_not_raise(self) -> None:
@@ -56,14 +56,50 @@ class TestConnectorErrorClassification:
             ("Webhook returned 403: Forbidden", ConnectorErrorCategory.AUTH_FAILURE),
             ("Webhook returned 404: Not Found", ConnectorErrorCategory.HTTP_CLIENT_ERROR),
             ("Webhook returned 429: Too Many Requests", ConnectorErrorCategory.HTTP_CLIENT_ERROR),
+            ("Feishu bot webhook returned 400: Bad Request", ConnectorErrorCategory.HTTP_CLIENT_ERROR),
+            ("Feishu bot webhook error code=19024: Key Words Not Found", ConnectorErrorCategory.HTTP_CLIENT_ERROR),
+            ("WeCom bot webhook errcode=93000: invalid webhook url", ConnectorErrorCategory.HTTP_CLIENT_ERROR),
+            ("Too many redirects (limit: 5) for https://hooks.example.com/a", ConnectorErrorCategory.HTTP_CLIENT_ERROR),
             ("Webhook returned 502: Bad Gateway", ConnectorErrorCategory.HTTP_SERVER_ERROR),
             ("Webhook returned 503: Service Unavailable", ConnectorErrorCategory.HTTP_SERVER_ERROR),
             ("Webhook returned 504: Gateway Timeout", ConnectorErrorCategory.TIMEOUT),
             ("ConnectTimeout: connection timed out after 10s", ConnectorErrorCategory.TIMEOUT),
             ("Name or service not known (DNS failure)", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            ("DNS resolution failed for hooks.example.com", ConnectorErrorCategory.NETWORK_UNREACHABLE),
             ("All connection attempts failed", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            ("[Errno 32] Broken pipe", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            ("Server disconnected without sending a response.", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            (
+                "peer closed connection without sending complete message body (received 7 bytes, expected 100)",
+                ConnectorErrorCategory.NETWORK_UNREACHABLE,
+            ),
             ("Invalid json response payload too large", ConnectorErrorCategory.PAYLOAD_CONTRACT),
-            ("Broken pipe on stdio socket", ConnectorErrorCategory.PROCESS_ERROR),
+            ("Content too large", ConnectorErrorCategory.PAYLOAD_CONTRACT),
+            (
+                "Webhook response body too large: Response body exceeds 1048576 byte limit",
+                ConnectorErrorCategory.PAYLOAD_CONTRACT,
+            ),
+            ("illegal status line: bytearray(b'not http at all')", ConnectorErrorCategory.PAYLOAD_CONTRACT),
+            ("illegal status line: bytearray(b'* OK ssl dns ready')", ConnectorErrorCategory.PAYLOAD_CONTRACT),
+            ("Blocked URL scheme: ftp", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Blocked URL scheme: ", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Blocked hostname: localhost", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Blocked hostname suffix: printer.local", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Missing hostname", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Malformed URL", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Hostname contains percent-encoding", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Invalid hostname", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("Invalid port", ConnectorErrorCategory.ADDRESS_REJECTED),
+            ("URL contains parser-confusing characters", ConnectorErrorCategory.ADDRESS_REJECTED),
+            (
+                "Access to internal network is blocked for security reasons. "
+                "Blocked IP: 192.168.1.20 is a non-public IP address",
+                ConnectorErrorCategory.ADDRESS_REJECTED,
+            ),
+            ("ReadError", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            ("WriteError", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            ("ConnectError", ConnectorErrorCategory.NETWORK_UNREACHABLE),
+            ("ThreadError", ConnectorErrorCategory.UNKNOWN),
             ("Unknown internal anomaly", ConnectorErrorCategory.UNKNOWN),
         ],
     )
@@ -86,6 +122,15 @@ class TestConnectorErrorClassification:
         assert str(error) == ""
         assert classify_connector_error(error)[0] == ConnectorErrorCategory.TIMEOUT
 
+    @pytest.mark.parametrize(
+        "error",
+        [httpx.ReadError(""), httpx.WriteError(""), httpx.ConnectError("")],
+        ids=["ReadError", "WriteError", "ConnectError"],
+    )
+    def test_a_network_error_without_text_is_still_a_network_error(self, error: Exception) -> None:
+        assert str(error) == ""
+        assert classify_connector_error(error)[0] == ConnectorErrorCategory.NETWORK_UNREACHABLE
+
     def test_an_exception_without_text_is_summarised_by_its_type(self) -> None:
         category, summary = classify_connector_error(RuntimeError())
         assert category == ConnectorErrorCategory.UNKNOWN
@@ -101,13 +146,14 @@ class TestConnectorErrorClassification:
 class TestDeliveryTargetKey:
     URL = "https://api.example.com/hook?token=secret123"
 
-    @pytest.mark.parametrize("channel", ["chat", "silent", "none"])
-    def test_an_in_app_channel_has_no_destination(self, channel: str) -> None:
-        assert delivery_target_key(channel, self.URL) == ""
-
+    @pytest.mark.parametrize("channel", ["webhook", "chat", "silent", "none"])
     @pytest.mark.parametrize("target", [None, "", "   "])
-    def test_an_outbound_channel_without_an_address_has_no_destination(self, target: str | None) -> None:
-        assert delivery_target_key("webhook", target) == ""
+    def test_a_delivery_without_an_address_has_no_destination(self, channel: str, target: str | None) -> None:
+        assert delivery_target_key(channel, target) == ""
+
+    @pytest.mark.parametrize("channel", ["chat", "silent", "none"])
+    def test_which_channels_leave_the_application_is_not_decided_here(self, channel: str) -> None:
+        assert delivery_target_key(channel, self.URL) != ""
 
     def test_the_same_destination_has_the_same_key(self) -> None:
         assert delivery_target_key("webhook", self.URL) == delivery_target_key("webhook", f"  {self.URL}\n")
@@ -139,10 +185,5 @@ class TestConnectorFailureDetail:
         detail = ConnectorFailureDetail(
             category=ConnectorErrorCategory.HTTP_SERVER_ERROR,
             target="https://api.example.com/hook",
-            message="Bad Gateway",
         )
-        d = detail.to_dict()
-        assert set(d) == {"category", "target", "message", "timestamp"}
-        assert d["category"] == "http_server_error"
-        assert d["target"] == "https://api.example.com/hook"
-        assert d["message"] == "Bad Gateway"
+        assert detail.to_dict() == {"category": "http_server_error", "target": "https://api.example.com/hook"}

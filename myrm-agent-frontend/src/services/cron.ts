@@ -6,8 +6,6 @@ export type {
   BlueprintFillResponse,
   BlueprintSlotDef,
   ConnectorFailureDetail,
-  ConnectorHealthItem,
-  ConnectorsHealthListResponse,
   CreateCronJobRequest,
   CronBlockedAction,
   CronDelivery,
@@ -16,6 +14,7 @@ export type {
   CronRun,
   CronRunsListResponse,
   CronSchedule,
+  DeliveryHealth,
   EventTrigger,
   FailureAlertConfig,
   JobStatus,
@@ -41,11 +40,11 @@ export type {
 import type {
   BlueprintDef,
   BlueprintFillResponse,
-  ConnectorsHealthListResponse,
   CreateCronJobRequest,
   CronJob,
   CronJobsListResponse,
   CronRunsListResponse,
+  DeliveryHealth,
   PrerequisiteCheckRequest,
   PrerequisiteCheckResponse,
   UpdateCronJobRequest,
@@ -215,11 +214,16 @@ export async function checkCronPrerequisite(data: PrerequisiteCheckRequest): Pro
   });
 }
 
-export async function getConnectorsHealth(params?: { window_hours?: number }): Promise<ConnectorsHealthListResponse> {
-  const query = new URLSearchParams();
-  if (params?.window_hours) {
-    query.set('window_hours', String(params.window_hours));
-  }
-  const qs = query.toString();
-  return apiRequest(`/cron/connectors/health${qs ? `?${qs}` : ''}`);
+function isDeliveryHealth(body: Partial<DeliveryHealth>): body is DeliveryHealth {
+  return body.status !== undefined;
+}
+
+/**
+ * What the destination a job delivers to has done in the last day, or `null` when there is nothing to judge. The
+ * server answers that with a 204, which `apiRequest` hands back as `{}`. Silent: the badge simply stays away when the
+ * verdict cannot be had.
+ */
+export async function getJobDeliveryHealth(id: string): Promise<DeliveryHealth | null> {
+  const body: Partial<DeliveryHealth> = await apiRequest(`/cron/${id}/delivery-health`, { silent: true });
+  return isDeliveryHealth(body) ? body : null;
 }
