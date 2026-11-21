@@ -88,6 +88,7 @@ function UsageStatisticsSection() {
   }, [timeRange, topSessionMetric]);
 
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- the effect starts the load for the chosen range and metric; the loading flag and the data only mirror that in-flight request
     fetchData();
   }, [fetchData]);
 

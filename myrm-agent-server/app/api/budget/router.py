@@ -5,13 +5,15 @@
 - app.services.budget.channel_budget (POS: Per-channel budget enforcement)
 - app.services.budget.channel_budget_policy (POS: Channel budget policy models)
 - app.services.budget.channel_budget_key (POS: Canonical channel budget key)
+- app.services.budget.channel_budget_groups (POS: Groups with a chat on record, and which budgeted channels have been seen)
 - app.services.budget.budget_day (POS: Budget day boundary as naive UTC)
 
 [OUTPUT]
 - GET /policy: Current budget policy
 - PUT /policy: Update budget policy
 - GET /status: Current day's budget usage status (multi-dimensional)
-- GET /channels: All channel budget policies and statuses
+- GET /channels: All channel budget policies and statuses, each status saying whether a chat of its group is on record (``known``)
+- GET /channels/known-groups: Budget keys of the groups that have a chat, most recently active first
 - PUT /channels/{channel_key}: Create or replace a channel budget policy, fields left out taking their defaults; the key must be {channel}:group:{chat id}, stored canonical
 - PATCH /channels/{channel_key}: Change the named fields of an existing channel budget policy, the others keep their stored values; 404 when none exists; any spelling of its key
 - DELETE /channels/{channel_key}: Remove a channel budget policy; any spelling of its key
@@ -175,16 +177,17 @@ class ChannelBudgetPolicyRequest(BaseModel):
 
 @router.get("/channels")
 async def get_channel_budgets() -> JSONResponse:
-    """Get all channel budget policies and current statuses."""
+    """Get all channel budget policies and current statuses, each saying whether its group has a chat on record."""
     try:
         from app.services.budget.channel_budget import (
             get_channel_budget_registry,
             load_channel_budget_policies,
         )
+        from app.services.budget.channel_budget_groups import mark_known_groups
 
         config = await load_channel_budget_policies()
         registry = get_channel_budget_registry()
-        statuses = registry.get_all_statuses()
+        statuses = await mark_known_groups(registry.get_all_statuses())
         return success_response(
             data={
                 "policies": [p.model_dump() for p in config.policies],
@@ -193,6 +196,17 @@ async def get_channel_budgets() -> JSONResponse:
         )
     except Exception as e:
         raise internal_error(operation="Get channel budgets", exception=e) from e
+
+
+@router.get("/channels/known-groups")
+async def get_known_channel_groups() -> JSONResponse:
+    """Get the budget keys of the groups that have a chat, the most recently active first."""
+    try:
+        from app.services.budget.channel_budget_groups import list_known_group_keys
+
+        return success_response(data={"channel_keys": await list_known_group_keys()})
+    except Exception as e:
+        raise internal_error(operation="List known channel groups", exception=e) from e
 
 
 @router.put("/channels/{channel_key:path}")

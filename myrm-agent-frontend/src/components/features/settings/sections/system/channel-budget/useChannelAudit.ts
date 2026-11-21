@@ -7,6 +7,7 @@
  * - ./useChannelBudgets::LoadStatus (POS: Where a load from the server stands)
  *
  * [OUTPUT]
+ * - AUDIT_DAYS: the budget days an unfolded channel looks back over, which the toggle label names
  * - ChannelAuditView: what an unfolded channel shows: the status, each sender's spend, and the window's total
  * - useChannelAudit: unfolds and folds channels one at a time (`toggle`) and gives the view of a channel (`viewOf`),
  *   `null` while that channel is folded
@@ -21,8 +22,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { getChannelAudit, type ChannelAuditEntry } from '@/services/budget';
 import type { LoadStatus } from './useChannelBudgets';
 
-/** Budget days the audit looks back over; the label of the toggle names the same window. */
-const AUDIT_DAYS = 7;
+/** Budget days the audit looks back over; the toggle label shows this number. */
+export const AUDIT_DAYS = 7;
 
 export interface ChannelAuditView {
   status: LoadStatus;

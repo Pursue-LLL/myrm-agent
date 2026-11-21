@@ -4,7 +4,11 @@
  * [INPUT]
  * - @/services/budget (POS: Channel budget API service)
  * - @/components/features/app-shell/confirm-dialog (POS: Shared confirmation dialog)
+ * - @/components/features/icons/PremiumIcons (POS: Standard premium UI icons)
+ * - @/components/primitives/alert, button, skeleton (POS: UI primitives)
+ * - ../../SettingsSection (POS: Titled section of the settings page)
  * - ./useChannelBudgets (POS: Channel list data source)
+ * - ./useKnownChannelGroups (POS: Groups the add form can offer)
  * - ./useChannelAudit (POS: Audit state of the unfolded channel)
  * - ./ChannelBudgetCard (POS: One channel of the panel)
  * - ./ChannelBudgetAddForm (POS: Form that adds a channel)
@@ -15,11 +19,12 @@
  * [POS]
  * Per-channel budget configuration UI. Displays each channel's daily budget usage and allows configuring per-channel
  * limits to prevent cost explosion. Each edit is sent as a patch of the one field it changes, so edits made close
- * together, or from another page, do not put each other's values back, and every write is followed by reading the list
- * back. The panel says nothing about its contents before the server has answered: placeholders while the first list
- * loads, a notice with Retry when it cannot be loaded (a list already on screen stays), the empty text only for a list
- * that loaded empty. Deleting a channel removes its guard, so the trash button only asks and the channel is deleted
- * once the user confirms.
+ * together, or from another page, do not put each other's values back, and every write, stored or refused, is followed
+ * by reading the list back: a refused write often means the list on screen is out of date. The panel says nothing about
+ * its contents before the server has answered: placeholders while the first list loads, a notice with Retry when it
+ * cannot be loaded (a list already on screen stays), the empty text only for a list that loaded empty. Opening the add
+ * form asks for the groups on record, which the form offers apart from those that already have a channel. Deleting a
+ * channel removes its guard, so the trash button only asks and the channel is deleted once the user confirms.
  */
 
 import { memo, useState } from 'react';
@@ -41,6 +46,7 @@ import ChannelBudgetAddForm from './ChannelBudgetAddForm';
 import ChannelBudgetCard from './ChannelBudgetCard';
 import { useChannelAudit } from './useChannelAudit';
 import { useChannelBudgets } from './useChannelBudgets';
+import { useKnownChannelGroups } from './useKnownChannelGroups';
 
 // Mirrors a channel card so the list does not jump when the first answer arrives.
 function ChannelBudgetCardSkeleton() {
@@ -79,40 +85,47 @@ function LoadFailedNotice({ showsStaleList, onRetry }: { showsStaleList: boolean
 const ChannelBudgetSection = memo(() => {
   const t = useTranslations('settings.channelBudget');
   const { policies, statuses, loadStatus, refresh, retry } = useChannelBudgets();
+  const knownGroups = useKnownChannelGroups();
   const audit = useChannelAudit();
   const [adding, setAdding] = useState(false);
   // The channel stays after the dialog has closed, so that its text does not change while the dialog fades out.
   const [deleteAsk, setDeleteAsk] = useState<{ channel: ChannelBudgetStatus; open: boolean } | null>(null);
 
+  // A group that already has a channel is not offered again; `null` leaves the picker out until the answer is in.
+  const channelKeysOnScreen = new Set(statuses.map((status) => status.channel_key));
+  const pickableGroupKeys =
+    knownGroups.status === 'ready' ? knownGroups.channelKeys.filter((key) => !channelKeysOnScreen.has(key)) : null;
+
+  const openAddForm = () => {
+    setAdding(true);
+    void knownGroups.load();
+  };
+
+  // Runs a write and reads the list back whether or not it was stored; resolves to whether it was. A refused write has
+  // already been reported by apiRequest.
+  const settle = async (write: () => Promise<unknown>): Promise<boolean> => {
+    try {
+      await write();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      await refresh();
+    }
+  };
+
   // Only the field the user changed is sent: the rest of the policy shown here may be older than the stored one (another
   // page, or an edit still in flight), and sending it back would undo what changed meanwhile.
   const saveChannel = async (channelKey: string, patch: Partial<ChannelBudgetPolicyFields>) => {
-    try {
-      await updateChannelBudget(channelKey, patch);
-    } catch {
-      return; // apiRequest has already shown the failure.
-    }
-    await refresh();
+    await settle(() => updateChannelBudget(channelKey, patch));
   };
 
   const deleteChannel = async (channelKey: string) => {
-    try {
-      await deleteChannelBudget(channelKey);
-    } catch {
-      return; // apiRequest has already shown the failure.
-    }
-    await refresh();
+    await settle(() => deleteChannelBudget(channelKey));
   };
 
-  const createChannel = async (channelKey: string, policy: ChannelBudgetPolicyFields): Promise<boolean> => {
-    try {
-      await createChannelBudget(channelKey, policy);
-    } catch {
-      return false; // apiRequest has already shown the failure.
-    }
-    await refresh();
-    return true;
-  };
+  const createChannel = (channelKey: string, policy: ChannelBudgetPolicyFields) =>
+    settle(() => createChannelBudget(channelKey, policy));
 
   return (
     <SettingsSection
@@ -121,7 +134,7 @@ const ChannelBudgetSection = memo(() => {
       action={
         !adding ? (
           <button
-            onClick={() => setAdding(true)}
+            onClick={openAddForm}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             <IconPlus className="w-3.5 h-3.5" />
@@ -130,7 +143,12 @@ const ChannelBudgetSection = memo(() => {
         ) : null
       }
     >
-      <ChannelBudgetAddForm open={adding} onClose={() => setAdding(false)} onCreate={createChannel} />
+      <ChannelBudgetAddForm
+        open={adding}
+        onClose={() => setAdding(false)}
+        knownGroupKeys={pickableGroupKeys}
+        onCreate={createChannel}
+      />
 
       {loadStatus === 'failed' && <LoadFailedNotice showsStaleList={statuses.length > 0} onRetry={retry} />}
 

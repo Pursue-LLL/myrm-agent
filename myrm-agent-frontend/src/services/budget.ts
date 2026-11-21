@@ -3,7 +3,8 @@
  * @/lib/api::apiRequest (POS: HTTP client wrapper)
  *
  * [OUTPUT]
- * Budget policy CRUD and status APIs; a channel policy is created whole (PUT) and edited field by field (PATCH).
+ * Budget policy CRUD and status APIs; a channel policy is created whole (PUT) and edited field by field (PATCH); the
+ * groups a channel policy can be set on are listed from the chats on record.
  *
  * [POS]
  * Frontend budget service. Bridges budget API endpoints with multi-dimensional support.
@@ -67,11 +68,18 @@ export interface ChannelBudgetStatus {
   remaining_usd: number;
   usage_pct: number;
   status: 'ok' | 'warning' | 'exceeded' | 'disabled';
+  /** Whether a chat of this group is on record; false means no message has reached this key yet. */
+  known: boolean;
 }
 
 export interface ChannelBudgetsResponse {
   policies: ChannelBudgetPolicy[];
   statuses: ChannelBudgetStatus[];
+}
+
+export interface KnownChannelGroupsResponse {
+  /** Budget keys of the groups that have a chat, the most recently active first. */
+  channel_keys: string[];
 }
 
 export interface ChannelAuditEntry {
@@ -89,6 +97,10 @@ export interface ChannelAuditResponse {
 
 export async function getChannelBudgets(): Promise<ChannelBudgetsResponse> {
   return apiRequest<ChannelBudgetsResponse>('/budget/channels', { silent: true });
+}
+
+export async function getKnownChannelGroups(): Promise<KnownChannelGroupsResponse> {
+  return apiRequest<KnownChannelGroupsResponse>('/budget/channels/known-groups', { silent: true });
 }
 
 /** The fields of a policy the URL does not already carry. */
@@ -124,7 +136,7 @@ export async function deleteChannelBudget(channelKey: string): Promise<void> {
   });
 }
 
-export async function getChannelAudit(channelKey: string, days = 7): Promise<ChannelAuditResponse> {
+export async function getChannelAudit(channelKey: string, days: number): Promise<ChannelAuditResponse> {
   return apiRequest<ChannelAuditResponse>(`/budget/channels/${encodeURIComponent(channelKey)}/audit?days=${days}`, {
     silent: true,
   });

@@ -5,11 +5,12 @@
  * - react::useState (POS: React state hook)
  * - next-intl::useTranslations (POS: i18n support)
  * - @/components/features/icons/PremiumIcons (POS: Standard premium UI icons)
+ * - @/lib/utils/classnameUtils (POS: Class name merge helper)
  * - @/lib/utils/toast (POS: Toast wrapper)
  * - @/services/budget (POS: Channel budget API types)
  * - ./ChannelLimitInput (POS: Inline daily-limit box of a channel budget)
  * - ./channelLimit (POS: Range of a channel's daily limit)
- * - ./useChannelAudit::ChannelAuditView (POS: Audit state of the panel)
+ * - ./useChannelAudit::AUDIT_DAYS, ChannelAuditView (POS: Audit window and audit state of the panel)
  *
  * [OUTPUT]
  * - ChannelBudgetCard: One channel of the panel: today's spend against its limit, the limit box and the Enabled
@@ -18,7 +19,9 @@
  * [POS]
  * Card of the channel budget panel. It counts the saves of its own channel that are still in flight, so the delete
  * button is off exactly while one of them is unsettled, whatever other channels do. A limit outside the stored range
- * is explained here and never sent. Deleting is only requested: the confirmation belongs to the panel.
+ * is explained here and never sent. Deleting is only requested: the confirmation belongs to the panel. A channel no
+ * chat has reached yet says so in a neutral note, since a key typed by hand may name a group that never talks to the
+ * agent.
  */
 
 import { useState } from 'react';
@@ -36,7 +39,7 @@ import { toast } from '@/lib/utils/toast';
 import type { ChannelBudgetPolicy, ChannelBudgetPolicyFields, ChannelBudgetStatus } from '@/services/budget';
 import ChannelLimitInput from './ChannelLimitInput';
 import { CHANNEL_LIMIT_MAX_USD, CHANNEL_LIMIT_MIN_USD, isChannelLimitInRange } from './channelLimit';
-import type { ChannelAuditView } from './useChannelAudit';
+import { AUDIT_DAYS, type ChannelAuditView } from './useChannelAudit';
 
 const STATUS_COLORS: Record<string, { bar: string; text: string }> = {
   ok: { bar: 'bg-emerald-500', text: 'text-emerald-600 dark:text-emerald-400' },
@@ -112,6 +115,7 @@ const ChannelBudgetCard = ({
   const [inFlight, setInFlight] = useState(0);
   const busy = inFlight > 0;
   const colors = STATUS_COLORS[status.status] ?? STATUS_COLORS.disabled;
+  const name = status.label || status.channel_key;
 
   const save = async (patch: Partial<ChannelBudgetPolicyFields>) => {
     setInFlight((count) => count + 1);
@@ -135,7 +139,7 @@ const ChannelBudgetCard = ({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <IconShield className={cn('w-4 h-4 shrink-0', colors.text)} />
-          <span className="text-sm font-medium truncate">{status.label || status.channel_key}</span>
+          <span className="text-sm font-medium truncate">{name}</span>
           {status.label && (
             <span className="text-[10px] text-muted-foreground font-mono hidden sm:inline truncate">
               {status.channel_key}
@@ -149,8 +153,9 @@ const ChannelBudgetCard = ({
           <button
             onClick={onRequestDelete}
             disabled={busy}
-            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive-text transition-colors"
+            className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive-text transition-colors"
             title={t('delete')}
+            aria-label={t('deleteNamed', { name })}
           >
             {busy ? <IconLoader className="w-3.5 h-3.5 animate-spin" /> : <IconTrash className="w-3.5 h-3.5" />}
           </button>
@@ -162,6 +167,7 @@ const ChannelBudgetCard = ({
           style={{ width: `${Math.min(status.usage_pct, 100)}%` }}
         />
       </div>
+      {!status.known && <p className="text-xs text-muted-foreground">{t('unseenGroupNote')}</p>}
       {policy && (
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <div className="flex items-center gap-1">
@@ -193,11 +199,12 @@ const ChannelBudgetCard = ({
       )}
       <button
         onClick={onToggleAudit}
+        aria-expanded={audit !== null}
         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors pt-1"
       >
         {audit ? <IconChevronDown className="w-3 h-3" /> : <IconChevronRight className="w-3 h-3" />}
         <IconUsers className="w-3 h-3" />
-        {t('auditDetails')}
+        {t('auditDetails', { days: AUDIT_DAYS })}
       </button>
       {audit && (
         <div className="pt-1.5 space-y-1.5">

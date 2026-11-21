@@ -15,7 +15,15 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
 import { deferred } from '@/test-utils/deferred';
-import { CHANNEL_KEY, auditEntry, channelStatus, nextTick, policyOf, stableT } from './channelBudgetTestKit';
+import {
+  AUDIT_TOGGLE,
+  CHANNEL_KEY,
+  auditEntry,
+  channelStatus,
+  nextTick,
+  policyOf,
+  stableT,
+} from './channelBudgetTestKit';
 import {
   createChannelBudget,
   getChannelAudit,
@@ -36,6 +44,7 @@ vi.mock('@/services/budget', () => ({
   updateChannelBudget: vi.fn(),
   deleteChannelBudget: vi.fn(),
   getChannelAudit: vi.fn(),
+  getKnownChannelGroups: vi.fn().mockResolvedValue({ channel_keys: [] }),
 }));
 
 type PolicySave = ReturnType<typeof deferred<ChannelBudgetPolicy>>;
@@ -50,7 +59,7 @@ async function openAudit(todayCostUsd: number, entries: ChannelAuditEntry[]) {
   });
 
   render(<ChannelBudgetSection />);
-  fireEvent.click(await screen.findByText('auditDetails'));
+  fireEvent.click(await screen.findByText(AUDIT_TOGGLE));
   await screen.findByText(entries[0].sender_id);
 }
 

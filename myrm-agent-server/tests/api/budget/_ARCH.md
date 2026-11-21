@@ -11,4 +11,5 @@
 | `__init__.py` | 入口 | 模块初始化 | — |
 | `test_spend_control_api.py` | 测试 | 四级渐进式花销干预、软配额确认放行、Tier 4 批准与车队归因 API 单测 | ✅ |
 | `test_channel_audit_api.py` | 测试 | 渠道审计接口的窗口契约（经 HTTP 与真实 SQLite）：`days` 取 1 与 90 通过，0、负数、91、10 的 6 次方一律在入口得到 422；不带 `days` 时 `period_days` 为 7 | ✅ |
+| `test_channel_known_groups_api.py` | 测试 | 渠道预算的群组读取接口（经 HTTP 与真实 SQLite）：没有聊天时候选为空；同一群的多个聊天只列一次、按其中最近的活跃时间排序；私聊与线程名恰为 group 的私聊不列入；每个渠道群 ID 写法的候选键都被 PUT 原样接受且状态里 `known` 为真；渠道状态的 `known` 在有聊天延续其键时为真、只有相邻群（`g-10` 对 `g-1`）有聊天时为假；探测失败时状态仍返回、全部按已见过处理并记 WARNING | ✅ |
 | `test_channel_budget_patch_api.py` | 测试 | 渠道预算 PATCH 接口（经 HTTP 与真实 SQLite）：只改传入的字段并返回合并后的整条策略、列表里其余字段不变；渠道不存在得到 404 且不新建；请求体带策略没有的字段或类型不对在入口得到 422，越界值得到 400，库里的策略都不变 | ✅ |

@@ -24,7 +24,7 @@ GROUP_IDS: tuple[tuple[str, str], ...] = (
 
 @contextmanager
 def budget_database(db: AsyncSession) -> Iterator[None]:
-    """Make ``db`` the database of the channel budget service, the global budget recovery, the budget API and the audit query."""
+    """Make ``db`` the database of the channel budget service, group lookup, global recovery, budget API and audit query."""
 
     @asynccontextmanager
     async def session() -> AsyncGenerator[AsyncSession, None]:
@@ -35,6 +35,7 @@ def budget_database(db: AsyncSession) -> Iterator[None]:
 
     with (
         patch("app.services.budget.channel_budget.get_session_factory", factory),
+        patch("app.services.budget.channel_budget_groups.get_session_factory", factory),
         patch("app.services.budget.enforcer.get_session_factory", factory),
         patch("app.platform_utils.get_session_factory", factory),
     ):
