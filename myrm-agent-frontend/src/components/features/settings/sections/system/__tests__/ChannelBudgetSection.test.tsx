@@ -8,6 +8,7 @@ import {
   updateChannelBudget,
   type ChannelAuditEntry,
   type ChannelBudgetPolicy,
+  type ChannelBudgetsResponse,
   type ChannelBudgetStatus,
 } from '@/services/budget';
 
@@ -148,5 +149,68 @@ describe('ChannelBudgetSection saving', () => {
       label: '',
     });
     expect(updateChannelBudget).not.toHaveBeenCalled();
+  });
+
+  // apiRequest shows the failure itself. What stays with the panel is the limit box: it must not keep a number that is
+  // not in force, nor send it again when it is entered and left once more.
+  it('puts the stored limit back when its save is rejected, and sends nothing when the box is left again', async () => {
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [policyOf(2)], statuses: [channelStatus(0)] });
+    vi.mocked(updateChannelBudget).mockRejectedValue(new Error('rejected'));
+
+    render(<ChannelBudgetSection />);
+    const limitInput = await screen.findByDisplayValue<HTMLInputElement>('2');
+    fireEvent.change(limitInput, { target: { value: '0' } });
+    fireEvent.blur(limitInput);
+
+    await waitFor(() => expect(limitInput.value).toBe('2'));
+    fireEvent.blur(limitInput);
+    expect(updateChannelBudget).toHaveBeenCalledTimes(1);
+    expect(updateChannelBudget).toHaveBeenCalledWith(CHANNEL_KEY, { daily_limit_usd: 0 });
+  });
+
+  it('sends nothing and puts the stored limit back when the box is left empty', async () => {
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [policyOf(2)], statuses: [channelStatus(0)] });
+
+    render(<ChannelBudgetSection />);
+    const limitInput = await screen.findByDisplayValue<HTMLInputElement>('2');
+    fireEvent.change(limitInput, { target: { value: '' } });
+    fireEvent.blur(limitInput);
+
+    await waitFor(() => expect(limitInput.value).toBe('2'));
+    expect(updateChannelBudget).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the typed limit is the one already in force', async () => {
+    vi.mocked(getChannelBudgets).mockResolvedValue({ policies: [policyOf(2)], statuses: [channelStatus(0)] });
+
+    render(<ChannelBudgetSection />);
+    const limitInput = await screen.findByDisplayValue<HTMLInputElement>('2');
+    fireEvent.change(limitInput, { target: { value: '2.0' } });
+    fireEvent.blur(limitInput);
+
+    await waitFor(() => expect(limitInput.value).toBe('2'));
+    expect(updateChannelBudget).not.toHaveBeenCalled();
+  });
+
+  // The box shows the limit in force whenever the user is not typing, and a stored save only changes it once the panel has
+  // read the new policy back; leaving the typed number up until then keeps the old limit from flashing in between.
+  it('keeps the typed limit on screen until the policy read back after a stored save arrives', async () => {
+    const readBack = deferred<ChannelBudgetsResponse>();
+    vi.mocked(getChannelBudgets)
+      .mockResolvedValueOnce({ policies: [policyOf(2)], statuses: [channelStatus(0)] })
+      .mockReturnValueOnce(readBack.promise);
+    vi.mocked(updateChannelBudget).mockResolvedValue(policyOf(5));
+
+    render(<ChannelBudgetSection />);
+    const limitInput = await screen.findByDisplayValue<HTMLInputElement>('2');
+    fireEvent.change(limitInput, { target: { value: '5' } });
+    fireEvent.blur(limitInput);
+    await waitFor(() => expect(getChannelBudgets).toHaveBeenCalledTimes(2));
+
+    expect(limitInput.value).toBe('5');
+    await act(async () => {
+      readBack.resolve({ policies: [policyOf(5)], statuses: [channelStatus(0)] });
+    });
+    expect(limitInput.value).toBe('5');
   });
 });

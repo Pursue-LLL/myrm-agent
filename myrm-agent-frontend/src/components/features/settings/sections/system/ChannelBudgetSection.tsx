@@ -3,6 +3,7 @@
 /**
  * [INPUT]
  * @/services/budget (POS: Channel budget API service)
+ * ./ChannelLimitInput (POS: Inline daily-limit box of a channel budget)
  *
  * [OUTPUT]
  * ChannelBudgetSection: Settings panel for per-channel budget quotas.
@@ -11,8 +12,9 @@
  * Per-channel budget configuration UI. Displays each channel's daily budget usage
  * and allows configuring per-channel limits to prevent cost explosion; each edit is sent
  * as a patch of the one field it changes, so edits made close together, or from another
- * page, do not put each other's values back. Unfolding a channel lists each sender's
- * spend over the audit window, with bars sized by their share of that window's total.
+ * page, do not put each other's values back, and a limit box never keeps a number that was
+ * not stored. Unfolding a channel lists each sender's spend over the audit window, with
+ * bars sized by their share of that window's total.
  */
 
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
@@ -28,6 +30,7 @@ import {
   IconUsers,
 } from '@/components/features/icons/PremiumIcons';
 import SettingsSection from '../SettingsSection';
+import ChannelLimitInput from './ChannelLimitInput';
 import { cn } from '@/lib/utils/classnameUtils';
 import {
   getChannelBudgets,
@@ -290,20 +293,9 @@ const ChannelBudgetSection = memo(() => {
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-muted-foreground">{t('dailyLimit')}:</span>
                   <span className="text-xs text-muted-foreground">$</span>
-                  <input
-                    type="number"
-                    min={0.01}
-                    max={10000}
-                    step={0.5}
-                    defaultValue={policy.daily_limit_usd}
-                    key={`${st.channel_key}-${policy.daily_limit_usd}`}
-                    onBlur={(e) => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v) && v !== policy.daily_limit_usd) {
-                        handleSave(st.channel_key, { daily_limit_usd: v });
-                      }
-                    }}
-                    className="w-20 text-right text-xs font-mono px-1.5 py-1 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  <ChannelLimitInput
+                    value={policy.daily_limit_usd}
+                    onSave={(limit) => handleSave(st.channel_key, { daily_limit_usd: limit })}
                   />
                 </div>
                 <label className="flex items-center gap-1.5 cursor-pointer">
