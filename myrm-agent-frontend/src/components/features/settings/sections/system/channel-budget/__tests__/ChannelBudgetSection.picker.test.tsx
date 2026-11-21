@@ -8,9 +8,10 @@
  *
  * [POS]
  * A group is picked instead of typed, and only groups without a channel are offered; the picker says nothing before the
- * server answered or when the lookup failed, and typing the key keeps working either way. Enter saves like the button.
+ * server answered or when the lookup failed, only the newest answer counts, and typing the key keeps working either way.
+ * Enter saves like the button.
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import ChannelBudgetSection from '../ChannelBudgetSection';
@@ -103,6 +104,30 @@ describe('ChannelBudgetSection group picker', () => {
     expect(getKnownChannelGroups).toHaveBeenCalledTimes(2);
   });
 
+  it('offers the groups of the newest answer when an older one arrives late', async () => {
+    const olderAnswer = deferred<KnownChannelGroupsResponse>();
+    const newerAnswer = deferred<KnownChannelGroupsResponse>();
+    vi.mocked(getKnownChannelGroups).mockReturnValueOnce(olderAnswer.promise).mockReturnValueOnce(newerAnswer.promise);
+    const user = userEvent.setup();
+
+    render(<ChannelBudgetSection />);
+    await openAddForm(user);
+    await user.click(screen.getByRole('button', { name: 'cancel' }));
+    await openAddForm(user);
+
+    await act(async () => {
+      newerAnswer.resolve({ channel_keys: [THIRD_GROUP_KEY] });
+      await nextTick();
+    });
+    await act(async () => {
+      olderAnswer.resolve({ channel_keys: [OTHER_CHANNEL_KEY] });
+      await nextTick();
+    });
+
+    expect(screen.getByRole('button', { name: THIRD_GROUP_KEY })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: OTHER_CHANNEL_KEY })).toBeNull();
+  });
+
   it('says nothing about the groups until the answer is in, then that none is left to pick', async () => {
     const answer = deferred<KnownChannelGroupsResponse>();
     vi.mocked(getKnownChannelGroups).mockReturnValue(answer.promise);
@@ -180,6 +205,27 @@ describe('ChannelBudgetSection add form keyboard', () => {
     await user.type(screen.getByPlaceholderText('labelPlaceholder'), 'Team chat{Enter}');
 
     expect(createChannelBudget).not.toHaveBeenCalled();
+  });
+
+  // The disabled Save button already stops Enter; the form's own handler must also refuse a submit that comes another way.
+  it('refuses a submit that does not come through Save while the key is empty', async () => {
+    const user = userEvent.setup();
+
+    render(<ChannelBudgetSection />);
+    await openAddForm(user);
+    fireEvent.submit(keyBox());
+
+    expect(createChannelBudget).not.toHaveBeenCalled();
+  });
+
+  it('gives the key and label boxes a name of their own for screen readers', async () => {
+    const user = userEvent.setup();
+
+    render(<ChannelBudgetSection />);
+    await openAddForm(user);
+
+    expect(keyBox()).toHaveAttribute('aria-label', 'channelKeyPlaceholder');
+    expect(screen.getByPlaceholderText('labelPlaceholder')).toHaveAttribute('aria-label', 'labelPlaceholder');
   });
 
   it('submits the form only through Save: Cancel is a plain button and picking a group saves nothing', async () => {
