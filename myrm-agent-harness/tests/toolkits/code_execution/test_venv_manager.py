@@ -5,6 +5,7 @@ Covers:
 - get_python_executable: venv creation and fallback behavior
 - get_python_executable: concurrent callers share one creation
 - rewrite_pip_command: pip command rewriting
+- the pip bootstrap that follows a creation: test_venv_pip_bootstrap.py
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager im
     VenvManager,
     _get_default_venv_path,
 )
+from tests.toolkits.code_execution._venv_spawn import VENV_SPAWN, FakeVenvSpawn
 
 
 class TestGetDefaultVenvPath:
@@ -144,22 +146,6 @@ class TestVenvManagerCreation:
         assert Path(py_exec).exists()
 
 
-class _FakeVenvProcess:
-    """Stands in for ``python -m venv``: ``bin/python`` appears only after a delay, as in a real creation."""
-
-    returncode = 0
-
-    def __init__(self, venv_path: Path) -> None:
-        self._venv_path = venv_path
-
-    async def communicate(self) -> tuple[bytes, bytes]:
-        await asyncio.sleep(0.05)
-        python = self._venv_path / "bin" / "python"
-        python.parent.mkdir(parents=True)
-        python.touch()
-        return b"", b""
-
-
 class TestVenvManagerSingleFlight:
     """Callers that arrive during a creation wait for it instead of starting another."""
 
@@ -169,19 +155,13 @@ class TestVenvManagerSingleFlight:
         config.local.shared_venv_path = str(tmp_path / "venvs")
         config.local.auto_create_venv = True
         manager = VenvManager(config)
-        spawned: list[tuple[str, ...]] = []
+        spawn = FakeVenvSpawn()
 
-        async def fake_spawn(*argv: str, **_kwargs: object) -> _FakeVenvProcess:
-            spawned.append(argv)
-            return _FakeVenvProcess(Path(argv[-1]))
-
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager.asyncio.create_subprocess_exec",
-            side_effect=fake_spawn,
-        ):
+        with patch(VENV_SPAWN, side_effect=spawn):
             results = await asyncio.gather(*(manager.get_python_executable() for _ in range(4)))
+            await manager.ensure_pip_ready_for("pip --version")
 
-        assert len(spawned) == 1
+        assert len(spawn.creations) == 1
         assert set(results) == {str(tmp_path / "venvs" / "bin" / "python")}
 
     @pytest.mark.asyncio
@@ -190,16 +170,12 @@ class TestVenvManagerSingleFlight:
         config.local.shared_venv_path = str(tmp_path / "venvs")
         config.local.auto_create_venv = True
         manager = VenvManager(config)
+        spawn = FakeVenvSpawn()
 
-        async def fake_spawn(*argv: str, **_kwargs: object) -> _FakeVenvProcess:
-            return _FakeVenvProcess(Path(argv[-1]))
-
-        with patch(
-            "myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager.asyncio.create_subprocess_exec",
-            side_effect=fake_spawn,
-        ) as spawn:
+        with patch(VENV_SPAWN, side_effect=spawn):
             first = await manager.get_python_executable()
             second = await manager.get_python_executable()
+            await manager.ensure_pip_ready_for("pip --version")
 
         assert first == second
-        assert spawn.await_count == 1
+        assert len(spawn.creations) == 1

@@ -12,30 +12,13 @@ import pytest
 
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
-
-_SPAWN = "myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager.asyncio.create_subprocess_exec"
+from tests.toolkits.code_execution._venv_spawn import VENV_SPAWN, FakeVenvSpawn
 
 
 def _executor(tmp_path: Path) -> LocalExecutor:
     config = ExecutionConfig()
     config.local.shared_venv_path = str(tmp_path / "venvs")
     return LocalExecutor(config)
-
-
-class _FakeVenvProcess:
-    """Stands in for ``python -m venv``: ``bin/python`` appears only after a delay, as in a real creation."""
-
-    returncode = 0
-
-    def __init__(self, venv_path: Path) -> None:
-        self._venv_path = venv_path
-
-    async def communicate(self) -> tuple[bytes, bytes]:
-        await asyncio.sleep(0.05)
-        python = self._venv_path / "bin" / "python"
-        python.parent.mkdir(parents=True)
-        python.touch()
-        return b"", b""
 
 
 @pytest.mark.asyncio
@@ -78,15 +61,14 @@ async def test_warm_up_twice_builds_once(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_the_first_run_waits_for_the_warm_up_instead_of_building_again(tmp_path: Path) -> None:
     executor = _executor(tmp_path)
+    spawn = FakeVenvSpawn()
 
-    async def fake_spawn(*argv: str, **_kwargs: object) -> _FakeVenvProcess:
-        return _FakeVenvProcess(Path(argv[-1]))
-
-    with patch(_SPAWN, side_effect=fake_spawn) as spawn:
+    with patch(VENV_SPAWN, side_effect=spawn):
         executor.warm_up()
         interpreter = await executor._venv_manager.get_python_executable()
+        await executor._venv_manager.ensure_pip_ready_for("pip --version")
 
-    assert spawn.await_count == 1
+    assert len(spawn.creations) == 1
     assert interpreter == str(tmp_path / "venvs" / "bin" / "python")
 
 

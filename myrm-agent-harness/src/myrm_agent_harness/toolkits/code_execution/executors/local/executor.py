@@ -277,6 +277,8 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
         )
 
         python_executable = await self._venv_manager.get_python_executable()
+        if context is not None:
+            await self._venv_manager.ensure_pip_ready_for(context.code)
         return await run_python_subprocess(
             script_path=script_path,
             timeout=timeout,
@@ -297,6 +299,8 @@ class LocalExecutor(LocalBashMixin, LocalFileOpsMixin, CodeExecutor):
             spawn_background_process,
         )
 
+        if not context.harness_owned:
+            await self._venv_manager.ensure_pip_ready_for(" ".join((context.code, *(context.args or ()))))
         return await spawn_background_process(
             context=context,
             current_workspace=self._current_workspace,
