@@ -13,7 +13,8 @@
 | `share_links.py` | 模块 | 分享链接形态的唯一定义：`ShareKind`（工件、对话）加令牌得到公开路径与绝对 URL；分享对话框、分享列表、IM 按钮都经它构造，放行清单与路由表的一致性由 `tests/architecture/test_public_share_admission.py` 钉住 | ✅ |
 | `share_attempt_guard.py` | 模块 | 分享密码门的暴力破解锁定：按分享令牌指纹 + 客户端地址计失败次数，5 次错误后 5 分钟内返回 429 锁定页（含 `Retry-After`，页面在解锁时刻自动重载；期间连正确密码也拒绝），成功后清零；已持有解锁 cookie 的访客不受影响；失败登记返回「刚触发锁定」，路由据此经 `services/audit/lockout_events.py` 上报一次；客户端地址取 `request.client.host`（反代在他机/容器网络时需 `FORWARDED_ALLOW_IPS` 指向该代理，禁填 `*`）；仅进程内存，多进程按进程各自计数 | ✅ |
 | `share_locale.py` | 模块 | 分享页访客语言协商：按 `Accept-Language` 中排名最高的受支持语言（中文/英文）选页面语言，缺失、`*`、无法解析或不支持的语言一律英文；`q=0` 视为不接受；同时持有各语言页共用的 `<html lang>` 取值（`HTML_LANG`）与页脚品牌行（`SHARE_BRAND`），状态页、密码页与对话内容页共用同一份 | ✅ |
-| `share_headers.py` | 模块 | 分享请求头解析与校验（访问令牌、渠道标识） | ✅ |
+| `share_headers.py` | 模块 | 分享响应的共享隐私头 `SHARE_PRIVACY_HEADERS`（noindex/nofollow + no-store + no-referrer，聊天与工件分享的每个响应都带），HTML 专属安全头（CSP 等）留在各分享面自己那里 | ✅ |
+| `share_csp.py` | 模块 | 工件分享页的 CSP：脚本、样式、字体除自身外放行 `SHARE_CDN_SOURCES`（与应用内预览 `widget-theme-bridge.ts` 的 `CDN_ALLOWLIST` 同一份名单，含组件提示词点名的 4 个 CDN），图片只放自身 / `data:` / `blob:`，`connect-src 'none'`，其余 `'none'`；名单与预览一致、覆盖提示词由 `tests/architecture/test_share_csp_parity.py` 钉住 | ✅ |
 | `share_unlock.py` | 模块 | 分享解锁鉴权（密码/令牌校验入口） | ✅ |
 | `share_password_page.py` | 模块 | 密码分享页服务端渲染与提交处理（中英文文案按访客语言；含锁定变体：禁用表单并提示剩余秒数；说明文字、错误行、解锁按钮文字与输入框占位符在浅 / 深两套主题下对比度均 ≥ 4.5，输入框边缘与聚焦标记对其底色 ≥ 3，聚焦时另带强制颜色模式也会画出的透明轮廓，均由 `tests/core/security/test_share_page_contrast.py` 钉住） | ✅ |
 | `share_status_page.py` | 模块 | 分享状态页（已撤销/已过期/内容·文件·对话不可用共 5 种状态的中英文文案目录，聊天与工件分享路由共用；API 客户端仍得英文 JSON 404；说明文字与品牌行在浅 / 深两套主题下对比度均 ≥ 4.5，同由该测试钉住） | ✅ |

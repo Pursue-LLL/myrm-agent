@@ -13,6 +13,7 @@ from app.api.files.artifact_share_public import (
     _SHARE_SECURITY_HEADERS,
     _file_response,
 )
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP
 from app.database.models.artifact import Artifact, ArtifactVersion
 from app.services.hosting.packager import PublishFile
 from tests.support.detached_artifact import make_detached_artifact
@@ -38,9 +39,7 @@ async def test_html_share_includes_csp_headers(share_client, html_artifact) -> N
     index = share_client.get(f"/public/artifact-share/{token}", follow_redirects=False)
     assert index.status_code == 200
     csp = index.headers.get("content-security-policy", "")
-    assert "default-src 'none'" in csp
-    assert "'self'" in csp
-    assert "connect-src 'none'" in csp
+    assert csp == ARTIFACT_SHARE_CSP
     assert index.headers.get("x-content-type-options") == "nosniff"
     assert index.headers.get("x-frame-options") == "DENY"
     assert index.headers.get("x-robots-tag") == "noindex, nofollow"

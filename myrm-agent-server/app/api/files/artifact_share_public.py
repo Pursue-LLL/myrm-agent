@@ -3,6 +3,7 @@
 [INPUT]
 - app.core.security.share.share_hmac (POS: HMAC signing + password-protection detection)
 - app.core.security.share.share_attempt_guard (POS: wrong-password lockout for the gate)
+- app.core.security.share.share_csp (POS: CSP of a served share page, CDN list shared with the preview)
 - app.core.security.share.share_headers (POS: shared share privacy headers)
 - app.core.security.share.share_password_page (POS: password gate HTML + submission parsing)
 - app.core.security.share.share_status_page (POS: browser-friendly share 404 page)
@@ -18,7 +19,8 @@
 
 [POS]
 Server business layer. Serves materialized share bundles to the public web with
-hardened CSP headers, optional password gate, and a manual-revocation gate that
+the share CSP (``share_csp``: own origin plus the preview's CDN list for scripts, styles
+and fonts, nothing remote for images or connections), optional password gate, and a manual-revocation gate that
 blocks both existing files and any re-materialization attempt after revoke.
 Every served file carries the shared privacy headers (noindex/nofollow +
 no-store + Referrer-Policy: no-referrer) so shared work products are never
@@ -55,6 +57,7 @@ from app.core.security.share.share_attempt_guard import (
     record_password_failure,
     record_password_success,
 )
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import is_password_protected
 from app.core.security.share.share_links import ShareKind
@@ -90,17 +93,7 @@ public_router = APIRouter()
 _HTML_MEDIA_TYPES = frozenset({"text/html", "text/html; charset=utf-8", "application/xhtml+xml"})
 
 _SHARE_SECURITY_HEADERS: dict[str, str] = {
-    "Content-Security-Policy": (
-        "default-src 'none'; "
-        "script-src 'self' 'unsafe-inline'; "
-        "style-src 'self' 'unsafe-inline'; "
-        "img-src 'self' data: blob:; "
-        "font-src 'self' data:; "
-        "media-src 'self' data: blob:; "
-        "connect-src 'none'; "
-        "frame-src 'none'; "
-        "object-src 'none'"
-    ),
+    "Content-Security-Policy": ARTIFACT_SHARE_CSP,
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
 }

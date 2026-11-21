@@ -6,6 +6,7 @@
   - share_links: ShareKind + the one definition of the public share link path/URL for each token kind
   - share_attempt_guard: wrong-password lockout for the password gate (429 page + failure bookkeeping)
   - share_headers: shared noindex/nofollow + no-store + no-referrer privacy headers
+  - share_csp: the CDN origins and Content-Security-Policy of a served artifact share page
   - share_locale: visitor language negotiation (Accept-Language) for the share pages, plus the per-language
     ``<html lang>`` and footer brand line every share page uses
   - share_status_page: browser-friendly share 404 page (state catalog in English/Chinese) + Accept-based JSON fallback
@@ -24,6 +25,7 @@ from app.core.security.share.share_attempt_guard import (
     record_password_failure,
     record_password_success,
 )
+from app.core.security.share.share_csp import ARTIFACT_SHARE_CSP, SHARE_CDN_SOURCES
 from app.core.security.share.share_headers import SHARE_PRIVACY_HEADERS
 from app.core.security.share.share_hmac import (
     b64url_decode,
@@ -57,8 +59,10 @@ from app.core.security.share.share_unlock import (
 )
 
 __all__ = [
+    "ARTIFACT_SHARE_CSP",
     "HTML_LANG",
     "SHARE_BRAND",
+    "SHARE_CDN_SOURCES",
     "SHARE_PRIVACY_HEADERS",
     "ShareKind",
     "ShareLang",

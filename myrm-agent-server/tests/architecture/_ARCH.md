@@ -10,6 +10,7 @@ Server 层架构约束测试：禁止新增 harness 深导入、禁止 `uv.lock`
 |------|------|
 | `test_sse_event_type_parity.py` | harness `AgentEventType` ⊆ 前端 `knownSseEventTypes` 清单 |
 | `test_spillover_limits_parity.py` | 前端 `spillover.ts` 的长粘贴阈值（字数、词元压力、预览长度）与六类字符权重（小写与空白、大写、数字、其余 ASCII、非 ASCII 窄字符、宽字符）必须等于 harness `ContextGuardConfig` / `estimate_token_pressure`（输入框提示「将存为文件」与服务端落盘必须对同一段文本同时成立） |
+| `test_share_csp_parity.py` | 工件分享页放行的 CDN 名单（`share_csp.SHARE_CDN_SOURCES`）必须等于应用内预览的 `CDN_ALLOWLIST`（前端 `widget-theme-bridge.ts`）、且覆盖组件提示词里点名的每个 CDN（分享页名单落后于预览，含图表的工件分享出去就是空白）；自带名单读取器的正反校准用例；前端源码不在检出里时只跳过与预览比对的那条 |
 | `test_harness_api_export_parity.py` | server 引用的 `myrm_agent_harness.api.X` 必须已在该层 `_EXPORTS`/`__all__` 导出（消费侧护栏：harness 内部重构漏导出会让后端启动 `ImportError`）|
 | `test_doctor_component_names_parity.py` | 体检页组件标题表：后端所有 `HealthReport(component_name="…")` 字面量 == 前端 `doctorReportView.ts` 的 `COMPONENT_NAMES`（后端新增探针漏登记，或前端留着已删探针的名字与中英文案，都会失败）|
 | `test_tool_stuck_pause_clients.py` | loop guard 暂停：Web 前端 `toolsProgressEvents.ts` 与扩展侧栏 `approval.js` 比较 `action_type` 用的字面量必须含 harness 的 `TOOL_STUCK_ACTION_TYPE`（改了标记而客户端没跟，暂停会在那里被当成待回答的审批）；检出里没有该客户端的源码时跳过 |
