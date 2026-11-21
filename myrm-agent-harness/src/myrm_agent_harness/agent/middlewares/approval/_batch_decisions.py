@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
+from collections.abc import Mapping
 
 from langchain_core.messages import AIMessage, HumanMessage, ToolCall, ToolMessage
 
@@ -71,11 +71,36 @@ def _edited_shell_edit_block_reason(
     return _EDIT_REAPPROVAL_MESSAGE
 
 
+def _card_text(extra_ctx: Mapping[str, object] | None, key: str) -> str:
+    """One text the approval card carried for the call; empty when the card has none."""
+    return str(extra_ctx.get(key) or "") if extra_ctx else ""
+
+
+def _allow_always_grant(decision: Mapping[str, object], extensions: Mapping[str, object]) -> bool | dict[str, object]:
+    """What the person asked to remember: ``True`` for the permission, a dict to narrow it to a tool, its args or a pattern.
+
+    Any other value grants nothing.
+    """
+    raw = decision.get("allow_always", extensions.get("allowAlways", False)) or decision.get("allowAlways", False)
+    return raw if isinstance(raw, bool | dict) else False
+
+
+def _ttl_seconds(decision: Mapping[str, object], extensions: Mapping[str, object]) -> int | float | None:
+    """How long the person wants the always-allow to last; ``-1`` keeps it to this session."""
+    raw = (
+        decision.get("ttl_seconds")
+        or decision.get("ttlSeconds")
+        or extensions.get("ttlSeconds")
+        or extensions.get("ttl_seconds")
+    )
+    return raw if isinstance(raw, int | float) else None
+
+
 async def apply_approval_decisions(
-    decisions: list[dict[str, Any]],
+    decisions: list[dict[str, object]],
     last_ai_msg: AIMessage,
     auto_denied: list[tuple[int, ToolCall, str]],
-    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, Any] | None]],
+    pending_approval: list[tuple[int, ToolCall, str, str, dict[str, object] | None]],
     interrupt_indices: list[int],
     args_hashes: dict[int, str | None],
     config: SecurityConfig | None = None,
@@ -115,22 +140,17 @@ async def apply_approval_decisions(
             _, _, permission_type, reason, extra_ctx = pending_approval[decision_idx - 1]
             tool_name = tool_call.get("name", "unknown")
             tool_call_id = tool_call.get("id", "")
-            allowlist_tool_name = extra_ctx.get("ptc_tool_name_full", tool_name) if extra_ctx else tool_name
+            allowlist_tool_name = str(extra_ctx.get("ptc_tool_name_full", tool_name)) if extra_ctx else tool_name
 
             decision_type = decision.get("type") or decision.get("decision") or "reject"
-            extensions = decision.get("extensions", {})
-            allow_always = decision.get("allow_always", extensions.get("allowAlways", False)) or decision.get(
-                "allowAlways", False
-            )
+            raw_extensions = decision.get("extensions")
+            extensions: Mapping[str, object] = raw_extensions if isinstance(raw_extensions, dict) else {}
+            allow_always = _allow_always_grant(decision, extensions)
             allow_domain = decision.get("allow_domain", extensions.get("allowDomain", False))
             grant_directory = decision.get("grant_directory", extensions.get("grantDirectory", False))
-            ttl_seconds = (
-                decision.get("ttl_seconds")
-                or decision.get("ttlSeconds")
-                or extensions.get("ttlSeconds")
-                or extensions.get("ttl_seconds")
-            )
-            guidance_text = decision.get("guidance", "").strip() if isinstance(decision.get("guidance"), str) else ""
+            ttl_seconds = _ttl_seconds(decision, extensions)
+            raw_guidance = decision.get("guidance")
+            guidance_text = raw_guidance.strip() if isinstance(raw_guidance, str) else ""
 
             logger.info(
                 "[APPROVAL] Tool %s decision: type=%s, allow_always=%s, allow_domain=%s, grant_directory=%s, ttl_seconds=%s",
@@ -143,7 +163,7 @@ async def apply_approval_decisions(
             )
 
             if decision_type == "approve":
-                expected_digest = extra_ctx.get("action_digest") if extra_ctx else None
+                expected_digest = _card_text(extra_ctx, "action_digest")
                 if expected_digest:
                     from myrm_agent_harness.core.security.spend_governance import (
                         verify_action_digest,
@@ -180,8 +200,8 @@ async def apply_approval_decisions(
                         )
                         continue
 
-                expected_script_hash = extra_ctx.get("script_operand_hash") if extra_ctx else None
-                script_path = extra_ctx.get("script_operand_path") if extra_ctx else None
+                expected_script_hash = _card_text(extra_ctx, "script_operand_hash")
+                script_path = _card_text(extra_ctx, "script_operand_path")
                 if expected_script_hash and script_path:
                     from myrm_agent_harness.agent.security.script_operand_verifier import (
                         verify_script_operand_integrity,

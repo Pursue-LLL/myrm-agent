@@ -22,6 +22,7 @@ list that decides what may be remembered reads in one place. The pending-approva
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 
 from langchain_core.messages import ToolCall
 
@@ -108,7 +109,7 @@ def should_block_allow_always(
 async def try_add_to_allowlist(
     tool_call: ToolCall | dict[str, object],
     extra_ctx: dict[str, object] | None,
-    allow_always: bool | dict[str, bool],
+    allow_always: bool | Mapping[str, object],
     permission_type: str,
     allowlist_tool_name: str,
     idx: int,
