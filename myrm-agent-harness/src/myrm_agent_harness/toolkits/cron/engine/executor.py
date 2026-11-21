@@ -10,6 +10,7 @@ but owns no scheduling state — that remains in ``CronScheduler``.
 - toolkits.cron.types::CronConfig (POS: Cron job domain types.)
 - toolkits.cron.protocols::CronStore, PreFlightConditionError (POS: Protocols for the cron toolkit.)
 - toolkits.cron.delivery_guard::is_silent_output (POS: Cron delivery guard.)
+- toolkits.cron.engine.connector_health::ConnectorFailureDetail, classify_connector_error, delivery_target_key, redact_connector_url (POS: delivery failure taxonomy, the identity of a delivery destination, target redaction)
 - infra.incremental.manager::IncrementalMonitorManager (POS: Incremental monitor lifecycle manager.)
 - observability.tracing::TracingContext (POS: Request-scoped trace_id/session_id for log correlation.)
 - toolkits.cron.engine.failure_alerts::FailureAlertMixin (POS: failure alert decision and delivery, mixed into the executor)
@@ -41,6 +42,7 @@ from myrm_agent_harness.toolkits.cron.delivery_guard import is_silent_output
 from myrm_agent_harness.toolkits.cron.engine.connector_health import (
     ConnectorFailureDetail,
     classify_connector_error,
+    delivery_target_key,
     redact_connector_url,
 )
 from myrm_agent_harness.toolkits.cron.engine.failure_alerts import FailureAlertMixin
@@ -221,6 +223,12 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
             run_metadata = run_metadata or {}
             run_metadata.setdefault("connector_failure", fail_detail.to_dict())
 
+        # The destination's key lets the connector health report line this run up with every other run to it.
+        destination = delivery_target_key(job.delivery.channel, job.delivery.target)
+        if destination and delivery_status in (DeliveryStatus.DELIVERED, DeliveryStatus.FAILED):
+            run_metadata = run_metadata or {}
+            run_metadata["delivery_key"] = destination
+
         run = CronRunRecord(
             id=secrets.token_urlsafe(12),
             job_id=job.id,
@@ -321,8 +329,10 @@ class JobExecutor(FailureAlertMixin, IncrementalMonitoringMixin, RunCloserMixin,
         try:
             await self._delivery.deliver(job, delivery_result)
         except Exception as exc:
-            logger.warning("Delivery failed for job %s: %s", job.id, exc)
-            return DeliveryStatus.FAILED, str(exc)[:500]
+            # Some errors carry no text (httpx timeouts, asyncio.TimeoutError); the type name is all that says why.
+            error_text = str(exc) or type(exc).__name__
+            logger.warning("Delivery failed for job %s: %s", job.id, error_text)
+            return DeliveryStatus.FAILED, error_text[:500]
 
         if job.deduplicate and result.success:
             output_text = (result.output or "").strip()

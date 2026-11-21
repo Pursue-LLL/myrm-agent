@@ -2,119 +2,100 @@
  * [INPUT]
  * - `./configFingerprint` valuesEqual (POS: deep equality for config values)
  * - `./conflictResolution` ConfigConflictResolver (POS: user-facing decision hook)
- * - `./types` ConfigChange / ConfigRecord (POS: queued write and server-confirmed record)
+ * - `./types` ConfigChange / ConfigKey / ConfigRecord (POS: queued write and server-confirmed record)
  *
  * [OUTPUT]
- * partitionOfflineChanges: which queued changes are still safe to replay against the current server state.
+ * decideReplay: what becomes of each change a previous session left behind: sent, settled without a send, or left for later.
  * mergeLatestChanges: one change per key (the latest value) ready to send to the backend.
  *
  * [POS]
- * Replay decisions of the config sync layer, free of manager state: callers hand in the server records and the
- * resolver they hold. A queued change records the server version it was based on; when the server has moved on, the
- * snapshot is stale and replaying it would overwrite newer configuration. A key with no server record has no version
- * to compare and always counts as stale, so callers load every queued key before asking.
+ * Replay decisions of the config sync layer, free of manager state: callers hand in the server records, the keys the
+ * server could not be asked about, and the resolver they hold. A queued change records the server version it was
+ * based on; when the server has moved on, the snapshot is stale and sending it would overwrite newer configuration, so
+ * the user decides, one change at a time, and without a resolver the server value wins. Nothing is made up: a key the
+ * server has no row for has nothing to clash with, and a key the server could not be asked about stays as it is.
  */
 import { valuesEqual } from './configFingerprint';
 import type { ConfigConflictResolver } from './conflictResolution';
 import type { ConfigChange, ConfigKey, ConfigRecord } from './types';
-import { createInitialVersion } from './types';
 
 /**
- * Latest change per key. `expectedVersion` comes from `baseCache` (the latest confirmed server version) so consecutive
- * local edits never conflict with themselves; offline replay keeps the recorded base version instead.
+ * Latest change per key, on the version the server last confirmed: `expectedVersion` comes from `baseCache` so
+ * consecutive local edits never conflict with themselves and a replayed change that was kept goes out on the version
+ * the user was shown. A key the server has no record of keeps the version the change recorded.
  */
 export function mergeLatestChanges(
   changes: ConfigChange[],
   baseCache: ReadonlyMap<ConfigKey, ConfigRecord>,
-  preserveExpectedVersion = false,
 ): ConfigChange[] {
   const latestByKey = new Map<ConfigKey, ConfigChange>();
   for (const change of changes) {
     latestByKey.set(change.key, change);
   }
-  return Array.from(latestByKey.entries()).map(([key, latest]) => {
-    if (preserveExpectedVersion) {
-      return { ...latest };
-    }
-    return { ...latest, expectedVersion: baseCache.get(key)?.meta.version ?? latest.expectedVersion };
-  });
+  return Array.from(latestByKey.entries()).map(([key, latest]) => ({
+    ...latest,
+    expectedVersion: baseCache.get(key)?.meta.version ?? latest.expectedVersion,
+  }));
 }
 
-/**
- * Keeps the changes that may still be replayed. Stale ones (the server moved on) are dropped so the server value wins;
- * when a conflict resolver is registered the user decides instead.
- */
-export async function partitionOfflineChanges(
+export interface ReplayDecision {
+  /** Still has to reach the server. */
+  send: ConfigChange[];
+  /** Needs no send: the server already holds the value, or the server's value was chosen. */
+  settled: ConfigChange[];
+  /** The server could not be asked about the key: nothing is known, so the change waits. */
+  undecided: ConfigChange[];
+}
+
+/** Sorts `changes` against what the server holds. `unread` are the keys the server could not be asked about. */
+export async function decideReplay(
   changes: ConfigChange[],
   serverRecords: ReadonlyMap<ConfigKey, ConfigRecord>,
+  unread: ReadonlySet<ConfigKey>,
   resolver: ConfigConflictResolver | null,
-): Promise<ConfigChange[]> {
-  const replayable: ConfigChange[] = [];
-  const stale: ConfigChange[] = [];
-
+): Promise<ReplayDecision> {
+  const decision: ReplayDecision = { send: [], settled: [], undecided: [] };
   for (const change of changes) {
-    const serverRecord = serverRecords.get(change.key);
-    const serverVersion = serverRecord?.meta.version;
-    const baseVersion = change.expectedVersion;
-
-    if (baseVersion !== undefined && serverVersion !== undefined && baseVersion === serverVersion) {
-      // The server has not moved since the local edit: the change is still valid.
-      replayable.push(change);
-      continue;
-    }
-
-    if (baseVersion === undefined && serverRecord && valuesEqual(serverRecord.value, change.value)) {
-      // The server already holds this value; replaying it would change nothing.
-      continue;
-    }
-
-    stale.push(change);
-  }
-
-  if (stale.length > 0) {
-    if (await shouldKeepLocalForStaleChanges(stale, serverRecords, resolver)) {
-      replayable.push(...stale);
+    const server = serverRecords.get(change.key);
+    if (unread.has(change.key)) {
+      decision.undecided.push(change);
+    } else if (!server) {
+      decision.send.push(change);
+    } else if (valuesEqual(server.value, change.value)) {
+      decision.settled.push(change);
+    } else if (change.expectedVersion === server.meta.version || (await keepsLocal(change, server, resolver))) {
+      decision.send.push(change);
     } else {
-      console.warn(
-        '[ConfigSync] Dropped stale offline changes (server moved on):',
-        stale.map((change) => change.key).join(', '),
-      );
+      console.warn('[ConfigSync] Dropped a stale offline change (server moved on):', change.key);
+      decision.settled.push(change);
     }
   }
-
-  return replayable;
+  return decision;
 }
 
 /**
- * Whether stale changes should still overwrite the server: the registered resolver decides. Without one the server
+ * Whether a stale change should still overwrite the server: the registered resolver decides. Without one the server
  * value wins — a server configuration must not be replaced by a snapshot whose origin cannot be verified.
  */
-async function shouldKeepLocalForStaleChanges(
-  changes: ConfigChange[],
-  serverRecords: ReadonlyMap<ConfigKey, ConfigRecord>,
+async function keepsLocal(
+  change: ConfigChange,
+  server: ConfigRecord,
   resolver: ConfigConflictResolver | null,
 ): Promise<boolean> {
   if (!resolver) {
     return false;
   }
-  for (const change of changes) {
-    const serverRecord = serverRecords.get(change.key);
-    const keepLocal = await Promise.resolve(
-      resolver({
-        configKey: change.key,
-        localVersion: change.expectedVersion ?? createInitialVersion(),
-        serverVersion: serverRecord?.meta.version ?? createInitialVersion(),
-        deviceId: serverRecord?.meta.deviceId ?? 'unknown',
-        localValue: change.value,
-        serverValue: serverRecord?.value,
-      }),
-    ).catch((error: unknown) => {
-      console.warn('[ConfigSync] Conflict resolver failed for stale offline change:', error);
-      return false;
+  try {
+    return await resolver({
+      configKey: change.key,
+      localVersion: change.expectedVersion,
+      serverVersion: server.meta.version,
+      deviceId: server.meta.deviceId,
+      localValue: change.value,
+      serverValue: server.value,
     });
-    if (keepLocal) {
-      return true;
-    }
+  } catch (error) {
+    console.warn('[ConfigSync] Conflict resolver failed for stale offline change:', error);
+    return false;
   }
-  return false;
 }

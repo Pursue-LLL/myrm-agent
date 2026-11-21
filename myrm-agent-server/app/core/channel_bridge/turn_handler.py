@@ -6,7 +6,6 @@
 - app.core.channel_bridge.agent_executor::resolve_session_key
 - app.core.channel_bridge.config_loader::load_user_configs
 - app.core.channel_bridge.config_parsers::extract_session_policy, session_policy_from_agent_dict
-- app.database.connection::get_session
 - app.services.chat.chat_service::ChatService
 - app.services.files.revert_hydrate::cleanup_persisted_snapshots (POS: Server-side revert snapshot disk hydrate and cleanup)
 - myrm_agent_harness.agent.meta_tools.file_ops.revert_service::RevertService
@@ -36,7 +35,6 @@ from app.core.channel_bridge.config_parsers import (
     extract_session_policy,
     session_policy_from_agent_dict,
 )
-from app.database.connection import get_session
 from app.services.chat.chat_service import ChatService
 
 logger = logging.getLogger(__name__)
@@ -119,11 +117,10 @@ class ChannelRetryHandler:
     async def __call__(self, msg: InboundMessage, user_id: str) -> RetryResult:
         session_key, _ = await _resolve_session_with_agent(msg)
 
-        async with get_session() as _db:
-            chat = await ChatService.get_channel_chat_by_key(session_key)
-            if not chat:
-                return RetryResult(success=False)
-            svc_result = await ChatService.retry_last_turn(chat.id)
+        chat = await ChatService.get_channel_chat_by_key(session_key)
+        if not chat:
+            return RetryResult(success=False)
+        svc_result = await ChatService.retry_last_turn(chat.id)
 
         revert_outcome = RevertMessagesOutcome(reverted_count=0, not_revertible_count=0)
         if svc_result.success and svc_result.deleted_message_ids:
@@ -150,11 +147,10 @@ class ChannelUndoHandler:
     async def __call__(self, msg: InboundMessage, user_id: str) -> UndoResult:
         session_key, _ = await _resolve_session_with_agent(msg)
 
-        async with get_session() as _db:
-            chat = await ChatService.get_channel_chat_by_key(session_key)
-            if not chat:
-                return UndoResult(success=False)
-            svc_result = await ChatService.undo_last_turn(chat.id)
+        chat = await ChatService.get_channel_chat_by_key(session_key)
+        if not chat:
+            return UndoResult(success=False)
+        svc_result = await ChatService.undo_last_turn(chat.id)
 
         revert_outcome = RevertMessagesOutcome(reverted_count=0, not_revertible_count=0)
         if svc_result.success and svc_result.deleted_message_ids:

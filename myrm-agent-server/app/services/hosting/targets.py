@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import cast
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.database.models.config import UserConfig
-from app.services.config.encryption import HOSTING_TARGET_CREDENTIALS_PREFIX, get_encryption_service
+from app.services.config.encryption import HOSTING_TARGET_CREDENTIALS_PREFIX
 from app.services.hosting.types import HostingTarget, is_provider_type
 
 HOSTING_TARGETS_KEY = "hostingTargets"
@@ -93,26 +94,26 @@ async def list_hosting_targets(db: AsyncSession) -> list[HostingTarget]:
 
 
 async def _stage_targets(db: AsyncSession, targets: list[HostingTarget]) -> None:
-    """Write the targets row into the session without committing, so a caller can add related changes first."""
-    service = get_encryption_service()
-    payload = _serialize_targets(targets)
-    stored_value, is_encrypted = service.encrypt_if_needed(HOSTING_TARGETS_KEY, payload)
-    if is_encrypted and isinstance(stored_value, str):
-        stored_value = {"_cipher": stored_value}
+    """Write the targets row into the session without committing, so a caller can add related changes first.
+
+    The row holds no secret (each target's credentials live in their own sealed row), so it is stored as plain
+    JSON. The column is annotated for dict values while this row's value is an array, hence the cast.
+    """
+    payload = cast("dict[str, object]", _serialize_targets(targets))
     row = await _load_targets_row(db)
     if row:
-        row.config_value = stored_value
-        row.is_encrypted = is_encrypted
+        row.config_value = payload
+        row.is_encrypted = False
         flag_modified(row, "config_value")
     else:
         db.add(
             UserConfig(
                 id=str(uuid.uuid4()),
                 config_key=HOSTING_TARGETS_KEY,
-                config_value=stored_value,
+                config_value=payload,
                 version="1.0.0",
                 last_device_id="webui",
-                is_encrypted=is_encrypted,
+                is_encrypted=False,
             )
         )
 

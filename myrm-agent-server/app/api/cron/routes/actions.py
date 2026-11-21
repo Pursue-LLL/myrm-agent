@@ -146,7 +146,8 @@ async def _run_test_delivery(
     try:
         await pipeline.deliver(test_job, result)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Test delivery failed: {exc}") from exc
+        # Some errors carry no text (httpx timeouts); the type name is all that says why.
+        raise HTTPException(status_code=502, detail=f"Test delivery failed: {str(exc) or type(exc).__name__}") from exc
 
     return DeliveryTestResponse(delivered=True)
 

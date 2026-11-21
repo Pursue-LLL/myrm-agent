@@ -3,7 +3,7 @@
 [INPUT]
 - cdp_chat.support.api_client::get_e2e_api_url (POS: Where the E2E API and UI live and the loopback-only HTTP calls to them, retried under parallel load)
 - cdp_chat.support.config.api_pins::_hitl_pin_retry_policy, clear_search_services_ssot, ensure_e2e_hitl_mode, ensure_e2e_onboarding_complete (POS: Pins the backend config an E2E run needs over the API: YOLO and HITL mode, onboarding complete, memory disabled, search services cleared)
-- cdp_chat.support.config.page_scripts::CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, PUT_E2E_CLEAR_SEARCH_CONFIG_JS, PUT_E2E_HITL_CONFIG_JS, PUT_E2E_YOLO_CONFIG_JS (POS: Scripts that write the pinned config through the page's own API layer and clear its offline queue)
+- cdp_chat.support.config.page_scripts::CLEAR_E2E_CONFIG_OFFLINE_QUEUE_JS, PUT_E2E_CLEAR_SEARCH_CONFIG_JS, PUT_E2E_HITL_CONFIG_JS, PUT_E2E_YOLO_CONFIG_JS (POS: Scripts that write the pinned config through the page's own API layer and clear its offline queues)
 - cdp_chat.support.config.store::fetch_config_value (POS: Global config records over the API with optimistic locking: a per-key cross-process mutex, reads and writes with bounded retry)
 - dev_gate.contract::EvaluateIntent (POS: Dev Gate contract SSOT: error tokens, parallel caps and timeout budgets)
 

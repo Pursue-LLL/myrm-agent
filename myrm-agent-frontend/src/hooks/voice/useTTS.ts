@@ -10,11 +10,13 @@
  *
  * [POS]
  * Text-to-speech output with browser and API backends. Runs both engines on every render (the hook order stays
- * fixed) and exposes the one the mode selects; the engines live in hooks/voice/tts/.
+ * fixed), exposes the one the mode selects and adds `toggle` (speak, pause or resume by its state); the engines
+ * live in hooks/voice/tts/.
  */
 
 'use client';
 
+import { useCallback } from 'react';
 import { useApiTTS } from './tts/useApiTTS';
 import { useBrowserTTS } from './tts/useBrowserTTS';
 import type { UseTTSOptions, UseTTSReturn } from './tts/types';
@@ -22,8 +24,23 @@ import type { UseTTSOptions, UseTTSReturn } from './tts/types';
 export type { TTSMode } from './tts/types';
 
 export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
-  const mode = options.mode ?? 'browser';
-  const browserTTS = useBrowserTTS(options);
+  const browserTTS = useBrowserTTS();
   const apiTTS = useApiTTS(options);
-  return mode === 'api' ? apiTTS : browserTTS;
+  const engine = options.mode === 'api' ? apiTTS : browserTTS;
+  const { state, speak, pause, resume } = engine;
+
+  const toggle = useCallback(
+    (text: string) => {
+      if (state === 'playing') {
+        pause();
+      } else if (state === 'paused') {
+        resume();
+      } else {
+        speak(text);
+      }
+    },
+    [state, pause, resume, speak],
+  );
+
+  return { ...engine, toggle };
 }

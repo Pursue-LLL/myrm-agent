@@ -206,6 +206,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     ),
     "create_skill_agent": ("myrm_agent_harness.api.factory", "create_skill_agent"),
     "delete_subagent_checkpoint": ("myrm_agent_harness.api.subagents", "delete_subagent_checkpoint"),
+    "delivery_target_key": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "delivery_target_key"),
     "drop_subagent_checkpoint_if_terminal": (
         "myrm_agent_harness.api.subagents",
         "drop_subagent_checkpoint_if_terminal",
@@ -219,7 +220,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
         "myrm_agent_harness.core.security.tool_registry.registry",
         "evict_skill_safety_metadata",
     ),
-    "generate_fix_suggestion": ("myrm_agent_harness.toolkits.cron.engine.connector_health", "generate_fix_suggestion"),
     "close_subagent_checkpointer": ("myrm_agent_harness.api.subagents", "close_subagent_checkpointer"),
     "get_distribution_mode": ("myrm_agent_harness.runtime.install_guard.probe", "get_distribution_mode"),
     "get_ptc_safety_metadata": ("myrm_agent_harness.core.security.tool_registry.registry", "get_ptc_safety_metadata"),

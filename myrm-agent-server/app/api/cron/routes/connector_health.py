@@ -1,6 +1,7 @@
 """Connector health monitoring REST endpoints for cron automations.
 
 [INPUT]
+- myrm_agent_harness.api::ConnectorHealthStatus (POS: 连接器健康状态枚举)
 - app.services.cron.connector_health_service::ConnectorHealthService (POS: 连接器健康聚合服务)
 - app.api.cron.schemas::ConnectorsHealthListResponse, ConnectorHealthResponse (POS: 连接器健康响应模型)
 
@@ -14,6 +15,7 @@ Server REST API router for automation outbound connector degradation diagnostics
 from __future__ import annotations
 
 from fastapi import APIRouter, Query
+from myrm_agent_harness.api import ConnectorHealthStatus
 
 from app.api.cron.schemas import (
     ConnectorHealthResponse,
@@ -37,31 +39,24 @@ async def get_connectors_health(
         ConnectorHealthResponse(
             target=s.target,
             channel=s.channel,
-            status=s.status.value if hasattr(s.status, "value") else str(s.status),
+            status=s.status.value,
             total_deliveries=s.total_deliveries,
             failed_deliveries=s.failed_deliveries,
             consecutive_failures=s.consecutive_failures,
-            last_status_code=s.last_status_code,
-            last_error_category=s.last_error_category.value
-            if hasattr(s.last_error_category, "value")
-            else (str(s.last_error_category) if s.last_error_category else None),
+            last_error_category=s.last_error_category.value if s.last_error_category else None,
             last_error_message=s.last_error_message,
             last_delivery_at=s.last_delivery_at,
             last_failed_at=s.last_failed_at,
-            fix_suggestion=s.fix_suggestion,
             bound_job_ids=list(s.bound_job_ids),
         )
         for s in summaries
     ]
 
-    degraded_count = sum(1 for s in summaries if (s.status.value if hasattr(s.status, "value") else str(s.status)) == "degraded")
-    down_count = sum(1 for s in summaries if (s.status.value if hasattr(s.status, "value") else str(s.status)) == "down")
-
     return ConnectorsHealthListResponse(
         items=items,
         total=len(items),
-        degraded_count=degraded_count,
-        down_count=down_count,
+        degraded_count=sum(1 for s in summaries if s.status == ConnectorHealthStatus.DEGRADED),
+        down_count=sum(1 for s in summaries if s.status == ConnectorHealthStatus.DOWN),
     )
 
 

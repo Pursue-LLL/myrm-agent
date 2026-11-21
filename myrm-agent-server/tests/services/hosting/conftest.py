@@ -20,7 +20,6 @@ def real_encryption() -> Iterator[ConfigEncryptionService]:
     """The real sealing policy with a throwaway key, so tests read the same rows an instance stores."""
     service = ConfigEncryptionService(encryption_key=os.urandom(32), is_sandbox=False, is_local=True)
     with (
-        patch("app.services.hosting.targets.get_encryption_service", return_value=service),
         patch("app.services.hosting.credentials.get_encryption_service", return_value=service),
         patch("app.services.config.migration.get_encryption_service", return_value=service),
     ):

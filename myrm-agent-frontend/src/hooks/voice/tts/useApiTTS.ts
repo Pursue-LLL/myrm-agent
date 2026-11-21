@@ -11,6 +11,7 @@
  * [POS]
  * API TTS engine. Streams `/tts/synthesize-stream` into a MediaSource buffer, falls back to the one-shot
  * `/tts/synthesize` blob when MediaSource cannot play MP3, and reports a failed synthesis through a toast.
+ * Only one instance speaks at a time: starting speech stops whichever instance (message row) was speaking.
  */
 
 'use client';
@@ -20,7 +21,7 @@ import { useTranslations } from 'next-intl';
 import { getApiUrl } from '@/lib/api';
 import { toast } from '@/lib/utils/toast';
 import { stripMarkdown } from '@/lib/utils/messageUtils';
-import type { TTSState, UseTTSOptions, UseTTSReturn } from './types';
+import type { TTSEngine, TTSState, UseTTSOptions } from './types';
 
 function getAuthHeaders(): Record<string, string> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
@@ -50,7 +51,12 @@ class TtsRequestError extends Error {
   }
 }
 
-export function useApiTTS(options: UseTTSOptions): UseTTSReturn {
+// Audio elements do not queue behind one another and every message row mounts its own engine, so this slot is what
+// keeps two rows from speaking at once: an engine that starts speaking stops the one holding it. A stop only touches
+// the stopped engine's own audio and request, so stopping a holder that has already finished is harmless.
+let speakerStop: (() => void) | null = null;
+
+export function useApiTTS(options: UseTTSOptions): TTSEngine {
   const { provider } = options;
   const tVoice = useTranslations('voice');
   const [state, setState] = useState<TTSState>('idle');
@@ -87,7 +93,16 @@ export function useApiTTS(options: UseTTSOptions): UseTTSReturn {
     setState('idle');
   }, [cleanup]);
 
-  useEffect(() => stop, [stop]);
+  // Unmounting ends what this instance voices and gives up its place as the speaker.
+  useEffect(
+    () => () => {
+      stop();
+      if (speakerStop === stop) {
+        speakerStop = null;
+      }
+    },
+    [stop],
+  );
 
   const notifyTtsFailure = useCallback(
     (status: number) => {
@@ -256,6 +271,11 @@ export function useApiTTS(options: UseTTSOptions): UseTTSReturn {
         return;
       }
 
+      if (speakerStop && speakerStop !== stop) {
+        speakerStop();
+      }
+      speakerStop = stop;
+
       setState('loading');
       const controller = new AbortController();
       abortRef.current = controller;
@@ -297,18 +317,5 @@ export function useApiTTS(options: UseTTSOptions): UseTTSReturn {
     setState('playing');
   }, [state]);
 
-  const toggle = useCallback(
-    (text: string) => {
-      if (state === 'playing') {
-        pause();
-      } else if (state === 'paused') {
-        resume();
-      } else {
-        speak(text);
-      }
-    },
-    [state, pause, resume, speak],
-  );
-
-  return { state, speak, pause, resume, stop, toggle, supported: true };
+  return { state, speak, pause, resume, stop, supported: true };
 }

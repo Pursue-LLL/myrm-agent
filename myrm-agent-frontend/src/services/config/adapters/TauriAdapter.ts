@@ -1,18 +1,29 @@
 /**
  * [INPUT]
  * - `@/lib/deploy-mode` (`getApiBaseUrl`)
+ * - `@/lib/backend-health` (`markLocalBackendUnreachable`) (POS: tells the app the local backend is down)
+ * - `@/lib/platform-readiness` (`whenDatabaseReady`) (POS: whether the local database is up)
+ * - `./BaseAdapter` BaseConfigAdapter / BACKEND_NOT_AVAILABLE_ERROR / backendUnavailableSyncResult / isTransportFailure (POS: the failure answer both adapters share)
  *
  * [OUTPUT]
  * - `TauriConfigAdapter`: local/Tauri 配置 HTTP 适配（含 Next 代理 5xx → offline 语义）
  *
  * [POS]
  * 本地模式配置同步适配器。WebUI 经 `/api/v1` 代理；Tauri 可直连 sidecar。与 `ConfigSyncManager` 离线队列配合。
+ * 后端不可用（Next 代理 500/502/503/504、请求失败、超时、数据库未就绪）时：`getAll` / `get` 抛错，不把「不知道」
+ * 答成「没有这一行」；`sync` 返回 `backendUnavailableSyncResult()` 供同步层保留重试。请求失败只在 `fetch()` 调用处
+ * 判定，处理应答时的 `TypeError` 属于缺陷，照常抛出。
  */
 
 import { markLocalBackendUnreachable } from '@/lib/backend-health';
 import { getApiBaseUrl } from '@/lib/deploy-mode';
 import { whenDatabaseReady } from '@/lib/platform-readiness';
-import { BaseConfigAdapter } from './BaseAdapter';
+import {
+  BACKEND_NOT_AVAILABLE_ERROR,
+  BaseConfigAdapter,
+  backendUnavailableSyncResult,
+  isTransportFailure,
+} from './BaseAdapter';
 import type { ConfigKey, ConfigRecord, ConfigChange, SyncResult, ConfigVersion, ConfigValueMap } from '../types';
 import { ConfigConflictError, ConfigSyncError } from '../types';
 
@@ -43,8 +54,7 @@ interface ApiSyncResponse {
 /** Next.js rewrite proxy and gateway errors when local backend is down. */
 const BACKEND_UNAVAILABLE_HTTP_STATUSES = new Set([500, 502, 503, 504]);
 
-const BACKEND_NOT_AVAILABLE_ERROR = 'Backend not available';
-
+/** The request did not reach the local backend: database not ready, request failed, or timed out. */
 class BackendUnavailableError extends Error {
   constructor() {
     super(BACKEND_NOT_AVAILABLE_ERROR);
@@ -78,8 +88,9 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
+    let response: Response;
     try {
-      const response = await fetch(url, {
+      response = await fetch(url, {
         ...init,
         credentials: 'include',
         signal: controller.signal,
@@ -88,47 +99,24 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
           ...init?.headers,
         },
       });
-
-      if (this.isBackendUnavailableStatus(response.status)) {
-        markLocalBackendUnreachable();
-      }
-
-      return response;
     } catch (error) {
-      if (this.isBackendTransportError(error)) {
+      if (isTransportFailure(error)) {
         markLocalBackendUnreachable();
+        throw new BackendUnavailableError();
       }
       throw error;
     } finally {
       clearTimeout(timeoutId);
     }
+
+    if (this.isBackendUnavailableStatus(response.status)) {
+      markLocalBackendUnreachable();
+    }
+    return response;
   }
 
   private isBackendUnavailableStatus(status: number): boolean {
     return BACKEND_UNAVAILABLE_HTTP_STATUSES.has(status);
-  }
-
-  private isFailedToFetchError(error: unknown): boolean {
-    return error instanceof TypeError && error.message === 'Failed to fetch';
-  }
-
-  private isBackendTransportError(error: unknown): boolean {
-    if (error instanceof BackendUnavailableError) {
-      return true;
-    }
-    if (this.isFailedToFetchError(error)) {
-      return true;
-    }
-    return error instanceof DOMException && error.name === 'AbortError';
-  }
-
-  private emptySyncFailure(): SyncResult {
-    return {
-      success: false,
-      conflicts: [],
-      newVersions: new Map<ConfigKey, string>(),
-      error: BACKEND_NOT_AVAILABLE_ERROR,
-    };
   }
 
   /**
@@ -147,7 +135,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
         }
         if (this.isBackendUnavailableStatus(response.status)) {
           console.warn('[TauriAdapter] Backend not available, will retry via ConfigSyncManager');
-          throw new ConfigSyncError('Backend not available');
+          throw new ConfigSyncError(BACKEND_NOT_AVAILABLE_ERROR);
         }
         throw new ConfigSyncError(`Failed to get all configs: ${response.statusText}`);
       }
@@ -161,9 +149,9 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
 
       return result;
     } catch (error) {
-      if (this.isBackendTransportError(error)) {
+      if (error instanceof BackendUnavailableError) {
         console.warn('[TauriAdapter] Backend not available, will retry via ConfigSyncManager');
-        throw new ConfigSyncError('Backend not available');
+        throw new ConfigSyncError(BACKEND_NOT_AVAILABLE_ERROR);
       }
       throw error;
     }
@@ -182,8 +170,8 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
 
       if (!response.ok) {
         if (this.isBackendUnavailableStatus(response.status)) {
-          console.warn(`[TauriAdapter] Backend not available, skipping get '${key}'`);
-          return null;
+          console.warn(`[TauriAdapter] Backend not available, cannot read '${key}'`);
+          throw new ConfigSyncError(BACKEND_NOT_AVAILABLE_ERROR);
         }
         throw new ConfigSyncError(`Failed to get config '${key}': ${response.statusText}`);
       }
@@ -191,9 +179,9 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
       const data: ApiConfigResponse<K> = await response.json();
       return this.toConfigRecord(data);
     } catch (error) {
-      if (this.isBackendTransportError(error)) {
-        console.warn(`[TauriAdapter] Backend not available, skipping get '${key}'`);
-        return null;
+      if (error instanceof BackendUnavailableError) {
+        console.warn(`[TauriAdapter] Backend not available, cannot read '${key}'`);
+        throw new ConfigSyncError(BACKEND_NOT_AVAILABLE_ERROR);
       }
       throw error;
     }
@@ -233,7 +221,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
       const data: ApiConfigResponse<K> = await response.json();
       return this.toConfigRecord(data);
     } catch (error) {
-      if (this.isBackendTransportError(error)) {
+      if (error instanceof BackendUnavailableError) {
         console.warn(`[TauriAdapter] Backend not available, skipping set '${key}'`);
         return this.createRecord(key, value, expectedVersion);
       }
@@ -264,7 +252,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
 
       return true;
     } catch (error) {
-      if (this.isBackendTransportError(error)) {
+      if (error instanceof BackendUnavailableError) {
         console.warn(`[TauriAdapter] Backend not available, skipping delete '${key}'`);
         return false;
       }
@@ -296,7 +284,7 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
       if (!response.ok) {
         if (this.isBackendUnavailableStatus(response.status)) {
           console.warn('[TauriAdapter] Backend not available, sync failed');
-          return this.emptySyncFailure();
+          return backendUnavailableSyncResult();
         }
         throw new ConfigSyncError(`Failed to sync configs: ${response.statusText}`);
       }
@@ -310,9 +298,9 @@ export class TauriConfigAdapter extends BaseConfigAdapter {
         error: data.error,
       };
     } catch (error) {
-      if (this.isBackendTransportError(error)) {
+      if (error instanceof BackendUnavailableError) {
         console.warn('[TauriAdapter] Backend not available, sync failed');
-        return this.emptySyncFailure();
+        return backendUnavailableSyncResult();
       }
       throw error;
     }
