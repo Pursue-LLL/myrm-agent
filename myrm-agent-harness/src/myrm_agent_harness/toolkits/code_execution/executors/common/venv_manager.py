@@ -193,11 +193,7 @@ class VenvManager:
             return self._fall_back_to_system_python()
 
         build = self._build = asyncio.create_task(self._finish_build(process, log, venv_path, started))
-        while (
-            process.returncode is None
-            and not _interpreter_linked(venv_path)
-            and time.monotonic() - started < _BUILD_TIMEOUT_SECONDS
-        ):
+        while process.returncode is None and not _interpreter_linked(venv_path):
             await asyncio.sleep(_LINK_POLL_SECONDS)
         if process.returncode is None and _interpreter_linked(venv_path):
             return self._use_venv(venv_path)
@@ -210,10 +206,14 @@ class VenvManager:
 
     @staticmethod
     async def _start_venv_command(venv_path: Path) -> tuple[asyncio.subprocess.Process, BinaryIO]:
-        """Start ``python -m venv`` writing to an unlinked temp file, which the caller must close (``_finish_build`` does)."""
-        log = tempfile.TemporaryFile()  # noqa: SIM115  outlives this call: the child writes to it until the build ends
+        """Start ``python -m venv`` writing to an unlinked file next to the venv, which the caller must close (``_finish_build`` does).
+
+        The file sits in the state directory the venv is created in, which has to be writable anyway; the system temp
+        directory may be read-only or tiny, and the build must not depend on it.
+        """
+        venv_path.parent.mkdir(parents=True, exist_ok=True)
+        log = tempfile.TemporaryFile(dir=venv_path.parent)  # noqa: SIM115  outlives this call: the child writes to it until the build ends
         try:
-            venv_path.parent.mkdir(parents=True, exist_ok=True)
             process = await asyncio.create_subprocess_exec(
                 sys.executable, "-m", "venv", str(venv_path), stdout=log, stderr=log
             )

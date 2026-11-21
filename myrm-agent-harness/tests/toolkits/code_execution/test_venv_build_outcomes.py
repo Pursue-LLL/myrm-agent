@@ -6,12 +6,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import tempfile
+import threading
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
 from myrm_agent_harness.toolkits.code_execution.executors.common import venv_manager
+from myrm_agent_harness.toolkits.code_execution.executors.common.venv_manager import VenvManager
 from tests.toolkits.code_execution._venv_spawn import VENV_SPAWN, FakeVenvSpawn, let_the_loop_run, make_manager
 
 
@@ -47,6 +50,30 @@ async def test_a_build_that_has_failed_by_the_time_it_is_looked_at_gives_system_
     assert "ensurepip failed" in caplog.text
 
 
+async def test_a_failed_build_is_not_handed_out_while_its_venv_is_still_being_removed(tmp_path: Path) -> None:
+    """The links of a failed build exist until the directory is gone, so seeing them is no sign that the interpreter is good."""
+    spawn = FakeVenvSpawn(build_exit=1)
+    manager = make_manager(tmp_path)
+    removing, finish_removing = threading.Event(), threading.Event()
+    remove_for_real = VenvManager._delete
+
+    def slow_delete(venv_path: Path) -> bool:
+        removing.set()
+        finish_removing.wait(timeout=5)
+        return remove_for_real(venv_path)
+
+    with patch(VENV_SPAWN, side_effect=spawn), patch.object(VenvManager, "_delete", staticmethod(slow_delete)):
+        creation = asyncio.create_task(manager.get_python_executable())
+        await asyncio.to_thread(removing.wait, 5)
+        await let_the_loop_run()
+        assert (tmp_path / "venvs" / "bin" / "python").is_symlink()
+        assert not creation.done()
+        finish_removing.set()
+        interpreter = await asyncio.wait_for(creation, timeout=1)
+
+    assert interpreter == sys.executable
+
+
 async def test_a_build_that_dies_before_it_links_anything_falls_back_and_clears_what_it_left(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
@@ -76,6 +103,21 @@ async def test_a_build_that_cannot_start_falls_back_the_same_way(
     assert interpreter == sys.executable
     assert not (tmp_path / "venvs").exists()
     assert "exec format error" in caplog.text
+
+
+async def test_the_build_log_is_created_next_to_the_venv_so_an_unusable_system_temp_dir_cannot_stop_the_build(
+    tmp_path: Path,
+) -> None:
+    spawn = FakeVenvSpawn()
+    manager = make_manager(tmp_path)
+
+    with (
+        patch(VENV_SPAWN, side_effect=spawn),
+        patch(f"{venv_manager.__name__}.tempfile.TemporaryFile", wraps=tempfile.TemporaryFile) as create_log,
+    ):
+        await manager.get_python_executable()
+
+    assert create_log.call_args.kwargs == {"dir": tmp_path}
 
 
 async def test_a_build_log_that_cannot_be_created_falls_back_without_starting_the_build(
