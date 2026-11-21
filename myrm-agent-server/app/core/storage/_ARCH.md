@@ -14,6 +14,7 @@
 | 文件 | 地位 | 职责 |
 |------|------|------|
 | `service.py` | ✅ 核心 | 文件服务，提供文件 CRUD 功能；`upload_file` 可带 `source_chat_id`，把上传绑定到一个会话 |
+| `file_reference.py` | ✅ 辅助 | 本地文件引用的登记辅助：`read_file_reference`（读某个位置已有的记录，缺失或损坏都当作没有）、`file_reference_lock`（同一个文件的登记串行，读与写在同一把锁里） |
 | `chat_bound.py` | ✅ 核心 | 绑定到会话的上传：`chat_bound_uploads` / `derivatives_of`（纯函数，导出读 sidecar、保留任务列出文件，用同一套选择规则）、`pdf_extract_source`（PDF 页图的来源标记，唯一拼写处）、`delete_uploads_with_derivatives`（连同页图一起删除，单个文件失败只记日志、不阻断其余） |
 | `models.py` | ✅ 辅助 | 存储相关数据模型定义 |
 | `paths.py` | ✅ 核心 | 业务存储键约定：文件 / 技能 / 用户配置的键生成函数（`files/{purpose}/…`、`skills/{type}/…`、`config/{name}.json`） |
@@ -39,6 +40,15 @@ config/
 ```
 
 文件元数据位于 `{file_key}.meta.json`。键前缀只决定子目录，存储根仅由 `MYRM_DATA_DIR` 决定。
+
+### 本地文件引用（`sandboxes/`）
+
+本地模式下文件已经在磁盘上，`save_file_reference` 只写一条记录、不上传内容：`sandboxes/{chat_id}/{真实路径去掉根}.meta.json`（`get_file_reference_path`）。记录的位置由（会话, 真实路径）决定，真实路径经 `os.path.realpath` 解析，所以：
+
+- 同一个文件的各种写法（相对、`./`、`..`、符号链接、绝对）落在同一个位置，再次登记读到原记录、沿用原 `id`；这个 `id` 就是工件 `Artifact.id`，按它发布永远是文件当前内容。
+- 祖先目录名里带 `workspace/` 的不同文件、不同会话里的同一个文件，位置各不相同，不会被并成一条。
+- 键保留完整目录，Windows 盘符的冒号去掉；位置回答的是「这个路径已有 id 吗」，不是「这个 id 对应哪个路径」——记录按 `id` 查不回来（`get_file` 只在 `files/{purpose}/{id}` 下找）；id 对应的路径存在 `Artifact.source_path`（`app/core/artifacts/source_path.py` 编码）。
+- 并发登记同一个还没有记录的文件时，读与写在同一把进程内锁里（服务端单进程），只有一个会生成 `id`。记录损坏（写到一半）视为没有，下一次登记覆盖它。
 
 ---
 

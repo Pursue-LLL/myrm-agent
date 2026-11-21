@@ -17,7 +17,7 @@
 | `commitment.py` | 域模块 | CommitmentModel（隐式承诺/跟进追踪） | ✅ |
 | `agent.py` | 域模块 | Agent (含 tool_gateway_config, cron_post_run_verify 列), AgentSecret, AgentProfileSnapshot（WebUI rollback SSOT） | ✅ |
 | `agent_history.py` | 域模块 | AgentProfileHistory（乐观锁 version 审计 + Prompt 浏览，非 rollback SSOT） | ✅ |
-| `artifact.py` | 域模块 | Artifact, ArtifactVersion, ArtifactAuditLog（企业协作 Vault） | ✅ |
+| `artifact.py` | 域模块 | Artifact（含所跟踪的工作区文件路径 `source_path`）, ArtifactVersion, ArtifactAuditLog（企业协作 Vault） | ✅ |
 | `artifact_publication.py` | 域模块 | ArtifactPublication（按 hosting target 的逐目标发布状态 ORM） | ✅ |
 | `artifact_share.py` | 域模块 | ArtifactShareRecord（分享链接生命周期登记：fingerprint/过期/撤销时间戳） | ✅ |
 | `fission.py` | 域模块 | FissionTaskRecord（高并发子代理执行图持久化，防刷新丢失） | ✅ |

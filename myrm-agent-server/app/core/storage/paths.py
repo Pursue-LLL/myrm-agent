@@ -5,8 +5,9 @@
 - types::FilePurpose, SkillType (POS: file purpose and skill type enums)
 
 [OUTPUT]
-- FILES_ROOT_PREFIX, SKILLS_ROOT_PREFIX: path prefix constants
+- FILES_ROOT_PREFIX, SKILLS_ROOT_PREFIX, FILE_REFERENCES_ROOT_PREFIX: path prefix constants
 - get_file_storage_path(): generate file storage path
+- get_file_reference_path(): generate the storage path of an on-disk file's reference record
 - get_skill_storage_path(): generate skill storage path
 - get_user_skill_config_path(): generate user skill config path
 
@@ -18,6 +19,9 @@ Defines the key structure for files, skills and user config with generation func
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 from .types import FilePurpose, SkillType
 
 # ============================================================================
@@ -26,6 +30,9 @@ from .types import FilePurpose, SkillType
 
 # File storage root prefix
 FILES_ROOT_PREFIX = "files"
+
+# Prefix of the records that reference files living on the local disk (nothing is uploaded)
+FILE_REFERENCES_ROOT_PREFIX = "sandboxes"
 
 # Skill storage root prefix
 SKILLS_ROOT_PREFIX = "skills"
@@ -78,6 +85,34 @@ def get_file_metadata_path(storage_path: str) -> str:
         'files/uploads/file_abc.meta.json'
     """
     return f"{storage_path}{FILE_METADATA_SUFFIX}"
+
+
+_DRIVE_COLON = re.compile(r"^([A-Za-z]):")
+
+
+def get_file_reference_path(chat_id: str, real_path: str) -> str:
+    """Get the storage path of the record that stands for one on-disk file of a chat.
+
+    Format: sandboxes/{chat_id}/{real_path without its root}. The key keeps every directory of the path, so two
+    different files never share one. *real_path* must already be absolute with symlinks and ``..`` resolved
+    (``os.path.realpath``), so every spelling of a path lands on the same key.
+
+    Args:
+        chat_id: Chat that registered the file
+        real_path: Absolute, symlink-free path of the file on disk
+
+    Returns:
+        Storage path string
+
+    Examples:
+        >>> get_file_reference_path("chat1", "/home/me/ws/proj/index.html")
+        'sandboxes/chat1/home/me/ws/proj/index.html'
+        >>> get_file_reference_path("chat1", "C:/Users/me/ws/index.html")
+        'sandboxes/chat1/C/Users/me/ws/index.html'
+    """
+    # A Windows drive colon cannot appear in a directory name of the storage root.
+    relative = _DRIVE_COLON.sub(r"\1", Path(real_path).as_posix()).lstrip("/")
+    return f"{FILE_REFERENCES_ROOT_PREFIX}/{chat_id}/{relative}"
 
 
 def get_user_files_prefix(purpose: FilePurpose | None = None) -> str:

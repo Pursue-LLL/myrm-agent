@@ -183,4 +183,8 @@ MIGRATION_STATEMENTS_3: list[str] = [
     "ALTER TABLE cron_runs DROP COLUMN prev_hash",
     # Why the scheduler paused a job by itself; jobs paused before this column existed simply have no reason.
     "ALTER TABLE cron_jobs ADD COLUMN paused_reason VARCHAR(20)",
+    # The workspace file an artifact tracks, so a deploy finds the files that ship with it by path instead of by file
+    # name. New DBs get the column from create_all; this append-only ALTER covers existing databases, whose rows stay
+    # NULL: the path of a file registered earlier is unknown.
+    "ALTER TABLE artifacts ADD COLUMN source_path VARCHAR(1024)",
 ]

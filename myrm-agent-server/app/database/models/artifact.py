@@ -31,6 +31,9 @@ class Artifact(Base):
     chat_id = Column(String(36), index=True, nullable=True)  # Optional association
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
+    # The workspace file this artifact tracks: relative to the chat workspace, absolute outside it. NULL when no
+    # workspace file backs the artifact or its path is unknown.
+    source_path = Column(String(1024), nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False)  # Soft delete
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

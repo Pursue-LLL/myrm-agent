@@ -9,7 +9,7 @@
 - persist_artifact_event: function — Persist harness registry batch (legacy)
 
 [POS]
-Persists chat artifacts for deploy/hydrate; Artifact.id matches SSE file_id.
+Persists chat artifacts for deploy/hydrate; Artifact.id matches SSE file_id; registering a file again adds a version.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from pathlib import Path
 from myrm_agent_harness.agent.artifacts.registry import GeneratedFile
 from myrm_agent_harness.agent.artifacts.vault import VAULT_PREFIX, ArtifactVault
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.models.artifact import Artifact, ArtifactVersion
@@ -102,8 +103,13 @@ async def upsert_processor_artifact(
     owner_id: str | None = None,
     tenant_id: str | None = None,
     physical_path: str | None = None,
+    source_path: str | None = None,
 ) -> str:
-    """Upsert deploy DB row keyed by storage file_id; returns latest version id."""
+    """Upsert deploy DB row keyed by storage file_id; returns latest version id.
+
+    *source_path* (see ``to_source_path``) records the workspace file the row tracks; leave it unset when the
+    bytes do not come from one, and an update that does not pass it keeps the stored value.
+    """
     resolved_path = physical_path or resolve_sandbox_file_path(sandbox_path, workspace_root, chat_id)
     if not resolved_path:
         raise FileNotFoundError(f"Artifact file not found on disk: {sandbox_path}")
@@ -123,8 +129,7 @@ async def upsert_processor_artifact(
 
     stmt = select(Artifact).where(Artifact.id == file_id, Artifact.is_deleted.is_(False))
     artifact = (await db.execute(stmt)).scalars().first()
-
-    if not artifact:
+    if artifact is None:
         artifact = Artifact(
             id=file_id,
             tenant_id=tenant_id,
@@ -132,13 +137,23 @@ async def upsert_processor_artifact(
             chat_id=chat_id,
             name=filename,
             description=description,
+            source_path=source_path,
         )
         db.add(artifact)
-        await db.flush()
-    else:
-        artifact.name = filename
-        if description:
-            artifact.description = description
+        try:
+            await db.flush()
+        except IntegrityError:
+            # The same file was registered twice at once and the other call inserted the row first;
+            # this call adds its version to that row.
+            await db.rollback()
+            artifact = (await db.execute(stmt)).scalars().first()
+            if artifact is None:
+                raise
+    artifact.name = filename
+    if description:
+        artifact.description = description
+    if source_path is not None:
+        artifact.source_path = source_path
 
     version = ArtifactVersion(
         id=str(uuid.uuid4()),
@@ -193,10 +208,6 @@ async def ensure_artifact_for_deploy(
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             tmp.write(content)
             physical_path = tmp.name
-    elif file_record.source_chat_id:
-        rel = file_record.storage_path
-        if rel.startswith(f"sandboxes/{file_record.source_chat_id}/"):
-            sandbox_path = rel.split("/", 2)[-1]
 
     if file_record.source_chat_id:
         from app.services.chat.effective_workspace import resolve_chat_workspace_root
@@ -267,6 +278,8 @@ async def persist_artifact_event(
                 )
 
                 meta = vault.get_meta(vault_uri)
+                if not meta:
+                    raise FileNotFoundError(f"Vault meta missing after put: {vault_uri}")
                 sha256_hash = getattr(meta, "sha256_hash", "")
                 description = meta.description
             except Exception as e:

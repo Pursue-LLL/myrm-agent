@@ -11,6 +11,8 @@
 - hold_write_lock: a writer that keeps the write lock, uncommitted, until the caller lets go
 - PolicyDb.unit_waits_or_has_read / wait_until: observe that a unit queued for the write lock or already holds a read snapshot
 - PolicyDb.unit_starts_with_lock_then_read: observe that a unit's first statements are a write-lock request and a read
+- PolicyDb.write_issued: observe that a unit handed an INSERT or UPDATE to the driver, for a unit that reads in a plain
+  session before it takes the lock, which the test has to orchestrate itself
 - run_while_another_writer_commits: run a unit that another writer commits in front of, wait for it, and fail a pass that
   cannot show the lock protects the unit
 
@@ -72,6 +74,10 @@ class PolicyDb:
         """
         work = [s for s in self.started if s.strip().upper() not in ("BEGIN", "COMMIT")]
         return len(work) >= 2 and _begins(work[0], "BEGIN IMMEDIATE") and _begins(work[1], "SELECT")
+
+    def write_issued(self) -> bool:
+        """Whether any session handed an INSERT or UPDATE to the driver since the last ``hold_write_lock``."""
+        return any(_begins(s, "INSERT") or _begins(s, "UPDATE") for s in self.started)
 
 
 def _set_sqlite_pragma(dbapi_conn: sqlite3.Connection, _record: object) -> None:

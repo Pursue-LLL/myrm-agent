@@ -43,10 +43,10 @@ class _ChatTurnMixin(_ChatServiceBase):
     """Retry, undo, truncate, sibling, and title generation operations.
 
     Retry, undo and the delete step of a rewind read and then delete, and take the write lock on entry: another writer's
-    commit between their read and their delete would abort the delete with SQLITE_BUSY_SNAPSHOT, and their callers (IM
-    commands, the compression-exhausted path, a rewind that has already reverted files) have no way to retry. Truncate,
-    regenerate and sibling switching are only called from HTTP routes and change nothing before their write, so a lost
-    write fails that request and the user repeats it.
+    commit between their read and their delete would abort the delete with SQLITE_BUSY_SNAPSHOT. The lock is needed by
+    the compression-exhausted undo (its failure is only logged) and by a rewind that has already reverted files; IM
+    /retry and /undo answer a failed command and the user repeats it, so their lock is a free precaution. Truncate,
+    regenerate and sibling switching are HTTP-only and change nothing before their write: a lost write fails the request.
     """
 
     @staticmethod

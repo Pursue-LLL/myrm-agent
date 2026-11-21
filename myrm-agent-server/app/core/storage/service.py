@@ -8,15 +8,18 @@ from __future__ import annotations
 import json
 import logging
 import mimetypes
+import os
 from datetime import datetime, timedelta
 
 import nanoid
 from myrm_agent_harness.toolkits.storage.base import StorageProvider
 
+from app.core.storage.file_reference import file_reference_lock, read_file_reference
 from app.core.storage.models import File
 from app.core.storage.paths import (
     FILE_METADATA_SUFFIX,
     get_file_metadata_path,
+    get_file_reference_path,
     get_file_storage_path,
     get_user_files_prefix,
 )
@@ -158,53 +161,48 @@ class FilesService:
         self,
         chat_id: str,
         filename: str,
-        sandbox_path: str,
+        physical_path: str,
         file_size: int,
         content_type: str | None = None,
     ) -> File:
         """保存文件引用（本地模式，不上传内容）
 
-        用于本地模式，文件已在本地磁盘中，只需记录路径引用。
+        文件已在本地磁盘中，只记录引用。记录的位置由（会话, 真实路径）决定：同一个文件再次登记得到同一个 id，
+        不同的文件不会共用一个位置。
 
         Args:
             chat_id: 聊天会话 ID
             filename: 文件名
-            sandbox_path: 沙箱内的相对路径（如 /workspace/output/chart.png）
+            physical_path: 文件在磁盘上的路径（符号链接与 `..` 在这里解析，同一文件的各种写法得到同一个位置）
             file_size: 文件大小（字节）
             content_type: MIME 类型
 
         Returns:
-            创建的文件对象
+            文件对象（已登记过的文件沿用原 id）
         """
-        # 自动检测 MIME 类型
-        if content_type is None:
-            content_type, _ = mimetypes.guess_type(filename)
-            content_type = content_type or "application/octet-stream"
-
-        # 生成 ID
-        file_id = self._generate_file_id()
-
-        # 存储路径格式：sandboxes/{chat_id}/{relative_path}
-        # 注意：这里不使用 get_file_storage_path，因为本地模式的路径格式不同
-        relative_path = sandbox_path.lstrip("/").replace("workspace/", "")
-        storage_path = f"sandboxes/{chat_id}/{relative_path}"
-
-        # 创建文件对象
-        file = File(
-            id=file_id,
-            purpose=FilePurpose.GENERATED,
-            filename=filename,
-            content_type=content_type,
-            size=file_size,
-            storage_path=storage_path,
-            source_chat_id=chat_id,
-        )
-
-        # 只保存元数据，不上传内容（文件已在本地沙箱中）
+        content_type = content_type or mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        storage_path = get_file_reference_path(chat_id, os.path.realpath(physical_path))
         metadata_path = get_file_metadata_path(storage_path)
-        await self.storage.write_text(metadata_path, json.dumps(file.to_dict(), indent=2))
 
-        logger.info(f"✅ 保存文件引用: {file_id} ({filename}, {file_size} bytes) -> {storage_path}")
+        # 读与写在同一把锁里：并发登记同一个新文件时只有一个会生成 id
+        async with file_reference_lock(storage_path):
+            known = await read_file_reference(self.storage, metadata_path)
+            file = File(
+                id=known.id if known else self._generate_file_id(),
+                purpose=FilePurpose.GENERATED,
+                filename=filename,
+                content_type=content_type,
+                size=file_size,
+                storage_path=storage_path,
+                source_chat_id=chat_id,
+            )
+            if known:
+                file.created_at = known.created_at
+
+            # 只保存元数据，不上传内容（文件已在本地磁盘中）
+            await self.storage.write_text(metadata_path, json.dumps(file.to_dict(), indent=2))
+
+        logger.info(f"✅ 保存文件引用: {file.id} ({filename}, {file_size} bytes) -> {storage_path}")
         return file
 
     async def get_file(self, file_id: str) -> File | None:

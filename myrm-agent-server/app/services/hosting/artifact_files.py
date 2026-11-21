@@ -2,6 +2,7 @@
 
 [INPUT]
 - app.core.artifacts.listener::ensure_artifact_for_deploy, resolve_sandbox_file_path
+- app.core.artifacts.source_path::from_source_path (POS: stored source path to file)
 - app.services.chat.effective_workspace::resolve_chat_workspace_root
 - app.services.hosting.packager::collect_publish_files
 - myrm_agent_harness.agent.artifacts.vault::ArtifactVault (POS: sandbox artifact storage)
@@ -10,25 +11,44 @@
 - resolve_artifact_deploy_files: Artifact + file map for deploy and share bundles
 
 [POS]
-Shared artifact file collection for Vercel deploy, deploy preflight, and public share bundles.
+Shared artifact file collection for Vercel deploy, deploy preflight, and public share bundles. The files that ship
+with an artifact's entry file are found next to the file the artifact tracks (``Artifact.source_path``).
 """
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from myrm_agent_harness.agent.artifacts.vault import ArtifactVault
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.artifacts.listener import ensure_artifact_for_deploy, resolve_sandbox_file_path
+from app.core.artifacts.source_path import from_source_path
 from app.database.models.artifact import Artifact
 from app.services.chat.effective_workspace import resolve_chat_workspace_root
 from app.services.hosting.packager import PublishFile, collect_publish_files
+
+logger = logging.getLogger(__name__)
 
 
 def _vault_object_path(vault: ArtifactVault, vault_uri: str) -> Path:
     obj_id = vault_uri[len("vault://") :] if vault_uri.startswith("vault://") else vault_uri
     return vault.get_object_path(obj_id)
+
+
+def _asset_root(artifact: Artifact, workspace_root: str, chat_id: str | None) -> Path | None:
+    """Directory whose static files ship with the artifact, None when its file cannot be located."""
+    if artifact.source_path:
+        source = from_source_path(workspace_root, str(artifact.source_path))
+        return source.parent if source.is_file() else None
+    name = str(artifact.name)
+    if chat_id and name:
+        # Without a stored path the file name is all there is to find the file by.
+        logger.warning("Artifact %s has no source path; locating its files by the name %r", artifact.id, name)
+        resolved = resolve_sandbox_file_path(name, workspace_root, chat_id)
+        return Path(resolved).parent if resolved else None
+    return None
 
 
 async def resolve_artifact_deploy_files(
@@ -62,14 +82,9 @@ async def resolve_artifact_deploy_files(
         workspace_root = str(await resolve_chat_workspace_root(chat_id))
     vault = ArtifactVault(workspace_root)
     obj_path = _vault_object_path(vault, target_version.vault_uri)
-    asset_root: Path | None = None
-    if chat_id and artifact.name:
-        resolved = resolve_sandbox_file_path(artifact.name, workspace_root, chat_id)
-        if resolved:
-            asset_root = Path(resolved).parent
     files_to_deploy = collect_publish_files(
         obj_path,
-        asset_root=asset_root,
-        entry_name_hint=artifact.name,
+        asset_root=_asset_root(artifact, workspace_root, chat_id),
+        entry_name_hint=str(artifact.name),
     )
     return artifact, files_to_deploy
