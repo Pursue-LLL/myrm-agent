@@ -10,7 +10,7 @@ Test-delivery endpoint (POST /{job_id}/test-delivery):
 - 404 for unknown job, 400 for non-deliverable channels
 - reuses the real ChannelResultDelivery pipeline for webhook channels
 - supports not-yet-saved override configs
-- leaves the job exactly as it was, whether the delivery succeeds or fails
+- leaves the job exactly as it was, with or without a request body and whether the delivery succeeds or fails
 """
 
 from __future__ import annotations
@@ -277,7 +277,14 @@ class TestTestDeliveryEndpoint:
         assert sent_job.delivery.secret == failure_secret
 
     @pytest.mark.parametrize("delivery_fails", [False, True], ids=["delivered", "failed"])
-    def test_the_job_is_left_as_it_was(self, client: TestClient, store: InMemoryCronStore, delivery_fails: bool) -> None:
+    @pytest.mark.parametrize("json_body", [None, {}], ids=["no_body", "empty_body"])
+    def test_the_job_is_left_as_it_was(
+        self,
+        client: TestClient,
+        store: InMemoryCronStore,
+        delivery_fails: bool,
+        json_body: dict[str, object] | None,
+    ) -> None:
         """A test delivery says nothing about the job's runs: whatever it finds, the job stays untouched."""
         job = _create_webhook_job(client)
         _put_failing_state(store, str(job["id"]), failures=3, error="HTTP 502: Bad Gateway")
@@ -291,7 +298,7 @@ class TestTestDeliveryEndpoint:
             "app.core.cron.adapters.channel_delivery.ChannelResultDelivery",
             return_value=mock_delivery,
         ):
-            resp = client.post(f"/cron/{job['id']}/test-delivery", json={})
+            resp = client.post(f"/cron/{job['id']}/test-delivery", json=json_body)
 
         assert resp.status_code == (502 if delivery_fails else 200)
         assert client.get(f"/cron/{job['id']}").json() == before
