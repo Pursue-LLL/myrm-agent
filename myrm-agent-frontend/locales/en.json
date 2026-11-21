@@ -14714,7 +14714,7 @@
       "workflowStep1": "Configure targets here — Vercel or webhook",
       "workflowStep2": "Open any HTML artifact and tap the Globe icon on its card",
       "workflowStep3": "Choose a target and publish — zero LLM tokens consumed",
-      "zeroTokenHint": "Publishing runs in the GUI and server only. No Agent tools or model tokens are used.",
+      "zeroTokenHint": "Publishing from the card runs in the GUI and server only and uses no model tokens. You can also ask the agent in a chat to publish a file from its workspace.",
       "providerHint": {
         "vercel": "Edge deploys with automatic HTTPS. Add your Vercel personal access token.",
         "http_webhook": "POST a packaged artifact to your CI or custom endpoint. No vault credentials required."

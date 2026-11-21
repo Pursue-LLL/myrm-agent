@@ -14714,7 +14714,7 @@
       "workflowStep1": "在此配置托管目标 — Vercel 或 Webhook",
       "workflowStep2": "打开任意 HTML Artifact，点击卡片上的 Globe 图标",
       "workflowStep3": "选择目标并发布 — 不消耗 LLM Token",
-      "zeroTokenHint": "发布仅在界面与服务器端完成，不调用 Agent 工具，不消耗模型 Token。",
+      "zeroTokenHint": "从卡片发布只在界面与服务器端完成，不消耗模型 Token。也可以在对话里让智能体发布工作区里的文件。",
       "providerHint": {
         "vercel": "边缘部署，自动 HTTPS。需填写 Vercel 个人访问令牌。",
         "http_webhook": "将打包后的 Artifact POST 到你的 CI 或自定义端点，无需凭证库。"
