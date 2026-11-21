@@ -3,6 +3,7 @@
 [INPUT]
 - myrm_agent_harness.agent.artifacts::ArtifactInfo, infer_artifact_type (POS: Harness artifact types)
 - app.core.artifacts.listener::upsert_processor_artifact, resolve_sandbox_file_path (POS: Deploy DB rows + sandbox path resolution)
+- app.core.artifacts.source_path::to_source_path (POS: Encoding of the path an artifact row tracks)
 - app.core.storage::FilesService (POS: File reference persistence)
 - app.services.artifacts.share.share_token::is_shareable_artifact (POS: Share eligibility for oversized artifacts)
 
@@ -12,7 +13,7 @@
 
 [POS]
 Local-mode artifact processor: reference-only persist whose file id is stable per (chat, real path),
-resolved_path SSOT for IM deliverable deep links.
+resolved_path SSOT for IM deliverable deep links; each registration records the file's source path with the row.
 """
 
 from __future__ import annotations
@@ -147,6 +148,7 @@ class BaseArtifactProcessor(ABC):
             )
 
             from app.core.artifacts.listener import upsert_processor_artifact
+            from app.core.artifacts.source_path import to_source_path
             from app.database.connection import get_session
             from app.platform_utils.workspace_root import get_workspace_root
 
@@ -169,6 +171,7 @@ class BaseArtifactProcessor(ABC):
                                 workspace_root=workspace_root,
                                 chat_id=self.chat_id,
                                 physical_path=resolved_path,
+                                source_path=to_source_path(resolved_path, workspace_root) if resolved_path else None,
                             )
                             upserted_file_ids.add(file_id)
                         except Exception as exc:

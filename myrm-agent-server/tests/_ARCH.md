@@ -65,7 +65,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `support/test_process_state_isolation.py` | 单元 | 登记簿里留着一个事件循环已关闭、永远跑不完的任务时：丢掉它之后排空登记簿会等到还活着的任务做完（不丢的话 `gather` 抛 “The future belongs to a different loop”、排空提前返回，活任务还没完成） |
 | `support/oversized_paste.py` | 辅助 | `paste_over_the_limit`（刚过人写文本停车线 `USER_TEXT_LIMITS` 的重复文本）、`paste_between_the_limits`（过了 harness 默认线、没过人写文本线：渠道文档会被停车、人写的文本原样进提示）：测试按限额常量定样本大小，不写死字符数 |
 | `support/chat_workspace.py` | 辅助 | `chats_bound_to_workspaces`：把会话 id 映射到各自的临时工作区（`default=` 给所有未列出的会话），让读取会话文件的接口测试不依赖进程目录 |
-| `support/hosting_api.py` | 辅助 | 托管 API 集成测试共用：`seed_webhook_target`、`seed_html_artifact` 造数，`public_dns` 把 SSRF 校验的解析桩成公网地址，`CHAT_ID` 是夹具绑定工作区的会话；`api/files/conftest.py` 的 `hosting_integration_client` 夹具与下面两个托管 API 测试文件共用 |
+| `support/hosting_api.py` | 辅助 | 托管 API 集成测试共用：`seed_webhook_target`、`seed_html_artifact` 造数（后者像处理器一样登记文件路径），`public_dns` 把 SSRF 校验的解析桩成公网地址，`CHAT_ID` 是夹具绑定工作区的会话；`api/files/conftest.py` 的 `hosting_integration_client` 夹具与下面两个托管 API 测试文件共用 |
 | `support/bounded_wait.py` | 辅助 | `assert_bounded_wait(timeout, *, limit=60)`：断言传给连接的等待上限是正数且不超过上限（`None` 表示永不放弃，`0` 与布尔值也不是等待上限，都不通过）；渠道连接测试与邮件技能脚本测试共用 |
 | `support/live_chat_model.py` | 辅助 | `live_chat_model(*, model, api_key, base_url, temperature, max_tokens, timeout)`：异步上下文管理器，产出一个 HTTP 客户端随进入它的那个测试的事件循环打开、随测试关闭的 `ChatOpenAI`。langchain-openai 在进程内共用一个缓存的异步客户端，其连接池里的连接绑在第一个测试的事件循环上，之后的测试会报 `Event loop is closed`；所有调真实模型的测试都经它构造模型，不直接 `ChatOpenAI(...)`。请求超时只认 `ChatOpenAI` 的 `timeout`（注入客户端自己的超时不生效），所以只有 `timeout` 参数是真上限 |
 | `support/test_live_chat_model.py` | 单元 | 本机 HTTP/1.1 长连接假服务上，三次各占一个事件循环的调用全部得到回答（裸 `ChatOpenAI` 第二次就抛 `Event loop is closed`；去掉客户端注入该用例即失败） |
@@ -501,6 +501,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `database/test_has_pending_migrations.py` | 模块 | `has_pending_migrations` 对真实 SQLite：没跑过迁移引擎的库（缺状态表）算待执行且不被改动、全部语句已记录后不待执行、之后新增的语句重新变为待执行；决定启动是否需要迁移前快照 |
 | `database/test_batch_image_jobs_retired.py` | 模块 | 批量生图作业表与 `media_library.batch_job_id` 的删除迁移对真实 SQLite：升级中的库丢掉表与列并保留媒体记录，索引的删除排在它所覆盖的列之前；从不带它们的库跳过这些删除；新库不带它们、模型也不映射，迁移重复执行不出错 |
 | `database/test_cron_run_hash_columns_retired.py` | 模块 | 运行记录表两条哈希列的删除迁移对真实 SQLite：升级中的库丢掉这两列并保留运行行，每条删除都排在添加该列的语句之后；新库不带这两列、模型也不映射，迁移重复执行不出错 |
+| `database/test_artifact_source_path_migration.py` | 模块 | 产物表 `source_path` 列的加列迁移对真实 SQLite：升级中的库在该语句之前没有这一列，执行后有一列可空的 `VARCHAR(1024)`，先前登记的行保持 NULL |
 | `database/test_cron_stalled_jobs_migration.py` | 模块 | 升级救回没有下次触发时间的启用任务（真实 SQLite）：周期任务订为很久以前到点，重启恢复发现它过了宽限窗口、订下真实的下一个槽位并记一条跳过、不启动没人要的运行，一次性任务被暂停；已有下次触发时间的任务与其他状态的任务原样保留，语句再跑一遍无变化，两条语句按序登记在迁移列表末尾 |
 | `core/channel_bridge/test_idle_session_key.py` | 模块 | 空闲重置策略对真实 SQLite：窗口内续用本会话的聊天（含裸键），超时或首条消息开新纪元；更长对端、同对端的话题与智能体、`_` 通配符的聊天不被续用，且本会话的聊天优先于更新的邻居 |
 | `core/channel_bridge/wake_return/test_wake_origins.py` | 单元 | `WakeOrigins`：记录送达所需的路由字段、同一会话以最新一条为准、只留回复用得上的内容（去附件、引用、续跑值、非字符串元数据，正文截断）、`web` / `chat` / `voice` 渠道不记、容量有界且写入最久的先丢、各回合共用同一份记忆 |
@@ -639,7 +640,8 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `core/artifacts/test_processor_short_file_id.py` | 模块 | LocalArtifactProcessor 透传 `short_file_id` → artifacts SSE JSON |
 | `core/artifacts/test_processor_oversized_shareable.py` | 模块 | Local 超大可分享 reference-only persist + processor→deliverable 集成（sandboxes 路径、一次 resolve） |
 | `core/artifacts/test_processor_upsert_emit.py` | 模块 | upsert 失败不 emit / 部分 upsert 失败只 emit 成功项 |
-| `core/artifacts/test_artifact_identity.py` | 模块 | 一个文件一条工件：同一文件两次处理同一个 id、再次登记追加版本、并发登记并入已有行 |
+| `core/artifacts/test_artifact_identity.py` | 模块 | 一个文件一条工件：同一文件两次处理同一个 id、再次登记追加版本、并发登记并入已有行；处理文件时登记相对工作区的路径，登记带路径时写入、不带路径时保持原值、带了新路径时替换 |
+| `core/artifacts/test_source_path.py` | 模块 | `Artifact.source_path` 的编码：工作区内存相对 POSIX 路径，工作区外（含前缀相同的兄弟目录）存绝对路径；同一文件的各种写法（相对、`./`、`..`、绝对、符号链接的工作区根）得到同一个值；还原出原路径，绝对值不受工作区根影响 |
 | `core/storage/test_file_reference.py` | 模块 | 本地文件引用的身份：同一文件（各种写法、符号链接）同一个 id，祖先目录名带 workspace 的不同文件不并、各会话各一个 id、记录刷新保留 id 与创建时间、损坏的记录被替换、并发登记同一个新文件只生成一个 id |
 | `e2e/test_deliverable_link_chrome_e2e.py` | 模块 | Deliverable inline link Chrome READ E2E（seed → 自然路由 hydrate → `[data-testid=deliverable-reference-link]` → Portal 预览；**禁止 attachToChat**，store/DOM 不同步） |
 | `e2e/test_chat_share_chrome_e2e.py` | 模块 | Chat Share Chrome E2E（PRIVATE exclusive_backend）— `test_chat_share_lifecycle_via_ui`：seed chat → WebUI 侧栏 More→Share → 创建分享 → 对话框 live URL + 有效期 → 公开页 HTTP 200 含内容 → 关闭重开 status 重建同一链接 → Revoke → revoked 态 + 公开页 404 → 重建链接 ≠ 复活已撤销链接；`test_chat_share_password_protected_via_ui`：对话框填密码创建 → 公开页 403 密码门 → 错误密码仍 403 → 正确密码（URL query + 表单 POST）放行内容 → 重开显示 passwordProtectedStatus（无 URL，密码不落库不可重建）→ Revoke → 公开页 404；`test_chat_share_real_conversation_via_ui`：**真实 LLM 对话全链路**（McpChatSession 驱动真实输入框，WebUI 已配模型）→ 新对话发消息 → 等待助手回复（真实模型输出）→ 侧栏分享 → 公开页 HTTP 200 且复现真实 user 消息 + 助手回复 → Revoke → 404 |
@@ -862,7 +864,7 @@ pytest 测试套件根目录。单元/集成/API/E2E 测试按域分子目录；
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate.py` | 模块 | HITL pending 审批守卫单元测（5 态：pending 拦截 / 0 pending 放行 / resume 绕过 / store 异常 fail-open / 无 chat_id 跳过） |
 | `services/agent/stream_session/test_orchestrator_retry_attach.py` | 模块 | 重试挂接单元测（真 gateway 会话 + 真 `GlobalStreamRegistry` 缓冲）：同 `message_id` 且缓冲在 → 挂到运行中回合的缓冲，重放已流出的事件并续接到结束，不动该回合的会话与缓冲；缓冲不在 → busy；同 chat 的其他 `message_id`（含自带已结束缓冲的）→ busy 且不重放那份缓冲；resume 即使沿用运行中回合的 `message_id` 也是 busy |
 | `services/agent/stream_session/test_orchestrator_pending_approval_gate_integration.py` | 模块 | HITL pending 审批守卫真 DB 集成（关键路径禁 mock：真 `ApprovalRecord` → 真 `count_pending_for_chat` → SSE AgentBusyError 且预留前触发；APPROVED/growth/他 chat 不拦；resume 带真 pending 放行） |
-| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测；`test_decryptor_shell_contrast.py` 与 `test_viewer_scaffold_contrast.py` 钉住加密发布解锁页、文档查看器的文字、按钮、输入框边缘与聚焦标记对比度（解锁页另守卫「颜色只写在样式表里」）；`test_decryptor_shell.py` 钉住解锁页的提示播报、输入去空白、文案无机制名词与标题转义；`test_crypto_packager.py` 钉住 PBKDF2 迭代下限与「按载荷自带迭代数解密」 |
+| `services/hosting/` | 模块 | 多 target artifact 发布 API 与 provider 单测；`test_decryptor_shell_contrast.py` 与 `test_viewer_scaffold_contrast.py` 钉住加密发布解锁页、文档查看器的文字、按钮、输入框边缘与聚焦标记对比度（解锁页另守卫「颜色只写在样式表里」）；`test_decryptor_shell.py` 钉住解锁页的提示播报、输入去空白、文案无机制名词与标题转义；`test_crypto_packager.py` 钉住 PBKDF2 迭代下限与「按载荷自带迭代数解密」；`test_artifact_files.py` 钉住随入口文件发布的静态文件取自 artifact 所跟踪文件的目录：同名页面各发各的、工作区外的文件照发、源文件已删除时只发 vault 里的版本且不按文件名搜索、没有 `source_path` 的行按文件名回退并记 WARNING |
 | `api/webui/test_welcome_page.py` | 模块 | 局域网欢迎页：二维码地址在属性、脚本、可见文字三处各自的编码、主机名里的标记注入（脚本标签只有一对）、单一配色、文字与按钮底色 / 边缘 / 聚焦环对比度、颜色不写在行内或脚本里 |
 | `api/integrations/oauth/test_result_page.py` | 模块 | OAuth 结果页：五种结果的状态码、中英双语片段、无机制名词、视口与 noindex、错误描述转义且为空时不出元素、仅成功页自动关闭标签、无行内样式、正文与图标色在浅 / 深色下的对比度、色调集合固定 |
 | `architecture/_ARCH.md` | 模块 | 架构约束测试（含 migration 源闭包） |

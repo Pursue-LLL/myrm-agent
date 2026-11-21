@@ -7,6 +7,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.artifacts.listener import upsert_processor_artifact
+from app.core.artifacts.source_path import to_source_path
 from app.services.hosting.targets import save_hosting_targets
 from app.services.hosting.types import HostingTarget
 
@@ -43,5 +44,6 @@ async def seed_html_artifact(db_session: AsyncSession, workspace, *, file_id: st
         sandbox_path=str(html_path),
         workspace_root=str(workspace),
         chat_id=CHAT_ID,
+        source_path=to_source_path(str(html_path), str(workspace)),
     )
     return artifact_id
