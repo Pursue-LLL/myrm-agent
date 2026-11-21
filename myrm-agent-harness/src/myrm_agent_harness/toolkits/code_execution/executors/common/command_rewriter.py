@@ -3,7 +3,6 @@
 Transforms commands for code execution (workspace path rewriting).
 
 [INPUT]
-- core.security.redact::command_preview (POS: masked, cut command for a log line)
 - core.security.shell_command_lexer::iter_syntax_chars (POS: the one reading of a shell command line)
 
 [OUTPUT]
@@ -19,7 +18,6 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from myrm_agent_harness.core.security.redact import command_preview
 from myrm_agent_harness.core.security.shell_command_lexer import iter_syntax_chars
 
 logger = logging.getLogger(__name__)
@@ -89,7 +87,9 @@ class CommandRewriter:
         the match as plain text: the folder stays one word, in a brace list too, and its name never runs as code. The
         root goes in as typed where quotes already enclose the match (a root that holds that quote character, ``$``,
         a backtick or a backslash still breaks out there), in a command with a heredoc operator, and for any other
-        shell (PowerShell and cmd have quoting rules of their own, which are not applied).
+        shell (PowerShell and cmd have quoting rules of their own, which are not applied). A match inside the quotes
+        of ``bash -c '...'`` or ``eval "..."`` is one of those: the inner shell reads the typed root as plain text
+        again, so a root with a space splits there.
 
         The resolved workspace path itself is protected before rewriting, so a
         command that already contains the real workspace (e.g. eval graders
@@ -110,12 +110,14 @@ class CommandRewriter:
 
         protected = re.sub(re.escape(workspace_str), _protect, command)
 
-        new_command = _WORKSPACE_ROOT.sub(_replacement(protected, workspace_str, posix_shell=posix_shell), protected)
+        new_command, rewritten = _WORKSPACE_ROOT.subn(
+            _replacement(protected, workspace_str, posix_shell=posix_shell), protected
+        )
 
         for index, real in enumerate(placeholders):
             new_command = new_command.replace(f"\x00wbws{index}\x00", real)
 
-        if new_command != command:
-            logger.warning(f" [CommandRewriter] Rewrote /workspace paths: {command_preview(new_command, 100)}")
+        if rewritten:
+            logger.warning(" [CommandRewriter] Rewrote /workspace paths (%d)", rewritten)
 
         return new_command

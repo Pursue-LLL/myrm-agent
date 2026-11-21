@@ -8,7 +8,7 @@ Common executor components.
 | File | Role | Description | I/O/P |
 |------|------|-------------|-------|
 | __init__.py | Package | Common executor components. | — |
-| command_rewriter.py | Core | Command rewriting service: `/workspace` paths resolved to the working directory by a lexical match on the word (a directory merely called workspace, such as `~/workspace`, stays as typed; what a shell would expand first, such as a glob or a brace list, is not seen); for a POSIX shell the root is quoted wherever `core.security.shell_command_lexer` reads the match as plain text and the root holds a space, a comma or a shell metacharacter, so a folder name stays one word and never runs as code (a match inside quotes, a command with a heredoc operator and a non-POSIX shell get the root as typed); its log lines show the command masked and cut (`core.security.redact.command_preview`). | ✅ |
+| command_rewriter.py | Core | Command rewriting service: `/workspace` paths resolved to the working directory by a lexical match on the word (a directory merely called workspace, such as `~/workspace`, stays as typed; what a shell would expand first, such as a glob or a brace list, is not seen); for a POSIX shell the root is quoted wherever `core.security.shell_command_lexer` reads the match as plain text and the root holds a space, a comma or a shell metacharacter, so a folder name stays one word and never runs as code (a match inside quotes, a command with a heredoc operator and a non-POSIX shell get the root as typed); its log line counts the rewritten paths and quotes no command. | ✅ |
 | error_handler.py | Core | Execution error handling decorator. | ✅ |
 | exit_classify.py | Core | Non-zero exit code semantic classifier. | ✅ |
 | execution_helper.py | Core | Execution helper utilities. | ✅ |
@@ -22,7 +22,7 @@ Common executor components.
 
 ## Key Dependencies
 
-- `core/security/redact` (`command_preview` for the log lines of `command_rewriter.py` and `venv_manager.py`)
+- `core/security/redact` (`command_preview` for the log line of `venv_manager.py`)
 - `core/security/shell_command_lexer` (`iter_syntax_chars`: which `/workspace` matches `command_rewriter.py` finds as plain shell text)
 - `utils`
 - `infra.data_dir` (state root of the shared virtual environment)

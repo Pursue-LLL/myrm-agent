@@ -104,6 +104,11 @@ class TestRootsTheShellWouldSplit:
 
         assert _rewrite(f"cd /workspace && ls '{root}'", root) == f"cd {shlex.quote(str(root))} && ls '{root}'"
 
+    def test_a_real_root_typed_before_the_match_does_not_move_the_quoting(self, tmp_path: Path) -> None:
+        root = _make_root(tmp_path, "My Docs")
+
+        assert _shell_output(f"ls '{root}' && cd /workspace && cat x.txt", root) == "x.txt\nhello"
+
 
 class TestRootsGoingInAsTyped:
     @pytest.mark.parametrize("root", _PLAIN_ROOTS)
