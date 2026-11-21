@@ -1,8 +1,8 @@
 """A background command reads ``/workspace`` as a foreground command does: the directory the executor is bound to.
 
 The shell is given the command with that directory in place of ``/workspace``, quoted where a space, a comma or a
-shell metacharacter in its name needs it. The job list, the execution record and the threat check keep the command as
-typed.
+shell metacharacter in its name needs it, behind the header every bash command starts with. The job list, the
+execution record and the threat check keep the command as typed.
 """
 
 from __future__ import annotations
@@ -48,27 +48,34 @@ async def _spawned(command: str, *, executor_root: str | None, session_root: str
     return _Spawned(context, registry.return_value.register, record)
 
 
+def _command_of(spawned: _Spawned) -> str:
+    """The command the shell reads: the last paragraph of the script, after the header a bash job begins with."""
+    flag, script = spawned.context.args
+    assert flag == "-c"
+    return script.rsplit("\n\n", 1)[-1]
+
+
 @pytest.mark.asyncio
 async def test_the_container_root_names_the_directory_the_executor_is_bound_to() -> None:
     spawned = await _spawned(
         "cd /workspace/app && ls /workspace", executor_root="/srv/project", session_root="/chats/c1"
     )
 
-    assert spawned.context.args == ["-c", "cd /srv/project/app && ls /srv/project"]
+    assert _command_of(spawned) == "cd /srv/project/app && ls /srv/project"
 
 
 @pytest.mark.asyncio
 async def test_a_directory_the_shell_would_split_is_quoted() -> None:
     spawned = await _spawned("cd /workspace/app && ls", executor_root="/srv/My Docs", session_root="/chats/c1")
 
-    assert spawned.context.args == ["-c", "cd '/srv/My Docs'/app && ls"]
+    assert _command_of(spawned) == "cd '/srv/My Docs'/app && ls"
 
 
 @pytest.mark.asyncio
 async def test_a_chat_bound_to_no_directory_uses_its_own_workspace() -> None:
     spawned = await _spawned("ls /workspace", executor_root=None, session_root="/chats/c1")
 
-    assert spawned.context.args == ["-c", "ls /chats/c1"]
+    assert _command_of(spawned) == "ls /chats/c1"
 
 
 @pytest.mark.asyncio
@@ -88,11 +95,11 @@ async def test_a_directory_that_is_only_called_workspace_stays_as_typed() -> Non
 
     spawned = await _spawned(typed, executor_root="/srv/project", session_root="/chats/c1")
 
-    assert spawned.context.args == ["-c", typed]
+    assert _command_of(spawned) == typed
 
 
 @pytest.mark.asyncio
 async def test_without_any_root_the_command_goes_as_typed() -> None:
     spawned = await _spawned("ls /workspace", executor_root=None, session_root="")
 
-    assert spawned.context.args == ["-c", "ls /workspace"]
+    assert _command_of(spawned) == "ls /workspace"
