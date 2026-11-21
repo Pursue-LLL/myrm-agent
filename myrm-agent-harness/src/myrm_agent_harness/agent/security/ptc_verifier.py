@@ -26,53 +26,59 @@ PTCArgumentValue = str | int | float | bool | list[object] | dict[str, object] |
 
 # System modules that must not be imported in a pure PTC MCP script.
 # Any script importing these modules will fall back to full human approval (PermissionAction.ASK).
-_DANGEROUS_MODULES = frozenset({
-    "os",
-    "subprocess",
-    "sys",
-    "socket",
-    "shutil",
-    "ctypes",
-    "pty",
-    "builtins",
-    "code",
-    "codeop",
-    "posix",
-    "nt",
-    "importlib",
-    "http.client",
-    "urllib.request",
-    "ftplib",
-    "telnetlib",
-    "smtplib",
-})
+_DANGEROUS_MODULES = frozenset(
+    {
+        "os",
+        "subprocess",
+        "sys",
+        "socket",
+        "shutil",
+        "ctypes",
+        "pty",
+        "builtins",
+        "code",
+        "codeop",
+        "posix",
+        "nt",
+        "importlib",
+        "http.client",
+        "urllib.request",
+        "ftplib",
+        "telnetlib",
+        "smtplib",
+    }
+)
 
 # Dangerous built-in function names that execute arbitrary code or bypass sandboxes.
-_DANGEROUS_CALLS = frozenset({
-    "eval",
-    "exec",
-    "__import__",
-    "open",
-    "compile",
-    "breakpoint",
-    "globals",
-    "locals",
-    "input",
-})
+_DANGEROUS_CALLS = frozenset(
+    {
+        "eval",
+        "exec",
+        "__import__",
+        "open",
+        "compile",
+        "breakpoint",
+        "globals",
+        "locals",
+        "input",
+    }
+)
 
 # Safe standard library modules permitted in scripts alongside skills/tools.
-_SAFE_STDLIB_MODULES = frozenset({
-    "json",
-    "math",
-    "re",
-    "datetime",
-    "typing",
-    "collections",
-    "itertools",
-    "functools",
-    "time",
-    "random",
-})
+_SAFE_STDLIB_MODULES = frozenset(
+    {
+        "json",
+        "math",
+        "re",
+        "datetime",
+        "typing",
+        "collections",
+        "itertools",
+        "functools",
+        "time",
+        "random",
+    }
+)
 
 
 def _verify_pure_ptc(tree: ast.Module) -> bool:
@@ -89,9 +95,7 @@ def _verify_pure_ptc(tree: ast.Module) -> bool:
             for alias in node.names:
                 mod_root = alias.name.split(".")[0]
                 if mod_root not in _SAFE_STDLIB_MODULES and not (
-                    alias.name.startswith("skills.")
-                    or alias.name.startswith("tools.")
-                    or alias.name.endswith("_skill")
+                    alias.name.startswith("skills.") or alias.name.startswith("tools.") or alias.name.endswith("_skill")
                 ):
                     return False
         elif isinstance(node, ast.ImportFrom):
