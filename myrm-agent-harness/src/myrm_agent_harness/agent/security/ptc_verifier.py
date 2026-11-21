@@ -181,9 +181,7 @@ def extract_ptc_intent(command: str) -> tuple[str, str, dict[str, PTCArgumentVal
                 if kw.arg:
                     try:
                         # Safely evaluate literals
-                        if isinstance(kw.value, ast.Constant):
-                            arguments[kw.arg] = kw.value.value
-                        elif isinstance(kw.value, (ast.List, ast.Dict, ast.Tuple, ast.Set)):
+                        if isinstance(kw.value, (ast.Constant, ast.List, ast.Dict, ast.Tuple, ast.Set)):
                             arguments[kw.arg] = ast.literal_eval(kw.value)
                     except Exception:
                         # Ignore non-literals or unparseable structures
