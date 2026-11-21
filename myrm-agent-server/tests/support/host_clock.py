@@ -9,9 +9,9 @@
   zone back on exit; a platform without ``time.tzset`` is left as it is
 
 [POS]
-pytest 专用辅助：被测代码必须把无偏移的时间读成 UTC 时，用它把进程时钟钉在东八区。宿主本身是 UTC 时，「读成本地时间」与
-「读成 UTC」答案相同，只有时钟不在 UTC 才分得出两种读法。harness 的测试带一份孪生
-（``myrm-agent-harness/tests/support/host_clock.py``）：改一处，改两处。
+Server pytest-only helper that holds the process clock at UTC+8 for the block it wraps, so a test of code that must read
+a time without an offset as UTC can tell that reading from the host's local time, which a UTC host cannot. The harness's
+tests keep a twin (``myrm-agent-harness/tests/support/host_clock.py``): change one, change both.
 """
 
 from __future__ import annotations
