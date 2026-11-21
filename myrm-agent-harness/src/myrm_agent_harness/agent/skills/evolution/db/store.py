@@ -9,6 +9,7 @@ Core properties:
 - WAL mode for concurrent reads
 - db_retry decorator for robustness
 - Async-safe write path
+- A multi-statement writer is one transaction: committed on success, rolled back on any exception
 
 [INPUT]
 - agent.skills.evolution.core.types::SkillLineage (POS: Data types for skill evolution system.)
@@ -59,7 +60,8 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
     """Simplified SQLite persistence for skill evolution.
 
     Architecture:
-    - Write: async method → asyncio.to_thread → _xxx_sync → self._mu lock → self._conn
+    - Write: async method → asyncio.to_thread → _xxx_sync → ``with self._mu, self._conn`` (the lock, then one
+      transaction that commits on success and rolls back on any exception, so a failed write leaves no rows behind)
     - Read: sync method → self._reader() → temporary read-only connection (WAL parallel)
     - Complex queries: inherited from SkillStoreQueries mixin
 
@@ -196,12 +198,11 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
     @db_retry()
     def _delete_skill_sync(self, skill_id: str) -> None:
         """Synchronous delete - called via asyncio.to_thread()."""
-        with self._mu:
+        with self._mu, self._conn:
             self._conn.execute("DELETE FROM skills WHERE skill_id = ?", (skill_id,))
             self._conn.execute("DELETE FROM evolution_rejections WHERE skill_id = ?", (skill_id,))
             self._conn.execute("DELETE FROM evolution_constraints WHERE skill_id = ?", (skill_id,))
             self._delete_skill_dependencies_locked(skill_id)
-            self._conn.commit()
 
     async def delete_skill(self, skill_id: str) -> None:
         """Delete a skill from the database.
@@ -269,7 +270,7 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
     @db_retry()
     def _save_skill_sync(self, record: SkillRecord) -> None:
         """Synchronous save - called via asyncio.to_thread()."""
-        with self._mu:
+        with self._mu, self._conn:
             self._conn.execute(
                 """
                 INSERT OR REPLACE INTO skills (
@@ -302,14 +303,13 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
                 ),
             )
             self._sync_skill_dependencies_locked(record)
-            self._conn.commit()
 
     @db_retry()
     def _save_skills_batch_sync(self, records: list[SkillRecord]) -> None:
         """Synchronous batch save - called via asyncio.to_thread()."""
         if not records:
             return
-        with self._mu:
+        with self._mu, self._conn:
             self._conn.executemany(
                 """
                 INSERT OR REPLACE INTO skills (
@@ -345,7 +345,6 @@ class SkillStore(SkillEvolutionTrackingMixin, SkillDependencyMixin, SkillStoreQu
                 ],
             )
             self._sync_skills_dependencies_locked(records)
-            self._conn.commit()
 
     async def save_skills_batch(self, records: list[SkillRecord]) -> None:
         """Save or update multiple skill records in a single transaction.
