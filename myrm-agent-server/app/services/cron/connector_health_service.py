@@ -2,7 +2,7 @@
 
 Aggregates connector delivery health across all active cron jobs and historical runs.
 Calculates error distributions, consecutive failure counts, and health statuses
-(HEALTHY, DEGRADED, DOWN) with actionable recovery suggestions and instant self-healing support.
+(HEALTHY, DEGRADED, DOWN) with actionable recovery suggestions.
 
 [INPUT]
 - myrm_agent_harness.toolkits.cron.engine.connector_health (POS: Domain error classification and redaction)
@@ -10,7 +10,7 @@ Calculates error distributions, consecutive failure counts, and health statuses
 
 [OUTPUT]
 - ConnectorHealthSummary: Aggregated health stats for a specific connector target
-- ConnectorHealthService: Business service to query and manage connector health states
+- ConnectorHealthService: Read-only service that aggregates delivery health per channel and redacted target
 
 [POS]
 Server business layer service for connector health perception and degradation observability.
@@ -86,7 +86,7 @@ class ConnectorHealthService:
 
         async with UnitOfWork() as uow:
             db = uow.session
-
+            assert db is not None
             # 1. Fetch all cron jobs that have a configured outbound delivery
             jobs_stmt = select(CronJobModel)
             jobs_res = await db.execute(jobs_stmt)
@@ -117,8 +117,8 @@ class ConnectorHealthService:
                     item_job_ids = connectors_map[key]["job_ids"]
                     if isinstance(item_job_ids, list):
                         item_job_ids.append(job.id)
-                    cur_cf = int(connectors_map[key]["consecutive_failures"])  # type: ignore[arg-type]
-                    if job.consecutive_failures > cur_cf:
+                    cur_cf = connectors_map[key]["consecutive_failures"]
+                    if isinstance(cur_cf, int) and job.consecutive_failures > cur_cf:
                         connectors_map[key]["consecutive_failures"] = job.consecutive_failures
                         connectors_map[key]["last_error"] = job.last_error
 
