@@ -86,7 +86,7 @@ const ConnectorHealthBadge = memo(function ConnectorHealthBadge({ job }: { job: 
   }
 
   const { labelKey, tone } = STATUS_STYLE[health.status];
-  // Read aloud, the verdict alone is just "Healthy"; the hidden prefix says what it is the verdict of.
+  // The pill sits apart from the label of its section, so the hidden prefix tells a screen reader what it is the verdict of.
   const verdictText = (
     <>
       <Activity aria-hidden="true" className="h-2.5 w-2.5" />
