@@ -8,10 +8,10 @@
  *
  * [POS]
  * Browser TTS engine. Voices markdown-stripped text through `window.speechSynthesis`;
- * without browser support every control is a no-op. The speech queue is page-wide, so an
- * instance cancels it (stop, unmount, replacing its own speech) and reacts to utterance
- * events only while it owns the current utterance; a row that is not speaking never cuts
- * off another.
+ * without browser support every control is a no-op. The speech queue is page-wide: `speak`
+ * takes it over whenever there is something to say, while stop, unmount and utterance
+ * events only concern the instance that owns the current utterance, so a row that is not
+ * speaking cannot cut off another by stopping, unmounting or having nothing to say.
  */
 
 'use client';

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, cleanup } from '@testing-library/react';
-import { useBrowserTTS } from '../tts/useBrowserTTS';
+import { useBrowserTTS } from '../useBrowserTTS';
 
 // The page has ONE speech queue shared by every hook instance (each message row mounts one). The fake queue models
 // what Chrome does on it: `cancel()` ends whatever is speaking at once, the interrupted utterance reports its error a
@@ -12,8 +12,6 @@ const SPEECH_MS = 400;
 
 class FakeUtterance {
   readonly text: string;
-  rate = 1;
-  lang = '';
   onstart: (() => void) | null = null;
   onend: (() => void) | null = null;
   onerror: (() => void) | null = null;
@@ -40,10 +38,6 @@ class FakeSpeechQueue {
       setTimeout(() => interrupted.onerror?.(), INTERRUPTION_REPORT_MS);
     }
   }
-
-  pause() {}
-
-  resume() {}
 
   private startNext() {
     if (this.current) {
