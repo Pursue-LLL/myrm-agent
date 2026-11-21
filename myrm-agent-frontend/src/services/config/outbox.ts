@@ -21,6 +21,10 @@
  * the keys it names and nothing else: accepted keys are acknowledged (merge base, cache, stored copy), clashing keys go
  * to the resolver, every other change stays queued. While the user is asked about a clash, newer edits of that key
  * wait for the answer and every other key keeps flowing.
+ *
+ * A change the backend did not take stays queued (and stored, for allowlisted keys) and is retried after a pause that
+ * doubles from 1 s up to a minute and starts over once the backend answers; `forceSync()` reports it as a failed
+ * result. A send nobody awaits that the backend refuses is logged by the send itself, never an unhandled rejection.
  */
 import { resolveConflicts } from './conflictResolution';
 import type { ConflictContext } from './conflictResolution';
@@ -38,6 +42,9 @@ import type { ConfigChange, ConfigKey, ConfigVersion, SyncResult, SyncStatus } f
 
 // 防抖延迟（毫秒）
 const SYNC_DEBOUNCE_MS = 1000;
+// 后端没接住的变更：重试间隔从 1 秒起每次翻倍，封顶 1 分钟；后端有应答即从头计。
+const RETRY_MIN_MS = 1000;
+const RETRY_MAX_MS = 60_000;
 
 export interface OutboxHost {
   context(): ConflictContext;
@@ -68,6 +75,8 @@ export class ConfigOutbox {
   /** 非白名单键的待重放变更：不允许留在浏览器存储里，只在内存里等待重放。 */
   private memoryOnlyOfflineChanges: ConfigChange[] = [];
   private syncDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+  private retryDelay = RETRY_MIN_MS;
   private onlineHandlerRegistered = false;
   /** The latest send in the chain: the next one starts when it ends. */
   private lastSend: Promise<unknown> = Promise.resolve();
@@ -75,7 +84,7 @@ export class ConfigOutbox {
   /** Keys whose clash with the server is being settled: their newer edits stay queued until it is. */
   private readonly clashing = new Set<ConfigKey>();
   private readonly handleOnline = (): void => {
-    void this.retryOfflineQueue();
+    this.background(this.retryOfflineQueue());
   };
 
   constructor(private readonly host: OutboxHost) {}
@@ -86,7 +95,7 @@ export class ConfigOutbox {
     if (immediate) {
       saveOfflineQueue(this.queue);
       this.cancelScheduledSync();
-      void this.flush();
+      this.background(this.flush());
       return;
     }
     this.scheduleSyncDebounced();
@@ -143,6 +152,10 @@ export class ConfigOutbox {
   /** 释放定时器与联网监听；未发出的变更随实例丢弃。 */
   dispose(): void {
     this.cancelScheduledSync();
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
     if (typeof window !== 'undefined') {
       window.removeEventListener('online', this.handleOnline);
     }
@@ -159,8 +172,25 @@ export class ConfigOutbox {
   private scheduleSyncDebounced(): void {
     this.cancelScheduledSync();
     this.syncDebounceTimer = setTimeout(() => {
-      void this.flush();
+      this.background(this.flush());
     }, SYNC_DEBOUNCE_MS);
+  }
+
+  /** A pending retry stands: a change the backend did not take is tried again after a growing pause. */
+  private scheduleRetry(): void {
+    if (this.retryTimer) {
+      return;
+    }
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      this.background(this.flush());
+    }, this.retryDelay);
+    this.retryDelay = Math.min(this.retryDelay * 2, RETRY_MAX_MS);
+  }
+
+  /** Runs a send nobody awaits: a refused write was logged where it was refused and must not end as an unhandled rejection. */
+  private background(task: Promise<unknown>): void {
+    task.catch(() => undefined);
   }
 
   private cancelScheduledSync(): void {
@@ -215,6 +245,9 @@ export class ConfigOutbox {
    * (`resolveClashes`) or, on a re-send, wait for the next flush; keys the answer does not name stay queued.
    */
   private async settle(batch: ConfigChange[], result: SyncResult, resolveClashes: boolean): Promise<void> {
+    if (!result.error) {
+      this.retryDelay = RETRY_MIN_MS;
+    }
     const clashed = new Set(result.conflicts);
     const accepted: ConfigChange[] = [];
     const rejected: ConfigChange[] = [];
@@ -257,7 +290,7 @@ export class ConfigOutbox {
   }
 
   /**
-   * Keeps changes the backend did not take: queued again, stored again (allowlisted keys), retried by the timer.
+   * Keeps changes the backend did not take: queued again, stored again (allowlisted keys), retried with backoff.
    * They go in front of the queue so a newer edit of the same key stays the latest.
    */
   private retain(changes: ConfigChange[]): void {
@@ -266,7 +299,7 @@ export class ConfigOutbox {
     }
     this.queue.unshift(...changes);
     saveOfflineQueue(changes);
-    this.scheduleSyncDebounced();
+    this.scheduleRetry();
   }
 
   /**

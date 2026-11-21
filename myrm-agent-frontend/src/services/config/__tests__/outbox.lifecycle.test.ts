@@ -1,6 +1,6 @@
 /**
- * Lifecycle of the sync layer's write path: the debounce timer and the online listener belong to one manager and are
- * released when it is disposed or when the singleton is reset.
+ * Lifecycle of the sync layer's write path: the debounce timer, the retry timer and the online listener belong to one
+ * manager and are released when it is disposed or when the singleton is reset.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,12 +23,15 @@ vi.mock('@/lib/guest', () => ({
 
 const okResponse = (body: unknown) => ({ ok: true, status: 200, json: () => Promise.resolve(body) }) as Response;
 
-/** A backend that holds no configuration and accepts every write; `posts` lists the writes it received. */
-function serveEmptyBackend() {
+/** A backend that holds no configuration and answers every write with `writeStatus`; `posts` lists the writes it received. */
+function serveEmptyBackend(writeStatus = 200) {
   const posts: unknown[] = [];
   global.fetch = vi.fn((_url: RequestInfo | URL, init?: RequestInit) => {
     if (init?.method === 'POST') {
       posts.push(JSON.parse(String(init.body)));
+      if (writeStatus !== 200) {
+        return Promise.resolve({ ok: false, status: writeStatus, json: () => Promise.resolve({}) } as Response);
+      }
       return Promise.resolve(okResponse({ success: true, conflicts: [], newVersions: { personalSettings: '1000_1' } }));
     }
     return Promise.resolve(okResponse({ configs: {} }));
@@ -61,6 +64,20 @@ describe('config outbox lifecycle', () => {
     await vi.advanceTimersByTimeAsync(5000);
 
     expect(posts).toHaveLength(0);
+  });
+
+  it('dispose drops the retry that waits for an unavailable backend to come back', async () => {
+    const { posts } = serveEmptyBackend(503);
+    const manager = new ConfigSyncManager();
+    await manager.initialize();
+    manager.set('personalSettings', editedSettings);
+    await manager.forceSync();
+    expect(posts).toHaveLength(1);
+
+    manager.dispose();
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(posts).toHaveLength(1);
   });
 
   it('resetConfigSyncManager releases the timers of the singleton it discards', async () => {
