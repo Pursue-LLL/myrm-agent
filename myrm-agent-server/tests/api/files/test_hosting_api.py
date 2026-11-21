@@ -157,7 +157,7 @@ async def test_make_default_hosting_target(hosting_client, db_session):
         db_session,
         [
             HostingTarget(id="t1", name="A", provider_type="vercel", config={}, is_default=True),
-            HostingTarget(id="t2", name="B", provider_type="netlify", config={}, is_default=False),
+            HostingTarget(id="t2", name="B", provider_type="http_webhook", config={}, is_default=False),
         ],
     )
     response = hosting_client.post("/hosting/targets/t2/make-default")

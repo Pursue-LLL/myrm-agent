@@ -85,12 +85,12 @@ async def test_artifact_publish_passes_password_to_orchestrator() -> None:
     default_target = HostingTarget(
         id="tgt-002",
         name="Encrypted Target",
-        provider_type="cloudflare_pages",
+        provider_type="http_webhook",
         is_default=True,
     )
     pub_result = PublicationResult(
         success=True,
-        url="https://secure.pages.dev",
+        url="https://secure.example.com",
         publication_id="pub-002",
         project_ref="proj-002",
         status="DEPLOYED",
@@ -127,7 +127,7 @@ async def test_artifact_publish_passes_password_to_orchestrator() -> None:
         )
 
     assert result["metadata"].get("error") is not True
-    assert "https://secure.pages.dev" in result["content"]
+    assert "https://secure.example.com" in result["content"]
     # Verify orchestrator was invoked with the exact password
     assert mock_publish.call_count == 1
     call_kwargs = mock_publish.call_args.kwargs

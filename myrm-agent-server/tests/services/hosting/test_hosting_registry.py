@@ -21,10 +21,14 @@ def test_get_hosting_provider_unsupported() -> None:
     ("provider_type", "expected"),
     [
         ("vercel", "vercel"),
-        ("cloudflare_pages", "cloudflare_pages"),
-        ("netlify", "netlify"),
         ("http_webhook", "http_webhook"),
     ],
 )
 def test_get_hosting_provider_all_types(provider_type: str, expected: str) -> None:
     assert get_hosting_provider(provider_type).provider_type == expected
+
+
+@pytest.mark.parametrize("provider_type", ["netlify", "cloudflare_pages"])
+def test_providers_without_a_working_integration_are_not_registered(provider_type: str) -> None:
+    with pytest.raises(ValueError, match="Unsupported hosting provider"):
+        get_hosting_provider(provider_type)

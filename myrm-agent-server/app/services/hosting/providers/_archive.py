@@ -7,7 +7,7 @@
 - build_provider_zip: build a ZIP archive from deployable publish files
 
 [POS]
-Hosting provider 层共享归档工具，供 http_webhook / cloudflare / netlify 复用。
+Hosting provider 层的 ZIP 归档工具，供 http_webhook 使用。
 """
 
 from __future__ import annotations

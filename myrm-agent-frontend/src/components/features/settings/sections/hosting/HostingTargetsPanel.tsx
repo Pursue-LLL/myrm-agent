@@ -17,22 +17,18 @@ import {
   type HostingTarget,
 } from '@/services/hosting';
 import { toast } from 'sonner';
-import { Cloud, Globe, Loader2, Plus, Radio, Trash2, Webhook, Zap } from 'lucide-react';
+import { Globe, Loader2, Plus, Radio, Trash2, Webhook, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils/classnameUtils';
 
-const PROVIDERS: HostingProviderType[] = ['vercel', 'cloudflare_pages', 'netlify', 'http_webhook'];
+const PROVIDERS: HostingProviderType[] = ['vercel', 'http_webhook'];
 
 const DEFAULT_NAMES: Record<HostingProviderType, string> = {
   vercel: 'Vercel',
-  cloudflare_pages: 'Cloudflare Pages',
-  netlify: 'Netlify',
   http_webhook: 'Custom Webhook',
 };
 
 const PROVIDER_ICONS: Record<HostingProviderType, React.ComponentType<{ className?: string }>> = {
   vercel: Zap,
-  cloudflare_pages: Cloud,
-  netlify: Globe,
   http_webhook: Webhook,
 };
 
@@ -52,13 +48,6 @@ function emptyDraft(provider: HostingProviderType): TargetDraft {
 
 function configFields(provider: HostingProviderType): Array<{ key: string; labelKey: string; secret?: boolean }> {
   switch (provider) {
-    case 'cloudflare_pages':
-      return [
-        { key: 'account_id', labelKey: 'cloudflareAccountId' },
-        { key: 'project_name', labelKey: 'cloudflareProjectName' },
-      ];
-    case 'netlify':
-      return [{ key: 'site_id', labelKey: 'netlifySiteId' }];
     case 'http_webhook':
       return [
         { key: 'webhook_url', labelKey: 'webhookUrl' },
@@ -73,10 +62,6 @@ function credentialFields(provider: HostingProviderType): Array<{ key: string; l
   switch (provider) {
     case 'vercel':
       return [{ key: 'token', labelKey: 'vercelToken' }];
-    case 'cloudflare_pages':
-      return [{ key: 'api_token', labelKey: 'cloudflareToken' }];
-    case 'netlify':
-      return [{ key: 'access_token', labelKey: 'netlifyToken' }];
     case 'http_webhook':
       return [
         { key: 'auth_header', labelKey: 'webhookAuthHeader' },
@@ -95,18 +80,27 @@ export default function HostingTargetsPanel() {
   const [drafts, setDrafts] = useState<Record<string, TargetDraft>>({});
   const [addProvider, setAddProvider] = useState<HostingProviderType>('vercel');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setTargets(await fetchHostingTargets());
-    } finally {
-      setLoading(false);
-    }
+  const refresh = useCallback(async () => {
+    setTargets(await fetchHostingTargets());
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    let active = true;
+    void fetchHostingTargets()
+      .then((loaded) => {
+        if (active) {
+          setTargets(loaded);
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const updateDraft = (targetId: string, patch: Partial<TargetDraft>) => {
     setDrafts((prev) => ({
@@ -134,7 +128,7 @@ export default function HostingTargetsPanel() {
         toast.error(t('saveFailed'));
         return;
       }
-      await load();
+      await refresh();
       toast.success(t('added'));
     } finally {
       setSaving(false);
@@ -168,7 +162,7 @@ export default function HostingTargetsPanel() {
         }
       }
       toast.success(t('saved'));
-      await load();
+      await refresh();
     } finally {
       setSaving(false);
     }
@@ -177,7 +171,7 @@ export default function HostingTargetsPanel() {
   const handleDelete = async (targetId: string) => {
     const ok = await deleteHostingTarget(targetId);
     if (ok) {
-      await load();
+      await refresh();
       toast.success(t('deleted'));
     } else {
       toast.error(t('deleteFailed'));
@@ -201,7 +195,7 @@ export default function HostingTargetsPanel() {
         toast.error(t('defaultUpdateFailed'));
         return;
       }
-      await load();
+      await refresh();
       toast.success(t('defaultUpdated'));
     } finally {
       setSaving(false);
@@ -367,7 +361,7 @@ export default function HostingTargetsPanel() {
 
       <div className="rounded-2xl border border-dashed border-border/80 bg-background/40 p-4 sm:p-5 space-y-4">
         <p className="text-sm font-medium text-foreground">{t('addTarget')}</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {PROVIDERS.map((provider) => {
             const Icon = PROVIDER_ICONS[provider];
             const selected = addProvider === provider;

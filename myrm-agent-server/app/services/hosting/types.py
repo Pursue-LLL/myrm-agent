@@ -6,15 +6,20 @@
 - dataclasses (POS: immutable value objects)
 
 [OUTPUT]
-- HostingTarget, PublicationResult, TargetCredentialStatus, ProviderType
+- HostingTarget, PublicationResult, TargetCredentialStatus, ProviderType, is_provider_type
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, TypeGuard, get_args
 
-ProviderType = Literal["vercel", "cloudflare_pages", "netlify", "http_webhook"]
+ProviderType = Literal["vercel", "http_webhook"]
+
+
+def is_provider_type(value: str) -> TypeGuard[ProviderType]:
+    """Whether *value* names a hosting provider this server can publish to."""
+    return value in get_args(ProviderType)
 
 
 @dataclass(frozen=True)
