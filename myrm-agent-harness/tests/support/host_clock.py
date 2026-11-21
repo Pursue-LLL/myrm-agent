@@ -9,9 +9,9 @@
   zone back on exit; a platform without ``time.tzset`` is left as it is
 
 [POS]
-Harness pytest-only helper for tests of code that must read a time without an offset as UTC. On a host already set to
-UTC, reading it as local time gives the same answer, so only a clock that is not at UTC tells the two readings apart.
-The server's tests keep a twin (``myrm-agent-server/tests/support/host_clock.py``): change one, change both.
+Harness pytest-only helper that holds the process clock at UTC+8 for the block it wraps, so a test of code that must
+read a time without an offset as UTC can tell that reading from the host's local time, which a UTC host cannot. The
+server's tests keep a twin (``myrm-agent-server/tests/support/host_clock.py``): change one, change both.
 """
 
 from __future__ import annotations
