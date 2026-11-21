@@ -7,7 +7,7 @@
 [OUTPUT]
 - policy_database: build the schema on a policy-running database that ``get_session()`` then hands out
 - hold_write_lock: a writer that keeps the write lock, uncommitted, until the caller lets go
-- PolicyDb.read_issued / wait_until: observe whether a unit has started reading
+- PolicyDb.read_issued / write_issued / wait_until: observe whether a unit has started reading or writing
 
 [POS]
 The plain ``sqlite+aiosqlite`` engines most fixtures use do not run the policy, so a write lost to SQLITE_BUSY_SNAPSHOT
@@ -44,6 +44,10 @@ class PolicyDb:
     def read_issued(self) -> bool:
         """Whether any session ran a SELECT since the last ``hold_write_lock``."""
         return any(statement.lstrip().upper().startswith("SELECT") for statement in self.statements)
+
+    def write_issued(self) -> bool:
+        """Whether any session ran an INSERT or UPDATE since the last ``hold_write_lock``."""
+        return any(statement.lstrip().upper().startswith(("INSERT", "UPDATE")) for statement in self.statements)
 
 
 def _set_sqlite_pragma(dbapi_conn: sqlite3.Connection, _record: object) -> None:
