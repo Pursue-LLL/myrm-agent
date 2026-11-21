@@ -81,9 +81,10 @@ def build_middlewares(
     """Build the full middleware chain for a BaseAgent.
 
     The ordering matters: model-call-cancel -> dedup -> dangling -> subagent-limit -> conflict-gate ->
-    interceptor -> approval -> approval-evaluation -> clarification-guard -> completion -> progress ->
-    goal-focus -> replan -> call-limits -> budget -> security -> user -> completion-directive ->
-    skill-attenuation -> json-args -> parallel-tool-calls (only when the engine sets it) -> view-guard -> debug.
+    interceptor -> guidance-delivery -> path-pin-guard -> approval -> approval-evaluation -> clarification-guard ->
+    completion -> progress -> goal-focus -> replan -> call-limits -> budget -> security -> user ->
+    completion-directive -> skill-attenuation -> json-args -> parallel-tool-calls (only when the engine sets it) ->
+    view-guard -> debug.
     The first middleware wraps every later model-call wrapper, so model-call-cancel sits first to cut a model request
     that is still in flight, retries and backoff waits of the wrappers inside it included, the moment the run is stopped.
     LangChain runs the ``after_model`` hooks from the last middleware to the first, so a model
@@ -95,7 +96,9 @@ def build_middlewares(
     The conflict gate sits outside the interceptor so a call's timeout does not run down while it waits for
     the calls it must not overlap, and in front of every other wrapper of tool calls so that every call of a
     model message reaches it: a call another wrapper answered first would never arrive, and the calls ordered
-    behind it would wait out the arrival grace. SkillAttenuationMiddleware resolves dynamic tools in its
+    behind it would wait out the arrival grace. The path-pin guard sits behind the gate, next to the tool: every call
+    that must run before it has finished when it looks, so a link an earlier call of the message made is visible to it.
+    SkillAttenuationMiddleware resolves dynamic tools in its
     awrap_tool_call, and the json-args middleware sits behind it so the tool it reads the schema of is the tool that
     will run; the completion directive sits innermost of the middlewares that rewrite the request, so the others
     append to the user's own message. The parallel-tool-calls setting goes on last of the model-call
@@ -106,6 +109,7 @@ def build_middlewares(
     from myrm_agent_harness.agent.middlewares.approval.guidance_delivery import (
         approval_guidance_delivery,
     )
+    from myrm_agent_harness.agent.middlewares.approval.path_pin_guard import path_pin_guard
     from myrm_agent_harness.agent.middlewares.clarification_guard_middleware import (
         ClarificationGuardMiddleware,
     )
@@ -139,6 +143,7 @@ def build_middlewares(
         ToolConflictGateMiddleware(),
         tool_interceptor_middleware,
         approval_guidance_delivery,
+        path_pin_guard,
         ToolApprovalMiddleware(),
         ApprovalEvaluationMiddleware(),
         ClarificationGuardMiddleware(),

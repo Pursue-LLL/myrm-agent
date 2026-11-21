@@ -9,7 +9,7 @@ so tooling that only needs to resolve a path safely does not pull protection pol
 - (none — stdlib only: os, platform, stat, pathlib)
 
 [OUTPUT]
-- DANGEROUS_PATHS: frozenset[str] — normalised dangerous root paths
+- DANGEROUS_PATHS: frozenset[str] — normalised dangerous root paths; FOLDS_CASE: bool — whether the host's default volumes ignore case
 - BLOCKED_DEVICE_NAMES: frozenset[str] — Windows reserved device names (enforced on Windows only)
 - MAX_PATH_LENGTH: int — maximum allowed path length (4096 bytes)
 - is_content_not_path(value) -> bool — disambiguates multiline/oversized text from filesystem path
@@ -37,6 +37,7 @@ from pathlib import Path
 __all__ = (
     "BLOCKED_DEVICE_NAMES",
     "DANGEROUS_PATHS",
+    "FOLDS_CASE",
     "MAX_PATH_LENGTH",
     "coerce_filesystem_path",
     "covers_dangerous_path",
@@ -108,13 +109,13 @@ Used by both ``types.PathPolicy`` (Layer 2.5) and
 """
 
 # The default macOS and Windows volumes ignore case: ``/users/me/.ssh`` is ``/Users/me/.ssh``. The dangerous-root
-# checks compare folded paths so another spelling cannot slip past them; on a case-sensitive volume that errs
-# toward refusing, never toward allowing.
-_FOLD_CASE = platform.system() in {"Darwin", "Windows"}
+# checks and the permission engine's rules that refuse or ask compare folded paths so another spelling cannot slip
+# past them; on a case-sensitive volume that errs toward refusing, never toward allowing.
+FOLDS_CASE = platform.system() in {"Darwin", "Windows"}
 
 
 def _fold(path: str) -> str:
-    return path.casefold() if _FOLD_CASE else path
+    return path.casefold() if FOLDS_CASE else path
 
 
 # ``COM¹``-``COM³`` and ``LPT¹``-``LPT³`` (superscript digits) are device names beside ``COM1``-``COM9`` and

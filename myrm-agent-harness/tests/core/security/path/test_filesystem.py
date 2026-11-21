@@ -106,7 +106,7 @@ class TestIsDangerousPath:
         assert is_dangerous_path("~/.aws/credentials") is True
 
     def test_another_spelling_is_dangerous_where_the_volume_ignores_case(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem._FOLD_CASE", True)
+        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem.FOLDS_CASE", True)
 
         assert is_dangerous_path("/ETC/passwd") is True
         assert is_dangerous_path(os.path.expanduser("~/.SSH/id_rsa")) is True
@@ -156,7 +156,7 @@ class TestCoversDangerousPath:
     def test_another_spelling_is_covered_where_the_volume_ignores_case(
         self, fake_home: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem._FOLD_CASE", True)
+        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem.FOLDS_CASE", True)
 
         assert covers_dangerous_path(str(fake_home).upper()) is True
         assert covers_dangerous_path(str(fake_home / "PROJ")) is False
@@ -164,7 +164,7 @@ class TestCoversDangerousPath:
     def test_case_is_significant_where_the_volume_tells_it_apart(
         self, fake_home: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem._FOLD_CASE", False)
+        monkeypatch.setattr("myrm_agent_harness.core.security.path.filesystem.FOLDS_CASE", False)
 
         assert covers_dangerous_path(str(fake_home).upper()) is False
 

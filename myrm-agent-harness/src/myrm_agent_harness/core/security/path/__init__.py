@@ -4,7 +4,7 @@ Seven modules, one responsibility each:
 
 - ``pattern``    — glob matcher engine (`*`/`?`/`**`/character classes, case-insensitive by default)
 - ``filesystem`` — generic path safety: dangerous roots, device names, home spelling, boundary, safe join, coercion
-- ``typed_path`` — the file a typed path opens: home spelling, workspace join, links followed
+- ``typed_path`` — the file a typed path opens: container alias, home spelling, workspace join, links followed
 - ``respelling`` — the on-disk name of a path typed with quotes, compatibility characters or decomposed accents
 - ``rules``      — protected-path policy: which files must not be touched, and the predicates that read the rules
 - ``bounded_read`` — text reads of untrusted files that cannot exhaust memory or block on a FIFO or device
@@ -26,11 +26,11 @@ bypass the predicates that carry the security policy.
 
 [OUTPUT]
 - is_dangerous_path, covers_dangerous_path, is_blocked_device_path, is_network_or_nt_path, network_path_refusal, expand_home, is_within_boundary, safe_join_path, coerce_filesystem_path, is_content_not_path
-- opened_path, find_existing_unicode_path
+- container_relative, opened_path, find_existing_unicode_path
 - read_text_bounded, BoundedRead, ReadRefusal
 - open_directory_beneath, ConfinedDirectory, UnsafeDirectoryError
 - is_sensitive_file, is_protected_instruction_file, is_evidence_readonly_file, is_executable_git_metadata_file
-- DANGEROUS_PATHS, BLOCKED_DEVICE_NAMES, MAX_PATH_LENGTH
+- DANGEROUS_PATHS, BLOCKED_DEVICE_NAMES, MAX_PATH_LENGTH, FOLDS_CASE
 - SENSITIVE_FILE_PATTERNS, PROTECTED_INSTRUCTION_PATTERNS, EVIDENCE_READONLY_PATTERNS
 - EXECUTABLE_GIT_METADATA, EXECUTABLE_GIT_METADATA_PATTERNS
 
@@ -61,6 +61,9 @@ from myrm_agent_harness.core.security.path.filesystem import (
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     DANGEROUS_PATHS as DANGEROUS_PATHS,
+)
+from myrm_agent_harness.core.security.path.filesystem import (
+    FOLDS_CASE as FOLDS_CASE,
 )
 from myrm_agent_harness.core.security.path.filesystem import (
     MAX_PATH_LENGTH as MAX_PATH_LENGTH,
@@ -126,6 +129,9 @@ from myrm_agent_harness.core.security.path.rules import (
     is_sensitive_file as is_sensitive_file,
 )
 from myrm_agent_harness.core.security.path.typed_path import (
+    container_relative as container_relative,
+)
+from myrm_agent_harness.core.security.path.typed_path import (
     opened_path as opened_path,
 )
 
@@ -135,6 +141,7 @@ __all__ = (
     "EVIDENCE_READONLY_PATTERNS",
     "EXECUTABLE_GIT_METADATA",
     "EXECUTABLE_GIT_METADATA_PATTERNS",
+    "FOLDS_CASE",
     "MAX_PATH_LENGTH",
     "PROTECTED_INSTRUCTION_PATTERNS",
     "SENSITIVE_FILE_PATTERNS",
@@ -143,6 +150,7 @@ __all__ = (
     "ReadRefusal",
     "UnsafeDirectoryError",
     "coerce_filesystem_path",
+    "container_relative",
     "covers_dangerous_path",
     "expand_home",
     "find_existing_unicode_path",

@@ -11,7 +11,8 @@ Design Philosophy:
 - Aligns with langchain/anthropic SDK best practices
 
 [INPUT]
-- (none)
+- core.context_vars::workspace_root_var (POS: Foundation ContextVar registry)
+- core.security.path::container_relative (POS: Aggregation facade for the path security domain)
 
 [OUTPUT]
 - WorkspaceResolutionError: Raised when workspace root cannot be resolved.
@@ -26,10 +27,9 @@ import os
 from pathlib import Path
 
 from myrm_agent_harness.core.context_vars import workspace_root_var
+from myrm_agent_harness.core.security.path import container_relative
 
 logger = logging.getLogger(__name__)
-
-_CONTAINER_ROOT = "/workspace"
 
 
 class WorkspaceResolutionError(Exception):
@@ -299,24 +299,12 @@ class WorkspacePathResolver:
 
         workspace_root = Path(workspace_root)
 
-        relative_path = WorkspacePathResolver.container_relative(container_path)
+        relative_path = container_relative(container_path)
         if relative_path is None:
             return Path(container_path)
         resolved_path = workspace_root / relative_path
         logger.info(f" Work dir resolved: {container_path} -> {resolved_path}")
         return resolved_path
-
-    @staticmethod
-    def container_relative(path: str) -> str | None:
-        """Return the part of *path* below ``/workspace`` (``.`` for the root itself), or None.
-
-        Matches whole path segments, so ``/workspace2/x`` is not a container path.
-        """
-        if path == _CONTAINER_ROOT:
-            return "."
-        if path.startswith(f"{_CONTAINER_ROOT}/"):
-            return path[len(_CONTAINER_ROOT) + 1 :].lstrip("/") or "."
-        return None
 
     @staticmethod
     def is_container_path(path: str) -> bool:
@@ -328,4 +316,4 @@ class WorkspacePathResolver:
         Returns:
             True if the path is ``/workspace`` or lies below it.
         """
-        return WorkspacePathResolver.container_relative(path) is not None
+        return container_relative(path) is not None

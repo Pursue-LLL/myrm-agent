@@ -5,6 +5,8 @@
   approval_reason::ApprovalReasonCode, CodedReason (POS: the unlisted-domain ASK carries a stable code)
   core.security.domain_match::host_matches (POS: one reading of the domain entries of a network list)
   judged_paths::judged_file_paths (POS: every file a file tool may open: the typed ones and the respelling of a read)
+  path_rules::ACTION_SEVERITY, PATH_CHECKED_PERMISSIONS, canonical_forms, check_tool_path_policy (POS: the zone verdict and the canonical places of a call's files)
+  core.security.path::FOLDS_CASE (POS: whether the host's default volumes ignore case; a refusing or asking file rule then covers any casing)
   core.security.tool_registry::URL_BEARING_PERMISSIONS, url_arg_error, url_arg_hosts (POS: the tools that take URLs, the canonical hosts of the URLs it names, and why a URL has no canonical form)
 
 [OUTPUT]
@@ -16,8 +18,8 @@
   cover every URL a network tool names; a domain outside the allowlist asks only when the browser navigates there,
   with a CodedReason.
   A command-bearing tool is judged command by command (see command_rules.py) when a
-  pattern rule could tell the commands of the line apart.
-- check_tool_path_policy(): strictest verdict over every file a file tool may open and the protected instruction files a shell command writes (engine and cron policy share it)
+  pattern rule could tell the commands of the line apart. A file is judged by the rules that name a place as typed
+  and where it lies, so no spelling of it dodges them.
 - check_capability(): test (permission, target) against a CapabilitySet
 - merge(): combine multiple rulesets
 - disabled_permissions(): find unconditionally denied permission types
@@ -32,7 +34,7 @@ batch_processor.py since it requires async I/O; this keeps the engine pure.
 
 from __future__ import annotations
 
-from fnmatch import fnmatch
+from fnmatch import fnmatch, fnmatchcase
 
 from myrm_agent_harness.agent.security.approval_reason import ApprovalReasonCode, CodedReason
 from myrm_agent_harness.agent.security.command_rules import (
@@ -42,6 +44,12 @@ from myrm_agent_harness.agent.security.command_rules import (
     judge_command,
 )
 from myrm_agent_harness.agent.security.judged_paths import judged_file_paths
+from myrm_agent_harness.agent.security.path_rules import (
+    ACTION_SEVERITY,
+    PATH_CHECKED_PERMISSIONS,
+    canonical_forms,
+    check_tool_path_policy,
+)
 from myrm_agent_harness.agent.security.types import (
     DEFAULT_CAPABILITIES,
     CapabilitySet,
@@ -51,6 +59,7 @@ from myrm_agent_harness.agent.security.types import (
     SecurityConfig,
 )
 from myrm_agent_harness.core.security.domain_match import host_matches
+from myrm_agent_harness.core.security.path import FOLDS_CASE
 from myrm_agent_harness.core.security.tool_registry import (
     URL_BEARING_PERMISSIONS,
     url_arg_error,
@@ -65,6 +74,23 @@ def _wildcard_match(value: str, pattern: str) -> bool:
     return fnmatch(value, pattern)
 
 
+def _target_matches(permission: str, rule: PermissionRule, target: str) -> bool:
+    """Whether a rule's pattern covers *target*.
+
+    On a volume that ignores case ``Private/a.md`` is the file ``private/a.md``, so a rule on a file that refuses or
+    asks covers it in any casing. A rule that allows covers only the casing it was written in: a respelling may
+    narrow what runs, never widen it.
+    """
+    if _wildcard_match(target, rule.pattern):
+        return True
+    return (
+        FOLDS_CASE
+        and permission in PATH_CHECKED_PERMISSIONS
+        and rule.action != PermissionAction.ALLOW
+        and fnmatchcase(target.casefold(), rule.pattern.casefold())
+    )
+
+
 def evaluate(permission: str, target: str, *rulesets: PermissionRuleset) -> PermissionRule:
     """Resolve the effective rule for a (permission, target) pair.
 
@@ -77,7 +103,7 @@ def evaluate(permission: str, target: str, *rulesets: PermissionRuleset) -> Perm
     merged = merge(*rulesets)
     match: PermissionRule | None = None
     for rule in merged:
-        if _wildcard_match(permission, rule.permission) and _wildcard_match(target, rule.pattern):
+        if _wildcard_match(permission, rule.permission) and _target_matches(permission, rule, target):
             match = rule
     return match or PermissionRule(permission, "*", PermissionAction.ASK)
 
@@ -107,12 +133,6 @@ def check_capability(permission: str, target: str, capabilities: CapabilitySet) 
 # Only a browser navigation asks about a domain outside the allowlist: a fetch only reads a page, and is held to the
 # blocklist and the ruleset.
 _DOMAIN_APPROVAL_PERMISSIONS: frozenset[str] = frozenset({"browser_navigate"})
-_PATH_CHECKED_PERMISSIONS: frozenset[str] = frozenset({"file_read", "file_write"})
-_ACTION_SEVERITY: dict[PermissionAction, int] = {
-    PermissionAction.ALLOW: 0,
-    PermissionAction.ASK: 1,
-    PermissionAction.DENY: 2,
-}
 
 
 def _check_url_syntax(permission: str, tool_input: dict[str, object]) -> tuple[PermissionAction | None, str]:
@@ -175,7 +195,7 @@ def _resolve_targets(
     Each file a file tool may open (``judged_file_paths``) and each host of a network tool, whatever the scheme
     or path of its URL; for any other tool the single ``_resolve_target`` target.
     """
-    if permission in _PATH_CHECKED_PERMISSIONS:
+    if permission in PATH_CHECKED_PERMISSIONS:
         return tuple(judged_file_paths(permission, tool_input, workspace_root)) or ("*",)
     if permission in URL_BEARING_PERMISSIONS:
         return url_arg_hosts(tool_input) or ("*",)
@@ -190,7 +210,7 @@ def _governing_rule(permission: str, target: str, ruleset: PermissionRuleset, to
             if (
                 rule.permission != "*"
                 and _wildcard_match(tool_name, rule.permission)
-                and _wildcard_match(target, rule.pattern)
+                and _target_matches(permission, rule, target)
             ):
                 specific = rule
         if specific is not None:
@@ -223,32 +243,6 @@ def _rule_decision(
     return resolve(target).action, True
 
 
-def check_tool_path_policy(
-    permission: str,
-    tool_input: dict[str, object],
-    config: SecurityConfig,
-    workspace_root: str | None,
-) -> tuple[PermissionAction, str] | None:
-    """Strictest verdict over what a call touches that needs a person; ``None`` if it touches nothing of the kind.
-
-    A file tool is judged by the zones (session grants included) of every file it may open (``judged_file_paths``),
-    a shell tool by whether its command writes a protected instruction file.
-    """
-    from myrm_agent_harness.agent.security.checks import check_command_protected_write, check_path_policy
-
-    paths = judged_file_paths(permission, tool_input, workspace_root) if permission in _PATH_CHECKED_PERMISSIONS else []
-    if not paths:
-        return check_command_protected_write(permission, tool_input)
-
-    from myrm_agent_harness.agent.security.session_access import merge_path_policy_with_session_access
-
-    policy = merge_path_policy_with_session_access(config.path_policy)
-    verdicts = [
-        check_path_policy(path, policy, workspace_root, require_write=permission == "file_write") for path in paths
-    ]
-    return max(verdicts, key=lambda verdict: _ACTION_SEVERITY[verdict[0]])
-
-
 def evaluate_tool_call(
     permission: str,
     tool_input: dict[str, object],
@@ -277,7 +271,8 @@ def evaluate_tool_call(
     2b2. Domain Blocklist → any URL of a network tool on the blocklist → DENY
     2c. Domain HITL → browser navigation to a domain not in the allowlist → ASK (when enabled)
     3. Path Policy → forbidden/allowed/workspace check (file_read/file_write); a shell command's write to a protected instruction file → ASK
-    4. Permission ruleset with target resolution → last-match-wins
+    4. Permission ruleset with target resolution → last-match-wins; a file is judged as typed and where it lies
+       (``canonical_forms``), the strictest verdict standing
     5. Risk classifier fallback → SAFE shell commands → ALLOW (shell_exec/code_interpreter)
     6. Fallback → ASK
 
@@ -311,11 +306,16 @@ def evaluate_tool_call(
     if block_action is not None:
         return block_action, block_reason
 
-    decisions = [
-        _rule_decision(permission, target, config.ruleset, tool_name)
-        for target in _resolve_targets(permission, tool_input, tool_name=tool_name, workspace_root=workspace_root)
-    ]
-    result_action, classifier_may_allow = max(decisions, key=lambda decision: _ACTION_SEVERITY[decision[0]])
+    targets = _resolve_targets(permission, tool_input, tool_name=tool_name, workspace_root=workspace_root)
+    decisions = [_rule_decision(permission, target, config.ruleset, tool_name) for target in targets]
+    if permission in PATH_CHECKED_PERMISSIONS:
+        # A rule that names a place matches the text it is given, yet a call can type one file in many ways, so the
+        # rules judge where the file lies too. A blanket rule names no place and has already judged the typed text.
+        for place in canonical_forms(targets, workspace_root):
+            rule = _governing_rule(permission, place, config.ruleset, tool_name)
+            if rule.pattern != "*":
+                decisions.append((rule.action, True))
+    result_action, classifier_may_allow = max(decisions, key=lambda decision: ACTION_SEVERITY[decision[0]])
 
     # Hardline rule: An explicit DENY from user/policy ruleset must never be weakened to ASK
     if result_action == PermissionAction.DENY:

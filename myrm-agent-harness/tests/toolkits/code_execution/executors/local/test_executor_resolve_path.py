@@ -5,11 +5,13 @@ whole path segments, a bare ``~`` is the user's home as the permission engine re
 expanded, and everything that resolves outside the workspace is refused.
 """
 
+import sys
 from pathlib import Path
 
 import pytest
 
 from myrm_agent_harness.core.context_vars import scoped_value, session_access_roots_var
+from myrm_agent_harness.core.security.path import opened_path
 from myrm_agent_harness.core.security.types import AccessRoot
 from myrm_agent_harness.toolkits.code_execution.config import ExecutionConfig
 from myrm_agent_harness.toolkits.code_execution.executors.local.executor import LocalExecutor
@@ -92,3 +94,33 @@ async def test_environment_variable_spelling_stays_a_workspace_path(executor, wo
     monkeypatch.setenv("MYRM_UP", "../elsewhere")
 
     assert await executor.resolve_path("$MYRM_UP/notes.txt") == str((workspace / "$MYRM_UP" / "notes.txt").resolve())
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(sys.platform == "win32", reason="links need privileges on Windows")
+@pytest.mark.parametrize(
+    "typed",
+    [
+        "/workspace",
+        "/workspace/src/app.py",
+        "/workspace//src/app.py",
+        "/workspace/notes.txt",
+        "src/app.py",
+        "./src/app.py",
+        "src/../src/app.py",
+        "notes.txt",
+        "notes.txt/",
+        "notes.txt//",
+        "$MYRM_UP/notes.txt",
+        "~backup/notes.txt",
+    ],
+)
+async def test_the_executor_opens_the_file_the_permission_engine_reads(executor, workspace, monkeypatch, typed):
+    # What a gate judges and what the tool opens are one file only if both read the typed text the same way.
+    monkeypatch.setenv("MYRM_UP", "../elsewhere")
+    (workspace / "src").mkdir()
+    (workspace / "src" / "app.py").write_text("print()")
+    (workspace / ".env").write_text("CANARY=1")
+    (workspace / "notes.txt").symlink_to(".env")
+
+    assert opened_path(typed, str(workspace)) == await executor.resolve_path(typed)

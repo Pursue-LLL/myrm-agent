@@ -12,7 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from myrm_agent_harness.agent.security.engine import check_tool_path_policy, evaluate_tool_call, merge
+from myrm_agent_harness.agent.security.engine import evaluate_tool_call, merge
+from myrm_agent_harness.agent.security.path_rules import check_tool_path_policy
 from myrm_agent_harness.agent.security.types import (
     DEFAULT_RULESET,
     PathPolicy,

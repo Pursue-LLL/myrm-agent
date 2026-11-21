@@ -210,6 +210,7 @@ BaseAgent (基础 Agent)
 │   ├─ ContextPipelineMiddleware (上下文管道)
 │   ├─ ApprovalEvaluationMiddleware (工具调用评估，只评估一次)
 │   ├─ ToolApprovalMiddleware (工具审批：向用户发问并落地决策)
+│   ├─ path_pin_guard (文件调用执行前复核：仍打开判定时的文件，否则不执行)
 │   └─ SecurityGuardrailMiddleware (安全护栏)
 │
 ├─ goals/ (目标引擎与状态机)

@@ -11,7 +11,7 @@ without an approval, so formatting after the write would run them on the host.
 - observers.base::FileOperationObserver (POS: Provides FileOperationObserver.)
 - utils.vault_scope::is_vault_markdown_path (POS: Scope detection for vault write guards — no server imports.)
 - toolkits.code_execution.executors.base::get_executor (POS: Code executor base classes.)
-- toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: Workspace path resolver with intelligent auto-detection.)
+- core.security.path::container_relative (POS: Aggregation facade for the path security domain)
 - agent.security.workspace_trust.provider::resolve_workspace_trust_level (POS: Harness-side indirection so agent runs resolve trust without importing server code.)
 - agent.security.workspace_trust.gate::blocks_workspace_side_channels (POS: Pure predicate layer of the workspace_trust gate; no persistence and no server calls.)
 
@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
+from myrm_agent_harness.core.security.path import container_relative
 
 from .base import FileOperationObserver
 
@@ -261,7 +261,7 @@ class FormatObserver(FileOperationObserver):
             from pathlib import Path as _Path
 
             wp = _Path(executor.workspace_path).resolve()
-            clean = WorkspacePathResolver.container_relative(path) or path
+            clean = container_relative(path) or path
             if not _Path(clean).is_absolute():
                 actual_path = str((wp / clean).resolve())
                 cwd = str(wp)

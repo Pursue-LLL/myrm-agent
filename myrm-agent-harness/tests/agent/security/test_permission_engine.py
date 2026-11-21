@@ -19,12 +19,12 @@ from myrm_agent_harness.agent.security.config import (
 from myrm_agent_harness.agent.security.engine import (
     _resolve_target,
     check_capability,
-    check_tool_path_policy,
     disabled_permissions,
     evaluate,
     evaluate_tool_call,
     merge,
 )
+from myrm_agent_harness.agent.security.path_rules import check_tool_path_policy
 from myrm_agent_harness.agent.security.types import (
     DEFAULT_CAPABILITIES,
     DEFAULT_RULESET,

@@ -48,7 +48,6 @@ from myrm_agent_harness.toolkits.code_execution.executors.shell_file_transfer im
     read_bytes_via_shell,
     write_bytes_via_shell,
 )
-from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
 logger = logging.getLogger(__name__)
 
@@ -253,8 +252,11 @@ class CodeExecutor(ABC):
         A network share or NT-namespace spelling is refused before anything resolves it: on Windows, resolving
         such a path connects to the host it names. A leading ``~`` is the user's home, the file the permission
         engine judged, not a directory called ``~`` in the workspace, so it meets the boundary like any absolute path.
+        The container alias ``/workspace`` is the workspace: ``core.security.path.opened_path`` reads it the same way,
+        so the engine judges the file this opens.
         """
         from myrm_agent_harness.core.security.path import (
+            container_relative,
             expand_home,
             is_network_or_nt_path,
             is_within_boundary,
@@ -266,7 +268,7 @@ class CodeExecutor(ABC):
 
         wp = Path(self.workspace_path).resolve()
 
-        clean = expand_home(WorkspacePathResolver.container_relative(relative_path) or relative_path)
+        clean = expand_home(container_relative(relative_path) or relative_path)
 
         if Path(clean).is_absolute():
             resolved = Path(clean).resolve()

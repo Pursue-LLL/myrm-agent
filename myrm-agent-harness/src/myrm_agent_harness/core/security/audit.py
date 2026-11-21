@@ -121,6 +121,7 @@ DecisionKind = Literal[
     # Middleware guards
     "GUARDRAIL_BLOCKED",
     "CLARIFICATION_GUARD_BLOCKED",
+    "PATH_MOVED_REJECT",
 ]
 
 # A name carrying one of these refused the action it was about, unless it is listed in _ESCALATIONS.

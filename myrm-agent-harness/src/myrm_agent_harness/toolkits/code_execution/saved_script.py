@@ -7,7 +7,7 @@ a workspace file, ``[cd <workspace root> &&] python[3] <script>.py``, and reads 
 arguments, pipes, other directories, env prefixes) is left to the shell, where its effects cannot be predicted.
 
 [INPUT]
-- utils.workspace_path::WorkspacePathResolver (POS: ``/workspace`` container paths <-> workspace-relative paths)
+- core.security.path::container_relative (POS: Aggregation facade for the path security domain)
 
 [OUTPUT]
 - MAX_SAVED_SCRIPT_BYTES: Largest script the host reads and embeds.
@@ -24,7 +24,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
+from myrm_agent_harness.core.security.path import container_relative
 
 MAX_SAVED_SCRIPT_BYTES = 256 * 1024
 """Scripts the model writes are a few KiB; the cap bounds the read and the code embedded in the launcher."""
@@ -91,7 +91,7 @@ def resolve_saved_script(command: str, workspace_root: str | None) -> SavedScrip
 
 def _locate(reference: str, root: Path) -> Path | None:
     """Resolve a path as typed, relative to the workspace root, to a real path inside it (else None)."""
-    below_container_root = WorkspacePathResolver.container_relative(reference)
+    below_container_root = container_relative(reference)
     if below_container_root is not None:
         candidate = root / below_container_root
     else:

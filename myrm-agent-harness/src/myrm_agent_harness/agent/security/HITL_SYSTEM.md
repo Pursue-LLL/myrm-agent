@@ -25,7 +25,7 @@
 当Agent单轮调用多个需审批工具时，系统自动合并为一次`interrupt()`，用户一次性决策所有工具。
 
 **实现机制**（两个 after_model 节点）：
-- `ApprovalEvaluationMiddleware.aafter_model()` 在工具执行前批量评估所有`tool_calls`，分类为：auto_approved、auto_denied、pending_approval，把结果存进私有检查点状态键 `approval_evaluation`
+- `ApprovalEvaluationMiddleware.aafter_model()` 在工具执行前批量评估所有`tool_calls`，分类为：auto_approved、auto_denied、pending_approval，把结果存进私有检查点状态键 `approval_evaluation`（同一次提交还带上 `approval_path_pins`，见下文「路径漂移防护」）
 - `ToolApprovalMiddleware.aafter_model()` 只读取该结果，对pending_approval列表一次性调用`interrupt()`（同步）
 - 分成两个节点是因为 LangGraph 在用户回答后把调用 `interrupt()` 的节点从第一行重跑；评估有副作用（审核模型调用、拒绝计数、限流），放在同一节点会跑两遍
 - Resume时按顺序处理decisions数组：批准的调用以批准（或编辑后）的形态留在AIMessage.tool_calls；被拒绝的调用也留着，由一条ToolMessage(error)回答（带用户的理由；审批超时则写明无人回答），模型因此读得到拒绝的原因
@@ -54,6 +54,10 @@
 - 支持系统级包装命令（`nohup`、`sudo`、`time` 等）穿透
 - 支持复合管道与子句切分（`cd ... && ...`）精准提取
 - 最大支持 64MB 文件摘要计算，防御内存爆盘与拒绝服务攻击
+
+### 5. 路径漂移防护（Path Pin）
+批准的是「这些路径所指的文件」；而同一条消息里排在前面的调用可以把其中一个路径换成指向别处的链接（先 `ln -s .env notes.txt`，再 `file_read notes.txt`）。评估节点在判定的同一次提交里，把每个文件调用写下的路径与它们当时打开的文件记进私有状态键 `approval_path_pins`（`approval/evaluation/pins.py`，键为 tool_call id，先于本条消息里任何调用的执行，审批暂停与恢复之间保持不变）；执行前 `approval/path_pin_guard.py` 复核：写下的路径没变，而现在打开的文件不在记下的文件之内，就不执行，以策略拒绝答复模型并写审计 `PATH_MOVED_REJECT`，模型在下一条消息里重发，按新调用重新判定。人在卡片上改过路径、或钩子改写过参数的调用，写下的路径已不是判定的那一份，不受此约束。
+- 边界：只覆盖同一条消息里由本框架自己的调用造成的变化；外部进程在判定与打开之间的竞争不在其内
 
 ---
 

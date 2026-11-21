@@ -162,26 +162,25 @@ if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
 
-class TestContainerRelative:
+class TestContainerPath:
     """``/workspace`` is matched by whole path segments, so look-alike directories are not aliased."""
 
     @pytest.mark.parametrize(
         ("path", "expected"),
         [
-            ("/workspace", "."),
-            ("/workspace/", "."),
-            ("/workspace/src/app.py", "src/app.py"),
-            ("/workspace//src/app.py", "src/app.py"),
-            ("/workspace2/src/app.py", None),
-            ("/workspaces/a", None),
-            ("workspace/src", None),
-            ("src/app.py", None),
-            ("/etc/passwd", None),
+            ("/workspace", True),
+            ("/workspace/", True),
+            ("/workspace/src/app.py", True),
+            ("/workspace//src/app.py", True),
+            ("/workspace2/src/app.py", False),
+            ("/workspaces/a", False),
+            ("workspace/src", False),
+            ("src/app.py", False),
+            ("/etc/passwd", False),
         ],
     )
-    def test_container_relative(self, path, expected):
-        assert WorkspacePathResolver.container_relative(path) == expected
-        assert WorkspacePathResolver.is_container_path(path) is (expected is not None)
+    def test_is_container_path(self, path, expected):
+        assert WorkspacePathResolver.is_container_path(path) is expected
 
     def test_to_local_path_keeps_double_slash_inside_workspace(self, tmp_path):
         assert WorkspacePathResolver.to_local_path("/workspace//x.txt", tmp_path) == tmp_path / "x.txt"

@@ -2,8 +2,8 @@
 
 [INPUT]
 - agent.security.command_rules::command_text (POS: The text a command-bearing tool runs: the one field of its input the tool executes.)
-- agent.security.engine::check_tool_path_policy (POS: Path-zone verdict shared with the permission engine.)
 - agent.security.guards.taint_tracker::TaintLabel, get_taint_tracker (POS: Session-scoped data-flow taint state.)
+- agent.security.path_rules::check_tool_path_policy (POS: the zone verdict and the canonical places of a call's files)
 - agent.security.types::DEFAULT_CAPABILITIES, PermissionAction, SecurityConfig (POS: Security type hierarchy.)
 - core.security.spend_governance::is_financial_or_spend_tool (POS: Foundational Agent Commerce governance module in core/security/.)
 - toolkits.code_execution.security.shell_command_analyzer::is_integration_mutation_command (POS: Detects integration write mutations in shell commands.)
@@ -30,8 +30,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from myrm_agent_harness.agent.security.command_rules import command_text
-from myrm_agent_harness.agent.security.engine import check_tool_path_policy
 from myrm_agent_harness.agent.security.guards.taint_tracker import TaintLabel, get_taint_tracker
+from myrm_agent_harness.agent.security.path_rules import check_tool_path_policy
 from myrm_agent_harness.agent.security.types import DEFAULT_CAPABILITIES, PermissionAction, SecurityConfig
 from myrm_agent_harness.core.security.spend_governance import is_financial_or_spend_tool
 from myrm_agent_harness.toolkits.code_execution.security.shell_command_analyzer import (

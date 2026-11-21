@@ -230,6 +230,19 @@ def test_check_path_policy_does_not_read_a_link_to_a_directory_as_a_credential_f
     assert reason == ""
 
 
+@POSIX_ONLY
+@pytest.mark.parametrize("separator", ["/", "//"], ids=["one-separator", "two-separators"])
+def test_check_path_policy_asks_for_a_link_to_a_credential_file_spelled_with_a_trailing_separator(
+    linked_workspace: Path, separator: str
+) -> None:
+    # The tools drop the separator and open the file the link leads to; only the file on disk says whether a
+    # trailing separator names a directory, never the text.
+    action, reason = check_path_policy(f"notes.txt{separator}", PathPolicy(), workspace_root=str(linked_workspace))
+
+    assert action == PermissionAction.ASK
+    assert "Sensitive file: .env" in reason
+
+
 def test_check_path_policy_does_not_read_a_workspace_directory_named_like_a_credential_file_as_one(
     tmp_path: Path,
 ) -> None:

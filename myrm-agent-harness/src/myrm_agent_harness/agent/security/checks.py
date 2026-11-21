@@ -8,7 +8,6 @@ All checks are functions without side effects; the only I/O is the read-only res
 - command_rules::COMMAND_BEARING_PERMISSIONS, command_text (POS: the permission types whose tool input carries command text, and the text the tool runs)
 - path_security (POS: protected-file, sensitive-file, boundary and network-path predicates, and the file a typed path opens)
 - types::PathPolicy, PermissionAction (POS: the path zones and the verdict vocabulary)
-- toolkits.code_execution.utils.workspace_path::WorkspacePathResolver (POS: workspace-relative path resolution)
 - toolkits.code_execution.code_detector::runs_as_python (POS: whether the bash tool runs a command as Python or as shell)
 - toolkits.code_execution.security.shell_command_analyzer::PROTECTED_WRITE_CATEGORY, ThreatLevel, analyze_command, analyze_hidden_characters (POS: threat layers)
 - toolkits.code_execution.security.protected_instruction_command::protected_instruction_mutation_target (POS: the shell-side reading of the protected instruction files)
@@ -43,7 +42,6 @@ from myrm_agent_harness.agent.security.path_security import (
     opened_path,
 )
 from myrm_agent_harness.agent.security.types import PathPolicy, PermissionAction
-from myrm_agent_harness.toolkits.code_execution.utils.workspace_path import WorkspacePathResolver
 
 # ---------------------------------------------------------------------------
 # Path Policy — forbidden/access path zones for file operations (Layer 2.5)
@@ -81,16 +79,13 @@ def check_path_policy(
     Returns (ASK, reason) for a sensitive file (credentials, env files) in an allowed zone, whether the path names
     it or a link in the path leads to it.
     Every ASK reason is a ``CodedReason``, so the approval card can word it in the viewer's language.
-    The path is read as the file tools open it (a bare ``~`` is the user's home, nothing else is expanded); a relative
-    path is resolved against workspace_root when available.
+    The path is read as the file tools open it (with a workspace known, ``/workspace/x`` is ``<workspace>/x``; a bare
+    ``~`` is the user's home, nothing else is expanded); a relative path is resolved against workspace_root when
+    available.
     """
     if is_network_or_nt_path(raw_path):
         return PermissionAction.DENY, network_path_refusal(raw_path)
 
-    # The executor reads ``/workspace/x`` as ``<workspace>/x``; judge the same file the tool will touch.
-    container_relative = WorkspacePathResolver.container_relative(raw_path) if workspace_root else None
-    if container_relative is not None:
-        raw_path = container_relative
     normalized = opened_path(raw_path, workspace_root)
     if normalized is None:
         # ``!r`` keeps the reason encodable: the text holds a NUL byte or a lone surrogate.
@@ -167,11 +162,12 @@ def _sensitive_form(raw_path: str, normalized: str) -> str | None:
     ``notes.txt -> .env`` is the credential file whatever it is called, so the resolved path is judged beside the
     typed one, as it already is for the protected instruction and git metadata files. A directory is no credential
     file however it is named (``conf -> .env.d/``, a workspace called ``.envs``), so the resolved form counts only
-    when it names a file; the typed form is read as written.
+    when it names a file; the typed form is read as written. Only the disk says whether the resolved path is a
+    directory: the tools drop a trailing separator and open the same file, so one in the text proves nothing.
     """
     if is_sensitive_file(raw_path):
         return raw_path
-    if is_sensitive_file(normalized) and not (raw_path.endswith(("/", "\\")) or os.path.isdir(normalized)):
+    if is_sensitive_file(normalized) and not os.path.isdir(normalized):
         return normalized
     return None
 
