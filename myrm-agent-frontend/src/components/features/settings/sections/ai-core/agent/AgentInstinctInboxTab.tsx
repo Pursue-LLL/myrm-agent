@@ -2,11 +2,12 @@
 
 /**
  * [INPUT] services/skill::listSkillDrafts, approveSkillDraft, rejectSkillDraft (POS: Skill drafts HTTP client)
- * [OUTPUT] AgentInstinctInboxTab: per-agent Agent Draft Inbox panel
+ * [OUTPUT] AgentInstinctInboxTab: per-agent Agent Draft Inbox panel; an approval the server could not write is reported with
+ *          the server's reason instead of as a success
  * [POS] Agent 设置「洞察」tab。审阅后台 growth drafts，不经过全局 ApprovalDrawer。
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Sparkles, Check, X, Clock } from 'lucide-react';
 import { Button } from '@/components/primitives/button';
@@ -22,25 +23,42 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
   const t = useTranslations('agent.instinctInbox');
   const [drafts, setDrafts] = useState<SkillDraft[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadCount, setReloadCount] = useState(0);
+  const [listedAgentId, setListedAgentId] = useState(agentId);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const fetchDrafts = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await listSkillDrafts('PENDING_REVIEW', 100);
-      // Filter drafts relevant to this agent (or default if this is the default agent)
-      const relevantDrafts = res.drafts.filter((d) => !agentId || d.agent_id === agentId || d.agent_id === 'default');
-      setDrafts(relevantDrafts);
-    } catch (e) {
-      console.error('Failed to fetch drafts:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [agentId]);
+  // Another agent's inbox opens on the placeholder instead of on the previous agent's drafts.
+  if (listedAgentId !== agentId) {
+    setListedAgentId(agentId);
+    setLoading(true);
+  }
 
   useEffect(() => {
-    fetchDrafts();
-  }, [fetchDrafts]);
+    // A newer request (agent switch, reload after an action) makes this one's answer stale.
+    let stale = false;
+    listSkillDrafts('PENDING_REVIEW', 100)
+      .then((res) => {
+        if (!stale) {
+          // Filter drafts relevant to this agent (or default if this is the default agent)
+          setDrafts(res.drafts.filter((d) => !agentId || d.agent_id === agentId || d.agent_id === 'default'));
+        }
+      })
+      .catch((e) => console.error('Failed to fetch drafts:', e))
+      .finally(() => {
+        if (!stale) {
+          setLoading(false);
+        }
+      });
+    return () => {
+      stale = true;
+    };
+  }, [agentId, reloadCount]);
+
+  // An action refetches behind the placeholder; the placeholder is raised here because an effect would need a second render for it.
+  const reloadDrafts = () => {
+    setLoading(true);
+    setReloadCount((count) => count + 1);
+  };
 
   const handleApprove = async (draft: SkillDraft) => {
     if (processingId) {
@@ -48,9 +66,14 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
     }
     try {
       setProcessingId(draft.id);
-      await approveSkillDraft(draft.id, draft.name || undefined, draft.agent_id || agentId || undefined);
-      toast({ title: t('approveSuccess') });
-      await fetchDrafts();
+      const result = await approveSkillDraft(draft.id, draft.name || undefined, draft.agent_id || agentId || undefined);
+      if (result.materialized === false) {
+        // The server puts a draft it could not write back to review, so the card returns and the reason is all the user gets.
+        toast({ title: t('approveFailed'), description: result.error, variant: 'destructive' });
+      } else {
+        toast({ title: t('approveSuccess') });
+      }
+      reloadDrafts();
     } catch (e) {
       console.error(e);
       toast({ title: t('approveFailed'), variant: 'destructive' });
@@ -67,7 +90,7 @@ export function AgentInstinctInboxTab({ agentId, readonly }: AgentInstinctInboxT
       setProcessingId(draft.id);
       await rejectSkillDraft(draft.id);
       toast({ title: t('rejectSuccess') });
-      await fetchDrafts();
+      reloadDrafts();
     } catch (e) {
       console.error(e);
       toast({ title: t('rejectFailed'), variant: 'destructive' });

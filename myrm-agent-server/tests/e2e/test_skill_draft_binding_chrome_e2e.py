@@ -16,6 +16,8 @@
 - test_a_draft_that_cannot_be_written_goes_back_to_review_and_can_be_approved_again: approving a draft whose name no
   skill can have is answered as not materialized, the draft is pending again with no resolution time and nothing is
   bound or enabled, and approving it again under a valid name writes and binds the skill
+- test_a_refused_approval_in_the_inbox_says_why_and_keeps_the_draft: the Approve click on the card of such a draft
+  shows the reason the server gave, and the card stays in the inbox with the draft still pending
 
 [POS]
 The reviewer model's output is the one input a test cannot choose, so review results are fed through the production
@@ -26,6 +28,7 @@ the concurrent approvals are each sent once, so a contention failure is seen and
 
 from __future__ import annotations
 
+import json
 import threading
 import urllib.parse
 import uuid
@@ -59,6 +62,24 @@ _AGENTS = "/api/v1/user-agents"
 _MARKER_BEFORE = "marker-before-approval"
 _MARKER_APPROVED = "marker-written-by-approval"
 _APPROVED_AT_ONCE = 5
+
+# The failure toast carries the server's reason but stays on screen for a few seconds only, so the page records it the
+# moment it appears instead of leaving it to a poll that browser work queued up behind other sessions could miss.
+_REFUSAL_WATCH_JS = """(() => {
+  window.__inboxRefusalSeen = false;
+  new MutationObserver(() => {
+    if ((document.body.textContent || '').includes(__REASON__)) window.__inboxRefusalSeen = true;
+  }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  return { armed: true };
+})()"""
+
+# Once the refusal was recorded, the draft's own card is still listed.
+_REFUSAL_SHOWN_JS = """(() => {
+  const names = Array.from(document.querySelectorAll('[data-testid="instinct-draft-card"]')).map(
+    (node) => node.getAttribute('data-draft-name') || ''
+  );
+  return { ready: window.__inboxRefusalSeen === true && names.includes(__NAME__), names };
+})()"""
 
 
 def _agent_skill_ids(api_url: str, agent_id: str) -> list[str]:
@@ -242,3 +263,35 @@ def test_a_draft_that_cannot_be_written_goes_back_to_review_and_can_be_approved_
         assert _MARKER_APPROVED in _fetch_skill_md(api_url, new_skill_id)
         assert set(_drafts_of(api_url, agent_id, "APPROVED")) == {unwritable}
         assert _drafts_of(api_url, agent_id, "PENDING_REVIEW") == {}
+
+
+@pytest.mark.chrome_e2e(execution_mode="SHARED", access_scope="NAMESPACE_WRITE", workload="STANDARD")
+@pytest.mark.e2e_search_policy("empty")
+@pytest.mark.integration
+@pytest.mark.timeout(300)
+def test_a_refused_approval_in_the_inbox_says_why_and_keeps_the_draft() -> None:
+    api_url = get_e2e_api_url()
+    suffix = uuid.uuid4().hex[:8]
+    unwritable = f"9-unwritable-{suffix}"  # a skill name has to start with a letter
+    with _owned_agent(api_url, suffix) as agent_id:
+        bound_before = _agent_skill_ids(api_url, agent_id)
+        _feed_review_result(api_url, unwritable, agent_id)
+        draft_id = str(_drafts_of(api_url, agent_id, "PENDING_REVIEW")[unwritable]["id"])
+        # A refused approval puts the draft back, so asking once through the API gives the reason without changing it.
+        reason = _approve(api_url, draft_id).get("error")
+        assert isinstance(reason, str) and reason, reason
+
+        route = f"/settings/agents?agentId={agent_id}"
+        page_url = f"{get_e2e_ui_url().rstrip('/')}{route}"
+        with open_settings_subroute(route) as (client, page):
+            wait_for_state(client, page, _script(_CARD_SHOWN_JS, unwritable), timeout_sec=120.0, page_url=page_url)
+            armed = client.evaluate(page, _REFUSAL_WATCH_JS.replace("__REASON__", json.dumps(reason)), timeout_sec=5.0)
+            assert isinstance(armed, dict) and armed.get("armed") is True, armed
+            clicked = client.evaluate(page, _script(_APPROVE_CLICK_JS, unwritable), timeout_sec=5.0)
+            assert isinstance(clicked, dict) and clicked.get("clicked") is True, clicked
+            wait_for_state(client, page, _script(_REFUSAL_SHOWN_JS, unwritable), timeout_sec=60.0, page_url=page_url)
+
+        pending = _drafts_of(api_url, agent_id, "PENDING_REVIEW")
+        assert set(pending) == {unwritable}, sorted(pending)
+        assert pending[unwritable]["reviewed_at"] is None, pending[unwritable]
+        assert _agent_skill_ids(api_url, agent_id) == bound_before
