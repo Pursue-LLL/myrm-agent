@@ -304,6 +304,42 @@ describe('ChannelBudgetSection add form', () => {
 
     expect(screen.getByDisplayValue('2')).toBeInTheDocument();
   });
+
+  it('keeps the form open, with what was typed, when the new channel is rejected', async () => {
+    vi.mocked(createChannelBudget).mockRejectedValue(new Error('refused'));
+    const user = userEvent.setup();
+    const limitInput = await openAddForm(user);
+
+    await user.tripleClick(limitInput);
+    await user.keyboard('4');
+    await user.type(screen.getByPlaceholderText('labelPlaceholder'), 'Ops');
+    await user.click(screen.getByRole('button', { name: 'save' }));
+
+    await waitFor(() => expect(createChannelBudget).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'save' })).toBeEnabled());
+    expect(screen.getByPlaceholderText('channelKeyPlaceholder')).toHaveValue(CHANNEL_KEY);
+    expect(screen.getByPlaceholderText('labelPlaceholder')).toHaveValue('Ops');
+    expect(limitInput.value).toBe('4');
+  });
+
+  it('closes the form only once the list has been read back with the new channel', async () => {
+    const readBack = deferred<ChannelBudgetsResponse>();
+    const user = userEvent.setup();
+    const limitInput = await openAddForm(user);
+    vi.mocked(getChannelBudgets).mockReturnValueOnce(readBack.promise);
+
+    await user.click(screen.getByRole('button', { name: 'save' }));
+    await waitFor(() => expect(getChannelBudgets).toHaveBeenCalledTimes(2));
+    expect(limitInput).toBeInTheDocument();
+
+    await act(async () => {
+      readBack.resolve({ policies: [policyOf(2)], statuses: [channelStatus(0)] });
+      await nextTick();
+    });
+
+    expect(screen.queryByPlaceholderText('channelKeyPlaceholder')).toBeNull();
+    expect(screen.getByText(CHANNEL_KEY)).toBeInTheDocument();
+  });
 });
 
 describe('ChannelBudgetSection limit boxes', () => {

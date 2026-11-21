@@ -70,6 +70,9 @@ const saveLimit = (box: HTMLElement, typed: string) => {
   fireEvent.blur(box);
 };
 
+/** The placeholders of a list that is loading are the only pulsing skeletons the panel draws. */
+const placeholderCount = (root: HTMLElement) => root.querySelectorAll('.animate-pulse').length;
+
 describe('ChannelBudgetSection loading the list', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -112,6 +115,47 @@ describe('ChannelBudgetSection loading the list', () => {
 
     expect(await screen.findByText('loadFailedStaleDesc')).toBeInTheDocument();
     expect(screen.getByRole('spinbutton', { name: 'dailyLimit' })).toBeInTheDocument();
+  });
+
+  it('shows placeholders, not the failure notice, while Retry loads again', async () => {
+    const retryLoad = deferred<ChannelBudgetsResponse>();
+    vi.mocked(getChannelBudgets).mockRejectedValueOnce(new Error('offline')).mockReturnValueOnce(retryLoad.promise);
+
+    const { container } = render(<ChannelBudgetSection />);
+    fireEvent.click(await screen.findByRole('button', { name: 'retry' }));
+
+    expect(screen.queryByText('loadFailedTitle')).toBeNull();
+    expect(placeholderCount(container)).toBeGreaterThan(0);
+
+    await act(async () => {
+      retryLoad.resolve(oneChannel(2));
+      await nextTick();
+    });
+    expect(placeholderCount(container)).toBe(0);
+    expect(screen.getByRole('spinbutton', { name: 'dailyLimit' })).toBeInTheDocument();
+  });
+
+  it('keeps the list and draws no placeholders while Retry loads again after a failed read-back', async () => {
+    const retryLoad = deferred<ChannelBudgetsResponse>();
+    vi.mocked(getChannelBudgets)
+      .mockResolvedValueOnce(oneChannel(2))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockReturnValueOnce(retryLoad.promise);
+    vi.mocked(updateChannelBudget).mockResolvedValue(policyOf(5));
+
+    const { container } = render(<ChannelBudgetSection />);
+    saveLimit(await screen.findByRole('spinbutton', { name: 'dailyLimit' }), '5');
+    fireEvent.click(await screen.findByRole('button', { name: 'retry' }));
+
+    expect(screen.getByRole('spinbutton', { name: 'dailyLimit' })).toBeInTheDocument();
+    expect(screen.queryByText('loadFailedTitle')).toBeNull();
+    expect(placeholderCount(container)).toBe(0);
+
+    await act(async () => {
+      retryLoad.resolve(oneChannel(5));
+      await nextTick();
+    });
+    expect(screen.getByRole('spinbutton', { name: 'dailyLimit' })).toHaveValue(5);
   });
 });
 
@@ -172,6 +216,24 @@ describe('ChannelBudgetSection read-backs in flight together', () => {
 
     expect(screen.queryByText('loadFailedTitle')).toBeNull();
     expect(screen.getByRole('spinbutton', { name: 'dailyLimit' })).toHaveValue(7);
+  });
+
+  it('keeps the notice of a newer read-back that failed when an older one answers later', async () => {
+    await saveTwice();
+
+    await act(async () => {
+      newerReadBack.reject(new Error('offline'));
+      await nextTick();
+    });
+    expect(screen.getByText('loadFailedStaleDesc')).toBeInTheDocument();
+
+    await act(async () => {
+      olderReadBack.resolve(oneChannel(5));
+      await nextTick();
+    });
+
+    expect(screen.getByText('loadFailedStaleDesc')).toBeInTheDocument();
+    expect(screen.getByRole('spinbutton', { name: 'dailyLimit' })).toHaveValue(2);
   });
 });
 
@@ -256,6 +318,32 @@ describe('ChannelBudgetSection saves in flight together', () => {
       await nextTick();
     });
     expect(firstTrash).toBeEnabled();
+  });
+
+  it('keeps a channel busy until both of its overlapping saves have settled', async () => {
+    const limitSave = deferred<ChannelBudgetPolicy>();
+    const switchSave = deferred<ChannelBudgetPolicy>();
+    vi.mocked(getChannelBudgets).mockResolvedValue(oneChannel(2));
+    vi.mocked(updateChannelBudget).mockReturnValueOnce(limitSave.promise).mockReturnValueOnce(switchSave.promise);
+
+    render(<ChannelBudgetSection />);
+    const limitBox = await screen.findByRole('spinbutton', { name: 'dailyLimit' });
+    const trash = screen.getByRole('button', { name: 'delete' });
+    saveLimit(limitBox, '3');
+    fireEvent.click(screen.getByRole('switch', { name: 'enabled' }));
+    expect(trash).toBeDisabled();
+
+    await act(async () => {
+      limitSave.resolve(policyOf(3));
+      await nextTick();
+    });
+    expect(trash).toBeDisabled();
+
+    await act(async () => {
+      switchSave.resolve({ ...policyOf(3), enabled: false });
+      await nextTick();
+    });
+    expect(trash).toBeEnabled();
   });
 
   it('keeps Save of the add form off while its own request is in flight, even when a channel save settles', async () => {
